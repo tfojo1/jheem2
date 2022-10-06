@@ -1,0 +1,11 @@
+Package: applied.jheem
+Type: Package
+Title: Code to set up and run simulations using the JHEEM Engine
+Version: 1.0
+Date: 2022-10-06
+Author: Anthony Fojo
+Maintainer: Anthony Fojo <anthony.fojo@jhmi.edu>
+Description: One paragraph description of what the package does as one or more full sentences.
+License: GPL (>= 2)
+Imports: Rcpp (>= 1.0.9)
+LinkingTo: Rcpp
