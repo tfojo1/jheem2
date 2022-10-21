@@ -54,8 +54,11 @@ get.years.for.year.value <- function(surveillance.manager,
             val = suppressWarnings(as.numeric(dash.split))
             #If all results are not NA
             if (!any(is.na(val))) {
-
-                rv = sort ( val[1]:val[length(val)] ) 
+                val = val[1]:val[length(val)]
+                vec_diff = diff(val)
+                if (all(vec_diff == 1) || all(vec_diff == -1)) {
+                    rv = val
+                }
             }
         } else {
             # We have a vector of character years
@@ -64,8 +67,8 @@ get.years.for.year.value <- function(surveillance.manager,
             if (!any(is.na(years))) {
                 # We have a valid list of numbers
                 # Check if consequtive:
-                years = sort (years)
-                if (all(diff(years) == 1)) {
+                vec_diff = diff(years)
+                if (all(vec_diff == 1) || all(vec_diff == -1)) {
                     # If so, we're done
                     rv = years
                 }
@@ -74,9 +77,10 @@ get.years.for.year.value <- function(surveillance.manager,
     } 
     # Double or Integer?
     else if (type == "double" || type == "integer") {
-        years = sort ( year.value )
-        if (all(diff(years) == 1)) {
-            rv = years
+        #years = sort ( year.value )
+        vec_diff = diff(year.value)
+        if (all(vec_diff == 1) || all(vec_diff == -1)) {
+            rv = year.value
         }
     }
     # List?

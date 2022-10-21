@@ -22,7 +22,7 @@ assert ("3. Valid date range 2018-2020", x == c(2018,2019,2020))
 
 #Test 4
 x = get.years.for.year.value(NA, "2020-2018")
-assert ("4. Valid inverted date range 2020-2018", x == c(2018, 2019, 2020))
+assert ("4. Valid inverted date range 2020-2018", x == c(2020, 2019, 2018))
 
 #Test 5
 x = get.years.for.year.value(NA, "2020-2020")
