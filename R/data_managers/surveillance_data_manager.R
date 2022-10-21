@@ -36,8 +36,9 @@ get.years.for.year.value <- function(surveillance.manager,
     # If this function is unable to determine what years are being
     # asked for it will return NA
 
-    # We only allow consequtive years; we assume that the numbers themselves
-    # are valid years, and we allow both integers and doubles
+    # We only allow consequtive years, but we allow forwards or backwards.
+    # We assume that the numbers themselves are valid years, and we allow 
+    # both integers and doubles
 
     entry.length <- length(year.value)
     type <- typeof(year.value)
@@ -49,24 +50,13 @@ get.years.for.year.value <- function(surveillance.manager,
             # One String
             # Split on -
             dash.split = str_split(year.value, "-")[[1]]
-            dash.split.length = length(dash.split)
-            if (dash.split.length == 1) {
-                # At this point we are reasonably sure it's a single year,
-                # Let's try to return it.  Will return NA if not valid.
-                rv = c(suppressWarnings(as.numeric(year.value)))
-            } else if (dash.split.length == 2) {
-                # There is only one dash, we have a date range
-                years = suppressWarnings(as.numeric(dash.split))
-                if (!any(is.na(years))) {
-                    # We have valid years for both entries
-                    # Check if the first year is less than or equal to the second
-                    if (years[1] <= years[2]) {
-                        rv = years[1]:years[2]
-                    }
-                }
-            } 
-            # If dash split length is greater than 2, we have an 
-            # invalid range
+            #Convert the resulting 1+ sized vector to numeric
+            val = suppressWarnings(as.numeric(dash.split))
+            #If all results are not NA
+            if (!any(is.na(val))) {
+
+                rv = sort ( val[1]:val[length(val)] ) 
+            }
         } else {
             # We have a vector of character years
             # Check if numeric
@@ -74,6 +64,7 @@ get.years.for.year.value <- function(surveillance.manager,
             if (!any(is.na(years))) {
                 # We have a valid list of numbers
                 # Check if consequtive:
+                years = sort (years)
                 if (all(diff(years) == 1)) {
                     # If so, we're done
                     rv = years
@@ -83,14 +74,9 @@ get.years.for.year.value <- function(surveillance.manager,
     } 
     # Double or Integer?
     else if (type == "double" || type == "integer") {
-        if (entry.length == 1) {
-            # It's a single number / vector, just return it
-            rv = c(year.value)
-        } else {
-            # It's a multi number vector, check if consequtive     
-            if (all(diff(year.value) == 1)) {
-                rv = year.value
-            }
+        years = sort ( year.value )
+        if (all(diff(years) == 1)) {
+            rv = years
         }
     }
     # List?
