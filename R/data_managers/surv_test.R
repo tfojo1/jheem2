@@ -49,36 +49,39 @@ x = get.years.for.year.value(NA, c("2018","2020","2021"))
 assert ("10. Invalid vector of character years", is.na(x))
 
 #Test 11
-x = get.years.for.year.value(NA, 2019)
-assert ("11. Valid single double parameter", x == c(2019))
+x = get.years.for.year.value(NA, c("2018a","2020","2021"))
+assert ("11. Invalid vector of character years", is.na(x))
 
 #Test 12
-x = get.years.for.year.value(NA, c(2019))
-assert ("12. Valid single double vector parameter", x == c(2019))
+x = get.years.for.year.value(NA, 2019)
+assert ("12. Valid single double parameter", x == c(2019))
 
 #Test 13
-x = get.years.for.year.value(NA, c(2019,2020,2021,2022))
-assert ("13. Valid multi double vector parameter", x == c(2019,2020,2021,2022))
+x = get.years.for.year.value(NA, c(2019))
+assert ("13. Valid single double vector parameter", x == c(2019))
 
 #Test 14
-x = get.years.for.year.value(NA, c(2019,2020,2021,2023))
-assert ("14. Invalid multi double vector parameter", is.na(x))
+x = get.years.for.year.value(NA, c(2019,2020,2021,2022))
+assert ("14. Valid multi double vector parameter", x == c(2019,2020,2021,2022))
 
 #Test 15
-x = get.years.for.year.value(NA, 2019L)
-assert ("15. Valid single integer parameter", x == c(2019))
+x = get.years.for.year.value(NA, c(2019,2020,2021,2023))
+assert ("15. Invalid multi double vector parameter", is.na(x))
 
 #Test 16
-x = get.years.for.year.value(NA, c(2019L))
-assert ("16. Valid single integer vector parameter", x == c(2019))
+x = get.years.for.year.value(NA, 2019L)
+assert ("16. Valid single integer parameter", x == c(2019))
 
 #Test 17
-x = get.years.for.year.value(NA, c(2019L,2020L,2021L,2022L))
-assert ("17. Valid multi integer vector parameter", x == c(2019,2020,2021,2022))
+x = get.years.for.year.value(NA, c(2019L))
+assert ("17. Valid single integer vector parameter", x == c(2019))
 
 #Test 18
-x = get.years.for.year.value(NA, c(2019L,2020L,2021L,2023L))
-assert ("18. Invalid multi integer vector parameter", is.na(x))
+x = get.years.for.year.value(NA, c(2019L,2020L,2021L,2022L))
+assert ("18. Valid multi integer vector parameter", x == c(2019,2020,2021,2022))
 
+#Test 19
+x = get.years.for.year.value(NA, c(2019L,2020L,2021L,2023L))
+assert ("19. Invalid multi integer vector parameter", is.na(x))
 
 cat(sprintf("-- All Tests Passed --\n"))
