@@ -40,6 +40,17 @@ get.years.for.year.value <- function(surveillance.manager,
     # We assume that the numbers themselves are valid years, and we allow 
     # both integers and doubles
 
+    cons_check <- function( vec ) {
+        # This function checks the vec to see if the values are continuous, either
+        # forward or backward
+        rv <- NA
+        vec_diff <- diff(vec)
+        if (all(vec_diff == 1) || all(vec_diff == -1)) {
+            rv <- vec
+        }
+        rv
+    }
+
     entry.length <- length(year.value)
     type <- typeof(year.value)
 
@@ -49,45 +60,33 @@ get.years.for.year.value <- function(surveillance.manager,
         if (entry.length == 1) {
             # One String
             # Split on -
-            dash.split = str_split(year.value, "-")[[1]]
+            dash.split <- str_split(year.value, "-")[[1]]
             #Convert the resulting 1+ sized vector to numeric
-            val = suppressWarnings(as.numeric(dash.split))
+            val <- suppressWarnings(as.numeric(dash.split))
             #If all results are not NA
-            if (!any(is.na(val))) {
-                val = val[1]:val[length(val)]
-                vec_diff = diff(val)
-                if (all(vec_diff == 1) || all(vec_diff == -1)) {
-                    rv = val
-                }
+            if (!anyNA(val)) {
+                rv <- val[1]:val[length(val)]
             }
         } else {
             # We have a vector of character years
             # Check if numeric
-            years = suppressWarnings(as.numeric(year.value))
-            if (!any(is.na(years))) {
+            years <- suppressWarnings(as.numeric(year.value))
+            if (!anyNA(years)) {
                 # We have a valid list of numbers
-                # Check if consequtive:
-                vec_diff = diff(years)
-                if (all(vec_diff == 1) || all(vec_diff == -1)) {
-                    # If so, we're done
-                    rv = years
-                }
+                rv <- cons_check(years)
             }
         }
     } 
     # Double or Integer?
     else if (type == "double" || type == "integer") {
-        #years = sort ( year.value )
-        vec_diff = diff(year.value)
-        if (all(vec_diff == 1) || all(vec_diff == -1)) {
-            rv = year.value
-        }
+        rv <- cons_check(year.value)
     }
     # List?
     else if (type == "list") {
         # Unsure if we want this supported as of now
     }
 
+    #Check if consequtive and return
     rv
 }
 
