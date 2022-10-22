@@ -1,87 +1,64 @@
 library(testit)
+library(crayon)
 
 source("surveillance_data_manager.R")
 
 test.header <- function (func_name) {
-    cat(sprintf("-- Running test suite for %s --\n", func_name))
+    cat(cyan(sprintf("-- Running test suite for %s --\n", func_name)))
 }
+
+test.footer <- function () {
+    if (total.count == passed.count) {
+        cat(cyan(sprintf("-- All Tests Passed: %g/%d --\n", passed.count, total.count)))
+    } else {
+        cat(red(sprintf("-- Some Tests Passed: %g/%d --\n", passed.count, total.count)))
+    }
+}
+
+gyfyv.test <- function (input, ex, if_fail) {
+    #get.years.for.year.value function (gyfyv)
+    value = get.years.for.year.value(NA, input)
+    if (all(eval(ex, list(x = value)))) {
+        cat(green(sprintf("Test %g Passed: %s (%s)\n", total.count + 1, if_fail, toString(input))))
+        passed.count <<- passed.count + 1
+    } else {
+        cat(red(sprintf("Test %g Failed: %s\n", total.count + 1, if_fail)))
+    }
+    total.count <<- total.count + 1
+}
+
+#Globals until I figure out a better way (environments?)
+passed.count = 0
+total.count = 0
 
 test.header("get.years.for.year.value")
 
-#Test 1
-x = get.years.for.year.value(NA,"2001a")
-assert ("1. 2001a should return NA", is.na(x))
+gyfyv.test("2001a", expression(is.na(x)), "Invalid single year")
+gyfyv.test("2018", expression(x == c(2018)), "Valid single year")
+gyfyv.test("2018-2020", expression(x == c(2018,2019,2020)), "Valid date range")
+gyfyv.test("2020-2018", expression(x == c(2020, 2019, 2018)),"Valid inverted date range")
+gyfyv.test("2020-2020", expression(x == c(2020)),"Valid date range")
+gyfyv.test("2018-2020a", expression(is.na(x)),"Invalid date range (invalid character)")
+gyfyv.test("2018a-2020", expression(is.na(x)),"Invalid date range (invalid character)")
+gyfyv.test(c("2018","2019","2020"), expression(x == c(2018,2019,2020)),
+    "Valid vector of character years")
+gyfyv.test(c("2017","2019","2020"), expression(is.na(x)),
+    "Invalid vector of character years (not sequential)")
+gyfyv.test(c("2018","2020","2021"), expression(is.na(x)),
+    "Invalid vector of character years (not sequential)")
+gyfyv.test(c("2018a","2020","2021"), expression(is.na(x)),
+    "Invalid vector of character years (invalid character)")
+gyfyv.test(2019, expression(x == c(2019)), "Valid single double parameter")
+gyfyv.test(c(2019), expression(x == c(2019)), "Valid single double vector parameter")
+gyfyv.test(c(2019,2020,2021,2022), expression(x == c(2019,2020,2021,2022)),
+    "Valid multi double vector parameter")
+gyfyv.test(c(2019,2020,2021,2023), expression(is.na(x)),
+    "Invalid multi double vector parameter (non sequential)")
+gyfyv.test(2019L, expression(x == c(2019)), "Valid single integer parameter")
+gyfyv.test(c(2019L), expression(x == c(2019)), "Valid single integer vector parameter")
+gyfyv.test(c(2019L,2020L,2021L,2022L), expression(x == c(2019,2020,2021,2022)),
+     "Valid multi integer vector parameter")
+gyfyv.test(c(2019L,2020L,2021L,2023L), expression(is.na(x)),
+     "Invalid multi integer vector parameter")
 
-#Test 2
-x = get.years.for.year.value(NA, "2018")
-assert ("2. String 2018 should convert easily", x == c(2018))
-
-#Test 3
-x = get.years.for.year.value(NA, "2018-2020")
-assert ("3. Valid date range 2018-2020", x == c(2018,2019,2020))
-
-#Test 4
-x = get.years.for.year.value(NA, "2020-2018")
-assert ("4. Valid inverted date range 2020-2018", x == c(2020, 2019, 2018))
-
-#Test 5
-x = get.years.for.year.value(NA, "2020-2020")
-assert ("5. Valid date range 2020-2020", x == c(2020))
-
-#Test 6
-x = get.years.for.year.value(NA, "2018-2020a")
-assert ("6. Invalid date range 2018-2020a", is.na(x))
-
-#Test 7
-x = get.years.for.year.value(NA, "2018a-2020")
-assert ("7. Invalid date range 2018a-2020", is.na(x))
-
-#Test 8
-x = get.years.for.year.value(NA, c("2018","2019","2020"))
-assert ("8. Valid vector of character years", x == c(2018,2019,2020))
-
-#Test 9
-x = get.years.for.year.value(NA, c("2017","2019","2020"))
-assert ("9. Invalid vector of character years", is.na(x))
-
-#Test 10
-x = get.years.for.year.value(NA, c("2018","2020","2021"))
-assert ("10. Invalid vector of character years", is.na(x))
-
-#Test 11
-x = get.years.for.year.value(NA, c("2018a","2020","2021"))
-assert ("11. Invalid vector of character years", is.na(x))
-
-#Test 12
-x = get.years.for.year.value(NA, 2019)
-assert ("12. Valid single double parameter", x == c(2019))
-
-#Test 13
-x = get.years.for.year.value(NA, c(2019))
-assert ("13. Valid single double vector parameter", x == c(2019))
-
-#Test 14
-x = get.years.for.year.value(NA, c(2019,2020,2021,2022))
-assert ("14. Valid multi double vector parameter", x == c(2019,2020,2021,2022))
-
-#Test 15
-x = get.years.for.year.value(NA, c(2019,2020,2021,2023))
-assert ("15. Invalid multi double vector parameter", is.na(x))
-
-#Test 16
-x = get.years.for.year.value(NA, 2019L)
-assert ("16. Valid single integer parameter", x == c(2019))
-
-#Test 17
-x = get.years.for.year.value(NA, c(2019L))
-assert ("17. Valid single integer vector parameter", x == c(2019))
-
-#Test 18
-x = get.years.for.year.value(NA, c(2019L,2020L,2021L,2022L))
-assert ("18. Valid multi integer vector parameter", x == c(2019,2020,2021,2022))
-
-#Test 19
-x = get.years.for.year.value(NA, c(2019L,2020L,2021L,2023L))
-assert ("19. Invalid multi integer vector parameter", is.na(x))
-
-cat(sprintf("-- All Tests Passed --\n"))
+test.footer()
