@@ -62,10 +62,12 @@ get.years.for.year.value <- function(surveillance.manager,
             # Split on -
             dash.split <- str_split(year.value, "-")[[1]]
             #Convert the resulting 1+ sized vector to numeric
-            val <- suppressWarnings(as.numeric(dash.split))
-            #If all results are not NA
-            if (!anyNA(val)) {
-                rv <- val[1]:val[length(val)]
+            if (length(dash.split) <= 2) {
+                val <- suppressWarnings(as.numeric(dash.split))
+                #If all results are not NA
+                if (!anyNA(val)) {
+                    rv <- val[1]:val[length(val)]
+                }
             }
         } else {
             # We have a vector of character years
