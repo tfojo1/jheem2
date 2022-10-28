@@ -1,26 +1,14 @@
 library(crayon)
 
-source("surveillance_data_manager.R")
+source("../tests/test_framework.R")
+
+move.wd.to.root()
+
+source(test.source ("data_managers", "surveillance_data_manager.R"))
 
 #Globals until I figure out a better way (environments?)
 gyfyv = list( passed.count = 0, total.count = 0 )
 gabfav = list( passed.count = 0, total.count = 0 )
-
-test.header <- function (func_name) {
-    cat(cyan(sprintf("-- Running test suite for %s --\n", func_name)))
-}
-
-test.footer <- function (func_name, var.data) {
-    str = sprintf("Tests Passed: %g/%d --\n", var.data$passed.count, var.data$total.count)
-    if (var.data$total.count == var.data$passed.count) {
-        cat(cyan(sprintf("-- %s : All %s",func_name, str)))
-    } else if (var.data$passed.count > 0) {
-        cat(orange(sprintf("-- %s : Some %s",func_name, str)))
-    } else {
-        cat(red(sprintf("-- %s : No %s", func_name, str)))
-    }
-
-}
 
 gyfyv.test <- function (input, ex, if_fail) {
     #get.years.for.year.value function (gyfyv)
