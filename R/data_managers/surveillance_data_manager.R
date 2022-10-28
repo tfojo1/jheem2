@@ -18,6 +18,62 @@ get.surveillance.data <- function(surveillance.data.manager,
     
 }
 
+return.as.vectors <- function ( input ) {
+    # This is a generic function that we can use to repicate the similiar behaivours in 
+    # the year and age check functions being used with the data manager
+
+    cons_check <- function( vec ) {
+        # This function checks the vec to see if the values are continuous, either
+        # forward or backward
+        rv <- NA
+        vec_diff <- diff(vec)
+        if (all(vec_diff == 1) || all(vec_diff == -1)) {
+            rv <- vec
+        }
+        rv
+    }
+
+    entry.length <- length(input)
+    type <- typeof(input)
+
+    rv <- NA
+    # String?
+    if (type == "character") {
+        if (entry.length == 1) {
+            # One String
+            # Split on -
+            dash.split <- str_split(input, "-")[[1]]
+            #Convert the resulting 1+ sized vector to numeric
+            if (length(dash.split) <= 2) {
+                val <- suppressWarnings(as.numeric(dash.split))
+                #If all results are not NA
+                if (!anyNA(val)) {
+                    rv <- val[1]:val[length(val)]
+                }
+            }
+        } else {
+            # We have a vector of character years
+            # Check if numeric
+            val <- suppressWarnings(as.numeric(input))
+            if (!anyNA(val)) {
+                # We have a valid list of numbers
+                rv <- cons_check(val)
+            }
+        }
+    } 
+    # Double or Integer?
+    else if (type == "double" || type == "integer") {
+        rv <- cons_check(input)
+    }
+    # List?
+    else if (type == "list") {
+        # Unsure if we want this supported as of now
+    }
+
+    #Check if consequtive and return
+    rv
+    
+}
 get.years.for.year.value <- function(surveillance.manager,
                                      year.value)
 {
@@ -39,57 +95,10 @@ get.years.for.year.value <- function(surveillance.manager,
     # We only allow consequtive years, but we allow forwards or backwards.
     # We assume that the numbers themselves are valid years, and we allow 
     # both integers and doubles
+    
+    # This functionality has been reproduced in the more generic function return.as.vectors
 
-    cons_check <- function( vec ) {
-        # This function checks the vec to see if the values are continuous, either
-        # forward or backward
-        rv <- NA
-        vec_diff <- diff(vec)
-        if (all(vec_diff == 1) || all(vec_diff == -1)) {
-            rv <- vec
-        }
-        rv
-    }
-
-    entry.length <- length(year.value)
-    type <- typeof(year.value)
-
-    rv <- NA
-    # String?
-    if (type == "character") {
-        if (entry.length == 1) {
-            # One String
-            # Split on -
-            dash.split <- str_split(year.value, "-")[[1]]
-            #Convert the resulting 1+ sized vector to numeric
-            if (length(dash.split) <= 2) {
-                val <- suppressWarnings(as.numeric(dash.split))
-                #If all results are not NA
-                if (!anyNA(val)) {
-                    rv <- val[1]:val[length(val)]
-                }
-            }
-        } else {
-            # We have a vector of character years
-            # Check if numeric
-            years <- suppressWarnings(as.numeric(year.value))
-            if (!anyNA(years)) {
-                # We have a valid list of numbers
-                rv <- cons_check(years)
-            }
-        }
-    } 
-    # Double or Integer?
-    else if (type == "double" || type == "integer") {
-        rv <- cons_check(year.value)
-    }
-    # List?
-    else if (type == "list") {
-        # Unsure if we want this supported as of now
-    }
-
-    #Check if consequtive and return
-    rv
+    return.as.vectors ( year.value )
 }
 
 get.age.bounds.for.age.value <- function(surveillance.manager,
@@ -97,6 +106,7 @@ get.age.bounds.for.age.value <- function(surveillance.manager,
 {
     # for example
     # age.value = "13-24 years" --> c(13,25)
+    return.as.vectors(age.value)
 }
 
 get.races.for.race.value <- function()
