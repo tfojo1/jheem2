@@ -39,18 +39,44 @@ move.wd.to.root <- function() {
     getwd()
 }
 
-test.header <- function (func_name) {
-    cat(cyan(sprintf("-- Running test suite for %s --\n", func_name)))
-}
+# Function to create the suite of functions to test a particular input
+# to a function
+create.test.function.suite <- function ( name, f, var ) {
+    rv <- list()
 
-test.footer <- function (func_name, var.data) {
-    str = sprintf("Tests Passed: %g/%d --\n", var.data$passed.count, var.data$total.count)
-    if (var.data$total.count == var.data$passed.count) {
-        cat(cyan(sprintf("-- %s : All %s",func_name, str)))
-    } else if (var.data$passed.count > 0) {
-        cat(orange(sprintf("-- %s : Some %s",func_name, str)))
-    } else {
-        cat(red(sprintf("-- %s : No %s", func_name, str)))
+    rv$name = name
+    rv$passed.count = 0
+    rv$total.count = 0
+    rv$f = f
+    # F is a function that takes a single argument as input
+    rv$test <- function (input, ex, if_fail) {
+        #get.years.for.year.value function (gyfyv)
+        value = rv$f(input)
+        if (all(eval(ex, list(x = value)))) {
+            cat(green(sprintf("Test %g Passed: %s (%s)\n", rv$total.count + 1, if_fail, 
+                              toString(input))))
+            rv$passed.count <<- rv$passed.count + 1
+        } else {
+            cat(red(sprintf("Test %g Failed: %s\n", rv$total.count + 1, if_fail)))
+            cat(red(sprintf("\t%g != %s\n", value, ex)))
+        }
+        rv$total.count <<- rv$total.count + 1
     }
 
+    rv$header <- function () {
+        cat(cyan(sprintf("-- Running test suite for %s --\n", rv$name)))
+    }
+
+    rv$footer <- function () {
+        str = sprintf("Tests Passed: %g/%d --\n", rv$passed.count, rv$total.count)
+        if (rv$total.count == rv$passed.count) {
+            cat(cyan(sprintf("-- %s : All %s",rv$name, str)))
+        } else if (rv$passed.count > 0) {
+            cat(orange(sprintf("-- %s : Some %s",rv$name, str)))
+        } else {
+            cat(red(sprintf("-- %s : No %s", rv$name, str)))
+        }
+    }
+
+    rv
 }
