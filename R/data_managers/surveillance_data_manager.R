@@ -96,7 +96,7 @@ return.as.vectors <- function ( input ) {
         # Unsure if we want this supported as of now
     }
 
-    #Check if consequtive and return
+    #Check if consecutive and return
     rv
     
 }
