@@ -8,8 +8,8 @@ source(test.source ("data_managers", "surveillance_data_manager.R"))
 
 # get.years.for.year.value function tests
 gyfyv <- create.test.function.suite ( "get.years.for.year.value",
-                                      function (input) { get.years.for.year.value(NA,input) },
-                                      gyfyv )
+                                      function (input) { get.years.for.year.value(NA,input) } )
+
 gyfyv$header()
 
 gyfyv$test("2001a", expression(is.na(x)), "Invalid single year")
@@ -48,8 +48,8 @@ gyfyv$footer()
 
 # get.age.bounds.for.age.value function tests
 gabfav <- create.test.function.suite ( "get.age.bounds.for.age.value",
-                                       function (input) { get.age.bounds.for.age.value(NA,input) },
-                                       gabfav )
+                                       function (input) { get.age.bounds.for.age.value(NA,input) } )
+
 gabfav$header()
 
 gabfav$test(34, expression (!is.na(x) && (x == c(34))), "Valid single age, double")

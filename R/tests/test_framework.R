@@ -41,7 +41,7 @@ move.wd.to.root <- function() {
 
 # Function to create the suite of functions to test a particular input
 # to a function
-create.test.function.suite <- function ( name, f, var ) {
+create.test.function.suite <- function ( name, f ) {
     rv <- list()
 
     rv$name = name
