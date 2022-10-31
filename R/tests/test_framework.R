@@ -1,6 +1,17 @@
 
-# Function to convert a module and src filename into the proper format
-# for testing individual files as well as testing all at once.
+#' test.source
+#' 
+#' Function to convert a module and src filename into the proper format
+#' for testing individual files as well as testing all at once.
+#' If we are running the individual file inside the directory, we don't need the module
+#' name but if we are running from run_all_tests.R, we do.  So this function will insert
+#' that data depending on where it's run.
+#'
+#' @param module This is the directory of the main directory that is holding the source file
+#' @param filename This is the name of the source file inside the above directory
+#'
+#' @return A string representing the correct path to the source file
+#'
 test.source <- function (module, filename) {
     # get working directory
     cwd = getwd()
@@ -15,8 +26,11 @@ test.source <- function (module, filename) {
     sprintf("%s/%s/%s",cwd,module,filename)
 }
 
-# Function to move the working directory from somewhere in the tree
-# to the R/ directory
+#' move.wd.to.root
+#'
+#' Function to move the working directory from somewhere in the source tree
+#' to the R/ directory.  If we are unable to find the R directory, the program stops.
+#'
 move.wd.to.root <- function() {
     current.dir = getwd()
 
@@ -39,8 +53,17 @@ move.wd.to.root <- function() {
     getwd()
 }
 
-# Function to create the suite of functions to test a particular input
-# to a function
+#' create.test.function.suite
+#' 
+#' Function to create the suite of functions to test a particular input
+#' to a function.
+#'
+#' @param name A string representation of the function, to be displayed in the header and footer
+#' @param f A function that takes a single input and is run as the test.
+#'
+#' @return A list containing several variables and functions to aid in the construction of test
+#'         suites.  Please see data_manager/surv_test.R for implementation
+#'
 create.test.function.suite <- function ( name, f ) {
     rv <- list()
 
