@@ -31,6 +31,8 @@ test.source <- function (module, filename) {
 #' Function to move the working directory from somewhere in the source tree
 #' to the R/ directory.  If we are unable to find the R directory, the program stops.
 #'
+#' @return The current working directory (which must be R/)
+#'
 move.wd.to.root <- function() {
     current.dir = getwd()
 
