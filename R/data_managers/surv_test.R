@@ -57,6 +57,11 @@ gabfav$test(34L, expression (!is.na(x) && (x == c(34))), "Valid single age, inte
 gabfav$test("34", expression (!is.na(x) && (x == c(34))), "Valid single age, character")
 gabfav$test("34a", expression(is.na(x)), "Invalid single age, character")
 gabfav$test("34-36", expression(!is.na(x) && (x == c(34,35,36))), "Valid age range, character")
+gabfav$test("34-36 years", expression(!is.na(x) && (x == c(34,35,36))), "Valid age range with string")
+gabfav$test("34 years-36 years", expression(!is.na(x) && (x == c(34,35,36))), 
+            "Valid age range with strings")
+gabfav$test("   34    years -  36    years   ", expression(!is.na(x) && (x == c(34,35,36))), 
+            "Valid age range with strings")
 gabfav$test("34-36a", expression(is.na(x)), "Invalid age range, character")
 gabfav$test("34-36-38", expression(is.na(x)), "Invalid age range, only one dash allowed")
 gabfav$test(c("34","35","36"), expression(!is.na(x) && (x == c(34,35,36))), 

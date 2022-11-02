@@ -1,4 +1,3 @@
-library(stringr)
 
 #'@return An array that is indexed [outcome, location, year, <other stratifying dimension>]
 #'
@@ -68,7 +67,7 @@ return.as.vectors <- function ( input ) {
         if (entry.length == 1) {
             # One String
             # Split on -
-            dash.split <- str_split(input, "-")[[1]]
+            dash.split <- strsplit(input, "-")[[1]]
             #Convert the resulting 1+ sized vector to numeric
             if (length(dash.split) <= 2) {
                 val <- suppressWarnings(as.numeric(dash.split))
@@ -124,6 +123,8 @@ get.years.for.year.value <- function(surveillance.manager,
 #'     for example:
 #'         age.value = "13-24 years" --> c(13,25)
 #'
+#' If the value contains the string " years", it is removed.
+#'
 #' @param surveillance.manager A reference to the usable surveillance.manager (needed?)
 #' @param age.value Some value representing which ages we would like to examine
 #'
@@ -132,6 +133,10 @@ get.years.for.year.value <- function(surveillance.manager,
 get.age.bounds.for.age.value <- function(surveillance.manager,
                                      age.value)
 {
+    type <- typeof(age.value)
+    if (type == "character") {
+        age.value <- gsub("years", "", age.value)
+    }
     return.as.vectors(age.value)
 }
 
