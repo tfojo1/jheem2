@@ -123,7 +123,8 @@ get.years.for.year.value <- function(surveillance.manager,
 #'     for example:
 #'         age.value = "13-24 years" --> c(13,25)
 #'
-#' If the value contains the string " years", it is removed.
+#' If the value contains the string " years", it is removed.  There is also the special
+#' case of a value such as "55+ years", which will need an upper cap.  I will use 80 here.
 #'
 #' @param surveillance.manager A reference to the usable surveillance.manager (needed?)
 #' @param age.value Some value representing which ages we would like to examine
@@ -133,9 +134,14 @@ get.years.for.year.value <- function(surveillance.manager,
 get.age.bounds.for.age.value <- function(surveillance.manager,
                                      age.value)
 {
+    age.upper.bound = 80
     type <- typeof(age.value)
     if (type == "character") {
         age.value <- gsub("years", "", age.value)
+        # The + below has to be escaped because it is interpreted
+        # as a regular expression. We 'sub' rather than 'gsub' because
+        # a second plus sign represents an error
+        age.value <- sub ("\\+", paste("-", age.upper.bound) , age.value)
     }
     return.as.vectors(age.value)
 }

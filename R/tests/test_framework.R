@@ -97,7 +97,7 @@ create.test.function.suite <- function ( name, f ) {
         if (rv$total.count == rv$passed.count) {
             cat(cyan(sprintf("-- %s : All %s",rv$name, str)))
         } else if (rv$passed.count > 0) {
-            cat(orange(sprintf("-- %s : Some %s",rv$name, str)))
+            cat(yellow(sprintf("-- %s : Some %s",rv$name, str)))
         } else {
             cat(red(sprintf("-- %s : No %s", rv$name, str)))
         }
