@@ -1,63 +1,97 @@
 
+ONTOLOGY.MANAGER = list(
+    mappings = list()
+)
 
-# Can we do this where we keep an internal ontology manager?
-
-create.ontology.manager <- function()
+get.ontology.mapping <- function(from.dim.names,
+                                 to.dim.names)
 {
-    rv = list(dimensions=character(),
-              categories.for.dimension=list())
+    # Figure out which dim.names are different
+    missing.from.from.dimensions = setdiff(names(to.dim.names),
+                                           names(from.dim.names))
+    if (length(missing.from.from.dimensions)>0)
+        stop(paste0("The following dimension(s) are present in 'to.dim.names', but missing from 'from.dim.names': ",
+                    paste0("'", missing.from.from.dimensions, "'", collapse=', ')))
     
-    class(rv) = 'ontology.manager'
-    rv
-}
-
-ONTOLOGY.MANAGER = create.ontology.manager()
-
-register.ontology.category <- function(dimension,
-                                       category,
-                                       values)
-{
+    missing.from.to.dimensions = setdiff(names(from.dim.names),
+                                         names(to.dim.names))
+    if (length(missing.from.to.dimensions)>0)
+        stop(paste0("The following dimension(s) are present in 'from.dim.names', but missing from 'to.dim.names': ",
+                    paste0("'", missing.from.to.dimensions, "'", collapse=', ')))
     
-    if (all(dimension != ONTOLOGY.MANAGER$dimensions))
+    
+    if (!all(names(from.dim.names)==names(to.dim.names)))
+        stop("Dimensions are NOT in the same order in 'from.dim.names' and 'to.dim.names")
+    
+    dimensions = names(from.dim.names)
+    
+    dimensions.equal.in.to.from = sapply(dimensions, function(dim){
+        length(from.dim.names[[dim]]) == length(to.dim.names[[dim]]) &&
+        all(from.dim.names[[dim]] == to.dim.names[[dim]])
+    })
+
+    if (all(dimensions.equal.in.to.from))
+        return (create.trivial.ontology.mapping())
+
+    differing.dimensions = dimensions[!dimensions.equal.in.to.from]
+    
+    # First, iterate through the ontology mappings we have registered, and see if any of them match
+    for (mapping in ONTOLOGY.MANAGER$mappings)
     {
-        ONTOLOGY.MANAGER$dimensions == c(ONTOLOGY.MANAGER$dimensions, dimension)
-        ONTOLOGY.MANAGER$categories.for.dimension[[dimension]] = list()
+        if (ontology.mapping.matches.dim.names(mapping,
+                                               dimensions = differing.dimensions,
+                                               from.dim.names = from.dim.names,
+                                               to.dim.names = from.dim.names))
+            return (mapping)
     }
     
-    
-    if (any(category == names(ONTOLOGY.MANAGER$categories.for.dimension[[dimension]][[category]])))
-        stop(paste0("ontology values for category '", category, "' in dimension '", dimension, "' have already been registered"))
-    else
-        ONTOLOGY.MANAGER$categories.for.dimension[[dimension]][[category]] = values
-}
-
-get.ontology.values.for.category <- function(dimension,
-                                             category,
-                                             throw.error.if.missing=T)
-{
-    if (dimension=='year' && !is.na(suppressWarnings(as.numeric(category))))
-        as.numeric(category)
-    else
+    # If no registered mapping matches, see if we can figure out what is being requested
+    if (length(differing.dimensions)==1)
     {
-        if (all(dimension != ONTOLOGY$dimensions))
+        dim = differing.dimensions
+        from.values = from.dim.names[[dim]]
+        to.values = to.dim.names[[dim]]
+        
+        # If only age is different, get an age mapping
+        if (dim=='age')
+            stop("Need to implement this")
+        
+        # If only year is different, get a year mapping
+        if (dim=='year') 
+            stop("Need to implement this")
+        
+        # Can we plug in an 'other-catchall' mapping?
+        if (any(to.values == 'other') &&
+            !any(from.values == 'other'))
         {
-            if (throw.error.if.missing)
-                stop(paste0("'", dimension, "' has not been registered as a dimension for ontologies"))
-            else
-                NULL
-        }
-        else
-        {
-            rv = ONTOLOGY.MANAGER$categories.for.dimension[[dimension]][[category]]
-            if (throw.error.if.missing && is.null(rv))
-                stop(paste0("'", category, "' has not been registered as an ontology category for dimension '", dimension, "'"))
-            rv
+            missing.from.from = setdiff(from.values, to.values)
+            if (length(missing.from.from)==1 && missing.from.from=='other')
+            {
+                non.other.names.in.to = setdiff(to.values, 'other')
+                invalid.to.names = setdiff(non.other.names.in.to, from.values)
+                if (length(invalid.to.names)==0)
+                {
+                    return (create.other.catchall.ontology.mapping(dimension = dim,
+                                                                   from.values = from.values,
+                                                                   to.values = to.values))
+                }
+            }
         }
     }
 }
 
-is.valid.ontology.category <- function(dimension,
-                                       category)
+ontology.mapping.matches.dim.names <- function(mapping,
+                                               dimensions,
+                                               from.dim.names,
+                                               to.dim.names)
 {
-    !is.null(get.ontology.values.for.category(dimension=dimension, cateogry=category, throw.error.if.missing = F))
+    length(mapping$dimensions) == length(dimensions) &&
+        setequal(mapping$dimensions, dimensions) &&
+        all(sapply(dimensions, function(dim){
+            length(from.dim.names[[dim]]) == length(mapping$from[[dim]]) &&
+                all(from.dim.names[[dim]] == mapping$from[[dim]]) &&
+                length(to.dim.names[[dim]]) == length(mapping$to[[dim]]) &&
+                all(to.dim.names[[dim]] == mapping$to[[dim]])
+        }))
+        
 }
