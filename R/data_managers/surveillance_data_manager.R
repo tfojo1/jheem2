@@ -13,6 +13,27 @@ get.surveillance.data <- function(surveillance.data.manager,
                                   na.rm)
 {
     
+
+# Underlying structure
+# surveillance.manager$datasets[[outcome]] is a list with one element for every possible stratification
+# surveillance.manager$datasets[[outcome]][['total']], surveillance.manager[[outcome]][['age_sex']], surveillance.manager[[outcome]][['sex_race_risk']]
+# surveillance.manager$datasets[[outcomes]][[stratification]] is a list with elements
+#   $ years
+#   $ dimension.values
+#   $ data - array indexed [location, year, <other dimensions>]
+#   $ source
+#   $ url
+#   $ details
+#
+# surveillance.manager$metadata
+#
+# surveillance.manager$metadata[[outcome]] has elements
+#   $ is.proportion
+#   $ denominator.outcome
+#
+# surveillance.manager$source.mapping
+# surveillance.manager$url.mapping
+# surveillance.manager$details.mapping
     
     
 }
@@ -152,24 +173,3 @@ get.races.for.race.value <- function()
     # hispanic -> hispanic
     # other -> white, AAPI, american_indian_or_alaska_native, other
 }
-
-# Underlying structure
-# surveillance.manager$datasets[[outcome]] is a list with one element for every possible stratification
-# surveillance.manager$datasets[[outcome]][['total']], surveillance.manager[[outcome]][['age_sex']], surveillance.manager[[outcome]][['sex_race_risk']]
-# surveillance.manager$datasets[[outcomes]][[stratification]] is a list with elements
-#   $ years
-#   $ dimension.values
-#   $ data - array indexed [location, year, <other dimensions>]
-#   $ source
-#   $ url
-#   $ details
-#
-# surveillance.manager$metadata
-#
-# surveillance.manager$metadata[[outcome]] has elements
-#   $ is.proportion
-#   $ denominator.outcome
-#
-# surveillance.manager$source.mapping
-# surveillance.manager$url.mapping
-# surveillance.manager$details.mapping
