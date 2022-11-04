@@ -75,15 +75,18 @@ create.test.function.suite <- function ( name, f ) {
     rv$f = f
     # F is a function that takes a single argument as input
     rv$test <- function (input, ex, if_fail) {
-        #get.years.for.year.value function (gyfyv)
+        # Function f
         value = rv$f(input)
-        if (all(eval(ex, list(x = value)))) {
+        result = all(eval(ex, list(x = value)))
+        if (is.na(result) || !result) {
+            #Test Failed
+            cat(red(sprintf("Test %g Failed: %s\n", rv$total.count + 1, if_fail)))
+            cat(red(sprintf("\t%g != %s\n", value, ex)))
+        } else {
+            #Test Succeeded
             cat(green(sprintf("Test %g Passed: %s (%s)\n", rv$total.count + 1, if_fail, 
                               toString(input))))
             rv$passed.count <<- rv$passed.count + 1
-        } else {
-            cat(red(sprintf("Test %g Failed: %s\n", rv$total.count + 1, if_fail)))
-            cat(red(sprintf("\t%g != %s\n", value, ex)))
         }
         rv$total.count <<- rv$total.count + 1
     }
