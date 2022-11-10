@@ -77,7 +77,7 @@ create.test.function.suite <- function ( name, f ) {
     rv$test <- function (input, ex, if_fail) {
         # Function f
         value = rv$f(input)
-        result = all(eval(ex, list(x = value)))
+        result = suppressWarnings(all(eval(ex, list(x = value))))
         if (is.na(result) || !result) {
             #Test Failed
             cat(red(sprintf("Test %g Failed: %s\n", rv$total.count + 1, if_fail)))

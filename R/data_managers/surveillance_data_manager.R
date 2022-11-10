@@ -1,41 +1,41 @@
+load("../../cached/msa.surveillance.Rdata")
+#load("../cached/msa.surveillance.Rdata")
 
-#'@return An array that is indexed [outcome, location, year, <other stratifying dimension>]
+#' get.outcomes.for.outcomes.vector
 #'
-#'@examples To pull age-stratified prevalence from Baltimore MSA: get.surveillance.data(manager, 'prevalence', '12580', keep.dimensions=c('year','age'))
-get.surveillance.data <- function(surveillance.data.manager,
-                                  outcomes,
-                                  years,
-                                  locations,
-                                  dimension.values=list(),
-                                  keep.dimensions,
-                                  aggregate.locations,
-                                  aggregate.years,
-                                  na.rm)
-{
-    
+#' Process outcomes; return an outcome string
+#'
+#' The msa surveillance object contains many different outcomes:
+#'
+#' Input can be split by multiple characters : , - as of now
+#' 
+#' @param input Some type of input containing various outcomes
+#'
+#' @return a vector of outcomes
+get.outcomes.for.outcomes.vector <- function (input) {
+    rv <- NA
 
-# Underlying structure
-# surveillance.manager$datasets[[outcome]] is a list with one element for every possible stratification
-# surveillance.manager$datasets[[outcome]][['total']], surveillance.manager[[outcome]][['age_sex']], surveillance.manager[[outcome]][['sex_race_risk']]
-# surveillance.manager$datasets[[outcomes]][[stratification]] is a list with elements
-#   $ years
-#   $ dimension.values
-#   $ data - array indexed [location, year, <other dimensions>]
-#   $ source
-#   $ url
-#   $ details
-#
-# surveillance.manager$metadata
-#
-# surveillance.manager$metadata[[outcome]] has elements
-#   $ is.proportion
-#   $ denominator.outcome
-#
-# surveillance.manager$source.mapping
-# surveillance.manager$url.mapping
-# surveillance.manager$details.mapping
-    
-    
+    ALLOWED.DATA.TYPES = c('prevalence', 'new', 'mortality', 'diagnosed',
+                           'diagnosed.ci.lower', 'diagnosed.ci.upper',
+                           'suppression', 'suppression.ci.lower', 'suppression.ci.upper',
+                           'prevalence.for.continuum', 'suppression.of.engaged',
+                           'estimated.prevalence', 'estimated.prevalence.ci.lower',
+                           'estimated.prevalence.ci.upper', 'estimated.prevalence.rse',
+                           'cumulative.aids.mortality', 'aids.diagnoses',
+                           'linkage', 'engagement', 'new.for.continuum', 'retention',
+                           'prep', 'testing', 'testing.n')
+
+    #Outcomes have the allowed data type above as a prefix
+
+    #What outcomes are we examining?
+
+    input.split <- strsplit(input, "[, -]+")
+
+    print(input.split[ grepl(paste(ALLOWED.DATA.TYPES,collapse="|"),input.split) ])
+
+    print(input.split)
+
+    rv
 }
 
 #' return.as.vectors
@@ -159,10 +159,8 @@ get.age.bounds.for.age.value <- function(surveillance.manager,
     type <- typeof(age.value)
     if (type == "character") {
         age.value <- gsub("years", "", age.value)
-        # The + below has to be escaped because it is interpreted
-        # as a regular expression. We 'sub' rather than 'gsub' because
-        # a second plus sign represents an error
-        age.value <- sub ("\\+", paste("-", age.upper.bound) , age.value)
+        # We use 'sub' rather than 'gsub' because a second plus sign represents an error
+        age.value <- sub ("+", paste("-", age.upper.bound) , age.value, fixed=TRUE)
     }
     return.as.vectors(age.value)
 }
@@ -173,3 +171,67 @@ get.races.for.race.value <- function()
     # hispanic -> hispanic
     # other -> white, AAPI, american_indian_or_alaska_native, other
 }
+
+# Underlying structure
+# surveillance.manager$datasets[[outcome]] is a list with one element for every possible stratification
+# surveillance.manager$datasets[[outcome]][['total']], surveillance.manager[[outcome]][['age_sex']], surveillance.manager[[outcome]][['sex_race_risk']]
+# surveillance.manager$datasets[[outcomes]][[stratification]] is a list with elements
+#   $ years
+#   $ dimension.values
+#   $ data - array indexed [location, year, <other dimensions>]
+#   $ source
+#   $ url
+#   $ details
+#
+# surveillance.manager$metadata
+#
+# surveillance.manager$metadata[[outcome]] has elements
+#   $ is.proportion
+#   $ denominator.outcome
+#
+# surveillance.manager$source.mapping
+# surveillance.manager$url.mapping
+# surveillance.manager$details.mapping
+
+#' get.surveillance.data
+#'
+#' Function to extract specific data from the surveillance.data.manager object
+#' 
+#'@return An array that is indexed [outcome, location, year, <other stratifying dimension>]
+#'
+#'@examples To pull age-stratified prevalence from Baltimore MSA: get.surveillance.data(manager, 'prevalence', '12580', keep.dimensions=c('year','age'))
+get.surveillance.data <- function(surveillance.data.manager=msa.surveillance,
+                                  outcomes,
+                                  years,
+                                  locations,
+                                  dimension.values=list(),
+                                  keep.dimensions,
+                                  aggregate.locations,
+                                  aggregate.years,
+                                  na.rm)
+{
+    
+    # How are outcomes going to come in?  Currently it accepts list of characters
+    #
+    # c("new,all","prevalence, all", ...)
+    # 
+    # The data is organized very specifically in msa.surveillance; each outcome is given its own
+    # entry:
+    #
+    # msa.surveillance["new.all"] and so on.  
+
+    # If we are not guarenteed to have all entries in this list in the order in which they apear in
+    # the dataset (a reasonable assumption, I imagine, especially when it is stratified by various
+    # factors) then it will be a little expensive computationally to verify that the data being
+    # requested has an outcome entry.
+    #
+    requested.outcomes = get.outcomes.for.outcomes.vector(outcomes)
+
+    requested.years = get.years.for.year.value(surveillance.data.manager, years)
+    
+    
+}
+
+get.surveillance.data(msa.surveillance,
+                      c("new,all","prevalence,all","aids.diagnoses,all"), "2000-2014")
+
