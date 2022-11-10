@@ -87,3 +87,10 @@ gabfav$test(c(34L,35L,36L), expression(x == c(34,35,36)),
      "Valid age range for integer vector")
 
 gabfav$footer()
+
+# Function Testing
+
+cat(white("\nFunction Testing\n\n"))
+
+get.surveillance.data(msa.surveillance,
+                      c("new","prevalence","aids.diagnoses", "ooogy"), "2000-2014")

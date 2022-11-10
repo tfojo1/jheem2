@@ -1,20 +1,16 @@
-load("../../cached/msa.surveillance.Rdata")
-#load("../cached/msa.surveillance.Rdata")
+#load("../../cached/msa.surveillance.Rdata")
+load("../cached/msa.surveillance.Rdata")
 
 #' get.outcomes.for.outcomes.vector
 #'
-#' Process outcomes; return an outcome string
+#' Process outcomes; return a valid outcome string vector and an invalid entry vector as a list
 #'
-#' The msa surveillance object contains many different outcomes:
-#'
-#' Input can be split by multiple characters : , - as of now
-#' 
-#' @param input Some type of input containing various outcomes
+#' @param outcome_list Some type of input containing various outcomes
 #'
 #' @return a vector of outcomes
-get.outcomes.for.outcomes.vector <- function (input) {
-    rv <- NA
+get.outcomes.for.outcomes.vector <- function (outcome_list) {
 
+    #This does a simple check against the list of allowed data types
     ALLOWED.DATA.TYPES = c('prevalence', 'new', 'mortality', 'diagnosed',
                            'diagnosed.ci.lower', 'diagnosed.ci.upper',
                            'suppression', 'suppression.ci.lower', 'suppression.ci.upper',
@@ -24,18 +20,17 @@ get.outcomes.for.outcomes.vector <- function (input) {
                            'cumulative.aids.mortality', 'aids.diagnoses',
                            'linkage', 'engagement', 'new.for.continuum', 'retention',
                            'prep', 'testing', 'testing.n')
+    
+    bad_outcomes = outcome_list [ ! outcome_list %in% ALLOWED.DATA.TYPES ]
 
-    #Outcomes have the allowed data type above as a prefix
+    if (length(bad_outcomes) > 0) {
+        # We asked for outcomes that we don't have in the results
+        # We may want to switch to scanning the dataset in the future
+        # Show them to the user calling the function
+        warning(paste0("Requested outcomes (",paste(bad_outcomes, sep= ","),") not found, skipping."))
+    }
 
-    #What outcomes are we examining?
-
-    input.split <- strsplit(input, "[, -]+")
-
-    print(input.split[ grepl(paste(ALLOWED.DATA.TYPES,collapse="|"),input.split) ])
-
-    print(input.split)
-
-    rv
+    outcome_list[ outcome_list %in% ALLOWED.DATA.TYPES ]
 }
 
 #' return.as.vectors
@@ -212,26 +207,19 @@ get.surveillance.data <- function(surveillance.data.manager=msa.surveillance,
 {
     
     # How are outcomes going to come in?  Currently it accepts list of characters
+    # that match values in the ALLOWED list only.
     #
-    # c("new,all","prevalence, all", ...)
+    # c("new","prevalence", "testing.n", ...)
     # 
     # The data is organized very specifically in msa.surveillance; each outcome is given its own
     # entry:
     #
     # msa.surveillance["new.all"] and so on.  
 
-    # If we are not guarenteed to have all entries in this list in the order in which they apear in
-    # the dataset (a reasonable assumption, I imagine, especially when it is stratified by various
-    # factors) then it will be a little expensive computationally to verify that the data being
-    # requested has an outcome entry.
-    #
     requested.outcomes = get.outcomes.for.outcomes.vector(outcomes)
 
     requested.years = get.years.for.year.value(surveillance.data.manager, years)
     
-    
 }
 
-get.surveillance.data(msa.surveillance,
-                      c("new,all","prevalence,all","aids.diagnoses,all"), "2000-2014")
 
