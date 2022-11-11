@@ -206,6 +206,21 @@ get.surveillance.data <- function(surveillance.data.manager=msa.surveillance,
                                   na.rm)
 {
     
+    # Keep dimension
+    # retained for final output
+    # dimension.values
+    # named list : names are dimension, values are the values we're looking for
+    # not listed?  get all
+
+    # check dimension.values and keep.dimension for exactly which outcome we are looking for
+
+    # Instead of ALLOWED list, scan the data.manager for viable entries for outcomes
+
+    # 2 dimension in data: year dimension and location dimension
+    # keep dimension could eliminate either year or location
+    # ALMOST always keep by year
+
+
     # How are outcomes going to come in?  Currently it accepts list of characters
     # that match values in the ALLOWED list only.
     #
