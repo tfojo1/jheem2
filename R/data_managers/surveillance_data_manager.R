@@ -6,22 +6,12 @@ load("../cached/msa.surveillance.Rdata")
 #' Process outcomes; return a valid outcome string vector and an invalid entry vector as a list
 #'
 #' @param outcome_list Some type of input containing various outcomes
+#' @param valid_outcomes A list of valid outcomes drawn from the data.manager
 #'
 #' @return a vector of outcomes
-get.outcomes.for.outcomes.vector <- function (outcome_list) {
+get.outcomes.for.outcomes.vector <- function (outcome_list, valid_outcomes) {
 
-    #This does a simple check against the list of allowed data types
-    ALLOWED.DATA.TYPES = c('prevalence', 'new', 'mortality', 'diagnosed',
-                           'diagnosed.ci.lower', 'diagnosed.ci.upper',
-                           'suppression', 'suppression.ci.lower', 'suppression.ci.upper',
-                           'prevalence.for.continuum', 'suppression.of.engaged',
-                           'estimated.prevalence', 'estimated.prevalence.ci.lower',
-                           'estimated.prevalence.ci.upper', 'estimated.prevalence.rse',
-                           'cumulative.aids.mortality', 'aids.diagnoses',
-                           'linkage', 'engagement', 'new.for.continuum', 'retention',
-                           'prep', 'testing', 'testing.n')
-    
-    bad_outcomes = outcome_list [ ! outcome_list %in% ALLOWED.DATA.TYPES ]
+    bad_outcomes = outcome_list [ ! outcome_list %in% valid_outcomes ]
 
     if (length(bad_outcomes) > 0) {
         # We asked for outcomes that we don't have in the results
@@ -30,7 +20,7 @@ get.outcomes.for.outcomes.vector <- function (outcome_list) {
         warning(paste0("Requested outcomes (",paste(bad_outcomes, sep= ","),") not found, skipping."))
     }
 
-    outcome_list[ outcome_list %in% ALLOWED.DATA.TYPES ]
+    outcome_list[ outcome_list %in% valid_outcomes ]
 }
 
 #' return.as.vectors
@@ -231,7 +221,26 @@ get.surveillance.data <- function(surveillance.data.manager=msa.surveillance,
     #
     # msa.surveillance["new.all"] and so on.  
 
-    requested.outcomes = get.outcomes.for.outcomes.vector(outcomes)
+    # This is a list of the names that are not outcomes from msa.surveillance specifically, 
+    # but I imagine that all data managers share the same structure internally.
+    data.manager.outcome.exclusion = 
+        c("code.map","source","url","details","params","DIMENSION.VALUES")
+
+    # Similar to above; these are the dimenison for msa.surveillance; if there are more then
+    # they should be added to this list as well.  They are stripped off the outcomes from the valid.
+    # outcomes so we can pass a more concise list to get.outcomes.for.outcome.vector, which checks only
+    # that the outcome is valid.
+    dimensions = c("all","sex","age","race","risk")
+
+    data.manager.members = names(surveillance.data.manager)
+
+    raw.valid.outcomes = data.manager.members[! data.manager.members %in% data.manager.outcome.exclusion]
+
+    valid.outcomes = unique(
+                        gsub(paste(paste("\\.",dimensions,sep=""),collapse ="|"),"",raw.valid.outcomes)
+                     )
+
+    requested.outcomes = get.outcomes.for.outcomes.vector(outcomes,valid.outcomes)
 
     requested.years = get.years.for.year.value(surveillance.data.manager, years)
     

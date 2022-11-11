@@ -91,9 +91,7 @@ create.test.function.suite <- function ( name, f ) {
         rv$total.count <<- rv$total.count + 1
     }
 
-    rv$header <- function () {
-        cat(cyan(sprintf("-- Running test suite for %s --\n", rv$name)))
-    }
+    rv$header <- function () cat(cyan(sprintf("-- Running test suite for %s --\n", rv$name)))
 
     rv$footer <- function () {
         str = sprintf("Tests Passed: %g/%d --\n", rv$passed.count, rv$total.count)

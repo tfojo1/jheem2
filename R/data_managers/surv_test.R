@@ -8,7 +8,7 @@ source(test.source ("data_managers", "surveillance_data_manager.R"))
 
 # get.years.for.year.value function tests
 gyfyv <- create.test.function.suite ( "get.years.for.year.value",
-                                      function (input) { get.years.for.year.value(NA,input) } )
+                                      function (input) get.years.for.year.value(NA,input) )
 
 gyfyv$header()
 
@@ -48,7 +48,7 @@ gyfyv$footer()
 
 # get.age.bounds.for.age.value function tests
 gabfav <- create.test.function.suite ( "get.age.bounds.for.age.value",
-                                       function (input) { get.age.bounds.for.age.value(NA,input) } )
+                                       function (input) get.age.bounds.for.age.value(NA,input) )
 
 gabfav$header()
 
