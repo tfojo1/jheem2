@@ -211,15 +211,10 @@ get.surveillance.data <- function(surveillance.data.manager=msa.surveillance,
     # ALMOST always keep by year
 
 
-    # How are outcomes going to come in?  Currently it accepts list of characters
-    # that match values in the ALLOWED list only.
-    #
-    # c("new","prevalence", "testing.n", ...)
-    # 
     # The data is organized very specifically in msa.surveillance; each outcome is given its own
     # entry:
     #
-    # msa.surveillance["new.all"] and so on.  
+    # surveillance.data.manager["new.all"], surveillance.data.manager["prevalence.age.sex"] and so on.  
 
     # This is a list of the names that are not outcomes from msa.surveillance specifically, 
     # but I imagine that all data managers share the same structure internally.
@@ -230,20 +225,84 @@ get.surveillance.data <- function(surveillance.data.manager=msa.surveillance,
     # they should be added to this list as well.  They are stripped off the outcomes from the valid.
     # outcomes so we can pass a more concise list to get.outcomes.for.outcome.vector, which checks only
     # that the outcome is valid.
+    # This list also functions as the order for which to place these after the . in the naming
+    # convention
     dimensions = c("all","sex","age","race","risk")
 
+    # The dimension regex string looks like this:
+    #     ".all|.sex|.age|.race|.risk"
+    # With all the periods properly escaped so they will match a literal '.' The vertical pipes
+    # are the 'or' operator. 
+    dimension.string = paste(paste("\\.",dimensions,sep=""), collapse="|")
+
+    # Get a vector of the data manager list member names
     data.manager.members = names(surveillance.data.manager)
 
+    # Remove those listed in data.manager.outcome.exclusion as they are list elements but not outcomes
     raw.valid.outcomes = data.manager.members[! data.manager.members %in% data.manager.outcome.exclusion]
+    
+    # Outcomes
+    # For the remaining full outcomes, strip away all the dimensions and return a list of unique 
+    # outcomes.  
+    clean.outcomes = unique( gsub(dimension.string, "", raw.valid.outcomes ) )
+    # Compare them to the parameter vector, extract the good ones
+    requested.outcomes = get.outcomes.for.outcomes.vector(outcomes, clean.outcomes)
 
-    valid.outcomes = unique(
-                        gsub(paste(paste("\\.",dimensions,sep=""),collapse ="|"),"",raw.valid.outcomes)
-                     )
+    # Figure out what dimension are available in the data.manager for requested.outcomes:
+    # We have both new and new.for.continuum as outcomes, we must diffentiate, hence
+    # the following regular expression
+    avail.dims = lapply(requested.outcomes, function (outcome) {
+        raw.valid.outcomes [ grepl(
+                                 paste0("^",outcome,"(",dimension.string,")+"), 
+                                 raw.valid.outcomes) ]
+    })
 
-    requested.outcomes = get.outcomes.for.outcomes.vector(outcomes,valid.outcomes)
 
+    only.dims = apply(cbind(requested.outcomes, avail.dims), 1, function (outcome_table) {
+        strsplit (
+                  sub(
+                      paste0(outcome_table$requested.outcomes,"."),
+                      "", 
+                      outcome_table$avail.dims), 
+                  ".", 
+                  fixed = T 
+        )
+    })
+
+    print (avail.dims)
+    print (only.dims)
+
+    # Years
     requested.years = get.years.for.year.value(surveillance.data.manager, years)
+
     
 }
 
+# FUTURE CONSIDERATIONS
 
+    # In the future, in order to be more general and support multiple data.managers, I believe we should
+    # create a separate list within the list called 'outcomes' where these are listed.  This would
+    # prevent mistakes while reading the names from the surveillance.data.manager, and obviate the need
+    # for data.manager.outcome.exclusion()
+
+    # We could further subdivide them by dimensions as well - 
+    #
+    # surveillance.data.manager[['outcomes']][['new']][['all']]
+    # surveillance.data.manager[['outcomes']][['prevalence'][['all']]
+    #
+    # This would allow us to have a correct list of available dimenions for each outcome, rather
+    # than relying on the dimension variable above.
+    #
+    # There are also outcomes (linkage, engagement, suppression, diagnosed) which have both a 
+    # full field and a numerator and denominator. For example :
+
+    # linkage.denominator.age.sex
+    # linkage.numerator.age.sex
+    # linkage.age.sex
+    # 
+    # In some of these, linkage.age.sex for instance, the value of linkage.age.sex is equal to
+    # linkage.denominator.age.sex / linkage.numerator.age.sex.  In others however, such as linkage.age,
+    # the numerator and denominator have 6 fewer years and 8 fewer locations than linkage.age.
+    #
+    # For the cases where the full value is equal to the division of the other two, we could think about
+    # keeping only the numerators and denominators if we find we're using too much RAM
