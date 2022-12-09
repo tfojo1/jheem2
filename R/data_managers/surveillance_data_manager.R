@@ -228,6 +228,7 @@ get.surveillance.data <- function(surveillance.data.manager=msa.surveillance,
     # This list also functions as the order for which to place these after the . in the naming
     # convention
     dimensions = c("all","sex","age","race","risk")
+    # We also have the year dimension, but all outcomes have this
 
     # The dimension regex string looks like this:
     #     ".all|.sex|.age|.race|.risk"
@@ -247,6 +248,9 @@ get.surveillance.data <- function(surveillance.data.manager=msa.surveillance,
     clean.outcomes = unique( gsub(dimension.string, "", raw.valid.outcomes ) )
     # Compare them to the parameter vector, extract the good ones
     requested.outcomes = get.outcomes.for.outcomes.vector(outcomes, clean.outcomes)
+
+    # Years
+    requested.years = get.years.for.year.value(surveillance.data.manager, years)
 
     # Figure out what dimension are available in the data.manager for requested.outcomes:
     # We have both new and new.for.continuum as outcomes, we must diffentiate, hence
@@ -268,14 +272,37 @@ get.surveillance.data <- function(surveillance.data.manager=msa.surveillance,
                   fixed = T 
         )
     })
+    get.dimensions = unique (c(keep.dimensions,names(dimension.values)))
 
-    print (avail.dims)
-    print (only.dims)
+    # This works and provides the correct index for the relevant entry, but it
+    # is very ugly and uses globals.  Replace!
+    outcome.index = c()
 
-    # Years
-    requested.years = get.years.for.year.value(surveillance.data.manager, years)
+    valid = lapply(only.dims, function (outcome) {
+        local_index = 1
+        lapply(outcome, function (s) {
+            e = all( keep.dimensions %in% s )
+            if (e) {
+                outcome.index <<- c(outcome.index, local_index)
+            } else {
+                local_index <<- local_index + 1
+            }
+            e
+        })
+    })
 
-    
+    good_indexes = lapply(valid, function(bools) {
+        any (T %in% bools)
+    })
+
+    # Same as above; works but is ugly, uses globals.  Replace!
+    only.index = 0;
+    results = lapply(avail.dims [unlist(good_indexes)], function (only) {
+        only.index <<- only.index + 1
+        surveillance.data.manager[only[outcome.index[only.index]]]
+    })
+
+    # We have the relevant data, now filter the results:
 }
 
 # FUTURE CONSIDERATIONS
