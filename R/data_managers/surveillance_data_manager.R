@@ -1,5 +1,7 @@
 #load("../../cached/msa.surveillance.Rdata")
+setwd("/home/jjp/dev/applied_jheem/R")
 load("../cached/msa.surveillance.Rdata")
+source ("HELPERS_array_access.R")
 
 #' get.outcomes.for.outcomes.vector
 #'
@@ -251,23 +253,26 @@ get.surveillance.data <- function(surveillance.data.manager=msa.surveillance,
 
     # Years
     requested.years = get.years.for.year.value(surveillance.data.manager, years)
+    print(requested.years)
 
     # Figure out what dimension are available in the data.manager for requested.outcomes:
     # We have both new and new.for.continuum as outcomes, we must diffentiate, hence
     # the following regular expression
-    avail.dims = lapply(requested.outcomes, function (outcome) {
+    avail.dims <- lapply(requested.outcomes, function (outcome) {
         raw.valid.outcomes [ grepl(
                                  paste0("^",outcome,"(",dimension.string,")+"), 
                                  raw.valid.outcomes) ]
     })
+    
+    #print(avail.dims)
 
 
-    only.dims = apply(cbind(requested.outcomes, avail.dims), 1, function (outcome_table) {
+    only.dims <- apply(cbind(requested.outcomes, avail.dims), 1, function (outcome.table) {
         strsplit (
                   sub(
-                      paste0(outcome_table$requested.outcomes,"."),
+                      paste0(outcome.table$requested.outcomes,"."),
                       "", 
-                      outcome_table$avail.dims), 
+                      outcome.table$avail.dims), 
                   ".", 
                   fixed = T 
         )
@@ -276,36 +281,57 @@ get.surveillance.data <- function(surveillance.data.manager=msa.surveillance,
 
     # This works and provides the correct index for the relevant entry, but it
     # is very ugly and uses globals.  Replace!
-    outcome.index = c()
+    outcome.index <- c()
 
-    valid = lapply(only.dims, function (outcome) {
-        local_index = 1
+    valid <- lapply(only.dims, function (outcome) {
+        local.index = 1
         lapply(outcome, function (s) {
-            e = all( keep.dimensions %in% s )
+            e <- all( keep.dimensions %in% s )
             if (e) {
-                outcome.index <<- c(outcome.index, local_index)
+                outcome.index <<- c(outcome.index, local.index)
             } else {
-                local_index <<- local_index + 1
+                local.index <<- local.index + 1
             }
             e
         })
     })
 
-    good_indexes = lapply(valid, function(bools) {
+    good.indexes <- unlist(lapply(valid, function(bools) {
         any (T %in% bools)
-    })
+    }))
+    
+    #print(avail.dims[good.indexes])
 
     # Same as above; works but is ugly, uses globals.  Replace!
-    only.index = 0;
-    results = lapply(avail.dims [unlist(good_indexes)], function (only) {
+    only.index <- 0;
+    results <- lapply(avail.dims [good.indexes], function (only) {
         only.index <<- only.index + 1
-        surveillance.data.manager[only[outcome.index[only.index]]]
+        surveillance.data.manager[[only[outcome.index[only.index]]]]
     })
-
+    
+    print(dimension.values)
+    
     # We have the relevant data, now filter the results:
+    array.access(results, dimension.values, T)
 }
+#data <-get.surveillance.data(msa.surveillance,
+#           c("new","prevalence","aids.diagnoses", "ooogy", "new.for.continuum"), "2000-2014", dimension.values = list(year = "2002", location="10900"), keep.dimensions = c("age","sex"))
+data.num <-get.surveillance.data(msa.surveillance,
+          c("engagement.numerator", "test1"), "2000-2014",dimension.values = list(year = "2002", location="10900"), keep.dimensions = c("age","sex"))
+data.den <-get.surveillance.data(msa.surveillance,
+                                 c("engagement.denominator","test2"), "2000-2014", dimension.values = list(year = "2002", location="10900"),keep.dimensions = c("age","sex"))
+                                                                                                                                                            
+full_data <- data.num[[1]]/data.den[[1]]
+
+#Example calls to the get.surveillance.data() function:
+
+# data <-get.surveillance.data(msa.surveillance,
+#                      c("new","prevalence","aids.diagnoses", "ooogy", "new.for.continuum"), "2000-2014", dimension.values = list(year = "2002", location="10900"), keep.dimensions = c("age","sex"))
+
 
 # FUTURE CONSIDERATIONS
+
+  # Want to cast the types in dimension.values to char if they are integer as it will try to pull the integer row/column instead of the year itself. (Year + location)
 
     # In the future, in order to be more general and support multiple data.managers, I believe we should
     # create a separate list within the list called 'outcomes' where these are listed.  This would

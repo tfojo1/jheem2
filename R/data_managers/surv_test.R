@@ -92,5 +92,3 @@ gabfav$footer()
 
 cat(white("\nFunction Testing\n\n"))
 
-get.surveillance.data(msa.surveillance,
-                      c("new","prevalence","aids.diagnoses", "ooogy", "new.for.continuum"), "2000-2014", dimension.values = list(year = 2002), keep.dimensions = c("age","sex"))
