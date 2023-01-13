@@ -238,6 +238,16 @@ check.array.access.arguments <- function(arr,
     }
 }
 
+array.list.access <- function(arr, dimension.values, drop=F)
+{
+    #@need to implement
+}
+
+'array.list.access<-' <- function(arr, dimension.values, value)
+{
+    #@need to implement
+}
+
 #'Expand an Array to Greater Dimensions
 #'
 #'@description 
