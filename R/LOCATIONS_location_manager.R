@@ -118,9 +118,12 @@ register.locations <- function(type,
 #'@details Where super.completely.encloses.sub==T, the function will automatically recognize that locations completely enclosed within the given sub.locations are also completely enclosed within the corresponding super.locations, and, conversely that locations which completely enclose the given super.locations also completely enclose the corresponding sub.locations
 #'
 #'@export
-register.sub.and.super..locations <- function(sub.locations,
-                                              super.locations,
-                                              super.completely.encloses.sub)
+register.sub.and.super.locations <- function(sub.locations,
+                                             super.locations,
+                                             super.completely.encloses.sub)
 {
     
 }
+
+
+LOCATION.MANAGER = new.env()
