@@ -37,7 +37,9 @@ get.location.name <- function(locations)
 get.location.name.alias <- function(locations, alias.name,
                                throw.error.if.unregistered.alias=T)
 {
-  #No need to check lengths
+  if (length(alias.name) != 1) {
+    stop("get.location.name.alias: alias.name must be a single name")
+  }
   LOCATION.MANAGER$get.name.aliases(locations, alias.name, throw.error.if.unregistered.alias)
 }
 
@@ -50,7 +52,8 @@ get.location.name.alias <- function(locations, alias.name,
 #'@export
 get.location.type <- function(locations)
 {
-    
+  #No need to check lengths
+  LOCATION.MANAGER$get.types(locations)
 }
 
 #'@description Get Locations that Fall Within a Location
@@ -69,7 +72,14 @@ get.sub.locations <- function(locations, sub.type,
                               return.list=F,
                               throw.error.if.unregistered.type=T)
 {
-    
+   if (length(sub.type) != 1) {
+     stop("get.sub.locations: sub.type must be a single character type")
+   } 
+   if (!is.logical(c(limit.to.completely.enclosing,return.list,throw.error.if.unregistered.type))
+       || length(c(limit.to.completely.enclosing,return.list,throw.error.if.unregistered.type)) != 3) {
+     stop("get.sub.locations: error in one of the logical types limit.to.completely.enclosing, return.list or throw.error.if.unregistered.type")
+   }
+   LOCATION.MANAGER$get.sub(locations, sub.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type)
 }
 
 
@@ -89,7 +99,14 @@ get.super.locations <- function(locations, super.type,
                                 return.list=F,
                                 throw.error.if.unregistered.type=T)
 {
-    
+  if (length(super.type) != 1) {
+    stop("get.sub.locations: sub.type must be a single character type")
+  } 
+  if (!is.logical(c(limit.to.completely.enclosing,return.list,throw.error.if.unregistered.type))
+      || length(c(limit.to.completely.enclosing,return.list,throw.error.if.unregistered.type)) != 3) {
+    stop("get.sub.locations: error in one of the logical types limit.to.completely.enclosing, return.list or throw.error.if.unregistered.type")
+  }
+  LOCATION.MANAGER$get.super(locations, super.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type)
 }
 
 ##-------------##
@@ -193,12 +210,35 @@ register.sub.and.super.locations <- function(sub.locations,
   LOCATION.MANAGER$register.hierarchy(sub.locations, super.locations, super.completely.encloses.sub) 
 }
 
+#'@description Register fips county file with the location manager
+#'
+#'@param filename The name of the file we are trying to read.
+#'
+#'@details LOCATION.MANAGER will check the existence of the file.
+#'
+#'@export
+register.fips.file <- function(filename)
+{
+  LOCATION.MANAGER$register.fips(filename) 
+}
+
+
+#Barebones testing
+
+
 register.locations ("State", c("NY","FL","CA","TX"), c("New York", "Florida", "California", "Texas"))
-register.locations ("City", c("NYC", "MIA", "SFC", "HOU"), c("New York", "Miami","San Francisco", "Houston"))
+register.locations ("City", c("NYC", "MIA", "SFC", "HOU","TMP"), c("New York", "Miami","San Francisco", "Houston", "Tampa"))
+register.locations ("Town", "SMT", "Small Town")
+register.locations ("CITY","BRN","Brooklyn")
 register.name.aliases("SFC","SanFrancisco","no spaces")
 register.name.aliases("NYC","NewYork","no spaces")
 register.code.aliases("SFC", "GoldenState")
+register.locations("County", "TMC", "TAMPACOUNTY")
 register.sub.and.super.locations( c("NYC","MIA"), c("NY","FL"), TRUE)
+register.sub.and.super.locations( "TMP", "FL", TRUE)
+register.sub.and.super.locations( "SMT", "FL", TRUE )
+register.sub.and.super.locations( "TMC", "TMP", TRUE)
+register.sub.and.super.locations( "BRN", "NYC", FALSE)
 #register.code.aliases("TTC","TorontoTransit") #Fails due to TTC being unrecognized
 
 print(LOCATION.MANAGER$location.list)
@@ -210,4 +250,23 @@ print(LOCATION.MANAGER$location.list[["FL"]]$contains.list)
 get.location.name(c("GoldenState","NY","TOR",NA,"HOU"))
 #     GoldenState              NY             TOR            <NA>             HOU 
 # "San Francisco"      "New York"              NA              NA       "Houston" 
+
 get.location.name.alias(c("GoldenState","NYC"),"no spaces")
+get.location.name.alias(c("GoldenState", "FL"), "no spaces", F) #Fine; returns NA for FL
+#get.location.name.alias(c("GoldenState", "FL"), "no spaces", T) #Throws an error
+get.location.name.alias(c("GoldenState", NA), "no spaces", F) #Fine; returns NA for NA
+
+get.location.type(c("GoldenState","NYC","NY","MIA","TOR",NA))
+
+print(get.sub.locations (c("NY","FL", NA, "TOR"), "CITY", F, T))
+
+register.fips.file("locations/fips_codes.csv")
+#get.sub.locations (c("NY","NYC"),"postal", F, F, F)
+#get.sub.locations (c("NY","FL", NA, "TOR"), "city", F, T)
+
+#get.super.locations(c("MIA","SMT"), "state", F)
+                              #limit.to.completely.enclosing,
+                              #return.list=F,
+                              #throw.error.if.unregistered.type=T)
+
+
