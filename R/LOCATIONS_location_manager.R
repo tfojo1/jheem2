@@ -25,6 +25,25 @@ get.location.name <- function(locations)
   LOCATION.MANAGER$get.names(locations)
 }
 
+#'@description Get the location code for a name and a type
+#'
+#'@param location.names A list of names to get the location code for
+#'@param types A corresponding list of types
+#'
+#'@return A character vector of location codes, with length(location.names) and names=location.names. If if the location.name is not registered or NA, NA is returned
+#'
+#'@export
+get.location.code <- function(location.names, types)
+{
+  if (length(types) != 1 && length(types) != length(location.names)) {
+    stop("get.location.code: Length of types can either be 1 or it must be the length of the location.names")
+  }
+  if (length(types) == 1) {
+    types = rep(types, length(location.names))
+  }
+  LOCATION.MANAGER$get.codes.from.names(location.names, types)
+}
+
 #'@description Get an Name alias Associated with a Location
 #'
 #'@param locations A character vector of location codes
@@ -222,6 +241,31 @@ register.fips.file <- function(filename)
   LOCATION.MANAGER$register.fips(filename) 
 }
 
+#'@description Register zip code file with the location manager
+#'
+#'@param filename The name of the file we are trying to read.
+#'
+#'@details LOCATION.MANAGER will check the existence of the file.
+#'
+#'@export
+register.zipcode.file <- function(filename)
+{
+  LOCATION.MANAGER$register.zipcodes(filename) 
+}
+
+#'@description Register state abbreviations with the location manager
+#'
+#'@param filename The name of the file we are trying to read.
+#'
+#'@details LOCATION.MANAGER will check the existence of the file.
+#'
+#'@export
+register.state.abbrev.file <- function(filename)
+{
+  print("Blocked on implementation of get.location.code")
+  LOCATION.MANAGER$register.state.abbrev(filename) 
+}
+
 
 #Barebones testing
 
@@ -261,6 +305,8 @@ get.location.type(c("GoldenState","NYC","NY","MIA","TOR",NA))
 print(get.sub.locations (c("NY","FL", NA, "TOR"), "CITY", F, T))
 
 register.fips.file("locations/fips_codes.csv")
+register.zipcode.file("locations/zip_codes.csv")
+register.state.abbrev.file("locations/us_state_abbreviations.csv")
 #get.sub.locations (c("NY","NYC"),"postal", F, F, F)
 #get.sub.locations (c("NY","FL", NA, "TOR"), "city", F, T)
 

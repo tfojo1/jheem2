@@ -160,8 +160,8 @@ LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.en
     }
   }
   
-  print("Before adding")
-  print(all.sub.locations)
+  #print("Before adding")
+  #print(all.sub.locations)
 
   if (!limit.to.completely.enclosing) {
     #We want fully and partially enclosed lists
@@ -274,8 +274,6 @@ LOCATION.MANAGER$get.name.aliases <- function(locations, alias.name, throw.error
   #Resolve the location codes, preserving NAs and missing codes as NAs
   codes = unlist(lapply(locations,function(x){LOCATION.MANAGER$resolve.code(x,F)})) #Now contains the fully resolved location codes or NAs
   
-  #WORKING
-  
   type.collector = function(location) {
     if (is.na(location)) {
       return (NA)
@@ -312,6 +310,11 @@ LOCATION.MANAGER$get.name.aliases <- function(locations, alias.name, throw.error
   result
 }
 
+LOCATION.MANAGER$get.codes.from.names <- function(location.names, types) {
+  #WIP
+  c()
+}
+
 LOCATION.MANAGER$resolve.code <- function(code,fail.on.unknown=T) {
   
   #Resolves a single location code from potential alias to actual code
@@ -338,7 +341,7 @@ LOCATION.MANAGER$resolve.code <- function(code,fail.on.unknown=T) {
   code
 }
 
-LOCATION.MANAGER$register <- function (types, names, codes) {
+LOCATION.MANAGER$register <- function (types, location.names, codes) {
   #codes and types are all uppercase; case insensitive
   codes <- toupper(codes)
   types <- toupper(types)
@@ -348,6 +351,7 @@ LOCATION.MANAGER$register <- function (types, names, codes) {
     stop("LOCATION.MANAGER: Attempting to add a code that already exists in the manager")
   }
 
+  #print(location.names)
   #Check that the code doesn't conflict with a code alias either
   if (any (codes %in% names(LOCATION.MANAGER$alias.codes) )) {
     stop("LOCATION.MANAGER: Attempting to add a code that conflicts with a code alias")
@@ -358,7 +362,7 @@ LOCATION.MANAGER$register <- function (types, names, codes) {
     LOCATION.MANAGER$type.list = unique(c(types, LOCATION.MANAGER$type.list))
   }
 
-  LOCATION.MANAGER$location.list [ codes ]<- lapply(mapply(c,names,types,SIMPLIFY=F), Location$new)
+  LOCATION.MANAGER$location.list [ codes ]<- lapply(mapply(c,location.names,types,SIMPLIFY=F), Location$new)
 
 }
 
@@ -397,21 +401,36 @@ LOCATION.MANAGER$register.code.aliases <- function(code, code.aliases) {
   LOCATION.MANAGER$alias.codes[code.aliases] = code
 }
 
-LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains) {
+LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains, fail.on.unknown = T) {
   
   #Sizes have already been checked up one level
   #We now have three vectors of equal length
   
+  if (fail.on.unknown) {
   #Check the location codes/aliases for both sub and super
-  sub = unlist(lapply(sub,LOCATION.MANAGER$resolve.code))
-  super = unlist(lapply(super,LOCATION.MANAGER$resolve.code))
-  
-  
-  #LOOP FIXME
-  #mapply and function { ?
-  for (i in seq_along(sub)) {
-    LOCATION.MANAGER$location.list[[super[i]]]$register.sub.location(sub[i],fully.contains[i])
+    sub = unlist(lapply(sub,LOCATION.MANAGER$resolve.code))
+    super = unlist(lapply(super,LOCATION.MANAGER$resolve.code))
+    #LOOP FIXME
+    #mapply and function { ?
+    for (i in seq_along(sub)) {
+      LOCATION.MANAGER$location.list[[super[i]]]$register.sub.location(sub[i],fully.contains[i])
+    }
+  } else {
+    sub = unlist(lapply(sub, function(x) { LOCATION.MANAGER$resolve.code(x,F)} ))
+    super = unlist(lapply(super,function(x) { LOCATION.MANAGER$resolve.code(x,F)} ))
+    #LOOP FIXME
+    #mapply and function { ?
+    for (i in seq_along(sub)) {
+      if (!any(is.na(c(super[i],sub[i])))) {
+        #Verify that neither address is NA before we attempt to register the sub location
+        #Skip those that are not registered yet.
+        LOCATION.MANAGER$location.list[[super[i]]]$register.sub.location(sub[i],fully.contains[i])
+      }
+    }
   }
+  
+  
+
 
 }
 
@@ -421,32 +440,85 @@ LOCATION.MANAGER$register.fips <- function(filename) {
     stop(paste0("LOCATION.MANAGER: Cannot find the fips file with filename ", filename))
   }
   
-  fips.data = read.csv(file = filename, stringsAsFactors = TRUE)
+  fips.data = read.csv(file = filename)
   
   #States
   states = fips.data[ fips.data[1] == 040, ] #Get only the state data from the fips info
   
-  state.codes = as.character(states[[2]] * 1000)
+  #Column 2 is the state code
+  state.codes = states[[2]] * 1000
   
   types = rep("state", length(state.codes))
   
-  LOCATION.MANAGER$register(types, states[[7]], state.codes)
+  #Column 7 is the name of the states
+  LOCATION.MANAGER$register(types, states[[7]], as.character(state.codes))
   
   #Counties
   counties = fips.data[ fips.data[1] == 050, ] #Get only the county data from the fips info.
   
-  county.codes = as.character(counties[[2]] * 1000 + counties[[3]])
+  #Column 3 is the county code
+  county.codes = counties[[2]] * 1000 + counties[[3]]
   
   types = rep("county",length(county.codes))
   
-  LOCATION.MANAGER$register(types, counties[[7]], county.codes)
+  #Column 7 is the names of the counties
+  LOCATION.MANAGER$register(types, counties[[7]], as.character(county.codes))
+  
+  #There appear to be entries in the county code that don't have a corresponding
+  #registered state.  Refrain from trying to create a connect to the non-existent
+  #state
+  #This list is checked against the state.codes above to make sure the state
+  #is registered before we create a hierarchy.
+  possible.state.codes = counties[[2]] * 1000
+  #Get only the counties with proper states
+  counties.of.states = as.character(county.codes [ possible.state.codes %in% state.codes ])
+  corresponding.states = as.character(possible.state.codes [ possible.state.codes %in% state.codes ])
   
   #Register the counties as completely contained by the states
   #LOOP FIXME
-  for (i in seq_along(county.codes)) {
-    #round(county.codes[[i]], digits = -3) will convert a county code (12422, eg) to a state code (12000)
-    LOCATION.MANAGER$register.hierarchy(county.codes[[i]], round(county.codes[[i]], digits = -3), TRUE)
-  }
+  #for (i in seq_along(counties.of.states)) {
+  #  LOCATION.MANAGER$register.hierarchy(counties.of.states[[i]], corresponding.states[[i]], TRUE)
+  #}
+  LOCATION.MANAGER$register.hierarchy(counties.of.states, corresponding.states, rep(TRUE,length(counties.of.states)))
   
+}
+
+LOCATION.MANAGER$register.zipcodes = function(filename, zipcode.code.format.string = "ZIP%s", #Format for unique zip id (will otherwise conflict with fips)
+                                                        zipcode.name.format.string = "ZIP.%s", #Format for Zip name (unique not required)
+                                                        zipcode.type.name = "ZIPCODE") { #Name of the type for the zipcodes
+  #Check if the file exists
+  if (!file.exists(filename)) {
+    stop(paste0("LOCATION.MANAGER: Cannot find the zipcode file with filename ", filename))
+  } 
+  
+  zip.data = read.csv(file= filename)
+  
+  zip.codes = zip.data[['zip']]
+  unique.zip.codes = sprintf(zipcode.code.format.string,zip.codes)
+  fips.codes = zip.data[['fips']]
+  #round(34233,digits=-3) = 34000
+  state.codes = as.character(round(as.numeric(fips.codes),digits = -3))
+  zip.names = sprintf(zipcode.name.format.string,zip.codes)
+  
+  #print(length(unique.zip.codes) == length(state.codes))
+  
+  #Register all the zip codes
+  LOCATION.MANAGER$register(rep(zipcode.type.name, length(zip.codes)), zip.names, unique.zip.codes)
+  
+  #Register the zip code as completely contained by the fips code. If any result is NA, skip
+  LOCATION.MANAGER$register.hierarchy(unique.zip.codes,fips.codes,rep(TRUE,length(fips.codes)),F)
+  
+  #Register the zip code as completely contained by the state.  If any result is NA, skip
+  LOCATION.MANAGER$register.hierarchy(unique.zip.codes,state.codes,rep(TRUE,length(state.codes)),F)
+  
+}
+
+LOCATION.MANAGER$register.state.abbrev = function(filename) {
+  #Check if the file exists
+  if (!file.exists(filename)) {
+    stop(paste0("LOCATION.MANAGER: Cannot find the zipcode file with filename ", filename))
+  } 
+  
+  abbrev.data = read.csv(file= filename, stringsAsFactors = TRUE)
 }
 
