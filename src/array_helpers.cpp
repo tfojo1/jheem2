@@ -1,6 +1,65 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
+//-----------------------------------------//
+//-- GENERAL INCREMENT/OVERWRITE HELPERS --//
+//--  (These allow for modify-in-place)  --//
+//-----------------------------------------//
+
+// [[Rcpp::export]]
+NumericVector overwrite_arr(NumericVector dst,
+                            IntegerVector dst_indices,
+                            NumericVector src,
+                            IntegerVector src_indices)
+{
+    for (int i=0; i<src_indices.length(); i++)
+    {
+        dst[ dst_indices[i] ] = src[ src_indices[i] ];
+    }
+    
+    return (dst);
+}
+
+// [[Rcpp::export]]
+NumericVector add_to_arr(NumericVector dst,
+                         IntegerVector dst_indices,
+                         NumericVector src,
+                         IntegerVector src_indices)
+{
+    for (int i=0; i<src_indices.length(); i++)
+    {
+        dst[ dst_indices[i] ] += src[ src_indices[i] ];
+    }
+    
+    return (dst);
+}
+
+// [[Rcpp::export]]
+NumericVector overwrite_arr_with_scalar(NumericVector dst,
+                                        NumericVector overwrite_with)
+{
+    double val = overwrite_with[0];
+    for (int i=0; i<dst.length(); i++)
+    {
+        dst[i] = val;
+    }
+    
+    return (dst);
+}
+
+// [[Rcpp::export]]
+NumericVector add_scalar_to_arr(NumericVector dst,
+                                NumericVector to_add)
+{
+    double val = to_add[0];
+    for (int i=0; i<dst.length(); i++)
+    {
+        dst[i] += val;
+    }
+    
+    return (dst);
+}
+
 //---------------------//
 //-- ARRAY OVERWRITE --//
 //---------------------//
@@ -746,3 +805,64 @@ RObject do_get_expand_indices(IntegerVector dst_array,
     return (dst_array);
 }
 
+//-- TO APPLY ACCESS/EXPAND INDICES --//
+
+// [[Rcpp::export]]
+NumericVector do_access_overwrite(NumericVector dst,
+                                  NumericVector src,
+                                  IntegerVector dst_indices,
+                                  IntegerVector src_indices)
+{
+    for (int i=0; i<dst_indices.length(); i++)
+        dst[ dst_indices[i]-1 ] = src[ src_indices[i]-1 ];
+    
+    return (dst);
+}
+
+// [[Rcpp::export]]
+NumericVector do_access_add(NumericVector dst,
+                                  NumericVector src,
+                                  IntegerVector dst_indices,
+                                  IntegerVector src_indices)
+{
+    for (int i=0; i<dst_indices.length(); i++)
+        dst[ dst_indices[i]-1 ] += src[ src_indices[i]-1 ];
+    
+    return (dst);
+}
+
+// [[Rcpp::export]]
+NumericVector do_access_subtract(NumericVector dst,
+                                  NumericVector src,
+                                  IntegerVector dst_indices,
+                                  IntegerVector src_indices)
+{
+    for (int i=0; i<dst_indices.length(); i++)
+        dst[ dst_indices[i]-1 ] -= src[ src_indices[i]-1 ];
+    
+    return (dst);
+}
+
+// [[Rcpp::export]]
+NumericVector do_access_multiply(NumericVector dst,
+                                  NumericVector src,
+                                  IntegerVector dst_indices,
+                                  IntegerVector src_indices)
+{
+    for (int i=0; i<dst_indices.length(); i++)
+        dst[ dst_indices[i]-1 ] *= src[ src_indices[i]-1 ];
+    
+    return (dst);
+}
+
+// [[Rcpp::export]]
+NumericVector do_access_divide(NumericVector dst,
+                                  NumericVector src,
+                                  IntegerVector dst_indices,
+                                  IntegerVector src_indices)
+{
+    for (int i=0; i<dst_indices.length(); i++)
+        dst[ dst_indices[i]-1 ] /= src[ src_indices[i]-1 ];
+    
+    return (dst);
+}

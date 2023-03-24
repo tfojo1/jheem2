@@ -23,22 +23,22 @@ create.data.manager <- function(name,
                            dimensions=dimensions)
 }
 
-#'@description Register a new data group to a data manager before putting data to it
+#'@description Register a new data ontology to a data manager before putting data to it
 #'
 #'@param data.manager A jheem.data.manager object
 #'@param name The name of the data group
-#'@param dim.names A named list of character vectors representing all possible dimensions for this data group. names(dim.names) represents the possible dimensions. If dim.names[[dimension]] is a character vector, they represent the possible values for dimension. If dim.names[[dimension]] is NULL, then values for dimension are not prescribed (any values may be set)
+#'@param ont An ontology object as created by ontology()
 #'
 #'@export
-register.data.group <- function(data.manager,
-                                 name,
-                                 dim.names)
+register.data.ontology <- function(data.manager,
+                                   name,
+                                   ont)
 {
     if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
-    data.manager$register.group(name=name,
-                                 dim.names=dim.names)
+    data.manager$register.ontology(name=name,
+                                   ont=ont)
 }
 
 #'@description Register an outcome to a data manager before putting data for that outcome
@@ -66,18 +66,19 @@ register.data.outcome <- function(data.manager,
 #'
 #'@param data.manager A jheem.data.manager object
 #'@param outcome The outcome type for the data. Must be an outcome previously registered with \code{\link{register.data.outcome}}
-#'@param data.group The data group to store the data in. Must be a data.group previously registered with \code{\link{register.data.group}}
-#'@param dimension.values A named list that indicates what subset of a bigger data element these particular data should be stored into. The names of dimension values .The values of dimension.values can be either (1) character vectors
+#'@param ontology.name The name of the ontology which the data follow. Must be an ontology previously registered with \code{\link{register.data.ontology}}
+#'@param dimension.values A named list that indicates what subset of a bigger data element these particular data should be stored into. The names of dimension values. The values of dimension.values can be either (1) character vectors
 #'@param data A numeric array or scalar value containing the data to store. If it is an array, it must have named dimnames set
-#'@param source,url,details Either a single character value, or an array of lists, each containing a single character value, denoting the source (a one- or two-word description of the data source), url (a URL for where to reference the data), or details (more details on the data source). The dimnames of these arguments must be a subset of the dimnames of data
+#'@param source The (single) character name of the source from which these data derive. Note: a source is conceived such that one source cannot contain two sets of data for the same set of dimension values
+#'@param url,details Either a single character value, or a character array, or a list array (a list with dimnames set) where each element is a character vector, denoting the url (a URL for where to reference the data), or data collection details (sub-categorization of the data source). The dimnames of these arguments must be a subset of the dimnames of data
 #'
 #'@export
 put.data <- function(data.manager,
                      outcome,
-                     data.group,
+                     ontology.name,
+                     source,
                      dimension.values,
                      data,
-                     source,
                      url,
                      details)
 {
@@ -93,25 +94,34 @@ put.data <- function(data.manager,
                      details=details)
 }
 
-#'@description Get data from a data manager
+#'@description Pull data from a data manager
 #'
 #'@param data.manager A jheem.data.manager object
-#'@param outcome The outcome type for the data.
-#'@param data.group The data group to store the data in. If missing, will default to the first data.group that was registered with this data manager
-#'@param keep.dimensions
-#'@param dimension.values A named
-#'@param data A numeric array or scalar value containing the data to store. If it is an array, it must have named dimnames set
-#'@param type What to get 'data' (the default) returns the actual data. 'source', 'url', and 'details' return the respective particulars on where the data were obtained
+#'@param outcome The outcome type for the data. Must be an outcome previously registered to this data manager with \code{\link{register.data.outcome}}
+#'@param keep.dimensions The dimensions that should be retained in the returned value
+#'@param dimension.values A named list, indicating which values for specific dimensions to pull data for
+#'@param sources The data sources from which to pull data (if available). If NULL, will pull from all data sources that have any relevant data
+#'@param target.ontology Optional argument, indicating the ontology according to which results are desired. The data manager will apply an ontology mapping (if it can) to align the returned array to the desired ontology
+#'@param allow.mapping.from.target.ontology A logical indicator. If TRUE, if target.ontology is specified, but the data manager does not have data that can be mapped to target ontology, it will search for data such that an ontology.mapping can be applied to data in the target.ontology that make those data align with the data pulled
+#'@param from.ontology.names The names of the ontologies from which to pull data (if available). If NULL, will pull from all ontologies that have any relevant data and can be mapped to the requested ontology. Must refer to ontologies previously registered to this data manager with \code{\link{register.data.ontology}}
+#'@param append.attributes A character vector indicating requested data attributes to include with the result. May be either "details", "url", or both
 #'
-#'@return If type=='data', a numeric array with named dimnames, with one dimension for each value of 'keep.dimensions'. Otherwise, a list array with named dimnames, where each element is a list with a single value: a character vector with all the source, url, or details from which the corresponding value of get.data(type='data') were obtained
+#'@return A numeric array with named dimnames, with one dimension for each value of 'keep.dimensions'.
+#' The return value may have several attributes:
+#' (1) If target.ontology is not-NULL and allow.mapping.from.target.ontology==T, 'ontology.mapping' with refer to an ontology.mapping object that can be applied to data in the target.ontology to make them align with the returned array
+#' (2) If append.attributes includes "url", a list array (a list with dim and dimnames attributes set), with the same dimensions as the returned array, where each element is a character vector of URLs
+#' (3) If append.attributes includes "details", a list array (a list with dim and dimnames attributes set), with the same dimensions as the returned array, where each element is a character vector of strings giving the details about data collection
 #'
 #'@export
-get.data <- function(data.manager,
-                     outcome,
-                     keep.dimensions,
-                     dimension.values,
-                     data.group,
-                     type=c('data','source','url','details')[1])
+pull.data <- function(data.manager,
+                      outcome,
+                      keep.dimensions = NULL,
+                      dimension.values = NULL,
+                      sources = NULL,
+                      target.ontology = NULL,
+                      allow.mapping.from.target.ontology = T,
+                      from.ontology.names = NULL,
+                      append.attributes = NULL)
 {
     if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -122,6 +132,8 @@ get.data <- function(data.manager,
                      data.group=data.group,
                      type=type)
 }
+
+
 
 ##----------------------##
 ##-- CLASS DEFINITION --##

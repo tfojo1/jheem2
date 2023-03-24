@@ -1,16 +1,44 @@
 
 ##--  The scales on which model elements and quantities operate --##
 
-MODEL.SCALES = c('rate',
-                 'ratio',
-                 'proportion', #an alias for proportion.leaving
-                 'proportion.leaving',
-                 'proportion.staying',
-                 'time',
-                 'number',
-                 'non.negative.number')
+MODEL.SCALE.INFO = list(
+    rate = list(needs.denominator = T,
+                aggregatable = T),
+    ratio = list(needs.denominator = F,
+                 aggregatable = F),
+    proportion = list(needs.denominator = T,
+                      aggregatable = T),
+    proportion.leaving = list(needs.denominator = T,
+                              aggregatable = T),
+    proportion.staying = list(needs.denominator = T,
+                              aggregatable = T),
+    time = list(needs.denominator = T,
+                aggregatable = T),
+    number = list(needs.denominator = F,
+                  aggregatable = T),
+    non.negative.number = list(needs.denominator = T,
+                               aggregatable = T)
+)
 
+MODEL.SCALES = names(MODEL.SCALE.INFO)
 
+##--------------------------##
+##-- BASIC INFO on SCALES --##
+##--------------------------##
+
+scale.is.aggregatable <- function(scales)
+{
+    sapply(MODEL.SCALE.INFO[scales], function(info){
+        info$aggregatable
+    })
+}
+
+scale.needs.denominator <- function(scales)
+{
+    sapply(MODEL.SCALE.INFO[scales], function(info){
+        info$needs.denominator
+    })
+}
 
 ##-------------------------------##
 ##-- CONVERTING between SCALES --##
@@ -54,7 +82,7 @@ do.convert.model.scale <- function(values,
         else if (convert.to.scale=='time')
             1/values
         else
-            stop(paste0(error.prefix, "Internal Error: Have not defined conversions from '", convert.from.scale, "' to '", convert.to.scale, "'"))
+            stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
     }
     else if (convert.from.scale=='proportion' || convert.from.scale=='proportion.leaving')
     {
@@ -65,7 +93,7 @@ do.convert.model.scale <- function(values,
         else if (convert.to.scale=='time')
             -1/log(1-values)
         else
-            stop(paste0(error.prefix, "Internal Error: Have not defined conversions from '", convert.from.scale, "' to '", convert.to.scale, "'"))
+            stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
     }
     else if (convert.from.scale=='proportion.staying')
     {
@@ -76,7 +104,7 @@ do.convert.model.scale <- function(values,
         else if (convert.to.scale=='time')
             -1/log(values)
         else
-            stop(paste0(error.prefix, "Internal Error: Have not defined conversions from '", convert.from.scale, "' to '", convert.to.scale, "'"))
+            stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
     }
     else if (convert.from.scale=='time')
     {
@@ -87,10 +115,10 @@ do.convert.model.scale <- function(values,
         else if (convert.to.scale=='proportion.staying')
             exp(-1/values)
         else
-            stop(paste0(error.prefix, "Internal Error: Have not defined conversions from '", convert.from.scale, "' to '", convert.to.scale, "'"))
+            stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
     }
     else
-        stop(paste0(error.prefix, "Internal Error: Have not defined conversions from '", convert.from.scale, "'"))
+        stop(paste0(error.prefix, "Invalid from scale for conversion:'", convert.from.scale, "'"))
 }
 
 ##----------------------------------##
@@ -125,7 +153,7 @@ check.values.for.model.scale <- function(values, scale,
 }
 
 # internal to transitions.mapping code
-do.check.values.for.model.scale <- function(value, scale,
+do.check.values.for.model.scale <- function(values, scale,
                                             variable.name.for.error=NULL,
                                             error.prefix='')
 {
@@ -136,14 +164,14 @@ do.check.values.for.model.scale <- function(value, scale,
     
     if (scale=='rate' || scale=='ratio' || scale=='time' || scale=='non.negative.number')
     {
-        if (any(!is.na(value) & value < 0))
+        if (any(!is.na(values) & values < 0))
             stop(paste0(error.prefix, 
                         "Invalid value(s) ", variable.name.for.error,
                         "for scale '", scale, "': values must be non-negative"))
     }
     else if (scale=='proportion' || scale=='proportion.leaving' || scale=='proportion.staying')
     {
-        if (any(!is.na(value) & (value<0) | any(value>1)))
+        if (any(!is.na(values) & (values<0) | any(values>1)))
             stop(paste0(error.prefix, 
                         "Invalid value(s) ", variable.name.for.error,
                         "for scale '", scale, ": values must be between 0 and 1"))

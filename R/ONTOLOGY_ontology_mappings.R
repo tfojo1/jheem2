@@ -5,27 +5,19 @@
 ##----------------------##
 ##----------------------##
 
-#'@description Register a mapping that allows transformations of arrays
+#'@description Create a mapping that allows transformations of arrays
 #'
-#'@param name A descriptive single character value
 #'@param from.dimensions A character vector of names of the dimensions we are mapping from
 #'@param to.dimensions A character vector of names of the dimensions we are mapping to
 #'@param mappings A character matrix, with a number of columns == length(from.dimensions) + length(to.dimensions). The first length(from.dimensions) columns represent values for the from.dimensions (in the same order as from.dimensions), and the last length(to.dimensions) colums represent values for to.dimensions (in the order of to.dimensions). Each row represents a mapping from a set of values for from.dimension to a set of values for to.dimensions. NB: any dimnames on mappings will be ignored
-#'
-#'@details The mappings must contain every possible combination of 'from' values (ie, every combo of from values must map to something). A row of 'mappings' may have NA values in ALL the 'from' columns (indicating there is no set of 'from' values that maps to the corresponding 'to' values), or may have NA values in ALL the 'to' columns (indicating the that the given set of 'from' values will be discarded in the transformation)
+#'@param error.prefix A text string to prepend to any error messages generated in executing the function
 #'
 #'@export
-register.ontology.mapping <- function(name,
-                                      mappings,
-                                      from.dimensions,
-                                      to.dimensions=from.dimensions)
+create.ontology.mapping <- function(mappings,
+                                    from.dimensions,
+                                    to.dimensions=from.dimensions,
+                                    error.prefix = "Error creating ontology mapping: ")
 {
-    #-- Validate the Name --#
-    if (!is.character(name) || length(name)!=1 || is.na(name) || nchar(name)==0)
-        stop("Error registering ontology mapping: 'name' must be a non-empty, non")
-    
-    error.prefix = paste0("Error registering ontology mapping '", name, "': ")
-    
     #-- Validate from.dimensions --#
     if (!is.character(from.dimensions) || length(from.dimensions)==0)
         stop(paste0(error.prefix, "'from.dimensions' must be a non-empty character vector"))
@@ -46,15 +38,15 @@ register.ontology.mapping <- function(name,
     
     n.to.dimensions = length(to.dimensions)
     
-
+    
     #-- Validate dimensions on mappings --#
     
     if (is.null(dim(mappings)) || length(dim(mappings))!=2)
         stop(paste0(error.prefix, "'mappings' must be a two-dimensional data structure (eg, matrix or data frame)"))
-
+    
     if (dim(mappings)[1]==0)
         stop(paste0(error.prefix, "'mappings' cannot be empty"))
-
+    
     if (dim(mappings)[2] != (n.from.dimensions+n.to.dimensions))
         stop(paste0(error.prefix, "'mappings' must have ", 
                     (n.from.dimensions+n.to.dimensions),
@@ -81,14 +73,14 @@ register.ontology.mapping <- function(name,
                     ifelse(sum(all.na.rows)==1, ' row contains', ' rows contain'),
                     " only NA values"))
     
-  
+    
     #-- Check for NAs in the from.values - allowed ONLY if all values in a row are NA --#
     #   (And at least some values have to be non-NA)
     if (n.from.dimensions>1)
     {
         invalid.na.mask = apply(is.na(from.values), 1, any) &
             !apply(is.na(from.values), 1, all)
-
+        
         if (any(invalid.na.mask))
             stop(paste0(error.prefix,
                         "Rows representing 'from' values in 'mappings' (in the 1st",
@@ -104,7 +96,7 @@ register.ontology.mapping <- function(name,
                     ifelse(n.from.dimensions==1, '',
                            paste0("-", get.ordinal(n.from.dimensions))),
                     ") cannot contain *ALL* NA values"))
-
+    
     #-- Check for NAs in the to.values - allowed ONLY if all values in a row are NA --#
     if (n.to.dimensions>1)
     {
@@ -129,10 +121,10 @@ register.ontology.mapping <- function(name,
                            paste0("-", get.ordinal(n.from.dimensions+n.to.dimensions))),
                     ") cannot contain *ALL* NA values"))
     
-        
+    
     
     #-- Make sure every combination of (non-NA) from values is used --#
-
+    
     no.from.na.mask = !apply(is.na(from.values), 1, all)
     num.unique.non.na.from.combos = dim(unique(from.values[no.from.na.mask,,drop=F]))[1]
     
@@ -163,7 +155,7 @@ register.ontology.mapping <- function(name,
     
     
     #-- Pad NAs to fill out every combination of 'to' values --#
-   
+    
     no.to.na.mask = !apply(is.na(to.values), 1, all)
     num.unique.non.na.to.combos = dim(unique(to.values[no.to.na.mask,,drop=F]))[1]
     
@@ -178,17 +170,43 @@ register.ontology.mapping <- function(name,
         missing.to.combos = setdiff.rows(all.to.combos, to.values)
         
         from.values = rbind(from.values,
-                          matrix(NA, nrow=dim(missing.to.combos)[1], ncol=n.from.dimensions))
+                            matrix(NA, nrow=dim(missing.to.combos)[1], ncol=n.from.dimensions))
         to.values = rbind(to.values, missing.to.combos)
     }
     
     #-- Make the mapping --#
     
-    mapping = BASIC.ONTOLOGY.MAPPING$new(name=name,
+    BASIC.ONTOLOGY.MAPPING$new(name=name,
                                          from.dimensions=from.dimensions,
                                          to.dimensions=to.dimensions,
                                          from.values=from.values,
                                          to.values=to.values)
+}
+
+
+#'@description Create and register a mapping that allows transformations of arrays
+#'
+#'@param name A descriptive single character value
+#'@inheritParams create.ontology.mapping
+#'
+#'@details The mappings must contain every possible combination of 'from' values (ie, every combo of from values must map to something). A row of 'mappings' may have NA values in ALL the 'from' columns (indicating there is no set of 'from' values that maps to the corresponding 'to' values), or may have NA values in ALL the 'to' columns (indicating the that the given set of 'from' values will be discarded in the transformation)
+#'
+#'@export
+register.ontology.mapping <- function(name,
+                                      mappings,
+                                      from.dimensions,
+                                      to.dimensions=from.dimensions)
+{
+    #-- Validate the Name --#
+    if (!is.character(name) || length(name)!=1 || is.na(name) || nchar(name)==0)
+        stop("Error registering ontology mapping: 'name' must be a non-empty, non")
+    
+    error.prefix = paste0("Error registering ontology mapping '", name, "': ")
+    
+    mapping = create.ontology.mapping(mappings=mappings,
+                                      from.dimension=from.dimensions,
+                                      to.dimensions=to.dimensions,
+                                      error.prefix=error.prefix)
     
     ##??? Do we need to parse out subsets of mappings and register those if there are multiple dimensions? ???##
     
@@ -604,18 +622,35 @@ do.get.ontology.mapping <- function(from.dim.names,
         NULL
 }
 
-
-combine.ontology.mappings <- function(mappings.list)
+#'@description Combine multiple ontology mappings into a single mapping
+#'
+#'@param ... Either ontology.mapping objects or lists containing ontology.mapping objects#'
+#'
+#'@export
+combine.ontology.mappings <- function(...)
 {
+    args = list(...)
     sub.mappings = list()
-    for (elem in mappings.list)
+    for (elem in args)
     {
         if (is(elem, 'combination.ontology.mapping'))
             sub.mappings = c(sub.mappings, elem$sub.mappings)
         else if (is(elem, 'ontology.mapping'))
             sub.mappings = c(sub.mappings, list(elem))
+        else if (is.list(elem))
+        {
+            for (sub.elem in elem)
+            {
+                if (is(sub.elem, 'combination.ontology.mapping'))
+                    sub.mappings = c(sub.mappings, sub.elem$sub.mappings)
+                else if (is(sub.elem, 'ontology.mapping'))
+                    sub.mappings = c(sub.mappings, list(sub.elem))
+                else
+                    stop("Cannot create combination ontology mapping: ... must contain ONLY ontology.mapping objects or lists of ontology.mapping objects")
+            }
+        }
         else
-            stop("Cannot create combination ontology mapping: sub.mappings must contain ONLY ontology.mapping objects")
+            stop("Cannot create combination ontology mapping: ... must contain ONLY ontology.mapping objects or lists of ontology.mapping objects")
     }
     
     if (length(sub.mappings)==0)
@@ -631,18 +666,65 @@ combine.ontology.mappings <- function(mappings.list)
                                          sub.mappings=sub.mappings[!no.change.mapping.mask])
 }
 
+#'@description Create an ontology mapping that lumps otherwise unspecified categories into an "other" category
+#'
+#'@param dimension A single character value indicating what dimension this mapping applies to
+#'@param from.values The possible values for the dimension in the ontology to map from
+#'@param to.values The possible values for the dimension in the ontology to map to
+#'@param other.category.value What the "other" category should be called in the to ontology
+#'
+#'@export
 create.other.catchall.ontology.mapping <- function(dimension,
                                                    from.values,
-                                                   to.values)
+                                                   to.values,
+                                                   other.category.value='other')
 {
-    missing.from.to = setdiff(from.values, c(to.values, 'other'))
+    #-- Sanitize arguments --#
+    if (!is.character(dimension))
+        stop("In create.other.catchall.ontology.mapping(), 'dimension' must be a single character value")
+    if (length(dimension) != 1)
+        stop("In create.other.catchall.ontology.mapping(), 'dimension' must be a SINGLE character value")
+    if (is.na(dimension))
+        stop("In create.other.catchall.ontology.mapping(), 'dimension' cannot be NA")
+    
+    if (!is.character(from.values))
+        stop("In create.other.catchall.ontology.mapping(), 'from.values' must be a character vector")
+    if (length(from.values)==0)
+        stop("In create.other.catchall.ontology.mapping(), 'from.values' cannot be an empty vector")
+    if (any(is.na(from.values)))
+        stop("In create.other.catchall.ontology.mapping(), 'from.values' cannot contain NA values")
+    
+    if (!is.character(to.values))
+        stop("In create.other.catchall.ontology.mapping(), 'to.values' must be a character vector")
+    if (length(to.values)==0)
+        stop("In create.other.catchall.ontology.mapping(), 'to.values' cannot be an empty vector")
+    if (any(is.na(to.values)))
+        stop("In create.other.catchall.ontology.mapping(), 'to.values' cannot contain NA values")
+    
+    if (!is.character(other.category.value))
+        stop("In create.other.catchall.ontology.mapping(), 'other.category.value' must be a single character value")
+    if (length(other.category.value) != 1)
+        stop("In create.other.catchall.ontology.mapping(), 'other.category.value' must be a SINGLE character value")
+    if (is.na(other.category.value))
+        stop("In create.other.catchall.ontology.mapping(), 'other.category.value' cannot be NA")
+    
+    missing.from.from = setdiff(to.values, c(from.values, other.category.value))
+    if (length(missing.from.from)>0)
+        stop(paste0("In create.other.catchall.ontology.mapping(), no from.values will map to ",
+                    collapse.with.or("'", missing.from.from, "'"), " (in to.values)"))
+    
+    
+    #-- Do the work --#
+    missing.from.to = setdiff(from.values, c(to.values, other.category.value))
+    if (length(missing.from.to)==0)
+        stop("You have tried to construct an 'other-catchall' mapping using create.other.catchall.ontology.mapping(), but none of the from.values will map to other")
     
     new.to.values = from.values
     names(new.to.values) = from.values
-    new.to.values[missing.from.to] = 'other'
+    new.to.values[missing.from.to] = other.category.value
     dim(new.to.values) = dim(from.values) = c(length(from.values),1)
     
-    BASIC.ONTOLOGY.MAPPING$new(name=paste0(dimension, "/other"),
+    BASIC.ONTOLOGY.MAPPING$new(name=paste0(dimension, "/", other.category.value),
                                from.dimensions=dimension,
                                to.dimensions=dimension,
                                from.values=from.values,
@@ -881,7 +963,7 @@ ONTOLOGY.MAPPING = R6::R6Class(
         
         equals = function(other)
         {
-            stop("The ontology.mapping 'equals' method must be implemented at the subclass level")
+            stop("This subclass of 'ontology.mapping' is incompletely specified. The 'equals' method must be implemented at the subclass level")            
         },
         
         can.apply.to.dim.names = function(from.dim.names, 

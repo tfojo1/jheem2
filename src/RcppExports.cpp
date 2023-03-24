@@ -10,6 +10,41 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// apply_one_dim_ontology_mapping
+void apply_one_dim_ontology_mapping(NumericVector src, NumericVector dst, IntegerVector src_dims, IntegerVector dst_dims, int map_dimension, IntegerVector from_indices, IntegerVector to_indices);
+RcppExport SEXP _applied_jheem_apply_one_dim_ontology_mapping(SEXP srcSEXP, SEXP dstSEXP, SEXP src_dimsSEXP, SEXP dst_dimsSEXP, SEXP map_dimensionSEXP, SEXP from_indicesSEXP, SEXP to_indicesSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type src(srcSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type src_dims(src_dimsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dst_dims(dst_dimsSEXP);
+    Rcpp::traits::input_parameter< int >::type map_dimension(map_dimensionSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type from_indices(from_indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type to_indices(to_indicesSEXP);
+    apply_one_dim_ontology_mapping(src, dst, src_dims, dst_dims, map_dimension, from_indices, to_indices);
+    return R_NilValue;
+END_RCPP
+}
+// apply_two_dim_ontology_mapping
+void apply_two_dim_ontology_mapping(NumericVector src, NumericVector dst, IntegerVector src_dims, IntegerVector dst_dims, int map_dimension_1, int map_dimension_2, IntegerVector from_indices_1, IntegerVector to_indices_1, IntegerVector from_indices_2, IntegerVector to_indices_2);
+RcppExport SEXP _applied_jheem_apply_two_dim_ontology_mapping(SEXP srcSEXP, SEXP dstSEXP, SEXP src_dimsSEXP, SEXP dst_dimsSEXP, SEXP map_dimension_1SEXP, SEXP map_dimension_2SEXP, SEXP from_indices_1SEXP, SEXP to_indices_1SEXP, SEXP from_indices_2SEXP, SEXP to_indices_2SEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type src(srcSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type src_dims(src_dimsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dst_dims(dst_dimsSEXP);
+    Rcpp::traits::input_parameter< int >::type map_dimension_1(map_dimension_1SEXP);
+    Rcpp::traits::input_parameter< int >::type map_dimension_2(map_dimension_2SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type from_indices_1(from_indices_1SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type to_indices_1(to_indices_1SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type from_indices_2(from_indices_2SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type to_indices_2(to_indices_2SEXP);
+    apply_two_dim_ontology_mapping(src, dst, src_dims, dst_dims, map_dimension_1, map_dimension_2, from_indices_1, to_indices_1, from_indices_2, to_indices_2);
+    return R_NilValue;
+END_RCPP
+}
 // rcpp_hello_world
 List rcpp_hello_world();
 RcppExport SEXP _applied_jheem_rcpp_hello_world() {
@@ -22,6 +57,8 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_applied_jheem_apply_one_dim_ontology_mapping", (DL_FUNC) &_applied_jheem_apply_one_dim_ontology_mapping, 7},
+    {"_applied_jheem_apply_two_dim_ontology_mapping", (DL_FUNC) &_applied_jheem_apply_two_dim_ontology_mapping, 10},
     {"_applied_jheem_rcpp_hello_world", (DL_FUNC) &_applied_jheem_rcpp_hello_world, 0},
     {NULL, NULL, 0}
 };

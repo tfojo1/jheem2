@@ -282,22 +282,35 @@ expand.array <- function(to.expand, target.dim.names)
 #'@export
 get.expand.array.indices <- function(to.expand.dim.names, target.dim.names)
 {
-    if (length(to.expand)==1)
+    if (length(to.expand.dim.names)==0)
     {
-        array(1, 
-              dim=sapply(target.dim.names, length),
-              dimnames = target.dim.names)
+        if (length(target.dim.names)==0)
+            1
+        else
+            array(1, 
+                  dim=sapply(target.dim.names, length),
+                  dimnames = target.dim.names)
     }
     else
     {
-        rv = array(0, dim=sapply(target.dim.names, length), dimnames=target.dim.names)
-        rv = do_get_expand_indices(dst_array=rv, src_dim_names = to.expand.dim.names)
-        if (is.null(rv))
+        if (length(target.dim.names)==0)
         {
-            check.expand.arguments(to.expand=to.expand, target.dim.names=target.dim.names)
-            stop("There was an error creating the expand indices")
+            if (length(to.expand.dim.names)>0 && prod(sapply(to.expand.dim.names, length))>1)
+                stop("Cannot create expand indices - 'to.expand.dim.names' are non-empty but 'target.dim.names' are empty")
+            else
+                1
         }
-        rv
+        else
+        {
+            rv = array(0, dim=sapply(target.dim.names, length), dimnames=target.dim.names)
+            rv = do_get_expand_indices(dst_array=rv, src_dim_names = to.expand.dim.names)
+            if (is.null(rv))
+            {
+                check.expand.arguments(to.expand=to.expand, target.dim.names=target.dim.names)
+                stop("There was an error creating the expand indices")
+            }
+            rv
+        }
     }
 }
 
