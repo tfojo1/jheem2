@@ -254,7 +254,7 @@ set.alpha.main.effect.values <- function(alphas,
     alphas
 }
 
-set.alpha.interaction.values <- function(alphas,
+set.alpha.interaction.value <- function(alphas,
                                          dimensions,
                                          dimension.values,
                                          value,

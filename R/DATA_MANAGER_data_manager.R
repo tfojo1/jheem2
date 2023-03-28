@@ -81,6 +81,7 @@ register.data.outcome <- function(data.manager,
 #'@param source The (single) character name of the source from which these data derive. Note: a source is conceived such that one source cannot contain two sets of data for the same set of dimension values
 #'@param url A character vector with at least one element giving one or more URLs indicating where the data derive from
 #'@param details A character vector with at least one element giving one or more URLs giving data collection details. In general, data collected and tabulated using the same approach should have the same details, whereas data with different methods/tabulation should have different details
+#'@param allow.na.to.overwrite A logical indicator for whether NA values in data should be allowed to overwrite previous values put to the data manager (if data have been put previously)
 #'
 #'@export
 put.data <- function(data.manager,
@@ -90,7 +91,8 @@ put.data <- function(data.manager,
                      ontology.name,
                      dimension.values,
                      url,
-                     details)
+                     details,
+                     allow.na.to.overwrite=F)
 {
     if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -101,7 +103,8 @@ put.data <- function(data.manager,
                      data=data,
                      source=source,
                      url=url,
-                     details=details)
+                     details=details,
+                     allow.na.to.overwrite=allow.na.to.overwrite)
 }
 
 #'@description Put long-form data into a data manager
@@ -117,7 +120,8 @@ put.data.long.form <- function(data.manager,
                                ontology.name,
                                dimension.values,
                                url,
-                               details)
+                               details,
+                               allow.na.to.overwrite=F)
 {
     if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -128,7 +132,8 @@ put.data.long.form <- function(data.manager,
                                data=data,
                                source=source,
                                url=url,
-                               details=details) 
+                               details=details,
+                               allow.na.to.overwrite=allow.na.to.overwrite) 
 }
 
 #'@description Pull data from a data manager
@@ -348,7 +353,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                        ontology.name,
                        dimension.values,
                        url,
-                       details)
+                       details,
+                       allow.na.to.overwrite=F)
         {
             #------------------------#
             #-- Validate arguments --#
@@ -410,7 +416,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 "If 'data' is an array, then it must be an array with NAMED dimnames"))
                 
                 invalid.dimensions = setdiff(names(dimnames(data)), names(ont))
-                if (length(invalid.dimension)>0)
+                if (length(invalid.dimensions)>0)
                     stop(paste0(error.prefix,
                                 "The dimensions of 'data' include ",
                                 collapse.with.and("'", invalid.dimensions, "'"),
@@ -485,8 +491,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix, "'details' cannot contain empty values ('')"))
             details = unique(details)
             
-            #@need to implement this check
-            
+            # 6) *allow.na.to.overwrite* is a single, non-NA, logical value
+            if (!is.logical(allow.na.to.overwrite) || length(allow.na.to.overwrite)!=1 || is.na(allow.na.to.overwrite))
+                stop(paste0(error.prefix, "'allow.na.to.overwrite' must be a single, non-NA logical value"))
             
             #--------------------------------#
             #-- Set up to receive the data --#
@@ -498,9 +505,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Figure out what stratification it goes in as the union of:
             # (1) dimensions in the data
             # (2) dimensions in dimension.values
-            stratification = private$get.required.stratification(dimension.values=dimension.values,
-                                                                 data=data,
-                                                                 data.group = data.group,
+            stratification = private$get.required.stratification(dimension.values = dimension.values,
+                                                                 data = data,
+                                                                 ontology.name = ontology.name,
                                                                  return.as.dimensions = F)
            
             # If there are no data elements for the outcome and ontology yet, make empty lists
@@ -514,6 +521,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             {
                 for (name in private$i.data.element.names)
                     private[[name]][[ontology.name]][[outcome]][[stratification]] = list()
+            }
+            
+            if (is.null(private$i.data[[ontology.name]][[outcome]][[stratification]][[source]]))
+            {
+                for (name in private$i.data.element.names)
+                    private[[name]][[ontology.name]][[outcome]][[stratification]][[source]] = list()
             }
             
             # What dim.names do we need to accommodate the new data?
@@ -546,42 +559,52 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     new.dim.names = put.dim.names
                 
                 # Make the new (empty) data structures
-                private$i.data[[data.group]][[outcome]][[stratification]][[source]] = array(NaN, dim=sapply(new.dim.names, length), dimnames = new.dim.names)
+                private$i.data[[data.group]][[outcome]][[stratification]][[source]] =
+                    array(NaN, dim=sapply(new.dim.names, length), dimnames = new.dim.names)
                 
-                for (name in private$i.data.provenance.names)
+                for (name in metadata.element.names)
                 {
-                    private[[name]][[data.group]][[outcome]][[stratification]] = lapply(1:prod(sapply(new.dim.names, length)), function(i){
-                        NULL
-                    })
+                    private[[name]][[data.group]][[outcome]][[stratification]][[source]] = 
+                        lapply(1:prod(sapply(new.dim.names, length)), function(i){
+                            NULL
+                        })
                     
-                    dim(private[[name]][[data.group]][[outcome]][[stratification]]) = sapply(new.dim.names, length)
-                    dimnames(private[[name]][[data.group]][[outcome]][[stratification]]) = new.dim.names
+                    dim(private[[name]][[data.group]][[outcome]][[stratification]][[source]]) = sapply(new.dim.names, length)
+                    dimnames(private[[name]][[data.group]][[outcome]][[stratification]][[source]]) = new.dim.names
                 }
                     
                 # Overwrite the new structure with the old data, if needed
                 if (data.already.present)
                 {
-                    array.access(private$i.data[[data.group]][[outcome]][[stratification]], existing.dim.names) = existing.data.and.provenance$i.data
+                    array.access(private$i.data[[data.group]][[outcome]][[stratification]][[source]], existing.dim.names) =
+                        existing.data.and.metadata$i.data
                     
-                    for (name in private$i.data.provenance.names)
-                        array.list.access(private[[name]][[data.group]][[outcome]][[stratification]], existing.dim.names) = existing.data.and.provenance[[name]]
+                    for (name in metadata.names)
+                        array.list.access(private[[name]][[data.group]][[outcome]][[stratification]], existing.dim.names) = 
+                            existing.data.and.metadata[[name]]
                 }
             }
 
             
             #-- Put the data and its metadata --#
             
-            # Put the data
-            array.access(private$i.data[[data.group]][[outcome]][[stratification]], dimension.values) = data
+            # get the indices we're going to write into
+            overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[data.group]][[outcome]][[stratification]][[source]]),
+                                                         dimension.values = dimension.values)
+            if (!allow.na.to.overwrite)
+            {
+                overwrite.indices = overwrite.indices[!is.na(data)]
+                data = data[!is.na(data)]
+            }
+                
+            # Put data
+            private$i.data[[data.group]][[outcome]][[stratification]][[source]][overwrite.indices] = data
             
-            # Put the data provenance
-            data.provenance = list(i.source = source,
-                                   i.url = url,
-                                   i.details = details)
-            
-            for (name in private$i.data.provenance.names)
-                array.list.access(private[[name]][[data.group]][[outcome]][[stratification]], dimension.values) = data.provenance[[name]]
-            
+            # Put metadata
+            private$i.url[[data.group]][[outcome]][[stratification]][[source]][overwrite.indices] = 
+                lapply(1:length(overwrite.indices), function(i){ url })
+            private$i.details[[data.group]][[outcome]][[stratification]][[source]][overwrite.indices] = 
+                lapply(1:length(overwrite.indices), function(i){ details })
             
             
             #-- Invisibly return the data manager for convenience --#
@@ -594,7 +617,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                  ontology.name,
                                  dimension.values,
                                  url,
-                                 details)
+                                 details,
+                                 allow.na.to.overwrite=F)
         {
             #-- Initial validate arguments --#
             
@@ -673,7 +697,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                          dimension.values = dimension.values,
                          data = arr.data,
                          url = url,
-                         details = details)
+                         details = details,
+                         allow.na.to.overwrite = allow.na.to.overwrite)
             }
         },
         
@@ -812,9 +837,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         # - get data with keep.dimensions and dimension.values
         # - put the given 'data' using dimension.values
         get.required.stratification = function(dimension.values,
-                                                data=NULL,
-                                                keep.dimensions=NULL,
-                                               data.group,
+                                               data=NULL,
+                                               keep.dimensions=NULL,
+                                               ontology.name,
                                                return.as.dimensions) #if true, returns the vector of dimensions. If false, collapses to the stratification name
         {
             dimensions = intersect(private$i.data.groups[[data.group]]$dimensions,

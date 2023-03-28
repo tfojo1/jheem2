@@ -67,7 +67,17 @@ run.jheem.engine <- function(jheem.engine,
                              keep.years=start.year:end.year,
                              atol=1e-04, rtol=1e-04)
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    jheem.engine$run(start.year = start.year,
+                     end.year = end.year,
+                     check.consistency = check.consistency,
+                     max.run.time.seconds = max.run.time.seconds,
+                     prior.sim = prior.sim,
+                     keep.years = keep.years,
+                     atol = atol, 
+                     rtol = rtol)
 }
 
 
@@ -88,7 +98,12 @@ set.element.value <- function(jheem.engine,
                               value,
                               check.consistency=T)
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    jheem.engine$set.element.value(element.name = element.name,
+                                   value = value,
+                                   check.consistency = check.consistency)
 }
 
 #'@description Set Main Effect Alpha Values for a Functional Form for a Model Element
@@ -276,7 +291,7 @@ JHEEM.ENGINE = R6::R6Class(
                 private$set.up()
             
             # Set the times
-            set.crunch.years(start.year = start.year,
+            set.run.years(start.year = start.year,
                              end.year = end.year,
                              error.prefix = paste0("Error preparing JHEEM Engine to run: "))
 
@@ -284,14 +299,23 @@ JHEEM.ENGINE = R6::R6Class(
             specification = get.specification()
             sapply(specification$top.level.quantity.names, calculate.quantity.value,
                    check.consistency = check.consistency)
+            
+            # Done
+            invisible(self)
         },
         
-        run = function()
+        run = function(start.year,
+                       end.year,
+                       check.consistency=T,
+                       max.run.time.seconds=Inf,
+                       prior.sim=NULL,
+                       keep.years=start.year:end.year,
+                       atol=1e-04, rtol=1e-04)
         {
-            # If the specification has changed since we last crunched/set-up, reset
-            specification = get.specification.for.version(private$i.version)
-            if (specification$iteration != private$i.specification.info$specification.iteration)
-                private$set.up()
+            # Crunch
+            self$crunch(start.year = start.year,
+                        end.year = end.year,
+                        check.consistency = check.consistency)
             
             # Do the work
         },
@@ -301,19 +325,58 @@ JHEEM.ENGINE = R6::R6Class(
         ##------------------------------##
     
         set.element.value = function(element.name,
-                                      value,
-                                      check.consistency=T)
+                                     value,
+                                     check.consistency=T,
+                                     error.prefix='')
         {
+            #-- Check Arguments --#
+            if (check.consistency)
+            {
+                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
+                    stop(paste0(error.prefix, "Cannot set element value - 'element.name' must be a single, non-NA, character value"))
+                
+                if (all(private$i.element.names!=element.name))
+                    stop(paste0(error.prefix, "Cannot set element value - no element named '", element.name, "' exists for model specificaiton '", self$version, "'"))
+                
+                if (!is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                    stop(paste0(error.prefix, 
+                                "Cannot set value for element '", element.name,
+                                "' - a functional.form has been specified; set.element.value can only be used when there is no functional.form"))
+                
+                # Check value dimensions
+                if (!is.numeric(value))
+                    stop(paste0(error.prefix,
+                                "Cannot set value for element '", element.name,
+                                "' - value must be a numeric object"))
+                
+                verify.dim.names.for.quantity(dim.names = dimnames(value),
+                                              quantity = private$get.specification()$get.quantity(element.name),
+                                              variable.name.for.error = "the dimnames of 'value'",
+                                              error.prefix = paste0(error.prefix, "Cannot set value for element '", element.name, "' - "),
+                                              wrt.version = self$version)
+            }
+            
+            if (length(value)==1)
+                names(value) = NULL
+
+            
             
             #-- Clear Dependencies --#
-            
             # Clear all values
             clear.dependent.values(element.name)
             
-            # Clear dim.names
-            clear.dim.names(element.name)
+            # Clear dim.names (only if value's dim.names have changed)
+            if (!dim.names.equal(dimnames(value),
+                                 dimnames(private$i.element.backgrounds[[element.name]]$value),
+                                 match.order.of.dimensions = T, match.order.within.dimensions = T))
+                clear.dim.names(element.name)
             
             # No need to clear times
+            
+            
+            #-- Set it --#
+            private$i.element.backgrounds[[element.name]]$value = value
+            
             
             #-- Log Instruction --#
             log.instruction(fn.name='set.element.value', 
@@ -321,17 +384,44 @@ JHEEM.ENGINE = R6::R6Class(
                             value=value,
                             check.consistency=check.consistency)
             
+            
             #-- Done --#
             invisible(self)
         },
         
         set.element.functional.form.main.effect.alphas = function(element.name,
-                                                                   alpha.name,
-                                                                   values,
-                                                                   applies.to.dimension.values=names(values),
-                                                                   dimensions=names(applies.to.dimension.values),
-                                                                   check.consistency=T)
+                                                                  alpha.name,
+                                                                  values,
+                                                                  applies.to.dimension.values=names(values),
+                                                                  dimensions=names(applies.to.dimension.values),
+                                                                  check.consistency=T)
         {
+            #-- Check Arguments --#
+            if (check.consistency)
+            {
+                error.prefix = paste0("Cannot set functional.form alphas for element '", element.name, "': ")
+                
+                #-- Check valid element with a model --#
+                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
+                    stop("Cannot set functional.form alphas: 'element.name' must be a single, non-NA, character value")
+                
+                if (all(names(components$element.backgrounds)!=element.name))
+                    stop(paste0("Cannot set functional.form alphas: No element named '", element.name, "' exists in this components object"))
+
+                functional.form = private$i.element.backgrounds[[element]]$functional.form
+                
+                if (is.null(functional.form))
+                    stop(paste0("Cannot set functional.form alphas: element '", element.name, 
+                                "' does not have a functional.form (use 'set.element.value' to change its value)"))
+
+                if (all(functional.form$alpha.names != alpha.name))
+                    stop(paste0(error.prefix,
+                                "'", alpha.name, 
+                                "' is not the name of a valid alpha for this functional.form of type '",
+                                functional.form$type, "'"))
+            }
+            
+            error.prefix = paste0("Cannot set functional.form alphas '", alpha.name, "' for element '", element.name, "': ")
             
             #-- Clear Dependencies --#
             
@@ -343,6 +433,14 @@ JHEEM.ENGINE = R6::R6Class(
             
             # No need to clear times
             
+            #-- Set it --#
+            private$i.element.backgrounds[[element.name]]$functional.form.alphas = 
+                set.alpha.main.effect.values(private$i.element.backgrounds[[element.name]]$functional.form.alphas,                                                         dimensions,
+                                             dimensions = dimensions,
+                                             dimension.values = applies.to.dimension.values,
+                                             values = values,
+                                             check.consistency = check.consistency,
+                                             error.prefix = error.prefix)
             
             #-- Log Instruction --#
             log.instruction(fn.name='set.element.functional.form.main.effect.alphas', 
@@ -364,7 +462,34 @@ JHEEM.ENGINE = R6::R6Class(
                                                                    dimensions=names(applies.to.dimension.values),
                                                                    check.consistency=T)
         {
+            #-- Check Arguments --#
+            if (check.consistency)
+            {
+                error.prefix = paste0("Cannot set functional.form alphas for element '", element.name, "': ")
+                
+                #-- Check valid element with a model --#
+                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
+                    stop("Cannot set functional.form alphas: 'element.name' must be a single, non-NA, character value")
+                
+                if (all(names(components$element.backgrounds)!=element.name))
+                    stop(paste0("Cannot set functional.form alphas: No element named '", element.name, "' exists in this components object"))
+                
+                functional.form = private$i.element.backgrounds[[element]]$functional.form
+                
+                if (is.null(functional.form))
+                    stop(paste0("Cannot set functional.form alphas: element '", element.name, 
+                                "' does not have a functional.form (use 'set.element.value' to change its value)"))
+                
+                if (all(functional.form$alpha.names != alpha.name))
+                    stop(paste0(error.prefix,
+                                "'", alpha.name, 
+                                "' is not the name of a valid alpha for this functional.form of type '",
+                                functional.form$type, "'"))
+            }
             
+            error.prefix = paste0("Cannot set functional.form alphas '", alpha.name, "' for element '", element.name, "': ")
+
+                        
             #-- Clear Dependencies --#
             
             # Clear all values
@@ -374,7 +499,18 @@ JHEEM.ENGINE = R6::R6Class(
             clear.dim.names(element.name)
             
             # No need to clear times
+
+            #-- Set It --#
             
+            private$i.element.backgrounds[[element.name]]$functional.form.alphas = 
+                set.alpha.interaction.value(private$i.element.backgrounds[[element.name]]$functional.form.alphas,
+                                            dimensions = dimensions,
+                                            dimension.values = dimension.values,
+                                            value = value,
+                                            check.consistency = check.consistency,
+                                            error.prefix = error.prefix)
+                    
+                        
             #-- Log Instruction --#
             log.instruction(fn.name='set.element.functional.form.interaction.alphas', 
                             element.name=element.name,
@@ -407,6 +543,54 @@ JHEEM.ENGINE = R6::R6Class(
         {
             previous.from.time = i.element.backgrounds[[element.name]]$functional.form.from.time
             
+            #-- Check Arguments --#
+            if (check.consistency)
+            {
+                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
+                    stop("Cannot set functional.form from-time: 'element.name' must be a single, non-NA, character value")
+                
+                if (all(names(components$element.backgrounds)!=element.name))
+                    stop(paste0("Cannot set functional.form from-time: No element named '", element.name, 
+                                "' exists in the specification for version '", private$i.version, "'"))
+                
+                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                    stop(paste0("Cannot set functional.form from-time: element '", element.name,
+                                "does not have a functional.form"))
+                
+                if (is.null(previous.from.time))
+                    stop(paste0("Cannot set functional.form from-time for element '", element.name,
+                                "': the functional.form is static with no ramp or taper"))
+                
+                # Check from time
+                if (!is.numeric(from.time) || length(from.time) != 1 || is.na(from.time))
+                    stop(paste0("Cannot set functional.form from-time for element '", element.name,
+                                "': from.time must be a single, non-NA, numeric value"))
+                
+                current.year = as.numeric(format(Sys.Date(), "%Y"))
+                if (from.time < MIN.FUNCTIONAL.FORM.FROM.YEAR || from.time > (current.year+MAX.FUNCTIONAL.FORM.FROM.YEAR.OFFSET.FROM.CURRENT.YEAR))
+                    stop(paste0("Cannot set functional.form from-time for element '", element.name,
+                                "'. from.time (",
+                                from.time, 
+                                ") must be between ", MIN.FUNCTIONAL.FORM.FROM.YEAR,
+                                " and ", (current.year+MAX.FUNCTIONAL.FORM.FROM.YEAR.OFFSET.FROM.CURRENT.YEAR)))
+                
+                if (from.time > private$i.element.backgrounds[[element.name]]$functional.form.to.time)
+                    stop(paste0("Cannot set functional.form from-time for element '", element.name,
+                                "'. from.time (",
+                                from.time, 
+                                ") must be a less than or equal to the previously specified 'to.time' (",
+                                private$i.element.backgrounds[[element.name]]$functional.form.to.time, ")"))
+                
+                if (!is.null(private$ielement.backgrounds[[element.name]]$ramp.times) &&
+                    any(from.time <= private$i.element.backgrounds[[element.name]]$ramp.times))
+                    stop(paste0("Cannot set functional.form from-time for element '", element.name,
+                                "'.  from.time (",
+                                from.time, 
+                                ") must be a less than or equal to the previously set ramp.times (",
+                                private$i.element.backgrounds[[element.name]]$ramp.times[length(private$i.element.backgrounds[[element.name]]$ramp.times)],
+                                ")"))
+            }
+            
             
             #-- Clear Dependencies --#
             
@@ -421,6 +605,9 @@ JHEEM.ENGINE = R6::R6Class(
             # No need to clear dim.names
             
             
+            #-- Set It --#
+            private$i.element.backgrounds[[element.name]]$functional.form.from.time = from.time
+                        
             #-- Log Instruction --#
             log.instruction(fn.name='set.element.functional.form.from.time', 
                             element.name=element.name,
@@ -437,22 +624,63 @@ JHEEM.ENGINE = R6::R6Class(
         {
             previous.from.time = i.element.backgrounds[[element.name]]$functional.form.to.time
             
-            # 
-            # Clear times
-            # No need to clear dim.names
+            #-- Check Arguments --#
+            if (check.consistency)
+            {
+                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
+                    stop("Cannot set functional.form to-time: 'element.name' must be a single, non-NA, character value")
+                
+                if (all(names(private$i.element.backgrounds)!=element.name))
+                    stop(paste0("Cannot set functional.form to-time: No element named '", element.name, 
+                                "' exists in the specification for version '", private$i.version, "'"))
+                
+                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                    stop(paste0("Cannot set functional.form to-time: element '", element.name,
+                                "' has no functional.form"))
+                
+                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form.to.time))
+                    stop(paste0("Cannot set functional.form from-time for element '", element.name,
+                                "': the functional.form is static with no ramp or taper"))
+                
+                # Check to time
+                if (!is.numeric(to.time) || length(to.time) != 1 || is.na(to.time))
+                    stop(paste0("Cannot set functional.form to-time for element '", element.name,
+                                "': 'to.time' must be a single, non-NA, numeric value"))
+                
+                if (to.time < private$i.element.backgrounds[[element.name]]$functional.form.from.time)
+                    stop(paste0("Cannot set functional.form to-time for element '", element.name,
+                                "'. to.time (",
+                                to.time, 
+                                ") must be a less than or equal to the previously specified 'from.time' (",
+                                private$i.element.backgrounds[[element.name]]$functional.form.from.time, ")"))
+                
+                
+                if (!is.null(private$i.element.backgrounds[[element.name]]$taper.times) &&
+                    any(to.time >= private$i.element.backgrounds[[element.name]]$taper.times))
+                    stop(paste0("Cannot set functional.form to-time for element '", element.name,
+                                "'.  'to.time' (",
+                                to.time, 
+                                ") must be a less than or equal to the previously set taper.times (",
+                                private$i.element.backgrounds[[element.name]]$taper.times[1], ")"))
+                
+            }
             
             
             #-- Clear Dependencies --#
             
             # Clear values for all times after min(old to time, new to time)
-            times.to.clear.values.for.mask = i.quantity.value.times[[element.name]] > min(i.element.backgrounds[[element.name]]$functional.form.to.time,
+            times.to.clear.values.for.mask = private$i.quantity.value.times[[element.name]] > min(i.element.backgrounds[[element.name]]$functional.form.to.time,
                                                                                           previous.to.time)
-            clear.dependent.values(element.name, times = i.quantity.value.times[[element.name]][times.to.clear.values.for.mask])
+            clear.dependent.values(element.name, times = private$i.quantity.value.times[[element.name]][times.to.clear.values.for.mask])
             
             # Clear times
             clear.dependent.times(element.name)
             
             # No need to clear dim.names
+            
+            
+            #-- Set It --#
+            private$i.element.backgrounds[[element.name]]$functional.form.to.time = to.time
             
             
             #-- Log Instruction --#
@@ -644,6 +872,7 @@ JHEEM.ENGINE = R6::R6Class(
         
         i.specification.info = NULL,
         
+        i.element.names = NULL,
         i.element.backgrounds = NULL,
         i.instructions = NULL,
         
@@ -734,7 +963,7 @@ JHEEM.ENGINE = R6::R6Class(
                 
                 bkgd
             })
-            names(private$i.element.backgrounds) = specification$element.names
+            names(private$i.element.backgrounds) = private$i.element.names = specification$element.names
             
             # Figure out if quantities are static
             private$i.quantity.is.static = rep(F, length(specification$quantity.names))
@@ -772,9 +1001,9 @@ JHEEM.ENGINE = R6::R6Class(
         ##-- START and END YEAR --##
         ##------------------------##
         
-        set.crunch.years = function(start.year,
-                                    end.year,
-                                    error.prefix)
+        set.run.years = function(start.year,
+                                 end.year,
+                                 error.prefix)
         {
             #-- Error Checks --#
             if (!is.numeric(start.year))
@@ -1000,12 +1229,12 @@ JHEEM.ENGINE = R6::R6Class(
                                             depth=0) #depth is for debugging
         {
             # For debugging
-            if (is.element.name(quantity.name))
-                print(paste0(paste0(rep(" ", depth), collapse=''),
-                             "-Calculate element '", quantity.name, "'"))
-            else
-                print(paste0(paste0(rep(" ", depth), collapse=''),
-                             "-Calculate quantity '", quantity.name, "'"))
+#            if (is.element.name(quantity.name))
+#                print(paste0(paste0(rep(" ", depth), collapse=''),
+#                             "-Calculate element '", quantity.name, "'"))
+#            else
+#                print(paste0(paste0(rep(" ", depth), collapse=''),
+#                             "-Calculate quantity '", quantity.name, "'"))
             
             if (is.element.name(quantity.name))
                 calculate.element.value(quantity.name, check.consistency=check.consistency)
@@ -1134,20 +1363,20 @@ JHEEM.ENGINE = R6::R6Class(
                             if (is.null(access.indices))
                                 rv = value[expand.indices]
                             else if (comp$apply.function=='overwrite')
-                                rv = do_access_overwrite(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                                # rv[access.indices] = value[expand.indices]
+                                #rv = do_access_overwrite(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
+                                 rv[access.indices] = value[expand.indices]
                             else if (comp$apply.function=='add')
-                                rv = do_access_add(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                                # rv[access.indices] = rv[access.indices] + value[expand.indices]
+                                #rv = do_access_add(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
+                                 rv[access.indices] = rv[access.indices] + value[expand.indices]
                             else if (comp$apply.function=='subtract')
-                                rv = do_access_subtract(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                                # rv[access.indices] = rv[access.indices] - value[expand.indices]
+                                #rv = do_access_subtract(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
+                                 rv[access.indices] = rv[access.indices] - value[expand.indices]
                             else if (comp$apply.function=='multiply')
-                                rv = do_access_multiply(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                                # rv[access.indices] = rv[access.indices] * value[expand.indices]
+                                #rv = do_access_multiply(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
+                                 rv[access.indices] = rv[access.indices] * value[expand.indices]
                             else if (comp$apply.function=='divide')
-                                rv = do_access_divide(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                                # rv[access.indices] = rv[access.indices] / value[expand.indices]
+                                #rv = do_access_divide(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
+                                 rv[access.indices] = rv[access.indices] / value[expand.indices]
                             else
                                 stop(paste0("Invalid apply.function '", comp$apply.function, "' for model quantity '", quantity.name,
                                             "'. Must be one of 'overwrite', 'add', 'subtract', 'multiply', or 'divide'"))
@@ -1181,8 +1410,6 @@ JHEEM.ENGINE = R6::R6Class(
                     private$i.quantity.values[[quantity.name]] = private$i.quantity.values[[quantity.name]][required.times]
                 }
 
-                print(paste0(paste0(rep(" ", depth), collapse=''),
-                             "* done calculating '", quantity.name, "'"))
                 invisible(self)
             }
         },
@@ -1352,7 +1579,7 @@ JHEEM.ENGINE = R6::R6Class(
             {
                 verify.dim.names.for.quantity(dim.names = dimnames(value),
                                               quantity = quantity,
-                                              variable.name.for.error = 'the returned value',
+                                              variable.name.for.error = "the returned value's dimnames",
                                               error.prefix = error.prefix,
                                               wrt.version = self$version,
                                               component.index = component.index)
