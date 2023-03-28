@@ -52,7 +52,7 @@ outer.join.dim.names <- function(..., error.prefix='')
     }
     
     #-- Make sure all dim.names are named lists
-    if (any(sapply(dim.values.list, function(dv){
+    if (any(sapply(dim.names.list, function(dv){
         is.null(names(dv))
     })))
         stop(paste0(error.prefix,
@@ -66,10 +66,10 @@ outer.join.dim.names <- function(..., error.prefix='')
     {
         to.merge = dim.names.list[[1]]
         merged.dimensions = union(names(rv), names(to.merge))
-        rv = lapply(dimensions, function(d){
+        rv = lapply(merged.dimensions, function(d){
             union(rv[[d]], to.merge[[d]])
         })
-        names(rv) = dimensions
+        names(rv) = merged.dimensions
         
         dim.names.list = dim.names.list[-1]
     }

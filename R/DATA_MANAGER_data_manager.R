@@ -97,11 +97,11 @@ put.data <- function(data.manager,
     if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
-    data.manager$put(outcome=outcome,
-                     data.group=data.group,
-                     dimension.values=dimension.values,
-                     data=data,
+    data.manager$put(data=data,
+                     outcome=outcome,
                      source=source,
+                     ontology.name=ontology.name,
+                     dimension.values=dimension.values,
                      url=url,
                      details=details,
                      allow.na.to.overwrite=allow.na.to.overwrite)
@@ -126,11 +126,11 @@ put.data.long.form <- function(data.manager,
     if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
-    data.manager$put.long.form(outcome=outcome,
-                               data.group=data.group,
-                               dimension.values=dimension.values,
-                               data=data,
+    data.manager$put.long.form(data=data,
+                               outcome=outcome,
                                source=source,
+                               ontology.name=ontology.name,
+                               dimension.values=dimension.values,
                                url=url,
                                details=details,
                                allow.na.to.overwrite=allow.na.to.overwrite) 
@@ -143,12 +143,13 @@ put.data.long.form <- function(data.manager,
 #'@param keep.dimensions The dimensions that should be retained in the returned value
 #'@param dimension.values A named list, indicating which values for specific dimensions to pull data for
 #'@param sources The data sources from which to pull data (if available). If NULL, will pull from all data sources that have any relevant data
-#'@param target.ontology Optional argument, indicating the ontology according to which results are desired. The data manager will apply an ontology mapping (if it can) to align the returned array to the desired ontology
-#'@param allow.mapping.from.target.ontology A logical indicator. If TRUE, if target.ontology is specified, but the data manager does not have data that can be mapped to target ontology, it will search for data such that an ontology.mapping can be applied to data in the target.ontology that make those data align with the data pulled
+#'@param target.ontology Optional argument, indicating the ontology according to which results are desired. The data manager will apply an ontology mapping (if it can) to align its data to the desired ontology
+#'@param allow.mapping.from.target.ontology A logical indicator. If TRUE, if target.ontology is specified, but the data manager does not have data that can be mapped to the target ontology, it will search for data such that an ontology.mapping can be applied to data in the target.ontology that make those data align with the data pulled
 #'@param from.ontology.names The names of the ontologies from which to pull data (if available). If NULL, will pull from all ontologies that have any relevant data and can be mapped to the requested ontology. Must refer to ontologies previously registered to this data manager with \code{\link{register.data.ontology}}
 #'@param append.attributes A character vector indicating requested data attributes to include with the result. May be either "details", "url", or both
+#'@param na.rm Whether to disregard NA values when aggregating out dimensions not in keep.dimensions
 #'
-#'@return A numeric array with named dimnames, with one dimension for each value of 'keep.dimensions'.
+#'@return A numeric array with named dimnames, with one dimension for each value of 'keep.dimensions', plus an additional dimension, "source" at the beginning, with one value for each source from which data were pulled
 #' The return value may have several attributes:
 #' (1) If target.ontology is not-NULL and allow.mapping.from.target.ontology==T, 'ontology.mapping' with refer to an ontology.mapping object that can be applied to data in the target.ontology to make them align with the returned array
 #' (2) If append.attributes includes "url", a list array (a list with dim and dimnames attributes set), with the same dimensions as the returned array, where each element is a character vector of URLs
@@ -163,16 +164,21 @@ pull.data <- function(data.manager,
                       target.ontology = NULL,
                       allow.mapping.from.target.ontology = T,
                       from.ontology.names = NULL,
-                      append.attributes = NULL)
+                      append.attributes = NULL,
+                      na.rm = F)
 {
     if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
-    data.manager$get(outcome=outcome,
-                     keep.dimensions=keep.dimensions,
-                     dimension.values=dimension.values,
-                     data.group=data.group,
-                     type=type)
+    data.manager$pull(outcome = outcome,
+                     keep.dimensions = keep.dimensions,
+                     dimension.values = dimension.values,
+                     sources = sources,
+                     target.ontology = target.ontology,
+                     allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
+                     from.ontology.names = from.ontology.names,
+                     append.attributes = append.attributes,
+                     na.rm = na.rm)
 }
 
 #'@description Get pretty names for outcomes
@@ -530,67 +536,67 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # What dim.names do we need to accommodate the new data?
-            put.dim.names = private$prepare.put.dim.names(outer.join.dim.names(dimnames(data),
-                                                                                dimension.values))
+            put.dim.names = private$prepare.put.dim.names(outer.join.dim.names(dimnames(data), dimension.values),
+                                                          ontology.name = ontology.name)
             
             # If this data element for outcome has not yet been created
             # Or if the previously-created data element does not have all the dimension values we need
             # -> make new data elements
             
-            existing.dim.names = dimnames(private$i.data[[data.group]][[outcome]][[stratification]][[source]])
+            existing.dim.names = dimnames(private$i.data[[ontology.name]][[outcome]][[stratification]][[source]])
             data.already.present = !is.null(existing.dim.names)
             
             if (!data.already.present ||
-                !dim.names.are.subset(sub.dim.names=put.dim.names,
+                !dim.names.are.subset(sub.dim.names = put.dim.names,
                                       super.dim.names = existing.dim.names))
             {
                 # Backup old data, if needed
                 if (data.already.present)
                 {
                     existing.data.and.metadata = lapply(data.element.names, function(name){
-                        private[[name]][[data.group]][[outcome]][[stratification]][[source]]
+                        private[[name]][[ontology.name]][[outcome]][[stratification]][[source]]
                     })
                 }
                 
                 # Figure out the dimensions for the new data structures
                 if (data.already.present)
-                    new.dim.names = private$prepare.put.dim.names(outer.join.dim.names(existing.dim.names, put.dim.names))
+                    new.dim.names = private$prepare.put.dim.names(outer.join.dim.names(existing.dim.names, put.dim.names),
+                                                                  ontology.name = ontology.name)
                 else
                     new.dim.names = put.dim.names
                 
                 # Make the new (empty) data structures
-                private$i.data[[data.group]][[outcome]][[stratification]][[source]] =
+                private$i.data[[ontology.name]][[outcome]][[stratification]][[source]] =
                     array(NaN, dim=sapply(new.dim.names, length), dimnames = new.dim.names)
                 
                 for (name in metadata.element.names)
                 {
-                    private[[name]][[data.group]][[outcome]][[stratification]][[source]] = 
+                    private[[name]][[ontology.name]][[outcome]][[stratification]][[source]] = 
                         lapply(1:prod(sapply(new.dim.names, length)), function(i){
                             NULL
                         })
                     
-                    dim(private[[name]][[data.group]][[outcome]][[stratification]][[source]]) = sapply(new.dim.names, length)
-                    dimnames(private[[name]][[data.group]][[outcome]][[stratification]][[source]]) = new.dim.names
+                    dim(private[[name]][[ontology.name]][[outcome]][[stratification]][[source]]) = sapply(new.dim.names, length)
+                    dimnames(private[[name]][[ontology.name]][[outcome]][[stratification]][[source]]) = new.dim.names
                 }
                     
                 # Overwrite the new structure with the old data, if needed
                 if (data.already.present)
                 {
-                    array.access(private$i.data[[data.group]][[outcome]][[stratification]][[source]], existing.dim.names) =
+                    array.access(private$i.data[[ontology.name]][[outcome]][[stratification]][[source]], existing.dim.names) =
                         existing.data.and.metadata$i.data
                     
                     for (name in metadata.names)
-                        array.list.access(private[[name]][[data.group]][[outcome]][[stratification]], existing.dim.names) = 
+                        array.list.access(private[[name]][[ontology.name]][[outcome]][[stratification]], existing.dim.names) = 
                             existing.data.and.metadata[[name]]
                 }
             }
-
             
             #-- Put the data and its metadata --#
             
             # get the indices we're going to write into
-            overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[data.group]][[outcome]][[stratification]][[source]]),
-                                                         dimension.values = dimension.values)
+            overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[ontology.name]][[outcome]][[stratification]][[source]]),
+                                                         dimension.values = c(dimnames(data), dimension.values))
             if (!allow.na.to.overwrite)
             {
                 overwrite.indices = overwrite.indices[!is.na(data)]
@@ -598,12 +604,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
                 
             # Put data
-            private$i.data[[data.group]][[outcome]][[stratification]][[source]][overwrite.indices] = data
+            private$i.data[[ontology.name]][[outcome]][[stratification]][[source]][overwrite.indices] = data
             
             # Put metadata
-            private$i.url[[data.group]][[outcome]][[stratification]][[source]][overwrite.indices] = 
+            private$i.url[[ontology.name]][[outcome]][[stratification]][[source]][overwrite.indices] = 
                 lapply(1:length(overwrite.indices), function(i){ url })
-            private$i.details[[data.group]][[outcome]][[stratification]][[source]][overwrite.indices] = 
+            private$i.details[[ontology.name]][[outcome]][[stratification]][[source]][overwrite.indices] = 
                 lapply(1:length(overwrite.indices), function(i){ details })
             
             
@@ -675,7 +681,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 })
                 data[,dimensions] = resolve.ontology.dimension.values(ont=ont, dimension.values=data[,dimensions], 
                                                                       error.prefix=paste0(error.prefix, " Error resolving dimension values - "))
-                
+             
                 # Hydrate it to an array
                 dim.names = lapply(dimensions, function(d){
                     unique(data[,d])
@@ -683,14 +689,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 names(dim.names) = dimensions
                 
                 arr.data = array(as.numeric(NA), dim=sapply(dim.names, length), dimnames=dim.names)
-                for (i in nrow(data))
+                for (i in 1:nrow(data))
                 {
                     array.access(arr.data, dimension.values = as.list(data[i,dimensions])) = data[i,'value']
                 }
                 
                 #-- Pass through to main put function --#
-                
-                print("PASS THROUGH")
                 self$put(outcome = outcome,
                          ontology.name = ontology.name,
                          source = source,
@@ -702,26 +706,34 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
         },
         
-        get = function(outcome,
-                       keep.dimensions,
-                       dimension.values,
-                       data.group,
-                       type,
-                       na.rm=F)
+        pull = function(data.manager,
+                        outcome,
+                        keep.dimensions = NULL,
+                        dimension.values = NULL,
+                        sources = NULL,
+                        target.ontology = NULL,
+                        allow.mapping.from.target.ontology = T,
+                        from.ontology.names = NULL,
+                        append.attributes = NULL,
+                        na.rm = F)
         {
             #-- Validate arguments --#
             
             # *outcome* is a single, non-NA character value
             #  that has been previously registered as an outcome for this data manager
             
+            # *dimension.values* is valid (resolve.dimension.values does this check)
+            
+            # *keep.dimensions* is either NULL or a character vector with no NA values or repeats
+            # If a vector, all the values of the vector are dimensions for the ontology - ie elements of names(private$i.ontologies[[ontology.name]])
+            # If NULL, will eventually set keep dimensions to be: all dimensions from the ontologies we need
+             
+            
             # *data.group* is either NULL or a single, non-NA character value
             # If NULL, set data.group to the first registered data group (if none have been registered, throw an error)
             # If a character value, it must be a previously registered data.group for this data manager
             
-            # *keep.dimensions* is either NULL or a character vector with no NA values or repeats
-            # If a vector, all the values of the vector are dimensions for the data.group
             
-            # *dimension.values* is valid (resolve.dimension.values does this check)
             
             # *type* is a single, non-NA character value
             # that is one of names(private$i.data.element.names)
@@ -842,9 +854,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                ontology.name,
                                                return.as.dimensions) #if true, returns the vector of dimensions. If false, collapses to the stratification name
         {
-            dimensions = intersect(private$i.data.groups[[data.group]]$dimensions,
-                                   union(union(names(dimension.values), 
-                                               names(dimnames(data)), keep.dimensions)))
+            dimensions = intersect(names(private$i.ontologies[[ontology.name]]),
+                                   union(names(dimension.values), 
+                                         union(names(dimnames(data)), keep.dimensions)))
             
             if (return.as.dimensions)
                 dimensions
@@ -853,146 +865,19 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         },
         
         prepare.put.dim.names = function(dim.names,
-                                         data.group)
+                                         ontology.name)
         {
-            data.group.dim.names = private$i.data.group.info[[data.group]]$dim.names
+            ont = private$i.ontologies[[ontology.name]]
+            ontology.dimensions.complete = is_complete(ont)
             rv = lapply(names(dim.names), function(d){
-                if (is.null(data.group.dim.names[[d]]))
-                    sort(dim.names[[d]])
+                if (ontology.dimensions.complete[d])
+                    ont[[d]]
                 else
-                    data.group.dim.names[[d]]
+                    sort(dim.names[[d]])
             })
             names(rv) = names(dim.names)
             rv
-        },
-        
-        # returns a named list where all elements are character vectors
-        # Also checks dimension.values
-        resolve.dimension.values = function(dimension.values,
-                                             data.group,
-                                             error.prefix='')
-        {
-            if (is.null(dimension.values) ||
-                (is.list(dimension.values) && length(dimension.values)==0))
-            {
-                list()
-            }
-            else
-            {
-                dim.names = private$i.data.group.info[[data.group]]$dim.names
-                if (is.null(dim.names))
-                    stop(paste0(error.prefix,
-                                "No data.group with name '", data.group, 
-                                "' has been registered to the data.manager"))
-                
-                if (!is.list(dimension.values))
-                    stop(paste0(error.prefix, "'dimension.values' must be a named list"))
-                if (is.null(names(dimension.values)))
-                    stop(paste0(error.prefix, "'dimension.values' must be a NAMED list"))
-                if (any(is.na(names(dimension.values)) | nchar(names(dimension.values))==1))
-                    stop(paste0(error.prefix, "The names of 'dimension.values' cannot be NA or the empty string"))
-                tabled.dimensions = table(names(dimension.values))
-                if (max(tabled.dimensions)>1)
-                    stop(paste0(error.prefix,
-                                "The names of 'dimension.values' cannot appear more than once. ",
-                                collapse.with.and("'", names(tabled.dimensions)[tabled.dimensions>1], "' appears ",
-                                                  tabled.dimensions[tabled.dimensions>1], " times") ))
-                
-                invalid.dimensions = setdiff(names(dimension.values), names(dim.names))
-                if (length(invalid.dimensions)>0)
-                    stop(paste0(error.prefix,
-                                "Invalid dimension",
-                                ifelse(length(invalid.dimensions)==1, '', 's'),
-                                " for data.group '", data.group, "': ",
-                                collapse.with.and("'", invalid.dimensions, "'")))
-                
-                rv.dimensions = intersect(names(dim.names), names(dimension.values))
-                rv = lapply(rv.dimensions, function(d){
-                    if (is.null(dim.names[[d]]))
-                    {
-                        if (!is.character(dimension.values[[d]]))
-                            stop(paste0(error.prefix,
-                                        "dimension.values for '", d,
-                                        "' must be a character vector"))
-                        
-                        if (length(dimension.values[[d]])==0)
-                            stop(paste0(error.prefix,
-                                        "dimension.values for '", d,
-                                        "' must have at least one value"))
-                        
-                        if (any(is.na(dimension.values[[d]])) || any(nchar(dimension.values[[d]])==0))
-                            stop(paste0(error.prefix,
-                                        "dimension.values for '", d, 
-                                        "' cannot be NA or empty character values ('')"))
-                        
-                        dimension.values[[d]]
-                    }
-                    else
-                    {
-                        if (is.logical(dimension.values[[d]]))
-                        {
-                            if (length(dimension.values[[d]])!=length(dim.names[[d]]))
-                                stop(paste0(error.prefix,
-                                            "if dimension.values[['", d,
-                                            "']] is a logical vector, it must have length ",
-                                            length(dim.names[[d]])))
-                            
-                            if (any(is.na(dimension.values[[d]])))
-                                stop(paste0(error.prefix,
-                                            "dimension.values for '", d,
-                                            "' cannot contain NA values"))
-                            
-                            if (sum(dimension.values[[d]])==0)
-                                stop(paste0(error.prefix,
-                                            "if dimension.values[['", d,
-                                            "']] is a logical vector, it must have at least one value set to TRUE"))
-                            
-                            dim.names[[d]][ dimension.values[[d]] ]
-                        }
-                        else if (is.numeric(dimension.values[[d]]) || is.character(dimension.values[[d]]))
-                        {
-                            if (length(dimension.values[[d]])==0)
-                                stop(paste0(error.prefix,
-                                            "dimension.values for '", d,
-                                            "' must have at least one value"))
-                            
-                            if (any(is.na(dimension.values[[d]])))
-                                stop(paste0(error.prefix,
-                                            "dimension.values for '", d,
-                                            "' cannot contain NA values"))
-                            
-                            if (is.numeric(dimension.values[[d]]))
-                            {
-                                if (any(dimension.values[[d]]<1 || any(dimension.values[[d]]>length(dim.names[[d]]))))
-                                    stop(paste0(error.prefix,
-                                                "if dimension.values[['", d,
-                                                "']] is a numeric vector, its values must fall between 1 and ",
-                                                length(dim.names[[d]])))
-                                
-                                dim.names[[d]][ dimension.values[[d]] ]
-                            }
-                            else if (is.character(dimension.values[[d]]))
-                            {
-                                invalid.values = setdiff(dimension.values[[d]], dim.names[[d]])
-                                if (length(invalid.values)>0)
-                                    stop(paste0(error.prefix,
-                                                collapse.with.and("'", invalid.values, "'"),
-                                                ifelse(length(invalid.values)==1, " is", " are"),
-                                                " not valid dimension.values for dimension '", d, "'"))
-                                    
-                                dimension.values[[d]]
-                            }
-                        }
-                        else
-                            stop(paste0(error.prefix,
-                                        "dimension.values for '", d,
-                                        "' must be either a character, integer, or logical vector"))
-                     }
-                })
-                
-                names(rv) = rv.dimensions
-                rv
-            }
         }
+        
     )
 )

@@ -353,7 +353,16 @@ create.jheem.specification <- function(version,
                           allow.empty = T, allow.duplicate.values.across.dimensions = F)
     
     
-    
+    # dim.names - check for use of reserved dimensions
+    validate.dimensions(names(compartments.for.infected.only),
+                        variable.name.for.error = "'compartments.for.infected.only'",
+                        error.prefix = error.prefix)
+    validate.dimensions(names(compartments.for.uninfected.only),
+                        variable.name.for.error = "'compartments.for.uninfected.only'",
+                        error.prefix = error.prefix)
+    validate.dimensions(names(compartments.for.infected.and.uninfected),
+                        variable.name.for.error = "'compartments.for.infected.and.uninfected'",
+                        error.prefix = error.prefix)
     
     # dim.names - check for use of reserved categories
     sapply(names(compartments.for.infected.only), function(d){
@@ -439,6 +448,9 @@ create.jheem.specification <- function(version,
                               variable.name.for.error = 'compartments.for.infected.and.uninfected (after merging with parent specification)',
                               allow.empty = T, allow.duplicate.values.across.dimensions = F)
         
+        # make sure that we have location as a dimension in the general dimnames
+        if (all(names(compartments.for.infected.and.uninfected) != 'location'))
+            stop(paste0(error.prefix, "'compartments.for.infected.and.uninfected' MUST have a dimension titled 'location'"))
         
         # make sure that dimensions are not shared across any of the three of general/infected/uninfected
         #  (AFTER pulling from parent)
@@ -4543,10 +4555,10 @@ RESERVED.INFIXES = c(
 )
 
 RESERVED.DIMENSIONS = c(
-    'location',
     'sim',
     'outcome',
-    'year'
+    'year',
+    'source'
 )
 
 RESERVED.DIMENSION.POSTFIXES = c(
@@ -4618,8 +4630,8 @@ do.validate.names.or.values <- function(values,
                                        paste0(" as ", descriptor.plural)),
                                 " in ", variable.name.for.error, ". ",
                                 ifelse(length(reserved.in.use)==1, 
-                                       ". It is reserved for other uses.", 
-                                       ". They are reserved for other uses.")
+                                       "It is reserved for other uses.", 
+                                       "They are reserved for other uses.")
                     ))
             }
         }
@@ -4827,16 +4839,20 @@ validate.dimensions <- function(dimensions,
                                 variable.name.for.error,
                                 error.prefix)
 {
-    do.validate.names.or.values(values = dimensions,
-                                variable.name.for.error = variable.name.for.error,
-                                descriptor = 'a dimension',
-                                descriptor.plural = 'dimensions',
-                                error.prefix = error.prefix,
-                                reserved.values = RESERVED.DIMENSIONS,
-                                reserved.prefixes = NULL,
-                                reserved.postfixes = RESERVED.DIMENSION.POSTFIXES,
-                                reserved.infixes = RESERVED.INFIXES,
-                                is.single.value = F)
+    if (length(dimensions)>0)
+    {
+        do.validate.names.or.values(values = dimensions,
+                                    variable.name.for.error = variable.name.for.error,
+                                    descriptor = 'a dimension',
+                                    descriptor.plural = 'dimensions',
+                                    only.character.values = T,
+                                    error.prefix = error.prefix,
+                                    reserved.values = RESERVED.DIMENSIONS,
+                                    reserved.prefixes = NULL,
+                                    reserved.postfixes = RESERVED.DIMENSION.POSTFIXES,
+                                    reserved.infixes = RESERVED.INFIXES,
+                                    is.single.value = F)
+    }
 }
 
 validate.compartment.values <- function(values,

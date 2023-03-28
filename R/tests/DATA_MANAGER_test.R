@@ -4,6 +4,7 @@ source('R/HELPERS_misc_helpers.R')
 source('R/DATA_MANAGER_data_manager.R')
 source('R/ONTOLOGY_ontology.R')
 source('R/HELPERS_array_helpers.R')
+source('R/HELPERS_dim_names_helpers.R')
 Rcpp::sourceCpp('src/array_helpers.cpp')
 
 DATA.ROOT.DIR = '../../../Ending HIV/Ending_HIV/cleaned_data/'
@@ -54,3 +55,4 @@ data.manager$put.long.form(data = data,
                            dimension.values = list(sex='female'),
                            url = 'www.example_url.gov',
                            details = 'CDC Reporting')
+
