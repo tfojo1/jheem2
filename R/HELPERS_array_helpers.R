@@ -73,7 +73,6 @@ get.array.access.indices <- function(arr.dim.names,
                             dimension.values,
                             value)
 {
-    print(address(arr))
     rv = do_array_overwrite(dst_array=arr,
                             src_array=value,
                             dimension_values=dimension.values)
