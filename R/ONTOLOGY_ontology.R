@@ -1,31 +1,28 @@
 
-# Tests
-if (1==2)
-{
-    ont = ontology(year=as.character(2000:2020),
-                   age=c('young','old'), race=c('black','other'),
-                   incomplete.dimensions='year')
-    
-    ont2 = ont
-    ont2['year'] = list(2000:2030)
-    ont2['age'] = list('young')
-    ont2['race'] = list(c('black','hispanic','other')) #should not work
-    ont2
-    
-    ont2 = ont
-    ont2[['year']] = 2000:2030
-    ont2[['race']] = 'hispanic' # should not work
-    ont2$race = 'hispanic'
-    ont2$sex = 'male' # should not work
-    ont2[c('year','sex')] = list(2000:2020, c('male','female'))
-    
-    arr = array(0, dim=sapply(ont, length), dimnames=ont)
-    
-    class(dimnames(arr))
-    
-    arr2 = arr[,1,drop=F]
-    class(dimnames(arr2))
-}
+
+## ***OVERVIEW***
+##
+## An *ontology* outlines the format we expect some data to take
+## We define it as a named list of character vectors, where the names of list elements represent dimensions
+##      and the values of the character vectors which are the elements are the values for each dimensions
+## PLUS a boolean indicator for whether each dimension is "complete" or not (stored in the attributes of the list)
+## Essentially, an ontology is a subset of the lists that can be assigned to the dimnames attribute for an array, 
+##      with a few additional constraints:
+##      (1) The dimensions must be named. These names can be used only once
+##      (2) Values for a dimension cannot repeat or be NA
+##      (3) We store a boolean indicator for completeness
+## 
+## A "complete" dimension is one for which the values represent all possible values for that dimension.
+## This has a few implications:
+##      (1) For a complete dimension, we can marginalize it out by summing across it. If you sum the values from
+##          all values of a complete dimension, that is all the values possible.
+##          We CANNOT marginalize like this for an incomplete dimension
+##      (2) Complete dimensions cannot have additional values added to them. But incomplete dimensions can
+##      (3) It is possible to have an empty (NULL) set of values for an incomplete dimension.
+##          We are essentially saying, "We know there are values here, but we don't know what they are yet"
+##          
+## Ontologies are implemented as S3 objects, so that they can be used as a dimnames attribute
+
 
 #'@description Create an ontology object
 #'
@@ -317,8 +314,17 @@ is_complete <- function(x)
     ont
 }
 
+#'@description Resolve dimension.values into a set of dimnames for an ontology
+#'
+#'@param ont An ontology, as created by \code\link{ontology}}
+#'@param dimension.values A list of dimension.values (ie, a named list of either character, integer, or logical vectors that indexes into the dimnames given in ont)
+#'@param error.prefix Text to prepend to any error messages that are thrown
+#'@param throw.error.if.unresolvable A logical indicating what to do if unable to resolve against the ontology. When FALSE, will return NULL if unresolvable
+#'
+#'@return If the dimension.values can be resolved against ontology ont, returns a list of dimnames (ie, a named list of character vectors). If cannot resolve will either throw an error (if throw.error.if.unresolvable) or return NULL (NB, if passed dimension.values==NULL, will also return NULL)
+#'
 #'@export
-resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefix)
+resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefix, throw.error.if.unresolvable=T)
 {
     if (!is(ont, 'ontology'))
         stop(paste0(error.prefix, "'ont' must be an object of class 'ontology'"))
@@ -348,24 +354,40 @@ resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefi
             {
                 invalid.values = setdiff(dimension.values[[d]], ont[[d]])
                 if (length(invalid.values)>0)
-                    stop(paste0(error.prefix, "Invalid ",
-                                ifelse(length(invalid.values)==1, 'value', 'values'),
-                                " for dimension '", d, "': ",
-                                collapse.with.and("'", invalid.values, "'")))
+                {
+                    if (throw.error.if.unresolvable)
+                        stop(paste0(error.prefix, "Invalid ",
+                                    ifelse(length(invalid.values)==1, 'value', 'values'),
+                                    " for dimension '", d, "': ",
+                                    collapse.with.and("'", invalid.values, "'")))
+                    else
+                        return (NULL)
+                }
                 
                 dimension.values[[d]]
             }
             else if (is.numeric(dimension.values[[d]]))
             {
                 if (any(dimension.values[[d]]<1) || any(dimension.values[[d]]>length(ont[[d]])))
-                    stop(paste0(error.prefix, "If it is a numeric vector, values for dimension '", d, "' must contain values between 1 and ", length(ont[[d]])))
+                {
+                    if (throw.error.if.unresolvable)
+                        stop(paste0(error.prefix, "If it is a numeric vector, values for dimension '", d, "' must contain values between 1 and ", length(ont[[d]])))
+                    else
+                        return (NULL)
+                }
                 
                 ont[[d]][ dimension.values[[d]] ]
             }
             else if (is.logical(dimension.values[[d]]))
             {
                 if (length(dimension.values[[d]]) != length(ont[[d]]))
-                    stop(paste0(error.prefix, "If it is a logical vector, values for dimension '", d, "' must be of length ", length(ont[[d]])))
+                {
+                    if (throw.error.if.unresolvable)
+                        stop(paste0(error.prefix, "If it is a logical vector, values for dimension '", d, "' must be of length ", length(ont[[d]])))
+                    else
+                        return (NULL)
+                }
+                
                 if (!any(dimension.values[[d]]))
                     stop(paste0(error.prefix, "If it is a logical vector, values for dimension '", d, "' must be contain at least one TRUE value"))
                 

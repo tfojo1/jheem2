@@ -1,4 +1,30 @@
 
+## ***OVERVIEW***
+##
+## See ONTOLOGY_ontology.R for description and implementation of what an ontology is
+## 
+## An ontology.mapping comprises the information for how to convert data that accords to one ontology
+##  into data that accords to a different ontology.
+## For example, if ontology A partitions race as "black", "white", "hispanic", "aapi", "other"
+##  and ontology B partitions race as "black", "hispanic", "other"
+##  a mapping from A to B would know that "black" in B = "black" in A, "hispanic" in B = "hispanic" in A,
+##  and "other" in B = "white" + "aapi" + "other" in A
+## 
+## We implement the mappings as R6 objects that store the information on how to convert as member variables,
+##  and also bundle in methods to execute conversions
+##  
+## While ontology.mappings can be created and applied directly, we also include functionality to
+##  "register" mappings - this means that they are globally accessible and can be searched.
+## This allows some client that knows it has data in one ontology to request a mapping to a different
+##  ontology without having to track those mappings itself
+## Note: we may also encounter a situation where we have some data in ontology A and some other data
+##  in ontology B that we would like to use together, but have no mapping from either A -> B or B -> A. 
+##  However, we may have mappings from both A and B to a 3rd ontology (call it C): A -> C and B -> C,
+##  that would let us use the data together. We refer to this as finding a set of mappings that
+##  "aligns" data from ontology A with data from ontology B.
+##  (Note that, since we can consider no change to an ontology as an "identity" ontology mapping, aligning
+##   A and B could be satisfied if we have either a mapping A -> B or B -> A)
+
 ##----------------------##
 ##----------------------##
 ##-- PUBLIC INTERFACE --##
@@ -273,43 +299,31 @@ register.ontology.mapping <- function(name,
 
 #'@description Get an Ontology Mapping to Transform Data
 #'
-#'@param from.dim.names The dimnames of the data to be transformed
-#'@param to.dim.names The dimnames to which the transformed data should conform
-#'@param incomplete.from.dimensions,incomplete.to.dimensions An 'incomplete' dimension is one where the values might not represent all the possibilities (eg, values 'black'/'hispanic'/'other' for race are complete - all possibilities - while a list of 30 cities for location would not be). Complete dimensions can be summed out if they are not present in to.dim.names, but incomplete dimensions cannot. By default, all dimensions are assumed to be complete
+#'@param from.ontology The ontology to which the data to be transformed conform. Must be an 'ontology' object as created by \code{\link{ontology}}
+#'@param to.ontology The ontology to which the transformed data should conform. Must be an 'ontology' object as created by \code{\link{ontology}}
 #'
 #'@return Either an object of class 'ontology.mapping' or NULL if no mapping that would bridge the differences is found
 #'@export
-get.ontology.mapping <- function(from.dim.names,
-                                 to.dim.names,
-                                 incomplete.from.dimensions = character(),
-                                 incomplete.to.dimensions = incomplete.from.dimensions)
+get.ontology.mapping <- function(from.ontology,
+                                 to.ontology)
 {
     #-- Validate Arguments --#
     
     error.prefix = "Error getting ontology mapping: "
     
-    check.dim.names.valid(from.dim.names, 
-                          error.prefix = error.prefix,
-                          variable.name.for.error = 'from.dim.names',
-                          allow.duplicate.values.across.dimensions = T)
-    check.dim.names.valid(to.dim.names, 
-                          error.prefix = error.prefix,
-                          variable.name.for.error = 'to.dim.names',
-                          allow.duplicate.values.across.dimensions = T)
+    if (!is(from.ontology, 'ontology'))
+        stop("Error in get.ontology.mapping(): 'from.ontology' must be an object of class 'ontology' as created by the ontology() function")
+    if (!is(to.ontology, 'ontology'))
+        stop("Error in get.ontology.mapping(): 'to.ontology' must be an object of class 'ontology' as created by the ontology() function")
+    
     
     #-- Call the sub-function --#
-    from.dimensions.are.complete = sapply(names(from.dim.names), function(d){all(d!=incomplete.from.dimensions)})
-    names(from.dimensions.are.complete) = names(from.dim.names)
-    
-    to.dimensions.are.complete = sapply(names(to.dim.names), function(d){all(d!=incomplete.to.dimensions)})
-    names(to.dimensions.are.complete) = names(to.dim.names)
-    
     mappings = do.get.ontology.mapping(from.dim.names = from.dim.names,
                                        to.dim.names = to.dim.names,
                                        required.dimensions = names(to.dim.names),
                                        required.dim.names = NULL,
-                                       from.dimensions.are.complete = from.dimensions.are.complete,
-                                       to.dimensions.are.complete = to.dimensions.are.complete,
+                                       from.dimensions.are.complete = is_complete(from.ontology),
+                                       to.dimensions.are.complete = is_complete(to.ontology),
                                        get.two.way.alignment = F)
     
     #-- Package up and return --#
@@ -318,47 +332,33 @@ get.ontology.mapping <- function(from.dim.names,
 
 #'@description Get a Pair of Ontology Mappings that Aligns two Data Elements
 #'
-#'@param dim.names.1,dim.names.2 The dimnames of two data elements to be transformed
+#'@param ontology.1,ontology.2 The ontologies of two data elements to be transformed
 #'@param align.on.dimensions The dimensions which should match in the transformed data
 #'@param include.dim.names Optional argument, specifying specific dimension values that must be present in the transformed data
-#'@param incomplete.dimensions.1,incomplete.dimensions.2 An 'incomplete' dimension is one where the values might not represent all the possibilities (eg, values 'black'/'hispanic'/'other' for race are complete - all possibilities - while a list of 30 cities for location would not be). Complete dimensions can be summed out if they are not present in to.dim.names, but incomplete dimensions cannot. By default, all dimensions are assumed to be complete
 #'
-#'@return Either a (1) NULL - if no mappings could align the dimnames or (2) a list with two elements, each an ontology.mapping object, such that applying the first to data with dim.names.1 yields and applying the second to data with dim.names.2 yields two data objects with the same dim.names
+#'@return Either a (1) NULL - if no mappings could align the ontologies or (2) a list with two elements, each an ontology.mapping object, such that applying the first to data conforming to ontology.1 and applying the second to data conforming to ontology.2 yields two data objects with the same dim.names
 #'
 #'@export
-get.mappings.to.align.ontologies <- function(dim.names.1,
-                                             dim.names.2,
-                                             align.on.dimensions = intersect(names(dim.names.1), names(dim.names.2)),
-                                             include.dim.names = NULL,
-                                             incomplete.dimensions.1 = character(),
-                                             incomplete.dimensions.2 = incomplete.dimensions.1)
+get.mappings.to.align.ontologies <- function(ontology.1,
+                                             ontology.2,
+                                             align.on.dimensions = intersect(names(ontology.1), names(ontology.2)),
+                                             include.dim.names = NULL)
 {
     #-- Validate Arguments --#
-    
     error.prefix = "Error getting ontology mappings: "
     
-    check.dim.names.valid(dim.names.1, 
-                          error.prefix = error.prefix,
-                          variable.name.for.error = 'dim.names.1',
-                          allow.duplicate.values.across.dimensions = T)
-    check.dim.names.valid(dim.names.2, 
-                          error.prefix = error.prefix,
-                          variable.name.for.error = 'dim.names.2',
-                          allow.duplicate.values.across.dimensions = T)
+    if (!is(ontology.1, 'ontology'))
+        stop("Error in get.ontology.mapping(): 'ontology.1' must be an object of class 'ontology' as created by the ontology() function")
+    if (!is(ontology.2, 'ontology'))
+        stop("Error in get.ontology.mapping(): 'ontology.2' must be an object of class 'ontology' as created by the ontology() function")
     
     #-- Call the sub-function --#
-    dimensions.1.are.complete = sapply(names(dim.names.1), function(d){all(d!=incomplete.dimensions.1)})
-    names(dimensions.1.are.complete) = names(dim.names.1)
-    
-    dimensions.2.are.complete = sapply(names(dim.names.2), function(d){all(d!=incomplete.dimensions.2)})
-    names(dimensions.2.are.complete) = names(dim.names.2)
-    
-    mappings = do.get.ontology.mapping(from.dim.names = dim.names.1,
-                                       to.dim.names = dim.names.2,
+    mappings = do.get.ontology.mapping(from.dim.names = ontology.1,
+                                       to.dim.names = ontology.2,
                                        required.dimensions = align.on.dimensions,
                                        required.dim.names = include.dim.names,
-                                       from.dimensions.are.complete = dimensions.1.are.complete,
-                                       to.dimensions.are.complete = dimensions.2.are.complete,
+                                       from.dimensions.are.complete = is_complete(ontology.1),
+                                       to.dimensions.are.complete = is_complete(ontology.2),
                                        get.two.way.alignment = T)
     
     #-- Package up and return --#
@@ -500,9 +500,9 @@ do.get.ontology.mapping <- function(from.dim.names,
     if (success)
     {
         if (get.two.way.alignment)
-            return (list(from=list(NO.CHANGE.MAPPING), to=list(NO.CHANGE.MAPPING)))
+            return (list(from=list(IDENTITY.MAPPING), to=list(IDENTITY.MAPPING)))
         else
-            return (list(from=list(NO.CHANGE.MAPPING), to=NULL))
+            return (list(from=list(IDENTITY.MAPPING), to=NULL))
     }
     
     #we can only modify to.dim.names by reversing when get.two.way.alignment==T
@@ -615,7 +615,7 @@ do.get.ontology.mapping <- function(from.dim.names,
         if (is.null(reverse.mappings)) # We couldn't make it work
             NULL
         else # this works! package it up and return
-            list(from=list(NO.CHANGE.MAPPING),
+            list(from=list(IDENTITY.MAPPING),
                  to=reverse.mappings$from)
     }
     else
@@ -656,14 +656,14 @@ combine.ontology.mappings <- function(...)
     if (length(sub.mappings)==0)
         return (NULL)
     
-    no.change.mapping.mask = sapply(sub.mappings, function(m){m$is.no.change.mapping})
-    if (all(no.change.mapping.mask))
-        NO.CHANGE.MAPPING
-    else if (sum(!no.change.mapping.mask)==1)
-        sub.mappings[!no.change.mapping.mask][[1]]
+    identity.mapping.mask = sapply(sub.mappings, function(m){m$is.identity.mapping})
+    if (all(identity.mapping.mask))
+        IDENTITY.MAPPING
+    else if (sum(!identity.mapping.mask)==1)
+        sub.mappings[!identity.mapping.mask][[1]]
     else
-        COMBINATION.ONTOLOGY.MAPPING$new(name = paste0(sum(!no.change.mapping.mask), "-mapping combo"),
-                                         sub.mappings=sub.mappings[!no.change.mapping.mask])
+        COMBINATION.ONTOLOGY.MAPPING$new(name = paste0(sum(!identity.mapping.mask), "-mapping combo"),
+                                         sub.mappings=sub.mappings[!identity.mapping.mask])
 }
 
 #'@description Create an ontology mapping that lumps otherwise unspecified categories into an "other" category
@@ -985,9 +985,18 @@ ONTOLOGY.MAPPING = R6::R6Class(
                                     throw.errors=T,
                                     error.prefix=error.prefix)
             
-            private$do.apply.to.dim.names(from.dim.names=from.dim.names,
-                                          complete.dimensions=complete.dimensions,
-                                          error.prefix=error.prefix)
+            rv = private$do.apply.to.dim.names(from.dim.names=from.dim.names,
+                                               complete.dimensions=complete.dimensions,
+                                               error.prefix=error.prefix)
+            
+            if (is(from.dim.names, 'ontology'))
+            {
+                incomplete.dimensions = intersect(names(rv), names(from.dim.names)[!is.complete(from.dim.names)])
+                do.call(ontology, args=c(rv,
+                                         list(incomplete.dimensions=incomplete.dimensions)))
+            }
+            else
+                rv
         },
         
         apply = function(from.arr, 
@@ -1079,12 +1088,12 @@ ONTOLOGY.MAPPING = R6::R6Class(
                 stop("Cannot set value for 'name' in ontology.mapping - it is read-only")
         },
         
-        is.no.change.mapping = function(value)
+        is.identity.mapping = function(value)
         {
             if (missing(value))
                 length(self$from.dimensions)==0 && length(self$to.dimensions)==0
             else
-                stop("Cannot set value for 'is.no.change.mapping' in ontology.mapping - it is read-only")
+                stop("Cannot set value for 'is.identity.mapping' in ontology.mapping - it is read-only")
         },
         
         from.dimensions = function(value)
@@ -1150,8 +1159,8 @@ ONTOLOGY.MAPPING = R6::R6Class(
     )
 )
 
-NO.CHANGE.ONTOLOGY.MAPPING = R6::R6Class(
-    'no.change.ontology.mapping',
+IDENTITY.ONTOLOGY.MAPPING = R6::R6Class(
+    'identity.ontology.mapping',
     inherit = ONTOLOGY.MAPPING,
     
     public = list(
@@ -1167,7 +1176,7 @@ NO.CHANGE.ONTOLOGY.MAPPING = R6::R6Class(
         
         equals = function(other)
         {
-            is(other, 'ontology.mapping') && other$is.no.change.mapping
+            is(other, 'ontology.mapping') && other$is.identity.mapping
         }
     ),
     
@@ -1617,7 +1626,7 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
 
 
 
-NO.CHANGE.MAPPING = NO.CHANGE.ONTOLOGY.MAPPING$new()
+IDENTITY.MAPPING = IDENTITY.ONTOLOGY.MAPPING$new()
 
 
 ##-- HELPER --##

@@ -5,6 +5,7 @@ source('R/DATA_MANAGER_data_manager.R')
 source('R/ONTOLOGY_ontology.R')
 source('R/HELPERS_array_helpers.R')
 source('R/HELPERS_dim_names_helpers.R')
+source('R/SPECIFICATION_model_specification.R') #has the outcome.metadata object definition
 Rcpp::sourceCpp('src/array_helpers.cpp')
 
 DATA.ROOT.DIR = '../../../Ending HIV/Ending_HIV/cleaned_data/'
@@ -14,15 +15,26 @@ data = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/npm_08.19_age.f
 
 
 data.manager = create.data.manager('test', description='a data manager to test with')
-data.manager$register.outcome('new', pretty.name = "New Diagnoses", label = 'cases',
-                              description = "New HIV Cases Diagnosed in a Year",
-                              scale='non.negative.number')
-data.manager$register.outcome('prevalence_diagnosed', pretty.name = "Prevalence (Diagnosed)", label = 'people',
-                              description = "Estimated Number of People with HIV aware of their Diagnosis",
-                              scale='non.negative.number')
-data.manager$register.outcome('mortality', pretty.name = "Mortality", label = 'deaths', 
-                              description = "Number of Deaths among People with Diagnosed HIV", 
-                              scale='non.negative.number')
+data.manager$register.outcome('new', 
+                              metadata = create.outcome.metadata(scale = 'non.negative.number',
+                                                                 display.name = 'New Diagnoses',
+                                                                 axis.name = 'New Diagnoses (n)',
+                                                                 units = 'cases',
+                                                                 description = "New HIV Cases Diagnosed in a Year"))
+data.manager$register.outcome('prevalence_diagnosed',
+                              metadata = create.outcome.metadata(scale = 'non.negative.number',
+                                                                 display.name = "Prevalence (Diagnosed)",
+                                                                 axis.name = "People with Diagnosed HIV (n)",
+                                                                 units = 'people',
+                                                                 description = "Estimated Number of People with HIV aware of their Diagnosis"))
+data.manager$register.outcome('mortality', 
+                              metadata = create.outcome.metadata(scale = 'non.negative.number',
+                                                                 display.name = 'Mortality',
+                                                                 axis.name = 'Deaths (n)',
+                                                                 units = 'deaths',
+                                                                 description = "Number of Deaths among People with Diagnosed HIV"))
+
+data.manager$register.source('cdc', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
 
 data.manager$register.ontology('CDC_bho',
                                ont=ontology(location=NULL,
@@ -51,7 +63,7 @@ data$value = as.numeric(gsub(",", '', data$Cases))
 
 data.manager$put.long.form(data = data,
                            ontology.name = 'CDC_bho',
-                           source = 'CDC',
+                           source = 'cdc',
                            dimension.values = list(sex='female'),
                            url = 'www.example_url.gov',
                            details = 'CDC Reporting')

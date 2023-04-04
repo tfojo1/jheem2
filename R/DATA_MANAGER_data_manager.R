@@ -33,7 +33,7 @@ register.data.ontology <- function(data.manager,
                                    name,
                                    ont)
 {
-    if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
     data.manager$register.ontology(name=name,
@@ -44,30 +44,47 @@ register.data.ontology <- function(data.manager,
 #'
 #'@param data.manager A jheem.data.manager object
 #'@param outcome The name (a single character value) of the outcome. This is the 'internal' name by which the outcome will be referenced in accessing the data manager
-#'@param pretty.name A descriptive, fully-formatted and capitalized name to use in generating figures and tables (eg in titles or legends). Should be unique to the outcome (although this is not enforced)
-#'@param label A descriptive, one-word or symbol to use in labeling numbers of this outcome (eg "cases") on figures. Need not be unique to the outcome
-#'@param description A one-sentence description that gives more details about the outcome (to be used in pop-overs and parentheticals)
-#'@param scale The scale for the outcome. Options are 'rate', 'ratio', 'proportion', 'time', 'number', 'non.negative.number'
+#'@param metadata An object of class 'outcome.metadata', as created by \code{\link{create.outcome.metadata}} that contains information about how to display the outcome
 #'@param denominator.outcome The denominator outcome type that should be used when aggregating data (taking a weighted average) for this outcome type. Must be a previously registered outcome with scale='non.negative.number'. Only applies if scale is 'rate', 'proportion', or 'time'
+#'@param overwrite A logical indicating whether the information on this outcome should overwrite previously-registered information about this outcome. However, this registration must include the same metadata$scale and denominator.outcome (ie, can't change the structure of the outcome, only the display 'trappings')
 #'
 #'@export
 register.data.outcome <- function(data.manager,
                                   outcome,
-                                  pretty.name,
-                                  label,
-                                  description,
-                                  scale,
-                                  denominator.outcome=NULL)
+                                  metadata,
+                                  denominator.outcome=NULL,
+                                  overwrite = F)
 {
-    if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
-    data.manager$register.outcome(outcome=outcome,
-                                  pretty.name=pretty.name,
-                                  label=label,
-                                  description=description,
-                                  scale=scale,
-                                  denominator.outcome=denominator.outcome)
+    data.manager$register.outcome(outcome = outcome,
+                                  metadata = metadata,
+                                  denominator.outcome = denominator.outcome,
+                                  overwrite = overwrite)
+}
+
+#'@description Register a data source to a data manager before putting data from that source
+#'
+#'@param data.manager A jheem.data.manager object
+#'@param outcome The name (a single character value) of the outcome. This is the 'internal' name by which the outcome will be referenced in accessing the data manager
+#'@param full.name A descriptive, fully-formatted and capitalized name to use in generating figures and tables (eg in popovers). Avoid abbreviations. Should be unique to the data source (although this is not enforced)
+#'@param short.name A name for the data source to use in setting where brevity is important. Ideal to use abbreviations, but can be the same as full.name
+#'
+#'@details Note: a source is conceived such that one source cannot contain two sets of data for the same set of dimension values
+#'
+#'@export
+register.data.source <- function(data.manager,
+                                  source,
+                                  full.name,
+                                  short.name = full.name)
+{
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+    
+    data.manager$register.source(source=source,
+                                 full.name=full.name,
+                                 short.name=short.name)
 }
 
 #'@description Put data into a data manager
@@ -78,7 +95,7 @@ register.data.outcome <- function(data.manager,
 #'@param outcome The outcome type for the data. Must be an outcome previously registered with \code{\link{register.data.outcome}}
 #'@param ontology.name The name of the ontology which the data follow. Must be an ontology previously registered with \code{\link{register.data.ontology}}
 #'@param dimension.values A named list that indicates what subset of a bigger data element these particular data should be stored into. The names of dimension values. The values of dimension.values can be either (1) character vectors
-#'@param source The (single) character name of the source from which these data derive. Note: a source is conceived such that one source cannot contain two sets of data for the same set of dimension values
+#'@param source The (single) character name of the source from which these data derive. Must be a source previously registered with \code{\link{register.data.source}} Note: a source is conceived such that one source cannot contain two sets of data for the same set of dimension values
 #'@param url A character vector with at least one element giving one or more URLs indicating where the data derive from
 #'@param details A character vector with at least one element giving one or more URLs giving data collection details. In general, data collected and tabulated using the same approach should have the same details, whereas data with different methods/tabulation should have different details
 #'@param allow.na.to.overwrite A logical indicator for whether NA values in data should be allowed to overwrite previous values put to the data manager (if data have been put previously)
@@ -94,7 +111,7 @@ put.data <- function(data.manager,
                      details,
                      allow.na.to.overwrite=F)
 {
-    if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
     data.manager$put(data=data,
@@ -123,7 +140,7 @@ put.data.long.form <- function(data.manager,
                                details,
                                allow.na.to.overwrite=F)
 {
-    if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
     data.manager$put.long.form(data=data,
@@ -167,7 +184,7 @@ pull.data <- function(data.manager,
                       append.attributes = NULL,
                       na.rm = F)
 {
-    if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
     data.manager$pull(outcome = outcome,
@@ -191,32 +208,60 @@ pull.data <- function(data.manager,
 #'@return A character vector of pretty names, labels, or descriptions
 #'
 #'@export
-get.outcome.pretty.names <- function(data.manager, outcomes)
+get.data.outcome.pretty.names <- function(data.manager, outcomes)
 {
-    if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
     data.manager$get.outcome.pretty.names(outcomes)
 }
 
-#'@describeIn get.outcome.pretty.name Get the labels for outcomes
+#'@describeIn get.data.outcome.pretty.names Get the labels for outcomes
 #'@export
-get.outcome.labels <- function(data.manager, outcomes)
+get.data.outcome.labels <- function(data.manager, outcomes)
 {
-    if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
     data.manager$get.outcome.labels(outcomes)
 }
 
-#'@describeIn get.outcome.pretty.name Get descriptions for outcomes
+#'@describeIn get.data.outcome.pretty.names Get descriptions for outcomes
 #'@export
-get.outcome.descriptions <- function(data.manager, outcomes)
+get.data.outcome.descriptions <- function(data.manager, outcomes)
 {
-    if (!is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
     data.manager$get.outcome.descriptions(outcomes)
+}
+
+#'@description Get full names for data sources
+#'
+#'@details Gets the full.names or short.names for the data sources in the data manager
+#'
+#'@param data.manager A jheem.data.manager object
+#'@param sources A character vector with the names of sources previously registered to this data manager
+#'
+#'@return A character vector of full names or short names
+#'
+#'@export
+get.data.source.full.names <- function(data.manager, sources)
+{
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+    
+    data.manager$get.source.full.names(sources)
+}
+
+#'@describeIn get.data.source.full.names Get short names for data sources
+#'@export
+get.data.source.short.names <- function(data.manager, sources)
+{
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+    
+    data.manager$get.source.short.names(sources)
 }
 
 ##----------------------##
@@ -268,20 +313,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Store it
             private$i.ontologies[[name]] = ont
             
-            # Create a list for the ontology in each data.element (ie, i.data, i.url, i.details)
-            for (name in private$i.data.element.names)
-                private[[name]] = list()
-            
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
         
         register.outcome = function(outcome,
-                                    pretty.name,
-                                    label,
-                                    description,
-                                    scale,
-                                    denominator.outcome=NULL)
+                                    metadata,
+                                    denominator.outcome=NULL,
+                                    overwrite=F)
         {
             #-- Validate arguments --#
             error.prefix = paste0("Unable to register outcome for data.manager '", private$i.name, "': ")
@@ -293,23 +332,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                   "' for data.manager '", private$i.name, "': ")
             
             
-            # - pretty.name is a single, non-empty, non-NA character value
-            if (!is.character(pretty.name) || length(pretty.name)!=1 || is.na(pretty.name) || nchar(pretty.name)==0)
-                stop(paste0(error.prefix, "'pretty.name' must be a single, non-empty, non-NA character value"))
-            
-            # - label is a single, non-empty, non-NA character value
-            if (!is.character(label) || length(label)!=1 || is.na(label) || nchar(label)==0)
-                stop(paste0(error.prefix, "'label' must be a single, non-empty, non-NA character value"))
-            
-            # - description is a single, non-empty, non-NA character value
-            if (!is.character(description) || length(description)!=1 || is.na(description) || nchar(description)==0)
-                stop(paste0(error.prefix, "'description' must be a single, non-empty, non-NA character value"))
-            
-            
-            # - scale is a valid model.scale
-            check.model.scale(scale, varname.for.error='scale', error.prefix=error.prefix)
-            
-            # - If scale is 'rate', 'proportion', or 'time', 
+            # - metadata is a 'outcome.metadata' object
+            if (!is(metadata, "outcome.metadata"))
+                stop(paste0(error.prefix, "'metadata' must be an object of class 'outcome.metadata' as returned by create.outcome.metadata()"))
+
+            # - If metadata$scale is 'rate', 'proportion', or 'time', 
             #   denominator outcome is non-NULL.
             #   Otherwise it is NULL
             # - If non-NULL, denominator outcome:
@@ -328,7 +355,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             previous.outcome.info = private$i.outcome.info[[outcome]]
             if (!is.null(previous.outcome.info))
             {
-                if (scale!=previous.outcome.info$scale ||
+                if (metadata$scale!=previous.outcome.info$metadata$scale ||
                     (is.null(denominator.outcome) && !is.null(previous.outcome.info$denominator.outcome)) ||
                     (!is.null(denominator.outcome) && is.null(previous.outcome.info$denominator.outcome)) ||
                     (!is.null(denominator.outcome) && !is.null(previous.outcome.info$denominator.outcome) &&
@@ -340,15 +367,59 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Store it
             outcome.info = list(
                 outcome = outcome,
-                pretty.name = pretty.name,
-                label = label,
-                description = description,
-                scale = scale,
+                metadata = metadata,
                 denominator.outcome = denominator.outcome
             )
             
             private$i.outcome.info[[outcome]] = outcome.info
             
+            #-- Invisibly return the data manager for convenience --#
+            invisible(self)
+        },
+        
+        register.source = function(source,
+                                   full.name,
+                                   short.name,
+                                   overwrite=F)
+        {
+            #-- Validate arguments --#
+            error.prefix = paste0("Unable to register source for data.manager '", private$i.name, "': ")
+            
+            # - source is a single, non-empty, non-NA character value
+            if (!is.character(source) || length(source)!=1 || is.na(source) || nchar(source)==0)
+                stop(paste0(error.prefix, "'source' must be a single, non-empty, non-NA character value"))
+            error.prefix = paste0("Unable to register source '", source, 
+                                  "' for data.manager '", private$i.name, "': ")
+            
+            
+            # - full.name is a single, non-empty, non-NA character value
+            if (!is.character(full.name) || length(full.name)!=1 || is.na(full.name) || nchar(full.name)==0)
+                stop(paste0(error.prefix, "'full.name' must be a single, non-empty, non-NA character value"))
+            
+            # - short.name is a single, non-empty, non-NA character value
+            if (!is.character(short.name) || length(short.name)!=1 || is.na(short.name) || nchar(short.name)==0)
+                stop(paste0(error.prefix, "'short.name' must be a single, non-empty, non-NA character value"))
+            
+            # If this outcome has not previously been registered, store it
+            # Otherwise, if overwrite==T, store the new one
+            # Otherwise, throw an error if full.name or short.name is different
+            #   If different, throw an error
+            
+            previous.source.info = private$i.source.info[[source]]
+            if (overwrite || is.null(previous.source.info))
+            {
+                source.info = list(
+                    source = source,
+                    full.name = full.name,
+                    short.name = short.name)
+                
+                private$i.source.info[[source]] = source.info
+            }
+            else if (previous.source.info$full.name != full.name || previous.source.info$short.name != short.name)
+            {
+                stop(paste0(error.prefix, "A data source named '", source, "' has already been registered. If you want to overwrite the previously registered source, use overwrite==T"))
+            }
+
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
@@ -407,7 +478,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix,
                             "'data' must have length > 0"))
             
-            do.check.values.for.model.scale(data, scale=outcome.info$scale,
+            do.check.values.for.model.scale(data, scale=outcome.info$metadata$scale,
                                             variable.name.for.error = 'data',
                                             error.prefix = error.prefix)
             
@@ -460,6 +531,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
 
             # 4) *source* is
             #    a single, non-NA, non-empty character value
+            #    Which corresponds to a registered outcome
             if (!is.character(source))
                 stop(paste0(error.prefix, "'source' must be a single character value"))
             if (length(source) != 1)
@@ -468,7 +540,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix, "'source' cannot be NA"))
             if (nchar(source)=='')
                 stop(paste0(error.prefix, "'source' cannot be empty ('')"))
-                
+            
+            source.info = private$i.source.info[[source]]
+            if (is.null(source.info))
+                stop(paste0(error.prefix, "'", source, "' is not a registered data source. Call register.data.source() to register it before putting data from that source"))
+            
             
             # 5) *url, and details* are 
             #    -- character vectors
@@ -516,25 +592,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                  ontology.name = ontology.name,
                                                                  return.as.dimensions = F)
            
-            # If there are no data elements for the outcome and ontology yet, make empty lists
-            if (is.null(private$i.data[[ontology.name]][[outcome]]))
-            {
-                for (name in private$i.data.element.names)
-                    private[[name]][[ontology.name]][[outcome]] = list()
-            }
-            
-            if (is.null(private$i.data[[ontology.name]][[outcome]][[stratification]]))
-            {
-                for (name in private$i.data.element.names)
-                    private[[name]][[ontology.name]][[outcome]][[stratification]] = list()
-            }
-            
-            if (is.null(private$i.data[[ontology.name]][[outcome]][[stratification]][[source]]))
-            {
-                for (name in private$i.data.element.names)
-                    private[[name]][[ontology.name]][[outcome]][[stratification]][[source]] = list()
-            }
-            
+          
             # What dim.names do we need to accommodate the new data?
             put.dim.names = private$prepare.put.dim.names(outer.join.dim.names(dimnames(data), dimension.values),
                                                           ontology.name = ontology.name)
@@ -543,7 +601,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Or if the previously-created data element does not have all the dimension values we need
             # -> make new data elements
             
-            existing.dim.names = dimnames(private$i.data[[ontology.name]][[outcome]][[stratification]][[source]])
+            existing.dim.names = dimnames(private$i.data[[source]][[ontology.name]][[outcome]][[stratification]])
             data.already.present = !is.null(existing.dim.names)
             
             if (!data.already.present ||
@@ -554,7 +612,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (data.already.present)
                 {
                     existing.data.and.metadata = lapply(data.element.names, function(name){
-                        private[[name]][[ontology.name]][[outcome]][[stratification]][[source]]
+                        private[[name]][[source]][[ontology.name]][[outcome]][[stratification]]
                     })
                 }
                 
@@ -566,28 +624,28 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     new.dim.names = put.dim.names
                 
                 # Make the new (empty) data structures
-                private$i.data[[ontology.name]][[outcome]][[stratification]][[source]] =
+                private$i.data[[source]][[ontology.name]][[outcome]][[stratification]] =
                     array(NaN, dim=sapply(new.dim.names, length), dimnames = new.dim.names)
                 
                 for (name in metadata.element.names)
                 {
-                    private[[name]][[ontology.name]][[outcome]][[stratification]][[source]] = 
+                    private[[name]][[source]][[ontology.name]][[outcome]][[stratification]] = 
                         lapply(1:prod(sapply(new.dim.names, length)), function(i){
                             NULL
                         })
                     
-                    dim(private[[name]][[ontology.name]][[outcome]][[stratification]][[source]]) = sapply(new.dim.names, length)
-                    dimnames(private[[name]][[ontology.name]][[outcome]][[stratification]][[source]]) = new.dim.names
+                    dim(private[[name]][[source]][[ontology.name]][[outcome]][[stratification]]) = sapply(new.dim.names, length)
+                    dimnames(private[[name]][[source]][[ontology.name]][[outcome]][[stratification]]) = new.dim.names
                 }
                     
                 # Overwrite the new structure with the old data, if needed
                 if (data.already.present)
                 {
-                    array.access(private$i.data[[ontology.name]][[outcome]][[stratification]][[source]], existing.dim.names) =
+                    array.access(private$i.data[[source]][[ontology.name]][[outcome]][[stratification]], existing.dim.names) =
                         existing.data.and.metadata$i.data
                     
                     for (name in metadata.names)
-                        array.list.access(private[[name]][[ontology.name]][[outcome]][[stratification]], existing.dim.names) = 
+                        array.list.access(private[[name]][[source]][[ontology.name]][[outcome]][[stratification]], existing.dim.names) = 
                             existing.data.and.metadata[[name]]
                 }
             }
@@ -595,7 +653,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #-- Put the data and its metadata --#
             
             # get the indices we're going to write into
-            overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[ontology.name]][[outcome]][[stratification]][[source]]),
+            overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[source]][[ontology.name]][[outcome]][[stratification]]),
                                                          dimension.values = c(dimnames(data), dimension.values))
             if (!allow.na.to.overwrite)
             {
@@ -604,12 +662,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
                 
             # Put data
-            private$i.data[[ontology.name]][[outcome]][[stratification]][[source]][overwrite.indices] = data
+            private$i.data[[source]][[ontology.name]][[outcome]][[stratification]][overwrite.indices] = data
             
             # Put metadata
-            private$i.url[[ontology.name]][[outcome]][[stratification]][[source]][overwrite.indices] = 
+            private$i.url[[source]][[ontology.name]][[outcome]][[stratification]][overwrite.indices] = 
                 lapply(1:length(overwrite.indices), function(i){ url })
-            private$i.details[[ontology.name]][[outcome]][[stratification]][[source]][overwrite.indices] = 
+            private$i.details[[source]][[ontology.name]][[outcome]][[stratification]][overwrite.indices] = 
                 lapply(1:length(overwrite.indices), function(i){ details })
             
             
@@ -722,13 +780,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # *outcome* is a single, non-NA character value
             #  that has been previously registered as an outcome for this data manager
             
-            # *dimension.values* is valid (resolve.dimension.values does this check)
-            
             # *keep.dimensions* is either NULL or a character vector with no NA values or repeats
-            # If a vector, all the values of the vector are dimensions for the ontology - ie elements of names(private$i.ontologies[[ontology.name]])
-            # If NULL, will eventually set keep dimensions to be: all dimensions from the ontologies we need
-             
             
+            # *dimension.values* are valid 
+            #   - check.dimension.values.valid()
+            
+            # sources
+
             # *data.group* is either NULL or a single, non-NA character value
             # If NULL, set data.group to the first registered data group (if none have been registered, throw an error)
             # If a character value, it must be a previously registered data.group for this data manager
@@ -753,13 +811,42 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #-- Overwrite the data we have into the return value --#
             # Only if we have data
                         
-            #-- Aggregate --#
-            # (if we need to aggregate)
-            # If type=='data'
-            #   If we the denominator.outcome is NULL, sum
-            #   If the dneominator.outcome is not NULL, sum rv*denominator and divide by sum over denominator
-            # If type is one of the others
-            #   Union the character vectors in each list
+            
+            # For each source in sources (or all sources if sources is NULL)
+            #   If we can resolve dimension values against this ontology
+            #   For each data source in sources (or all data sources if sources is NULL)
+            #       loop through the stratifications
+            #           If either:
+            #           (1) there is a target.ontology 
+            #               and allow.mapping.from.target.ontology==F
+            #               and we can map from the stratification of the data ontology to the target ontology
+            #                   - from get.ontology.mapping()
+            #              OR
+            #           (2) there is a target.ontology
+            #               and allow.mapping.from.target.ontology==T
+            #               and their is a pair of ontology mappings that takes both the stratification of the data and target ontologies to a common ontology
+            #                   - from get.mappings.to.align.ontologies
+            #              OR
+            #           (3) there is no target ontology
+            #               and the stratification contains all dimension.values and keep.dimensions
+            #               and (if we have found a hit for a prior ontology and/or data source) the dimensions of this value match those dimensions
+            #           
+            #           AND there are data (not all NA) after any ontology is applied
+            #           
+            #           THEN
+            #               map data from the ontology and return it into an lapply statement
+            #               and stop looping through stratifications and move to the next data source
+            #   
+            # *If we couldn't resolve dimension values against any ontology, throw an error  
+            #   
+            # After we have an array from each source
+            #   (1) Aggregate each one 
+            #       - sum if they are numbers or non-negative numbers
+            #       - take weighted average (weighted by denominator.outcome) if they are rates, times, or proportions
+            #       - throw an error if they are ratios
+            #   (2) Lump all arrays into one array with a source dimension
+            
+            
             
             #-- Return --#
         },
@@ -771,17 +858,31 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             })
         },
         
-        get.outcome.labels = function(outcomes)
+        get.outcome.units = function(outcomes)
         {
             sapply(private$i.outcome.info[outcomes], function(info){
-                info$label
+                info$units
             })
         },
         
         get.outcome.descriptions = function(outcomes)
         {
             sapply(private$i.outcome.info[outcomes], function(info){
-                info$label
+                info$description
+            })
+        },
+        
+        get.source.full.names = function(sources)
+        {
+            sapply(private$i.source.info[sources], function(info){
+                info$full.name
+            })
+        },
+        
+        get.source.short.names = function(sources)
+        {
+            sapply(private$i.source.info[sources], function(info){
+                info$short.name
             })
         }
     ),
@@ -829,7 +930,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         
         #-- Storage structures for data and metadata --#
         # These three are lists of lists of lists of lists, indexed
-        # [[ontology.name]][[outcome]][[stratification]][[source]]
+        # [[source]][[ontology.name]][[outcome]][[stratification]]
         # for i.data, each element of this depth-4 access is a numeric array
         # for i.url and i.details, each element is a list array (ie a list with dimnames set), each element of which is a character vector
         i.data = NULL,
@@ -839,6 +940,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         #-- Metadata --#
         # These are named lists, with the names being the names of outcomes or data groups
         i.outcome.info = NULL,
+        i.source.info = NULL,
         i.ontologies = NULL,
         
         ##------------------------------##
