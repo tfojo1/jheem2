@@ -274,6 +274,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
     'jheem.data.manager',
     
     public = list(
+        check = function()
+        {
+            browser()
+        },
+      
         initialize = function(name, description)
         {
             # Validate arguments

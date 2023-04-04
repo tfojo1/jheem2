@@ -8,7 +8,7 @@ source('R/HELPERS_dim_names_helpers.R')
 source('R/SPECIFICATION_model_specification.R') #has the outcome.metadata object definition
 Rcpp::sourceCpp('src/array_helpers.cpp')
 
-DATA.ROOT.DIR = '../../../Ending HIV/Ending_HIV/cleaned_data/'
+DATA.ROOT.DIR = '../../v1_data/'
 
 data = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/npm_08.19_age.female.risk.csv/'))
 
