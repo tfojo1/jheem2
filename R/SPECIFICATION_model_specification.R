@@ -3520,14 +3520,14 @@ MODEL.ELEMENT = R6::R6Class(
                                                                          specification.info=specification.info)
                 },
                 error = function(e){
-                    e$message = paste0(error.prefix, "There was an error evaluating ", private$i.get.value.function,
+                    e$message = paste0(error.prefix, "There was an error evaluating ", private$i.get.value.function.name,
                                 "()",
                                 ifelse(private$i.get.value.function.name=='get.value.function', '',
                                        " (the get.value.function)"),
                                 " for model element ",
                                 self$get.original.name(wrt.version = specification.info$version), ": ",
                                 e$message)
-                
+                    
                     stop(e)
                 })
                 

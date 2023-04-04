@@ -58,9 +58,8 @@ ontology <- function(..., incomplete.dimensions=NULL)
     
     dimensions = names(rv)
     
-    
     #-- Validate dimension values --#
-    rv = sapply(names(rv), function(d){
+    rv = lapply(names(rv), function(d){
         if (is.numeric(rv[[d]]))
             values = as.character(rv[[d]])
         else
@@ -142,20 +141,34 @@ print.ontology <- function(ontology)
 
 #'@description Convert a named list to an ontology
 #'
-#'
+#'@param x A named list of character vectors
 #'
 #'@export
-as.ontology <- function(x)
+as.ontology <- function(x, incomplete.dimensions=NULL)
 {
+    if (is(x, 'ontology'))
+        return (x)
     if (!is.list(x))
         stop("Can only convert named lists to ontologies with as.ontology()")
-    if (length(x)>0 || is.null(names(x)))
+    if (length(x)>0 && is.null(names(x)))
         stop("Can only convert NAMED lists to ontologies with as.ontology()")
     
     if (any(!sapply(x, is.character)))
         stop("Lists to be converted to ontologies using as.ontology() must contain only character vectors")
     
-    do.call(ontology, args = x)
+    do.call(ontology, args = c(x, list(incomplete.dimensions=incomplete.dimensions)))
+}
+
+#'@description Test if an object is of type 'ontology'
+#'
+#'@param x Object to be tested
+#'
+#'@return A single logical T/F value
+#'
+#'@export
+is.ontology <- function(x)
+{
+    is(x, 'ontology')
 }
 
 #'@description Get indicators of which dimensions in an ontology are complete

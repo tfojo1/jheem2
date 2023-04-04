@@ -1,4 +1,3 @@
-
 source('R/SPECIFICATION_scales.R')
 source('R/HELPERS_misc_helpers.R')
 source('R/DATA_MANAGER_data_manager.R')
@@ -67,4 +66,3 @@ data.manager$put.long.form(data = data,
                            dimension.values = list(sex='female'),
                            url = 'www.example_url.gov',
                            details = 'CDC Reporting')
-

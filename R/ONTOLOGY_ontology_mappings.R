@@ -308,19 +308,13 @@ get.ontology.mapping <- function(from.ontology,
                                  to.ontology)
 {
     #-- Validate Arguments --#
-    
-    error.prefix = "Error getting ontology mapping: "
-    
-    if (!is(from.ontology, 'ontology'))
-        stop("Error in get.ontology.mapping(): 'from.ontology' must be an object of class 'ontology' as created by the ontology() function")
-    if (!is(to.ontology, 'ontology'))
-        stop("Error in get.ontology.mapping(): 'to.ontology' must be an object of class 'ontology' as created by the ontology() function")
-    
+    from.ontology = derive.ontology(from.ontology, var.name.for.error = "'from.ontology'", error.prefix = "Error in get.ontology.mapping(): ")
+    to.ontology = derive.ontology(to.ontology, var.name.for.error = "'to.ontology'", error.prefix = "Error in get.ontology.mapping(): ")
     
     #-- Call the sub-function --#
-    mappings = do.get.ontology.mapping(from.dim.names = from.dim.names,
-                                       to.dim.names = to.dim.names,
-                                       required.dimensions = names(to.dim.names),
+    mappings = do.get.ontology.mapping(from.dim.names = from.ontology,
+                                       to.dim.names = to.ontology,
+                                       required.dimensions = names(to.ontology),
                                        required.dim.names = NULL,
                                        from.dimensions.are.complete = is_complete(from.ontology),
                                        to.dimensions.are.complete = is_complete(to.ontology),
@@ -345,12 +339,8 @@ get.mappings.to.align.ontologies <- function(ontology.1,
                                              include.dim.names = NULL)
 {
     #-- Validate Arguments --#
-    error.prefix = "Error getting ontology mappings: "
-    
-    if (!is(ontology.1, 'ontology'))
-        stop("Error in get.ontology.mapping(): 'ontology.1' must be an object of class 'ontology' as created by the ontology() function")
-    if (!is(ontology.2, 'ontology'))
-        stop("Error in get.ontology.mapping(): 'ontology.2' must be an object of class 'ontology' as created by the ontology() function")
+    ontology.1 = derive.ontology(ontology.1, var.name.for.error = "'ontology.1'", error.prefix = "Error getting aligning ontology mappings: ")
+    ontology.2 = derive.ontology(ontology.2, var.name.for.error = "'ontology.2'", error.prefix = "Error getting aligning ontology mappings: ")
     
     #-- Call the sub-function --#
     mappings = do.get.ontology.mapping(from.dim.names = ontology.1,
@@ -630,6 +620,10 @@ do.get.ontology.mapping <- function(from.dim.names,
 combine.ontology.mappings <- function(...)
 {
     args = list(...)
+    args = args[!sapply(args, is.null)]
+    if (length(args)==0)
+        return (NULL)
+    
     sub.mappings = list()
     for (elem in args)
     {
@@ -737,6 +731,28 @@ other.catchall.mapping.applies <- function(from.values, to.values)
         any(to.values=='other') &&
         length(setdiff(to.values, c(from.values, 'other'))) == 0 &&
         length(setdiff(from.values, to.values)) > 0
+}
+
+# If x is an ontology, just returns x
+# If x is a named list of character vectors, converts to an ontology
+# else throws an error
+derive.ontology <- function(x,
+                            var.name.for.error,
+                            error.prefix)
+{
+    if (is.ontology(x))
+        x
+    else if (is.list(x))
+    {
+        if (is.null(names(x)))
+            stop(paste(error.prefix, "If ", var.name.for.error, " is a list, it must be NAMED"))
+        if (any(!sapply(x, is.character)))
+            stop(paste(error.prefix, "If ", var.name.for.error, " is a list, it must contain only character vectors"))
+        
+        as.ontology(x)
+    }
+    else
+        stop(paste(error.prefix, var.name.for.error, " must be either (1) an object of class 'ontology' as created by the ontology() function or (2) a named list of character vectors"))
 }
 
 ##------------------##
@@ -991,9 +1007,8 @@ ONTOLOGY.MAPPING = R6::R6Class(
             
             if (is(from.dim.names, 'ontology'))
             {
-                incomplete.dimensions = intersect(names(rv), names(from.dim.names)[!is.complete(from.dim.names)])
-                do.call(ontology, args=c(rv,
-                                         list(incomplete.dimensions=incomplete.dimensions)))
+                incomplete.dimensions = intersect(names(rv), names(from.dim.names)[!is_complete(from.dim.names)])
+                as.ontology(rv, incomplete.dimensions=incomplete.dimensions)
             }
             else
                 rv
@@ -1408,9 +1423,18 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
             })
             names(resulting.to.dim.names) = self$to.dimensions
             
-            rv = from.dim.names
-            rv[self$to.dimensions] = resulting.to.dim.names
-            rv = rv[setdiff(names(rv), setdiff(self$from.dimensions, self$to.dimensions))]
+#            rv = from.dim.names
+#            rv[self$to.dimensions] = resulting.to.dim.names
+#            rv = rv[setdiff(names(rv), setdiff(self$from.dimensions, self$to.dimensions))]
+            
+            dimensions.to.keep = setdiff(names(from.dim.names), setdiff(self$from.dimensions, self$to.dimensions))
+            rv = lapply(dimensions.to.keep, function(d){
+                if (any(d==self$to.dimensions))
+                    resulting.to.dim.names[[d]]
+                else
+                    from.dim.names[[d]]
+            })
+            names(rv) = dimensions.to.keep
             
             rv
         },
