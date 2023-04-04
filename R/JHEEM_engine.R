@@ -16,6 +16,8 @@
 #'@param version The name of the version to run. Must have had a model specification registered with \code{\link{register.model.specification}}
 #'@param location A single character value indicating the location of the model
 #'
+#'@family Functions to create and modify a jheem.engine
+#'
 #'@export
 create.jheem.engine <- function(version,
                                 location)
@@ -32,6 +34,8 @@ create.jheem.engine <- function(version,
 #'@param jheem.engine A jheem.engine object (created by \code{\link{create.jheem.engine}})
 #'@param start.year,end.year The years across which the simulation is to run
 #'@param check.consistency Whether to perform consistency checks during calculations, which can catch errors, but imposes a computational cost. In general, this is likely only necessary on the first time an engine is crunched or run
+#'
+#'@family Functions to create and modify a jheem.engine
 #'
 #'@export
 crunch.jheem.engine <- function(jheem.engine,
@@ -54,6 +58,8 @@ crunch.jheem.engine <- function(jheem.engine,
 #'@param prior.sim A jheem.simulation object from which to start this simulation. NULL if not running from a prior simulation
 #'@param keep.years The years for which to keep simulation data
 #'@param atol,rtol The absolute and relative tolerance parameters to be passed along to the differential equation solver
+#'
+#'@family Functions to create and modify a jheem.engine
 #'
 #'@return A jheem.simulation object
 #'
@@ -92,11 +98,13 @@ run.jheem.engine <- function(jheem.engine,
 #'@param value The new value for the model element
 #'@param check.consistency A logical indicator whether to sanitize arguments and check for consistency during calculations. Setting to F increases performance
 #'
+#'@family Functions to create and modify a jheem.engine
+#'
 #'@export
 set.element.value <- function(jheem.engine,
                               element.name,
                               value,
-                              check.consistency=T)
+                              check.consistency = !jheem.engine$has.been.crunched())
 {
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
@@ -117,6 +125,8 @@ set.element.value <- function(jheem.engine,
 #'@param applies.to.dimension.values Either a vector (character or integer) or a list where each element is either a single character value or single integer value. Must have the same length as values, indicating the compartment to which each value in values applies
 #'@param dimensions The dimensions to which values in applies.to.dimension.values apply. Can be either (1) a character vector with the same length as applies.to.dimension.values with the corresponding dimension for each value, (2) a single character value - a dimension that applies to all values, or (3) NULL, in which case the dimensions are inferred for applies.to.dimension.values (this is computationally slower)
 #'
+#'@family Functions to create and modify a jheem.engine
+#'
 #'@export
 set.element.functional.form.main.effect.alphas <- function(jheem.engine,
                                                            element.name,
@@ -124,9 +134,17 @@ set.element.functional.form.main.effect.alphas <- function(jheem.engine,
                                                            values,
                                                            applies.to.dimension.values=names(values),
                                                            dimensions=names(applies.to.dimension.values),
-                                                           check.consistency=T)
+                                                           check.consistency = !jheem.engine$has.been.crunched())
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    jheem.engine$set.element.functional.form.main.effect.alphas(element.name = element.name,
+                                                                alpha.name = alpha.name,
+                                                                values = values,
+                                                                applies.to.dimension.values = applies.to.dimension.values,
+                                                                dimensions = dimensions,
+                                                                check.consistency = check.consistency)
 }
 
 #'@description Set Interaction Alpha Values for a Functional Form for a Model Element
@@ -137,6 +155,8 @@ set.element.functional.form.main.effect.alphas <- function(jheem.engine,
 #'@param value A single numeric value, which will apply to every combination of applies.to.dimension.values which are from different dimensions
 #'@param applies.to.dimension.values Either a vector (character or integer) or a list where each element is either a single character value or single integer value, indicating the compartments to which value applies
 #'
+#'@family Functions to create and modify a jheem.engine
+#'
 #'@export
 set.element.functional.form.interaction.alphas <- function(jheem.engine,
                                                            element.name,
@@ -144,16 +164,27 @@ set.element.functional.form.interaction.alphas <- function(jheem.engine,
                                                            value,
                                                            applies.to.dimension.values=names(values),
                                                            dimensions=names(applies.to.dimension.values),
-                                                           check.consistency=T)
+                                                           check.consistency = !jheem.engine$has.been.crunched())
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    jheem.engine$set.element.functional.form.interaction.alphas(element.name = element.name,
+                                                                alpha.name = alpha.name,
+                                                                value = value,
+                                                                applies.to.dimension.values = applies.to.dimension.values,
+                                                                dimensions = dimensions,
+                                                                check.consistency = check.consistency)
 }
 
+#'@family Functions to create and modify a jheem.engine
 #' Still need to flesh out this interface
 set.element.foreground <- function(jheem.engine,
                                    foreground,
-                                   check.consistency=T)
+                                   check.consistency = !self$has.been.crunched())
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
 }
 
@@ -163,13 +194,20 @@ set.element.foreground <- function(jheem.engine,
 #'@param element.name The name of the model element to set functional.form times for
 #'@param from.time,to.time The time from or to which the functional form is active
 #'
+#'@family Functions to create and modify a jheem.engine
+#'
 #'@export
 set.element.functional.form.from.time <- function(jheem.engine,
                                                   element.name,
                                                   from.time,
-                                                  check.consistency=T)
+                                                  check.consistency = !jheem.engine$has.been.crunched())
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    jheem.engine$set.element.functional.form.from.time(element.name = element.name,
+                                                       from.time = from.time,
+                                                       check.consistency = check.consistency)
 }
 
 
@@ -179,69 +217,216 @@ set.element.functional.form.from.time <- function(jheem.engine,
 set.element.functional.form.to.time <- function(jheem.engine,
                                                 element.name,
                                                 to.time,
-                                                check.consistency=T)
+                                                check.consistency = !jheem.engine$has.been.crunched())
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    jheem.engine$set.element.functional.form.to.time(element.name = element.name,
+                                                     to.time = to.time,
+                                                     check.consistency = check.consistency)
 }
 
 
+#'@description Set a ramp or taper (times and values) for a model element
+#'
+#'@details A ramp is a set of multipliers which are multiplied by the first functional.form value (ie, the value produced at functional.form.from.time) for an element. A taper is a set of multipliers which are multiplied by the last functional.form value (ie, the value produced at functional.form.to.time) for an element
+#'
+#'@inheritParams set.element.value
+#'@param element.name The name of the model element to set the ramp/taper for
+#'@param times,values The times or values to set for the ramp/taper
+#'@param indices The indices of the ramp/taper to set times or values for. Can be either numeric indices, character indices (if the ramp/taper was named when setting up the specification), or logical indices
+#'
+#'@family Functions to create and modify a jheem.engine
+#'
+#'@export
 set.element.ramp.times <- function(jheem.engine,
                                    element.name,
                                    times,
                                    indices=1:length(times),
-                                   check.consistency=T)
+                                   check.consistency = !jheem.engine$has.been.crunched())
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    jheem.engine$set.element.ramp.times(element.name = element.name,
+                                        times = times,
+                                        indices = indices,
+                                        check.consistency = check.consistency)
 }
 
+#'@describeIn set.element.ramp.times
+#'
+#'@export
 set.element.ramp.values <- function(jheem.engine,
                                     element.name,
                                     values,
                                     indices=1:length(values),
-                                    check.consistency=T)
+                                    check.consistency = !jheem.engine$has.been.crunched())
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    jheem.engine$set.element.ramp.values(element.name = element.name,
+                                         values = values,
+                                         indices = indices,
+                                         check.consistency = check.consistency)
 }
 
+#'@describeIn set.element.ramp.times
+#'
+#'@export
 set.element.taper.times <- function(jheem.engine,
                                     element.name,
                                     times,
                                     indices=1:length(times),
-                                    check.consistency=T)
+                                    check.consistency = !jheem.engine$has.been.crunched())
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    jheem.engine$set.element.taper.times(element.name = element.name,
+                                         times = times,
+                                         indices = indices,
+                                         check.consistency = check.consistency)
 }
 
+#'@describeIn set.element.ramp.times
+#'
+#'@export
 set.element.taper.values <- function(jheem.engine,
-                                    element.name,
-                                    values,
-                                    indices=1:length(values),
-                                    check.consistency=T)
+                                     element.name,
+                                     values,
+                                     indices=1:length(values),
+                                     check.consistency = !jheem.engine$has.been.crunched())
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    jheem.engine$set.element.taper.values(element.name = element.name,
+                                          values = values,
+                                          indices = indices,
+                                          check.consistency = check.consistency)
 }
 
+#'@describe Set a "Future Slope" and the time after which it applies, for a model element
+#'
+#'@details A future slope is applied to model elements with a functional.form set AFTER a given point in time
+#'
+#'@inheritParams set.element.value
+#'@param element.names One or more names of the model element to set the future.slope for
+#'@param slope A single numeric value representing the slope
+#'@param after.year The year after which the additional slope takes effect
+#'
+#'@family Functions to create and modify a jheem.engine
+#'
+#'@export
 set.element.functional.form.future.slope <- function(jheem.engine,
                                                      element.names,
                                                      slope,
-                                                     check.consistency=T)
+                                                     check.consistency = !jheem.engine$has.been.crunched())
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    jheem.engine$set.element.functional.form.future.slope(element.names = element.names,
+                                                          slope = slope,
+                                                          check.consistency = check.consistency)
 }
 
 
+#'@describeIn set.element.functional.form.future.slope
+#'
+#'@export
 set.element.functional.form.future.slope.after.time <- function(components,
                                                                 element.names,
                                                                 after.year,
-                                                                check.consistency=T)
+                                                                check.consistency = !jheem.engine$has.been.crunched())
 {
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    jheem.engine$set.element.functional.form.future.slope.after.time(element.names = element.names,
+                                                                     after.year = after.year,
+                                                                     check.consistency = check.consistency)
 }
 
-##------------------##
-##-- DEPENDENCIES --##
-##------------------##
 
+##-------------------------------------------------------------------------##
+##-- SOME STREAMLINED, CONVENIENCE FUNCTIONS FOR SETTING MULTIPLE VALUES --##
+##-------------------------------------------------------------------------##
+
+#'@description Set Values for Multiple Model Elements
+#'
+#'@inheritParams set.element.value
+#'@param element.names A character vector containing the names of the elements to set values for
+#'@param parameters A named numeric vector with values for each of the elements of 'element.names'
+#'
+#'@family Functions to create and modify a jheem.engine
+#'
+#'@export
+set.element.values.from.parameters <- function(jheem.engine,
+                                               element.names,
+                                               parameters,
+                                               check.consistency = !jheem.engine$has.been.crunched())
+{
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    
+    if (check.consistency)
+    {
+        if (!is.numeric(parameters))
+            stop("Cannot set element values from parameters: 'parameters' must be a named NUMERIC vector")
+        
+        if (is.null(names(parameters)))
+            stop("Cannot set element values from parameters: 'parameters' must be a NAMED numeric vector")
+        
+        if (any(is.na(names(parameters))))
+            stop("Cannot set element values from parameters: the names of 'parameters' cannot be NA")
+            
+        
+        missing.elements = setdiff(element.names, names(parameters))
+        if (length(missing.elements)>0)
+            stop(paste0("Cannot set element values from parameters: 'parameters' is missing ",
+                        ifelse(length(missing.elements)==1, 'the value for element', 'values for elements'),
+                        " ", collapse.with.and("'", missing.elements, "'")))
+    }
+    
+    for (elem.name in element.names)
+        jheem.engine$set.element.value(element.name = elem.name,
+                                       value = parameters[elem.name],
+                                       check.consistency = check.consistency)
+}
+
+#'@export
+set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
+                                                               element.name,
+                                                               parameters,
+                                                               parameter.name.prefix,
+                                                               parameter.name.suffix,
+                                                               check.consistency = !jheem.engine$has.been.crunched())
+{
+    #-- Check parameters --#
+    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
+        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    
+    if (check.consistency)
+    {
+        if (!is.numeric(parameters))
+            stop("Cannot set element functional.form alphas from parameters: 'parameters' must be a named NUMERIC vector")
+        
+        if (is.null(names(parameters)))
+            stop("Cannot set element functional.form alphas from parameters: 'parameters' must be a NAMED numeric vector")
+        
+        if (any(is.na(names(parameters))))
+            stop("Cannot set element functional.form alphas from parameters: the names of 'parameters' cannot be NA")
+    }
+    
+    #-- Main effects --#
+    parameters.names = unlist(sapply())
+    
+    #-- Interaction effects --#
+}
 
 ##-----------------------##
 ##-----------------------##
@@ -283,7 +468,7 @@ JHEEM.ENGINE = R6::R6Class(
         
         crunch = function(start.year,
                           end.year,
-                          check.consistency=T)
+                          check.consistency = !self$has.been.crunched())
         {
             # If the specification has changed since we last crunched/set-up, reset
             specification = get.specification.for.version(private$i.version)
@@ -300,13 +485,16 @@ JHEEM.ENGINE = R6::R6Class(
             sapply(specification$top.level.quantity.names, calculate.quantity.value,
                    check.consistency = check.consistency)
             
+            # Set the i.has.been.crunched flag
+            private$i.has.been.crunched = T
+            
             # Done
             invisible(self)
         },
         
         run = function(start.year,
                        end.year,
-                       check.consistency=T,
+                       check.consistency=!self$has.been.crunched(),
                        max.run.time.seconds=Inf,
                        prior.sim=NULL,
                        keep.years=start.year:end.year,
@@ -326,7 +514,7 @@ JHEEM.ENGINE = R6::R6Class(
     
         set.element.value = function(element.name,
                                      value,
-                                     check.consistency=T,
+                                     check.consistency = !self$has.been.crunched(),
                                      error.prefix='')
         {
             #-- Check Arguments --#
@@ -394,7 +582,7 @@ JHEEM.ENGINE = R6::R6Class(
                                                                   values,
                                                                   applies.to.dimension.values=names(values),
                                                                   dimensions=names(applies.to.dimension.values),
-                                                                  check.consistency=T)
+                                                                  check.consistency = !self$has.been.crunched())
         {
             #-- Check Arguments --#
             if (check.consistency)
@@ -460,7 +648,7 @@ JHEEM.ENGINE = R6::R6Class(
                                                                    value,
                                                                    applies.to.dimension.values=names(values),
                                                                    dimensions=names(applies.to.dimension.values),
-                                                                   check.consistency=T)
+                                                                   check.consistency = !self$has.been.crunched())
         {
             #-- Check Arguments --#
             if (check.consistency)
@@ -527,7 +715,7 @@ JHEEM.ENGINE = R6::R6Class(
         #' Still need to flesh out this interface
         set.element.foreground = function(element.name,
                                            foreground,
-                                           check.consistency=T)
+                                           check.consistency = !self$has.been.crunched())
         {
             private$i.quantity.is.static[[element.name]] = F
             private$i.quantity.is.static[[specification$get.dependent.quantity.names(element.name)]] = F
@@ -539,7 +727,7 @@ JHEEM.ENGINE = R6::R6Class(
         
         set.element.functional.form.from.time = function(element.name,
                                                          from.time,
-                                                         check.consistency=T)
+                                                         check.consistency = !self$has.been.crunched())
         {
             previous.from.time = i.element.backgrounds[[element.name]]$functional.form.from.time
             
@@ -620,7 +808,7 @@ JHEEM.ENGINE = R6::R6Class(
         
         set.element.functional.form.to.time = function(element.name,
                                                         to.time,
-                                                        check.consistency=T)
+                                                        check.consistency = !self$has.been.crunched())
         {
             previous.from.time = i.element.backgrounds[[element.name]]$functional.form.to.time
             
@@ -696,9 +884,50 @@ JHEEM.ENGINE = R6::R6Class(
         set.element.ramp.times = function(element.name,
                                            times,
                                            indices=1:length(times),
-                                           check.consistency=T)
+                                           check.consistency = !self$has.been.crunched())
         {
+            #-- Check Arguments --#
             
+            if (check.consistency)
+            {
+                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
+                    stop("Cannot set ramp.times: 'element.name' must be a single, non-NA, character value")
+                
+                if (all(names(private$i.element.backgrounds)!=element.name))
+                    stop(paste0("Cannot set ramp.times: No element named '", element.name, "' exists in the '", self$version, "' model specification"))
+                
+                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                    stop(paste0("Cannot set ramp.times: element '", element.name,
+                                "' is a static value with no functional.form"))
+                
+                if (is.null(private$i.element.backgrounds[[element.name]]$ramp.values))
+                    stop(paste0("Cannot set ramp.times for element '", element.name,
+                                "': the functional.form is static with no ramp or taper"))
+                
+                indices = private$check.ramp.or.taper.values.and.indices(
+                    values = times,
+                    indices = indices,
+                    current.values = private$i.element.backgrounds[[element.name]]$ramp.times,
+                    is.ramp = T,
+                    is.times = T,
+                    error.prefix = paste0("Cannot set ramp.times for element '", element.name, "': "))
+            }
+            
+            #-- Check ordering of times --#
+            new.times = private$i.element.backgrounds[[element.name]]$ramp.times
+            new.times[indices] = times
+            
+            if (check.consistency)
+            {
+                if (!all(new.times == sort(new.times)))
+                    stop(paste0("Cannot set ramp.times for element '", element.name,
+                                "': The ramp.times are not in ascending order"))
+                
+                if (new.times[length(new.times)] >= private$i.element.backgrounds[[element.name]]$functional.form.from.time)
+                    stop(paste0("Cannot set ramp.times for element '", element.name,
+                                "': All ramp.times must be BEFORE the previously set functional.form from-time (",
+                                private$i.element.backgrounds[[element.name]]$functional.form.from.time, ")"))
+            }
             
             #-- Clear Dependencies --#
             
@@ -710,6 +939,11 @@ JHEEM.ENGINE = R6::R6Class(
             clear.dependent.times(element.name)
             
             # No need to clear dim.names
+            
+            
+            #-- Set the Value --#
+            private$i.element.backgrounds[[element.name]]$ramp.times = new.times
+            
             
             #-- Log Instruction --#
             log.instruction(fn.name='set.element.ramp.times', 
@@ -724,8 +958,36 @@ JHEEM.ENGINE = R6::R6Class(
         set.element.ramp.values = function(element.name,
                                             values,
                                             indices=1:length(values),
-                                            check.consistency=T)
+                                            check.consistency = !self$has.been.crunched())
         {
+            #-- Check Arguments --#
+            if (check.consistency)
+            {
+                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
+                    stop("Cannot set ramp.values: 'element.name' must be a single, non-NA, character value")
+                
+                if (all(names(private$i.element.backgrounds)!=element.name))
+                    stop(paste0("Cannot set ramp.values: No element named '", element.name, "' exists in the '", self$version, "' model specification"))
+                
+                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                    stop(paste0("Cannot set ramp.values for element '", element.name,
+                                "' is a static value with no functional.form"))
+                
+                if (is.null(private$i.element.backgrounds[[element.name]]$ramp.values))
+                    stop(paste0("Cannot set ramp.values for element '", element.name,
+                                "': the functional.form is static with no ramp or taper"))
+                
+                
+                indices = private$check.ramp.or.taper.values.and.indices(
+                    values = values,
+                    indices = indices,
+                    current.values = components$element.backgrounds[[element.name]]$ramp.times,
+                    is.ramp = T,
+                    is.times = F,
+                    error.prefix=paste0("Cannot set ramp.values for element '",
+                                        element.name, "': "))
+            }
+            
             
             #-- Clear Dependencies --#
             
@@ -735,6 +997,11 @@ JHEEM.ENGINE = R6::R6Class(
             
             # No need to clear times
             # No need to clear dim.names
+            
+            
+            #-- Set the Values --#
+            private$i.element.backgrounds[[element.name]]$ramp.values[indices] = values
+            
             
             #-- Log Instruction --#
             log.instruction(fn.name='set.element.ramp.values', 
@@ -749,8 +1016,52 @@ JHEEM.ENGINE = R6::R6Class(
         set.element.taper.times = function(element.name,
                                             times,
                                             indices=1:length(times),
-                                            check.consistency=T)
+                                            check.consistency = !self$has.been.crunched())
         {
+            #-- Check Arguments --#
+            
+            if (check.arguments)
+            {
+                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
+                    stop("Cannot set taper.times: 'element.name' must be a single, non-NA, character value")
+                
+                if (all(names(private$i.element.backgrounds)!=element.name))
+                    stop(paste0("Cannot set taper.times: No element named '", element.name, "' exists in the '", self$version, "' model specification"))
+                
+                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                    stop(paste0("Cannot set taper.times for element '", element.name,
+                                "' is a static value with no functional.form"))
+                
+                if (is.null(private$i.element.backgrounds[[element.name]]$taper.values))
+                    stop(paste0("Cannot set taper.times for element '", element.name,
+                                "': the functional.form is static with no ramp or taper"))
+                
+                
+                indices = private$check.ramp.or.taper.values.and.indices(
+                    values = times,
+                    indices = indices,
+                    current.values = components$element.backgrounds[[element.name]]$taper.times,
+                    is.ramp = F,
+                    is.times = T,
+                    error.prefix = paste0("Cannot set taper.times for element '", element.name, "': "))
+            }
+            
+            #-- Check ordering of times --#
+            new.times = private$i.element.backgrounds[[element.name]]$taper.times
+            new.times[indices] = times
+            
+            if (check.consistency)
+            {
+                if (!all(new.times == sort(new.times)))
+                    stop(paste0("Cannot set taper.times for element '", element.name,
+                                "': The taper.times are not in ascending order"))
+                
+                if (new.times[1] <= private$i.element.backgrounds[[element.name]]$functional.form.to.time)
+                    stop(paste0("Cannot set taper.times for element '", element.name,
+                                "': All taper.times must be AFTER the previously set functional.form to-time (",
+                                components$element.backgrounds[[element.name]]$functional.form.to.time, ")"))
+            }
+            
             
             #-- Clear Dependencies --#
             
@@ -761,14 +1072,18 @@ JHEEM.ENGINE = R6::R6Class(
             # Clear times
             clear.dependent.times(element.name)
             
+            # No need to clear dim.names
+            
+            
+            #-- Set the Value --#
+            private$i.element.backgrounds[[element.name]]$taper.times = new.times
+            
             
             #-- Log Instruction --#
             log.instruction(fn.name='set.element.taper.times', 
                             times=times,
                             indices=indices,
                             check.consistency=check.consistency)
-            
-            # No need to clear dim.names
             
             
             #-- Done --#
@@ -778,8 +1093,35 @@ JHEEM.ENGINE = R6::R6Class(
         set.element.taper.values = function(element.name,
                                              values,
                                              indices=1:length(values),
-                                             check.consistency=T)
+                                             check.consistency = !self$has.been.crunched())
         {
+            #-- Check Arguments --#
+            if (check.consistency)
+            {
+                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
+                    stop("Cannot set taper.values: 'element.name' must be a single, non-NA, character value")
+                
+                if (all(names(private$i.element.backgrounds)!=element.name))
+                    stop(paste0("Cannot set taper.values: No element named '", element.name, "' exists in the '", self$version, "' model specification"))
+                
+                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                    stop(paste0("Cannot set taper.values for element '", element.name,
+                                "' is a static value with no functional.form"))
+                
+                if (is.null(private$i.element.backgrounds[[element.name]]$taper.values))
+                    stop(paste0("Cannot set taper.values for element '", element.name,
+                                "': the functional.form is static with no ramp or taper"))
+                
+                
+                indices = check.ramp.or.taper.values.and.indices(values=times,
+                                                                 indices=indices,
+                                                                 current.values=components$element.backgrounds[[element.name]]$taper.times,
+                                                                 is.ramp=T,
+                                                                 is.times=F,
+                                                                 error.prefix=paste0("Cannot set taper.values for element '",
+                                                                                     element.name, "':"))
+            }
+            
             
             #-- Clear Dependencies --#
             
@@ -789,6 +1131,10 @@ JHEEM.ENGINE = R6::R6Class(
             
             # No need to clear times
             # No need to clear dim.names
+            
+            
+            #-- Set the Value --#
+            private$i.element.backgrounds[[element.name]]$taper.values[indices] = values
             
             
             #-- Log Instruction --#
@@ -803,9 +1149,51 @@ JHEEM.ENGINE = R6::R6Class(
         
         set.element.functional.form.future.slope = function(element.names,
                                                             slope,
-                                                            check.consistency=T)
+                                                            check.consistency = !self$has.been.crunched())
         {
-  
+            #-- Check Arguments --#
+            if (check.consistency)
+            {
+                if (!is.numeric(slope) || length(slope)!=1 || is.na(slope))
+                    stop("Cannot set functional.form future-slope: 'slope' must be a single, non-NA, numeric value")
+                
+                if (!is.character(element.names) || length(element.names)==0 || is.na(element.names))
+                    stop("Cannot set functional.form future-slope: 'element.names' must be a non-empty, non-NA, character vector")
+                
+                invalid.names = setdiff(element.names, names(private$i.element.backgrounds))
+                if (length(invalid.names)>0)
+                    stop(paste0("Cannot set functional.form future-slope: No ",
+                                ifelse(length(invalid.names)==1, "element", "elements"),
+                                " named '",
+                                collapse.with.and("'", invalid.names, "'"),
+                                ifelse(length(invalid.names)==1, " exists", " exist"),
+                                " in the '", self$version, "' model specification"))
+                
+                no.functional.form.mask = sapply(private$i.element.backgrounds[element.names], function(bkgd){
+                    is.null(bkgd$functional.form)
+                })
+                if (any(no.functional.form.mask))
+                    stop(paste0("Cannot set functional.form future-slope for ",
+                                ifelse(sum(no.functional.form.mask)==1, "element ", "elements "),
+                                collapse.with.or("'", element.names[no.model.mask], "'"),
+                                ": ",
+                                ifelse(sum(no.functional.form.mask)==1, 
+                                       "This element is a static value",
+                                       "These elements are static values"),
+                                " with no functional.form"))
+
+                static.mask = sapply(private$i.element.backgrounds[element.names], function(bkgd){
+                    bkgd$functional.form$is.static
+                })
+                if (any(static.mask))
+                    stop(paste0("Cannot set functioanl.form future-slope for ",
+                                ifelse(sum(static.mask)==1, "element ", "elements "),
+                                collapse.with.or("'", element.names[static.mask], "'"),
+                                ": ",
+                                ifelse(sum(static.mask)==1, "this element has", "these elements have"),
+                                " a static functional form with no ramp or taper"))
+            }
+            
             #-- Clear Dependencies --#
             
             # Clear values for all times after functional.form.future.slope.after.time
@@ -814,6 +1202,11 @@ JHEEM.ENGINE = R6::R6Class(
             
             # No need to clear times
             # No need to clear dim.names
+            
+            
+            #-- Set the Value --#
+            for (element.name in element.names)
+                private$i.element.backgrounds[[element.name]][['future.slope']] = slope
             
             
             #-- Log Instruction --#
@@ -828,21 +1221,67 @@ JHEEM.ENGINE = R6::R6Class(
         
         set.element.functional.form.future.slope.after.time = function(element.names,
                                                                        after.time,
-                                                                       check.consistency=T)
+                                                                       check.consistency = !self$has.been.crunched())
         {
-            previous.functional.form.after.time = i.element.backgrounds[[element.name]]$future.slope.after.time
+            previous.future.slope.after.time = i.element.backgrounds[[element.name]]$future.slope.after.time
             
+            #-- Check Arguments --#
+            if (check.arguments)
+            {
+                if (!is.numeric(after.year) || length(after.year)!=1 || is.na(after.year))
+                    stop("Cannot set functional.form future-slope-after-year: 'after.year' must be a single, non-NA, numeric value")
+                
+                if (!is.character(element.names) || length(element.names)==0 || is.na(element.names))
+                    stop("Cannot set functional.form future-slope-after-year: 'element.names' must be a non-empty, non-NA, character vector")
+                
+                invalid.names = setdiff(element.names, names(private$i.element.backgrounds))
+                if (length(invalid.names)>0)
+                    stop(paste0("Cannot set functional.form future-slope-after-year: No ",
+                                ifelse(length(invalid.names)==1, "element", "elements"),
+                                " named '",
+                                collapse.with.and("'", invalid.names, "'"),
+                                ifelse(length(invalid.names)==1, " exists", " exist"),
+                                " in the '", self$version, "' model specification"))
+                
+                no.functional.form.mask = sapply(private$i.element.backgrounds[element.names], function(bkgd){
+                    is.null(bkgd$functional.form)
+                })
+                if (any(no.functional.form.mask))
+                    stop(paste0("Cannot set functional.form future-slope-after-year for ",
+                                ifelse(sum(no.functional.form.mask)==1, "element ", "elements "),
+                                collapse.with.or("'", element.names[no.model.mask], "'"),
+                                ": ",
+                                ifelse(sum(no.functional.form.mask)==1, 
+                                       "This element is a static value",
+                                       "These elements are static values"),
+                                " with no functional.form"))
+                
+                static.mask = sapply(private$i.element.backgrounds[element.names], function(bkgd){
+                    bkgd$functional.form$is.static
+                })
+                if (any(static.mask))
+                    stop(paste0("Cannot set functioanl.form future-slope-after-year for ",
+                                ifelse(sum(static.mask)==1, "element ", "elements "),
+                                collapse.with.or("'", element.names[static.mask], "'"),
+                                ": ",
+                                ifelse(sum(static.mask)==1, "this element has", "these elements have"),
+                                " a static functional form with no ramp or taper"))
+            }
  
             
             #-- Clear Dependencies --#
             
             # Clear values for all times after min(old, new functional.form.future.slope.after.time)
             times.to.clear.values.for.mask = i.quantity.value.times[[element.name]] > min(i.element.backgrounds[[element.name]]$future.slope.after.time,
-                                                                                          previous.functional.form.after.time)
+                                                                                          previous.future.slope.after.time)
             clear.dependent.values(element.name, times = i.quantity.value.times[[element.name]][times.to.clear.values.for.mask])
             
             # No need to clear times
             # No need to clear dim.names
+            
+            #-- Set the Value --#
+            for (element.name in element.names)
+                private$i.element.backgrounds[[element.name]]$future.slope.after.year = after.year
             
             
             #-- Log Instruction --#
@@ -853,6 +1292,11 @@ JHEEM.ENGINE = R6::R6Class(
             
             #-- Done --#
             invisible(self)
+        },
+        
+        has.been.crunched = function()
+        {
+            private$i.has.been.crunched
         }
         
     ),
@@ -897,6 +1341,7 @@ JHEEM.ENGINE = R6::R6Class(
         i.run.from.time = NULL,
         i.run.to.time = NULL,
         
+        i.has.been.crunched = NULL,
         
         ##---------------------##
         ##---------------------##
@@ -988,6 +1433,9 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.quantity.values = list()
             private$i.quantity.self.times = list()
             private$i.quantity.value.times = list()
+            
+            # Clear the i.has.been.crunched flag
+            private$i.has.been.crunched = F
             
             # Re-process any instructions
             for (instr in private$i.instructions)
@@ -2002,7 +2450,113 @@ JHEEM.ENGINE = R6::R6Class(
         get.specification = function()
         {
             get.compiled.specification.for.version(private$i.version)
+        },
+
+        #returns a vector of validated indices
+        check.ramp.or.taper.values.and.indices = function(values,
+                                                          indices,
+                                                          current.values,
+                                                          is.ramp,
+                                                          is.times,
+                                                          error.prefix)
+        {
+            # Set up for error messages
+            if (is.ramp)
+                ramp.or.taper = 'ramp'
+            else
+                ramp.or.taper = 'taper'
+            
+            if (is.times)
+                values.or.times = "'times'"
+            else
+                values.or.times = "'values'"
+            
+            # Check values
+            if (!is.numeric(values) || length(values)==0 || any(is.na(values)))
+                stop(paste0(error.prefix, values.or.times, " must be a non-empty, non-NA, numeric vector"))
+            if (length(values) > length(current.values))
+                stop(paste0(error.prefix, values.or.times, " has ",
+                            length(values), " elements, but the ",
+                            ramp.or.taper, " only takes ",
+                            length(current.values), " ", values.or.times,
+                            ifelse(length(current.values==1),
+                                   "",
+                                   "s"),
+                            "."))
+            if (any(values<0))
+                stop(paste0(error.prefix, values.or.times, " must all be greater than or equal to zero"))
+            
+            
+            # Infer indices if none specified
+            if (is.null(indices))
+            {
+                if (is.null(names(values)) || is.null(names(current.values)))
+                    indices = 1:length(values)
+                else
+                    indices = names(values)
+            }
+            
+            # Check indices
+            if (is.character(indices))
+            {
+                if (is.null(names(current.values)))
+                    stop(paste0(error.prefix, 
+                                "'indices' cannot be a character value for this element, because the ",
+                                ramp.or.taper,
+                                " elements have not been given names."))
+                
+                invalid.names = setdiff(indices, names(current.values))
+                if (length(invalid.names)>0)
+                    stop(paste0(error.prefix,
+                                "Invalid name(s) in indices. None of the ", ramp.or.taper,
+                                " elements is named ",
+                                collapse.with.and("'", invalid.names, "'")))
+                
+                if (length(indices) != length(values) && length(values) != 1)
+                    stop(paste0(error.prefix,
+                                "'indices' has length ", length(indices),
+                                " but ", values.or.times, " has length ", length(values)))
+            }
+            else if (is.integer(indices))
+            {
+                if (any(indices<1) || any(indices>length(current.values)))
+                    stop(paste0(error.prefix,
+                                "indices ",
+                                collapse.with.and(indices[indices<1 | indices>length(current.values)]),
+                                ifelse(sum(indices<1 | indices>length(current.values))==1, ' is ', ' are '),
+                                "invalid. Indices must be between 1 and ", length(current.values)))
+                
+                if (length(indices) != length(values) && length(values) != 1)
+                    stop(paste0(error.prefix,
+                                "'indices' has length ", length(indices),
+                                " but ", values.or.times, " has length ", length(values)))
+            }
+            else if (is.logical(indices))
+            {
+                if (length(indices) != length(current.values))
+                    stop(paste0(error.prefix,
+                                "'indices' (as a logical vector) has length ", length(indices),
+                                " but the ", ramp.or.taper,
+                                " takes ", length(current.values), " ", values.or.times,
+                                ifelse(length(current.values)==1,
+                                       "",
+                                       "s"),
+                                "."))
+                
+                if (sum(indices) != length(values) && length(values) != 1)
+                    stop(paste0(error.prefix,
+                                "'indices' (as a logical vector) references ", sum(indices),
+                                " elements, but the ", ramp.or.taper,
+                                " takes ", length(current.values), " ", values.or.times,
+                                ifelse(length(current.values)==1,
+                                       "",
+                                       "s"),
+                                "."))
+            }
+            
+            # Return
+            indices
         }
-        
+                
     )
 )
