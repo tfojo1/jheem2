@@ -4,8 +4,8 @@
 
 VERSION.MANAGER.ELEMENTS = c(
     'specification', 'compiled.specification',
-    'get.components.function', 'parameters.prior','parameter.sampling.blocks',
-    'projection.update.components.function', 'projection.parameters.distribution',
+    'apply.parameters.to.engine.function', 'parameters.prior','parameter.sampling.blocks',
+    'apply.projection.parameters.to.engine.function', 'projection.parameters.distribution',
     'prior.versions'
 )
 
@@ -17,9 +17,18 @@ VERSION.MANAGER$prior.versions = list()
 for (element.name in VERSION.MANAGER.ELEMENTS)
     VERSION.MANAGER[[element.name]] = list()
 
+##--------------------------------------------------##
+##-- SETTER and GETTERS for VERSION/SPECIFICATION --##
+##--------------------------------------------------##
 
-##-- TO REGISTER A VERSION --##
-
+#'@description Register a JHEEM Model Specification
+#'
+#'@param specification A jheem.specification object, as created by \code{\link{create.jheem.specification}}
+#'
+#'@details Once a specification object is registered, it can no longer be modified
+#'
+#'@family JHEEM Version Management Functions
+#'
 #'@export
 register.model.specification <- function(specification)
 {
@@ -70,48 +79,8 @@ register.model.specification <- function(specification)
     invisible(NULL)
 }
 
-#'@export
-register.version <- function(version,
-                             specification,
-                             directory.suffix,
-                             file.version,
-                             prior.versions=character())
-{
-    VERSION.MANAGER$versions = union(VERSION.MANAGER$versions, version)
-    for (element.name in VERSION.MANAGER.ELEMENTS)
-        VERSION.MANAGER[[version]][[element.name]] = NULL
-    
-    if (!is(specification, 'jheem.specification'))
-        stop("'specification' must be an object of class 'jheem.specification'")
-    
-    
-    do.register.for.version(version=version,
-                            element.name='specification',
-                            element.value=specification,
-                            element.class='jheem.specification')
-    do.register.for.version(version=version,
-                            element.name='directory.suffix',
-                            element.value=directory.suffix,
-                            element.class='character',
-                            element.length=1,
-                            require.unique = T)
-    do.register.for.version(version=version,
-                            element.name='file.version',
-                            element.value=file.version,
-                            element.class='character',
-                            element.length=1,
-                            require.unique = T)
-    do.register.for.version(version=version,
-                            element.name='prior.versions',
-                            element.value=prior.versions,
-                            element.class='character')
-    
-    if (grepl('_', file.version))
-        stop("file.version cannot contain the character '_'")
-}
-
-##-- SPECIFIC GETTERS --##
-
+#'@family JHEEM Version Management Functions
+#'
 #'@export
 get.prior.versions <- function(version,
                                recursive=T)
@@ -135,6 +104,14 @@ get.prior.versions <- function(version,
     prior.versions
 }
 
+#'@description Get a JHEEM Specification Object
+#'
+#'@param version The name of the version under which the specification was registered
+#'
+#'@return An object of class 'jheem.specification'
+#'
+#'@family JHEEM Version Management Functions
+#'
 #'@export
 get.specification.for.version <- function(version)
 {
@@ -143,6 +120,7 @@ get.specification.for.version <- function(version)
                        allow.null = !throw.error.if.missing)
 }
 
+# This function is internal to the package
 is.specification.registered.for.version <- function(version)
 {
     !is.null(do.get.for.version(version=version,
@@ -150,12 +128,14 @@ is.specification.registered.for.version <- function(version)
                                allow.null = T))
 }
 
+# This function is internal to the package
 get.compiled.specification.for.version <- function(version)
 {
     do.get.for.version(version=version,
                        element.name='compiled.specification')
 }
 
+# This function is internal to the package
 is.compiled.specification.registered.for.version <- function(version)
 {
     !is.null(do.get.for.version(version=version,
@@ -163,28 +143,73 @@ is.compiled.specification.registered.for.version <- function(version)
                                allow.null = T))
 }
 
+##------------------------------------------------------##
+##-- SETTER and GETTER for APPLY PARAMETERS to ENGINE --##
+##------------------------------------------------------##
+
+#'@description Register a Function to Apply Parameters to a JHEEM Engine
+#'
+#'@details 
+#'
+#'@param version The name of a JHEEM version for which a specification has already been registered (using \code{\link{}})
+#'@param fn A function which takes two arguments: 'jheem.engine', an object of class jheem.engine, and 'parameters', a named numeric vector. Any return value from the function will be ignored
+#'@param join.with.previous.version.function Whether the apply.parameters.to.engine.function should be called first when this function is invoked (in other words, whether this function should 'inherit' the behavior of the previous function)
+#'
+#'@family JHEEM Version Management Functions
+#'
 #'@export
-get.file.version <- function(version)
+register.apply.parameters.to.engine.function <- function(version,
+                                                         fn,
+                                                         join.with.previous.version.function = T)
 {
-    do.get.for.version(version=version,
-                       element.name='file.version')
+    #-- Make sure the function is a function and only requires arguments 'jheem.engine' and 'parameters' --#
+    
+    # First, try to figure out the function's name, so that we can print an intelligible error
+    fn.name = deparse(substitute(fn))
+    if (!is.character(fn.name) || length(fn.name) != 1)
+        fn.name = NULL
+    
+    if (!is.function(fn))
+        stop(paste0("Cannot register apply.parameters.to.engine.function: The value passed to 'fn' ",
+                    ifelse(is.null(fn.name), "", paste0("(", fn.name, ") ")),
+                    " is not a function"))
+    
+    fn.args = formals(args(fn))
+    arg.names = names(fn.args)
+    arg.names.without.default.value = arg.names[sapply(fn.args, function(val){val==''})]
+    
+    # Check that it takes 'jheem.engine' and 'parameters'
+    error.prefix = paste0("Cannot register apply.parameters.to.engine.function: The function passed to 'fn' ",
+                           ifelse(is.null(fn.name), "", paste0("(", fn.name, ") ")))
+    if (all(arg.names != 'jheem.engine'))
+        stop(paste0(error.prefix, "must take 'jheem.engine' as an argument"))
+    if (all(arg.names != 'parameters'))
+        stop(paste0(error.prefix, "must take 'parameters' as an argument"))
+    
+    # Check that there are no other required arguments
+    extraneous.arg.names = setdiff(arg.names.without.default.value, c('jheem.engine','parameters'))
+    if (length(extraneous.arg.names)>0)
+        stop(paste0(error.prefix, " requires ",
+                    ifelse(length(extraneous.arg.names)==1, 'argument ', 'arguments '),
+                    collapse.with.and("'", extraneous.arg.names, "'"),
+                    ", but the only arguments to the function should be 'jheem.engine' and 'parameters',"))
+    
+    #-- Register It --#
+    do.register.for.version(version = version,
+                            element.name = 'apply.parameters.to.engine.function',
+                            element.value = fn,
+                            element.class = 'function',
+                            join.with.previous.version.value = join.with.previous.version.function,
+                            join.function = create.joint.function)
 }
 
 #'@export
-get.directory.suffix.for.version <- function(version)
-{
-    do.get.for.version(version=version,
-                       element.name='directory.suffix')
-}
-
-
-#'@export
-get.components.function.for.version <- function(version,
-                                                include.parameters.check=T,
-                                                pull.previous.version.value.if.missing = T)
+get.apply.parameters.to.engine.function <- function(version,
+                                                    include.parameters.check=T,
+                                                    pull.previous.version.value.if.missing = T)
 {
     fn = do.get.for.version(version=version,
-                            element.name='get.components.function',
+                            element.name='apply.parameters.to.engine.function',
                             pull.previous.version.value.if.missing = pull.previous.version.value.if.missing)
     
     if (include.parameters.check)
@@ -232,12 +257,12 @@ get.projection.prarameters.distribution.for.version <- function(version,
 }
 
 #'@export
-get.projection.update.components.function.for.version <- function(version, 
+get.apply.projection.parameters.to.engine.function <- function(version, 
                                                                   include.parameters.check=T,
                                                                   pull.from.previous.version.if.missing=T)
 {
     fn = do.get.for.version(version=version,
-                            element.name='projection.update.components.function',
+                            element.name='apply.projection.parameters.to.engine.function',
                             pull.previous.version.value.if.missing = pull.from.previous.version.if.missing)
     
     
@@ -260,19 +285,6 @@ get.projection.update.components.function.for.version <- function(version,
 
 
 ##-- SPECIFIC SETTERS --##
-
-#'@export
-register.get.components.function <- function(version,
-                                             fn,
-                                             join.with.previous.version.function=F)
-{
-    do.register.for.version(version=version,
-                            element.name='get.components.function',
-                            element.value=fn,
-                            element.class='function',
-                            join.with.previous.version.value = join.with.previous.version.function,
-                            join.function = join.get.components.functions)
-}
 
 #'@export
 register.parameters.prior <- function(version,
@@ -477,15 +489,12 @@ do.remove.for.version <- function(version,
 
 ##-- TO DAISY-CHAIN COMPONENTS FUNCTIONS --##
 
-join.get.components.functions <- function(f1, f2)
+create.joint.functions <- function(f1, f2)
 {
-    function(parameters, components,
-             data.managers = ALL.DATA.MANAGERS)
+    function(...)
     {
-        components = f1(parameters, components, data.managers)
-        components = f2(parameters, components, data.managers)
-        
-        components
+        f1(...)
+        f2(...)
     }
 }
 

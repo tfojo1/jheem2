@@ -601,7 +601,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Or if the previously-created data element does not have all the dimension values we need
             # -> make new data elements
             
-            existing.dim.names = dimnames(private$i.data[[source]][[ontology.name]][[outcome]][[stratification]])
+            existing.dim.names = dimnames(private$i.data[[outcome]][[source]][[ontology.name]][[stratification]])
             data.already.present = !is.null(existing.dim.names)
             
             if (!data.already.present ||
@@ -612,7 +612,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (data.already.present)
                 {
                     existing.data.and.metadata = lapply(data.element.names, function(name){
-                        private[[name]][[source]][[ontology.name]][[outcome]][[stratification]]
+                        private[[name]][[outcome]][[source]][[ontology.name]][[stratification]]
                     })
                 }
                 
@@ -624,28 +624,28 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     new.dim.names = put.dim.names
                 
                 # Make the new (empty) data structures
-                private$i.data[[source]][[ontology.name]][[outcome]][[stratification]] =
+                private$i.data[[outcome]][[source]][[ontology.name]][[stratification]] =
                     array(NaN, dim=sapply(new.dim.names, length), dimnames = new.dim.names)
                 
                 for (name in metadata.element.names)
                 {
-                    private[[name]][[source]][[ontology.name]][[outcome]][[stratification]] = 
+                    private[[name]][[outcome]][[source]][[ontology.name]][[stratification]] = 
                         lapply(1:prod(sapply(new.dim.names, length)), function(i){
                             NULL
                         })
                     
-                    dim(private[[name]][[source]][[ontology.name]][[outcome]][[stratification]]) = sapply(new.dim.names, length)
-                    dimnames(private[[name]][[source]][[ontology.name]][[outcome]][[stratification]]) = new.dim.names
+                    dim(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]]) = sapply(new.dim.names, length)
+                    dimnames(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]]) = new.dim.names
                 }
                     
                 # Overwrite the new structure with the old data, if needed
                 if (data.already.present)
                 {
-                    array.access(private$i.data[[source]][[ontology.name]][[outcome]][[stratification]], existing.dim.names) =
+                    array.access(private$i.data[[outcome]][[source]][[ontology.name]][[stratification]], existing.dim.names) =
                         existing.data.and.metadata$i.data
                     
                     for (name in metadata.names)
-                        array.list.access(private[[name]][[source]][[ontology.name]][[outcome]][[stratification]], existing.dim.names) = 
+                        array.list.access(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]], existing.dim.names) = 
                             existing.data.and.metadata[[name]]
                 }
             }
@@ -653,7 +653,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #-- Put the data and its metadata --#
             
             # get the indices we're going to write into
-            overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[source]][[ontology.name]][[outcome]][[stratification]]),
+            overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[outcome]][[source]][[ontology.name]][[stratification]]),
                                                          dimension.values = c(dimnames(data), dimension.values))
             if (!allow.na.to.overwrite)
             {
@@ -662,12 +662,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
                 
             # Put data
-            private$i.data[[source]][[ontology.name]][[outcome]][[stratification]][overwrite.indices] = data
+            private$i.data[[outcome]][[source]][[ontology.name]][[stratification]][overwrite.indices] = data
             
             # Put metadata
-            private$i.url[[source]][[ontology.name]][[outcome]][[stratification]][overwrite.indices] = 
+            private$i.url[[outcome]][[source]][[ontology.name]][[stratification]][overwrite.indices] = 
                 lapply(1:length(overwrite.indices), function(i){ url })
-            private$i.details[[source]][[ontology.name]][[outcome]][[stratification]][overwrite.indices] = 
+            private$i.details[[outcome]][[source]][[ontology.name]][[stratification]][overwrite.indices] = 
                 lapply(1:length(overwrite.indices), function(i){ details })
             
             
@@ -785,66 +785,81 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # *dimension.values* are valid 
             #   - check.dimension.values.valid()
             
-            # sources
+            # *sources* a character vector with at least one element and no NA or empty values
+            #  that have all been registered previously as sources with this data manager
 
-            # *data.group* is either NULL or a single, non-NA character value
-            # If NULL, set data.group to the first registered data group (if none have been registered, throw an error)
-            # If a character value, it must be a previously registered data.group for this data manager
+            # *target.ontology* is either NULL or an ontology object
+            
+            # *allow.mapping.from.target.ontology* is a single, non-NA logical value
+            
+            # *from.ontology.names* is either NULL or a character vector with no NA or empty values
+            #  all of which have been previously registered with this data manager (if not NULL)
+            
+            # *append.attributes* is either NULL or a character vector with no NA values that 
+            #  contains only "details" or "url" or both
+            
+            # *na.rm* is a single, non-NA logical value
             
             
-            
-            # *type* is a single, non-NA character value
-            # that is one of names(private$i.data.element.names)
-            
-            
-            #-- Figure out what stratification we need to pull the data from --#
-            # (the union of the keep dimensions and the dimensions mentioned in dimension.values)
-            
-            #-- Figure out if we are going to need to aggregate --#
-            # We need to aggregate if keep.dimensions is a proper subset of the stratification dimensions
-         
-            #-- Set up the return value structure (populated with NAs or empty lists) --#
-            # A numeric array if type=='data'
-            # A list array otherwise
-            # And the parallel denominator structure if we need to aggregate and denominator.outcome for the outcome.info is not NULL
-            
-            #-- Overwrite the data we have into the return value --#
-            # Only if we have data
-                        
-            
-            # For each source in sources (or all sources if sources is NULL)
-            #   If we can resolve dimension values against this ontology
-            #   For each data source in sources (or all data sources if sources is NULL)
-            #       loop through the stratifications
-            #           If either:
-            #           (1) there is a target.ontology 
-            #               and allow.mapping.from.target.ontology==F
-            #               and we can map from the stratification of the data ontology to the target ontology
-            #                   - from get.ontology.mapping()
-            #              OR
-            #           (2) there is a target.ontology
-            #               and allow.mapping.from.target.ontology==T
-            #               and their is a pair of ontology mappings that takes both the stratification of the data and target ontologies to a common ontology
-            #                   - from get.mappings.to.align.ontologies
-            #              OR
-            #           (3) there is no target ontology
-            #               and the stratification contains all dimension.values and keep.dimensions
-            #               and (if we have found a hit for a prior ontology and/or data source) the dimensions of this value match those dimensions
+            #-- The big loop --#
+            #
+            # In an lapply for source
+            # - For each source in sources for this outcome (or all sources for the outcome if sources is NULL)
+            #   - For each ontology in this source that is also in from.ontology.names 
+            #     (or all the ontologies if from.ontology.names is NULL)
+            #       - If we can resolve dimension values against this ontology
+            #         (ie if resolve.ontology.dimension.values does not return NULL)
+            #           - for each stratification in this source and ontology
+            #               - If either:
+            #                 (1) there is a target.ontology 
+            #                     and allow.mapping.from.target.ontology==F or prior source came up with an aligning mapping
+            #                     and we can map from the stratification of the data ontology to the target ontology (or the previously aligned mapping)
+            #                       - from get.ontology.mapping()
+            #                 OR
+            #                 (2) there is a target.ontology 
+            #                     and allow.mapping.from.target.ontology==T and a prior source has not found any data
+            #                     and their is a pair of ontology mappings that takes both the stratification of the data and target ontologies to a common ontology
+            #                       - from get.mappings.to.align.ontologies
+            #                           (we'll need to save that second mapping for later)
+            #                 OR
+            #                 (3) there is no target ontology
+            #                     and the stratification contains all dimension.values and keep.dimensions
+            #                     and any dimensions in the ontology but not in dimension.values is complete
+            #                     and (if we have found a hit for a prior ontology and/or data source) the dimensions of this value 
+            #                       are a superset of those dimensions, with all dimensions in this value and not in the prior dimensions
+            #                       being complete
             #           
-            #           AND there are data (not all NA) after any ontology is applied
+            #                 AND there are data (not all NA) after any ontology is applied
             #           
-            #           THEN
-            #               map data from the ontology and return it into an lapply statement
-            #               and stop looping through stratifications and move to the next data source
+            #                 THEN
+            #                   - we're going to return a list with 1-3 values from the lapply for sources
+            #                       $data - always
+            #                       $url - if append.attributes includes 'url'
+            #                       $details - if append.attributes includes 'details'
+            #                   - For each of the types we are returning
+            #                      - set up a skeleton return value filled with NAs (using ontology.mapping$apply.to.dimnames)
+            #                      - map data from the ontology and overwrite into the return value
+            #                          - if type == 'data'
+            #                              - use ontology.mapping$apply
+            #                          - else
+            #                              - use ontology.mapping$apply, with fun=union
+            #                      - if we need to aggregate (ie, if there are dimensions in the return value NOT in keep.dimensions)
+            #                          - if any of those extraneous dimensions are incomplete, throw an error
+            #                          - otherwise aggregate:
+            #                              - if type == 'data'
+            #                                 - sum if they are numbers or non-negative numbers
+            #                                  - take weighted average (weighted by denominator.outcome) if they are rates, times, or proportions
+            #                                  - throw an error if they are ratios
+            #                              - otherwise, aggregate as the union - ie apply(blah, blah, union)
+            #                   - return from the source lapply
             #   
-            # *If we couldn't resolve dimension values against any ontology, throw an error  
-            #   
-            # After we have an array from each source
-            #   (1) Aggregate each one 
-            #       - sum if they are numbers or non-negative numbers
-            #       - take weighted average (weighted by denominator.outcome) if they are rates, times, or proportions
-            #       - throw an error if they are ratios
-            #   (2) Lump all arrays into one array with a source dimension
+            # If we have data from at least one source (ie, not NULL)
+            #   - Lump all arrays into one array with a source dimension
+            # If we have no data, create a skeleton array, filled with NAs, with source = 'empty'
+            # 
+            # Set url and details as attributes if requested
+            # Set ontology.mapping as attribute
+            
             
             
             
@@ -930,7 +945,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         
         #-- Storage structures for data and metadata --#
         # These three are lists of lists of lists of lists, indexed
-        # [[source]][[ontology.name]][[outcome]][[stratification]]
+        # [[outcome]][[source]][[ontology.name]][[stratification]]
         # for i.data, each element of this depth-4 access is a numeric array
         # for i.url and i.details, each element is a list array (ie a list with dimnames set), each element of which is a character vector
         i.data = NULL,
