@@ -944,21 +944,33 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
                 stop("'overwrite.parameters.with.alphas' must be a single, non-NA logical value")
             
             #-- Betas --#
-            alpha.link = get.link(link)
+            link = get.link(link)
             if (!parameters.are.on.transformed.scale)
             {
-                alpha.link$check.untransformed.values(intercept,
+                link$check.untransformed.values(intercept,
                                                       variable.name.for.error='intercept',
                                                       error.prefix=error.prefix)
-                intercept = alpha.link$apply(intercept)
+                intercept = link$apply(intercept)
                 
-                alpha.link$check.untransformed.values(slope,
+                link$check.untransformed.values(slope,
                                                       variable.name.for.error='slope',
                                                       error.prefix=error.prefix)
-                slope = alpha.link$apply(slope)
+                slope = link$apply(slope)
             }
             betas = list(intercept = intercept, slope = slope)
             
+            
+            #-- Set up alpha.links --#
+            if (overwrite.parameters.with.alphas)
+            {
+                alpha.links = list(intercept = link,
+                                   slope = link$get.coefficient.link())
+            }
+            else
+            {
+                alpha.links = list(intercept = link$get.coefficient.link(),
+                                   slope = link$get.coefficient.link())
+            }
             
             #-- Call the super-class constructor --#
             
@@ -967,7 +979,7 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
                              link = get.link('identity', min=min, max=max, error.prefix = error.prefix),
                              future.slope.link = get.link('identity'), # we just take the future slope as-is
                              alphas.are.additive = !overwrite.parameters.with.alphas,
-                             alpha.links = alpha.link, 
+                             alpha.links = alpha.links, 
                              is.static = F)
             
             private$i.span = max - min

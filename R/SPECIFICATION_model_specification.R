@@ -4754,7 +4754,8 @@ RESERVED.DIMENSIONS = c(
     'sim',
     'outcome',
     'year',
-    'source'
+    'source',
+    'all'
 )
 
 RESERVED.DIMENSION.POSTFIXES = c(

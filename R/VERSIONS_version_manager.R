@@ -152,7 +152,7 @@ is.compiled.specification.registered.for.version <- function(version)
 #'@details 
 #'
 #'@param version The name of a JHEEM version for which a specification has already been registered (using \code{\link{}})
-#'@param fn A function which takes two arguments: 'jheem.engine', an object of class jheem.engine, and 'parameters', a named numeric vector. Any return value from the function will be ignored
+#'@param fn A function which takes three arguments: (1) 'jheem.engine', an object of class jheem.engine, (2) 'parameters', a named numeric vector, and (3) 'check.consistency', a logical indicating whether consistency checks should be performed. If check.consistency==T, the function should return a character vector of parameter names that were used. If F, any return value from the function will be ignored
 #'@param join.with.previous.version.function Whether the apply.parameters.to.engine.function should be called first when this function is invoked (in other words, whether this function should 'inherit' the behavior of the previous function)
 #'
 #'@family JHEEM Version Management Functions
@@ -178,21 +178,23 @@ register.apply.parameters.to.engine.function <- function(version,
     arg.names = names(fn.args)
     arg.names.without.default.value = arg.names[sapply(fn.args, function(val){val==''})]
     
-    # Check that it takes 'jheem.engine' and 'parameters'
+    # Check that it takes 'jheem.engine', 'parameters', and 'check.consistency'
     error.prefix = paste0("Cannot register apply.parameters.to.engine.function: The function passed to 'fn' ",
                            ifelse(is.null(fn.name), "", paste0("(", fn.name, ") ")))
     if (all(arg.names != 'jheem.engine'))
         stop(paste0(error.prefix, "must take 'jheem.engine' as an argument"))
     if (all(arg.names != 'parameters'))
         stop(paste0(error.prefix, "must take 'parameters' as an argument"))
+    if (all(arg.names != 'check.consistency'))
+        stop(paste0(error.prefix, "must take 'check.consistency' as an argument"))
     
     # Check that there are no other required arguments
-    extraneous.arg.names = setdiff(arg.names.without.default.value, c('jheem.engine','parameters'))
+    extraneous.arg.names = setdiff(arg.names.without.default.value, c('jheem.engine','parameters','check.consistency'))
     if (length(extraneous.arg.names)>0)
         stop(paste0(error.prefix, " requires ",
                     ifelse(length(extraneous.arg.names)==1, 'argument ', 'arguments '),
                     collapse.with.and("'", extraneous.arg.names, "'"),
-                    ", but the only arguments to the function should be 'jheem.engine' and 'parameters',"))
+                    ", but the only arguments to the function should be 'jheem.engine', 'parameters', and 'check.consistency'"))
     
     #-- Register It --#
     do.register.for.version(version = version,
@@ -200,7 +202,7 @@ register.apply.parameters.to.engine.function <- function(version,
                             element.value = fn,
                             element.class = 'function',
                             join.with.previous.version.value = join.with.previous.version.function,
-                            join.function = create.joint.function)
+                            join.function = join.apply.parameters.functions)
 }
 
 #'@export
@@ -489,12 +491,11 @@ do.remove.for.version <- function(version,
 
 ##-- TO DAISY-CHAIN COMPONENTS FUNCTIONS --##
 
-create.joint.functions <- function(f1, f2)
+join.apply.parameters.functions <- function(f1, f2)
 {
     function(...)
     {
-        f1(...)
-        f2(...)
+        c(f1(...), f2(...))
     }
 }
 

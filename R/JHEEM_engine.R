@@ -121,7 +121,7 @@ set.element.value <- function(jheem.engine,
 #'@inheritParams set.element.value
 #'@param element.name The name of the model element whose functional form we wish to modify
 #'@param alpha.name The name of the functional form parameter that we want to set alphas for
-#'@param values A numeric vector of values
+#'@param values A numeric vector of values (either a single value applied to all dimension values OR a vector of the same length as applies.to.dimension.values)
 #'@param applies.to.dimension.values Either a vector (character or integer) or a list where each element is either a single character value or single integer value. Must have the same length as values, indicating the compartment to which each value in values applies
 #'@param dimensions The dimensions to which values in applies.to.dimension.values apply. Can be either (1) a character vector with the same length as applies.to.dimension.values with the corresponding dimension for each value, (2) a single character value - a dimension that applies to all values, or (3) NULL, in which case the dimensions are inferred for applies.to.dimension.values (this is computationally slower)
 #'
@@ -362,6 +362,8 @@ set.element.functional.form.future.slope.after.time <- function(components,
 #'@param element.names A character vector containing the names of the elements to set values for
 #'@param parameters A named numeric vector with values for each of the elements of 'element.names'
 #'
+#'@return The names of the elements that had values set
+#'
 #'@family Functions to create and modify a jheem.engine
 #'
 #'@export
@@ -372,6 +374,9 @@ set.element.values.from.parameters <- function(jheem.engine,
 {
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    
+    if (is.null(element.names))
+        element.names = intersect(names(parameters), jheem.engine$element.names)
     
     if (check.consistency)
     {
@@ -396,37 +401,144 @@ set.element.values.from.parameters <- function(jheem.engine,
         jheem.engine$set.element.value(element.name = elem.name,
                                        value = parameters[elem.name],
                                        check.consistency = check.consistency)
+    
+    # Return
+    element.names
 }
 
+#'@description Set multiple functional form main effect alphas from parameters
+#'
+#'@inheritParams set.element.functional.form.main.effect.alphas
+#'@param parameters A named numeric vector with values for interaction terms
+#'@param parameter.name.prefix,parameter.name.suffix Character values to be prepended and addended to names of specific dimension values to generate specific parameter names
+#'@param dimensions.with.values.referred.to.by.name Dimensions for which we should look for main effects in parameters, and make parameter names by combining parameter.name.prefix and parameter.name.suffix with the actual dimension values for the dimension
+#'@param dimensions.with.values.referred.to.by.index Dimensions for which we should look for main effects in parameters, and make parameter names by combining parameter.name.prefix and parameter.name.suffix with indices of the values in each dimension
+#'@param throw.error.if.no.parameters A logical indicator - if no parameter names match the pattern parameter.name.prefix<x>parameter.name.suffix, whether an error should be thrown
+#'
+#'@details This function will search for parameters with names in the format of either 
+#'          parameter.name.prefix<dimension values for dimensions.with.values.referred.to.by.name>parameter.name.suffix 
+#'          OR
+#'          parameter.name.prefix<dimension in dimension.values.referred.to.by.name><1:length of dimension>parameter.name.suffix
+#'          
+#'          
+#'@return The names of parameters that were used
+#'
 #'@export
 set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
                                                                element.name,
+                                                               alpha.name,
                                                                parameters,
                                                                parameter.name.prefix,
                                                                parameter.name.suffix,
+                                                               dimensions.with.values.referred.to.by.name = character(),
+                                                               dimensions.with.values.referred.to.by.index = character(),
+                                                               throw.error.if.no.parameters = T,
                                                                check.consistency = !jheem.engine$has.been.crunched())
 {
-    #-- Check parameters --#
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    specification.info = jheem.engine$get.specification.info()
+    
+    #-- Check Arguments --#
     if (check.consistency)
     {
         if (!is.numeric(parameters))
-            stop("Cannot set element functional.form alphas from parameters: 'parameters' must be a named NUMERIC vector")
+            stop("Cannot set functional.form alphas from parameters: 'parameters' must be a named NUMERIC vector")
         
         if (is.null(names(parameters)))
-            stop("Cannot set element functional.form alphas from parameters: 'parameters' must be a NAMED numeric vector")
+            stop("Cannot set functional.form alphas from parameters: 'parameters' must be a NAMED numeric vector")
         
         if (any(is.na(names(parameters))))
-            stop("Cannot set element functional.form alphas from parameters: the names of 'parameters' cannot be NA")
+            stop("Cannot set functional.form alphas from parameters: the names of 'parameters' cannot be NA")
+        
+        invalid.dimensions.by.name = setdiff(dimensions.with.values.referred.to.by.name, 
+                                             specification.info$dimensions)
+        if (length(invalid.dimensions.by.name)>1)
+            stop(paste0("Cannot set functional.form alphas from parameters: ",
+                        collapse.with.and("'", invalid.dimensions.by.name, "'"),
+                        " passed to 'dimensions.with.values.referred.to.by.name' ",
+                        ifelse(length(invalid.dimensions.by.name)==1, "is not a valid dimension", "are not valid dimensions"),
+                        " in the specification for version '", jheem.engine$version, "'"))
+        
+        invalid.dimensions.by.index = setdiff(dimensions.with.values.referred.to.by.index, 
+                                             specification.info$dimensions)
+        if (length(invalid.dimensions.by.index)>1)
+            stop(paste0("Cannot set functional.form alphas from parameters: ",
+                        collapse.with.and("'", invalid.dimensions.by.index, "'"),
+                        " passed to 'dimensions.with.values.referred.to.by.index' ",
+                        ifelse(length(invalid.dimensions.by.name)==1, "is not a valid dimension", "are not valid dimensions"),
+                        " in the specification for version '", jheem.engine$version, "'"))
     }
     
-    #-- Main effects --#
-    parameters.names = unlist(sapply())
     
-    #-- Interaction effects --#
+    #-- Values for main effects --#
+    
+    # Values referred to by name
+    if (length(dimensions.with.values.referred.to.by.name)>0)
+    {
+        parameter.dim.values = unlist(sapply(dimensions.with.values.referred.to.by.name, function(d){
+            specification.info$dim.names[[d]]
+        }))
+        
+        parameter.names = paste0(parameter.name.prefix, parameter.dim.values, parameter.name.suffix)
+        
+        parameter.dimensions = unlist(sapply(dimensions.with.values.referred.to.by.name, function(d){
+            rep(d, length(specification.info$dim.names[[d]]))
+        }))
+    }
+    else
+        parameter.dim.values = parameter.names = parameter.dimensions = character()
+    
+        
+    # Values referred to by index
+    if (length(dimensions.with.values.referred.to.by.index)>0)
+    {
+        parameter.names = c(parameter.names, unlist(sapply(dimensions.with.values.referred.to.by.index, function(d){
+            paste0(parameter.name.prefix, 
+                   d, 1:length(specification.info$dim.names[[d]]),
+                   parameter.name.suffix)
+        })))
+        
+        parameter.dim.values = c(parameter.dim.values, unlist(sapply(dimensions.with.values.referred.to.by.index, function(d){
+            specification.info$dim.names[[d]]
+        })))
+        
+        parameter.dimensions = c(parameter.dimensions, unlist(sapply(dimensions.with.values.referred.to.by.index, function(d){
+            rep(d, length(specification.info$dim.names[[d]]))
+        })))
+    }
+    
+    # Filter out only what's present
+    parameter.values = parameters[parameter.names]
+    mask = !is.na(parameter.values)
+    
+    parameter.values = parameter.values[mask]
+    parameter.names = parameter.names[mask]
+    parameter.dimensions = parameter.dimensions[mask]
+    parameter.dim.values = parameter.dim.values[mask]
+    
+    if (length(parameter.values)==0)
+    {
+        if (throw.error.if.no.parameters)
+            stop(paste0("Error setting functional.form alphas from parameters: no parameter names match the pattern '", parameter.name.prefix, "<x>", parameter.name.suffix, "'"))
+    }
+    else
+    {
+        # Push the main effect values to the engine
+        jheem.engine$set.element.functional.form.main.effect.alphas(element.name = element.name,
+                                                                    alpha.name = alpha.name,
+                                                                    values = parameter.values,
+                                                                    applies.to.dimension.values = parameter.dim.values,
+                                                                    dimensions = parameter.dimensions, 
+                                                                    check.consistency = check.consistency)
+    }
+    
+    
+    #-- Done, return parameter names --#
+    parameter.names
 }
+
 
 ##-----------------------##
 ##-----------------------##
@@ -442,6 +554,11 @@ JHEEM.ENGINE = R6::R6Class(
     portable = F,
     
     public = list(
+        
+        check = function()
+        {
+            browser()
+        },
         
         ##-----------------##
         ##-- CONSTRUCTOR --##
@@ -587,29 +704,31 @@ JHEEM.ENGINE = R6::R6Class(
             #-- Check Arguments --#
             if (check.consistency)
             {
-                error.prefix = paste0("Cannot set functional.form alphas for element '", element.name, "': ")
-                
                 #-- Check valid element with a model --#
                 if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
                     stop("Cannot set functional.form alphas: 'element.name' must be a single, non-NA, character value")
                 
-                if (all(names(components$element.backgrounds)!=element.name))
-                    stop(paste0("Cannot set functional.form alphas: No element named '", element.name, "' exists in this components object"))
+                if (all(private$i.element.names!=element.name))
+                    stop(paste0("Cannot set functional.form alphas: No element named '", element.name, "' exists for model specificaiton '", self$version, "'"))
 
-                functional.form = private$i.element.backgrounds[[element]]$functional.form
+                functional.form = private$i.element.backgrounds[[element.name]]$functional.form
                 
                 if (is.null(functional.form))
                     stop(paste0("Cannot set functional.form alphas: element '", element.name, 
                                 "' does not have a functional.form (use 'set.element.value' to change its value)"))
-
+                
+                error.prefix = paste0("Cannot set functional.form alphas for element '", element.name, "': ")
                 if (all(functional.form$alpha.names != alpha.name))
                     stop(paste0(error.prefix,
                                 "'", alpha.name, 
                                 "' is not the name of a valid alpha for this functional.form of type '",
                                 functional.form$type, "'"))
+                
+                if (!is.numeric(values) || length(values)==0 || any(is.na(values)))
+                    stop(paste0(error.prefix, "'values' must be a non-empty, non-NA numeric vector"))
             }
             
-            error.prefix = paste0("Cannot set functional.form alphas '", alpha.name, "' for element '", element.name, "': ")
+            error.prefix = paste0("Cannot set functional.form (main-effect) alphas for '", alpha.name, "' for element '", element.name, "': ")
             
             #-- Clear Dependencies --#
             
@@ -622,8 +741,8 @@ JHEEM.ENGINE = R6::R6Class(
             # No need to clear times
             
             #-- Set it --#
-            private$i.element.backgrounds[[element.name]]$functional.form.alphas = 
-                set.alpha.main.effect.values(private$i.element.backgrounds[[element.name]]$functional.form.alphas,                                                         dimensions,
+            private$i.element.backgrounds[[element.name]]$functional.form.alphas[[alpha.name]] = 
+                set.alpha.main.effect.values(private$i.element.backgrounds[[element.name]]$functional.form.alphas[[alpha.name]],
                                              dimensions = dimensions,
                                              dimension.values = applies.to.dimension.values,
                                              values = values,
@@ -659,23 +778,28 @@ JHEEM.ENGINE = R6::R6Class(
                 if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
                     stop("Cannot set functional.form alphas: 'element.name' must be a single, non-NA, character value")
                 
-                if (all(names(components$element.backgrounds)!=element.name))
-                    stop(paste0("Cannot set functional.form alphas: No element named '", element.name, "' exists in this components object"))
+                if (all(private$i.element.names!=element.name))
+                    stop(paste0("Cannot set functional.form alphas: No element named '", element.name, "' exists for model specificaiton '", self$version, "'"))
                 
-                functional.form = private$i.element.backgrounds[[element]]$functional.form
+                functional.form = private$i.element.backgrounds[[element.name]]$functional.form
                 
                 if (is.null(functional.form))
                     stop(paste0("Cannot set functional.form alphas: element '", element.name, 
                                 "' does not have a functional.form (use 'set.element.value' to change its value)"))
                 
+                error.prefix = paste0("Cannot set functional.form alphas for element '", element.name, "': ")
                 if (all(functional.form$alpha.names != alpha.name))
                     stop(paste0(error.prefix,
                                 "'", alpha.name, 
                                 "' is not the name of a valid alpha for this functional.form of type '",
                                 functional.form$type, "'"))
+                
+                if (!is.numeric(value) || length(value)!=1 || is.na(value))
+                    stop(paste0(error.prefix, "'value' must be a single, non-NA numeric value"))
+                
             }
             
-            error.prefix = paste0("Cannot set functional.form alphas '", alpha.name, "' for element '", element.name, "': ")
+            error.prefix = paste0("Cannot set functional.form (interaction) alphas for '", alpha.name, "' for element '", element.name, "': ")
 
                         
             #-- Clear Dependencies --#
@@ -690,10 +814,10 @@ JHEEM.ENGINE = R6::R6Class(
 
             #-- Set It --#
             
-            private$i.element.backgrounds[[element.name]]$functional.form.alphas = 
-                set.alpha.interaction.value(private$i.element.backgrounds[[element.name]]$functional.form.alphas,
+            private$i.element.backgrounds[[element.name]]$functional.form.alphas[[alpha.name]] = 
+                set.alpha.interaction.value(private$i.element.backgrounds[[element.name]]$functional.form.alphas[[alpha.name]],
                                             dimensions = dimensions,
-                                            dimension.values = dimension.values,
+                                            dimension.values = applies.to.dimension.values,
                                             value = value,
                                             check.consistency = check.consistency,
                                             error.prefix = error.prefix)
@@ -737,7 +861,7 @@ JHEEM.ENGINE = R6::R6Class(
                 if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
                     stop("Cannot set functional.form from-time: 'element.name' must be a single, non-NA, character value")
                 
-                if (all(names(components$element.backgrounds)!=element.name))
+                if (all(names(private$i.element.backgrounds)!=element.name))
                     stop(paste0("Cannot set functional.form from-time: No element named '", element.name, 
                                 "' exists in the specification for version '", private$i.version, "'"))
                 
@@ -981,7 +1105,7 @@ JHEEM.ENGINE = R6::R6Class(
                 indices = private$check.ramp.or.taper.values.and.indices(
                     values = values,
                     indices = indices,
-                    current.values = components$element.backgrounds[[element.name]]$ramp.times,
+                    current.values = private$i.element.backgrounds[[element.name]]$ramp.times,
                     is.ramp = T,
                     is.times = F,
                     error.prefix=paste0("Cannot set ramp.values for element '",
@@ -1040,7 +1164,7 @@ JHEEM.ENGINE = R6::R6Class(
                 indices = private$check.ramp.or.taper.values.and.indices(
                     values = times,
                     indices = indices,
-                    current.values = components$element.backgrounds[[element.name]]$taper.times,
+                    current.values = private$i.element.backgrounds[[element.name]]$taper.times,
                     is.ramp = F,
                     is.times = T,
                     error.prefix = paste0("Cannot set taper.times for element '", element.name, "': "))
@@ -1059,7 +1183,7 @@ JHEEM.ENGINE = R6::R6Class(
                 if (new.times[1] <= private$i.element.backgrounds[[element.name]]$functional.form.to.time)
                     stop(paste0("Cannot set taper.times for element '", element.name,
                                 "': All taper.times must be AFTER the previously set functional.form to-time (",
-                                components$element.backgrounds[[element.name]]$functional.form.to.time, ")"))
+                                private$i.element.backgrounds[[element.name]]$functional.form.to.time, ")"))
             }
             
             
@@ -1115,7 +1239,7 @@ JHEEM.ENGINE = R6::R6Class(
                 
                 indices = check.ramp.or.taper.values.and.indices(values=times,
                                                                  indices=indices,
-                                                                 current.values=components$element.backgrounds[[element.name]]$taper.times,
+                                                                 current.values=private$i.element.backgrounds[[element.name]]$taper.times,
                                                                  is.ramp=T,
                                                                  is.times=F,
                                                                  error.prefix=paste0("Cannot set taper.values for element '",
@@ -1303,6 +1427,13 @@ JHEEM.ENGINE = R6::R6Class(
     
     active = list(
         
+        element.names = function(value)
+        {
+            if (missing(value))
+                names(private$i.element.backgrounds)
+            else
+                stop("Cannot modify a JHEEM Engine's 'element.names' - they are read-only")
+        }
         
     ),
     

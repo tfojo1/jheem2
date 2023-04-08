@@ -1,5 +1,21 @@
 
 
+#'@description Get the Specification-Info Object for an Instance of a JHEEM Entity
+#'
+#'@param jheem.entity An object of class jheem.entity (such as a jheem.engine, jheem.simset, or jheem.sim)
+#'
+#'@return An object of class 'jheem.specification.info'
+#'
+#'@export
+get.specification.info <- function(jheem.entity)
+{
+    if (!is(jheem.entity, "R6") || !is(jheem.entity, "jheem.entity"))
+        stop("jheem.entity must be an R6 object of class 'jheem.entity'")
+    
+    jheem.entity$get.specification.info()
+}
+
+
 JHEEM.ENTITY = R6::R6Class(
     'jheem.entity',
     portable = F,
@@ -111,6 +127,24 @@ JHEEM.ENTITY = R6::R6Class(
             elements = elements[!is.na(elements)]
             
             paste0(paste0(elements, collapse='_'), extension)
+        },
+        
+        # Lazily evaluates the specification info
+        get.specification.info = function(value)
+        {
+            if (missing(value))
+            {
+                if (is.null(private$i.specification.info) ||
+                    get.specification.for.version(private$i.version)$iteration != private$i.specification.info$specification.iteration)
+                {
+                    private$i.specification.info = SPECIFICATION.INFO$new(version = version,
+                                                                          location = private$i.location,
+                                                                          error.prefix = paste0("Error deriving the specification-info for '", version, "' and location '", location, "': "))
+                }
+                private$i.specification.info
+            }
+            else
+                stop(paste0("Cannot set 'specification.info' for a ", private$i.type, " - it is read-only"))
         }
     ),
     
@@ -127,7 +161,7 @@ JHEEM.ENTITY = R6::R6Class(
         code.iteration = function(value)
         {
             if (missing(value))
-                private$i.version
+                private$i.code.iteration
             else
                 stop(paste0("Cannot set 'code.iteration' for a ", private$i.type, " - it is read-only"))
         },
@@ -143,7 +177,7 @@ JHEEM.ENTITY = R6::R6Class(
         type = function(value)
         {
             if (missing(value))
-                private$i.version
+                private$i.type
             else
                 stop(paste0("Cannot set 'type' for a ", private$i.type, " - it is read-only"))
         },
@@ -166,7 +200,9 @@ JHEEM.ENTITY = R6::R6Class(
         i.code.iteration = NULL,
         i.intervention.code = NULL,
         i.location = NULL,
-        i.type = NULL
+        i.type = NULL,
+        
+        i.specification.info = NULL
         
     )
 )

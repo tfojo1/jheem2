@@ -152,7 +152,7 @@ set.alpha.main.effect.values <- function(alphas,
     {   
         if (!is.null(alphas$maximum.dim.names))
         {
-            invalid.dimensions = setdiff(unique.dimensions, names(alphas$maximum.dim.names))
+            invalid.dimensions = setdiff(unique.dimensions, c('all', names(alphas$maximum.dim.names)))
             if (length(invalid.dimensions)>0)
                 stop(paste0(error.prefix, 
                             collapse.with.and("'", invalid.dimensions, "'"),
@@ -174,7 +174,7 @@ set.alpha.main.effect.values <- function(alphas,
                             alphas$name, "' that overwrites its betas, only one dimension can be used for main effect values. ",
                             "Attempting to use dimension '", unique.dimensions, "', but have previously used ",
                             paste0("'", names(alphas$main.effects), "'", collapse=', ')))
-            if (!is.null(all.effect) && any(unique.dimensions!='all'))
+            if (!is.null(alphas$all.effect) && any(unique.dimensions!='all'))
                 stop(paste0(error.prefix, "For alphas '",
                             alphas$name, "' that overwrites its betas, only one dimension can be used for main effect values. ",
                             "Attempting to use dimension '", unique.dimensions, "', but have previously used an alpha for 'all' ",
@@ -212,11 +212,11 @@ set.alpha.main.effect.values <- function(alphas,
         unique.dimensions = intersect(names(alphas$maximum.dim.names), unique.dimensions)
     else
         unique.dimensions = c(intersect(names(alphas$minimum.dim.names), unique.dimensions),
-                              sort(setdiff(unique.dimensions), names(alphas$minimum.dim.names)))
+                              sort(setdiff(unique.dimensions, names(alphas$minimum.dim.names))))
     
     # Set the 'all' value
     # (and remove it from our lists of things to add to main effects)
-    if (any(unique.dimensions)=='all')
+    if (any(unique.dimensions=='all'))
     {
         alphas$all.effect = as.numeric(values[dimensions=='all'][1])
         mask = dimensions != 'all'
@@ -302,7 +302,7 @@ set.alpha.interaction.value <- function(alphas,
         unique.dimensions = intersect(names(alphas$maximum.dim.names), unique.dimensions)
     else
         unique.dimensions = c(intersect(names(alphas$minimum.dim.names), unique.dimensions),
-                              sort(setdiff(unique.dimensions), names(alphas$minimum.dim.names)))
+                              sort(setdiff(unique.dimensions, names(alphas$minimum.dim.names))))
     
     
     # Set up the dim values (every combo of the values for each dimension)
@@ -406,12 +406,12 @@ set.alpha.interaction.value <- function(alphas,
                             alphas$name, "' that overwrites its betas, dimension values for interaction effects must share a dimension (but not overlap dimension values) with any previously set interaction effects. This interaction effect does not overlap with a previous interaction effect"))
             
             dim.value.sets.1 = sapply(1:length(one.interaction$values), function(i){
-                paste0(sapply(1:one.interaction$dim.values[overlapping.dimensions], function(dv){
+                paste0(sapply(one.interaction$dim.values[overlapping.dimensions], function(dv){
                     dv[i]
                 }), collapse='_')
             })
             dim.value.sets.2 = sapply(1:length(other.interaction$values), function(i){
-                paste0(sapply(1:other.interaction$dim.values[overlapping.dimensions], function(dv){
+                paste0(sapply(other.interaction$dim.values[overlapping.dimensions], function(dv){
                     dv[i]
                 }), collapse='_')
             })
@@ -438,7 +438,7 @@ prep.dimensions.and.values.for.alphas <- function(alphas,
                                                   is.interaction)
 {
     if (!is(alphas, 'functional.form.alphas'))
-        stop(paste0(error.prefix, "'alphas' must be a object of class 'functional.form.alphas'"))
+        stop(paste0(error.prefix, "'alphas' must be an object of class 'functional.form.alphas'"))
     
     #-- Make it so that dimension values is a list with each element a single value (numeric or character) --#
     if (is.list(dimension.values))
@@ -498,7 +498,7 @@ prep.dimensions.and.values.for.alphas <- function(alphas,
     
     #-- If there is only a single value for dimensions, it applies to all dimension values --#
     if (length(dimensions)==1)
-        dimensions = rep(dimensions, length(values))
+        dimensions = rep(dimensions, length(dimension.values))
     
     if (check.consistency)
     {
@@ -598,10 +598,18 @@ prep.dimensions.and.values.for.alphas <- function(alphas,
         else
         {
             if (length(values) != length(dimension.values))
-                stop(paste0(error.prefix,
-                            "'values' must have the same length as 'dimension.values'"))
+            {
+                if (length(values)==1)
+                    values = rep(values, length(dimension.values))
+                else
+                    stop(paste0(error.prefix,
+                                "'values' must be either a single numeric value or have the same length as 'dimension.values'"))
+            }
         }
     }
+    
+    #-- Make sure we can apply the link function --#
+    alphas$link$check.untransformed.values(values, variable.name.for.error='values', error.prefix=paste0(error.prefix, "'values' for alphas do not match expected scale - "))
     
     #-- Package up and return --#
     list(dimensions = dimensions,
@@ -836,144 +844,12 @@ crunch.alphas <- function(alphas,
 }
 
 
-
-# OLD
-add.or.set.main.effect.alphas.to.array <- function(arr,
-                                                   alphas,
-                                                   error.prefix='')
+get.dimension.for.values <- function(dim.names, values)
 {
-    is.additive = alphas$is.additive
+    flattened.dim.names = unlist(dim.names)
+    flattened.dimensions = unlist(sapply(names(dim.names), function(d){rep(d, length(dim.names[[d]]))}))
     
-    if (length(alphas$main.effects)>0)
-    {
-        dim.names = dimnames(arr)
-        
-        all.alpha = alphas$main.effects$all$values
-        if (!is.null(all.alpha))
-        {
-            if (is.additive)
-                arr = arr + all.alpha
-            else
-            {
-                arr = arr*0 + all.alpha
-            }
-        }
-        
-        main.effects = alphas$main.effects[names(alphas$main.effects)!='all']
-        
-        if (length(main.effects)>0)
-        {
-            # Figure out the numeric index of each dimension in main.effects
-            alpha.dims = lapply(names(main.effects), function(d){
-                dim = (1:length(dim.names))[names(dim.names)==alpha.name]
-                if (length(dim)==0)
-                    stop(paste0(error.prefix,
-                                "Could not add alphas to array. Dimension '", 
-                                alpha.name, "' is not present in the target array"))
-                
-                rep(dim, length(main.effects[[d]]$values))
-            })
-            
-            alpha.indices = lapply(1:length(main.effects), function(i){
-                dim.values = dim.names[[ names(alphas)[i] ]]
-                sapply(names(alphas[[i]]), function(alpha.value.name){
-                    mask = dim.values==alpha.value.name
-                    if (!any(mask))
-                        stop(paste0(error.prefix,
-                                    "Could not add alphas to array. The '", names(alphas)[i],
-                                    "' dimension does not contain the value '", alpha.value.name,
-                                    "' in the target array"))
-                    (1:length(dim.values))[mask][1]
-                })
-            })
-            
-            n.in.dim = sapply(dim.names, length)
-            n.before.dim = cumprod(n.in.dim) / n.in.dim
-            n.after.dim = rev(cumprod(rev(n.in.dim))) / n.in.dim
-            
-            if (is.additive)
-                do_add_alphas_to_arr(arr = arr,
-                                     alpha_values = as.numeric(unlist(alphas)),
-                                     dims = dim(arr),
-                                     alpha_dims = as.integer(unlist(alpha.dims)),
-                                     alpha_indices = as.integer(unlist(alpha.indices)))
-            else
-                do_set_alphas_to_arr(arr = arr,
-                                     alpha_values = as.numeric(unlist(alphas)),
-                                     dims = dim(arr),
-                                     alpha_dim = as.integer(unlist(alpha.dims))[1],
-                                     alpha_indices = as.integer(unlist(alpha.indices)))
-        }
-    }
-    
-    arr
-}
-
-
-add.or.set.interaction.alphas.to.array <- function(arr,
-                                                   alphas,
-                                                   error.prefix)
-{
-    
-    dim.names = dimnames(arr)
-    dims = sapply(dim.names, length)
-    
-    for (one.interaction in alphas$interaction.effects)
-    {
-        dim.indices = sapply(one.interaction$dimensions, function(dim){
-            (1:length(dims))[dim == names(dim.names)]
-        })
-        
-        dim.values = lapply(one.interaction$dimensions, function(dim){
-            sapply(one.interaction$dim.values[[dim]], function(dv){
-                if (length(dv)>1)
-                    browser()
-                (1:length(dim.names[[dim]]))[dv == dim.names[[dim]] ]
-            })
-        })
-        
-        if (one.interaction$n.dim==2)
-        {
-            do_add_or_set_two_way_interaction_alphas_to_arr(arr,
-                                                            dims=dim(arr),
-                                                            dim1=dim.indices[1],
-                                                            dim1_values=dim.values[[1]],
-                                                            dim2=dim.indices[2],
-                                                            dim2_values=dim.values[[2]],
-                                                            values=one.interaction$values,
-                                                            add=alphas$is.additive)
-        }
-        else if (one.interaction$n.dim==3)
-        {
-            do_add_or_set_three_way_interaction_alphas_to_arr(arr,
-                                                              dims=dim(arr),
-                                                              dim1=dim.indices[1],
-                                                              dim1_values=dim.values[[1]],
-                                                              dim2=dim.indices[2],
-                                                              dim2_values=dim.values[[2]],
-                                                              dim3=dim.indices[3],
-                                                              dim3_values=dim.values[[3]],
-                                                              values=one.interaction$values,
-                                                              add=alphas$is.additive)
-        }
-        else if (one.interaction$n.dim==4)
-        {
-            do_add_or_set_four_way_interaction_alphas_to_arr(arr,
-                                                             dims=dim(arr),
-                                                             dim1=dim.indices[1],
-                                                             dim1_values=dim.values[[1]],
-                                                             dim2=dim.indices[2],
-                                                             dim2_values=dim.values[[2]],
-                                                             dim3=dim.indices[3],
-                                                             dim3_values=dim.values[[3]],
-                                                             dim4=dim.indices[4],
-                                                             dim4_values=dim.values[[4]],
-                                                             values=one.interaction$values,
-                                                             add=alphas$is.additive)
-        }
-        else
-            stop(paste0(error.prefix, "Can only handle interactions with 2, 3, or 4 dimensions"))
-    }
-    
-    arr
+    sapply(values, function(val){
+        flattened.dimensions[flattened.dim.names==val][1]
+    })
 }
