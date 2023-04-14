@@ -229,6 +229,37 @@ register.sub.and.super.locations <- function(sub.locations,
   LOCATION.MANAGER$register.hierarchy(sub.locations, super.locations, super.completely.encloses.sub) 
 }
 
+#'@description Register a prefix to use for the codes that represent fips values.
+#'
+#'@param prefix A single character word containing the prefix.  Will be forced uppercase
+#'
+#'@details This can contain any string but will error if set twice.
+#'
+#'@export
+register.fips.prefix <- function(prefix)
+{
+  if (!is.character(prefix) || length(prefix) != 1) {
+    stop("register.fips.prefix: prefix must be a single string value")
+  }
+  LOCATION.MANAGER$register.fips.prefix(prefix) 
+}
+
+#'@description Register a prefix to use for the codes that represent zipcode values.
+#'
+#'@param prefix A single character word containing the prefix.  Will be forced uppercase
+#'
+#'@details This can contain any string but will error if set twice.
+#'
+#'@export
+register.zip.prefix <- function(prefix)
+{
+  if (!is.character(prefix) || length(prefix) != 1) {
+    stop("register.zip.prefix: prefix must be a single string value")
+  }
+  LOCATION.MANAGER$register.zip.prefix(prefix) 
+}
+
+
 #'@description Register state abbreviations with the location manager as the primary location codes
 #'
 #'@param filename The name of the file we are trying to read.

@@ -1,11 +1,13 @@
 source("R/LOCATIONS_location_manager.R")
 
+register.fips.prefix("fips.")
+register.zip.prefix("zip.")
 #Since we want state abbrev as location codes, we register them
 #first, then register the fips codes as location code aliases
 register.state.abbrev.file("locations/us_state_abbreviations.csv")
 register.state.fips.code.aliases("locations/fips_state_aliases.csv")
-# register.fips.file("locations/fips_codes.csv")
-# register.zipcode.file("locations/zip_codes.csv")
+register.fips.file("locations/fips_codes.csv")
+register.zipcode.file("locations/zip_codes.csv")
 
 #Barebones testing
 # register.locations ("State", c("NY","FL","CA","TX"), c("New York", "Florida", "California", "Texas"))
