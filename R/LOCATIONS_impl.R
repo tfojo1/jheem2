@@ -429,9 +429,40 @@ LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains, fail.
     }
   }
   
+}
+
+
+LOCATION.MANAGER$register.state.abbrev = function(filename) {
+  #Check if the file exists
+  if (!file.exists(filename)) {
+    stop(paste0("LOCATION.MANAGER: Cannot find the zipcode file with filename ", filename))
+  } 
   
+  abbrev.data = read.csv(file= filename, header=FALSE)
+  
+  types = rep("state", nrow(abbrev.data))
+  
+  LOCATION.MANAGER$register(types, abbrev.data[[1]], abbrev.data[[2]])
+  
+  #We need to do this first to register the states with their abbreviations as their 
+  #location codes
+}
 
+LOCATION.MANAGER$register.state.fips.aliases <- function(filename) {
+  #Check if the file exists
+  if (!file.exists(filename)) {
+    stop(paste0("LOCATION.MANAGER: Cannot find the fips state alias file with filename ", filename))
+  }
+  fips.state.alias.data = read.csv(file=filename,header=FALSE)
+  
+  #Column one is state name, mostly for debug purposes; column 2 is the fips code (0padded, 5 chars)
+  #Column 3 is the state abbreviation/location code
 
+  #LOOP FIXME
+  for ( i in 1:nrow(fips.state.alias.data) ) {
+    LOCATION.MANAGER$register.code.aliases (fips.state.alias.data[[3]][i], fips.state.alias.data[[2]][i])  
+  }
+  
 }
 
 LOCATION.MANAGER$register.fips <- function(filename) {
@@ -441,17 +472,6 @@ LOCATION.MANAGER$register.fips <- function(filename) {
   }
   
   fips.data = read.csv(file = filename)
-  
-  #States
-  states = fips.data[ fips.data[1] == 040, ] #Get only the state data from the fips info
-  
-  #Column 2 is the state code
-  state.codes = states[[2]] * 1000
-  
-  types = rep("state", length(state.codes))
-  
-  #Column 7 is the name of the states
-  LOCATION.MANAGER$register(types, states[[7]], as.character(state.codes))
   
   #Counties
   counties = fips.data[ fips.data[1] == 050, ] #Get only the county data from the fips info.
@@ -513,12 +533,4 @@ LOCATION.MANAGER$register.zipcodes = function(filename, zipcode.code.format.stri
   
 }
 
-LOCATION.MANAGER$register.state.abbrev = function(filename) {
-  #Check if the file exists
-  if (!file.exists(filename)) {
-    stop(paste0("LOCATION.MANAGER: Cannot find the zipcode file with filename ", filename))
-  } 
-  
-  abbrev.data = read.csv(file= filename, stringsAsFactors = TRUE)
-}
 

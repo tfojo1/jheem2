@@ -229,6 +229,31 @@ register.sub.and.super.locations <- function(sub.locations,
   LOCATION.MANAGER$register.hierarchy(sub.locations, super.locations, super.completely.encloses.sub) 
 }
 
+#'@description Register state abbreviations with the location manager as the primary location codes
+#'
+#'@param filename The name of the file we are trying to read.
+#'
+#'@details LOCATION.MANAGER will check the existence of the file.
+#'
+#'@export
+register.state.abbrev.file <- function(filename)
+{
+  LOCATION.MANAGER$register.state.abbrev(filename) 
+}
+
+#'@description Register fips state codes as location code aliases to the state abbreviation code
+#'
+#'@param filename The name of the file we are trying to read.
+#'
+#'@details LOCATION.MANAGER will check the existence of the file.
+#'
+#'@export
+register.state.fips.code.aliases <- function(filename)
+{
+  LOCATION.MANAGER$register.state.fips.aliases(filename)
+}
+
+
 #'@description Register fips county file with the location manager
 #'
 #'@param filename The name of the file we are trying to read.
@@ -253,15 +278,4 @@ register.zipcode.file <- function(filename)
   LOCATION.MANAGER$register.zipcodes(filename) 
 }
 
-#'@description Register state abbreviations with the location manager
-#'
-#'@param filename The name of the file we are trying to read.
-#'
-#'@details LOCATION.MANAGER will check the existence of the file.
-#'
-#'@export
-register.state.abbrev.file <- function(filename)
-{
-  print("Blocked on implementation of get.location.code")
-  LOCATION.MANAGER$register.state.abbrev(filename) 
-}
+
