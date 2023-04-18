@@ -42,8 +42,17 @@
 create.ontology.mapping <- function(mappings,
                                     from.dimensions,
                                     to.dimensions=from.dimensions,
+                                    name = NULL,
                                     error.prefix = "Error creating ontology mapping: ")
 {
+    #-- Validate the error prefix --#
+    if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix) || nchar(error.prefix)==0)
+        stop("Error creating ontology mapping: 'error.prefix' must be a single, non-NA, non-empty character value")
+        
+    #-- Validate the name --#
+    if (!is.null(name) && (!is.character(name) || length(name)!=1 || is.na(name) || nchar(name)==0))
+        stop(paste0(error.prefix), "If it is not NULL, 'name' must be a non-empty, non-NA single character value")
+    
     #-- Validate from.dimensions --#
     if (!is.character(from.dimensions) || length(from.dimensions)==0)
         stop(paste0(error.prefix, "'from.dimensions' must be a non-empty character vector"))
@@ -225,13 +234,14 @@ register.ontology.mapping <- function(name,
 {
     #-- Validate the Name --#
     if (!is.character(name) || length(name)!=1 || is.na(name) || nchar(name)==0)
-        stop("Error registering ontology mapping: 'name' must be a non-empty, non")
+        stop("Error registering ontology mapping: 'name' must be a single, non-NA, non-empty character value")
     
     error.prefix = paste0("Error registering ontology mapping '", name, "': ")
     
     mapping = create.ontology.mapping(mappings=mappings,
                                       from.dimension=from.dimensions,
                                       to.dimensions=to.dimensions,
+                                      name = name,
                                       error.prefix=error.prefix)
     
     ##??? Do we need to parse out subsets of mappings and register those if there are multiple dimensions? ???##
