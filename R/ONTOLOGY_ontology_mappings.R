@@ -237,7 +237,6 @@ register.ontology.mapping <- function(name,
         stop("Error registering ontology mapping: 'name' must be a single, non-NA, non-empty character value")
     
     error.prefix = paste0("Error registering ontology mapping '", name, "': ")
-    
     mapping = create.ontology.mapping(mappings=mappings,
                                       from.dimension=from.dimensions,
                                       to.dimensions=to.dimensions,
@@ -272,6 +271,9 @@ register.ontology.mapping <- function(name,
     
     
     #-- If this is a reversible mapping, reverse it and register it --#
+    
+    from.values = mapping$from.values
+    to.values = mapping$to.values
     
     # it's reversible if it's a one-to-one, complete mapping
     is.reversible = !any(is.na(from.values)) &&
