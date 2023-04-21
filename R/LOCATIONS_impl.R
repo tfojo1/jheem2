@@ -481,13 +481,12 @@ LOCATION.MANAGER$register.state.fips.aliases <- function(filename) {
   #Column one is state name, mostly for debug purposes; column 2 is the fips code (0padded, 5 chars)
   #Column 3 is the state abbreviation/location code
 
-  fips.with.prefix = sprintf("%s%05d", LOCATION.MANAGER$fips.prefix, as.numeric(fips.state.alias.data[[2]]))
+  fips.with.prefix = sprintf("%s%s", LOCATION.MANAGER$fips.prefix, sprintf("%02d",fips.state.alias.data[[2]]))
   
   #LOOP FIXME
   for ( i in 1:nrow(fips.state.alias.data) ) {
     LOCATION.MANAGER$register.code.aliases (fips.state.alias.data[[3]][i], fips.with.prefix[i])  
   }
-  
 }
 
 LOCATION.MANAGER$register.fips <- function(filename) {
@@ -502,7 +501,7 @@ LOCATION.MANAGER$register.fips <- function(filename) {
   states = fips.data[ fips.data[1] == 040, ] #Get only the state data from the fips info
   
   #Column 2 is the state code
-  state.codes = states[[2]] * 1000
+  state.codes = states[[2]]
   
   #Counties
   counties = fips.data[ fips.data[1] == 050, ] #Get only the county data from the fips info.
@@ -522,13 +521,13 @@ LOCATION.MANAGER$register.fips <- function(filename) {
   #state
   #This list is checked against the state.codes above to make sure the state
   #is registered before we create a hierarchy.
-  possible.state.codes = counties[[2]] * 1000
+  possible.state.codes = counties[[2]]
   #Get only the counties with proper states
   counties.of.states = county.codes [ possible.state.codes %in% state.codes ]
   corresponding.states = possible.state.codes [ possible.state.codes %in% state.codes ]
   
   counties.of.states.with.fips.prefix = sprintf("%s%05d",LOCATION.MANAGER$fips.prefix, counties.of.states)
-  corresponding.states.with.fips.prefix = sprintf("%s%05d",LOCATION.MANAGER$fips.prefix, corresponding.states)
+  corresponding.states.with.fips.prefix = sprintf("%s%02d",LOCATION.MANAGER$fips.prefix, corresponding.states)
   #Register the counties as completely contained by the states
   #LOOP FIXME
   #for (i in seq_along(counties.of.states)) {
@@ -608,13 +607,13 @@ LOCATION.MANAGER$register.cbsa = function(filename) {
       #The majority of cases:
       # Register the location.code value as being a sub location of the prefixed state FIPS code, marking as fully.contains.
       # There will always be at least one value in unique.states
-      LOCATION.MANAGER$register.hierarchy ( location.codes[i], paste0(LOCATION.MANAGER$fips.prefix,unique.states[1],"000"), TRUE)
+      LOCATION.MANAGER$register.hierarchy ( location.codes[i], paste0(LOCATION.MANAGER$fips.prefix,unique.states[1]), TRUE)
     } else {
       #Register as being sub of each state in the list
       #LOOP FIXME
       for ( j in seq_along(unique.states) ) {
         #Do the same but mark fully.contains as FALSE
-        LOCATION.MANAGER$register.hierarchy ( location.codes[i], paste0(LOCATION.MANAGER$fips.prefix,unique.states[j],"000"), FALSE)
+        LOCATION.MANAGER$register.hierarchy ( location.codes[i], paste0(LOCATION.MANAGER$fips.prefix,unique.states[j]), FALSE)
       }
     }
     
