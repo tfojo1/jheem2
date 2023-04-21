@@ -55,6 +55,7 @@ LOCATION.MANAGER$alias.codes = list()
 LOCATION.MANAGER$type.list = c()
 LOCATION.MANAGER$fips.prefix = ""
 LOCATION.MANAGER$zip.prefix = ""
+LOCATION.MANAGER$cbsa.prefix = ""
 
 LOCATION.MANAGER$get.names <- function(locations) {
   # return A character vector of location names, with length(locations) and names=locations. If location codes are not registered (or if they were NA), 
@@ -171,6 +172,9 @@ LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.en
     partially.contained.children = function(locations) {
       unlist(lapply(locations, function(x) {location.contained.collector(x,FALSE)}))
     }
+    
+    # Add the location itself to the locations to check for partially.contained.children
+    all.sub.locations <- lapply(seq_along(all.sub.locations), function(i) append(all.sub.locations[[i]], locations[i]))
         
     partially.contained = lapply(all.sub.locations, partially.contained.children)
     
@@ -459,6 +463,14 @@ LOCATION.MANAGER$register.zip.prefix <- function(prefix) {
   LOCATION.MANAGER$zip.prefix = toupper(prefix)
 }
 
+LOCATION.MANAGER$register.cbsa.prefix <- function(prefix) {
+  #Check and make sure we haven't already set the prefix, as that would complicate previous imports
+  if (LOCATION.MANAGER$cbsa.prefix != "") {
+    stop(paste0("LOCATION.MANAGER: Attempted to set the cbsa prefix a second time (", prefix, ")"))
+  } 
+  LOCATION.MANAGER$cbsa.prefix = toupper(prefix)
+}
+
 LOCATION.MANAGER$register.state.fips.aliases <- function(filename) {
   #Check if the file exists
   if (!file.exists(filename)) {
@@ -555,4 +567,60 @@ LOCATION.MANAGER$register.zipcodes = function(filename, zipcode.name.format.stri
   
 }
 
-
+LOCATION.MANAGER$register.cbsa = function(filename) {
+  if (!file.exists(filename)) {
+    stop(paste0("LOCATION.MANAGER: Cannot find the cbsa file with filename ", filename))
+  } 
+  cbsa.data = read.csv(file = filename)
+  #
+  # Type will be CBSA
+  #
+  # Important Columns : 
+  #   'CBSA Code', column 1 - Should be primary key
+  #   'CBSA Title', column 4 - Should be name
+  #   'FIPS State Code', column 10 - State fips code
+  #   'FIPS County Code', column 11 - County fips code
+  #
+  # So we want to add all the cbsa's, then say that they are contained by
+  # the state (entirely in the case where there is only one FIPS State Code for
+  # all the entries for the particular CBSA code, partially for the rest) and
+  # that they contain their FIPS County Code entirely.
+  #
+  # Get all the unique CBSA Codes with proper prefixes:
+  unique.codes = head(unique(cbsa.data[[1]]), -4) #Remove the last four lines as they contain sources.
+  
+  location.codes = sprintf("%s%s",LOCATION.MANAGER$cbsa.prefix,unique.codes) 
+  
+  #LOOP FIXME
+  for (i in seq_along(unique.codes)) {
+    # Get cbsa code data:
+    code.data = cbsa.data[ cbsa.data$CBSA.Code == unique.codes[i], ]
+    
+    # register the cbsa:
+    # There will always be minimum one entry in the CBSA.Title column
+    LOCATION.MANAGER$register("CBSA", code.data$CBSA.Title[1], location.codes[i])
+    
+    # LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains, fail.on.unknown = T) {  
+    
+    # Is it fully or only partially contained by the state?
+    unique.states <- sprintf("%02d",unique(code.data$FIPS.State.Code))
+    if (length(unique.states) == 1) {
+      #The majority of cases:
+      # Register the location.code value as being a sub location of the prefixed state FIPS code, marking as fully.contains.
+      # There will always be at least one value in unique.states
+      LOCATION.MANAGER$register.hierarchy ( location.codes[i], paste0(LOCATION.MANAGER$fips.prefix,unique.states[1],"000"), TRUE)
+    } else {
+      #Register as being sub of each state in the list
+      #LOOP FIXME
+      for ( j in seq_along(unique.states) ) {
+        #Do the same but mark fully.contains as FALSE
+        LOCATION.MANAGER$register.hierarchy ( location.codes[i], paste0(LOCATION.MANAGER$fips.prefix,unique.states[j],"000"), FALSE)
+      }
+    }
+    
+    # It contains the FIPS.County.Code entirely
+    
+    
+  }
+  
+}

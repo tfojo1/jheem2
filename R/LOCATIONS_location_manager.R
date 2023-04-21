@@ -259,6 +259,28 @@ register.zip.prefix <- function(prefix)
   LOCATION.MANAGER$register.zip.prefix(prefix) 
 }
 
+#'@description Register a prefix to use for the codes that represent cbsa values.
+#'
+#'@param prefix A single character word containing the prefix.  Will be forced uppercase
+#'
+#'@details This can contain any string but will error if set twice.
+#'
+#'@export
+register.cbsa.prefix <- function(prefix)
+{
+  if (!is.character(prefix) || length(prefix) != 1) {
+    stop("register.cbsa.prefix: prefix must be a single string value")
+  }
+  LOCATION.MANAGER$register.cbsa.prefix(prefix) 
+}
+
+#
+# There is an argument to be made here for the removal of the following 
+# functions from the API; leave them as LOCATION.MANAGER functions and 
+# re-write/add as necessary.
+# 
+# Leave them in for now.
+#
 
 #'@description Register state abbreviations with the location manager as the primary location codes
 #'
@@ -309,4 +331,15 @@ register.zipcode.file <- function(filename)
   LOCATION.MANAGER$register.zipcodes(filename) 
 }
 
+#'@description Register cbsa (Community Based Statistical Area) code file with the location manager
+#'
+#'@param filename The name of the file we are trying to read.
+#'
+#'@details LOCATION.MANAGER will check the existence of the file.
+#'
+#'@export
+register.cbsa.file <- function(filename)
+{
+  LOCATION.MANAGER$register.cbsa(filename) 
+}
 
