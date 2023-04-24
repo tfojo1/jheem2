@@ -1,4 +1,5 @@
 library(R6)
+library(purrr)
 
 Location <- R6Class("Location",
   public = list(
@@ -172,10 +173,9 @@ LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.en
     partially.contained.children = function(locations) {
       unlist(lapply(locations, function(x) {location.contained.collector(x,FALSE)}))
     }
-    
     # Add the location itself to the locations to check for partially.contained.children
-    all.sub.locations <- lapply(seq_along(all.sub.locations), function(i) append(all.sub.locations[[i]], locations[i]))
-        
+    all.sub.locations = mapply(function(x, code) c(code, x), all.sub.locations, codes, SIMPLIFY = FALSE)
+    
     partially.contained = lapply(all.sub.locations, partially.contained.children)
     
     #Now we have to add these lists into the main lists and then unique the whole thing:
@@ -616,10 +616,15 @@ LOCATION.MANAGER$register.cbsa = function(filename) {
         LOCATION.MANAGER$register.hierarchy ( location.codes[i], paste0(LOCATION.MANAGER$fips.prefix,unique.states[j]), FALSE)
       }
     }
-    
     # It contains the FIPS.County.Code entirely
+    fips.county.data = sprintf("%s%02d%03d",LOCATION.MANAGER$fips.prefix,
+                                            code.data$FIPS.State.Code, 
+                                            code.data$FIPS.County.Code)
     
-    
+    walk(fips.county.data, function(county.code) {
+      #We are marking the counties as fully contained by the cbsas
+      LOCATION.MANAGER$register.hierarchy ( county.code, location.codes[i], TRUE) 
+    })
   }
   
 }
