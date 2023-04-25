@@ -132,6 +132,27 @@ get.super.locations <- function(locations, super.type,
 ##-- Setters --##
 ##-------------##
 
+#'@description Register location type, prefix, and prefix.longform
+#'
+#'@param type A character vector representing types to be added
+#'@param prefix A character vector of unique prefixes for the location codes for types of this kind
+#'@param prefix.longform A character vector of longform names for that particular unique prefixes
+#'
+#'@details The prefix is restricted to letters, numbers, period and '-'.
+#'@export
+register.types <- function(type,
+                          prefix,
+                          prefix.longform)
+{
+  if (length(type) != length(prefix) || length(prefix) != length(prefix.longform)) {
+    stop("register.types: Lengths of the 3 parameters must be equal")
+  }
+  if (any(c(typeof(type),typeof(prefix),typeof(prefix.longform)) != "character")) {
+    stop("register.types: All parameters must be characters/strings")
+  }
+  LOCATION.MANAGER$register.types(type, prefix, prefix.longform)
+}
+
 #'@description Register information about locations.  
 #'
 #'@param type The geographic resolution at which to register the locations. Can be be either a single character value, or a vector of the same length as locations
