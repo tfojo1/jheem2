@@ -1,6 +1,7 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
+
 //-----------------------------------------//
 //-- GENERAL INCREMENT/OVERWRITE HELPERS --//
 //--  (These allow for modify-in-place)  --//
