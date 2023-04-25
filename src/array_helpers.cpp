@@ -61,6 +61,7 @@ NumericVector add_scalar_to_arr(NumericVector dst,
     return (dst);
 }
 
+
 //---------------------//
 //-- ARRAY OVERWRITE --//
 //---------------------//
@@ -111,7 +112,6 @@ RObject do_array_overwrite(NumericVector dst_array,
         for (int m=0; m<dst_dims[j]; m++)
             write_to_dst_dim_values[j][m] = m;
     }
-    
     // now, for each dimension in dimension values, we overwrite the default
     for (int k=0; k<dimension_values.length(); k++)
     {
@@ -154,6 +154,7 @@ RObject do_array_overwrite(NumericVector dst_array,
                     return (R_NilValue);
             }
         }
+        
         else if (is<IntegerVector>(elem))
         {
             IntegerVector values = (IntegerVector) elem;
@@ -184,7 +185,7 @@ RObject do_array_overwrite(NumericVector dst_array,
         {
             LogicalVector values = (LogicalVector) elem;
             write_dims[dst_dim_index] = values.length();
-
+            
             if (values.length() != dst_dims[dst_dim_index])
                 return (R_NilValue);
             
@@ -202,15 +203,17 @@ RObject do_array_overwrite(NumericVector dst_array,
         
         if (write_dims[dst_dim_index] == 0)
             return (R_NilValue);
+        
     }
-     
+    
     //-- PART 3: MAP SRC DIMENSIONS AND VALUES to WRITE VALUES --//
     //-- Part 1b: pull n_src_dims --//
     // The trick here is that we need to handle the case where src_array has only one dimension
     //  and has names set but not dimnames
-    
+
     int n_src_dims;
     List src_dim_names;
+    
     
     // First identify the number of dimensions
     if (src_array.attr("dimnames")==R_NilValue)
@@ -218,7 +221,6 @@ RObject do_array_overwrite(NumericVector dst_array,
         // This might still be OK if either
         // The names of src_array are set AND they are a subset of the names of a dimension in dst_array
         // OR it is a length 1 vector
-        
         if (src_array.attr("names")==R_NilValue)
         {
             //The only option is if we are length 1
@@ -231,6 +233,7 @@ RObject do_array_overwrite(NumericVector dst_array,
         {
             n_src_dims = 1;
         }
+        
     }
     else
     {
@@ -238,10 +241,10 @@ RObject do_array_overwrite(NumericVector dst_array,
         n_src_dims = src_dim_names.length();
     }
     
-    
     //-- Part 1c: Figure out the src dimensions --//
     
     int *src_dims;
+    
     int src_dims_if_dimnames_null[1];
     
     if (n_src_dims>0)
@@ -257,7 +260,6 @@ RObject do_array_overwrite(NumericVector dst_array,
         }
     }
     
-    
     //-- PART 3: SET UP FOR TABULATION OF SRC INDICES --//
     
     //-- Part 3a: Set up mappings between src and dist --//#      
@@ -271,9 +273,11 @@ RObject do_array_overwrite(NumericVector dst_array,
             max_dim_length = src_dims[i];
     }
     
-    // indexed [src_dimension][write_dimension_value]
-    int write_to_src_dim_values[n_src_dims][max_dim_length];
     
+    // indexed [src_dimension][write_dimension_value]
+    int x = n_src_dims>0 ? n_src_dims : 1;
+    int write_to_src_dim_values[x][max_dim_length];
+
     // Actually map the dimensions and values
     if (n_src_dims>0)
     {
@@ -378,29 +382,33 @@ RObject do_array_overwrite(NumericVector dst_array,
     
     //-- Part 3b: Tabulate source and destination dims --//
     int n_write = 1;
+    
     for (int j=0; j<n_dst_dims; j++)
         n_write = n_write * write_dims[j];
     
-    int n_before_src[n_src_dims];
-    n_before_src[0] = 1;
-    for (int i=1; i<n_src_dims; i++)
-        n_before_src[i] = n_before_src[i-1] * src_dims[i-1];
+    int n_before_src[x];
+    if (n_src_dims > 0) {
+        n_before_src[0] = 1;
+        for (int i=1; i<n_src_dims; i++)
+            n_before_src[i] = n_before_src[i-1] * src_dims[i-1];
+    }
     
     int n_before_dst[n_dst_dims];
     n_before_dst[0] = 1;
+    
     for (int j=1; j<n_dst_dims; j++)
         n_before_dst[j] = n_before_dst[j-1] * dst_dims[j-1];
     
-
+    
     //-- PART 4: LOOP THROUGH WRITE INDICES --//
     int write_dim_values[n_dst_dims];
     for (int j=0; j<n_dst_dims; j++)
         write_dim_values[j] = 0;
-    
     int src_index, dst_index;
     
     for (int k=0; k<n_write; k++)
     {
+        
         // Calculate what the index is into the src array
         src_index = 0;
         for (int i=0; i<n_src_dims; i++)
@@ -408,8 +416,10 @@ RObject do_array_overwrite(NumericVector dst_array,
             src_index += n_before_src[i] * 
                 write_to_src_dim_values[i][ write_dim_values[src_to_write_dims[i]] ];
         }
+        
         // Calculate what the index is into the dst array
         dst_index = 0;
+        
         for (int j=0; j<n_dst_dims; j++)
             dst_index += n_before_dst[j] * 
                 write_to_dst_dim_values[j][ write_dim_values[j] ];
@@ -428,6 +438,7 @@ RObject do_array_overwrite(NumericVector dst_array,
                 break;
             }
         }
+        
     }
     
     return (dst_array);
