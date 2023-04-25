@@ -53,6 +53,8 @@ LOCATION.MANAGER$location.list = list()
 LOCATION.MANAGER$alias.names = list()
 LOCATION.MANAGER$alias.codes = list()
 LOCATION.MANAGER$type.list = c()
+LOCATION.MANAGER$fips.prefix = ""
+LOCATION.MANAGER$zip.prefix = ""
 
 LOCATION.MANAGER$get.names <- function(locations) {
   # return A character vector of location names, with length(locations) and names=locations. If location codes are not registered (or if they were NA), 
@@ -310,11 +312,6 @@ LOCATION.MANAGER$get.name.aliases <- function(locations, alias.name, throw.error
   result
 }
 
-LOCATION.MANAGER$get.codes.from.names <- function(location.names, types) {
-  #WIP
-  c()
-}
-
 LOCATION.MANAGER$resolve.code <- function(code,fail.on.unknown=T) {
   
   #Resolves a single location code from potential alias to actual code
@@ -428,10 +425,57 @@ LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains, fail.
       }
     }
   }
-  
-  
+}
 
+LOCATION.MANAGER$register.state.abbrev = function(filename) {
+  #Check if the file exists
+  if (!file.exists(filename)) {
+    stop(paste0("LOCATION.MANAGER: Cannot find the zipcode file with filename ", filename))
+  } 
+  
+  abbrev.data = read.csv(file= filename, header=FALSE)
+  
+  types = rep("state", nrow(abbrev.data))
+  
+  LOCATION.MANAGER$register(types, abbrev.data[[1]], abbrev.data[[2]])
+  
+  #We need to do this first to register the states with their abbreviations as their 
+  #location codes
+}
 
+LOCATION.MANAGER$register.fips.prefix <- function(prefix) {
+  #Check and make sure we haven't already set the prefix, as that would complicate previous imports
+  if (LOCATION.MANAGER$fips.prefix != "") {
+    stop(paste0("LOCATION.MANAGER: Attempted to set the fips prefix a second time (", prefix, ")"))
+  } 
+  LOCATION.MANAGER$fips.prefix = toupper(prefix)
+}
+
+LOCATION.MANAGER$register.zip.prefix <- function(prefix) {
+  #Check and make sure we haven't already set the prefix, as that would complicate previous imports
+  if (LOCATION.MANAGER$zip.prefix != "") {
+    stop(paste0("LOCATION.MANAGER: Attempted to set the zip prefix a second time (", prefix, ")"))
+  } 
+  LOCATION.MANAGER$zip.prefix = toupper(prefix)
+}
+
+LOCATION.MANAGER$register.state.fips.aliases <- function(filename) {
+  #Check if the file exists
+  if (!file.exists(filename)) {
+    stop(paste0("LOCATION.MANAGER: Cannot find the fips state alias file with filename ", filename))
+  }
+  fips.state.alias.data = read.csv(file=filename,header=FALSE)
+  
+  #Column one is state name, mostly for debug purposes; column 2 is the fips code (0padded, 5 chars)
+  #Column 3 is the state abbreviation/location code
+
+  fips.with.prefix = sprintf("%s%05d", LOCATION.MANAGER$fips.prefix, as.numeric(fips.state.alias.data[[2]]))
+  
+  #LOOP FIXME
+  for ( i in 1:nrow(fips.state.alias.data) ) {
+    LOCATION.MANAGER$register.code.aliases (fips.state.alias.data[[3]][i], fips.with.prefix[i])  
+  }
+  
 }
 
 LOCATION.MANAGER$register.fips <- function(filename) {
@@ -448,11 +492,6 @@ LOCATION.MANAGER$register.fips <- function(filename) {
   #Column 2 is the state code
   state.codes = states[[2]] * 1000
   
-  types = rep("state", length(state.codes))
-  
-  #Column 7 is the name of the states
-  LOCATION.MANAGER$register(types, states[[7]], as.character(state.codes))
-  
   #Counties
   counties = fips.data[ fips.data[1] == 050, ] #Get only the county data from the fips info.
   
@@ -461,9 +500,11 @@ LOCATION.MANAGER$register.fips <- function(filename) {
   
   types = rep("county",length(county.codes))
   
-  #Column 7 is the names of the counties
-  LOCATION.MANAGER$register(types, counties[[7]], as.character(county.codes))
+  counties.with.fips.prefix = sprintf("%s%05d", LOCATION.MANAGER$fips.prefix, county.codes)
   
+  #Column 7 is the names of the counties
+  LOCATION.MANAGER$register(types, counties[[7]], counties.with.fips.prefix)
+
   #There appear to be entries in the county code that don't have a corresponding
   #registered state.  Refrain from trying to create a connect to the non-existent
   #state
@@ -471,20 +512,21 @@ LOCATION.MANAGER$register.fips <- function(filename) {
   #is registered before we create a hierarchy.
   possible.state.codes = counties[[2]] * 1000
   #Get only the counties with proper states
-  counties.of.states = as.character(county.codes [ possible.state.codes %in% state.codes ])
-  corresponding.states = as.character(possible.state.codes [ possible.state.codes %in% state.codes ])
+  counties.of.states = county.codes [ possible.state.codes %in% state.codes ]
+  corresponding.states = possible.state.codes [ possible.state.codes %in% state.codes ]
   
+  counties.of.states.with.fips.prefix = sprintf("%s%05d",LOCATION.MANAGER$fips.prefix, counties.of.states)
+  corresponding.states.with.fips.prefix = sprintf("%s%05d",LOCATION.MANAGER$fips.prefix, corresponding.states)
   #Register the counties as completely contained by the states
   #LOOP FIXME
   #for (i in seq_along(counties.of.states)) {
   #  LOCATION.MANAGER$register.hierarchy(counties.of.states[[i]], corresponding.states[[i]], TRUE)
   #}
-  LOCATION.MANAGER$register.hierarchy(counties.of.states, corresponding.states, rep(TRUE,length(counties.of.states)))
+  LOCATION.MANAGER$register.hierarchy(counties.of.states.with.fips.prefix, corresponding.states.with.fips.prefix, rep(TRUE,length(counties.of.states)))
   
 }
 
-LOCATION.MANAGER$register.zipcodes = function(filename, zipcode.code.format.string = "ZIP%s", #Format for unique zip id (will otherwise conflict with fips)
-                                                        zipcode.name.format.string = "ZIP.%s", #Format for Zip name (unique not required)
+LOCATION.MANAGER$register.zipcodes = function(filename, zipcode.name.format.string = "ZIP_N_%s", #Format for Zip name (unique not required)
                                                         zipcode.type.name = "ZIPCODE") { #Name of the type for the zipcodes
   #Check if the file exists
   if (!file.exists(filename)) {
@@ -494,7 +536,7 @@ LOCATION.MANAGER$register.zipcodes = function(filename, zipcode.code.format.stri
   zip.data = read.csv(file= filename)
   
   zip.codes = zip.data[['zip']]
-  unique.zip.codes = sprintf(zipcode.code.format.string,zip.codes)
+  unique.zip.codes = sprintf("%s%s",LOCATION.MANAGER$zip.prefix,zip.codes)
   fips.codes = zip.data[['fips']]
   #round(34233,digits=-3) = 34000
   state.codes = as.character(round(as.numeric(fips.codes),digits = -3))
@@ -513,12 +555,4 @@ LOCATION.MANAGER$register.zipcodes = function(filename, zipcode.code.format.stri
   
 }
 
-LOCATION.MANAGER$register.state.abbrev = function(filename) {
-  #Check if the file exists
-  if (!file.exists(filename)) {
-    stop(paste0("LOCATION.MANAGER: Cannot find the zipcode file with filename ", filename))
-  } 
-  
-  abbrev.data = read.csv(file= filename, stringsAsFactors = TRUE)
-}
 
