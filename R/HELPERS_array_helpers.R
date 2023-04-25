@@ -69,6 +69,7 @@ get.array.access.indices <- function(arr.dim.names,
     as.integer(fast.array.access(arr, dimension.values))
 }
 
+#'@export
 'array.access<-' = function(arr,
                             dimension.values,
                             value)
