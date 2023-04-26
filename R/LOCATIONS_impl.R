@@ -373,8 +373,13 @@ LOCATION.MANAGER$register <- function (types, location.names, codes) {
          types[which(is.na(match(types,names(LOCATION.MANAGER$types))))[1]])
   }
   
-  #Add Prefixes depending on type
-  codes = sprintf("%s%s",sapply(LOCATION.MANAGER$types[types], function(x) x[1]), codes)
+  #Add Prefixes depending on type 
+  #Check if the prefix is already added to the location code
+  codes <- ifelse(
+    grepl(paste0("^", sapply(LOCATION.MANAGER$types[types], function(x) x[1])), codes),
+    codes,
+    sprintf("%s%s", sapply(LOCATION.MANAGER$types[types], function(x) x[1]), codes)
+  )
   
   #Check that this code doesn't already exist
   if (any( codes %in% names(LOCATION.MANAGER$location.list) )) {
@@ -425,11 +430,39 @@ LOCATION.MANAGER$register.code.aliases <- function(code, code.aliases) {
   LOCATION.MANAGER$alias.codes[code.aliases] = code
 }
 
+# LOCATION.MANAGER$register.hierarchy <- function(sub, super, fully.contains, fail.on.unknown = T) {
+#   
+#   # Custom function to be used within purrr::walk
+#   register_sub_location <- function(s, sup, fc) {
+#     LOCATION.MANAGER$location.list[[sup]]$register.sub.location(s, fc)
+#   }
+#   
+#   sub <- unlist(lapply(sub, function(x) { LOCATION.MANAGER$resolve.code(x, !fail.on.unknown) }))
+#   super <- unlist(lapply(super, function(x) { LOCATION.MANAGER$resolve.code(x, !fail.on.unknown) }))
+#   
+#   # Filter indices where neither sub nor super is NA
+#   valid_indices <- !is.na(sub) & !is.na(super)
+#   
+#   # If fail.on.unknown is TRUE, set valid_indices to TRUE for all elements
+#   if (fail.on.unknown) {
+#     valid_indices <- rep(TRUE, length(sub))
+#   }
+#   
+#   # Use purrr::walk to iterate through the filtered elements
+#   walk(
+#     seq_along(sub[valid_indices]), 
+#     function(i) {
+#       register_sub_location(sub[valid_indices][i], super[valid_indices][i], fully.contains[valid_indices][i])
+#     }
+#   )
+# }
+
+
 LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains, fail.on.unknown = T) {
-  
+
   #Sizes have already been checked up one level
   #We now have three vectors of equal length
-  
+
   if (fail.on.unknown) {
   #Check the location codes/aliases for both sub and super
     sub = unlist(lapply(sub,LOCATION.MANAGER$resolve.code))
