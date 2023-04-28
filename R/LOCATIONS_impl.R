@@ -357,7 +357,10 @@ LOCATION.MANAGER$register.types <- function (type, prefix, prefix.longform) {
     if (!t %in% names(LOCATION.MANAGER$types)) {
       #append(LOCATION.MANAGER$types, list(t = c(p, p.l)), 1)
       LOCATION.MANAGER$types[[t]] = c(p, p.l)
-    } 
+    } else {
+      # the type name already exists
+      stop(paste0("LOCATION.MANAGER$register.types: Type ",t, " already exists in the system, aborting"))
+    }
   }, type, prefix, prefix.longform))
   
 }
