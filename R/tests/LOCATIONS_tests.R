@@ -1,13 +1,23 @@
 source("R/LOCATIONS_location_manager.R")
 
-register.fips.prefix("fips.")
-register.zip.prefix("zip.")
+register.types(c("county","zipcode","cbsa", "state"),
+               c("FIPS.","ZIP.","CBSA.", ""),
+               c("FIPS Code", "Zipcodes", "Community Based Statistical Area", "State"))
+
+#register.fips.prefix("fips.")
+#register.zip.prefix("zip.")
+#register.cbsa.prefix("cbsa.")
 #Since we want state abbrev as location codes, we register them
 #first, then register the fips codes as location code aliases
-register.state.abbrev.file("locations/us_state_abbreviations.csv")
-register.state.fips.code.aliases("locations/fips_state_aliases.csv")
-register.fips.file("locations/fips_codes.csv")
-register.zipcode.file("locations/zip_codes.csv")
+start <- proc.time()
+LOCATION.MANAGER$register.state.abbrev("locations/us_state_abbreviations.csv")
+LOCATION.MANAGER$register.state.fips.aliases("locations/fips_state_aliases.csv", fips.typename= "county") #Set the fips typename
+LOCATION.MANAGER$register.fips("locations/fips_codes.csv", fips.typename = "county") #Set the fips typename
+LOCATION.MANAGER$register.cbsa("locations/cbsas.csv", cbsa.typename = "cbsa", fips.typename = "county") #Sets the fips and cbsa typename
+LOCATION.MANAGER$register.zipcodes("locations/zip_codes.csv", zip.typename = "zipcode")
+end <- proc.time()
+
+print("Time elapsed: ", (end - start)['user.self'])
 
 #Barebones testing
 # register.locations ("State", c("NY","FL","CA","TX"), c("New York", "Florida", "California", "Texas"))

@@ -1,4 +1,5 @@
 library(R6)
+library(purrr)
 
 Location <- R6Class("Location",
   public = list(
@@ -52,9 +53,12 @@ LOCATION.MANAGER = new.env()
 LOCATION.MANAGER$location.list = list()
 LOCATION.MANAGER$alias.names = list()
 LOCATION.MANAGER$alias.codes = list()
-LOCATION.MANAGER$type.list = c()
-LOCATION.MANAGER$fips.prefix = ""
-LOCATION.MANAGER$zip.prefix = ""
+LOCATION.MANAGER$types = list()
+
+LOCATION.MANAGER$check.code.validity <- function(code) {
+  #We allow only characters, numbers, periods or dashes
+  grepl("^[A-Za-z0-9.-]*$", code)
+}
 
 LOCATION.MANAGER$get.names <- function(locations) {
   # return A character vector of location names, with length(locations) and names=locations. If location codes are not registered (or if they were NA), 
@@ -88,6 +92,24 @@ LOCATION.MANAGER$get.types <- function(locations) {
   returned.types
 }
 
+LOCATION.MANAGER$get.prefix <- function(location.types) {
+  
+  location.types <- toupper(location.types)
+  #A character vector of prefixes, with length(location.types) and names=prefixes. 
+  #If the types are not registered (or if they were NA), the corresponding returned type is NA
+  
+  rv = unlist(lapply(seq_along(location.types), function(index) {
+    if (location.types[index] %in% names(LOCATION.MANAGER$types)) {
+      return(LOCATION.MANAGER$types[[index]][1])
+    } else {
+      return (NA)
+    }
+  }))
+  
+  names(rv) = location.types
+  rv
+}
+
 LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type) {
   #return If return.list==T, a list with length(locations) and names=locations. Each element is itself a character vector 
   #with zero or more locations corresponding to sub-locations. If return.list=F, returns a character vector 
@@ -98,7 +120,7 @@ LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.en
   
   if (throw.error.if.unregistered.type) {
     #Check the type against the type list;
-    if (!sub.type %in% LOCATION.MANAGER$type.list) {
+    if (!sub.type %in% names(LOCATION.MANAGER$types)) {
       stop(paste0("LOCATION.MANAGER$get.sub: Type ", sub.type," not registered, aborting"))
     }
   }
@@ -171,7 +193,9 @@ LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.en
     partially.contained.children = function(locations) {
       unlist(lapply(locations, function(x) {location.contained.collector(x,FALSE)}))
     }
-        
+    # Add the location itself to the locations to check for partially.contained.children
+    all.sub.locations = mapply(function(x, code) c(code, x), all.sub.locations, codes, SIMPLIFY = FALSE)
+    
     partially.contained = lapply(all.sub.locations, partially.contained.children)
     
     #Now we have to add these lists into the main lists and then unique the whole thing:
@@ -338,27 +362,57 @@ LOCATION.MANAGER$resolve.code <- function(code,fail.on.unknown=T) {
   code
 }
 
+LOCATION.MANAGER$register.types <- function (type, prefix, prefix.longform) {
+  #Sizes have been checked a step up
+  type <- toupper(type)
+  
+  invisible(Map(function(t, p, p.l) {
+    #Check validity of the prefix
+    if (!LOCATION.MANAGER$check.code.validity(p)) {
+      stop("LOCATION.MANAGER$register.types: We are not allowed characters outside of the letters, numbers, . and -")
+    }
+    #Add the type into the types list as a list item type = c(prefix,prefix.longform)
+    if (!t %in% names(LOCATION.MANAGER$types)) {
+      #append(LOCATION.MANAGER$types, list(t = c(p, p.l)), 1)
+      LOCATION.MANAGER$types[[t]] = c(p, p.l)
+    } else {
+      # the type name already exists
+      stop(paste0("LOCATION.MANAGER$register.types: Type ",t, " already exists in the system, aborting"))
+    }
+  }, type, prefix, prefix.longform))
+  
+}
+
 LOCATION.MANAGER$register <- function (types, location.names, codes) {
   #codes and types are all uppercase; case insensitive
   codes <- toupper(codes)
   types <- toupper(types)
   
+  #First we need to check if the type is registered
+  if (!all(types %in% names(LOCATION.MANAGER$types))) {
+    stop("LOCATION.MANAGER$register: Type not previously registered - ", 
+         types[which(is.na(match(types,names(LOCATION.MANAGER$types))))[1]])
+  }
+  
+  #Add Prefixes depending on type 
+  #TODO Check if the prefix is already added to the location code
+  codes = sprintf("%s%s", sapply(LOCATION.MANAGER$types[types], function(x) x[1]), codes)
+  
   #Check that this code doesn't already exist
   if (any( codes %in% names(LOCATION.MANAGER$location.list) )) {
     stop("LOCATION.MANAGER: Attempting to add a code that already exists in the manager")
   }
+  
+  #Check that this code doesn't contain undesirable characters
+  if (!all( LOCATION.MANAGER$check.code.validity(codes) )) {
+    stop("LOCATION.MANAGER: Attempting to enter a code with invalid characters (only letters, numbers, . and - allowed")
+  }
 
-  #print(location.names)
   #Check that the code doesn't conflict with a code alias either
   if (any (codes %in% names(LOCATION.MANAGER$alias.codes) )) {
     stop("LOCATION.MANAGER: Attempting to add a code that conflicts with a code alias")
   }
   
-  #Some types are missing from the type list, add them
-  if (!all(types %in% LOCATION.MANAGER$type.list)) {
-    LOCATION.MANAGER$type.list = unique(c(types, LOCATION.MANAGER$type.list))
-  }
-
   LOCATION.MANAGER$location.list [ codes ]<- lapply(mapply(c,location.names,types,SIMPLIFY=F), Location$new)
 
 }
@@ -399,10 +453,10 @@ LOCATION.MANAGER$register.code.aliases <- function(code, code.aliases) {
 }
 
 LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains, fail.on.unknown = T) {
-  
+
   #Sizes have already been checked up one level
   #We now have three vectors of equal length
-  
+
   if (fail.on.unknown) {
   #Check the location codes/aliases for both sub and super
     sub = unlist(lapply(sub,LOCATION.MANAGER$resolve.code))
@@ -443,42 +497,31 @@ LOCATION.MANAGER$register.state.abbrev = function(filename) {
   #location codes
 }
 
-LOCATION.MANAGER$register.fips.prefix <- function(prefix) {
-  #Check and make sure we haven't already set the prefix, as that would complicate previous imports
-  if (LOCATION.MANAGER$fips.prefix != "") {
-    stop(paste0("LOCATION.MANAGER: Attempted to set the fips prefix a second time (", prefix, ")"))
-  } 
-  LOCATION.MANAGER$fips.prefix = toupper(prefix)
-}
-
-LOCATION.MANAGER$register.zip.prefix <- function(prefix) {
-  #Check and make sure we haven't already set the prefix, as that would complicate previous imports
-  if (LOCATION.MANAGER$zip.prefix != "") {
-    stop(paste0("LOCATION.MANAGER: Attempted to set the zip prefix a second time (", prefix, ")"))
-  } 
-  LOCATION.MANAGER$zip.prefix = toupper(prefix)
-}
-
-LOCATION.MANAGER$register.state.fips.aliases <- function(filename) {
+LOCATION.MANAGER$register.state.fips.aliases <- function(filename, fips.typename = "county") {
+  
+  fips.typename <- toupper(fips.typename)
+  
   #Check if the file exists
   if (!file.exists(filename)) {
     stop(paste0("LOCATION.MANAGER: Cannot find the fips state alias file with filename ", filename))
   }
   fips.state.alias.data = read.csv(file=filename,header=FALSE)
   
-  #Column one is state name, mostly for debug purposes; column 2 is the fips code (0padded, 5 chars)
+  #Column one is state name, mostly for debug purposes; column 2 is the fips code (0padded, 2 chars)
   #Column 3 is the state abbreviation/location code
 
-  fips.with.prefix = sprintf("%s%05d", LOCATION.MANAGER$fips.prefix, as.numeric(fips.state.alias.data[[2]]))
+  # fips.with.prefix = sprintf("%s%02d", LOCATION.MANAGER$types[[fips.typename]][1], as.numeric(fips.state.alias.data[[2]]))
+  fips.with.prefix = sprintf("%s%02d", LOCATION.MANAGER$get.prefix(fips.typename), as.numeric(fips.state.alias.data[[2]]))
   
   #LOOP FIXME
   for ( i in 1:nrow(fips.state.alias.data) ) {
     LOCATION.MANAGER$register.code.aliases (fips.state.alias.data[[3]][i], fips.with.prefix[i])  
   }
-  
 }
 
-LOCATION.MANAGER$register.fips <- function(filename) {
+LOCATION.MANAGER$register.fips <- function(filename, fips.typename = "county") {
+  
+  fips.typename <- toupper(fips.typename)
   #Check if the file exists
   if (!file.exists(filename)) {
     stop(paste0("LOCATION.MANAGER: Cannot find the fips file with filename ", filename))
@@ -490,7 +533,7 @@ LOCATION.MANAGER$register.fips <- function(filename) {
   states = fips.data[ fips.data[1] == 040, ] #Get only the state data from the fips info
   
   #Column 2 is the state code
-  state.codes = states[[2]] * 1000
+  state.codes = states[[2]]
   
   #Counties
   counties = fips.data[ fips.data[1] == 050, ] #Get only the county data from the fips info.
@@ -498,36 +541,36 @@ LOCATION.MANAGER$register.fips <- function(filename) {
   #Column 3 is the county code
   county.codes = counties[[2]] * 1000 + counties[[3]]
   
-  types = rep("county",length(county.codes))
+  types = rep(fips.typename,length(county.codes))
   
-  counties.with.fips.prefix = sprintf("%s%05d", LOCATION.MANAGER$fips.prefix, county.codes)
+  #Convert the county.codes to 0 padded 5 char
+  county.codes = sprintf("%05d", county.codes)
   
   #Column 7 is the names of the counties
-  LOCATION.MANAGER$register(types, counties[[7]], counties.with.fips.prefix)
-
+  LOCATION.MANAGER$register(types, counties[[7]], county.codes)
+  
   #There appear to be entries in the county code that don't have a corresponding
   #registered state.  Refrain from trying to create a connect to the non-existent
   #state
   #This list is checked against the state.codes above to make sure the state
   #is registered before we create a hierarchy.
-  possible.state.codes = counties[[2]] * 1000
+  possible.state.codes = sprintf("%02d",counties[[2]])
   #Get only the counties with proper states
   counties.of.states = county.codes [ possible.state.codes %in% state.codes ]
-  corresponding.states = possible.state.codes [ possible.state.codes %in% state.codes ]
+  corresponding.states = possible.state.codes [ possible.state.codes %in% state.codes ] 
   
-  counties.of.states.with.fips.prefix = sprintf("%s%05d",LOCATION.MANAGER$fips.prefix, counties.of.states)
-  corresponding.states.with.fips.prefix = sprintf("%s%05d",LOCATION.MANAGER$fips.prefix, corresponding.states)
+  counties.of.states.with.fips.prefix = sprintf("%s%s",LOCATION.MANAGER$types[[fips.typename]][[1]], counties.of.states)
+  corresponding.states.with.fips.prefix = sprintf("%s%s",LOCATION.MANAGER$types[[fips.typename]][[1]], corresponding.states)
+  
   #Register the counties as completely contained by the states
-  #LOOP FIXME
-  #for (i in seq_along(counties.of.states)) {
-  #  LOCATION.MANAGER$register.hierarchy(counties.of.states[[i]], corresponding.states[[i]], TRUE)
-  #}
   LOCATION.MANAGER$register.hierarchy(counties.of.states.with.fips.prefix, corresponding.states.with.fips.prefix, rep(TRUE,length(counties.of.states)))
   
 }
 
-LOCATION.MANAGER$register.zipcodes = function(filename, zipcode.name.format.string = "ZIP_N_%s", #Format for Zip name (unique not required)
-                                                        zipcode.type.name = "ZIPCODE") { #Name of the type for the zipcodes
+LOCATION.MANAGER$register.zipcodes = function(filename, zip.typename = "zipcode", 
+                                                        zipcode.name.format.string = "ZIP_N_%s") { #Format for Zip name (unique not required)
+  
+  zip.typename <- toupper(zip.typename)
   #Check if the file exists
   if (!file.exists(filename)) {
     stop(paste0("LOCATION.MANAGER: Cannot find the zipcode file with filename ", filename))
@@ -536,18 +579,19 @@ LOCATION.MANAGER$register.zipcodes = function(filename, zipcode.name.format.stri
   zip.data = read.csv(file= filename)
   
   zip.codes = zip.data[['zip']]
-  unique.zip.codes = sprintf("%s%s",LOCATION.MANAGER$zip.prefix,zip.codes)
+  #Add proper prefix for register.hierarchy
+  unique.zip.codes = sprintf("%s%s",LOCATION.MANAGER$types[[zip.typename]][1],zip.codes)
   fips.codes = zip.data[['fips']]
   #round(34233,digits=-3) = 34000
   state.codes = as.character(round(as.numeric(fips.codes),digits = -3))
   zip.names = sprintf(zipcode.name.format.string,zip.codes)
   
-  #print(length(unique.zip.codes) == length(state.codes))
-  
   #Register all the zip codes
-  LOCATION.MANAGER$register(rep(zipcode.type.name, length(zip.codes)), zip.names, unique.zip.codes)
+  #No prefix
+  LOCATION.MANAGER$register(rep(zip.typename, length(zip.codes)), zip.names, zip.codes)
   
   #Register the zip code as completely contained by the fips code. If any result is NA, skip
+  #With Prefix
   LOCATION.MANAGER$register.hierarchy(unique.zip.codes,fips.codes,rep(TRUE,length(fips.codes)),F)
   
   #Register the zip code as completely contained by the state.  If any result is NA, skip
@@ -555,4 +599,68 @@ LOCATION.MANAGER$register.zipcodes = function(filename, zipcode.name.format.stri
   
 }
 
-
+LOCATION.MANAGER$register.cbsa = function(filename, cbsa.typename = "cbsa", fips.typename = "county") {
+  
+  cbsa.typename <- toupper(cbsa.typename)
+  fips.typename <- toupper(fips.typename)
+  
+  if (!file.exists(filename)) {
+    stop(paste0("LOCATION.MANAGER: Cannot find the cbsa file with filename ", filename))
+  } 
+  cbsa.data = read.csv(file = filename)
+  #
+  # Type will be CBSA
+  #
+  # Important Columns : 
+  #   'CBSA Code', column 1 - Should be primary key
+  #   'CBSA Title', column 4 - Should be name
+  #   'FIPS State Code', column 10 - State fips code
+  #   'FIPS County Code', column 11 - County fips code
+  #
+  # So we want to add all the cbsa's, then say that they are contained by
+  # the state (entirely in the case where there is only one FIPS State Code for
+  # all the entries for the particular CBSA code, partially for the rest) and
+  # that they contain their FIPS County Code entirely.
+  #
+  # Get all the unique CBSA Codes with proper prefixes:
+  unique.codes = head(unique(cbsa.data[[1]]), -4) #Remove the last four lines as they contain sources.
+  location.codes = sprintf("%s%s",LOCATION.MANAGER$types[[cbsa.typename]][1],unique.codes) 
+  
+  #LOOP FIXME
+  for (i in seq_along(unique.codes)) {
+    # Get cbsa code data:
+    code.data = cbsa.data[ cbsa.data$CBSA.Code == unique.codes[i], ]
+    
+    # register the cbsa:
+    # There will always be minimum one entry in the CBSA.Title column
+    # Register the unique codes here as the prefixes are added in $register()
+    LOCATION.MANAGER$register(cbsa.typename, code.data$CBSA.Title[1], unique.codes[i])
+    
+    # Is it fully or only partially contained by the state?
+    unique.states <- sprintf("%02d",unique(code.data$FIPS.State.Code))
+    #Use the fully prefixed for the hierarchy registration
+    if (length(unique.states) == 1) {
+      #The majority of cases:
+      # Register the location.code value as being a sub location of the prefixed state FIPS code, marking as fully.contains.
+      # There will always be at least one value in unique.states
+      LOCATION.MANAGER$register.hierarchy ( location.codes[i], paste0(LOCATION.MANAGER$types[[fips.typename]][1],unique.states[1]), TRUE)
+    } else {
+      #Register as being sub of each state in the list
+      #LOOP FIXME
+      for ( j in seq_along(unique.states) ) {
+        #Do the same but mark fully.contains as FALSE
+        LOCATION.MANAGER$register.hierarchy ( location.codes[i], paste0(LOCATION.MANAGER$types[[fips.typename]][1],unique.states[j]), FALSE)
+      }
+    }
+    # It contains the FIPS.County.Code entirely
+    fips.county.data = sprintf("%s%02d%03d",LOCATION.MANAGER$types[[fips.typename]][1],
+                                            code.data$FIPS.State.Code, 
+                                            code.data$FIPS.County.Code)
+    
+    walk(fips.county.data, function(county.code) {
+      #We are marking the counties as fully contained by the cbsas
+      LOCATION.MANAGER$register.hierarchy ( county.code, location.codes[i], TRUE) 
+    })
+  }
+  
+}

@@ -75,6 +75,19 @@ get.location.type <- function(locations)
   LOCATION.MANAGER$get.types(locations)
 }
 
+#'@description Get the prefix for a given type
+#'
+#'@param location.types A character vector of location types
+#'
+#'@return A character vector of prefixes, with length(location.types) and names=prefixes. If the types are not registered (or if they were NA), the corresponding returned type is NA
+#'
+#'@export
+get.prefix.for.type <- function(location.types)
+{
+  #No need to check lengths
+  LOCATION.MANAGER$get.prefix(location.types)
+}
+
 #'@description Get Locations that Fall Within a Location
 #'
 #'@param locations A character vector of location codes
@@ -131,6 +144,27 @@ get.super.locations <- function(locations, super.type,
 ##-------------##
 ##-- Setters --##
 ##-------------##
+
+#'@description Register location type, prefix, and prefix.longform
+#'
+#'@param type A character vector representing types to be added
+#'@param prefix A character vector of unique prefixes for the location codes for types of this kind
+#'@param prefix.longform A character vector of longform names for that particular unique prefixes
+#'
+#'@details The prefix is restricted to letters, numbers, period and '-'.
+#'@export
+register.types <- function(type,
+                          prefix,
+                          prefix.longform)
+{
+  if (length(type) != length(prefix) || length(prefix) != length(prefix.longform)) {
+    stop("register.types: Lengths of the 3 parameters must be equal")
+  }
+  if (any(c(typeof(type),typeof(prefix),typeof(prefix.longform)) != "character")) {
+    stop("register.types: All parameters must be characters/strings")
+  }
+  LOCATION.MANAGER$register.types(type, prefix, prefix.longform)
+}
 
 #'@description Register information about locations.  
 #'
@@ -203,7 +237,6 @@ register.code.aliases <- function(location = NA,
   LOCATION.MANAGER$register.code.aliases(location, location.aliases)
 }
 
-
 #'@description Register sub-super relationships
 #'
 #'@param sub.locations A character vector of locations codes/location code aliases
@@ -228,85 +261,3 @@ register.sub.and.super.locations <- function(sub.locations,
   }
   LOCATION.MANAGER$register.hierarchy(sub.locations, super.locations, super.completely.encloses.sub) 
 }
-
-#'@description Register a prefix to use for the codes that represent fips values.
-#'
-#'@param prefix A single character word containing the prefix.  Will be forced uppercase
-#'
-#'@details This can contain any string but will error if set twice.
-#'
-#'@export
-register.fips.prefix <- function(prefix)
-{
-  if (!is.character(prefix) || length(prefix) != 1) {
-    stop("register.fips.prefix: prefix must be a single string value")
-  }
-  LOCATION.MANAGER$register.fips.prefix(prefix) 
-}
-
-#'@description Register a prefix to use for the codes that represent zipcode values.
-#'
-#'@param prefix A single character word containing the prefix.  Will be forced uppercase
-#'
-#'@details This can contain any string but will error if set twice.
-#'
-#'@export
-register.zip.prefix <- function(prefix)
-{
-  if (!is.character(prefix) || length(prefix) != 1) {
-    stop("register.zip.prefix: prefix must be a single string value")
-  }
-  LOCATION.MANAGER$register.zip.prefix(prefix) 
-}
-
-
-#'@description Register state abbreviations with the location manager as the primary location codes
-#'
-#'@param filename The name of the file we are trying to read.
-#'
-#'@details LOCATION.MANAGER will check the existence of the file.
-#'
-#'@export
-register.state.abbrev.file <- function(filename)
-{
-  LOCATION.MANAGER$register.state.abbrev(filename) 
-}
-
-#'@description Register fips state codes as location code aliases to the state abbreviation code
-#'
-#'@param filename The name of the file we are trying to read.
-#'
-#'@details LOCATION.MANAGER will check the existence of the file.
-#'
-#'@export
-register.state.fips.code.aliases <- function(filename)
-{
-  LOCATION.MANAGER$register.state.fips.aliases(filename)
-}
-
-
-#'@description Register fips county file with the location manager
-#'
-#'@param filename The name of the file we are trying to read.
-#'
-#'@details LOCATION.MANAGER will check the existence of the file.
-#'
-#'@export
-register.fips.file <- function(filename)
-{
-  LOCATION.MANAGER$register.fips(filename) 
-}
-
-#'@description Register zip code file with the location manager
-#'
-#'@param filename The name of the file we are trying to read.
-#'
-#'@details LOCATION.MANAGER will check the existence of the file.
-#'
-#'@export
-register.zipcode.file <- function(filename)
-{
-  LOCATION.MANAGER$register.zipcodes(filename) 
-}
-
-
