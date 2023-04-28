@@ -384,6 +384,11 @@ LOCATION.MANAGER$register <- function (types, location.names, codes) {
   if (any( codes %in% names(LOCATION.MANAGER$location.list) )) {
     stop("LOCATION.MANAGER: Attempting to add a code that already exists in the manager")
   }
+  
+  #Check that this code doesn't contain undesirable characters
+  if (!all( LOCATION.MANAGER$check.code.validity(codes) )) {
+    stop("LOCATION.MANAGER: Attempting to enter a code with invalid characters (only letters, numbers, . and - allowed")
+  }
 
   #Check that the code doesn't conflict with a code alias either
   if (any (codes %in% names(LOCATION.MANAGER$alias.codes) )) {
