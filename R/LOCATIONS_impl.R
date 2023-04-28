@@ -92,6 +92,24 @@ LOCATION.MANAGER$get.types <- function(locations) {
   returned.types
 }
 
+LOCATION.MANAGER$get.prefix <- function(location.types) {
+  
+  location.types <- toupper(location.types)
+  #A character vector of prefixes, with length(location.types) and names=prefixes. 
+  #If the types are not registered (or if they were NA), the corresponding returned type is NA
+  
+  rv = unlist(lapply(seq_along(location.types), function(index) {
+    if (location.types[index] %in% names(LOCATION.MANAGER$types)) {
+      return(LOCATION.MANAGER$types[[index]][1])
+    } else {
+      return (NA)
+    }
+  }))
+  
+  names(rv) = location.types
+  rv
+}
+
 LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type) {
   #return If return.list==T, a list with length(locations) and names=locations. Each element is itself a character vector 
   #with zero or more locations corresponding to sub-locations. If return.list=F, returns a character vector 
@@ -492,7 +510,8 @@ LOCATION.MANAGER$register.state.fips.aliases <- function(filename, fips.typename
   #Column one is state name, mostly for debug purposes; column 2 is the fips code (0padded, 2 chars)
   #Column 3 is the state abbreviation/location code
 
-  fips.with.prefix = sprintf("%s%02d", LOCATION.MANAGER$types[[fips.typename]][1], as.numeric(fips.state.alias.data[[2]]))
+  # fips.with.prefix = sprintf("%s%02d", LOCATION.MANAGER$types[[fips.typename]][1], as.numeric(fips.state.alias.data[[2]]))
+  fips.with.prefix = sprintf("%s%02d", LOCATION.MANAGER$get.prefix(fips.typename), as.numeric(fips.state.alias.data[[2]]))
   
   #LOOP FIXME
   for ( i in 1:nrow(fips.state.alias.data) ) {

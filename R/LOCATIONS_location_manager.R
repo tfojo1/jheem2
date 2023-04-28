@@ -75,6 +75,19 @@ get.location.type <- function(locations)
   LOCATION.MANAGER$get.types(locations)
 }
 
+#'@description Get the prefix for a given type
+#'
+#'@param location.types A character vector of location types
+#'
+#'@return A character vector of prefixes, with length(location.types) and names=prefixes. If the types are not registered (or if they were NA), the corresponding returned type is NA
+#'
+#'@export
+get.prefix.for.type <- function(location.types)
+{
+  #No need to check lengths
+  LOCATION.MANAGER$get.prefix(location.types)
+}
+
 #'@description Get Locations that Fall Within a Location
 #'
 #'@param locations A character vector of location codes
