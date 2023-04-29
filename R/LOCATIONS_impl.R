@@ -98,13 +98,13 @@ LOCATION.MANAGER$get.prefix <- function(location.types) {
   #A character vector of prefixes, with length(location.types) and names=prefixes. 
   #If the types are not registered (or if they were NA), the corresponding returned type is NA
   
-  rv = unlist(lapply(seq_along(location.types), function(index) {
+  rv = lapply(seq_along(location.types), function(index) {
     if (location.types[index] %in% names(LOCATION.MANAGER$types)) {
-      return(LOCATION.MANAGER$types[[index]][1])
+      return (LOCATION.MANAGER$types[[location.types[index]]][1])
     } else {
       return (NA)
     }
-  }))
+  })
   
   names(rv) = location.types
   rv
@@ -365,6 +365,7 @@ LOCATION.MANAGER$resolve.code <- function(code,fail.on.unknown=T) {
 LOCATION.MANAGER$register.types <- function (type, prefix, prefix.longform) {
   #Sizes have been checked a step up
   type <- toupper(type)
+  prefix <- toupper(prefix)
   
   invisible(Map(function(t, p, p.l) {
     #Check validity of the prefix
@@ -479,188 +480,4 @@ LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains, fail.
       }
     }
   }
-}
-
-LOCATION.MANAGER$register.state.abbrev = function(filename) {
-  #Check if the file exists
-  if (!file.exists(filename)) {
-    stop(paste0("LOCATION.MANAGER: Cannot find the zipcode file with filename ", filename))
-  } 
-  
-  abbrev.data = read.csv(file= filename, header=FALSE)
-  
-  types = rep("state", nrow(abbrev.data))
-  
-  LOCATION.MANAGER$register(types, abbrev.data[[1]], abbrev.data[[2]])
-  
-  #We need to do this first to register the states with their abbreviations as their 
-  #location codes
-}
-
-LOCATION.MANAGER$register.state.fips.aliases <- function(filename, fips.typename = "county") {
-  
-  fips.typename <- toupper(fips.typename)
-  
-  #Check if the file exists
-  if (!file.exists(filename)) {
-    stop(paste0("LOCATION.MANAGER: Cannot find the fips state alias file with filename ", filename))
-  }
-  fips.state.alias.data = read.csv(file=filename,header=FALSE)
-  
-  #Column one is state name, mostly for debug purposes; column 2 is the fips code (0padded, 2 chars)
-  #Column 3 is the state abbreviation/location code
-
-  # fips.with.prefix = sprintf("%s%02d", LOCATION.MANAGER$types[[fips.typename]][1], as.numeric(fips.state.alias.data[[2]]))
-  fips.with.prefix = sprintf("%s%02d", LOCATION.MANAGER$get.prefix(fips.typename), as.numeric(fips.state.alias.data[[2]]))
-  
-  #LOOP FIXME
-  for ( i in 1:nrow(fips.state.alias.data) ) {
-    LOCATION.MANAGER$register.code.aliases (fips.state.alias.data[[3]][i], fips.with.prefix[i])  
-  }
-}
-
-LOCATION.MANAGER$register.fips <- function(filename, fips.typename = "county") {
-  
-  fips.typename <- toupper(fips.typename)
-  #Check if the file exists
-  if (!file.exists(filename)) {
-    stop(paste0("LOCATION.MANAGER: Cannot find the fips file with filename ", filename))
-  }
-  
-  fips.data = read.csv(file = filename)
-  
-  #States
-  states = fips.data[ fips.data[1] == 040, ] #Get only the state data from the fips info
-  
-  #Column 2 is the state code
-  state.codes = states[[2]]
-  
-  #Counties
-  counties = fips.data[ fips.data[1] == 050, ] #Get only the county data from the fips info.
-  
-  #Column 3 is the county code
-  county.codes = counties[[2]] * 1000 + counties[[3]]
-  
-  types = rep(fips.typename,length(county.codes))
-  
-  #Convert the county.codes to 0 padded 5 char
-  county.codes = sprintf("%05d", county.codes)
-  
-  #Column 7 is the names of the counties
-  LOCATION.MANAGER$register(types, counties[[7]], county.codes)
-  
-  #There appear to be entries in the county code that don't have a corresponding
-  #registered state.  Refrain from trying to create a connect to the non-existent
-  #state
-  #This list is checked against the state.codes above to make sure the state
-  #is registered before we create a hierarchy.
-  possible.state.codes = sprintf("%02d",counties[[2]])
-  #Get only the counties with proper states
-  counties.of.states = county.codes [ possible.state.codes %in% state.codes ]
-  corresponding.states = possible.state.codes [ possible.state.codes %in% state.codes ] 
-  
-  counties.of.states.with.fips.prefix = sprintf("%s%s",LOCATION.MANAGER$types[[fips.typename]][[1]], counties.of.states)
-  corresponding.states.with.fips.prefix = sprintf("%s%s",LOCATION.MANAGER$types[[fips.typename]][[1]], corresponding.states)
-  
-  #Register the counties as completely contained by the states
-  LOCATION.MANAGER$register.hierarchy(counties.of.states.with.fips.prefix, corresponding.states.with.fips.prefix, rep(TRUE,length(counties.of.states)))
-  
-}
-
-LOCATION.MANAGER$register.zipcodes = function(filename, zip.typename = "zipcode", 
-                                                        zipcode.name.format.string = "ZIP_N_%s") { #Format for Zip name (unique not required)
-  
-  zip.typename <- toupper(zip.typename)
-  #Check if the file exists
-  if (!file.exists(filename)) {
-    stop(paste0("LOCATION.MANAGER: Cannot find the zipcode file with filename ", filename))
-  } 
-  
-  zip.data = read.csv(file= filename)
-  
-  zip.codes = zip.data[['zip']]
-  #Add proper prefix for register.hierarchy
-  unique.zip.codes = sprintf("%s%s",LOCATION.MANAGER$types[[zip.typename]][1],zip.codes)
-  fips.codes = zip.data[['fips']]
-  #round(34233,digits=-3) = 34000
-  state.codes = as.character(round(as.numeric(fips.codes),digits = -3))
-  zip.names = sprintf(zipcode.name.format.string,zip.codes)
-  
-  #Register all the zip codes
-  #No prefix
-  LOCATION.MANAGER$register(rep(zip.typename, length(zip.codes)), zip.names, zip.codes)
-  
-  #Register the zip code as completely contained by the fips code. If any result is NA, skip
-  #With Prefix
-  LOCATION.MANAGER$register.hierarchy(unique.zip.codes,fips.codes,rep(TRUE,length(fips.codes)),F)
-  
-  #Register the zip code as completely contained by the state.  If any result is NA, skip
-  LOCATION.MANAGER$register.hierarchy(unique.zip.codes,state.codes,rep(TRUE,length(state.codes)),F)
-  
-}
-
-LOCATION.MANAGER$register.cbsa = function(filename, cbsa.typename = "cbsa", fips.typename = "county") {
-  
-  cbsa.typename <- toupper(cbsa.typename)
-  fips.typename <- toupper(fips.typename)
-  
-  if (!file.exists(filename)) {
-    stop(paste0("LOCATION.MANAGER: Cannot find the cbsa file with filename ", filename))
-  } 
-  cbsa.data = read.csv(file = filename)
-  #
-  # Type will be CBSA
-  #
-  # Important Columns : 
-  #   'CBSA Code', column 1 - Should be primary key
-  #   'CBSA Title', column 4 - Should be name
-  #   'FIPS State Code', column 10 - State fips code
-  #   'FIPS County Code', column 11 - County fips code
-  #
-  # So we want to add all the cbsa's, then say that they are contained by
-  # the state (entirely in the case where there is only one FIPS State Code for
-  # all the entries for the particular CBSA code, partially for the rest) and
-  # that they contain their FIPS County Code entirely.
-  #
-  # Get all the unique CBSA Codes with proper prefixes:
-  unique.codes = head(unique(cbsa.data[[1]]), -4) #Remove the last four lines as they contain sources.
-  location.codes = sprintf("%s%s",LOCATION.MANAGER$types[[cbsa.typename]][1],unique.codes) 
-  
-  #LOOP FIXME
-  for (i in seq_along(unique.codes)) {
-    # Get cbsa code data:
-    code.data = cbsa.data[ cbsa.data$CBSA.Code == unique.codes[i], ]
-    
-    # register the cbsa:
-    # There will always be minimum one entry in the CBSA.Title column
-    # Register the unique codes here as the prefixes are added in $register()
-    LOCATION.MANAGER$register(cbsa.typename, code.data$CBSA.Title[1], unique.codes[i])
-    
-    # Is it fully or only partially contained by the state?
-    unique.states <- sprintf("%02d",unique(code.data$FIPS.State.Code))
-    #Use the fully prefixed for the hierarchy registration
-    if (length(unique.states) == 1) {
-      #The majority of cases:
-      # Register the location.code value as being a sub location of the prefixed state FIPS code, marking as fully.contains.
-      # There will always be at least one value in unique.states
-      LOCATION.MANAGER$register.hierarchy ( location.codes[i], paste0(LOCATION.MANAGER$types[[fips.typename]][1],unique.states[1]), TRUE)
-    } else {
-      #Register as being sub of each state in the list
-      #LOOP FIXME
-      for ( j in seq_along(unique.states) ) {
-        #Do the same but mark fully.contains as FALSE
-        LOCATION.MANAGER$register.hierarchy ( location.codes[i], paste0(LOCATION.MANAGER$types[[fips.typename]][1],unique.states[j]), FALSE)
-      }
-    }
-    # It contains the FIPS.County.Code entirely
-    fips.county.data = sprintf("%s%02d%03d",LOCATION.MANAGER$types[[fips.typename]][1],
-                                            code.data$FIPS.State.Code, 
-                                            code.data$FIPS.County.Code)
-    
-    walk(fips.county.data, function(county.code) {
-      #We are marking the counties as fully contained by the cbsas
-      LOCATION.MANAGER$register.hierarchy ( county.code, location.codes[i], TRUE) 
-    })
-  }
-  
 }
