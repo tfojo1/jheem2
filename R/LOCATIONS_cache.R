@@ -41,12 +41,12 @@ register.state.fips.aliases <- function(LM, filename, fips.typename = "county") 
   #Column one is state name, mostly for debug purposes; column 2 is the fips code (0padded, 2 chars)
   #Column 3 is the state abbreviation/location code
 
-  #fips.with.prefix = sprintf("%s%02d", LM$types[[fips.typename]][1], as.numeric(fips.state.alias.data[[2]]))
-  fips.with.prefix = sprintf("%s%02d", LM$get.prefix(fips.typename), as.numeric(fips.state.alias.data[[2]]))
+  # No need to add the prefix as the code alias is based on the type of location
+  fips.codes = sprintf("%02d",as.numeric(fips.state.alias.data[[2]]))
   
   #LOOP FIXME
   for ( i in 1:nrow(fips.state.alias.data) ) {
-    LM$register.code.aliases (fips.state.alias.data[[3]][i], fips.with.prefix[i])  
+    LM$register.code.aliases (fips.state.alias.data[[3]][i], fips.codes[i])  
   }
   LM
 }
@@ -91,10 +91,12 @@ register.fips <- function(LM, filename, fips.typename = "county") {
   corresponding.states = possible.state.codes [ possible.state.codes %in% state.codes ] 
   
   counties.of.states.with.fips.prefix = sprintf("%s%s",LM$get.prefix(fips.typename), counties.of.states)
-  corresponding.states.with.fips.prefix = sprintf("%s%s",LM$get.prefix(fips.typename), corresponding.states)
+  # corresponding.states.with.fips.prefix = sprintf("%s%s",LM$get.prefix(fips.typename), corresponding.states)
+  #Where previously I could use the code alias here, I can instead use the fips state number and the type
+  corresponding.states.location.code = LM$get.by.alias (corresponding.states, "STATE")
   
   #Register the counties as completely contained by the states
-  LM$register.hierarchy(counties.of.states.with.fips.prefix, corresponding.states.with.fips.prefix, rep(TRUE,length(counties.of.states)))
+  LM$register.hierarchy(counties.of.states.with.fips.prefix, corresponding.states.location.code, rep(TRUE,length(counties.of.states)))
   LM
 }
 
@@ -173,13 +175,13 @@ register.cbsa = function(LM, filename, cbsa.typename = "cbsa", fips.typename = "
       #The majority of cases:
       # Register the location.code value as being a sub location of the prefixed state FIPS code, marking as fully.contains.
       # There will always be at least one value in unique.states
-      LM$register.hierarchy ( location.codes[i], paste0(LM$get.prefix(fips.typename),unique.states[1]), TRUE)
+      LM$register.hierarchy ( location.codes[i], LM$get.by.alias(unique.states[1],"STATE"), TRUE)
     } else {
       #Register as being sub of each state in the list
       #LOOP FIXME
       for ( j in seq_along(unique.states) ) {
         #Do the same but mark fully.contains as FALSE
-        LM$register.hierarchy ( location.codes[i], paste0(LM$get.prefix(fips.typename),unique.states[j]), FALSE)
+        LM$register.hierarchy ( location.codes[i], LM$get.by.alias(unique.states[j],"STATE"), FALSE)
       }
     }
     # It contains the FIPS.County.Code entirely
@@ -221,3 +223,5 @@ LOCATION.MANAGER = register.state.fips.aliases(LOCATION.MANAGER, "locations/fips
 LOCATION.MANAGER = register.fips(LOCATION.MANAGER, "locations/fips_codes.csv", fips.typename = county.type) #Set the fips typename
 LOCATION.MANAGER = register.cbsa(LOCATION.MANAGER, "locations/cbsas.csv", cbsa.typename = cbsa.type, fips.typename = county.type) #Sets the fips and cbsa typename
 LOCATION.MANAGER = register.zipcodes(LOCATION.MANAGER, "locations/zip_codes.csv", zip.typename = zipcode.type)
+
+register.code.aliases("C.49700","DCBABY")

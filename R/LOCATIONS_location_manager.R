@@ -75,6 +75,23 @@ get.location.type <- function(locations)
   LOCATION.MANAGER$get.types(locations)
 }
 
+#'@description Get the location code from a code alias and a type 
+#'
+#'@param code.aliases A character vector of code aliases
+#'@param types A character vector of corresponding types, or a single type
+#'
+#'@return A character vector of location codes, with length(code.aliases) and names=code.aliases. 
+#'
+#'@export
+get.code.by.alias <- function(code.aliases, types)
+{
+  if (length(types) != length(code.aliases) && length(types) != 1) {
+    stop("get.code.by.alias: types is either of length 1 or matches the length of code.alias")
+  }
+  LOCATION.MANAGER$get.by.alias(code.aliases, types)
+}
+
+
 #'@description Get the prefix for a given type
 #'
 #'@param location.types A character vector of location types
@@ -221,7 +238,7 @@ register.name.aliases <- function(location = NA,
 #'@description Register location code aliases for specific location  
 #'
 #'@param location A single, previously registered location code or a registered location code alias.
-#'@param location.aliases A character vector of location code aliases for this location name
+#'@param location.aliases A character vector of location code aliases for this location name.  Code aliases are unique by type
 #'
 #'@export
 register.code.aliases <- function(location = NA,

@@ -76,6 +76,24 @@ LOCATION.MANAGER$get.names <- function(locations) {
   returned.names
 }
 
+LOCATION.MANAGER$get.by.alias <- function(aliases, types) {
+  aliases = toupper(aliases)
+  types = toupper(types)
+  
+  #Sizes are checked a level up; either they match or types has a length of 1.
+  types = ifelse (length(types) == 1, rep(types,length(aliases)), types)
+  rv = rep(NA,length(types))
+  results = mapply(function(alias, type) {
+    if (alias %in% names(LOCATION.MANAGER$alias.codes[[type]])) {
+      return (LOCATION.MANAGER$alias.codes[[type]][alias])
+    } else {
+      return (NA)
+    }
+  }, aliases, types, SIMPLIFY=T)
+  names(results) = aliases
+  results
+}
+
 LOCATION.MANAGER$get.types <- function(locations) {
   #return A character vector of location types, with length(locations) and names=locations. If location codes are not registered 
   #(or if they were NA), the corresponding returned type is NA
@@ -348,15 +366,10 @@ LOCATION.MANAGER$resolve.code <- function(code,fail.on.unknown=T) {
   
   if (!code %in% names(LOCATION.MANAGER$location.list)) {
     #The code is not in the list, check the code alias list.
-    if ( code %in% names(LOCATION.MANAGER$alias.codes) ) {
-      #the location code is an alias for another code, use it:
-      code <- LOCATION.MANAGER$alias.codes[[ code ]]
+    if (fail.on.unknown) {
+      stop(paste0("LOCATION.MANAGER: The location code used (",code,") cannot be recognized, stopping"))
     } else {
-      if (fail.on.unknown) {
-        stop(paste0("LOCATION.MANAGER: The location code used (",code,") cannot be recognized, stopping"))
-      } else {
-        code <- NA
-      }
+      code <- NA
     }
   }
   code
@@ -376,6 +389,8 @@ LOCATION.MANAGER$register.types <- function (type, prefix, prefix.longform) {
     if (!t %in% names(LOCATION.MANAGER$types)) {
       #append(LOCATION.MANAGER$types, list(t = c(p, p.l)), 1)
       LOCATION.MANAGER$types[[t]] = c(p, p.l)
+      #Add entry for the aliases to the code alias object
+      LOCATION.MANAGER$alias.codes[[t]] = list()
     } else {
       # the type name already exists
       stop(paste0("LOCATION.MANAGER$register.types: Type ",t, " already exists in the system, aborting"))
@@ -410,9 +425,9 @@ LOCATION.MANAGER$register <- function (types, location.names, codes) {
   }
 
   #Check that the code doesn't conflict with a code alias either
-  if (any (codes %in% names(LOCATION.MANAGER$alias.codes) )) {
-    stop("LOCATION.MANAGER: Attempting to add a code that conflicts with a code alias")
-  }
+  # if (any (codes %in% names(LOCATION.MANAGER$alias.codes) )) {
+  #   stop("LOCATION.MANAGER: Attempting to add a code that conflicts with a code alias")
+  # }
   
   LOCATION.MANAGER$location.list [ codes ]<- lapply(mapply(c,location.names,types,SIMPLIFY=F), Location$new)
 
@@ -444,13 +459,16 @@ LOCATION.MANAGER$register.code.aliases <- function(code, code.aliases) {
   code <- LOCATION.MANAGER$resolve.code(code)
   code.aliases <- toupper(code.aliases)
   
+  #Get the name of the type to be aliased
+  location.type <- LOCATION.MANAGER$location.list[[code]]$return.type
+  
   #Verify that none of the location code aliases are currently in use
-  if ( any( code.aliases %in% names(LOCATION.MANAGER$alias.codes))) {
+  if ( any( code.aliases %in% names(LOCATION.MANAGER$alias.codes[[location.type]]))) {
     stop("LOCATION.MANAGER: One of the location code aliases are already registered")
   }
   
   #Assign the aliases
-  LOCATION.MANAGER$alias.codes[code.aliases] = code
+  LOCATION.MANAGER$alias.codes[[location.type]][[code.aliases]] = code
 }
 
 LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains, fail.on.unknown = T) {
