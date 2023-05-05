@@ -128,7 +128,7 @@ LOCATION.MANAGER$get.prefix <- function(location.types) {
   rv
 }
 
-LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type) {
+LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.enclosing, return.list = F, throw.error.if.unregistered.type = T) {
   #return If return.list==T, a list with length(locations) and names=locations. Each element is itself a character vector 
   #with zero or more locations corresponding to sub-locations. If return.list=F, returns a character vector 
   #(arbitrary length) containing all sub-locations that fall within ANY of the given locations
@@ -271,45 +271,108 @@ LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.en
   rv
 }
 
-LOCATION.MANAGER$get.super <- function(locations, super.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type) {
-  #return If return.list==T, a list with length(locations) and names=locations. 
-  #Each element is itself a character vector with zero or more locations corresponding to super-locations. 
-  #If return.list=F, returns a character vector (arbitrary length) containing all super-locations that contain ANY of the given locations
-  #Capitalize the type
+LOCATION.MANAGER$get.super <- function(locations, super.type, limit.to.completely.enclosing, return.list = F, throw.error.if.unregistered.type = T) {
   super.type = toupper(super.type)
   
+  #If required, check to see if the types are valid
   if (throw.error.if.unregistered.type) {
-    #Check the type against the type list;
-    if (!super.type %in% LOCATION.MANAGER$type.list) {
-      stop(paste0("LOCATION.MANAGER$get.sub: Type ", super.type," not registered, aborting"))
+    if (!super.type %in% names(LOCATION.MANAGER$types)) {
+      stop(paste0("LOCATION.MANAGER$get.super: Type ", super.type," not registered, aborting"))
     }
   }
   
-  #Resolve the location codes, preserving NAs and missing codes as NAs
-  codes = unlist(lapply(locations,function(x){LOCATION.MANAGER$resolve.code(x,F)})) #Now contains the fully resolved location codes or NAs
+  #Verify the codes are valid
+  codes = unlist(lapply(locations, function(x) { LOCATION.MANAGER$resolve.code(x, F) }))
   
-  #For each location (l), iterate over the locations in LOCATION.MANAGER$location.list to see if they contain l
-  #If they do contain l (either fully or limited, as requested), add them to the list for this location
+  #Collect all the sub-locations from a certain location
+  location.sub.collector = function(location, completely.enclosed) {
+    if (is.na(location)) {
+      return(NA)
+    }
+    sub.locations = LOCATION.MANAGER$location.list[[location]]$return.sub.locations(completely.enclosed)
+    if (length(sub.locations) == 0 || identical(sub.locations, character(0))) {
+      return(NA)
+    }
+    sub.locations
+  }
   
-  location.count = length(LOCATION.MANAGER$location.list)
-  location.codes = names(LOCATION.MANAGER$location.list)
-
-  results = lapply(locations, function(location) {
-    #LOOP FIXME
-    loc.list= c()
-    print(paste0("Working on ", location))
-    for (i in seq_along(location.count)) {
-      print(location.codes[i])
-      sub.list = LOCATION.MANAGER$location.list[[location.codes[i]]]$return.sub.locations(limit.to.completely.enclosing)
-      print(sub.list)
-      if (location %in% sub.list) {
-        loc.list = c(location.codes[[i]],loc.list)
+  #Collect all the sub locations for all the locations (!!)
+  all_sub_locations = sapply(names(LOCATION.MANAGER$location.list), location.sub.collector, completely.enclosed = limit.to.completely.enclosing, simplify = FALSE)
+  names(all_sub_locations) = names(LOCATION.MANAGER$location.list)
+  
+  # For each location code, check the code of each other registered location.  
+  # If the other registered location is of the desired type, and the 'code' is 
+  # in the list of sub locations of the other registered location, return it
+  # This may not catch skips? TODO
+  all_super_locations = lapply(codes, function(code) {
+    super_locations = c()
+    for (super in names(LOCATION.MANAGER$location.list)) {
+      if (LOCATION.MANAGER$location.list[[super]]$return.type == super.type && code %in% all_sub_locations[[super]]) {
+        super_locations = c(super_locations, super)
       }
     }
-    loc.list
+    super_locations
   })
-  print(results)
+  
+  names(all_super_locations) = locations
+  
+  if (return.list) {
+    return (all_super_locations)
+  }
+  
+  rv = unname(unlist(lapply(all_super_locations, function (l) {
+    l[!is.na(l)]  
+  })))
+  
+  if (length(rv) == 0) {
+    return (character())
+  }
+  
+  rv
 }
+
+  
+  
+
+# LOCATION.MANAGER$get.super <- function(locations, super.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type) {
+#   #return If return.list==T, a list with length(locations) and names=locations. 
+#   #Each element is itself a character vector with zero or more locations corresponding to super-locations. 
+#   #If return.list=F, returns a character vector (arbitrary length) containing all super-locations that contain ANY of the given locations
+#   #Capitalize the type
+#   super.type = toupper(super.type)
+#   
+#   if (throw.error.if.unregistered.type) {
+#     #Check the type against the type list;
+#     if (!super.type %in% LOCATION.MANAGER$type.list) {
+#       stop(paste0("LOCATION.MANAGER$get.sub: Type ", super.type," not registered, aborting"))
+#     }
+#   }
+#   
+#   #Resolve the location codes, preserving NAs and missing codes as NAs
+#   codes = unlist(lapply(locations,function(x){LOCATION.MANAGER$resolve.code(x,F)})) #Now contains the fully resolved location codes or NAs
+#   
+#   #For each location (l), iterate over the locations in LOCATION.MANAGER$location.list to see if they contain l
+#   #If they do contain l (either fully or limited, as requested), add them to the list for this location
+#   
+#   location.count = length(LOCATION.MANAGER$location.list)
+#   location.codes = names(LOCATION.MANAGER$location.list)
+# 
+#   results = lapply(locations, function(location) {
+#     #LOOP FIXME
+#     loc.list= c()
+#     print(paste0("Working on ", location))
+#     for (i in seq_along(location.count)) {
+#       print(location.codes[i])
+#       sub.list = LOCATION.MANAGER$location.list[[location.codes[i]]]$return.sub.locations(limit.to.completely.enclosing)
+#       print(sub.list)
+#       if (location %in% sub.list) {
+#         loc.list = c(location.codes[[i]],loc.list)
+#       }
+#     }
+#     loc.list
+#   })
+#   print(results)
+# }
 
 LOCATION.MANAGER$get.name.aliases <- function(locations, alias.name, throw.error.if.unregistered.alias) {
   # return A character vector of aliases, with length(locations) and names=locations. If location codes are not registered 
