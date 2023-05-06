@@ -518,6 +518,7 @@ LOCATION.MANAGER$register.name.aliases <- function(code, name.aliases, names.ali
 
 LOCATION.MANAGER$register.code.aliases <- function(code, code.aliases) {
   
+  # We have ONE code and one or more code.aliases
   #Sizes have already been checked up one level
   code <- LOCATION.MANAGER$resolve.code(code)
   code.aliases <- toupper(code.aliases)
@@ -531,7 +532,7 @@ LOCATION.MANAGER$register.code.aliases <- function(code, code.aliases) {
   }
   
   #Assign the aliases
-  LOCATION.MANAGER$alias.codes[[location.type]][[code.aliases]] = code
+  LOCATION.MANAGER$alias.codes[[location.type]][code.aliases] = code
 }
 
 LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains, fail.on.unknown = T) {
