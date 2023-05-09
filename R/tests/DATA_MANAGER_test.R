@@ -115,7 +115,8 @@ my.target.ontology = ontology(location='Maryland',
                               age=c('13-24 years', '25-34 years', '35-44 years', '45-54 years','55+ years'),
                               race=c('black','hispanic','other'),
                               sex=c('male','female'),
-                              risk=c('msm','idu','msm_idu','heterosexual','other'))
+                              risk=c('msm','idu','msm_idu','heterosexual','other'),
+                              incomplete.dimensions = c('location','year'))
 
 my.pull = data.manager$pull(outcome = 'new',
                             dimension.values = list(location='Maryland', age=c('13-24 years', '25-34 years')),
