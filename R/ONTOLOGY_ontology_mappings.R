@@ -470,11 +470,11 @@ do.get.ontology.mapping <- function(from.dim.names,
     error.prefix = "Error getting ontology mapping: "
     
     # We are done (successfully) iff
-    # 1) All to.dim.names contains only required.dimensions and no others
+    # 1) to.dim.names contains only required.dimensions and no others
     # 2) from.dim.names contains all required dimensions
     # 3) Any dimensions in from.dim.names beyond required.dimensions are complete
     # 4) All required.dimensions which are complete have equal values in from.dim.names and to.dim.names
-    # 5) All required.dimensions which are incomplete have values in from.dim.names that are a superset of the values in to.dim.names
+    # 5) All required.dimensions which are incomplete have at least one value present in both from.dim.names and to.dim.names
     # 6) All required.dim.names are present in to.dim.names (if this is not true, give up)
   
     # check (6) - if not met, we will never succeed
@@ -490,10 +490,27 @@ do.get.ontology.mapping <- function(from.dim.names,
     
     # below satisfies 
     from.out.of.alignment.mask = !sapply(required.dimensions, function(d){
-        !is.null(from.dim.names[[d]]) && # satisfies part of condition (1)
-            !is.null(to.dim.names[[d]]) && # satisfies condition (2)
-            ( (to.dimensions.are.complete[d] && setequal(from.dim.names[[d]], to.dim.names[[d]])) || # satisfies condition (4)
-                  (!to.dimensions.are.complete[d] && length(setdiff(to.dim.names[[d]], from.dim.names[[d]]))==0) )# satisfies condition (5)
+        
+        if (to.dimensions.are.complete[d])
+        {
+            !is.null(from.dim.names[[d]]) && # satisfies part of condition (1)
+                !is.null(to.dim.names[[d]]) && # satisfies condition (2)
+                setequal(from.dim.names[[d]], to.dim.names[[d]]) # satisfies condition (4)
+            
+            # do we want to separate for if from is incomplete - then to just has to be a subset of from?
+        }
+        else if (from.dimensions.are.complete[d])
+        {
+            is.null(to.dim.names[[d]]) || # if it's NULL, we'll take anything
+                (!is.null(from.dim.names[[d]]) && 
+                     length(setdiff(to.dim.names[[d]], from.dim.names[[d]]))>0)
+        }
+        else
+        {
+            is.null(to.dim.names[[d]]) || # if it's NULL, we'll take anything
+                (!is.null(from.dim.names[[d]]) && 
+                     length(intersect(from.dim.names[[d]], to.dim.names[[d]]))>0)
+        }
     })
     
     success = to.has.only.required && from.has.all.required && excess.from.dimensions.are.complete &&

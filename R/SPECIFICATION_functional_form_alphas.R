@@ -688,15 +688,15 @@ incorporate.alphas <- function(betas,
                            error.prefix = error.prefix)
     
     #-- Expand up the Betas --#
-    arr = betas[alphas$crunched$expand.beta.indices]
+    arr = betas[ alphas$crunched$expand.beta.indices ]
     
     #-- Fold in the 'all' Alpha (if there is one) --#
     if (!is.null(alphas$all.effect))
     {
         if (alphas$is.additive)
-            arr = overwrite_arr_with_scalar(dst = arr, overwrite_with = alphas$all.effect)
-        else
             arr = add_scalar_to_arr(dst = arr, to_add = alphas$all.effect)
+        else
+            arr = overwrite_arr_with_scalar(dst = arr, overwrite_with = alphas$all.effect)
     }
     
     #-- Fold in the Other Alphas --#
@@ -710,22 +710,22 @@ incorporate.alphas <- function(betas,
     if (length(alpha.values)>0)
     {
         if (alphas$is.additive)
-            arr = overwrite_arr(dst = arr,
+            arr = add_to_arr(dst = arr,
                                 dst_indices = alphas$crunched$access.indices,
                                 src = alpha.values,
                                 src_indices = alphas$crunched$mapping.indices)
         # ^The above is equivalent to:
-        # arr[alphas$crunched$access.indices] = alpha.values[alphas$crunched$mapping.indices]
-        #   but with Rcpp enabling overwrite in place without allocating a new array
+        # arr[alphas$crunched$access.indices] = arr[alphas$crunched$access.indices] +
+        #                                           alpha.values[alphas$crunched$mapping.indices]
+        #   but with Rcpp enabling modify in place without allocating a new array
         else
-            arr = add_to_arr(dst = arr,
+            arr = overwrite_arr(dst = arr,
                              dst_indices = alphas$crunched$access.indices,
                              src = alpha.values,
                              src_indices = alphas$crunched$mapping.indices)
         # ^The above is equivalent to:
-        # arr[alphas$crunched$access.indices] = arr[alphas$crunched$access.indices] +
-        #                                           alpha.values[alphas$crunched$mapping.indices]
-        #   but with Rcpp enabling modify in place without allocating a new array
+        # arr[alphas$crunched$access.indices] = alpha.values[alphas$crunched$mapping.indices]
+        #   but with Rcpp enabling overwrite in place without allocating a new array
     }
 
     #-- Set dimnames and return --#
@@ -738,6 +738,8 @@ incorporate.alphas <- function(betas,
     arr
 }
 
+# Will only do crunching if needed
+#  (ie, won't re-crunch already crunched elements)
 crunch.alphas <- function(alphas,
                           betas,
                           target.dim.names,
@@ -746,20 +748,19 @@ crunch.alphas <- function(alphas,
     if (is.null(alphas$crunched))
         alphas$crunched = list()
     
-    # Check if we need to crunch for betas
-    if (is.null(alphas$crunched$beta.dim.names) || 
-        !dim.names.equal(target.dim.names, alphas$crunched$beta.dim.names,
-                         match.order.of.dimensions = T, match.order.within.dimensions = T))
-    {
-        alphas$crunched$expand.beta.indices = get.expand.array.indices(to.expand.dim.names = dimnames(betas),
-                                                                       target.dim.names = target.dim.names)
-    }
-    
-    # Check if we need to crunch for alphas
-    if (is.null(alphas$crunched$im.names) ||
+    # Check if we need to crunch for alphas and betas
+    if (is.null(alphas$crunched$dim.names) ||
         !dim.names.equal(target.dim.names, alphas$crunched$dim.names,
                          match.order.of.dimensions = T, match.order.within.dimensions = T))
     {
+        if (is.list(betas))
+            stop(paste0(error.prefix, "'betas' must be an array or numeric scalar"))
+        
+        # Calculate indices for the betas
+        # (note, we assume here that betas are never going to change dimensions on us)
+        alphas$crunched$expand.beta.indices = get.expand.array.indices(to.expand.dim.names = dimnames(betas),
+                                                                       target.dim.names = target.dim.names)
+
         # Do the main effects
         dimension.values = list()
         for (eff in alphas$main.effects)
@@ -776,7 +777,7 @@ crunch.alphas <- function(alphas,
                                                             rep(d, length(alphas$main.effects[[d]]$dimension.values))
                                                         })),
                                                         alpha_dim_values = dimension.values)
-        
+
             # Check for errors in the indices (will have returned a NULL value)
             if (is.null(indices))
                 stop(paste0(error.prefix,
@@ -788,19 +789,20 @@ crunch.alphas <- function(alphas,
         }
         
         # Do the interaction effects
+        n.alpha.values = length(dimension.values)
         for (int in alphas$interaction.effects)
         {
-            if (one.interaction$n.dim==2)
+            if (int$n.dim==2)
             {
-                indices = calculate_two_way_interaction_indices(target_dim_names = dim.names,
+                indices = calculate_two_way_interaction_indices(target_dim_names = target.dim.names,
                                                                 alpha_dimension1 = int$dimensions[1],
                                                                 alpha_dim1_values = int$dim.values[[1]],
                                                                 alpha_dimension2 = int$dimensions[2],
                                                                 alpha_dim2_values = int$dim.values[[2]])
             }
-            else if (one.interaction$n.dim==3)
+            else if (int$n.dim==3)
             {
-                indices = calculate_three_way_interaction_indices(target_dim_names = dim.names,
+                indices = calculate_three_way_interaction_indices(target_dim_names = target.dim.names,
                                                                   alpha_dimension1 = int$dimensions[1],
                                                                   alpha_dim1_values = int$dim.values[[1]],
                                                                   alpha_dimension2 = int$dimensions[2],
@@ -808,9 +810,9 @@ crunch.alphas <- function(alphas,
                                                                   alpha_dimension3 = int$dimensions[3],
                                                                   alpha_dim3_values = int$dim.values[[3]])
             }
-            else if (one.interaction$n.dim==4)
+            else if (int$n.dim==4)
             {
-                indices = calculate_four_way_interaction_indices(target_dim_names = dim.names,
+                indices = calculate_four_way_interaction_indices(target_dim_names = target.dim.names,
                                                                  alpha_dimension1 = int$dimensions[1],
                                                                  alpha_dim1_values = int$dim.values[[1]],
                                                                  alpha_dimension2 = int$dimensions[2],
@@ -832,7 +834,10 @@ crunch.alphas <- function(alphas,
             
             # Fold into 'crunched'
             alphas$crunched$access.indices = c(alphas$crunched$access.indices, indices$access.indices)
-            alphas$crunched$mapping.indices = c(alphas$crunched$mapping.indices, indices$mapping.indices)
+            alphas$crunched$mapping.indices = c(alphas$crunched$mapping.indices, 
+                                                n.alpha.values + indices$mapping.indices)
+            
+            n.alpha.values = n.alpha.values + length(int$values)
         }
         
         # Store the dim.names that we crunched for

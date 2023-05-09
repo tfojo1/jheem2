@@ -285,7 +285,6 @@ dimension.values.are.subset <- function(sub.dimension.values, super.dimension.va
              (!is.null(names(sub.dimension.values)) && !is.null(names(super.dimension.values)) &&
             length(setdiff(names(sub.dimension.values), names(super.dimension.values))) == 0 &&
             all(sapply(names(sub.dimension.values), function(d){
-                if (match.)
                 length(setdiff(sub.dimension.values[[d]], super.dimension.values[[d]])) == 0
             }))
              ))

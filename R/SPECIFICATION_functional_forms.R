@@ -349,7 +349,8 @@ FUNCTIONAL.FORM = R6::R6Class(
                               future.slope.link,
                               alphas.are.additive, #either a single logical value or a named logical vector with the same names as betas
                               alpha.links, #either a single value ('identity','log','logit','custom') or named character vector with the same names as betas
-                              is.static) #whether the model is time-varying
+                              is.static,
+                              error.prefix='') #whether the model is time-varying
         {
             #-- Check Type --#
             if (!is.character(type) || length(type)!=1 || is.na(type) || nchar(type)==0)
@@ -478,7 +479,7 @@ FUNCTIONAL.FORM = R6::R6Class(
             private$i.betas = betas
             private$i.minimum.dim.names = dim.names
             private$i.link = link
-            private$i.future.slope.link = link
+            private$i.future.slope.link = future.slope.link
             private$i.alphas.are.additive = alphas.are.additive
             private$i.alpha.links = alpha.links
             private$i.is.static = is.static
@@ -564,7 +565,6 @@ FUNCTIONAL.FORM = R6::R6Class(
                 }
             }
 
-            
             #-- Incorporate Alphas --#
             terms = lapply(self$alpha.names, function(name){
                 incorporate.alphas(betas=private$i.betas[[name]],
@@ -629,6 +629,12 @@ FUNCTIONAL.FORM = R6::R6Class(
                 private$i.betas = lapply(private$i.betas, mapping$apply)
                 private$i.minimum.dim.names = mapping$apply.to.dim.names(private$i.minimum.dim.names)
             }
+        },
+        
+        # FOR DEBUGGING
+        check = function()
+        {
+            browser()
         }
     ),
     
@@ -778,7 +784,8 @@ STATIC.FUNCTIONAL.FORM = R6::R6Class(
                              future.slope.link = link$get.coefficient.link(),
                              alphas.are.additive = !overwrite.parameters.with.alphas, #either a single logical value or a named logical vector with the same names as betas
                              alpha.links = alpha.link, #either a single value ('identity','log','logit','custom') or named character vector with the same names as betas
-                             is.static = T)
+                             is.static = T,
+                             error.prefix = error.prefix)
         }
         
     ),
@@ -854,7 +861,6 @@ LINEAR.FUNCTIONAL.FORM = R6::R6Class(
             betas = list(intercept = intercept,
                          slope = slope)
             
-            
             #-- Call the superclass constructor --#
             super$initialize(type = "linear",
                              betas = betas,
@@ -862,7 +868,8 @@ LINEAR.FUNCTIONAL.FORM = R6::R6Class(
                              future.slope.link = link$get.coefficient.link(),
                              alphas.are.additive = !overwrite.parameters.with.alphas,
                              alpha.links = alpha.links, 
-                             is.static = F)
+                             is.static = F,
+                             error.prefix = error.prefix)
             
             private$i.anchor.year = anchor.year
         }
@@ -879,6 +886,8 @@ LINEAR.FUNCTIONAL.FORM = R6::R6Class(
                               check.consistency,
                               error.prefix)
         {
+            if (master.debug)
+                browser()
             intercept = terms$intercept
             slope = terms$slope
             
@@ -980,7 +989,8 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
                              future.slope.link = get.link('identity'), # we just take the future slope as-is
                              alphas.are.additive = !overwrite.parameters.with.alphas,
                              alpha.links = alpha.links, 
-                             is.static = F)
+                             is.static = F,
+                             error.prefix = error.prefix)
             
             private$i.span = max - min
             private$i.logistic.after.value = min + private$i.span * logistic.after.frac.of.span
@@ -1041,24 +1051,23 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
                 logistic.slope.with.additional * pmax(0, logistic.after.year - future.slope.after.year)
             
             rv = lapply(years, function(year){
-                
                 # Calculate the RV
                 # sub in anything past the use logistic tail threshold
-                
-                rv = intercept + 
+                sub.rv = intercept + 
                     slope * min(year - private$i.anchor.year, future.slope.after.year - private$i.anchor.year) +
                     slope.with.future * max(0, year - future.slope.after.year)
                 
-                mask = rv > private$i.logistic.after.value
+                mask = sub.rv > private$i.logistic.after.value
                 
                 # The value based off logistic model
                 log.ors = logistic.intercept[mask] +
                     logistic.slope.sans.additional[mask] * (pmin(year, future.slope.after.year)-private$i.anchor.year) +
                     logistic.slope.with.additional[mask] * pmax(0, year-future.slope.after.year)
-                rv[mask] = private$i.link$min + private$i.p.span / (1 + exp(-log.ors))
                 
-                rv[rv<private$i.link$min] = private$i.link$min
-                rv
+                sub.rv[mask] = private$i.link$min + private$i.span / (1 + exp(-log.ors))
+                
+                sub.rv[sub.rv<private$i.link$min] = private$i.link$min
+                sub.rv
             })
             
             rv
@@ -1381,7 +1390,8 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                              future.slope.link = future.slope.link,
                              alphas.are.additive = alphas.are.additive, 
                              alpha.links = alpha.links, 
-                             is.static = F)
+                             is.static = F,
+                             error.prefix = error.prefix)
             
             #-- Store the extra member variables --#
             private$i.knot.times = knot.times
@@ -1884,8 +1894,8 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                     calculate.change.ratios.logistic(r0 = knot.values.for.i[1],
                                                      r1 = knot.values.for.i[2],
                                                      times = years,
-                                                     t0 = knot.times[1],
-                                                     t1 = knot.times[2],
+                                                     t0 = private$i.knot.times[1],
+                                                     t1 = private$i.knot.times[2],
                                                      fraction.of.asymptote.after.end = fraction.of.asymptote.after.end[i],
                                                      fraction.of.asymptote.before.start = fraction.of.asymptote.before.start[i])
                 })
@@ -1899,9 +1909,9 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                                                          r1 = knot.values.for.i[2],
                                                          r2 = knot.values.for.i[3],
                                                          times = years,
-                                                         t0 = knot.times[1],
-                                                         t1 = knot.times[2],
-                                                         t2 = knot.times[3],
+                                                         t0 = private$i.knot.times[1],
+                                                         t1 = private$i.knot.times[2],
+                                                         t2 = private$i.knot.times[3],
                                                          
                                                          fraction.of.asymptote.after.end = fraction.of.asymptote.after.end[i],
                                                          fraction.of.asymptote.before.start = fraction.of.asymptote.before.start[i],
@@ -1935,8 +1945,8 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                         calculate.change.ratios.logistic(r0 = knot.values.for.i[chunk],
                                                          r1 = knot.values.for.i[chunk+1],
                                                          times = years.for.chunk[[chunk]],
-                                                         t0 = knot.times[chunk],
-                                                         t1 = knot.times[chunk+1],
+                                                         t0 = private$i.knot.times[chunk],
+                                                         t1 = private$i.knot.times[chunk+1],
                                                          fraction.of.asymptote.after.end = fraction.asymptotes[[ end.asymptote.name[chunk] ]][i],
                                                          fraction.of.asymptote.before.start = fraction.asymptotes[[ start.asymptote.name[chunk] ]][i])
                     }))

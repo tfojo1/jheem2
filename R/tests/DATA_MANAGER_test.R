@@ -7,7 +7,7 @@ source('R/HELPERS_array_helpers.R')
 source('R/HELPERS_dim_names_helpers.R')
 source('R/SPECIFICATION_model_specification.R') #has the outcome.metadata object definition
 Rcpp::sourceCpp('src/array_helpers.cpp')
-Rcpp::sourceCpp('src/andrew_test.cpp')
+#Rcpp::sourceCpp('src/andrew_test.cpp')
 library(abind)
 
 DATA.ROOT.DIR = '../../v1_data/'
@@ -111,7 +111,7 @@ data.manager$put.long.form(data = data,
 #                             append.attributes = c('url', 'details')
 #                             )
 my.target.ontology = ontology(location='Maryland',
-                              year='2008',
+                              year=NULL,
                               age=c('13-24 years', '25-34 years', '35-44 years', '45-54 years','55+ years'),
                               race=c('black','hispanic','other'),
                               sex=c('male','female'),

@@ -7,6 +7,7 @@ using namespace Rcpp;
 //--  (These allow for modify-in-place)  --//
 //-----------------------------------------//
 
+// dst_indices and src_indices should be as in R (ie, indexed from 1)
 // [[Rcpp::export]]
 NumericVector overwrite_arr(NumericVector dst,
                             IntegerVector dst_indices,
@@ -15,7 +16,7 @@ NumericVector overwrite_arr(NumericVector dst,
 {
     for (int i=0; i<src_indices.length(); i++)
     {
-        dst[ dst_indices[i] ] = src[ src_indices[i] ];
+        dst[ dst_indices[i]-1 ] = src[ src_indices[i]-1 ];
     }
     
     return (dst);
@@ -29,7 +30,7 @@ NumericVector add_to_arr(NumericVector dst,
 {
     for (int i=0; i<src_indices.length(); i++)
     {
-        dst[ dst_indices[i] ] += src[ src_indices[i] ];
+        dst[ dst_indices[i]-1 ] += src[ src_indices[i]-1 ];
     }
     
     return (dst);
