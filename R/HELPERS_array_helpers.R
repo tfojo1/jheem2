@@ -27,8 +27,8 @@ array.access <- function(arr,
                          drop=F)
 {
     # Check arguments
-    check.array.access.arguments(arr=arr, dimension.values=dimension.values,
-                                 drop=drop)
+    #  @Andrew MODIFIED by removing drop=drop from args since 5/3/23
+    check.array.access.arguments(arr=arr, dimension.values=dimension.values)
  
     # Check drop
     if (!is.logical(drop) || length(drop) != 1 || is.na(drop))
@@ -94,7 +94,7 @@ check.array.access.arguments <- function(arr,
                                          to.write=NULL)
 {
     # Check arr
-    if (!is.numeric(arr) || !is.array(arr))
+    if (!is.array(arr)) #!is.numeric(arr) || 
         stop("'arr' must be a numeric array or matrix")
     
     if (is.null(dimnames(arr)))
