@@ -493,17 +493,24 @@ do.get.ontology.mapping <- function(from.dim.names,
         
         if (to.dimensions.are.complete[d])
         {
-            !is.null(from.dim.names[[d]]) && # satisfies part of condition (1)
-                !is.null(to.dim.names[[d]]) && # satisfies condition (2)
-                setequal(from.dim.names[[d]], to.dim.names[[d]]) # satisfies condition (4)
-            
-            # do we want to separate for if from is incomplete - then to just has to be a subset of from?
+            if (from.dimensions.are.complete[d])
+            {
+                !is.null(from.dim.names[[d]]) && # satisfies part of condition (1)
+                    !is.null(to.dim.names[[d]]) && # satisfies condition (2)
+                    setequal(from.dim.names[[d]], to.dim.names[[d]]) # satisfies condition (4)
+            }
+            else
+            {
+                !is.null(from.dim.names[[d]]) && # satisfies part of condition (1)
+                    !is.null(to.dim.names[[d]]) && # satisfies condition (2)
+                    length(setdiff(to.dim.names[[d]], from.dim.names[[d]])==0) # satisfies condition (4)
+            }
         }
         else if (from.dimensions.are.complete[d])
         {
             is.null(to.dim.names[[d]]) || # if it's NULL, we'll take anything
                 (!is.null(from.dim.names[[d]]) && 
-                     length(setdiff(to.dim.names[[d]], from.dim.names[[d]]))>0)
+                     length(setdiff(to.dim.names[[d]], from.dim.names[[d]]))==0)
         }
         else
         {
