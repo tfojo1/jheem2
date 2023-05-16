@@ -11,9 +11,12 @@ RObject do_execute_ontology_mapping(List src_dim_names,
                                     NumericVector dst,
                                     CharacterVector from_values,
                                     CharacterVector to_values,
+                                    bool do_apply,
                                     bool get_matrix,
                                     bool na_rm)
 {
+    bool get_indices = !do_apply && !get_matrix;
+    
     //----------------------------//
     //----------------------------//
     //-- PROCESS THE ATTRIBUTES --//
@@ -328,11 +331,23 @@ RObject do_execute_ontology_mapping(List src_dim_names,
     //----------------------------------------------//
     //----------------------------------------------//
     
-    int n_for_untouched = (!get_matrix) * n_dst;
-    
+    // temp variable only if we are applying
+    int n_for_untouched = (do_apply) * n_dst;
     bool dst_is_untouched[n_for_untouched];
     for (int i=0; i<n_for_untouched; i++)
         dst_is_untouched[i] = true;
+    
+    // temp variables only if we are getting indices
+    
+    int n_mapped_to_dst[(get_indices) * n_dst];
+    if (get_indices)
+    {
+        for (int i=0; i<n_dst; i++)
+            n_mapped_to_dst[i] = 0;
+    }
+    
+    int n_src = n_non_from * n_mapped;
+    int dst_index_for_src[(get_indices) * n_src];
     
     // temp variables for the iteration
     int non_from_dim_values[n_non_from_dims];
@@ -363,9 +378,7 @@ RObject do_execute_ontology_mapping(List src_dim_names,
             for (int j=0; j<n_to_dims; j++)
                 dst_index += n_before_to[j] * to_dim_values[map_index][j];
             
-            if (get_matrix)
-                dst[dst_index + n_dst*src_index] = 1;
-            else
+            if (do_apply)
             {
                 if (!na_rm || !NumericVector::is_na(src[src_index])) // write the value
                 {
@@ -377,6 +390,15 @@ RObject do_execute_ontology_mapping(List src_dim_names,
                     else
                         dst[dst_index] += src[src_index];
                 }
+            }
+            else if (get_matrix)
+            {
+                dst[dst_index + n_dst*src_index] = 1;
+            }
+            else // get_indices
+            {
+                n_mapped_to_dst[dst_index]++;
+                dst_index_for_src[src_index] = dst_index;
             }
         }
         
@@ -394,8 +416,36 @@ RObject do_execute_ontology_mapping(List src_dim_names,
         }
     }
     
-    //-- Return --//
-    return (dst);
+    NumericVector dst_vector;
+    if (get_indices)
+    {
+        List rv(n_dst);
+        
+        // Allocate the numeric vectors for the list rv
+        NumericVector empty_vector(0);
+        for (int i=0; i<n_dst; i++)
+        {
+            if (n_mapped_to_dst[i]==0)
+                rv[i] = empty_vector;
+            else
+                rv[i] = NumericVector(n_mapped_to_dst[i]);
+            
+            n_mapped_to_dst[i] = 0;
+        }
+        
+        // Populate the numeric vectors in the list rv
+        for (int j=0; j<n_src; j++)
+        {
+            dst_index = dst_index_for_src[j];
+            dst_vector = rv[ dst_index ];
+            dst_vector[ n_mapped_to_dst[dst_index] ] = j+1;
+            n_mapped_to_dst[dst_index]++;
+        }
+        
+        return (rv);
+    }
+    else    //-- Return --//
+        return (dst);
 }
 
 
@@ -423,6 +473,7 @@ RObject apply_ontology_mapping(NumericVector src,
                                         dst,
                                         from_values,
                                         to_values,
+                                        true,
                                         false,
                                         na_rm));
 }
@@ -440,6 +491,24 @@ RObject get_ontology_mapping_matrix(List src_dim_names,
                                         dst,
                                         from_values,
                                         to_values,
+                                        false,
                                         true,
+                                        true));
+}
+
+// [[Rcpp::export]]
+RObject get_ontology_mapping_indices(List src_dim_names,
+                                     List dst_dim_names,
+                                     CharacterVector from_values,
+                                     CharacterVector to_values)
+{
+    return (do_execute_ontology_mapping(src_dim_names,
+                                        dst_dim_names,
+                                        NULL,
+                                        NULL,
+                                        from_values,
+                                        to_values,
+                                        false,
+                                        false,
                                         true));
 }

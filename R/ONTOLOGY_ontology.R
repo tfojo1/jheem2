@@ -159,6 +159,21 @@ as.ontology <- function(x, incomplete.dimensions=NULL)
     do.call(ontology, args = c(x, list(incomplete.dimensions=incomplete.dimensions)))
 }
 
+#'@description Convert an ontology back to a plain list
+#'
+#'@param ont An ontology as created by \code{\link{ontology}}
+#'
+#'@export
+as.list.ontology <- function(ont)
+{
+    rv = lapply(1:length(ont), function(i){
+        ont[[i]]
+    })
+    names(rv) = names(ont)
+    
+    rv
+}
+
 #'@description Test if an object is of type 'ontology'
 #'
 #'@param x Object to be tested

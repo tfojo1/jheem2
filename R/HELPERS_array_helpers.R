@@ -23,9 +23,46 @@
 #'
 #'@export
 array.access <- function(arr,
-                         dimension.values,
+                         ...,
                          drop=F)
 {
+    # Process ... into a list of dimension values
+    args = list(...)
+    
+    error.prefix = 'Error in array.access(): '
+    dimension.values = list()
+    for (elem.index in 1:length(args))
+    {
+        elem = args[[elem.index]]
+        if (is.list(elem))
+        {
+            if (is.null(names(elem)) || any(is.na(names(elem))) || any(nchar(names(elem))==0))
+                stop(paste0(error.prefix, "Elements of ... which are lists must be NAMED"))
+            
+            invalid.type.mask = !sapply(elem, is.numeric) & !sapply(elem, is.character) & !sapply(elem, is.logical)
+            if (any(invalid.type.mask))
+                stop(paste0(error.prefix, "The elements of ... which are lists must contain only numeric, character, or logical vectors. ",
+                            ifelse(sum(invalid.type.mask)==1, "The value for dimension ", "Values for dimensions "),
+                            collapse.with.and("'", names(elem)[invalid.type.mask], "'"),
+                            ifelse(sum(invalid.type.mask)==1, " is", " are"),
+                            " none of these."))
+            
+            dimension.values = c(dimension.values, elem)
+        }
+        else
+        {
+            elem.name = names(args)[elem.index]
+            if (is.null(elem.name) || is.na(elem.name) || nchar(elem.name)==0)
+                stop(paste0(error.prefix, "Elements of ... which are not lists must have a NAME"))
+            
+            if (!is.numeric(elem) && !is.character(elem) && !is.logical(elem))
+                stop(paste0(error.prefix, "The elements of ... which are not lists must be either numeric, character, or logical vectors. ",
+                            "The value for dimension '", names(args)[elem.index], "' is none of these."))
+            
+            dimension.values = c(dimension.values, args[elem.index])
+        }
+    }
+    
     # Check arguments
     #  @Andrew MODIFIED by removing drop=drop from args since 5/3/23
     check.array.access.arguments(arr=arr, dimension.values=dimension.values)
@@ -74,28 +111,55 @@ get.array.access.indices <- function(arr.dim.names,
                             dimension.values,
                             value)
 {
-    rv = do_array_overwrite(dst_array=arr,
-                            src_array=value,
-                            dimension_values=dimension.values)
-    if (is.null(rv))
+    if (is.numeric(arr))
     {
-        check.array.access.arguments(arr=arr,
-                                     dimension.values=dimension.values,
-                                     to.write=value)
+        rv = do_array_overwrite(dst_array=arr,
+                                src_array=value,
+                                dimension_values=dimension.values)
+        if (is.null(rv))
+        {
+            check.array.access.arguments(arr=arr,
+                                         dimension.values=dimension.values,
+                                         to.write=value)
+            
+            stop("There was an error overwriting 'arr'")
+        }
         
-        stop("There was an error overwriting 'arr'")
+        rv
     }
-    
-    rv
+    else
+    {
+        if (!is.array(arr)) #!is.numeric(arr) || 
+            stop("'arr' must be an array or matrix")
+        
+        if (is.null(dimnames(arr)))
+            stop("'arr' must have named dimnames")
+        
+        if (is.null(names(dimnames(arr))))
+            stop("'arr' must have NAMED dimnames")
+        
+        indices = get.array.access.indices(arr.dim.names = dimnames(arr), dimension.values = dimension.values)
+        
+        if (length(value) != 1 && length(value) != length(indices))
+            stop(paste0("Cannot overwrite into array: values has length ", length(values),
+                        " but the dimension values refer to ", length(indices),
+                        ifelse(length(indices)==1, " element", " elements"),
+                        " in the array"))
+        
+        arr[indices] = value
+        
+        arr
+    }
 }
 
 check.array.access.arguments <- function(arr,
                                          dimension.values,
+                                         dimension.values.name="'dimension.values'",
                                          to.write=NULL)
 {
     # Check arr
     if (!is.array(arr)) #!is.numeric(arr) || 
-        stop("'arr' must be a numeric array or matrix")
+        stop("'arr' must be an array or matrix")
     
     if (is.null(dimnames(arr)))
         stop("'arr' must have named dimnames")
@@ -105,20 +169,28 @@ check.array.access.arguments <- function(arr,
     
     # Check dimension values
     if (!is.list(dimension.values))
-        stop("'dimension.values' must be a named list")
+        stop(paste0(dimension.values.name, " must be a named list"))
     
     if (is.null(names(dimension.values)))
-        stop("'dimension.values' must be a NAMED list")
+        stop(paste0(dimension.values.name, " must be a NAMED list"))
     
     if (length(unique(names(dimension.values))) != length(dimension.values))
-        stop("The names of 'dimension.values' must be unique")
+    {
+        tabled.dimensions = table(names(dimension.values))
+        repeated.dimensions = names(tabled.dimensions)[tabled.dimensions>1]
+        stop(paste0("The names of dimensions in ", dimension.values.name, " must be unique.",
+                    ifelse(length(repeated.dimensions)==1, "Dimension ", "Dimensions "),
+                    collapse.with.and("'", repeated.dimensions, "'"),
+                    ifelse(length(repeated.dimensions)==1, " appears", " appear"),
+                    " more than once"))
+    }
     
     # Check that all names of dimension values are valid
     invalid.dimension.names = setdiff(names(dimension.values), names(dimnames(arr)))
     if (length(invalid.dimension.names)>0)
         stop(paste0("The following ",
                     ifelse(length(invalid.dimension.names)==1, "is given as a name", "are given as names"),
-                    " of 'dimension.values' but ",
+                    " of ", dimension.values.name, " but ",
                     ifelse(length(invalid.dimension.names)==1, "is not the name of a dimension", "are not names of the dimensions"),
                     " of 'arr': ",
                     paste0("'", invalid.dimension.names, "'", collapse=', ')))
@@ -128,8 +200,8 @@ check.array.access.arguments <- function(arr,
         if (is.numeric(dimension.values[[d]]))
         {
             if (any(dimension.values[[d]]<=0) || any(dimension.values[[d]]>dim(arr)[d]))
-                stop(paste0("dimension.values[['", d,
-                            "']] must have values between 0 and ",
+                stop(paste0("The values of dimension '", d,
+                            "' in ", dimension.values.name, " must be between 0 and ",
                             dim(arr)[d]))
             
             dimnames(arr)[[d]][ dimension.values[[d]] ]
@@ -140,7 +212,7 @@ check.array.access.arguments <- function(arr,
             if (length(invalid.values)>0)
                 stop(paste0("Invalid ",
                             ifelse(length(invalid.values)==1, 'value', 'values'),
-                            " in dimension.values[['", d, "']]: ",
+                            " fir dimension '", d, "' in ", dimension.values.name, ": ",
                             paste0("'", invalid.values, "'", collapse=', ')))
             
             dimension.values[[d]]
@@ -148,19 +220,19 @@ check.array.access.arguments <- function(arr,
         else if (is.logical(dimension.values[[d]]))
         {
             if (length(dimension.values[[d]])!=dim(arr)[d])
-                stop("Invalid value for dimension.values[['", d,
-                     "']]: a logical vector for '", d, "' must be of length ",
+                stop("Invalid value for dimension '", d,
+                     "' in ", dimension.values.name, ": a logical vector for '", d, "' must be of length ",
                      dim(arr)[d])
             
             if (!any(dimension.values[[d]]))
-                stop("Invalid value for dimension.values[['", d,
-                     "']]: all elements of the logical vector are FALSE")
+                stop("Invalid value for dimension '", d,
+                     "' in ", dimension.values.name, ": all elements of the logical vector are FALSE")
             
             dimnames(arr)[[d]][ dimension.values[[d]] ]
         }
         else
-            stop(paste0("The elements of 'dimension.values' must be either numeric, logical, or character vectors. dimension.values[['",
-                        d, "']] is none of these"))
+            stop(paste0("The elements of ", dimension.values.name, " must be either numeric, logical, or character vectors. The value for dimension '",
+                        d, "' is none of these"))
     })
     names(character.dimension.values) = names(dimension.values)
     
@@ -191,11 +263,12 @@ check.array.access.arguments <- function(arr,
             })
             
             if (!any(matching.access.dim.mask))
-                stop("The names of 'to.write' do not match any dimension in 'dimension.values' (ie, are not a superset of any element of 'dimension.values')")
+                stop("The names of 'to.write' do not match any dimension in ", dimension.values.name,
+                     " (ie, are not a superset of any element of 'dimension.values')")
             else if (sum(matching.access.dim.mask)>0)
-                stop(paste0("The names of 'to.write' match multiple dimensions in 'dimension.values': ",
+                stop(paste0("The names of 'to.write' match multiple dimensions in ", dimension.values.name, ": ",
                             paste0("'", names(character.dimension.values)[matching.access.dim.mask], "'", collapse=', '),
-                            " (ie, the names of 'to.write' are a superset of the names of MULTIPLE elements of 'dimension.values')"))
+                            " (ie, the names of 'to.write' are a superset of the names of MULTIPLE elements of ", dimension.values.name, ")"))
             
             to.write.dim.names = list(names(to.write))
             names(to.write.dim.names) = names(character.dimension.values)[matching.access.dim.mask]
@@ -215,11 +288,11 @@ check.array.access.arguments <- function(arr,
         dims.missing.from.access = setdiff(names(to.write), names(character.dimension.values))
         if (length(dims.missing.from.access)==1)
             stop(paste0("The dimension '", dims.missing.from.access,
-                        "' is present in ", src.text, " but missing from 'dimension.values'"))
+                        "' is present in ", src.text, " but missing from ", dimension.values.name))
         else if (length(dims.missing.from.access)>1)
             stop(paste0("The dimensions ",
                         paste0("'", dims.missing.from.access, "'", collapse=', '),
-                        " are present in ", src.text, " but missing from 'dimension.values"))
+                        " are present in ", src.text, " but missing from ", dimension.values.name))
         
         # Check that each element of dimension.values is either
         # (1) Missing entirely from to.write.dim.names OR
@@ -228,24 +301,14 @@ check.array.access.arguments <- function(arr,
         sapply(overlapping.dimensions, function(d){
             missing.from.src = setdiff(character.dimension.values[[d]], to.write.dim.names[[d]])
             if (length(missing.from.src)==1)
-                stop(paste0("'", missing.from.src, "' is given as a value in dimension.values[['",
-                            d, "']], but is not present in dimension '", d, "' of ", src.text))
+                stop(paste0("'", missing.from.src, "' is given as a value in dimensions '",
+                            d, "' of ", dimension.values.name, ", but is not present in dimension '", d, "' of ", src.text))
             else if (length(missing.from.src)>1)
                 stop(paste0(paste0("'", missing.from.src, "'", collapse=', '),
-                            " are given as values in dimension.values[['",
-                            d, "']], but is not present in dimension '", d, "' of ", src.text))
+                            " are given as values in dimension '",
+                            d, "' of ", dimension.values.name, ", but is not present in dimension '", d, "' of ", src.text))
         })
     }
-}
-
-array.list.access <- function(arr, dimension.values, drop=F)
-{
-    #@need to implement
-}
-
-'array.list.access<-' <- function(arr, dimension.values, value)
-{
-    #@need to implement
 }
 
 #'Expand an Array to Greater Dimensions
