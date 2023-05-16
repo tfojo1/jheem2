@@ -272,6 +272,7 @@ register.ontology.mapping <- function(name,
     
     #-- If this is a reversible mapping, reverse it and register it --#
     
+    n.values = dim(mappings)[1]
     from.values = mapping$from.values
     to.values = mapping$to.values
     
@@ -322,7 +323,7 @@ get.ontology.mapping <- function(from.ontology,
     #-- Validate Arguments --#
     from.ontology = derive.ontology(from.ontology, var.name.for.error = "'from.ontology'", error.prefix = "Error in get.ontology.mapping(): ")
     to.ontology = derive.ontology(to.ontology, var.name.for.error = "'to.ontology'", error.prefix = "Error in get.ontology.mapping(): ")
-    
+ 
     #-- Call the sub-function --#
     mappings = do.get.ontology.mapping(from.ontology = from.ontology,
                                        to.ontology = to.ontology,
@@ -494,6 +495,7 @@ do.get.ontology.mapping <- function(from.ontology,
     excess.from.dimensions = setdiff(names(from.ontology), required.dimensions)
     excess.from.dimensions.are.complete = all(from.dimensions.are.complete[excess.from.dimensions])
     
+    
     # below satisfies 
     from.out.of.alignment.mask = !sapply(required.dimensions, function(d){
         
@@ -542,7 +544,6 @@ do.get.ontology.mapping <- function(from.ontology,
         return (NULL)
 
     dimensions.out.of.alignment = required.dimensions[from.out.of.alignment.mask]
-    complete.dimensions=names(from.dimensions.are.complete)[from.dimensions.are.complete]
     
     
     for (i in 1:length(mappings))
@@ -628,8 +629,6 @@ do.get.ontology.mapping <- function(from.ontology,
     {
         reverse.mappings = do.get.ontology.mapping(from.ontology=to.ontology,
                                                    to.ontology=from.ontology,
-                                                   from.dimensions.are.complete = to.dimensions.are.complete,
-                                                   to.dimensions.are.complete = from.dimensions.are.complete,
                                                    required.dimensions=required.dimensions,
                                                    required.dim.names=required.dim.names,
                                                    get.two.way.alignment=F) #leave off mappings to reset to the default
@@ -705,7 +704,6 @@ combine.ontology.mappings <- function(...)
         # We also need to confirm that we CAN combine these mappings
         #  ie, if the from.dimensions for any sub.mapping match the to.dimensions of a prior sub.mapping, then the values of 
         
-        
         can.directly.combine = all(sapply(sub.mappings, is, class2='basic.ontology.mapping'))
         
         mapped.dim.names = sub.mappings[[1]]$to.dim.names
@@ -716,9 +714,10 @@ combine.ontology.mappings <- function(...)
             {
                 can.directly.combine = F
                 dim.names.for.check = mapped.dim.names
+         
                 missing.dimensions.for.check = setdiff(sub.mapping$from.dimensions, names(mapped.dim.names))
-                dim.names.for.check[missing.dimensions] = sub.mapping$from.dim.names[missing.dimensions.for.check]
-                
+                dim.names.for.check[missing.dimensions.for.check] = sub.mapping$from.dim.names[missing.dimensions.for.check]
+    
                 sub.mapping$can.apply.to.dim.names(dim.names.for.check,
                                                    throw.errors = T,
                                                    error.prefix = "Cannot combine ontology mappings: ")
@@ -767,7 +766,7 @@ combine.ontology.mappings <- function(...)
                                  sub.mappings[length(sub.mappings)])
             
             COMBINATION.ONTOLOGY.MAPPING$new(name = new.name,
-                                             sub.mappings=sub.mappings[!identity.mapping.mask])
+                                             sub.mappings=sub.mappings)
         }
     }
 }
@@ -1098,29 +1097,36 @@ ONTOLOGY.MAPPING = R6::R6Class(
         },
         
         #'@description Test if this ontology.mapping can apply to the given dim.names
-        can.apply.to.dim.names = function(dim.names, 
+        can.apply.to.dim.names = function(from.dim.names,
+                                          to.dim.names = NULL,
                                           throw.errors=F,
                                           error.prefix='')
         {
             private$check.can.apply(from.dim.names=from.dim.names,
-                                    to.dim.names=NULL,
+                                    to.dim.names=to.dim.names,
                                     throw.errors=throw.errors,
                                     error.prefix=error.prefix)
         },
         
         #'@description Test if this ontology.mapping can apply to the given ontology
         can.apply.to.ontology = function(from.ontology,
-                                         throw.errors=throw.errors,
+                                         to.ontology = NULL,
+                                         throw.errors=F,
                                          error.prefix='')
         {
+            if (!is.ontology(from.ontology))
+                stop("Error in ontology mapping's can.apply.to.ontology(): 'from.ontology' must be an object of class ontology")
+            if (!is.null(to.ontology) && !is.ontology(to.ontology))
+                stop("Error in ontology mapping's can.apply.to.ontology(): If it is not NULL, 'to.ontology' must be an object of class ontology")
+            
             private$check.can.apply(from.dim.names=from.ontology,
-                                    to.dim.names=NULL,
+                                    to.dim.names=to.ontology,
                                     throw.errors=throw.errors,
                                     error.prefix=error.prefix)
         },
         
         #'@description Get the dimnames that would be generated after applying this mapping to some data with the given dim.names
-        apply.to.dim.names = function(from.dim.names, error.prefix='')
+        apply.to.dim.names = function(from.dim.names, error.prefix='Cannot apply ontology.mapping to dim names: ')
         {
             private$check.can.apply(from.dim.names=from.dim.names,
                                     to.dim.names=NULL,
@@ -1134,7 +1140,7 @@ ONTOLOGY.MAPPING = R6::R6Class(
         #'@description Get the ontology that would be generated after applying this mapping to some data
         #'
         #'@details An alias of the apply.to.dim.names function (which appropriately handles if dim.names is additionally an ontology)
-        apply.to.ontology = function(ontology, error.prefix='')
+        apply.to.ontology = function(ontology, error.prefix='Cannot apply ontology.mapping to ontology: ')
         {
             self$apply.to.dim.names(from.dim.names=ontology, error.prefix=error.prefix)
         },
@@ -1144,7 +1150,7 @@ ONTOLOGY.MAPPING = R6::R6Class(
                          to.dim.names=NULL, 
                          fun='sum', 
                          na.rm=F,
-                         error.prefix='')
+                         error.prefix='Cannot apply ontology.mapping: ')
         {
             # Validate dim.names
             private$check.can.apply(from.dim.names=dimnames(from.arr),
@@ -1184,7 +1190,7 @@ ONTOLOGY.MAPPING = R6::R6Class(
                 private$do.apply.non.sum(from.arr, to.dim.names, fun=fun, na.rm=na.rm, error.prefix=error.prefix)
         },
         
-        get.matrix = function(from.dim.names, to.dim.names, error.prefix='')
+        get.matrix = function(from.dim.names, to.dim.names, error.prefix='Cannot get matrix from ontology.mapping: ')
         {
             # Validate dim.names
             private$check.can.apply(from.dim.names=from.dim.names,
@@ -1206,7 +1212,7 @@ ONTOLOGY.MAPPING = R6::R6Class(
         #' The ith element of the return value is an integer vector containing 
         #' the indices into the from data which are combined 
         #' ie - to[i] would be equal to fun(from[ get.mapping.indices()[[i]] ])
-        get.mapping.indices = function(from.dim.names, to.dim.names, error.prefix='')
+        get.mapping.indices = function(from.dim.names, to.dim.names, error.prefix='Cannot get mapping indices from ontology.mapping: ')
         {   
             # Validate dim.names
             private$check.can.apply(from.dim.names=from.dim.names,
@@ -1690,7 +1696,7 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                         stop(paste0(error.prefix, 
                                     "from.dim.names ['", d, "'] is missing ", 
                                     length(missing.values),
-                                    ifelse(length(missing.values)==1, 'value', 'values'),
+                                    ifelse(length(missing.values)==1, ' value', ' values'),
                                     ": ", collapse.with.and("'", missing.values, "'")))
                     }
                     else
@@ -1836,9 +1842,9 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
             {
                 sub.mapping = private$i.sub.mappings[[i]]
                 if (i == length(private$i.sub.mappings))
-                    indices = sub.mapping$do.get.mapping.indices(from.dim.names, to.dim.names, error.prefix=error.prefix)
+                    indices = sub.mapping$get.mapping.indices(from.dim.names, to.dim.names=to.dim.names, error.prefix=error.prefix)
                 else
-                    indices = sub.mapping$do.get.mapping.indices(from.dim.names, NULL, error.prefix=error.prefix)
+                    indices = sub.mapping$get.mapping.indices(from.dim.names, to.dim.names=NULL, error.prefix=error.prefix)
                 
                 if (is.null(rv))
                     rv = indices
@@ -1878,20 +1884,21 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
             dim.names = from.dim.names
             for (sub.mapping in private$i.sub.mappings[-length(private$i.sub.mappings)])
             {
-                if (!sub.mapping$check.can.apply(from.dim.names,
-                                                 to.dim.names = NULL,
-                                                 throw.errors = throw.errors,
-                                                 error.prefix = error.prefix))
+                if (!sub.mapping$can.apply.to.dim.names(from.dim.names,
+                                                        to.dim.names = NULL,
+                                                        throw.errors = throw.errors,
+                                                        error.prefix = error.prefix))
                     return (F)
                 
                 dim.names = sub.mapping$apply.to.dim.names(dim.names, error.prefix=error.prefix)
             }
             
-            last.sub.mapping = private$i.sub.mappings[length(private$i.sub.mappings)]
-            last.sub.mapping$check.can.apply(from.dim.names,
-                                             to.dim.names = to.dim.names,
-                                             throw.errors = throw.errors,
-                                             error.prefix = error.prefix)
+            last.sub.mapping = private$i.sub.mappings[[length(private$i.sub.mappings)]]
+
+            last.sub.mapping$can.apply.to.dim.names(dim.names,
+                                                    to.dim.names = to.dim.names,
+                                                    throw.errors = throw.errors,
+                                                    error.prefix = error.prefix)
             
         }
     )
@@ -2010,7 +2017,7 @@ initial.check.can.apply <- function(mapping,
                     missing.values = setdiff(mapping$from.dim.names[[d]], from.dim.names[[d]])
                     stop(paste0(error.prefix, 
                                 "'from.dim.names' is missing ", length(missing.values),
-                                ifelse(length(missing.values)==1, 'value', 'values'),
+                                ifelse(length(missing.values)==1, ' value', ' values'),
                                 ": ", collapse.with.and("'", missing.values, "'")))
                 }
                 else
