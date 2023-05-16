@@ -324,8 +324,8 @@ get.ontology.mapping <- function(from.ontology,
     to.ontology = derive.ontology(to.ontology, var.name.for.error = "'to.ontology'", error.prefix = "Error in get.ontology.mapping(): ")
     
     #-- Call the sub-function --#
-    mappings = do.get.ontology.mapping(from.dim.names = from.ontology,
-                                       to.dim.names = to.ontology,
+    mappings = do.get.ontology.mapping(from.ontology = from.ontology,
+                                       to.ontology = to.ontology,
                                        required.dimensions = names(to.ontology),
                                        required.dim.names = NULL,
                                        get.two.way.alignment = F)
@@ -353,8 +353,8 @@ get.mappings.to.align.ontologies <- function(ontology.1,
     ontology.2 = derive.ontology(ontology.2, var.name.for.error = "'ontology.2'", error.prefix = "Error getting aligning ontology mappings: ")
     
     #-- Call the sub-function --#
-    mappings = do.get.ontology.mapping(from.dim.names = ontology.1,
-                                       to.dim.names = ontology.2,
+    mappings = do.get.ontology.mapping(from.ontology = ontology.1,
+                                       to.ontology = ontology.2,
                                        required.dimensions = align.on.dimensions,
                                        required.dim.names = include.dim.names,
                                        get.two.way.alignment = T)
