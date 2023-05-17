@@ -813,8 +813,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # *dimension.values* are valid 
             #   - check.dimension.values.valid()
-            # ???? needs a second argument, "variable.names.for.error"
-            check.dimension.values.valid(dimension.values, "placeholder variable name") # add the error prefix
+            check.dimension.values.valid(dimension.values, "dimension.values")
             
             # *sources* a character vector with at least one element and no NA or empty values
             #  that have all been registered previously as sources with this data manager
@@ -829,6 +828,20 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (!is.null(target.ontology) && !is.ontology(target.ontology))
                 stop(paste0(error.prefix, "'target.ontology' must be either NULL or an ontology object"))
             
+            # If there is a target ontology, it needs to contain the dimension.values if any
+            resolved.dimension.values = NULL
+            if (!is.null(target.ontology) && !is.null(dimension.values)) {
+                resolved.dimension.values = resolve.ontology.dimension.values(target.ontology, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = FALSE)
+                if (is.null(resolved.dimension.values))
+                    stop(paste0(error.prefix, "'dimension.values' must be contained in 'target.ontology'"))
+            }
+            
+            # The target ontology also needs to contain the keep dimensions if any
+            if (!is.null(target.ontology) && !is.null(keep.dimensions)) {
+                if (!all(keep.dimensions %in% names(target.ontology)))
+                    stop(paste0(error.prefix, "'keep.dimensions' must be contained in 'target.ontology'"))
+            }
+            
             # *allow.mapping.from.target.ontology* is a single, non-NA logical value
             if (!is.logical(allow.mapping.from.target.ontology) || length(allow.mapping.from.target.ontology)!=1 || is.na(allow.mapping.from.target.ontology))
                 stop(paste0(error.prefix, "'allow.mapping.from.target.ontology' must be a single, non-NA logical value"))
@@ -836,6 +849,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # *from.ontology.names* is either NULL or a character vector with no NA or empty values
             if (!is.null(from.ontology.names) && (!is.character(from.ontology.names) || anyNA(from.ontology.names) || any(nchar(from.ontology.names)==0)))
                 stop(paste0(error.prefix, "from.ontology.names must be either NULL or a character vector with no NA or empty values"))
+            
             #  all of which have been previously registered with this data manager (if not NULL)
             unregistered.ontologies = sapply(from.ontology.names, function(x){is.null(private$i.ontologies[[x]])})
             if (is.null(from.ontology.names) && any(unregistered.ontologies))
@@ -854,7 +868,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #
             # In an lapply for source
             
-            mapping.to.align.all.to.target = NULL
+            target.to.common.mapping = NULL
+            common.ontology = NULL
             # browser()
             
             return.data = lapply(sources, function(x) {
@@ -865,140 +880,259 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 
                 for (y in ontologies.used.names) {
                     
+                    
                     ont = private$i.ontologies[[y]]
-                    # browser()
                     
-                    resolved.dimension.values = resolve.ontology.dimension.values(ont, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = FALSE)
+                    # Resolving dimension values gives us character vector version even though input could be logical or numeric
+                    # check if any dimensions in dimension.values but not in keep.dimensions include all possible values for that dimension (complete)
+                    # if so, drop them from dimension.values
+                    # We only need to check this now for the current ontology since we checked it at the beginning for the case with target ontology 
+                    if (is.null(target.ontology))
+                        resolved.dimension.values = resolve.ontology.dimension.values(ont, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = FALSE)
                     
-                    if(!is.null(resolved.dimension.values)){
+                    if (is.null(resolved.dimension.values)) {
+                        next
+                    }
                         
-                        stratification.names = names(private$i.data[[outcome]][[x]][[y]])
+                    # Check if it is possible to map this ontology to a target.ontology or common.ontology if applicable
+                    ont.to.target.mapping = NULL
+                    ont.to.common.mapping = NULL
+                    target.to.common.mapping.placeholder = NULL
+                    
+                    if (!is.null(target.ontology)) {
+                        if (allow.mapping.from.target.ontology) {
+                            
+                            if (!is.null(common.ontology)) {
+                                
+                                # we already have a common ontology to use
+                                ont.to.common.mapping = get.ontology.mapping(ont, common.ontology)
+                                
+                            } else {
+                                
+                                # Attempt a mapping to align, which returns NULL or a list of two ontology mapping objects
+                                # The first of which we use here, and the second of which we save *if* a suitable stratification is found
+                                aligning.mappings.list = get.mappings.to.align.ontologies(ont, target.ontology)
+                                
+                                if (!is.null(aligning.mappings.list)) {
+                                    ont.to.common.mapping = aligning.mappings.list[[1]]
+                                    target.to.common.mapping.placeholder = aligning.mappings.list[[2]]
+                                }
+                                
+                            }
+                        } else {
+                            ont.to.target.mapping = get.ontology.mapping(ont, target.ontology)
+                        }
+                    }
+                    
+                    # Skip this ontology if it can't work
+                    # *** THIS ENCOMPASSES CONDITIONS 1,2, AND 3 WHEN PAIRED WITH THE !SETEQUAL LINE BELOW ***
+                    if(!is.null(target.ontology) &&
+                       (is.null(ont.to.target.mapping) && is.null(ont.to.common.mapping)))
+                        next
+                    
+                    stratification.names = names(private$i.data[[outcome]][[x]][[y]])
+                    
+                    for (strat in stratification.names) {
+                        strat.data = private$i.data[[outcome]][[x]][[y]][[strat]]
+                        strat.dimensions = names(dim(strat.data))
+                        strat.dimnames = dimnames(strat.data)
+                        strat.completes = intersect(
+                            strat.dimensions,
+                            names(ont[attr(ont, 'is.complete')])
+                        )
                         
-                        # check if any dimensions in dimension.values but not in keep.dimensions include all possible values for that dimension (complete)
-                        # if so, drop them from dimension.values
+                        # Check that this stratification exactly contains keep.dimensions and the dimension.values dimensions
+                        if (!setequal(strat.dimensions, union(names(dimension.values), keep.dimensions)))
+                            next
                         
-                        for (strat in stratification.names) {
-                            strat.data = private$i.data[[outcome]][[x]][[y]][[strat]]
-                            strat.dimensions = names(dim(strat.data))
-                            strat.dimnames = dimnames(strat.data)
+                        # Check that there are data (not all NA) after any ontology is applied
+                        pull.data = private$i.data[[outcome]][[x]][[y]][[strat]]
+                        if (all(is.na(pull.data))) next
+                        
+                        ### SUCCESS FOR THIS ONTOLOGY ###
                             
-                            browser()
+                        # Save the target.to.common.mapping if we discovered one, and the mapped ontology as the common ontology
+                        if (!is.null(target.to.common.mapping.placeholder)) {
+                            target.to.common.mapping <<- target.to.common.mapping.placeholder
+                            common.ontology <<- ont.to.common.mapping$apply.to.ontology(ont)
+                        }
+                        
+                        # browser()
+                        
+                        data.elements.accessors = 'data'
+                        if ('url' %in% append.attributes)
+                            data.elements.accessors = append(data.elements.accessors, 'url')
+                        if ('details' %in% append.attributes)
+                            data.elements.accessors = append(data.elements.accessors, 'details')
+                        
+                        # Note: I should subset in this function *before* I apply any mapping
+                        # to do so, I need to figure out what the dimension values would be pre-mapping
+                        
+                        # figure out the dimnames for the apply
+                        dimnames.for.apply = NULL
+                        
+                        if (is.null(target.ontology)) {
                             
-                            # (1) there is a target.ontology 
-                            # and allow.mapping.from.target.ontology==F or prior source came up with an aligning mapping
-                            # and we can map from the stratification of the data ontology to the target ontology (or the previously aligned mapping)
-                            # - from get.ontology.mapping()
-                            condition1 = !is.null(target.ontology) &&
-                                (!allow.mapping.from.target.ontology || !(is.null(mapping.to.align.all.to.target))) &&
-                                !is.null(mapping)
+                            dimnames.for.apply = append(
+                                strat.dimnames[!(names(strat.dimnames) %in% names(dimension.values))],
+                                dimension.values
+                                )
+                        } else {
                             
-                            # (2) there is a target.ontology 
-                            # and allow.mapping.from.target.ontology==T and a prior source has not found any data
-                            # and there is a pair of ontology mappings that takes both the stratification of the data and target ontologies to a common ontology
-                            # - from get.mappings.to.align.ontologies
-                            # (we'll need to save that second mapping for later)
-                            condition2 = !is.null(target.ontology) &&
-                                allow.mapping.from.target.ontology &&
-                                is.null(mapping.to.align.all.to.target) &&
-                                'placeholder'
+                            dimnames.for.apply = append(
+                                target.ontology[!(names(target.ontology) %in% names(dimension.values))],
+                                dimension.values
+                                )
                             
-                            # (3) there is no target ontology
-                            # and the stratification dimensions exactly match the dimensions in keep.dimensions and dimension.values
-                            condition3 = is.null(target.ontology) &&
-                                setequal(strat.dimensions, union(names(dimension.values), keep.dimensions))
+                            if (allow.mapping.from.target.ontology) {
+                                
+                                dimnames.for.apply = target.to.common.mapping$apply.to.dim.names(dimnames.for.apply)
+                                
+                            }
+                            
+                            # Remove extra dimensions target.ontology may have brought
+                            dimnames.for.apply = dimnames.for.apply[names(dimnames.for.apply) %in% strat.dimensions]
+                            
+                            # Replace NULL incomplete dimensions with the entire corresponding dimension from the stratification
+                            # because array.access doesn't interpret NULL as meaning "all" for a dimension
+                            target.incomplete.dimensions = names(target.ontology[!attr(target.ontology, 'is.complete')])
+                            target.null.dimensions = names(target.ontology)[sapply(target.ontology, is.null)]
+                            target.incomplete.and.null.dimensions = intersect(target.incomplete.dimensions, target.null.dimensions)
 
+                            dimnames.for.apply[names(dimnames.for.apply) %in% target.incomplete.and.null.dimensions] =
+                                strat.dimnames[names(strat.dimnames) %in% target.incomplete.and.null.dimensions]
                             
-                            # AND there are data (not all NA) after any ontology is applied
-                            pull.data = private$i.data[[outcome]][[x]][[y]][[strat]] # shallow copy
+                        }
+                        
+                        # browser()
+                        # Apply mapping to data and subset in one step
+                        data.to.return = lapply(data.elements.accessors, function(a) {
                             
-                            # browser()
-                            if((condition1 || condition2 || condition3) && !all(is.na(pull.data))){
+                            # default
+                            function.to.apply = 'sum'
+                            
+                            if (is.null(target.ontology)) {
                                 
-                                data.elements.accessors = 'data'
-                                if ('url' %in% append.attributes)
-                                    data.elements.accessors = append(data.elements.accessors, 'url')
-                                if ('details' %in% append.attributes)
-                                    data.elements.accessors = append(data.elements.accessors, 'details')
+                                data.to.process = private[[paste0('i.', a)]][[outcome]][[x]][[y]][[strat]]
+                                mapping.to.apply = get.identity.ontology.mapping()
                                 
-                                data.to.return = lapply(data.elements.accessors, function(a) {
-                                    if (is.null(target.ontology)) {
-                                        private[[paste0('i.', a)]][[outcome]][[x]][[y]][[strat]]
-                                    } else {
-                                        if (a == 'data') {
-                                            stop(paste0(error.prefix, "don't know how to do target ontology yet"))
-                                            mapping$apply(private[[paste0('i.', a)]][[outcome]][[x]][[y]][[strat]], na.rm=na.rm)
-                                        } else {
-                                            stop(paste0(error.prefix, "don't know how to do target ontology yet"))
-                                        }
-                                    }
-                                })
-                                
-                                names(data.to.return) = data.elements.accessors
-                                # browser()
-                                for (d in seq_along(data.to.return)) {
-                                    # browser()
-                                    # Subset each array according to dimension.values
-                                    data.to.return[[d]] = array.access(data.to.return[[d]], dimension.values=dimension.values)
+                            } else {
+                            
+                                if (a == 'data') {
                                     
-                                    # Drop length 1 dimensions that aren't in keep.dimensions
+                                    data.to.process = pull.data
+                                    
+                                } else {
+                                    
+                                    data.to.process = private[[paste0('i.', a)]][[outcome]][[x]][[y]][[strat]]
+                                    function.to.apply = function(b) {list(unique(unlist(b)))}
+                                    
+                                }
+                                
+                                if (allow.mapping.from.target.ontology) {
+                                    
+                                    mapping.to.apply = ont.to.common.mapping
+                                    
+                                } else {
+                                    
+                                    mapping.to.apply = ont.to.target.mapping
+                                    
+                                }
+                            }
+                            # browser()
+                            data.temp = mapping.to.apply$apply(
+                                data.to.process,
+                                na.rm = na.rm,
+                                to.dim.names = dimnames.for.apply,
+                                fun = function.to.apply
+                            )
+                            
+                            if (!is.null(target.ontology) && a != 'data') {
+                                data.temp = lapply(data.temp, function(b) {b[[1]]})
+                                dim(data.temp) = sapply(dimnames.for.apply, length)
+                                dimnames(data.temp) = dimnames.for.apply
+                            }
+                            
+                            data.temp
+                            
+                        })
+                        
+                        names(data.to.return) = data.elements.accessors
+                        
+                        # Dims and dimnames before the following transformations
+                        initial.dim = sapply(dimnames.for.apply, length)
+                        initial.dimnames = dimnames.for.apply
+
+                        for (d in seq_along(data.to.return)) {
+                            
+                            # These will change a couple times in the next steps here
+                            current.dim = initial.dim
+                            current.dimnames = initial.dimnames
+                            
+                            # Drop length 1 dimensions that aren't in keep.dimensions
+                            dimensions.to.drop = intersect(
+                                which(current.dim == 1),
+                                which(!(names(current.dim) %in% keep.dimensions)))
+                            
+                            if (length(dimensions.to.drop) > 0) {
+                                current.dim = current.dim[!(names(current.dim) %in% dimensions.to.drop)]
+                                current.dimnames = current.dimnames[!(names(current.dimnames) %in% dimensions.to.drop)]
+                                
+                                data.to.return[[d]] = array(
+                                    data.to.return[[d]],
+                                    dim = current.dim,
+                                    dimnames = current.dimnames)
+                                
+                            }
+                            
+                            # check if NEED to aggregate (i.e., any dimensions not in keep.dimensions)
+                            if (length(current.dim) > length(keep.dimensions)) {
+                                
+                                if (names(data.to.return)[[d]] == 'data') {
+                                    scale = private$i.outcome.info[[outcome]][['metadata']][['scale']]
+                                    
+                                    if (scale %in% c('non.negative.number', 'number')) {
+                                        
+                                        data.to.return[[d]] = apply(data.to.return[[d]], keep.dimensions, FUN = sum)
+                                        
+                                    } else {
+                                        
+                                        stop(paste0(error.prefix, 'aggregating with the ', scale, ' scale is not yet implemented'))
+                                        
+                                    }
+                                    
+                                } else {
+                                    
+                                    data.to.return[[d]] = apply(
+                                        data.to.return[[d]],
+                                        keep.dimensions,
+                                        function(x) {
+                                            list(unique(unlist(x)))
+                                        })
+                                    
                                     current.dim = dim(data.to.return[[d]])
                                     current.dimnames = dimnames(data.to.return[[d]])
                                     
-                                    dimensions.to.drop = intersect(
-                                        which(dim(data.to.return[[d]]) == 1),
-                                        which(!(names(dim(data.to.return[[d]])) %in% keep.dimensions)))
+                                    # fix apply's annoying behavior
+                                    data.data = lapply(
+                                        data.to.return[[d]],
+                                        function(x) {x[[1]]})
                                     
-                                    if (length(dimensions.to.drop) > 0) {
-                                        current.dim = current.dim[!(names(current.dim) %in% dimensions.to.drop)]
-                                        current.dimnames = current.dimnames[!(names(current.dimnames) %in% dimensions.to.drop)]
-                                        
-                                        # instead, set dim and dimnames. check if new memory address used
-                                        data.to.return[[d]] = array(
-                                            data.to.return[[d]],
-                                            dim = current.dim,
-                                            dimnames = current.dimnames)
-                                        
-                                    }
-                                    
-                                    # check if NEED to aggregate (i.e., any dimensions not in keep.dimensions)
-                                    if (length(dim(data.to.return[[d]])) > length(keep.dimensions)) {
-                                        
-                                        if (names(data.to.return)[[d]] == 'data') {
-                                            scale = private$i.outcome.info[[outcome]][['metadata']][['scale']]
-                                            
-                                            if (scale %in% c('non.negative.number', 'number')) {
-                                                data.to.return[[d]] = apply(data.to.return[[d]], keep.dimensions, FUN = sum)
-                                            } else {
-                                                stop(paste0(error.prefix, 'aggregating with the ', scale, ' scale is not yet implemented'))
-                                            }
-                                        } else { # broken, makes the output url array have elements that are lists of lists of vectors
-                                            # browser()
-                                            data.to.return[[d]] = apply(data.to.return[[d]], keep.dimensions, function(x) {
-                                                list(unique(unlist(x)))})
-                                            
-                                            current.dim = dim(data.to.return[[d]])
-                                            current.dimnames = dimnames(data.to.return[[d]])
-                                            
-                                            # fix apply's annoying behavior
-                                            data.data = lapply(
-                                                data.to.return[[d]],
-                                                function(x) {x[[1]]}
-                                                )
-                                            data.to.return[[d]] = array(
-                                                data.data,
-                                                dim = current.dim,
-                                                dimnames = current.dimnames) 
-                                        }
-                                    }
-                                        
+                                    data.to.return[[d]] = array(
+                                        data.data,
+                                        dim = current.dim,
+                                        dimnames = current.dimnames) 
                                 }
+                            }
                                 
-                                break
+                        }
+                        
+                        # Since we found a match, we don't need to search any more stratifications for this ontology
+                        break
                                 
-                            } # if conditions
-                        } # for stratification
-                    } # if can resolve ontology
+                    } # for stratification
                     
+                    # If found a match, then we don't need to search any more ontologies for this source
                     if (!is.null(data.to.return)) break
                     
                 } # for ontology
@@ -1052,7 +1186,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # take the first element of each list and make this the pull.return.data
             
             final.return = NULL
-            # browser()
+            
             # Extract data for data, url, and details out of what lapply returned above
             for (data.type in names(return.data[[1]])) {
                 # browser()
@@ -1087,8 +1221,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # add mapping
-            if (!is.null(mapping.to.align.all.to.target))
-                attr(final.return, 'mapping') = mapping.to.align.all.to.target
+            if (!is.null(target.to.common.mapping))
+                attr(final.return, 'mapping') = target.to.common.mapping
             
             #-- Return --#
             final.return
