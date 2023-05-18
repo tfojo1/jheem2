@@ -1113,7 +1113,58 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         data.to.return[[d]] = apply(data.to.return[[d]], keep.dimensions, FUN = sum)
                                         
                                     } else if (scale %in% c('rate', 'time', 'proportion')) {
+                                        
                                         # We'll do weighted averages with a denominator value as weight.
+                                        denominator.outcome = private$i.outcome.info[[outcome]][['denominator.outcome']]
+                                        
+                                        if (is.null(target.ontology))
+                                            denominator.ontology = ont
+                                        else {
+                                            if (allow.mapping.from.target.ontology)
+                                                denominator.ontology = common.ontology
+                                            else
+                                                denominator.ontology = target.ontology
+                                        }
+                                        
+                                        # Recursive call to pull -- might not find anything
+                                        denominator.array = self$pull(
+                                            outcome = denominator.outcome,
+                                            keep.dimensions = names(current.dimnames),
+                                            dimension.values = dimension.values,
+                                            sources = x,
+                                            target.ontology = denominator.ontology,
+                                            allow.mapping.from.target.ontology = FALSE,
+                                            from.ontology.names = NULL,
+                                            append.attributes = FALSE,
+                                            na.rm = FALSE)
+                                        
+                                        if (is.null(denominator.array))
+                                            stop(paste0(error.prefix, 'denominator data for ', scale, ' could not be found'))
+                                        
+                                        # We should find totals by aggregating the denominator.array rather than pulling less stratified data
+                                        # because less stratified data might not equal the sum of the more stratified data in denominator.array
+                                        denominator.totals.array = apply(denominator.array, keep.dimensions, FUN = sum)
+                                        
+                                        # Generate an array that multiplies every cell in data.to.return[[d]] by its weight from denominator.array
+                                        # Caution: are the order of the dimensions the same, so that the values align?
+                                        weighted.value.array = array(
+                                            as.numeric(data.to.return[[d]]) * as.numeric(denominator.array),
+                                            dim = current.dim,
+                                            dimnames = current.dimnames
+                                        )
+                                        
+                                        # Take the sum of the weighted values
+                                        data.to.return[[d]] = apply(weighted.value.array, keep.dimensions, FUN = sum)
+                                        
+                                        current.dim = dim(data.to.return[[d]])
+                                        current.dimnames = dimnames(data.to.return[[d]])
+                                        
+                                        # Divide by the denominator.totals.array values to finish the weighted average
+                                        data.to.return[[d]] = array(
+                                            as.numeric(data.to.return[[d]]) / as.numeric(denominator.totals.array),
+                                            dim = current.dim,
+                                            dimnames = current.dimnames
+                                        )
                                         
                                     } else if (scale == 'ratio') {
                                         stop(paste0(error.prefix, scale, ' data cannot be aggregated'))
@@ -1164,15 +1215,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 data.to.return
             })
                 
-
-            #                          - otherwise aggregate:
-            #                              - if type == 'data'
-            #                                 - sum if they are numbers or non-negative numbers
-            #                                  - take weighted average (weighted by denominator.outcome) if they are rates, times, or proportions
-            #                                  - throw an error if they are ratios
-
             # we have a list (one element per source) of lists (one element per data type, i.e. 'data', 'url', or 'details')
-            # take the first element of each list and make this the pull.return.data
             
             final.return = NULL
             
