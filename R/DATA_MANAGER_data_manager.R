@@ -806,7 +806,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (is.null(outcome.info))
                 stop(paste0(error.prefix, "'", outcome, "' is not a registered ontology."))
             
-            
             # *keep.dimensions* is either NULL or a character vector with no NA values or repeats
             if (!is.null(keep.dimensions) && (!is.character(keep.dimensions) || any(duplicated(keep.dimensions)) || anyNA(keep.dimensions)))
                 stop(paste0(error.prefix, "'keep.dimensions' must be either NULL or a character vector with no NA values or repeats"))
@@ -815,9 +814,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #   - check.dimension.values.valid()
             check.dimension.values.valid(dimension.values, "dimension.values")
             
-            # *sources* a character vector with at least one element and no NA or empty values
+            # *sources* is either NULL or a character vector with at least one element and no NA or empty values
             #  that have all been registered previously as sources with this data manager
-            if (!is.character(sources) || !length(sources)>0 || anyNA(sources) || any(nchar(sources)==0))
+            if (!is.null(sources) && (!is.character(sources) || !length(sources)>0 || anyNA(sources) || any(nchar(sources)==0)))
                 stop(paste0(error.prefix, "'sources' must be a character vector with at least one element and no NA or empty values"))
             
             unregistered.sources = sapply(sources, function(x){is.null(private$i.source.info[[x]])})
@@ -838,7 +837,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # The target ontology also needs to contain the keep dimensions if any
             if (!is.null(target.ontology) && !is.null(keep.dimensions)) {
-                if (!all(keep.dimensions %in% names(target.ontology)))
+                if (any!(keep.dimensions %in% names(target.ontology)))
                     stop(paste0(error.prefix, "'keep.dimensions' must be contained in 'target.ontology'"))
             }
             
@@ -868,18 +867,29 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #
             # In an lapply for source
             
+            # These must be saved if applicable
             target.to.common.mapping = NULL
             common.ontology = NULL
             # browser()
             
-            return.data = lapply(sources, function(x) {
+            # If sources is NULL, use all the sources from the outcome
+            if (is.null(sources))
+                sources.used.names = names(private$i.data[[outcome]])
+            else
+                sources.used.names = sources
+            
+            return.data = lapply(sources.used.names, function(x) {
                 
+                # Use all ontologies in the source or only those also in from.ontology.names
                 source.ontology.names = names(private$i.data[[outcome]][[x]])
-                ontologies.used.names = ifelse(!is.null(from.ontology.names), intersect(source.ontology.names, from.ontology.names), source.ontology.names)
+                ontologies.used.names = ifelse(
+                    is.null(from.ontology.names),
+                    source.ontology.names,
+                    intersect(source.ontology.names, from.ontology.names))
+                
                 data.to.return = NULL
                 
                 for (y in ontologies.used.names) {
-                    
                     
                     ont = private$i.ontologies[[y]]
                     
@@ -892,6 +902,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     
                     if (is.null(resolved.dimension.values)) {
                         next
+                    }
+                    
+                    # Dimension.values cannot contain *incomplete* dimensions that aren't in keep.dimensions because they'd need to be aggregated
+                    # We checked this earlier for cases with a target.ontology
+                    if (is.null(target.ontology) && !is.null(dimension.values)) {
+                        dimensions.eventually.aggregated = setdiff(names(dimension.values), keep.dimensions)
+                        if (!all(attr(target.ontology, 'is.complete')[dimensions.eventually.aggregated]))
+                            stop(paste0(error.prefix, "'dimension.values' cannot contain incomplete dimensions that are not also in 'keep.dimensions'"))
                     }
                         
                     # Check if it is possible to map this ontology to a target.ontology or common.ontology if applicable
@@ -924,7 +942,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         }
                     }
                     
-                    # Skip this ontology if it can't work
+                    # Skip this ontology if mappings couldn't be found
                     # *** THIS ENCOMPASSES CONDITIONS 1,2, AND 3 WHEN PAIRED WITH THE !SETEQUAL LINE BELOW ***
                     if(!is.null(target.ontology) &&
                        (is.null(ont.to.target.mapping) && is.null(ont.to.common.mapping)))
@@ -936,10 +954,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         strat.data = private$i.data[[outcome]][[x]][[y]][[strat]]
                         strat.dimensions = names(dim(strat.data))
                         strat.dimnames = dimnames(strat.data)
-                        strat.completes = intersect(
-                            strat.dimensions,
-                            names(ont[attr(ont, 'is.complete')])
-                        )
                         
                         # Check that this stratification exactly contains keep.dimensions and the dimension.values dimensions
                         if (!setequal(strat.dimensions, union(names(dimension.values), keep.dimensions)))
@@ -956,8 +970,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             target.to.common.mapping <<- target.to.common.mapping.placeholder
                             common.ontology <<- ont.to.common.mapping$apply.to.ontology(ont)
                         }
-                        
-                        # browser()
                         
                         data.elements.accessors = 'data'
                         if ('url' %in% append.attributes)
@@ -990,21 +1002,26 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 
                             }
                             
-                            # Remove extra dimensions target.ontology may have brought
+                            # Remove extra dimensions target.ontology may have brought not in keep.dimensions or dimension.values
                             dimnames.for.apply = dimnames.for.apply[names(dimnames.for.apply) %in% strat.dimensions]
                             
-                            # Replace NULL incomplete dimensions with the entire corresponding dimension from the stratification
-                            # because array.access doesn't interpret NULL as meaning "all" for a dimension
-                            target.incomplete.dimensions = names(target.ontology[!attr(target.ontology, 'is.complete')])
+                            # Dimnames can't have any NULL dimensions-- array.access won't accept it
+                            # For any NULL dimensions in the target, we will map the entire dimension from the stratification
+                            # to the target or to the common ontology, depending on the case, so that the apply keeps the whole dimension
+                            
                             target.null.dimensions = names(target.ontology)[sapply(target.ontology, is.null)]
-                            target.incomplete.and.null.dimensions = intersect(target.incomplete.dimensions, target.null.dimensions)
+                            
+                            if (allow.mapping.from.target.ontology) {
+                                mapped.dimnames = ont.to.common.mapping$apply.to.dim.names(strat.dimnames)
+                            } else {
+                                mapped.dimnames = ont.to.target.mapping$apply.to.dim.names(strat.dimnames)
+                            }
 
-                            dimnames.for.apply[names(dimnames.for.apply) %in% target.incomplete.and.null.dimensions] =
-                                strat.dimnames[names(strat.dimnames) %in% target.incomplete.and.null.dimensions]
+                            dimnames.for.apply[names(dimnames.for.apply) %in% target.null.dimensions] =
+                                mapped.dimnames[names(mapped.dimnames) %in% target.null.dimensions]
                             
                         }
                         
-                        # browser()
                         # Apply mapping to data and subset in one step
                         data.to.return = lapply(data.elements.accessors, function(a) {
                             
@@ -1039,7 +1056,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     
                                 }
                             }
-                            # browser()
+                            
                             data.temp = mapping.to.apply$apply(
                                 data.to.process,
                                 na.rm = na.rm,
@@ -1095,7 +1112,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         
                                         data.to.return[[d]] = apply(data.to.return[[d]], keep.dimensions, FUN = sum)
                                         
-                                    } else {
+                                    } else if (scale %in% c('rate', 'time', 'proportion')) {
+                                        # We'll do weighted averages with a denominator value as weight.
+                                        
+                                    } else if (scale == 'ratio') {
+                                        stop(paste0(error.prefix, scale, ' data cannot be aggregated'))
+                                    }
+                                    
+                                    else {
                                         
                                         stop(paste0(error.prefix, 'aggregating with the ', scale, ' scale is not yet implemented'))
                                         
@@ -1138,50 +1162,15 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 } # for ontology
                 
                 data.to.return
+            })
                 
-            }) # lapply
-            
-            
-            # - For each source in sources for this outcome (or all sources for the outcome if sources is NULL)
-            #   - For each ontology in this source that is also in from.ontology.names 
-            #     (or all the ontologies if from.ontology.names is NULL)
-            #       - If we can resolve dimension values against this ontology
-            #         (ie if resolve.ontology.dimension.values does not return NULL)
-            #           - for each stratification in this source and ontology
-            #               - If either:
-            #           
-            #                 THEN
-            #                   - we're going to return a list with 1-3 values from the lapply for sources
-            #                       $data - always
-            #                       $url - if append.attributes includes 'url'
-            #                       $details - if append.attributes includes 'details'
-            #                   - For each of the types we are returning
-            #                      - set up a skeleton return value filled with NAs (using ontology.mapping$apply.to.dimnames)
-            #                           - array(NA, dim=sapply(...), dimnames= what we got from ontology.mapping) unnecessary
-            #                      - map data from the ontology and overwrite into the return value
-            #                          - if type == 'data'
-            #                              - use ontology.mapping$apply private$i.data[[outcome]][[source]][[ontology]][[stratification]]
-            #                          - else
-            #                              - use ontology.mapping$apply, with fun=union
-            #                      - if we need to aggregate (ie, if there are dimensions in the return value NOT in keep.dimensions)
-            #                          - if any of those extraneous dimensions are incomplete, throw an error
+
             #                          - otherwise aggregate:
             #                              - if type == 'data'
             #                                 - sum if they are numbers or non-negative numbers
             #                                  - take weighted average (weighted by denominator.outcome) if they are rates, times, or proportions
             #                                  - throw an error if they are ratios
-            #                              - otherwise, aggregate as the union - ie apply(blah, blah, union)
-            #                   - return from the source lapply
-            #   
-            # If we have data from at least one source (ie, not NULL)
-            #   - Lump all arrays into one array with a source dimension
-            # If we have no data, create a skeleton array, filled with NAs, with source = 'empty'
-            # 
-            # Set url and details as attributes if requested
-            # Set ontology.mapping as attribute
-            
-            
-            
+
             # we have a list (one element per source) of lists (one element per data type, i.e. 'data', 'url', or 'details')
             # take the first element of each list and make this the pull.return.data
             
@@ -1189,7 +1178,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Extract data for data, url, and details out of what lapply returned above
             for (data.type in names(return.data[[1]])) {
-                # browser()
+
                 # make a list of the data from the sources
                 pull.return.data.list = lapply(return.data, function(x) {x[[data.type]]})
                 names(pull.return.data.list) = sources
