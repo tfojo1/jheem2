@@ -880,6 +880,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             return.data = lapply(sources.used.names, function(x) {
                 
+                # Helps us return NULL data if we later find we need denominator data for aggregation and can't find it
+                source.lacks.denominator.data.flag = FALSE
+                
                 # Use all ontologies in the source or only those also in from.ontology.names
                 source.ontology.names = names(private$i.data[[outcome]][[x]])
                 ontologies.used.names = ifelse(
@@ -955,10 +958,53 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         strat.dimensions = names(dim(strat.data))
                         strat.dimnames = dimnames(strat.data)
                         
-                        # Check that this stratification exactly contains keep.dimensions and the dimension.values dimensions
-                        if (!setequal(strat.dimensions, union(names(dimension.values), keep.dimensions)))
-                            next
+                        # Figure out the to.dimnames for when we apply a mapping/subset
+                        # This will also help us check whether the dimensions for this stratification are correct post-mapping
+                        dimnames.for.apply = NULL
                         
+                        if (is.null(target.ontology)) {
+                            
+                            # In this case, check that the stratification has exactly keep.dimensions + dimension.values dimensions
+                            if (!setequal(strat.dimensions, union(keep.dimensions, names(dimension.values))))
+                                next
+                            
+                            dimnames.for.apply = strat.dimnames
+                            dimnames.for.apply[names(dimension.values)] = dimension.values
+                            
+                        } else {
+
+                            dimnames.for.apply = target.ontology
+                            dimnames.for.apply[names(dimension.values)] = dimension.values
+                            
+                            # Remove extra dimensions target.ontology may have brought that are not in keep.dimensions or dimension.values
+                            # We checked at the beginning that the target.ontology contains both keep.dimensions and the dimension.values dimensions
+                            dimnames.for.apply = dimnames.for.apply[names(dimnames.for.apply) %in% union(keep.dimensions, names(dimension.values))]
+                            
+                            if (allow.mapping.from.target.ontology)
+                                dimnames.for.apply = target.to.common.mapping$apply.to.dim.names(dimnames.for.apply)
+                            
+                            # In this case, check that the stratification has exactly the dimnames.for.apply dimensions
+                            if (!setequal(strat.dimensions, names(dimnames.for.apply)))
+                                next
+                            
+                            # @@@ THIS WILL BE FIXED BY TODD SOON
+                            # Dimnames can't have any NULL dimensions-- array.access won't accept it
+                            # For any NULL dimensions in the target, we will map the entire dimension from the stratification
+                            # to the target or to the common ontology, depending on the case, so that the apply keeps the whole dimension
+                            
+                            target.null.dimensions = names(target.ontology)[sapply(target.ontology, is.null)]
+                            
+                            if (allow.mapping.from.target.ontology) {
+                                mapped.dimnames = ont.to.common.mapping$apply.to.dim.names(strat.dimnames)
+                            } else {
+                                mapped.dimnames = ont.to.target.mapping$apply.to.dim.names(strat.dimnames)
+                            }
+                            
+                            dimnames.for.apply[names(dimnames.for.apply) %in% target.null.dimensions] =
+                                mapped.dimnames[names(mapped.dimnames) %in% target.null.dimensions]
+                            
+                        }
+
                         # Check that there are data (not all NA) after any ontology is applied
                         pull.data = private$i.data[[outcome]][[x]][[y]][[strat]]
                         if (all(is.na(pull.data))) next
@@ -976,52 +1022,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             data.elements.accessors = append(data.elements.accessors, 'url')
                         if ('details' %in% append.attributes)
                             data.elements.accessors = append(data.elements.accessors, 'details')
-                        
-                        # Note: I should subset in this function *before* I apply any mapping
-                        # to do so, I need to figure out what the dimension values would be pre-mapping
-                        
-                        # figure out the dimnames for the apply
-                        dimnames.for.apply = NULL
-                        
-                        if (is.null(target.ontology)) {
-                            
-                            dimnames.for.apply = append(
-                                strat.dimnames[!(names(strat.dimnames) %in% names(dimension.values))],
-                                dimension.values
-                                )
-                        } else {
-                            
-                            dimnames.for.apply = append(
-                                target.ontology[!(names(target.ontology) %in% names(dimension.values))],
-                                dimension.values
-                                )
-                            
-                            if (allow.mapping.from.target.ontology) {
-                                
-                                dimnames.for.apply = target.to.common.mapping$apply.to.dim.names(dimnames.for.apply)
-                                
-                            }
-                            
-                            # Remove extra dimensions target.ontology may have brought not in keep.dimensions or dimension.values
-                            dimnames.for.apply = dimnames.for.apply[names(dimnames.for.apply) %in% strat.dimensions]
-                            
-                            # Dimnames can't have any NULL dimensions-- array.access won't accept it
-                            # For any NULL dimensions in the target, we will map the entire dimension from the stratification
-                            # to the target or to the common ontology, depending on the case, so that the apply keeps the whole dimension
-                            
-                            target.null.dimensions = names(target.ontology)[sapply(target.ontology, is.null)]
-                            
-                            if (allow.mapping.from.target.ontology) {
-                                mapped.dimnames = ont.to.common.mapping$apply.to.dim.names(strat.dimnames)
-                            } else {
-                                mapped.dimnames = ont.to.target.mapping$apply.to.dim.names(strat.dimnames)
-                            }
 
-                            dimnames.for.apply[names(dimnames.for.apply) %in% target.null.dimensions] =
-                                mapped.dimnames[names(mapped.dimnames) %in% target.null.dimensions]
-                            
-                        }
-                        
                         # Apply mapping to data and subset in one step
                         data.to.return = lapply(data.elements.accessors, function(a) {
                             
@@ -1110,7 +1111,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     
                                     if (scale %in% c('non.negative.number', 'number')) {
                                         
-                                        data.to.return[[d]] = apply(data.to.return[[d]], keep.dimensions, FUN = sum)
+                                        data.to.return[[d]] = apply(data.to.return[[d]], keep.dimensions, FUN = sum, na.rm=na.rm)
                                         
                                     } else if (scale %in% c('rate', 'time', 'proportion')) {
                                         
@@ -1136,35 +1137,36 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                             allow.mapping.from.target.ontology = FALSE,
                                             from.ontology.names = NULL,
                                             append.attributes = FALSE,
-                                            na.rm = FALSE)
+                                            na.rm = na.rm)
+
+                                        # If no denominator data found, break from the loops for data type, stratification, and ontology and return NULL for the whole source
+                                        if (is.null(denominator.array)) {
+                                            source.lacks.denominator.data.flag = TRUE
+                                            data.to.return = NULL
+                                            break
+                                        }
                                         
-                                        if (is.null(denominator.array))
-                                            stop(paste0(error.prefix, 'denominator data for ', scale, ' could not be found'))
+                                        # Catch an otherwise invisible bug if denominator.array somehow doesn't have the same shape/order as the data
+                                        if (dimnames(denominator.array) != dimnames(data.to.return[[d]]))
+                                            stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect order'))
                                         
                                         # We should find totals by aggregating the denominator.array rather than pulling less stratified data
                                         # because less stratified data might not equal the sum of the more stratified data in denominator.array
-                                        denominator.totals.array = apply(denominator.array, keep.dimensions, FUN = sum)
+                                        denominator.totals.array = apply(denominator.array, keep.dimensions, FUN = sum, na.rm=na.rm)
                                         
                                         # Generate an array that multiplies every cell in data.to.return[[d]] by its weight from denominator.array
                                         # Caution: are the order of the dimensions the same, so that the values align?
-                                        weighted.value.array = array(
-                                            as.numeric(data.to.return[[d]]) * as.numeric(denominator.array),
-                                            dim = current.dim,
-                                            dimnames = current.dimnames
-                                        )
+                                        weighted.value.array = data.to.return[[d]] * denominator.array
                                         
                                         # Take the sum of the weighted values
-                                        data.to.return[[d]] = apply(weighted.value.array, keep.dimensions, FUN = sum)
+                                        data.to.return[[d]] = apply(weighted.value.array, keep.dimensions, FUN = sum, na.rm=na.rm)
                                         
                                         current.dim = dim(data.to.return[[d]])
                                         current.dimnames = dimnames(data.to.return[[d]])
                                         
                                         # Divide by the denominator.totals.array values to finish the weighted average
-                                        data.to.return[[d]] = array(
-                                            as.numeric(data.to.return[[d]]) / as.numeric(denominator.totals.array),
-                                            dim = current.dim,
-                                            dimnames = current.dimnames
-                                        )
+                                        # fix
+                                        data.to.return[[d]] = data.to.return[[d]] / denominator.totals.array
                                         
                                     } else if (scale == 'ratio') {
                                         stop(paste0(error.prefix, scale, ' data cannot be aggregated'))
@@ -1200,23 +1202,24 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 }
                             }
                                 
-                        }
+                        } # end of loop for data types
                         
-                        # Since we found a match, we don't need to search any more stratifications for this ontology
+                        # If we found a match, or lack denominator data, then we won't search any more stratifications for this ontology
                         break
                                 
-                    } # for stratification
+                    } # end of loop for stratification
                     
-                    # If found a match, then we don't need to search any more ontologies for this source
-                    if (!is.null(data.to.return)) break
+                    # If we found a match, or lack denominator data, then we won't search any more ontologies for this source
+                    if (!is.null(data.to.return) || source.lacks.denominator.data.flag) break
                     
-                } # for ontology
+                } # end of loop for ontology
                 
                 data.to.return
-            })
+                
+            }) # end of lapply for sources
                 
             # we have a list (one element per source) of lists (one element per data type, i.e. 'data', 'url', or 'details')
-            
+            # repackage this to be a data array with 'url', 'details' and possibly a mapping as attributes
             final.return = NULL
             
             # Extract data for data, url, and details out of what lapply returned above
