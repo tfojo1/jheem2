@@ -122,10 +122,10 @@ register.zipcodes = function(LM, filename, fips.typename = "county", zip.typenam
   zip.codes = zip.data[['zip']]
   #Add proper prefix for register.hierarchy
   unique.zip.codes = sprintf("%s%s",LM$get.prefix(zip.typename),zip.codes)
-  fips.codes = zip.data[['fips']]
-  #round(34233,digits=-3) = 34000
-  state.codes = as.character(round(as.numeric(fips.codes),digits = -3))
+  fips.codes = sprintf("%05d",zip.data[['fips']])
+  state.codes = sprintf("%02g",floor(zip.data[['fips']] / 1000))
   zip.names = sprintf(zipcode.name.format.string,zip.codes)
+  # browser()
   
   #Register all the zip codes
   #No prefix
@@ -139,7 +139,6 @@ register.zipcodes = function(LM, filename, fips.typename = "county", zip.typenam
   #With Prefix
   LM$register.hierarchy(unique.zip.codes,paste0(LM$get.prefix(fips.typename),fips.codes),
                         rep(TRUE,length(fips.codes)),F)
-  
   #Register the zip code as completely contained by the state.  If any result is NA, skip
   LM$register.hierarchy(unique.zip.codes,paste0(LM$get.by.alias(state.codes, "state"), 
                                                 state.codes),
@@ -240,5 +239,3 @@ LOCATION.MANAGER = register.state.fips.aliases(LOCATION.MANAGER, "locations/fips
 LOCATION.MANAGER = register.fips(LOCATION.MANAGER, "locations/fips_codes.csv", fips.typename = county.type) #Set the fips typename
 LOCATION.MANAGER = register.cbsa(LOCATION.MANAGER, "locations/cbsas.csv", cbsa.typename = cbsa.type, fips.typename = county.type) #Sets the fips and cbsa typename
 LOCATION.MANAGER = register.zipcodes(LOCATION.MANAGER, "locations/zip_codes.csv", fips.typename = county.type, zip.typename = zipcode.type)
-
-register.code.aliases("C.49700","DCBABY")
