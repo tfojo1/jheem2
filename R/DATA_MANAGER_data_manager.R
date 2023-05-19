@@ -9,7 +9,7 @@
 ##-- PUBLIC INTERFACE --##
 ##----------------------##
 
-#'@description Create a JHEEM Data Manager
+#'@title Create a JHEEM Data Manager
 #'
 #'@param name The name of the data manager
 #'@param description A short description
@@ -22,7 +22,7 @@ create.data.manager <- function(name,
                            description=description)
 }
 
-#'@description Register a new data ontology to a data manager before putting data to it
+#'@title Register a new data ontology to a data manager before putting data to it
 #'
 #'@param data.manager A jheem.data.manager object
 #'@param name The name of the data group
@@ -40,7 +40,7 @@ register.data.ontology <- function(data.manager,
                                    ont=ont)
 }
 
-#'@description Register an outcome to a data manager before putting data for that outcome
+#'@title Register an outcome to a data manager before putting data for that outcome
 #'
 #'@param data.manager A jheem.data.manager object
 #'@param outcome The name (a single character value) of the outcome. This is the 'internal' name by which the outcome will be referenced in accessing the data manager
@@ -64,7 +64,7 @@ register.data.outcome <- function(data.manager,
                                   overwrite = overwrite)
 }
 
-#'@description Register a data source to a data manager before putting data from that source
+#'@title Register a data source to a data manager before putting data from that source
 #'
 #'@param data.manager A jheem.data.manager object
 #'@param outcome The name (a single character value) of the outcome. This is the 'internal' name by which the outcome will be referenced in accessing the data manager
@@ -87,7 +87,7 @@ register.data.source <- function(data.manager,
                                  short.name=short.name)
 }
 
-#'@description Put data into a data manager
+#'@title Put data into a data manager
 #'
 #'@param data.manager A jheem.data.manager object
 #'@param data A numeric array or scalar value containing the data to store. If it is an array, it must have named dimnames set
@@ -124,7 +124,7 @@ put.data <- function(data.manager,
                      allow.na.to.overwrite=allow.na.to.overwrite)
 }
 
-#'@description Put long-form data into a data manager
+#'@title Put long-form data into a data manager
 #'
 #'@inheritParams put.data
 #'@param data A data frame or other 2-dimensional data structure with named columns. Must contain a column named 'value' of numeric values. If the 'source' argument is NULL, then data must also have a column named 'source' that gives the source for each row. May contain additional columns with names matching the specified ontology, which have the dimension values for each row. Any other columns are ignored
@@ -153,7 +153,7 @@ put.data.long.form <- function(data.manager,
                                allow.na.to.overwrite=allow.na.to.overwrite) 
 }
 
-#'@description Pull data from a data manager
+#'@title Pull data from a data manager
 #'
 #'@param data.manager A jheem.data.manager object
 #'@param outcome The outcome type for the data. Must be an outcome previously registered to this data manager with \code{\link{register.data.outcome}}
@@ -198,7 +198,7 @@ pull.data <- function(data.manager,
                      na.rm = na.rm)
 }
 
-#'@description Get pretty names for outcomes
+#'@title Get pretty names for outcomes
 #'
 #'@details Gets the pretty.names, labels, or descriptions registered for the outcomes with the data manager
 #'
@@ -236,7 +236,7 @@ get.data.outcome.descriptions <- function(data.manager, outcomes)
     data.manager$get.outcome.descriptions(outcomes)
 }
 
-#'@description Get full names for data sources
+#'@title Get full names for data sources
 #'
 #'@details Gets the full.names or short.names for the data sources in the data manager
 #'
@@ -837,7 +837,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # The target ontology also needs to contain the keep dimensions if any
             if (!is.null(target.ontology) && !is.null(keep.dimensions)) {
-                if (any!(keep.dimensions %in% names(target.ontology)))
+                if (!any(keep.dimensions %in% names(target.ontology)))
                     stop(paste0(error.prefix, "'keep.dimensions' must be contained in 'target.ontology'"))
             }
             
