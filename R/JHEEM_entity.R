@@ -1,6 +1,6 @@
 
 
-#'@description Get the Specification-Info Object for an Instance of a JHEEM Entity
+#'@title Get the Specification-Info Object for an Instance of a JHEEM Entity
 #'
 #'@param jheem.entity An object of class jheem.entity (such as a jheem.engine, jheem.simset, or jheem.sim)
 #'

@@ -58,7 +58,7 @@ convert.model.scale <- function(values,
                error.prefix=error.prefix)
     else
         do.convert.model.scale(values=values, convert.from.scale = convert.from.scale,
-                               convert.to.scale = convert.from.scale, error.prefix=error.prefix)
+                               convert.to.scale = convert.to.scale, error.prefix=error.prefix)
 }
 
 

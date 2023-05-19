@@ -13,7 +13,7 @@ source ("R/LOCATIONS_impl.R")
 
 #'@description Get the Name of a Location
 #'
-#'@param locations A character vector of location codes or location code aliases
+#'@param locations A character vector of location codes
 #'
 #'@return A character vector of location names, with length(locations) and names=locations. If location codes are not registered (or if they were NA), the corresponding returned name is NA
 #'

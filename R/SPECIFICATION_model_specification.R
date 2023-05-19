@@ -13,7 +13,7 @@
 ##---------------------------------##
 ##---------------------------------##
 
-#'@description Create a Model Specification for Running the JHEEM
+#'@title Create a Model Specification for Running the JHEEM
 #'
 #'@param version A single character value denoting the version
 #'@param iteration A single character or numeric value denoting the iteration of the model specification for this version
@@ -23,7 +23,7 @@
 #'@param do.not.inherit.model.quantity.names A vector of names of model.quantities which should NOT be inherited from ancestor specifications
 #'@param do.not.inherit.transitions.for.dimension A vector of names of dimensions for which transitions should NOT be inherited from ancestor specifications
 #'
-#'@param compartments.for.infected.only,compartments.for.uninfected.only,compartments.for.infected.and.uninfected Named lists of character vectors specifying the compartments for uninfected and infected groups, or compartments shared by both. The names of the lists represent dimensions, and the values the compartments for each dimension. Compartments can either be string referencing the compartments themselves, or strings representing aliases passed to compartment.value.aliases
+#'@param compartments.for.infected.only,compartments.for.uninfected.only,compartments.for.infected.and.uninfected Named lists of character vectors F@specifying the compartments for uninfected and infected groups, or compartments shared by both. The names of the lists represent dimensions, and the values the compartments for each dimension. Compartments can either be string referencing the compartments themselves, or strings representing aliases passed to compartment.value.aliases
 #'
 #'@param transmission.modes A character vector of one or more modes of transmission
 #'@param age.endpoints Optional. A numeric vector (with at least two elements) giving the endpoints of the age brackets to use for the 'age' dimension. Results in length(age.endpoints)-1 different brackets, where the first bracket spans age.endpoints[1] (inclusive) to age.endpoints[2] (exclusive), the second bracket spans age.endpoints[2] to age.endpoints[3], etc
@@ -825,7 +825,7 @@ create.jheem.specification <- function(version,
 }
 
 
-#'@description Register a Model Element
+#'@title Register a Model Element
 #'
 #'@param specification The jheem.specification object
 #'
@@ -941,7 +941,7 @@ register.model.element <- function(specification,
     )
 }
 
-#'@description A convenience function to streamline registering multiple model.elements for which we only need to specify a value
+#'@title A convenience function to streamline registering multiple model.elements for which we only need to specify a value
 #'
 #'@param specification The jheem.specification object to modify
 #'@param ... A set of named values. The names correspond to the names of the model elements, and the values should be either (1) numeric objects or (2) functions that take arguments 'location' and 'settings' and returns a numeric value
@@ -992,7 +992,7 @@ register.model.element.values <- function(specification,
     specification
 }
 
-#'@description Register a Model Quantity
+#'@title Register a Model Quantity
 #'
 #'@inheritParams register.model.element
 #'@param specification The jheem.specification object to modify
@@ -1033,7 +1033,7 @@ register.model.quantity <- function(specification,
 }
 
 
-#'@description Register a Value to a Subset of a Model Quantity or Transition
+#'@title Register a Value to a Subset of a Model Quantity or Transition
 #'
 #'@param name The name of the model quantity or transition to which to register a subset
 #'@inheritParams register.model.quantity
@@ -1066,7 +1066,7 @@ register.model.quantity.subset <- function(specification,
                                            ...)
 }
 
-#'@description Register a Top-Level Quantity (ie a quantity required or pre-specified as optional for running a JHEEM simulation)
+#'@title Register a Top-Level Quantity (ie a quantity required or pre-specified as optional for running a JHEEM simulation)
 #'
 #'@inheritParams register.model.quantity
 #'@param name The name of the quantity. Must be one of specification$top.level.quantity.names
@@ -1090,7 +1090,7 @@ register.top.level.quantity <- function(specification,
                                               ...)
 }
 
-#'@description Register a Transition between Compartments in a Dimension
+#'@title Register a Transition between Compartments in a Dimension
 #'
 #'@inheritParams register.model.quantity
 #'@param name The name by which to refer to this transition. Optional, but if not specified (NULL), you will not be able to refer to this transition in other quantities or override it in descendant specifications
@@ -1130,7 +1130,7 @@ register.transition <- function(specification,
 
 
 
-#'@description Indicate a Transition to Track for Simulations
+#'@title Indicate a Transition to Track for Simulations
 
 #'@param specification The jheem.specification object to modify
 #'
@@ -1174,7 +1174,7 @@ track.transition <- function(specification,
     
 }
 
-#'@description Indicate a Quantity to Track for Simulations
+#'@title Indicate a Quantity to Track for Simulations
 #'
 #'@inheritParams 
 #'@param name The name by which to access the quantity after the simulation runs. Cannot be 'infected', 'uninfected' or the name of a tracked transition
@@ -1241,7 +1241,7 @@ track.transition <- function(specification,
     
 }
 
-#'@description Create a metadata object for tracked quantities or tracked transitions
+#'@title Create a metadata object for tracked quantities or tracked transitions
 #'
 #'@param scale The scale of the quantity. Either "rate", "ratio", "proportion", "time", "number", "non.negative.number"
 #'@param display.name The (nicely formatted) name of the quantity - to use in titling figures and other reporting. Should be capitalized

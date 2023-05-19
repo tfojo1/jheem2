@@ -29,12 +29,12 @@ JHEEM.SIMULATION = R6::R6Class(
             
         },
         
-        get.quantity <- function()
+        get.quantity = function()
         {
             
         },
         
-        get.quantities <- function()
+        get.quantities = function()
         {
             rv = sapply(outcomes, function(outcome){
                 sim$get.quantity()

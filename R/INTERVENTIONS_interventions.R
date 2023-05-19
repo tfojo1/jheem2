@@ -152,7 +152,7 @@ JHEEM.INTERVENTION = R6::R6Class(
     
     public = list(
         
-        initialize <- function(name,
+        initialize = function(name,
                                code,
                                is.combinable)
         {
@@ -168,17 +168,17 @@ JHEEM.INTERVENTION = R6::R6Class(
                 register.intervention(self)
         },
         
-        reduce.to.standard.intervention <- function()
+        reduce.to.standard.intervention = function()
         {
             stop("The method 'reduce.to.standard.intervention' must be implemented in a descendant class of jheem.intervention")
         },
         
-        get.description <- function(model.specification)
+        get.description = function(model.specification)
         {
             stop("The method 'get.description' must be implemented in a descendant class of jheem.intervention")
         },
         
-        equals <- function(int)
+        equals = function(int)
         {
             if (!setequal(class(self), class(int)))
                 F
@@ -232,7 +232,7 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
                               intervention.effects)
         {
             
-        }
+        },
         
         resolve.dependencies = function()
         {
@@ -244,12 +244,12 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
             self
         },
         
-        get.description <- function(model.specification)
+        get.description = function(model.specification)
         {
             stop("need to implement")
         },
         
-        equals <- function(int)
+        equals = function(int)
         {
             if (!setequal(class(self), class(int)))
                 F
@@ -291,8 +291,8 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
         # both named lists, with the same length and same names
         # The name of each list element of the target model.element
         # Each element of each list has the same length as the corresponding element in the other
-        i.target.populations.by.target.element,
-        i.intervention.effects.by.target.element
+        i.target.populations.by.target.element = NULL,
+        i.intervention.effects.by.target.element = NULL
     )
 )
 

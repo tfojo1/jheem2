@@ -123,7 +123,7 @@ JHEEM.COMBINATION.LIKELIHOOD = R6::R6Class(
     ),
     
     private = list(
-        i.sub.likelihoods
+        i.sub.likelihoods = NULL
     )
 )
 

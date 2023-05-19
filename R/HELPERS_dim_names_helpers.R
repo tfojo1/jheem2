@@ -19,7 +19,7 @@
 ##---------------------------------------##
 
 
-#'@description Join multiple dim.names lists
+#'@title Join multiple dim.names lists
 #'
 #'@return A named list, with an element for each name that appears in any of the dim.names in ... - rv[[d]] is the union of all values in the d dimension of any dim.names in ...
 #'

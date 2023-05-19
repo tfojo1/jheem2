@@ -15,7 +15,7 @@
 ##-- STATIC FUNCTIONAL FORM --##
 ##----------------------------##
 
-#'@description Create an Static (Time-Invariant) Functional Form
+#'@title Create an Static (Time-Invariant) Functional Form
 #'
 #'@param value array representing the value
 #'@param link The name of the transformation to the scale on which alphas are added to the value. One of "identity", "log", "logit"
@@ -50,7 +50,7 @@ create.static.functional.form <- function(value,
 ##-------------------------------------------------##
 
 
-#'@description Create an Functional Form that is Linear (possibly on a transformed scale)
+#'@title Create an Functional Form that is Linear (possibly on a transformed scale)
 #'
 #'@inheritParams create.static.functional.form
 #'@param intercept,slope Arrays or scalar values representing the intercept and slope on the transformed scale
@@ -81,7 +81,7 @@ create.linear.functional.form <- function(intercept,
                                error.prefix = error.prefix)
 }
 
-#'@description Create a Functional Form that is Linear on the Log Scale
+#'@title Create a Functional Form that is Linear on the Log Scale
 #'
 #'@inheritParams create.linear.functional.form
 #'@param intercept,slope Arrays or scalar values representing the intercept and slope on the log scale
@@ -110,7 +110,7 @@ create.log.linear.functional.form <- function(intercept,
                                   error.prefix = error.prefix)
 }
 
-#'@description Create a Functional Form that is Linear on the Logistic Scale
+#'@title Create a Functional Form that is Linear on the Logistic Scale
 #'
 #'@inheritParams create.linear.functional.form
 #'@param intercept,slope Arrays or scalar values representing the intercept and slope on the logistic scale
@@ -140,37 +140,56 @@ create.logistic.linear.functional.form <- function(intercept,
 }
 
 
-#'@description Create a "Logistic Tail" Functional Form
+#'@title Create a "Logistic Tail" Functional Form
+#'
+#'@details A "logistic tail" functional form follows a linear (intercept + slope) in its first part, and a logistic-linear form in its second part. This allows a linear trend to taper off
 #'
 #'@inheritParams create.linear.functional.form
 #'@param intercept,slope Scalar values or arrays representing the intercept and slope. Note that the final form constrains the slope to be non-negative
 #'@param logistic.after.frac.of.span The fraction of the the total span (max - min) after which the model follows a logistic curve
 #'@param min,max The upper and lower limits to which the functional form can evaluate
-#'@param future.slope.is.multiplier A logical indicating whether the future slope should be treated as a multiplier of the current slope (vs being added to it)
+#'@param intercept.link,slope.link The names of the transformations to the scale on which alphas are added to calculate the intercept and slope. One of "identity", "log", "logit"
+#'@param intercept.min,intercept.max,slope.min,slope.max The min and max values to which intercept and slope van evaluate
 #'
 #'@export
 create.logistic.tail.functional.form <- function(intercept,
                                                  slope,
                                                  anchor.year,
+                                                 
                                                  logistic.after.frac.of.span=0.5,
-                                                 link = 'logit',
                                                  min=0,
                                                  max=1,
+                                                 
+                                                 intercept.link = 'logistic',
+                                                 intercept.min = NA,
+                                                 intercept.max = NA,
+                                                 
+                                                 slope.link = intercept.link,
+                                                 slope.min = NA,
+                                                 slope.max = NA,
+
                                                  parameters.are.on.transformed.scale = T,
                                                  overwrite.parameters.with.alphas = F,
-                                                 future.slope.is.multiplier = T,
                                                  error.prefix = 'Cannot create logistic-tail functional.form: ')
 {
     LOGISTIC.TAIL.FUNCTIONAL.FORM$new(intercept = intercept,
                                       slope = slope,
                                       anchor.year = anchor.year,
+                                      
                                       logistic.after.frac.of.span = logistic.after.frac.of.span,
-                                      link = link,
                                       min = min,
                                       max = max,
+                                      
+                                      intercept.link = intercept.link,
+                                      intercept.min = intercept.min,
+                                      intercept.max = intercept.max,
+                                      
+                                      slope.link = slope.link,
+                                      slope.min = slope.min,
+                                      slope.max = slope.max,
+                                      
                                       parameters.are.on.transformed.scale = parameters.are.on.transformed.scale,
                                       overwrite.parameters.with.alphas = overwrite.parameters.with.alphas,
-                                      future.slope.is.multiplier = future.slope.is.multiplier,
                                       error.prefix = error.prefix)
 }
 
@@ -180,113 +199,145 @@ create.logistic.tail.functional.form <- function(intercept,
 ##-----------------------------##
 
 
-#'@description Create a Linear Spline Functional Form
+#'@title Create a Linear Spline Functional Form
 #'
 #'@inheritParams create.linear.functional.form
 #'@param knot.times The (numeric) times at which the knots of the spline apply. Must have names set
 #'@param knot.values Initial values for the knots. Must have names set, matching the names of knot times
-#'@param link The name of a transformation to the scale at which the spline should apply. The knots are transformed to this scale, the spline is applied, and then the splined values are back-transformed. One of 'identity', 'log', or 'logistic'
-#'@param knots.are.on.transformed.scale Logical indicating whether the knots are already on the transformed scale at which alphas apply
+#'@param link The name of a transformation to the scale at which the SPLINE should apply. The knots are transformed to this scale, the spline is applied, and then the splined values are back-transformed. One of 'identity', 'log', or 'logistic'
+#'
+#'@param knot.link The name of a transformation to the scale at which the knot values have alphas ADDED. The knots are back-transformed from this scale prior to the spline scale being applied
+#'@param knot.min,knot.max The min and max values that KNOTS can take before being splined (note, the min and max values the functional form can take, after splining, are determined by parameters min and max)
+#'@param knots.are.on.transformed.scale Logical indicating whether the knots are already on the transformed scale (ie knot.link has been applied)
+#'
 #'@param before.modifier,after.modifier If either of these is set, an additional knot is added to the specified knots. For before.modifier, this knot is calculated as before.modifier added or multiplier by the value of the first knot (on the model scale); after.modifier is added or multiplied by the value of the last knot
 #'@param before.time,after.time The times at which the knots calculated from before.modifier and after.modifier apply, respectively
-#'@param overwrite.before.modifier.with.alphas,overwrite.after.modifier.with.alphas Logical indicating whether, when alphas are applied to the before.modifier or after.modifier, they OVERWRITE the modifiers. If F, alphas are added (if modifiers.are.multiplicative.on.model.scale=F) or multiplied(if modifiers.are.multiplicative.on.model.scale=T) to the modifiers on the model scale
-#'@param before.modifier.application,after.modifier.application A character vector that specifies how before.modifier and/or after.modifier should be applied. Choices are 'additive.on.model.scale' (the modifier is added to the transformed value of the first or last knot - on the scale that the smoothing is applied), 'multiplicative.on.model.scale' (modifier is multiplied by the transformed first or last knot - applies only if scale=='identity), or 'multiplicative.of.change.on.value.scale' (the before knot is - on the scale of resulting values - equal to the first knot plus the modifier times the change from the second to first knot. Analogous for the after.modifier with last knot and penultimate knot)
+#'
+#'@param modifiers.apply.to.change If TRUE, after.modifier (the untransformed-by-link value) is multiplied by the change between the penultimate and last knots and added to the last knot to generate an additional knot at after.time (similarly, before.modifier is multiplied by the change from the first to the second and subtracted from the first). If FALSE, the transformed after.multiplier is added to the last knot after the last knot is transformed to modifier.link scale, and the resulting value is back-transformed to yield the knot at after.time (similarly, before.modifier is added to the first knot on modifier.link scale)
+#'@param modifier.link The name of a transformation to the scale at which the before.modifer and after.modifier have alphas added
+#'@param modifier.min,modifier.max The min and max values for before.modifier and after.modifier
+#'@param overwrite.modifiers.with.alphas Logical indicating whether, when alphas are applied to the before.modifier or after.modifier, they OVERWRITE the modifiers. If F, alphas are added on the scale specified by modifier.link
 #'
 #'@export
 create.linear.spline.functional.form <- function(knot.times,
                                                  knot.values,
+                                                 
                                                  link = c('identity','log','logit')[1],
                                                  min = NA,
                                                  max = NA,
+                                                 
+                                                 knot.link = link,
+                                                 knot.min = min,
+                                                 knot.max = max,
                                                  
                                                  knots.are.on.transformed.scale=F,
                                                  overwrite.knot.values.with.alphas=F,
                                                  
                                                  before.time=NULL,
                                                  before.modifier=NULL,
-                                                 before.modifier.application=NULL,
-                                                 overwrite.before.modifier.with.alphas=F,
-                                                 
                                                  after.time=NULL,
                                                  after.modifier=NULL,
-                                                 after.modifier.application=NULL,
-                                                 overwrite.after.modifier.with.alphas=F,
+                                                 
+                                                 modifiers.apply.to.change=T,
+                                                 modifier.link=c('identity','log','logit')[1],
+                                                 modifier.min = NA,
+                                                 modifier.max = NA,
+                                                 overwrite.modifiers.with.alphas = F,
+                                                 
                                                  error.prefix = 'Cannot create linear spline functional.form: ')
 {
     LINEAR.SPLINE.FUNCTIONAL.FORM$new(knot.times = knot.times,
-                                       knot.values = knot.values,
-                                       link = link,
-                                       min = min,
-                                       max = max,
-                                       
-                                       knots.are.on.transformed.scale = knots.are.on.transformed.scale,
-                                       overwrite.knot.values.with.alphas = overwrite.knot.values.with.alphas,
-                                       
-                                       before.time = before.time,
-                                       before.modifier = before.modifier,
-                                       before.modifier.application = before.modifier.application,
-                                       overwrite.before.modifier.with.alphas = overwrite.before.modifier.with.alphas,
-                                       
-                                       after.time = after.time,
-                                       after.modifier = after.modifier,
-                                       after.modifier.application = after.modifier.application,
-                                       overwrite.after.modifier.with.alphas = overwrite.after.modifier.with.alphas,
-                                       
-                                       error.prefix = error.prefix)
+                                      knot.values = knot.values,
+                                      
+                                      link = link,
+                                      min = min,
+                                      max = max,
+                                      
+                                      knot.link = knot.link,
+                                      knot.min = knot.min,
+                                      knot.max = knot.max,
+                                      
+                                      knots.are.on.transformed.scale = knots.are.on.transformed.scale,
+                                      overwrite.knot.values.with.alphas = overwrite.knot.values.with.alphas,
+                                      
+                                      before.time = before.time,
+                                      before.modifier = before.modifier,
+                                      after.time = after.time,
+                                      after.modifier = after.modifier,
+                                      
+                                      modifiers.apply.to.change = modifiers.apply.to.change,
+                                      modifier.link = modifier.link,
+                                      modifier.min = modifier.min,
+                                      modifier.max = modifier.max,
+                                      overwrite.modifiers.with.alphas = overwrite.modifiers.with.alphas,
+                                      
+                                      error.prefix = error.prefix)
 }
 
 
-#'@description Create a Natural Spline Functional Form
+#'@title Create a Natural Spline Functional Form
 #'
 #'@inheritParams create.linear.spline.functional.form
 #'
 #'@export
 create.natural.spline.functional.form <- function(knot.times,
                                                   knot.values,
+                                                  
                                                   link = c('identity','log','logit')[1],
                                                   min = NA,
                                                   max = NA,
+                                                  
+                                                  knot.link = link,
+                                                  knot.min = min,
+                                                  knot.max = max,
                                                   
                                                   knots.are.on.transformed.scale=F,
                                                   overwrite.knot.values.with.alphas=F,
                                                   
                                                   before.time=NULL,
                                                   before.modifier=NULL,
-                                                  before.modifier.application=NULL,
-                                                  overwrite.before.modifier.with.alphas=F,
-                                                  
                                                   after.time=NULL,
                                                   after.modifier=NULL,
-                                                  after.modifier.application=NULL,
-                                                  overwrite.after.modifier.with.alphas=F,
+                                                  
+                                                  modifiers.apply.to.change=T,
+                                                  modifier.link=c('identity','log','logit')[1],
+                                                  modifier.min = NA,
+                                                  modifier.max = NA,
+                                                  overwrite.modifiers.with.alphas = F,
                                                   
                                                   error.prefix = 'Cannot create natural spline functional.form: ')
 {
     NATURAL.SPLINE.FUNCTIONAL.FORM$new(knot.times = knot.times,
                                        knot.values = knot.values,
+                                       
                                        link = link,
                                        min = min,
                                        max = max,
+                                       
+                                       knot.link = knot.link,
+                                       knot.min = knot.min,
+                                       knot.max = knot.max,
                                        
                                        knots.are.on.transformed.scale = knots.are.on.transformed.scale,
                                        overwrite.knot.values.with.alphas = overwrite.knot.values.with.alphas,
                                        
                                        before.time = before.time,
                                        before.modifier = before.modifier,
-                                       before.modifier.application = before.modifier.application,
-                                       overwrite.before.modifier.with.alphas = overwrite.before.modifier.with.alphas,
-                                       
                                        after.time = after.time,
                                        after.modifier = after.modifier,
-                                       after.modifier.application = after.modifier.application,
-                                       overwrite.after.modifier.with.alphas = overwrite.after.modifier.with.alphas,
+                                       
+                                       modifiers.apply.to.change = modifiers.apply.to.change,
+                                       modifier.link = modifier.link,
+                                       modifier.min = modifier.min,
+                                       modifier.max = modifier.max,
+                                       overwrite.modifiers.with.alphas = overwrite.modifiers.with.alphas,
                                        
                                        error.prefix = error.prefix)
 }
 
 
 
-#'@description Create a Logistic Spline Functional Form
+#'@title Create a Logistic Spline Functional Form
 #'
 #'@inheritParams create.linear.spline.functional.form
 #'
@@ -298,7 +349,15 @@ create.natural.spline.functional.form <- function(knot.times,
 #'@export
 create.logistic.spline.functional.form <- function(knot.times,
                                                    knot.values,
-                                                   link = 'log',
+                                                   
+                                                   min = -Inf,
+                                                   max = Inf,
+                                                   
+                                                   knot.link = c('identity','log','logit')[2],
+                                                   knot.min = NA,
+                                                   knot.max = NA,
+                                                   
+                                                   knots.are.on.transformed.scale = F,
                                                    overwrite.knot.values.with.alphas = F,
                                                    
                                                    fraction.of.asymptote.after.end=0.05,
@@ -312,7 +371,15 @@ create.logistic.spline.functional.form <- function(knot.times,
 {
     LOGISTIC.SPLINE.FUNCTIONAL.FORM$new(knot.times = knot.times,
                                         knot.values = knot.values,
-                                        link = link,
+                                        
+                                        min = min,
+                                        max = max,
+                                        
+                                        knot.link = knot.link,
+                                        knot.min = knot.min,
+                                        knot.max = knot.max,
+                                        
+                                        knots.are.on.transformed.scale = knots.are.on.transformed.scale,
                                         overwrite.knot.values.with.alphas = overwrite.knot.values.with.alphas,
                                         
                                         fraction.of.asymptote.after.end=fraction.of.asymptote.after.end,
@@ -341,13 +408,14 @@ FUNCTIONAL.FORM = R6::R6Class(
         #'@param betas A named list of the values for the betas
         #'@param link A link object
         #'@param alphas.are.additive Either a single logical value or a named logical vector with the same names as betas
-        #'@param alpha.links Either a single link object or a named list of link objects with the same names as betas
+        #'@param beta.links,alpha.links Either a single link object or a named list of link objects with the same names as betas
         #'@param is.static A single logical value
         initialize = function(type,
                               betas,
                               link,
                               future.slope.link,
                               alphas.are.additive, #either a single logical value or a named logical vector with the same names as betas
+                              beta.links, #either a single value ('identity','log','logit','custom') or named character vector with the same names as betas
                               alpha.links, #either a single value ('identity','log','logit','custom') or named character vector with the same names as betas
                               is.static,
                               error.prefix='') #whether the model is time-varying
@@ -437,6 +505,37 @@ FUNCTIONAL.FORM = R6::R6Class(
                 alphas.are.additive = alphas.are.additive[alpha.names]
             }
             
+            #-- Check beta.links --#
+            if (is(beta.links, 'link'))
+                beta.links = list(beta.links)
+            
+            if (!is.list(beta.links) || length(beta.links)==0)
+                stop(paste0(error.prefix, "'beta.links' for a functional.form ('",
+                            type, "') must be either a single link object, or a list containing only link objects"))
+            
+            if (any(!sapply(beta.links, is, 'link')))
+                stop(paste0(error.prefix, "If 'beta.links' for a functional.form ('",
+                            type, "') is a list, it may contain ONLY link objects"))
+            
+            if (length(beta.links)==1)
+            {
+                if (!is.null(names(beta.links)) && length(betas)>1)
+                    stop(paste0("'beta.links' for a functional.form ('",
+                                type, "') must be either a link object or a named list of link objects with the same names as 'betas'"))
+                
+                beta.links = lapply(1:length(betas), function(i){beta.links[[1]]})
+                names(beta.links) = alpha.names
+            }
+            else
+            {
+                if (length(beta.links) != length(betas) || 
+                    !setequal(names(beta.links), alpha.names))
+                    stop(paste0(error.prefix, "'beta.links' for a functional.form ('",
+                                type, "') must be either a link object or a named list of link objects with the same names as 'betas'"))
+                
+                beta.links = beta.links[alpha.names]
+            }
+            
             #-- Check alpha.links --#
             if (is(alpha.links, 'link'))
                 alpha.links = list(alpha.links)
@@ -481,6 +580,7 @@ FUNCTIONAL.FORM = R6::R6Class(
             private$i.link = link
             private$i.future.slope.link = future.slope.link
             private$i.alphas.are.additive = alphas.are.additive
+            private$i.beta.links = beta.links
             private$i.alpha.links = alpha.links
             private$i.is.static = is.static
         },
@@ -567,10 +667,11 @@ FUNCTIONAL.FORM = R6::R6Class(
 
             #-- Incorporate Alphas --#
             terms = lapply(self$alpha.names, function(name){
-                incorporate.alphas(betas=private$i.betas[[name]],
-                                   alphas=alphas[[name]],
-                                   target.dim.names=dim.names,
-                                   error.prefix=error.prefix)
+                private$i.beta.links[[name]]$reverse.apply(
+                    incorporate.alphas(betas=private$i.betas[[name]],
+                                       alphas=alphas[[name]],
+                                       target.dim.names=dim.names,
+                                       error.prefix=error.prefix))
             })
             names(terms) = self$alpha.names
             
@@ -715,6 +816,7 @@ FUNCTIONAL.FORM = R6::R6Class(
         i.minimum.dim.names = NULL,
         i.betas = NULL,
         
+        i.beta.links = NULL,
         i.alpha.links = NULL,
         i.alphas.are.additive = NULL,
         
@@ -740,7 +842,7 @@ STATIC.FUNCTIONAL.FORM = R6::R6Class(
     
     public = list(
         
-        #'@description Create an Static (Time-Invariant) Functional Form
+        #'@title Create an Static (Time-Invariant) Functional Form
         #'
         #'@param value array representing the value
         #'@param link The name of the transformation to the scale on which alphas are added to the value. One of "identity", "log", "logistic"
@@ -783,6 +885,7 @@ STATIC.FUNCTIONAL.FORM = R6::R6Class(
                              link = link,
                              future.slope.link = link$get.coefficient.link(),
                              alphas.are.additive = !overwrite.parameters.with.alphas, #either a single logical value or a named logical vector with the same names as betas
+                             beta.links = get.link('identity'),
                              alpha.links = alpha.link, #either a single value ('identity','log','logit','custom') or named character vector with the same names as betas
                              is.static = T,
                              error.prefix = error.prefix)
@@ -867,6 +970,7 @@ LINEAR.FUNCTIONAL.FORM = R6::R6Class(
                              link = link,
                              future.slope.link = link$get.coefficient.link(),
                              alphas.are.additive = !overwrite.parameters.with.alphas,
+                             beta.links = get.link('identity'),
                              alpha.links = alpha.links, 
                              is.static = F,
                              error.prefix = error.prefix)
@@ -914,21 +1018,41 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
         initialize = function(intercept,
                               slope,
                               anchor.year,
+                              
                               logistic.after.frac.of.span=0.5,
-                              link = 'logit',
                               min=0,
                               max=1,
+                              
+                              intercept.link = 'logit',
+                              intercept.min = NA,
+                              intercept.max = NA,
+                              
+                              slope.link = 'log',
+                              slope.min = NA,
+                              slope.max = NA,
+                              
                               parameters.are.on.transformed.scale = T,
                               overwrite.parameters.with.alphas = F,
-                              future.slope.is.multiplier = T,
-                              error.prefix = "Cannot create logistic-tail functional form: ")
+                              error.prefix = 'Cannot create logistic-tail functional.form: ')
         {
-            #-- Check min/max and get link --#
+            #-- Check min/max and get links --#
+            link = get.link('identity', min, max, error.prefix = error.prefix)
             if (is.infinite(min))
                 stop(paste0(error.prefix, "'min' must be finite"))
             if (is.infinite(max))
                 stop(paste0(error.prefix, "'max' must be finite"))
             
+            intercept.link = get.link(intercept.link, intercept.min, intercept.max, error.prefix = error.prefix)
+            if (is.infinite(intercept.min))
+                stop(paste0(error.prefix, "'intercept.min' must be finite"))
+            if (is.infinite(intercept.max))
+                stop(paste0(error.prefix, "'intercept.max' must be finite"))
+            
+            slope.link = get.link(slope.link, slope.min, slope.max, error.prefix = error.prefix)
+            if (is.infinite(slope.min))
+                stop(paste0(error.prefix, "'slope.min' must be finite"))
+            if (is.infinite(slope.max))
+                stop(paste0(error.prefix, "'slope.max' must be finite"))
             
             #-- Check logistic.after.frac.of.span --#
             if (!is.numeric(logistic.after.frac.of.span))
@@ -944,50 +1068,40 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
             if (length(anchor.year)!=1 || !is.numeric(anchor.year) || is.na(anchor.year))
                 stop(paste0(error.prefix, "'anchor.year' must be a single, non-NA numeric value"))
             
-            #-- Check future.slope.is.multiplier --#
-            if (!is.logical(future.slope.is.multiplier) || length(future.slope.is.multiplier)!=1 || is.na(future.slope.is.multiplier))
-                stop("'future.slope.is.multiplier' must be a single, non-NA logical value")
-            
             #-- Overwrite.parameters.with.alphas --#
             if (!is.logical(overwrite.parameters.with.alphas) || length(overwrite.parameters.with.alphas)!=1 || is.na(overwrite.parameters.with.alphas))
                 stop("'overwrite.parameters.with.alphas' must be a single, non-NA logical value")
             
             #-- Betas --#
-            link = get.link(link)
             if (!parameters.are.on.transformed.scale)
             {
-                link$check.untransformed.values(intercept,
+                intercept.link$check.untransformed.values(intercept,
                                                       variable.name.for.error='intercept',
                                                       error.prefix=error.prefix)
-                intercept = link$apply(intercept)
+                intercept = intercept.link$apply(intercept)
                 
-                link$check.untransformed.values(slope,
+                slope.link$check.untransformed.values(slope,
                                                       variable.name.for.error='slope',
                                                       error.prefix=error.prefix)
-                slope = link$apply(slope)
+                slope = slope.link$apply(slope)
             }
             betas = list(intercept = intercept, slope = slope)
-            
+            beta.links = list(intercept = intercept.link, slope = slope.link)
             
             #-- Set up alpha.links --#
             if (overwrite.parameters.with.alphas)
-            {
-                alpha.links = list(intercept = link,
-                                   slope = link$get.coefficient.link())
-            }
+                alpha.links = beta.links
             else
-            {
-                alpha.links = list(intercept = link$get.coefficient.link(),
-                                   slope = link$get.coefficient.link())
-            }
+                alpha.links = lapply(beta.links, function(l){l$get.coefficient.link()})
             
             #-- Call the super-class constructor --#
             
             super$initialize(type = "logistic tail",
                              betas = betas,
-                             link = get.link('identity', min=min, max=max, error.prefix = error.prefix),
-                             future.slope.link = get.link('identity'), # we just take the future slope as-is
+                             link = link,
+                             future.slope.link = slope.link$get.coefficient.link(),
                              alphas.are.additive = !overwrite.parameters.with.alphas,
+                             beta.links = beta.links,
                              alpha.links = alpha.links, 
                              is.static = F,
                              error.prefix = error.prefix)
@@ -995,7 +1109,6 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
             private$i.span = max - min
             private$i.logistic.after.value = min + private$i.span * logistic.after.frac.of.span
             private$i.anchor.year = anchor.year
-            private$i.future.slope.is.multiplier = future.slope.is.multiplier
         }
         
     ),
@@ -1005,7 +1118,6 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
         i.span = NULL,
         i.logistic.after.value = NULL,
         i.anchor.year = NULL,
-        i.future.slope.is.multiplier = NULL,
         
         do.project = function(terms,
                               years,
@@ -1019,15 +1131,21 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
             # intercept = model$min.proportion + model$p.span / (1+exp(-terms$intercept)) 
             # slope = model$min.proportion + model$p.span / (1+exp(-terms$slope))
             
-            intercept = private$i.alpha.links$intercept$reverse.apply(terms$intercept)
-            slope = pmax(0, private$i.alpha.links$slope$reverse.apply(terms$slope))
+            intercept = terms$intercept
+            slope = pmax(0, terms$slope)
             
             if (is.null(future.slope))
                 slope.with.future = slope
-            else if (private$i.future.slope.is.multiplier)
-                slope.with.future = slope * future.slope
+#            else if (private$i.beta.links$slope$type=='identity')
+#                slope.with.future = slope + future.slope
+#            else if (private$i.beta.links$slope$type=='log' || private$i.beta.links$slope$type=='logistic')
+#                slope.with.future = slope * exp(future.slope)
             else
-                slope.with.future = slope + future.slope
+            {
+                slope.with.future = pmax(0, private$i.beta.links$slope$reverse.apply(
+                    private$i.beta.links$slope$apply(slope) + future.slope
+                ))
+            }
             
             #-- Fold in additional.slope.after.year --#
             logistic.slope.sans.additional = slope * private$i.span / (private$i.logistic.after.value - private$i.link$min) /
@@ -1087,31 +1205,39 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                               
                               knot.times,
                               knot.values,
-                              link = c('identity','log','logit')[1],
-                              min = NA,
-                              max = NA,
                               
-                              knots.are.on.transformed.scale=F,
-                              overwrite.knot.values.with.alphas=F,
+                              link,
+                              min,
+                              max,
                               
-                              before.time=NULL,
-                              before.modifier=NULL,
-                              before.modifier.application=NULL,
-                              overwrite.before.modifier.with.alphas=F,
+                              knot.link,
+                              knot.min,
+                              knot.max,
                               
-                              after.time=NULL,
-                              after.modifier=NULL,
-                              after.modifier.application=NULL,
-                              overwrite.after.modifier.with.alphas=F,
+                              knots.are.on.transformed.scale,
+                              overwrite.knot.values.with.alphas,
                               
+                              before.time,
+                              before.modifier,
+                              after.time,
+                              after.modifier,
+                              
+                              modifiers.apply.to.change,
+                              modifier.link,
+                              modifier.min,
+                              modifier.max,
+                              overwrite.modifiers.with.alphas,
+
                               additional.betas = NULL,
+                              additional.beta.links = NULL,
                               additional.alpha.links = NULL,
                               additional.overwrite.alphas=NULL,
                               
                               error.prefix='')
         {
-            #-- Set up link (and check min, max) --#
+            #-- Set up links (and check min, max) --#
             link = get.link(link, min=min, max=max)
+            knot.link = get.link(knot.link, min=knot.min, max=knot.max)
             
             #-- Check knot.times --#
             if (!is.numeric(knot.times))
@@ -1183,11 +1309,11 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             if (!knots.are.on.transformed.scale)
             { 
                 knot.values = lapply(knot.names, function(knot.name){
-                    link$check.untransformed.values(knot.values[[knot.name]],
-                                                              variable.name.for.error = paste0("values for knot '", knot, "'"),
-                                                              error.prefix = error.prefix)
+                    knot.link$check.untransformed.values(knot.values[[knot.name]],
+                                                         variable.name.for.error = paste0("values for knot '", knot, "'"),
+                                                         error.prefix = error.prefix)
                     
-                    link$apply(knot.values[[knot.name]])
+                    knot.link$apply(knot.values[[knot.name]])
                 })
                 names(knot.values) = knot.names
             }
@@ -1209,25 +1335,39 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             
             alphas.are.additive = rep(!overwrite.knot.values.with.alphas, n.knots)
             if (overwrite.knot.values.with.alphas)
-                alpha.links = lapply(1:n.knots, function(i){link})
+                alpha.links = lapply(1:n.knots, function(i){knot.link})
             else
-                alpha.links = lapply(1:n.knots, function(i){link$get.coefficient.link()})
+                alpha.links = lapply(1:n.knots, function(i){knot.link$get.coefficient.link()})
             
-            names(alphas.are.additive) = names(alpha.links) = names(betas) = knot.names
+            beta.links = lapply(1:n.knots, function(i){
+                knot.link
+            })
+            
+            names(alphas.are.additive) = names(alpha.links) = names(betas) = names(beta.links) = knot.names
+            
+            
+            #-- Check Modifier Metadata (link, application, overwrite) --#
+            
+            if (!is.null(before.modifier) || !is.null(after.modifier))
+            {
+                modifier.link = get.link(modifier.link, min=modifier.min, max=modifier.max)
+                
+                if (!is.logical(modifiers.apply.to.change) || length(modifiers.apply.to.change)!=1 || 
+                    is.na(modifiers.apply.to.change))
+                    stop("'modifiers.apply.to.change' must be a single, non-NA logical value")
+                
+                if (!is.logical(overwrite.modifiers.with.alphas) || length(overwrite.modifiers.with.alphas)!=1 || 
+                    is.na(overwrite.modifiers.with.alphas))
+                    stop("'overwrite.modifiers.with.alphas' must be a single, non-NA logical value")
+            }
             
             #-- Check Before Modifier/Application/Time --#
-            
-            VALID.MODIFIER.APPLICATIONS = c('multiplicative.on.link.scale',
-                                            'additive.on.link.scale',
-                                            'multiplicative.of.change.on.value.scale')
             
             
             if (is.null(before.modifier))
             {
                 if (!is.null(before.time))
                     stop(paste0(error.prefix, "If 'before.time' is non-NULL, 'before.modifier' must be non-NULL as well"))
-                if (!is.null(before.modifier.application))
-                    stop(paste0(error.prefix, "'before.modifier.application' can only be set (non-NULL) if 'before.modifier' is set"))
             }
             else
             {
@@ -1243,33 +1383,7 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                 # Check the modifier value
                 if (!is.numeric(before.modifier) || length(before.modifier)==0)
                     stop(paste0(error.prefix, "'before.modifier' must be a non-empty numeric object"))
-                
-                # overwrite.before.modifier.with.alphas
-                if (!is.logical(overwrite.before.modifier.with.alphas) || length(overwrite.before.modifier.with.alphas)!=1 || is.na(overwrite.before.modifier.with.alphas))
-                    stop(paste0(error.prefix, "'overwrite.before.modifier.with.alphas' must be a single, non-NA logical value"))
-                
-                # Check the modifier application
-                if (is.null(before.modifier.application))
-                    stop(paste0(error.prefix, "If 'before.modifier' is set (ie, not NULL), you must specify 'before.modifier.application"))
-                
-                if (!is.character(before.modifier.application) || length(before.modifier.application)!=1 || is.na(before.modifier.application))
-                    stop(paste0(error.prefix, "'before.modifier.application' must be a single, non-NA character value"))
-                if (all(VALID.MODIFIER.APPLICATIONS != before.modifier.application))
-                    stop(paste0(error.prefix,
-                                "Invalid before.modifier.application '", before.modifier.application,
-                                "' - must be one of ",
-                                paste0("'", VALID.MODIFIER.APPLICATIONS, "'", collapse=', ')))
-                
-                if (before.modifier.application == 'multiplicative.of.change.on.value.scale' && n.knots==1)
-                    stop(paste0(error.prefix, "In order to use before.modifier.application='multiplicative.of.change.on.value.scale', there must be at least two knots"))
-                
-                if (before.modifier.application == 'multiplicative.of.change.on.value.scale')
-                    modifier.link = get.link('log')
-                else if (before.modifier.application == 'additive.on.link.scale')
-                    modifier.link = link$get.coefficient.link()
-                else
-                    modifier.link = get.link('log')
-                
+
                 # Apply link
                 modifier.link$check.untransformed.values(before.modifier,
                                                          variable.name.for.error = 'before.modifier',
@@ -1277,9 +1391,18 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                 
                 # Put it in the vectors
                 betas = c(list(modifier.link$apply(before.modifier)), betas)
-                alphas.are.additive = c(!overwrite.before.modifier.with.alphas, alphas.are.additive)
-                alpha.links = c(list(modifier.link), alpha.links)
-                names(betas)[1] = names(alphas.are.additive)[1] = names(alpha.links)[1] = 'before.modifier'
+                alphas.are.additive = c(!overwrite.modifiers.with.alphas, alphas.are.additive)
+                
+                if (modifiers.apply.to.change)
+                    beta.links = c(list(modifier.link), beta.links)
+                else
+                    beta.links = c(list(get.link('identity')), beta.links) # We don't want the ff code to apply this before we add it in
+                
+                if (overwrite.modifiers.with.alphas)
+                    alpha.links = c(list(modifier.link), alpha.links)
+                else
+                    alpha.links = c(list(modifier.link$get.coefficient.link()), alpha.links)
+                names(betas)[1] = names(alphas.are.additive)[1] = names(alpha.links)[1] = names(beta.links)[1] = 'before.modifier'
             }
             
             
@@ -1289,8 +1412,6 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             {
                 if (!is.null(after.time))
                     stop(paste0(error.prefix, "If 'after.time' is non-NULL, 'after.modifier' must be non-NULL as well"))
-                if (!is.null(after.modifier.application))
-                    stop(paste0(error.prefix, "'after.modifier.application' can only be set (non-NULL) if 'after.modifier' is set"))
             }
             else
             {
@@ -1307,32 +1428,7 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                 if (!is.numeric(after.modifier) || length(after.modifier)==0)
                     stop(paste0(error.prefix, "'after.modifier' must be a non-empty numeric object"))
                 
-                # overwrite.after.modifier.with.alphas
-                if (!is.logical(overwrite.after.modifier.with.alphas) || length(overwrite.after.modifier.with.alphas)!=1 || is.na(overwrite.after.modifier.with.alphas))
-                    stop(paste0(error.prefix, "'overwrite.after.modifier.with.alphas' must be a single, non-NA logical value"))
-                
-                # Check the modifier application
-                if (is.null(after.modifier.application))
-                    stop(paste0(error.prefix, "If 'after.modifier' is set (ie, not NULL), you must specify 'after.modifier.application"))
-                
-                if (!is.character(after.modifier.application) || length(after.modifier.application)!=1 || is.na(after.modifier.application))
-                    stop(paste0(error.prefix, "'after.modifier.application' must be a single, non-NA character value"))
-                if (all(VALID.MODIFIER.APPLICATIONS != after.modifier.application))
-                    stop(paste0(error.prefix,
-                                "Invalid after.modifier.application '", after.modifier.application,
-                                "' - must be one of ",
-                                paste0("'", VALID.MODIFIER.APPLICATIONS, "'", collapse=', ')))
-                
-                if (after.modifier.application == 'multiplicative.of.change.on.value.scale' && n.knots==1)
-                    stop(paste0(error.prefix, "In order to use after.modifier.application='multiplicative.of.change.on.value.scale', there must be at least two knots"))
-                
-                if (after.modifier.application == 'multiplicative.of.change.on.value.scale')
-                    modifier.link = get.link('log')
-                else if (after.modifier.application == 'additive.on.link.scale')
-                    modifier.link = link$get.coefficient.link()
-                else
-                    modifier.link = get.link('log')
-                
+
                 # Apply link
                 modifier.link$check.untransformed.values(after.modifier,
                                                          variable.name.for.error = 'after.modifier',
@@ -1340,9 +1436,18 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                 
                 # Put it in the vectors
                 betas = c(betas, list(modifier.link$apply(after.modifier)))
-                alphas.are.additive = c(alphas.are.additive, !overwrite.after.modifier.with.alphas)
-                alpha.links = c(alpha.links, list(modifier.link))
-                names(betas)[length(betas)] = names(alphas.are.additive)[length(betas)] = names(alpha.links)[length(betas)] = 'after.modifier'
+                alphas.are.additive = c(alphas.are.additive, !overwrite.modifiers.with.alphas)
+                
+                if (modifiers.apply.to.change)
+                    beta.links = c(beta.links, list(modifier.link))
+                else
+                    beta.links = c(beta.links, list(get.link('identity'))) # We don't want the ff code to apply this before we add it in
+                
+                if (overwrite.modifiers.with.alphas)
+                    alpha.links = c(alpha.links, list(modifier.link))
+                else
+                    alpha.links = c(alpha.links, list(modifier.link$get.coefficient.link()))
+                names(betas)[length(betas)] = names(alphas.are.additive)[length(betas)] = names(alpha.links)[length(betas)] = names(beta.links)[length(betas)] = 'after.modifier'
             }
             
             #-- Check apply.spline.to.list --#
@@ -1357,6 +1462,9 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                 future.slope.link = NULL
 
             #-- Fold in additional betas/alphas --#
+            if (length(additional.betas) != length(additional.beta.links))
+                stop(paste0(error.prefix, "'additional.beta.links' must have the same names as 'additional.betas'"))
+            
             if (length(additional.betas) != length(additional.alpha.links))
                 stop(paste0(error.prefix, "'additional.alpha.links' must have the same names as 'additional.betas'"))
             
@@ -1365,13 +1473,26 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             
             if (length(additional.betas)>0)
             {
+                if (!is.list(additional.betas))
+                    stop(paste0(error.prefix, "'additional.betas' must be a list"))
+                if (!is.list(additional.beta.links))
+                    stop(paste0(error.prefix, "'additional.beta.links' must be a list"))
+                if (!is.list(additional.alpha.links))
+                    stop(paste0(error.prefix, "'additional.alpha.links' must be a list"))
+                if (!is.logical(additional.overwrite.alphas))
+                    stop(paste0(error.prefix, "'additional.overwrite.alphas' must be a logical vector"))
+                
                 if (is.null(names(additional.betas)))
                     stop(paste0(error.prefix, "'additional.betas' must have names set"))
+                if (is.null(names(additional.beta.links)))
+                    stop(paste0(error.prefix, "'additional.beta.links' must have names set"))
                 if (is.null(names(additional.alpha.links)))
                     stop(paste0(error.prefix, "'additional.alpha.links' must have names set"))
                 if (is.null(names(additional.overwrite.alphas)))
                     stop(paste0(error.prefix, "'additional.overwrite.alphas' must have names set"))
                 
+                if (!setequal(names(additional.betas), names(additional.beta.links)))
+                    stop(paste0(error.prefix, "'additional.beta.links' must have the same names as 'additional.betas'"))
                 if (!setequal(names(additional.betas), names(additional.alpha.links)))
                     stop(paste0(error.prefix, "'additional.alpha.links' must have the same names as 'additional.betas'"))
                 if (!setequal(names(additional.betas), names(additional.overwrite.alphas)))
@@ -1381,6 +1502,7 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             
             #-- Call the super-class constructor --#
             betas = c(betas, additional.betas)
+            beta.links = c(beta.links, additional.beta.links)
             alpha.links = c(alpha.links, additional.alpha.links)
             if (!is.null(additional.overwrite.alphas))
                 alphas.are.additive = c(alphas.are.additive, !additional.overwrite.alphas)
@@ -1389,6 +1511,7 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                              link = link,
                              future.slope.link = future.slope.link,
                              alphas.are.additive = alphas.are.additive, 
+                             beta.links = beta.links,
                              alpha.links = alpha.links, 
                              is.static = F,
                              error.prefix = error.prefix)
@@ -1398,10 +1521,9 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             private$i.knot.names = knot.names
 
             private$i.before.time = before.time
-            private$i.before.modifier.application = before.modifier.application
-            
             private$i.after.time = after.time
-            private$i.after.modifier.application = after.modifier.application
+            private$i.modifier.link = modifier.link
+            private$i.modifiers.apply.to.change = modifiers.apply.to.change
             
             private$i.apply.spline.to.list = apply.spline.to.list
         }
@@ -1437,10 +1559,9 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
         i.knot.names = NULL,
         
         i.before.time = NULL,
-        i.before.modifier.application = NULL,
-        
         i.after.time = NULL,
-        i.after.modifier.application = NULL,
+        i.modifier.link = NULL,
+        i.modifiers.apply.to.change = NULL,
         
         i.apply.spline.to.list = NULL,
         
@@ -1470,50 +1591,36 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             #-- Set up before multiplier (if present) --#
             if (!is.null(private$i.before.time))
             {
-                if (private$i.before.modifier.application == 'multiplicative.on.model.scale')
-                    before.knot.value = knot.values[[1]] * private$i.alpha.links$before.modifier$reverse.apply(terms$before.modifier)
-                else if (private$i.before.modifier.application == 'additive.on.model.scale')
-                    before.knot.value = knot.values[[1]] + terms$before.modifier
-                else if (private$i.before.modifier.application == 'multiplicative.of.change.on.value.scale')
+                if (private$i.modifiers.apply.to.change)
                 {
-                    before.modifier = private$i.alpha.links$before.modifier$reverse.apply(terms$before.modifier)
-                    untransformed.knot.value.1 = private$i.link$reverse.apply(knot.values[[1]])
-                    change = private$i.link$reverse.apply(knot.values[[2]]) - untransformed.knot.value.1
-                    untransformed.before.knot.value = untransformed.knot.value.1 - change * before.modifier
-                    if (check.consistency)
-                        private$i.link$check.untransformed.values(untransformed.before.knot.value,
-                                                                  variable.name.for.error = "untransformed 'before' knot values",
-                                                                  error.prefix = error.prefix)
-                    before.knot.value = private$i.link$apply(untransformed.before.knot.value)
+                    before.knot.value = knot.values[[1]] - terms$before.modifier * (knot.values[[2]] - knot.values[[1]])
                 }
                 else
-                    stop(paste0("Invalid before.modifier.application '", private$i.before.modifier.application, "'"))
+                {
+                    before.knot.value = private$modifier.link$reverse.apply(
+                        private$modifier.link$apply(knot.values[[1]]) +
+                            terms$before.modifier
+                    )
+                }
                 
                 knot.values = c(list(before.knot.value), knot.values)
             }
             
-            
             #-- Set up after multiplier (if present) --#
             if (!is.null(private$i.after.time))
             {
-                if (private$i.after.modifier.application == 'multiplicative.on.link.scale')
-                    after.knot.value = knot.values[[length(knot.values)]] * private$i.alpha.links$after.modifier$reverse.apply(terms$after.modifier)
-                else if (private$i.after.modifier.application == 'additive.on.link.scale')
-                    after.knot.value = knot.values[[length(knot.values)]] + terms$after.modifier
-                else if (private$i.after.modifier.application == 'multiplicative.of.change.on.value.scale')
+                if (private$i.modifiers.apply.to.change)
                 {
-                    after.modifier = private$i.alpha.links$after.modifier$reverse.apply(terms$after.modifier)
-                    untransformed.last.knot = private$i.link$reverse.apply(knot.values[[length(knot.values)]])
-                    change = untransformed.last.knot - private$i.link$reverse.apply(knot.values[[length(knot.values)-1]])
-                    untransformed.after.knot.value = untransformed.last.knot + change * after.modifier
-                    if (check.consistency)
-                        private$i.link$check.untransformed.values(untransformed.after.knot.value,
-                                                                  variable.name.for.error = "untransformed 'after' knot values",
-                                                                  error.prefix = error.prefix)
-                    after.knot.value = private$i.link$apply(untransformed.after.knot.value)
+                    after.knot.value = knot.values[[length(knot.values)]] + 
+                        terms$after.modifier * (knot.values[[length(knot.values)]] - knot.values[[length(knot.values)-1]])                    
                 }
                 else
-                    stop(paste0("Invalid after.modifier.application '", private$i.after.modifier.application, "'"))
+                {
+                    after.knot.value = private$modifier.link$reverse.apply(
+                        private$modifier.link$apply(knot.values[[length(knot.values)]]) + 
+                            terms$after.modifier
+                    )
+                }
                 
                 knot.values = c(knot.values, list(after.knot.value))
             }
@@ -1528,7 +1635,7 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             {
                 arr.rv = sapply(1:n, function(i){
                     knot.values.for.i = sapply(knot.values, function(v){v[i]})
-                    private$apply.spline(knot.values = knot.values.for.i,
+                    private$apply.spline(knot.values = private$i.link$apply(knot.values.for.i),
                                          knot.times = knot.times,
                                          desired.times = years)
                 })
@@ -1551,12 +1658,12 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             }
             else
             {
-                rv = private$apply.spline(knot.values = knot.values,
+                rv = private$apply.spline(knot.values = private$i.link$apply(knot.values),
                                           knot.times = knot.times,
                                           desired.times = years)
                 
                 lapply(1:length(years), function(y){
-                    private$i.link$reverse.transform(rv[[y]] + 
+                    private$i.link$reverse.apply(rv[[y]] + 
                                                          future.slope * max(0, years[y]-future.slope.after.year))
                 })
             }
@@ -1572,24 +1679,30 @@ LINEAR.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
         
         initialize = function(knot.times,
                               knot.values,
+                              
                               link = c('identity','log','logit')[1],
                               min = NA,
                               max = NA,
+                              
+                              knot.link = c('identity','log','logit')[1],
+                              knot.min = NA,
+                              knot.max = NA,
                               
                               knots.are.on.transformed.scale=F,
                               overwrite.knot.values.with.alphas=F,
                               
                               before.time=NULL,
                               before.modifier=NULL,
-                              before.modifier.application=NULL,
-                              overwrite.before.modifier.with.alphas=F,
-                              
                               after.time=NULL,
                               after.modifier=NULL,
-                              after.modifier.application=NULL,
-                              overwrite.after.modifier.with.alphas=F,
                               
-                              error.prefix='')
+                              modifiers.apply.to.change=T,
+                              modifier.link=c('identity','log','logit')[1],
+                              modifier.min = NA,
+                              modifier.max = NA,
+                              overwrite.modifiers.with.alphas = F,
+                              
+                              error.prefix = 'Cannot create linear spline functional.form: ')
         {
             super$initialize(type = 'linear spline',
                              apply.spline.to.list = T,
@@ -1597,22 +1710,28 @@ LINEAR.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                              
                              knot.times = knot.times,
                              knot.values = knot.values,
+                             
                              link = link,
                              min = min,
                              max = max,
+                             
+                             knot.link = knot.link,
+                             knot.min = knot.min,
+                             knot.max = knot.max,
                              
                              knots.are.on.transformed.scale = knots.are.on.transformed.scale,
                              overwrite.knot.values.with.alphas = overwrite.knot.values.with.alphas,
                              
                              before.time = before.time,
                              before.modifier = before.modifier,
-                             before.modifier.application = before.modifier.application,
-                             overwrite.before.modifier.with.alphas = overwrite.before.modifier.with.alphas,
-                             
                              after.time = after.time,
                              after.modifier = after.modifier,
-                             after.modifier.application = after.modifier.application,
-                             overwrite.after.modifier.with.alphas = overwrite.after.modifier.with.alphas,
+                             
+                             modifiers.apply.to.change = modifiers.apply.to.change,
+                             modifier.link = modifier.link,
+                             modifier.min = modifier.min,
+                             modifier.max = modifier.max,
+                             overwrite.modifiers.with.alphas = overwrite.modifiers.with.alphas,
                              
                              error.prefix = error.prefix)
         }
@@ -1640,24 +1759,30 @@ NATURAL.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
         
         initialize = function(knot.times,
                               knot.values,
+                              
                               link = c('identity','log','logit')[1],
                               min = NA,
                               max = NA,
+                              
+                              knot.link = link,
+                              knot.min = NA,
+                              knot.max = NA,
                               
                               knots.are.on.transformed.scale=F,
                               overwrite.knot.values.with.alphas=F,
                               
                               before.time=NULL,
                               before.modifier=NULL,
-                              before.modifier.application=NULL,
-                              overwrite.before.modifier.with.alphas=F,
-                              
                               after.time=NULL,
                               after.modifier=NULL,
-                              after.modifier.application=NULL,
-                              overwrite.after.modifier.with.alphas=F,
                               
-                              error.prefix='')
+                              modifiers.apply.to.change=T,
+                              modifier.link=c('identity','log','logit')[1],
+                              modifier.min = NA,
+                              modifier.max = NA,
+                              overwrite.modifiers.with.alphas = F,
+                              
+                              error.prefix = 'Cannot create natural spline functional.form: ')
         {
             super$initialize(type = 'natural spline',
                              apply.spline.to.list = T,
@@ -1665,22 +1790,28 @@ NATURAL.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                              
                              knot.times = knot.times,
                              knot.values = knot.values,
+                             
                              link = link,
                              min = min,
                              max = max,
+                             
+                             knot.link = knot.link,
+                             knot.min = knot.min,
+                             knot.max = knot.max,
                              
                              knots.are.on.transformed.scale = knots.are.on.transformed.scale,
                              overwrite.knot.values.with.alphas = overwrite.knot.values.with.alphas,
                              
                              before.time = before.time,
                              before.modifier = before.modifier,
-                             before.modifier.application = before.modifier.application,
-                             overwrite.before.modifier.with.alphas = overwrite.before.modifier.with.alphas,
-                             
                              after.time = after.time,
                              after.modifier = after.modifier,
-                             after.modifier.application = after.modifier.application,
-                             overwrite.after.modifier.with.alphas = overwrite.after.modifier.with.alphas,
+                             
+                             modifiers.apply.to.change = modifiers.apply.to.change,
+                             modifier.link = modifier.link,
+                             modifier.min = modifier.min,
+                             modifier.max = modifier.max,
+                             overwrite.modifiers.with.alphas = overwrite.modifiers.with.alphas,
                              
                              error.prefix = error.prefix)
         }
@@ -1709,7 +1840,15 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
         
         initialize = function(knot.times,
                               knot.values,
-                              link = 'log',
+                              
+                              min = -Inf,
+                              max = Inf,
+                              
+                              knot.link = c('identity','log','logit')[2],
+                              knot.min = NA,
+                              knot.max = NA,
+                              
+                              knots.are.on.transformed.scale = F,
                               overwrite.knot.values.with.alphas = F,
                               
                               fraction.of.asymptote.after.end=0.05,
@@ -1718,7 +1857,7 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                               fraction.asymptote.link = 'log',
                               overwrite.fraction.asymptote.with.alphas = F,
                               
-                              error.prefix = '')
+                              error.prefix = 'Cannot create logistic spline functional.form: ')
         {
             #-- Set up betas for asymptotes --#
             fraction.asymptotes = list(
@@ -1745,6 +1884,11 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             })
             names(fraction.asymptote.links) = names(fraction.asymptotes)
             
+            if (overwrite.knot.values.with.alphas[1])
+                alpha.links = fraction.asymptote.links
+            else
+                alpha.links = lapply(franction.asymptote.links, function(l){l$get.coefficient.link()})
+            
             #-- Apply link scale to fraction.asymptotes --#
             fraction.asymptotes = lapply(names(fraction.asymptote.links), function(name){
                 fraction.asymptote.links[[name]]$check.untransformed.values(fraction.asymptotes[[name]],
@@ -1755,6 +1899,7 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             })
             names(fraction.asymptotes) = names(fraction.asymptote.links)
             
+            
             #-- Call the super-class (spline) constructor --#
             
             super$initialize(type = 'logistic spline',
@@ -1763,26 +1908,33 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                              
                              knot.times = knot.times,
                              knot.values = knot.values,
-                             link = link,
-                             min = NA,
-                             max = NA,
                              
-                             knots.are.on.transformed.scale = F,
+                             link = 'identity',
+                             min = min,
+                             max = max,
+                             
+                             knot.link = knot.link,
+                             knot.min = knot.min,
+                             knot.max = knot.max,
+                             
+                             knots.are.on.transformed.scale = knots.are.on.transformed.scale,
                              overwrite.knot.values.with.alphas = overwrite.knot.values.with.alphas,
                              
                              additional.betas = fraction.asymptotes,
-                             additional.alpha.links = fraction.asymptote.links,
+                             additional.beta.links = fraction.asymptote.links,
+                             additional.alpha.links = alpha.links,
                              additional.overwrite.alphas = overwrite.fraction.asymptote.with.alphas,
                              
                              before.time = NULL,
                              before.modifier = NULL,
-                             before.modifier.application = NULL,
-                             overwrite.before.modifier.with.alphas = NULL,
-                             
                              after.time = NULL,
                              after.modifier = NULL,
-                             after.modifier.application = NULL,
-                             overwrite.after.modifier.with.alphas = NULL,
+
+                             # This next set of values is ignored, since there are no before/after modifiers
+                             modifiers.apply.to.change = F,
+                             modifier.link = 'identity',
+                             modifier.min = NA,
+                             modifier.max = NA,
                              
                              error.prefix = error.prefix)
           
@@ -1851,11 +2003,6 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                               check.consistency,
                               error.prefix)
         {
-            #-- Apply the link (reverse) transformation --#
-            for (beta.name in names(terms))
-                terms[[beta.name]] = private$i.alpha.links[[beta.name]]$reverse.apply(terms[[beta.name]])
-            
-            #-- Add Alphas to Knots --#
             knot.values = terms[private$i.knot.names]
 
             #-- Set fraction asymptote --#
@@ -1964,7 +2111,7 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                 else
                     names(sub.rv) = NULL
                 
-                sub.rv
+                private$i.link$reverse.apply(sub.rv)
             })
         }
     )

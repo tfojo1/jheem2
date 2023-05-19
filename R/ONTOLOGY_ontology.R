@@ -24,7 +24,7 @@
 ## Ontologies are implemented as S3 objects, so that they can be used as a dimnames attribute
 
 
-#'@description Create an ontology object
+#'@title Create an ontology object
 #'
 #'@details An ontology is a set of dimnames with specific characteristics: (1) the dimnames must be named, (2) some of the dimensions may be noted as "incomplete". An incomplete dimension is one for which the given values for a dimension may not represent all possible values for that dimension
 #'
@@ -124,7 +124,7 @@ ontology <- function(..., incomplete.dimensions=NULL)
     rv
 }
 
-#'@description Print an ontology
+#'@title Print an ontology
 #'
 #'@param ontology An ontology, as created by \code\link{ontology}}
 #'
@@ -139,7 +139,7 @@ print.ontology <- function(ontology)
     print(to.print)
 }
 
-#'@description Convert a named list to an ontology
+#'@title Convert a named list to an ontology
 #'
 #'@param x A named list of character vectors
 #'
@@ -159,7 +159,7 @@ as.ontology <- function(x, incomplete.dimensions=NULL)
     do.call(ontology, args = c(x, list(incomplete.dimensions=incomplete.dimensions)))
 }
 
-#'@description Convert an ontology back to a plain list
+#'@title Convert an ontology back to a plain list
 #'
 #'@param ont An ontology as created by \code{\link{ontology}}
 #'
@@ -174,7 +174,7 @@ as.list.ontology <- function(ont)
     rv
 }
 
-#'@description Test if an object is of type 'ontology'
+#'@title Test if an object is of type 'ontology'
 #'
 #'@param x Object to be tested
 #'
@@ -186,7 +186,7 @@ is.ontology <- function(x)
     is(x, 'ontology')
 }
 
-#'@description Get indicators of which dimensions in an ontology are complete
+#'@title Get indicators of which dimensions in an ontology are complete
 #'
 #'@param ontology An ontology, as created by \code\link{ontology}}
 #'
@@ -198,7 +198,7 @@ is_complete.ontology <- function(x)
     attr(x, 'is.complete')
 }
 
-#'@description Get indicators of which dimensions in an ontology are complete
+#'@title Get indicators of which dimensions in an ontology are complete
 #'
 #'@param ontology An ontology, as created by \code\link{ontology}}
 #'
@@ -210,7 +210,7 @@ is_complete <- function(x)
     UseMethod('is_complete')
 }
 
-#'@description Subset an ont
+#'@title Subset an ont
 #'
 #'@param ont An ontology, as created by \code\link{ontology}}
 #'@param i What to subset
@@ -236,7 +236,7 @@ is_complete <- function(x)
     rv
 }
 
-#'@description Modify an ontology
+#'@title Modify an ontology
 #'
 #'@param ont An ontology, as created by \code\link{ontology}}
 #'@param i What to subset
@@ -312,7 +312,7 @@ is_complete <- function(x)
     rv
 }
 
-#'@description Modify an ontology
+#'@title Modify an ontology
 #'
 #'@param ont An ontology, as created by \code\link{ontology}}
 #'@param i What to subset
@@ -327,7 +327,7 @@ is_complete <- function(x)
     ont
 }
 
-#'@description Modify an ontology
+#'@title Modify an ontology
 #'
 #'@param ont An ontology, as created by \code\link{ontology}}
 #'@param i What to subset
@@ -342,7 +342,7 @@ is_complete <- function(x)
     ont
 }
 
-#'@description Resolve dimension.values into a set of dimnames for an ontology
+#'@title Resolve dimension.values into a set of dimnames for an ontology
 #'
 #'@param ont An ontology, as created by \code\link{ontology}}
 #'@param dimension.values A list of dimension.values (ie, a named list of either character, integer, or logical vectors that indexes into the dimnames given in ont)

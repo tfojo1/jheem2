@@ -21,7 +21,7 @@ for (element.name in VERSION.MANAGER.ELEMENTS)
 ##-- SETTER and GETTERS for VERSION/SPECIFICATION --##
 ##--------------------------------------------------##
 
-#'@description Register a JHEEM Model Specification
+#'@title Register a JHEEM Model Specification
 #'
 #'@param specification A jheem.specification object, as created by \code{\link{create.jheem.specification}}
 #'
@@ -104,7 +104,7 @@ get.prior.versions <- function(version,
     prior.versions
 }
 
-#'@description Get a JHEEM Specification Object
+#'@title Get a JHEEM Specification Object
 #'
 #'@param version The name of the version under which the specification was registered
 #'
@@ -147,7 +147,7 @@ is.compiled.specification.registered.for.version <- function(version)
 ##-- SETTER and GETTER for APPLY PARAMETERS to ENGINE --##
 ##------------------------------------------------------##
 
-#'@description Register a Function to Apply Parameters to a JHEEM Engine
+#'@title Register a Function to Apply Parameters to a JHEEM Engine
 #'
 #'@details 
 #'

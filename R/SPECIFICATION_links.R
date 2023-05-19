@@ -204,6 +204,12 @@ LINK = R6::R6Class(
         get.coefficient.link = function()
         {
             get.link(private$i.type)
+        },
+        
+        equals = function(other.link)
+        {
+            is(other.link, 'link') && other.link$type == private$i.type &&
+                other.link$min == private$i.min && other.link$max == private$i.max
         }
     ),
     

@@ -10,60 +10,425 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// apply_one_dim_ontology_mapping
-void apply_one_dim_ontology_mapping(NumericVector src, NumericVector dst, IntegerVector src_dims, IntegerVector dst_dims, int map_dimension, IntegerVector from_indices, IntegerVector to_indices);
-RcppExport SEXP _applied_jheem_apply_one_dim_ontology_mapping(SEXP srcSEXP, SEXP dstSEXP, SEXP src_dimsSEXP, SEXP dst_dimsSEXP, SEXP map_dimensionSEXP, SEXP from_indicesSEXP, SEXP to_indicesSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type src(srcSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type src_dims(src_dimsSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type dst_dims(dst_dimsSEXP);
-    Rcpp::traits::input_parameter< int >::type map_dimension(map_dimensionSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type from_indices(from_indicesSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type to_indices(to_indicesSEXP);
-    apply_one_dim_ontology_mapping(src, dst, src_dims, dst_dims, map_dimension, from_indices, to_indices);
-    return R_NilValue;
-END_RCPP
-}
-// apply_two_dim_ontology_mapping
-void apply_two_dim_ontology_mapping(NumericVector src, NumericVector dst, IntegerVector src_dims, IntegerVector dst_dims, int map_dimension_1, int map_dimension_2, IntegerVector from_indices_1, IntegerVector to_indices_1, IntegerVector from_indices_2, IntegerVector to_indices_2);
-RcppExport SEXP _applied_jheem_apply_two_dim_ontology_mapping(SEXP srcSEXP, SEXP dstSEXP, SEXP src_dimsSEXP, SEXP dst_dimsSEXP, SEXP map_dimension_1SEXP, SEXP map_dimension_2SEXP, SEXP from_indices_1SEXP, SEXP to_indices_1SEXP, SEXP from_indices_2SEXP, SEXP to_indices_2SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type src(srcSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type src_dims(src_dimsSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type dst_dims(dst_dimsSEXP);
-    Rcpp::traits::input_parameter< int >::type map_dimension_1(map_dimension_1SEXP);
-    Rcpp::traits::input_parameter< int >::type map_dimension_2(map_dimension_2SEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type from_indices_1(from_indices_1SEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type to_indices_1(to_indices_1SEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type from_indices_2(from_indices_2SEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type to_indices_2(to_indices_2SEXP);
-    apply_two_dim_ontology_mapping(src, dst, src_dims, dst_dims, map_dimension_1, map_dimension_2, from_indices_1, to_indices_1, from_indices_2, to_indices_2);
-    return R_NilValue;
-END_RCPP
-}
-// rcpp_hello_world
-List rcpp_hello_world();
-RcppExport SEXP _applied_jheem_rcpp_hello_world() {
+// overwrite_arr
+NumericVector overwrite_arr(NumericVector dst, IntegerVector dst_indices, NumericVector src, IntegerVector src_indices);
+RcppExport SEXP _jheem2_overwrite_arr(SEXP dstSEXP, SEXP dst_indicesSEXP, SEXP srcSEXP, SEXP src_indicesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(rcpp_hello_world());
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dst_indices(dst_indicesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type src(srcSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type src_indices(src_indicesSEXP);
+    rcpp_result_gen = Rcpp::wrap(overwrite_arr(dst, dst_indices, src, src_indices));
+    return rcpp_result_gen;
+END_RCPP
+}
+// add_to_arr
+NumericVector add_to_arr(NumericVector dst, IntegerVector dst_indices, NumericVector src, IntegerVector src_indices);
+RcppExport SEXP _jheem2_add_to_arr(SEXP dstSEXP, SEXP dst_indicesSEXP, SEXP srcSEXP, SEXP src_indicesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dst_indices(dst_indicesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type src(srcSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type src_indices(src_indicesSEXP);
+    rcpp_result_gen = Rcpp::wrap(add_to_arr(dst, dst_indices, src, src_indices));
+    return rcpp_result_gen;
+END_RCPP
+}
+// overwrite_arr_with_scalar
+NumericVector overwrite_arr_with_scalar(NumericVector dst, NumericVector overwrite_with);
+RcppExport SEXP _jheem2_overwrite_arr_with_scalar(SEXP dstSEXP, SEXP overwrite_withSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type overwrite_with(overwrite_withSEXP);
+    rcpp_result_gen = Rcpp::wrap(overwrite_arr_with_scalar(dst, overwrite_with));
+    return rcpp_result_gen;
+END_RCPP
+}
+// add_scalar_to_arr
+NumericVector add_scalar_to_arr(NumericVector dst, NumericVector to_add);
+RcppExport SEXP _jheem2_add_scalar_to_arr(SEXP dstSEXP, SEXP to_addSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type to_add(to_addSEXP);
+    rcpp_result_gen = Rcpp::wrap(add_scalar_to_arr(dst, to_add));
+    return rcpp_result_gen;
+END_RCPP
+}
+// do_array_overwrite
+RObject do_array_overwrite(NumericVector dst_array, NumericVector src_array, List dimension_values);
+RcppExport SEXP _jheem2_do_array_overwrite(SEXP dst_arraySEXP, SEXP src_arraySEXP, SEXP dimension_valuesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type dst_array(dst_arraySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type src_array(src_arraySEXP);
+    Rcpp::traits::input_parameter< List >::type dimension_values(dimension_valuesSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_array_overwrite(dst_array, src_array, dimension_values));
+    return rcpp_result_gen;
+END_RCPP
+}
+// do_expand_array
+RObject do_expand_array(NumericVector dst_array, NumericVector src_array);
+RcppExport SEXP _jheem2_do_expand_array(SEXP dst_arraySEXP, SEXP src_arraySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type dst_array(dst_arraySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type src_array(src_arraySEXP);
+    rcpp_result_gen = Rcpp::wrap(do_expand_array(dst_array, src_array));
+    return rcpp_result_gen;
+END_RCPP
+}
+// do_get_expand_indices
+RObject do_get_expand_indices(IntegerVector dst_array, List src_dim_names);
+RcppExport SEXP _jheem2_do_get_expand_indices(SEXP dst_arraySEXP, SEXP src_dim_namesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerVector >::type dst_array(dst_arraySEXP);
+    Rcpp::traits::input_parameter< List >::type src_dim_names(src_dim_namesSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_get_expand_indices(dst_array, src_dim_names));
+    return rcpp_result_gen;
+END_RCPP
+}
+// do_access_overwrite
+NumericVector do_access_overwrite(NumericVector dst, NumericVector src, IntegerVector dst_indices, IntegerVector src_indices);
+RcppExport SEXP _jheem2_do_access_overwrite(SEXP dstSEXP, SEXP srcSEXP, SEXP dst_indicesSEXP, SEXP src_indicesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type src(srcSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dst_indices(dst_indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type src_indices(src_indicesSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_access_overwrite(dst, src, dst_indices, src_indices));
+    return rcpp_result_gen;
+END_RCPP
+}
+// do_access_add
+NumericVector do_access_add(NumericVector dst, NumericVector src, IntegerVector dst_indices, IntegerVector src_indices);
+RcppExport SEXP _jheem2_do_access_add(SEXP dstSEXP, SEXP srcSEXP, SEXP dst_indicesSEXP, SEXP src_indicesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type src(srcSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dst_indices(dst_indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type src_indices(src_indicesSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_access_add(dst, src, dst_indices, src_indices));
+    return rcpp_result_gen;
+END_RCPP
+}
+// do_access_subtract
+NumericVector do_access_subtract(NumericVector dst, NumericVector src, IntegerVector dst_indices, IntegerVector src_indices);
+RcppExport SEXP _jheem2_do_access_subtract(SEXP dstSEXP, SEXP srcSEXP, SEXP dst_indicesSEXP, SEXP src_indicesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type src(srcSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dst_indices(dst_indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type src_indices(src_indicesSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_access_subtract(dst, src, dst_indices, src_indices));
+    return rcpp_result_gen;
+END_RCPP
+}
+// do_access_multiply
+NumericVector do_access_multiply(NumericVector dst, NumericVector src, IntegerVector dst_indices, IntegerVector src_indices);
+RcppExport SEXP _jheem2_do_access_multiply(SEXP dstSEXP, SEXP srcSEXP, SEXP dst_indicesSEXP, SEXP src_indicesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type src(srcSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dst_indices(dst_indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type src_indices(src_indicesSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_access_multiply(dst, src, dst_indices, src_indices));
+    return rcpp_result_gen;
+END_RCPP
+}
+// do_access_divide
+NumericVector do_access_divide(NumericVector dst, NumericVector src, IntegerVector dst_indices, IntegerVector src_indices);
+RcppExport SEXP _jheem2_do_access_divide(SEXP dstSEXP, SEXP srcSEXP, SEXP dst_indicesSEXP, SEXP src_indicesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type src(srcSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dst_indices(dst_indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type src_indices(src_indicesSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_access_divide(dst, src, dst_indices, src_indices));
+    return rcpp_result_gen;
+END_RCPP
+}
+// compute_dx
+NumericVector compute_dx(NumericVector state, double time, NumericVector quantity_scratch);
+RcppExport SEXP _jheem2_compute_dx(SEXP stateSEXP, SEXP timeSEXP, SEXP quantity_scratchSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type state(stateSEXP);
+    Rcpp::traits::input_parameter< double >::type time(timeSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type quantity_scratch(quantity_scratchSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_dx(state, time, quantity_scratch));
+    return rcpp_result_gen;
+END_RCPP
+}
+// calculate_main_effect_indices
+RObject calculate_main_effect_indices(List target_dim_names, CharacterVector alpha_dimensions, List alpha_dim_values);
+RcppExport SEXP _jheem2_calculate_main_effect_indices(SEXP target_dim_namesSEXP, SEXP alpha_dimensionsSEXP, SEXP alpha_dim_valuesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type target_dim_names(target_dim_namesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type alpha_dimensions(alpha_dimensionsSEXP);
+    Rcpp::traits::input_parameter< List >::type alpha_dim_values(alpha_dim_valuesSEXP);
+    rcpp_result_gen = Rcpp::wrap(calculate_main_effect_indices(target_dim_names, alpha_dimensions, alpha_dim_values));
+    return rcpp_result_gen;
+END_RCPP
+}
+// calculate_two_way_interaction_indices
+RObject calculate_two_way_interaction_indices(List target_dim_names, CharacterVector alpha_dimension1, List alpha_dim1_values, CharacterVector alpha_dimension2, List alpha_dim2_values);
+RcppExport SEXP _jheem2_calculate_two_way_interaction_indices(SEXP target_dim_namesSEXP, SEXP alpha_dimension1SEXP, SEXP alpha_dim1_valuesSEXP, SEXP alpha_dimension2SEXP, SEXP alpha_dim2_valuesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type target_dim_names(target_dim_namesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type alpha_dimension1(alpha_dimension1SEXP);
+    Rcpp::traits::input_parameter< List >::type alpha_dim1_values(alpha_dim1_valuesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type alpha_dimension2(alpha_dimension2SEXP);
+    Rcpp::traits::input_parameter< List >::type alpha_dim2_values(alpha_dim2_valuesSEXP);
+    rcpp_result_gen = Rcpp::wrap(calculate_two_way_interaction_indices(target_dim_names, alpha_dimension1, alpha_dim1_values, alpha_dimension2, alpha_dim2_values));
+    return rcpp_result_gen;
+END_RCPP
+}
+// calculate_three_way_interaction_indices
+RObject calculate_three_way_interaction_indices(List target_dim_names, CharacterVector alpha_dimension1, List alpha_dim1_values, CharacterVector alpha_dimension2, List alpha_dim2_values, CharacterVector alpha_dimension3, List alpha_dim3_values);
+RcppExport SEXP _jheem2_calculate_three_way_interaction_indices(SEXP target_dim_namesSEXP, SEXP alpha_dimension1SEXP, SEXP alpha_dim1_valuesSEXP, SEXP alpha_dimension2SEXP, SEXP alpha_dim2_valuesSEXP, SEXP alpha_dimension3SEXP, SEXP alpha_dim3_valuesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type target_dim_names(target_dim_namesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type alpha_dimension1(alpha_dimension1SEXP);
+    Rcpp::traits::input_parameter< List >::type alpha_dim1_values(alpha_dim1_valuesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type alpha_dimension2(alpha_dimension2SEXP);
+    Rcpp::traits::input_parameter< List >::type alpha_dim2_values(alpha_dim2_valuesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type alpha_dimension3(alpha_dimension3SEXP);
+    Rcpp::traits::input_parameter< List >::type alpha_dim3_values(alpha_dim3_valuesSEXP);
+    rcpp_result_gen = Rcpp::wrap(calculate_three_way_interaction_indices(target_dim_names, alpha_dimension1, alpha_dim1_values, alpha_dimension2, alpha_dim2_values, alpha_dimension3, alpha_dim3_values));
+    return rcpp_result_gen;
+END_RCPP
+}
+// calculate_four_way_interaction_indices
+RObject calculate_four_way_interaction_indices(List target_dim_names, CharacterVector alpha_dimension1, List alpha_dim1_values, CharacterVector alpha_dimension2, List alpha_dim2_values, CharacterVector alpha_dimension3, List alpha_dim3_values, CharacterVector alpha_dimension4, List alpha_dim4_values);
+RcppExport SEXP _jheem2_calculate_four_way_interaction_indices(SEXP target_dim_namesSEXP, SEXP alpha_dimension1SEXP, SEXP alpha_dim1_valuesSEXP, SEXP alpha_dimension2SEXP, SEXP alpha_dim2_valuesSEXP, SEXP alpha_dimension3SEXP, SEXP alpha_dim3_valuesSEXP, SEXP alpha_dimension4SEXP, SEXP alpha_dim4_valuesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type target_dim_names(target_dim_namesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type alpha_dimension1(alpha_dimension1SEXP);
+    Rcpp::traits::input_parameter< List >::type alpha_dim1_values(alpha_dim1_valuesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type alpha_dimension2(alpha_dimension2SEXP);
+    Rcpp::traits::input_parameter< List >::type alpha_dim2_values(alpha_dim2_valuesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type alpha_dimension3(alpha_dimension3SEXP);
+    Rcpp::traits::input_parameter< List >::type alpha_dim3_values(alpha_dim3_valuesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type alpha_dimension4(alpha_dimension4SEXP);
+    Rcpp::traits::input_parameter< List >::type alpha_dim4_values(alpha_dim4_valuesSEXP);
+    rcpp_result_gen = Rcpp::wrap(calculate_four_way_interaction_indices(target_dim_names, alpha_dimension1, alpha_dim1_values, alpha_dimension2, alpha_dim2_values, alpha_dimension3, alpha_dim3_values, alpha_dimension4, alpha_dim4_values));
+    return rcpp_result_gen;
+END_RCPP
+}
+// do_add_alphas_to_arr
+void do_add_alphas_to_arr(NumericVector arr, IntegerVector dims, NumericVector alpha_values, IntegerVector alpha_dims, IntegerVector alpha_indices);
+RcppExport SEXP _jheem2_do_add_alphas_to_arr(SEXP arrSEXP, SEXP dimsSEXP, SEXP alpha_valuesSEXP, SEXP alpha_dimsSEXP, SEXP alpha_indicesSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type arr(arrSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dims(dimsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type alpha_values(alpha_valuesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type alpha_dims(alpha_dimsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type alpha_indices(alpha_indicesSEXP);
+    do_add_alphas_to_arr(arr, dims, alpha_values, alpha_dims, alpha_indices);
+    return R_NilValue;
+END_RCPP
+}
+// do_add_or_set_two_way_interaction_alphas_to_arr
+void do_add_or_set_two_way_interaction_alphas_to_arr(NumericVector arr, IntegerVector dims, int dim1, IntegerVector dim1_values, int dim2, IntegerVector dim2_values, NumericVector values, bool add);
+RcppExport SEXP _jheem2_do_add_or_set_two_way_interaction_alphas_to_arr(SEXP arrSEXP, SEXP dimsSEXP, SEXP dim1SEXP, SEXP dim1_valuesSEXP, SEXP dim2SEXP, SEXP dim2_valuesSEXP, SEXP valuesSEXP, SEXP addSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type arr(arrSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dims(dimsSEXP);
+    Rcpp::traits::input_parameter< int >::type dim1(dim1SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim1_values(dim1_valuesSEXP);
+    Rcpp::traits::input_parameter< int >::type dim2(dim2SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim2_values(dim2_valuesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< bool >::type add(addSEXP);
+    do_add_or_set_two_way_interaction_alphas_to_arr(arr, dims, dim1, dim1_values, dim2, dim2_values, values, add);
+    return R_NilValue;
+END_RCPP
+}
+// do_add_or_set_three_way_interaction_alphas_to_arr
+void do_add_or_set_three_way_interaction_alphas_to_arr(NumericVector arr, IntegerVector dims, int dim1, IntegerVector dim1_values, int dim2, IntegerVector dim2_values, int dim3, IntegerVector dim3_values, NumericVector values, bool add);
+RcppExport SEXP _jheem2_do_add_or_set_three_way_interaction_alphas_to_arr(SEXP arrSEXP, SEXP dimsSEXP, SEXP dim1SEXP, SEXP dim1_valuesSEXP, SEXP dim2SEXP, SEXP dim2_valuesSEXP, SEXP dim3SEXP, SEXP dim3_valuesSEXP, SEXP valuesSEXP, SEXP addSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type arr(arrSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dims(dimsSEXP);
+    Rcpp::traits::input_parameter< int >::type dim1(dim1SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim1_values(dim1_valuesSEXP);
+    Rcpp::traits::input_parameter< int >::type dim2(dim2SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim2_values(dim2_valuesSEXP);
+    Rcpp::traits::input_parameter< int >::type dim3(dim3SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim3_values(dim3_valuesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< bool >::type add(addSEXP);
+    do_add_or_set_three_way_interaction_alphas_to_arr(arr, dims, dim1, dim1_values, dim2, dim2_values, dim3, dim3_values, values, add);
+    return R_NilValue;
+END_RCPP
+}
+// do_add_or_set_four_way_interaction_alphas_to_arr
+void do_add_or_set_four_way_interaction_alphas_to_arr(NumericVector arr, IntegerVector dims, int dim1, IntegerVector dim1_values, int dim2, IntegerVector dim2_values, int dim3, IntegerVector dim3_values, int dim4, IntegerVector dim4_values, NumericVector values, bool add);
+RcppExport SEXP _jheem2_do_add_or_set_four_way_interaction_alphas_to_arr(SEXP arrSEXP, SEXP dimsSEXP, SEXP dim1SEXP, SEXP dim1_valuesSEXP, SEXP dim2SEXP, SEXP dim2_valuesSEXP, SEXP dim3SEXP, SEXP dim3_valuesSEXP, SEXP dim4SEXP, SEXP dim4_valuesSEXP, SEXP valuesSEXP, SEXP addSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type arr(arrSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dims(dimsSEXP);
+    Rcpp::traits::input_parameter< int >::type dim1(dim1SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim1_values(dim1_valuesSEXP);
+    Rcpp::traits::input_parameter< int >::type dim2(dim2SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim2_values(dim2_valuesSEXP);
+    Rcpp::traits::input_parameter< int >::type dim3(dim3SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim3_values(dim3_valuesSEXP);
+    Rcpp::traits::input_parameter< int >::type dim4(dim4SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim4_values(dim4_valuesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< bool >::type add(addSEXP);
+    do_add_or_set_four_way_interaction_alphas_to_arr(arr, dims, dim1, dim1_values, dim2, dim2_values, dim3, dim3_values, dim4, dim4_values, values, add);
+    return R_NilValue;
+END_RCPP
+}
+// sorted_vectors_overlap
+bool sorted_vectors_overlap(NumericVector x, NumericVector y);
+RcppExport SEXP _jheem2_sorted_vectors_overlap(SEXP xSEXP, SEXP ySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    rcpp_result_gen = Rcpp::wrap(sorted_vectors_overlap(x, y));
+    return rcpp_result_gen;
+END_RCPP
+}
+// setdiff_sorted_vectors
+NumericVector setdiff_sorted_vectors(NumericVector x, NumericVector y);
+RcppExport SEXP _jheem2_setdiff_sorted_vectors(SEXP xSEXP, SEXP ySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    rcpp_result_gen = Rcpp::wrap(setdiff_sorted_vectors(x, y));
+    return rcpp_result_gen;
+END_RCPP
+}
+// union_sorted_vectors
+RObject union_sorted_vectors(List vectors);
+RcppExport SEXP _jheem2_union_sorted_vectors(SEXP vectorsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type vectors(vectorsSEXP);
+    rcpp_result_gen = Rcpp::wrap(union_sorted_vectors(vectors));
+    return rcpp_result_gen;
+END_RCPP
+}
+// apply_ontology_mapping
+RObject apply_ontology_mapping(NumericVector src, NumericVector dst, CharacterVector from_values, CharacterVector to_values, bool na_rm);
+RcppExport SEXP _jheem2_apply_ontology_mapping(SEXP srcSEXP, SEXP dstSEXP, SEXP from_valuesSEXP, SEXP to_valuesSEXP, SEXP na_rmSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type src(srcSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type from_values(from_valuesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type to_values(to_valuesSEXP);
+    Rcpp::traits::input_parameter< bool >::type na_rm(na_rmSEXP);
+    rcpp_result_gen = Rcpp::wrap(apply_ontology_mapping(src, dst, from_values, to_values, na_rm));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_ontology_mapping_matrix
+RObject get_ontology_mapping_matrix(List src_dim_names, List dst_dim_names, NumericVector dst, CharacterVector from_values, CharacterVector to_values);
+RcppExport SEXP _jheem2_get_ontology_mapping_matrix(SEXP src_dim_namesSEXP, SEXP dst_dim_namesSEXP, SEXP dstSEXP, SEXP from_valuesSEXP, SEXP to_valuesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type src_dim_names(src_dim_namesSEXP);
+    Rcpp::traits::input_parameter< List >::type dst_dim_names(dst_dim_namesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dst(dstSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type from_values(from_valuesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type to_values(to_valuesSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_ontology_mapping_matrix(src_dim_names, dst_dim_names, dst, from_values, to_values));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_ontology_mapping_indices
+RObject get_ontology_mapping_indices(List src_dim_names, List dst_dim_names, CharacterVector from_values, CharacterVector to_values);
+RcppExport SEXP _jheem2_get_ontology_mapping_indices(SEXP src_dim_namesSEXP, SEXP dst_dim_namesSEXP, SEXP from_valuesSEXP, SEXP to_valuesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type src_dim_names(src_dim_namesSEXP);
+    Rcpp::traits::input_parameter< List >::type dst_dim_names(dst_dim_namesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type from_values(from_valuesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type to_values(to_valuesSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_ontology_mapping_indices(src_dim_names, dst_dim_names, from_values, to_values));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_applied_jheem_apply_one_dim_ontology_mapping", (DL_FUNC) &_applied_jheem_apply_one_dim_ontology_mapping, 7},
-    {"_applied_jheem_apply_two_dim_ontology_mapping", (DL_FUNC) &_applied_jheem_apply_two_dim_ontology_mapping, 10},
-    {"_applied_jheem_rcpp_hello_world", (DL_FUNC) &_applied_jheem_rcpp_hello_world, 0},
+    {"_jheem2_overwrite_arr", (DL_FUNC) &_jheem2_overwrite_arr, 4},
+    {"_jheem2_add_to_arr", (DL_FUNC) &_jheem2_add_to_arr, 4},
+    {"_jheem2_overwrite_arr_with_scalar", (DL_FUNC) &_jheem2_overwrite_arr_with_scalar, 2},
+    {"_jheem2_add_scalar_to_arr", (DL_FUNC) &_jheem2_add_scalar_to_arr, 2},
+    {"_jheem2_do_array_overwrite", (DL_FUNC) &_jheem2_do_array_overwrite, 3},
+    {"_jheem2_do_expand_array", (DL_FUNC) &_jheem2_do_expand_array, 2},
+    {"_jheem2_do_get_expand_indices", (DL_FUNC) &_jheem2_do_get_expand_indices, 2},
+    {"_jheem2_do_access_overwrite", (DL_FUNC) &_jheem2_do_access_overwrite, 4},
+    {"_jheem2_do_access_add", (DL_FUNC) &_jheem2_do_access_add, 4},
+    {"_jheem2_do_access_subtract", (DL_FUNC) &_jheem2_do_access_subtract, 4},
+    {"_jheem2_do_access_multiply", (DL_FUNC) &_jheem2_do_access_multiply, 4},
+    {"_jheem2_do_access_divide", (DL_FUNC) &_jheem2_do_access_divide, 4},
+    {"_jheem2_compute_dx", (DL_FUNC) &_jheem2_compute_dx, 3},
+    {"_jheem2_calculate_main_effect_indices", (DL_FUNC) &_jheem2_calculate_main_effect_indices, 3},
+    {"_jheem2_calculate_two_way_interaction_indices", (DL_FUNC) &_jheem2_calculate_two_way_interaction_indices, 5},
+    {"_jheem2_calculate_three_way_interaction_indices", (DL_FUNC) &_jheem2_calculate_three_way_interaction_indices, 7},
+    {"_jheem2_calculate_four_way_interaction_indices", (DL_FUNC) &_jheem2_calculate_four_way_interaction_indices, 9},
+    {"_jheem2_do_add_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_alphas_to_arr, 5},
+    {"_jheem2_do_add_or_set_two_way_interaction_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_or_set_two_way_interaction_alphas_to_arr, 8},
+    {"_jheem2_do_add_or_set_three_way_interaction_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_or_set_three_way_interaction_alphas_to_arr, 10},
+    {"_jheem2_do_add_or_set_four_way_interaction_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_or_set_four_way_interaction_alphas_to_arr, 12},
+    {"_jheem2_sorted_vectors_overlap", (DL_FUNC) &_jheem2_sorted_vectors_overlap, 2},
+    {"_jheem2_setdiff_sorted_vectors", (DL_FUNC) &_jheem2_setdiff_sorted_vectors, 2},
+    {"_jheem2_union_sorted_vectors", (DL_FUNC) &_jheem2_union_sorted_vectors, 1},
+    {"_jheem2_apply_ontology_mapping", (DL_FUNC) &_jheem2_apply_ontology_mapping, 5},
+    {"_jheem2_get_ontology_mapping_matrix", (DL_FUNC) &_jheem2_get_ontology_mapping_matrix, 5},
+    {"_jheem2_get_ontology_mapping_indices", (DL_FUNC) &_jheem2_get_ontology_mapping_indices, 4},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_applied_jheem(DllInfo *dll) {
+RcppExport void R_init_jheem2(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

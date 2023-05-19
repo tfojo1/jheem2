@@ -31,7 +31,7 @@
 ##----------------------##
 ##----------------------##
 
-#'@description Create a mapping that allows transformations of arrays
+#'@title Create a mapping that allows transformations of arrays
 #'
 #'@param from.dimensions A character vector of names of the dimensions we are mapping from
 #'@param to.dimensions A character vector of names of the dimensions we are mapping to
@@ -219,7 +219,7 @@ create.ontology.mapping <- function(mappings,
 }
 
 
-#'@description Create and register a mapping that allows transformations of arrays
+#'@title Create and register a mapping that allows transformations of arrays
 #'
 #'@param name A descriptive single character value
 #'@inheritParams create.ontology.mapping
@@ -310,7 +310,7 @@ register.ontology.mapping <- function(name,
 }
 
 
-#'@description Get an Ontology Mapping to Transform Data
+#'@title Get an Ontology Mapping to Transform Data
 #'
 #'@param from.ontology The ontology to which the data to be transformed conform. Must be an 'ontology' object as created by \code{\link{ontology}}
 #'@param to.ontology The ontology to which the transformed data should conform. Must be an 'ontology' object as created by \code{\link{ontology}}
@@ -335,7 +335,7 @@ get.ontology.mapping <- function(from.ontology,
     combine.ontology.mappings(mappings[[1]])
 }
 
-#'@description Get a Pair of Ontology Mappings that Aligns two Data Elements
+#'@title Get a Pair of Ontology Mappings that Aligns two Data Elements
 #'
 #'@param ontology.1,ontology.2 The ontologies of two data elements to be transformed
 #'@param align.on.dimensions The dimensions which should match in the transformed data
@@ -368,7 +368,7 @@ get.mappings.to.align.ontologies <- function(ontology.1,
              mapping.from.2 = combine.ontology.mappings(mappings[[2]]) )
 }
 
-#'@description Get a Matrix that Applies an Ontology Mapping
+#'@title Get a Matrix that Applies an Ontology Mapping
 #'
 #'@inheritParams apply.ontology.mapping
 #'
@@ -386,7 +386,7 @@ get.ontology.mapping.matrix <- function(ontology.mapping,
                                 error.prefix=error.prefix)
 }
 
-#'@description Apply an Ontology Mapping to Data
+#'@title Apply an Ontology Mapping to Data
 #'
 #'@param ontology.mapping An object of class 'ontology.mapping' - obtained either through \link{register.ontology.mapping}, \link{get.ontology.mapping}, \link{get.mappings.to.align.ontologies}
 #'@param from.arr An array to transform. Can have any underlying data type, although the function is optimized for numeric data
@@ -412,14 +412,14 @@ apply.ontology.mapping <- function(ontology.mapping,
                            error.prefix = error.prefix)
 }
 
-#'@description Get an "Identity" Ontology Mapping (that does not change data structure when applied)
+#'@title Get an "Identity" Ontology Mapping (that does not change data structure when applied)
 #'
 #'@return An object of class "ontology.mapping"
 #'
 #'@export
 get.identity.ontology.mapping <- function()
 {
-    IDENTITY.MAPPING
+    IDENTITY.ONTOLOGY.MAPPING$new()
 }
 
 ##-------------##
@@ -534,9 +534,9 @@ do.get.ontology.mapping <- function(from.ontology,
     if (success)
     {
         if (get.two.way.alignment)
-            return (list(from=list(IDENTITY.MAPPING), to=list(IDENTITY.MAPPING)))
+            return (list(from=list(get.identity.ontology.mapping()), to=list(get.identity.ontology.mapping())))
         else
-            return (list(from=list(IDENTITY.MAPPING), to=NULL))
+            return (list(from=list(get.identity.ontology.mapping()), to=NULL))
     }
     
     #we can only modify to.ontology by reversing when get.two.way.alignment==T
@@ -636,14 +636,14 @@ do.get.ontology.mapping <- function(from.ontology,
         if (is.null(reverse.mappings)) # We couldn't make it work
             NULL
         else # this works! package it up and return
-            list(from=list(IDENTITY.MAPPING),
+            list(from=list(get.identity.ontology.mapping()),
                  to=reverse.mappings$from)
     }
     else
         NULL
 }
 
-#'@description Combine multiple ontology mappings into a single mapping
+#'@title Combine multiple ontology mappings into a single mapping
 #'
 #'@param ... Either ontology.mapping objects or lists containing ontology.mapping objects#'
 #'
@@ -684,7 +684,7 @@ combine.ontology.mappings <- function(...)
     identity.mapping.mask = sapply(sub.mappings, function(m){m$is.identity.mapping})
     sub.mappings = sub.mappings[!identity.mapping.mask]
     if (length(sub.mappings)==0)
-        IDENTITY.MAPPING
+        get.identity.ontology.mapping()
     else if (length(sub.mappings)==1)
         sub.mappings[!identity.mapping.mask][[1]]
     else # we need to combine them
@@ -771,7 +771,7 @@ combine.ontology.mappings <- function(...)
     }
 }
 
-#'@description Create an ontology mapping that lumps otherwise unspecified categories into an "other" category
+#'@title Create an ontology mapping that lumps otherwise unspecified categories into an "other" category
 #'
 #'@param dimension A single character value indicating what dimension this mapping applies to
 #'@param from.values The possible values for the dimension in the ontology to map from
@@ -941,106 +941,6 @@ create.age.ontology.mapping <- function(from.values,
         return (NULL)
 }
 
-#'@description Make Names for a Set of Age Strata
-#'
-#'@param endpoints A numeric vector of at least two points. endpoints[1] is the lower bound (inclusive) of the first stratum, endpoints[2] is the upper bound (exclusive) for the first stratum and the lower bound for the second stratum, etc.
-#'
-#'@return A character vector with length(endpoints)-1 values
-#'
-#'@export
-make.age.strata.names <- function(endpoints)
-{
-    if (!is.numeric(endpoints))
-        stop("'endpoints' must be a numeric vector")
-    
-    if (length(endpoints)<2)
-        stop("'endpoints' must contain at least two values")
-    
-    if (any(is.na(endpoints)))
-        stop("'endpoints' cannot contain NA values")
-    
-    lowers = endpoints[-length(endpoints)]
-    uppers = endpoints[-1]
-    
-    rv = paste0(lowers, "-", uppers-1, " years")
-    rv[is.infinite(uppers)] = paste0(lowers[is.infinite(uppers)], "+ years")
-    rv[(lowers+1)==uppers] = paste0(lowers, " years")
-    rv[lowers==1 & uppers==2] = '1 year'
-    
-    rv
-}
-
-#'@description Convert Age Strata Names into Lower and Upper Bounds for Each Stratum
-#'
-#'@param strata.names Names generated in the format given by \link{make.age.strata.names}
-#'
-#'@return A list with two elements, $lowers and $uppers, representing the lower (inclusive) and upper (exclusive) bounds of each age stratum
-#'
-#'@export
-parse.age.strata.names <- function(strata.names)
-{
-    # Validate
-    if (!is.character(strata.names))
-        stop("'strata.names' must be a character vector")
-    
-    if (length(strata.names)==0)
-        stop("'strata.names' must contain at least one value")
-    
-    if (any(is.na(strata.names)))
-        stop("'strata.names' cannot contain NA values")
-    
-    # Massage out text suffixes
-    years.mask = grepl(" years$", strata.names) #we'll do this first, since it's the default
-    strata.names[years.mask] = substr(strata.names[years.mask], 1, nchar(strata.names[years.mask])-6)
- 
-    if (!all(years.mask))
-    {   
-        one.year.mask = grepl(" year$", strata.names) #this next, since it's also used by the default
-        strata.names[one.year.mask] = substr(strata.names[one.year.mask], 1, nchar(strata.names[one.year.mask])-5)
-        
-        if (!all(years.mask | one.year.mask))
-        {
-            years.old.mask = grepl(" years old$", strata.names) #this next, since it's also used by the default
-            strata.names[years.old.mask] = substr(strata.names[years.old.mask], 1, nchar(strata.names[years.old.mask])-10)}
-    }
-    
-    # Divide up the three ways to parse
-    # <age>+
-    # <age>-<age>
-    # <age>    
-    
-    uppers = lowers = numeric(length(strata.names))
-
-    dash.position = sapply(strsplit(strata.names, ''), function(chars){
-        (1:length(chars))[chars=='-'][1]
-    })
-    infinite.upper.mask = substr(strata.names, nchar(strata.names), nchar(strata.names)) == "+"
-    age.range.mask = !is.na(dash.position)
-    single.age.mask = !age.range.mask & !infinite.upper.mask
-
-    # Parse infinite upper
-    lowers[infinite.upper.mask] = suppressWarnings(as.numeric(substr(strata.names[infinite.upper.mask],
-                                                                     1, nchar(strata.names[infinite.upper.mask])-1)))
-    uppers[infinite.upper.mask] = Inf
-    
-    # Parse age range
-    lowers[age.range.mask] = suppressWarnings(as.numeric(substr(strata.names[age.range.mask],
-                                                     1, dash.position-1)))
-    uppers[age.range.mask] = 1+suppressWarnings(as.numeric(substr(strata.names[age.range.mask],
-                                                                dash.position+1, nchar(strata.names[age.range.mask]))))
-
-    
-    # Parse single age
-    lowers[single.age.mask] = suppressWarnings(as.numeric(strata.names[single.age.mask]))
-    uppers[single.age.mask] = lowers[single.age.mask] + 1
- 
-    # Return
-    if (any(is.na(uppers)) || any(is.na(lowers)))
-        NULL
-    else
-        list(upper=uppers,
-             lower=lowers)
-}
 
 ##----------------------------------##
 ##----------------------------------##
@@ -1065,13 +965,13 @@ ONTOLOGY.MAPPING = R6::R6Class(
     
     public = list(
         
-        #'@description The Constructor
+        #'@title The Constructor
         initialize = function(name)
         {
             private$i.name = name
         },
         
-        #'@description The Print Function
+        #'@title The Print Function
         print = function(...)
         {
             from.dimensions = self$from.dimensions
@@ -1090,13 +990,13 @@ ONTOLOGY.MAPPING = R6::R6Class(
                              collapse.with.and("'", to.dimensions, "'"), ">"))
         },
         
-        #'@description A test for equality - to be overwritten in subclass --#
+        #'@title A test for equality - to be overwritten in subclass --#
         equals = function(other)
         {
             stop("This subclass of 'ontology.mapping' is incompletely specified. The 'equals' method must be implemented at the subclass level")            
         },
         
-        #'@description Test if this ontology.mapping can apply to the given dim.names
+        #'@title Test if this ontology.mapping can apply to the given dim.names
         can.apply.to.dim.names = function(from.dim.names,
                                           to.dim.names = NULL,
                                           throw.errors=F,
@@ -1108,7 +1008,7 @@ ONTOLOGY.MAPPING = R6::R6Class(
                                     error.prefix=error.prefix)
         },
         
-        #'@description Test if this ontology.mapping can apply to the given ontology
+        #'@title Test if this ontology.mapping can apply to the given ontology
         can.apply.to.ontology = function(from.ontology,
                                          to.ontology = NULL,
                                          throw.errors=F,
@@ -1125,7 +1025,7 @@ ONTOLOGY.MAPPING = R6::R6Class(
                                     error.prefix=error.prefix)
         },
         
-        #'@description Get the dimnames that would be generated after applying this mapping to some data with the given dim.names
+        #'@title Get the dimnames that would be generated after applying this mapping to some data with the given dim.names
         apply.to.dim.names = function(from.dim.names, error.prefix='Cannot apply ontology.mapping to dim names: ')
         {
             private$check.can.apply(from.dim.names=from.dim.names,
@@ -1137,7 +1037,7 @@ ONTOLOGY.MAPPING = R6::R6Class(
                                                       error.prefix=error.prefix)
         },
         
-        #'@description Get the ontology that would be generated after applying this mapping to some data
+        #'@title Get the ontology that would be generated after applying this mapping to some data
         #'
         #'@details An alias of the apply.to.dim.names function (which appropriately handles if dim.names is additionally an ontology)
         apply.to.ontology = function(ontology, error.prefix='Cannot apply ontology.mapping to ontology: ')
@@ -1266,7 +1166,10 @@ ONTOLOGY.MAPPING = R6::R6Class(
         
         from.dim.names = function(value)
         {
-            stop("This subclass of 'ontology.mapping' is incompletely specified. The 'from.dim.names' method must be implemented at the subclass level")
+            stop(paste0("This subclass (",
+                        paste0("'", class(self), "'", collapse=', '),
+                        ") of 'ontology.mapping' is incompletely specified. The 'from.dim.names' method must be implemented at the subclass level"))
+#            stop("This subclass of 'ontology.mapping' is incompletely specified. The 'from.dim.names' method must be implemented at the subclass level")
         },
         
         to.dim.names = function(value)
@@ -1906,7 +1809,7 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
 
 
 
-IDENTITY.MAPPING = IDENTITY.ONTOLOGY.MAPPING$new()
+#IDENTITY.MAPPING = IDENTITY.ONTOLOGY.MAPPING$new()
 
 
 ##-- HELPER --##

@@ -11,7 +11,7 @@
 ##-----------------##
 
 
-#'@description Create a JHEEM Engine (to run simulations for a given version and location)
+#'@title Create a JHEEM Engine (to run simulations for a given version and location)
 #'
 #'@param version The name of the version to run. Must have had a model specification registered with \code{\link{register.model.specification}}
 #'@param location A single character value indicating the location of the model
@@ -29,7 +29,7 @@ create.jheem.engine <- function(version,
 ##-- FUNCTIONS to PRODUCE OUTPUT from the ENGINE --##
 ##-------------------------------------------------##
 
-#'@description Perform Pre-Calculations Needed to Run a Simulation From a JHEEM Engine
+#'@title Perform Pre-Calculations Needed to Run a Simulation From a JHEEM Engine
 #'
 #'@param jheem.engine A jheem.engine object (created by \code{\link{create.jheem.engine}})
 #'@param start.year,end.year The years across which the simulation is to run
@@ -51,7 +51,7 @@ crunch.jheem.engine <- function(jheem.engine,
                         check.consistency = check.consistency)
 }
 
-#'@description Produce a Simulation from a JHEEM Engine
+#'@title Produce a Simulation from a JHEEM Engine
 #'
 #'@inheritParams crunch.jheem.engine
 #'@param max.run.time.seconds The maximum number of seconds a simulation is allowed to run before being terminated
@@ -91,7 +91,7 @@ run.jheem.engine <- function(jheem.engine,
 ##-- FUNCTIONS to MODIFY the ENGINE'S SETTINGS --##
 ##-----------------------------------------------##
 
-#'@description Set the Value of a Model Element
+#'@title Set the Value of a Model Element
 #'
 #'@inheritParams run.jheem.engine
 #'@param element.name The name of the model element to update a value for
@@ -114,7 +114,7 @@ set.element.value <- function(jheem.engine,
                                    check.consistency = check.consistency)
 }
 
-#'@description Set Main Effect Alpha Values for a Functional Form for a Model Element
+#'@title Set Main Effect Alpha Values for a Functional Form for a Model Element
 #'
 #'@details Alphas for a 'main effect' apply to all values in a dimension (as opposed to 'interaction effects', which apply to combinations of values)
 #'
@@ -147,7 +147,7 @@ set.element.functional.form.main.effect.alphas <- function(jheem.engine,
                                                                 check.consistency = check.consistency)
 }
 
-#'@description Set Interaction Alpha Values for a Functional Form for a Model Element
+#'@title Set Interaction Alpha Values for a Functional Form for a Model Element
 #'
 #'@details Alphas for an 'interaction' will apply to every combination of applies.to.dimension.values from different dimensions (as opposed to 'main effect' apply to all values in a dimension
 #'
@@ -188,7 +188,7 @@ set.element.foreground <- function(jheem.engine,
     
 }
 
-#'@description Set the Times From and To Which the Functional Form Determines a Model Element's Value
+#'@title Set the Times From and To Which the Functional Form Determines a Model Element's Value
 #'
 #'@inheritParams set.element.value
 #'@param element.name The name of the model element to set functional.form times for
@@ -228,7 +228,7 @@ set.element.functional.form.to.time <- function(jheem.engine,
 }
 
 
-#'@description Set a ramp or taper (times and values) for a model element
+#'@title Set a ramp or taper (times and values) for a model element
 #'
 #'@details A ramp is a set of multipliers which are multiplied by the first functional.form value (ie, the value produced at functional.form.from.time) for an element. A taper is a set of multipliers which are multiplied by the last functional.form value (ie, the value produced at functional.form.to.time) for an element
 #'
@@ -338,7 +338,7 @@ set.element.functional.form.future.slope <- function(jheem.engine,
 #'@describeIn set.element.functional.form.future.slope
 #'
 #'@export
-set.element.functional.form.future.slope.after.time <- function(components,
+set.element.functional.form.future.slope.after.time <- function(jheem.engine,
                                                                 element.names,
                                                                 after.year,
                                                                 check.consistency = !jheem.engine$has.been.crunched())
@@ -356,7 +356,7 @@ set.element.functional.form.future.slope.after.time <- function(components,
 ##-- SOME STREAMLINED, CONVENIENCE FUNCTIONS FOR SETTING MULTIPLE VALUES --##
 ##-------------------------------------------------------------------------##
 
-#'@description Set Values for Multiple Model Elements
+#'@title Set Values for Multiple Model Elements
 #'
 #'@inheritParams set.element.value
 #'@param element.names A character vector containing the names of the elements to set values for
@@ -406,7 +406,7 @@ set.element.values.from.parameters <- function(jheem.engine,
     element.names
 }
 
-#'@description Set multiple functional form main effect alphas from parameters
+#'@title Set multiple functional form main effect alphas from parameters
 #'
 #'@inheritParams set.element.functional.form.main.effect.alphas
 #'@param parameters A named numeric vector with values for interaction terms
@@ -470,7 +470,6 @@ set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
                         ifelse(length(invalid.dimensions.by.name)==1, "is not a valid dimension", "are not valid dimensions"),
                         " in the specification for version '", jheem.engine$version, "'"))
     }
-    
     
     #-- Values for main effects --#
     
@@ -1421,6 +1420,12 @@ JHEEM.ENGINE = R6::R6Class(
         has.been.crunched = function()
         {
             private$i.has.been.crunched
+        },
+        
+        test.crunch = function()
+        {
+            private$do.test.crunch()
+            private$jheem
         }
         
     ),
@@ -1433,6 +1438,39 @@ JHEEM.ENGINE = R6::R6Class(
                 names(private$i.element.backgrounds)
             else
                 stop("Cannot modify a JHEEM Engine's 'element.names' - they are read-only")
+        },
+        
+        # FOR DEBUGGING
+        calculated.values = function(value)
+        {
+            if (missing(value))
+                private$i.quantity.values
+            else
+                stop("Cannot modify a JHEEM Engine's 'calculated.values' - they are read-only")
+        },
+        
+        value.times = function(value)
+        {
+            if (missing(value))
+                private$i.quantity.value.times
+            else
+                stop("Cannot modify a JHEEM Engine's 'value.times' - they are read-only")
+        },
+        
+        self.times = function(value)
+        {
+            if (missing(value))
+                private$i.quantity.self.times
+            else
+                stop("Cannot modify a JHEEM Engine's 'self.times' - they are read-only")
+        },
+        
+        element.backgrounds = function(value)
+        {
+            if (missing(value))
+                private$i.element.backgrounds
+            else
+                stop("Cannot modify a JHEEM Engine's 'element.backgrounds' - they are read-only")
         }
         
     ),
@@ -1699,7 +1737,15 @@ JHEEM.ENGINE = R6::R6Class(
                 append.to.back = bkgd$functional.form.from.time
             
             if (ceiling(to.time) >= floor(from.time))
-                functional.form.times = ceiling(from.time):floor(to.time)
+            {
+                element = private$get.specification()$get.quantity(bkgd$name)
+                if (bkgd$functional.form$type == 'linear spline' && bkgd$functional.form$link$type=='identity' &&
+                    element$functional.form.scale == element$scale) 
+                            #If these conditions are true, we can just let the native interpolation take care of the in-between points
+                    functional.form.times = bkgd$functional.form$knot.times[bkgd$functional.form$knot.times>=from.time & bkgd$functional.form$knot.times<=to.time]
+                else
+                    functional.form.times = ceiling(from.time):floor(to.time)
+            }
             else
                 functional.form.times = numeric()
             
@@ -1808,12 +1854,12 @@ JHEEM.ENGINE = R6::R6Class(
                                             depth=0) #depth is for debugging
         {
             # For debugging
-#            if (is.element.name(quantity.name))
-#                print(paste0(paste0(rep(" ", depth), collapse=''),
-#                             "-Calculate element '", quantity.name, "'"))
-#            else
-#                print(paste0(paste0(rep(" ", depth), collapse=''),
-#                             "-Calculate quantity '", quantity.name, "'"))
+        #    if (is.element.name(quantity.name))
+        #        print(paste0(paste0(rep(" ", depth), collapse=''),
+        #                     "-Calculate element '", quantity.name, "'"))
+        #    else
+        #        print(paste0(paste0(rep(" ", depth), collapse=''),
+        #                     "-Calculate quantity '", quantity.name, "'"))
             
             if (is.element.name(quantity.name))
                 calculate.element.value(quantity.name, check.consistency=check.consistency)
@@ -1937,7 +1983,8 @@ JHEEM.ENGINE = R6::R6Class(
                             expand.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]
                             access.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.access[[i]]
                             
-                            x = rv
+                #    if (quantity.name == 'uninfected.birth.proportions')        
+                   #     browser()
                             # Fold it in to the rv
                             if (is.null(access.indices))
                                 rv = value[expand.indices]
@@ -1992,8 +2039,153 @@ JHEEM.ENGINE = R6::R6Class(
                 invisible(self)
             }
         },
-        
+
+        # interpolates ramp on the model scale
         calculate.element.value = function(element.name, check.consistency)
+        {
+            print(element.name)
+            if (element.name=='idu.trates')
+                master.debug <<- F
+            
+            element = private$get.specification()$get.quantity(element.name)
+            if (is.null(private$i.quantity.value.times[[element.name]]))
+                calculate.quantity.value.times(element.name)
+            if (is.null(private$i.quantity.dim.names[[element.name]]))
+                calculate.quantity.dim.names(element)
+            
+            #-- First, if there is a functional form, make sure the alphas are crunched --#
+            if (!is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+            {
+                private$i.element.backgrounds[[element.name]]$functional.form.alphas = 
+                    lapply(private$i.element.backgrounds[[element.name]]$functional.form.alphas, function(alphas){
+                        crunch.alphas(alphas,
+                                      betas = private$i.element.backgrounds[[element.name]]$functional.form$betas[[alphas$name]],
+                                      target.dim.names = private$i.quantity.dim.names[[element.name]],
+                                      error.prefix = paste0("Error calculating the value for model element ",
+                                                            element$get.original.name(wrt.version=self$version),
+                                                            " - in crunching '", alphas$name, "' alphas for the functional form: "))
+                    })
+            }
+            
+            #-- Pull the background --#
+            bkgd = private$i.element.backgrounds[[element.name]]
+            
+            #-- Now actually calculate --#
+            if (private$i.quantity.is.static[element.name])
+            {
+                if (is.null(i.quantity.values[['all']]))
+                {
+                    if (is.null(bkgd$functional.form))
+                        private$i.quantity.values[[element.name]][['all']] = bkgd$value
+                    else
+                        private$i.quantity.values[[element.name]][['all']] =
+                            convert.model.scale(bkgd$functional.form$project.static(alphas = bkgd$functional.form.alphas,
+                                                                                    dim.names = i.quantity.dim.names[[element.name]],
+                                                                                    check.consistency = check.consistency,
+                                                                                    error.prefix = paste0("Error projecting values from the (static) functional form for element '", element.name, "': ")),
+                                                convert.from.scale = element$functional.form.scale,
+                                                convert.to.scale = element$scale)
+                }
+            }
+            else
+            {
+                missing.times = setdiff_sorted_vectors(private$i.quantity.value.times[[element.name]], 
+                                                       as.numeric(names(private$i.quantity.values[[element.name]])))
+                if (length(missing.times)>0)
+                {
+                    #-- Calculate functional form values --#
+                    
+                    new.times = numeric()
+                    
+                    if (sorted_vectors_overlap(bkgd$functional.form.times, missing.times)) #practically, we will never have just one functional form value missing - it will either be all of them or none of them
+                    {
+                        private$i.quantity.values[[element.name]][as.character(bkgd$functional.form.times)] = 
+                            bkgd$functional.form$project(years = bkgd$functional.form.times,
+                                                                             alphas = bkgd$functional.form.alphas,
+                                                                             dim.names = i.quantity.dim.names[[element.name]],
+                                                                             future.slope = bkgd$future.slope,
+                                                                             future.slope.after.year = bkgd$future.slope.after.time,
+                                                                             future.slope.is.on.transformed.scale = F, #is this what we want?
+                                                                             check.consistency = check.consistency,
+                                                                             error.prefix = paste0("Error projecting values from the functional form for element '", element.name, "': "))
+                        
+                        new.times = bkgd$functional.form.times
+                    }
+                    
+                    #-- Calculate ramp values --#
+                    if (!is.null(bkgd$ramp.interpolated.times) && sorted_vectors_overlap(bkgd$ramp.interpolated.times, missing.times))
+                    {
+                        private$i.quantity.values[[element.name]][as.character(bkgd$ramp.interpolated.times)] = 
+                            element$calculate.ramp.values(ramp.values = bkgd$ramp.values,
+                                                          ramp.times = bkgd$ramp.times,
+                                                          first.functional.form.value = i.quantity.values[[element.name]][[ as.character(bkgd$functional.form.times[1]) ]],
+                                                          functional.form.from.time = bkgd$functional.form.times[1])[as.character(bkgd$ramp.interpolated.times)]
+                        
+                        new.times = c(bkgd$ramp.interpolated.times, new.times)
+                    }
+                    
+                    #-- Calculate taper.values --#
+                    if (!is.null(bkgd$taper.interpolated.times) && sorted_vectors_overlap(bkgd$taper.interpolated.times, missing.times))
+                    {
+                        n.functional.form.times = length(bkgd$functional.form.times)
+                        private$i.quantity.values[[element.name]][as.character(bkgd$taper.interpolated.times)] = 
+                            element$calculate.taper.values(taper.values = bkgd$taper.values,
+                                                           taper.times = bkgd$taper.times,
+                                                           last.functional.form.value = i.quantity.values[[element.name]][[ as.character(bkgd$functional.form.times[n.functional.form.times]) ]],
+                                                           functional.form.to.time = bkgd$functional.form.times[n.functional.form.times])[as.character(bkgd$taper.interpolated.times)]
+                        
+                        new.times = c(bkgd$taper.interpolated.times, new.times)
+                    }
+                    
+                    #-- Convert Scale if Needed --#
+                    if (length(new.times)>0)
+                    {
+                        private$i.quantity.values[[element.name]][as.character(new.times)] = 
+                            convert.model.scale(private$i.quantity.values[[element.name]][as.character(new.times)],
+                                                convert.from.scale = element$functional.form.scale,
+                                                convert.to.scale = element$scale)
+                    }
+                    
+                    
+                    #-- Other times to interpolate --#
+                    missing.interpolated.times = setdiff_sorted_vectors(missing.times,
+                                                                        c(bkgd$ramp.interpolated.times, 
+                                                                          bkgd$functional.form.times, 
+                                                                          bkgd$taper.interpolated.times))
+                    
+                    if (length(missing.interpolated.times)>0)
+                    {
+                        interpolate.from.times = c(bkgd$ramp.interpolated.times, bkgd$functional.form.times, bkgd$taper.interpolated.times)
+                        
+                        private$i.quantity.values[[element.name]][as.character(missing.interpolated.times)] = 
+                            interpolate(values = i.quantity.values[[element.name]][as.character(interpolate.from.times)],
+                                        value.times = interpolate.from.times,
+                                        desired.times = missing.interpolated.times)
+                    }                    
+                    
+                    #-- Sort the result --#
+                    private$i.quantity.values[[element.name]] = private$i.quantity.values[[element.name]][ as.character(private$i.quantity.value.times[[element.name]]) ]
+                }
+            }
+            
+            # Fold in the foreground
+            
+            # A debug check
+            if (any(sapply(private$i.quantity.values[[element.name]], length)==0))
+                browser()
+            
+            # Check scale
+            check.values.for.model.scale(private$i.quantity.values[[element.name]],
+                                         scale = element$scale,
+                                         variable.name.for.error = "the calculated values",
+                                         error.prefix =  paste0("Error calculating values for model element '", element.name, "': "))
+            
+            # Done
+            invisible(self)
+        },
+
+        # interpolates ramp on the element scale
+        ORIG.calculate.element.value = function(element.name, check.consistency)
         {
             element = private$get.specification()$get.quantity(element.name)
             if (is.null(private$i.quantity.value.times[[element.name]]))
@@ -2007,7 +2199,7 @@ JHEEM.ENGINE = R6::R6Class(
                 private$i.element.backgrounds[[element.name]]$functional.form.alphas = 
                     lapply(private$i.element.backgrounds[[element.name]]$functional.form.alphas, function(alphas){
                         crunch.alphas(alphas,
-                                      betas = private$i.element.backgrounds[[element.name]]$functional.form$betas,
+                                      betas = private$i.element.backgrounds[[element.name]]$functional.form$betas[[alphas$name]],
                                       target.dim.names = private$i.quantity.dim.names[[element.name]],
                                       error.prefix = paste0("Error calculating the value for model element ",
                                                             element$get.original.name(wrt.version=self$version),
@@ -2017,7 +2209,8 @@ JHEEM.ENGINE = R6::R6Class(
             
             #-- Pull the background --#
             bkgd = private$i.element.backgrounds[[element.name]]
-            
+            if (element.name=='testing')
+                browser()
             #-- Now actually calculate --#
             if (private$i.quantity.is.static[element.name])
             {
@@ -2687,7 +2880,409 @@ JHEEM.ENGINE = R6::R6Class(
             
             # Return
             indices
-        }
+        },
+    
+        # Uses the old JHEEM package for testing
+        do.test.crunch = function()
+        {
+            need.to.push <- function(...){
+                T
+            }
+            
+            #-----------------------------------------#
+            #-- Go one by one and push to the JHEEM --#
+            #-----------------------------------------#
+            
+            #-- SET-UP JHEEM --#
+            private$do.setup.jheem.skeleton()
+            
+            #-- INITIAL POPULATION --#
+            private$push.initial.population(need.to.push)
+            
+            #-- BIRTHS --#
+            private$push.fertility.hiv.negative(need.to.push)
+            private$push.fertility.hiv.positive(need.to.push)
+            
+            private$push.birth.proportions.hiv.negative(need.to.push)
+            private$push.birth.proportions.hiv.positive(need.to.push)
+            
+            #-- AGING --#
+            private$push.aging.hiv.negative(need.to.push)
+            private$push.aging.hiv.positive(need.to.push)
+            
+            #-- MORTALITY --#
+            private$push.general.mortality.hiv.negative(need.to.push)
+            private$push.general.mortality.hiv.positive(need.to.push)
+            private$push.hiv.mortality(need.to.push)
+            
+            #-- TRANSITIONS --#
+            private$push.transitions(need.to.push)
+            
+            #-- TRANSMISSION --#
+            private$push.susceptibility(need.to.push)
+            private$push.transmissibility(need.to.push)
+            private$push.transmission.contact(need.to.push)
+            private$push.new.infection.proportions(need.to.push)
+            
+            
+        },
+    
+        jheem = NULL,
+
+        do.setup.jheem.skeleton = function()
+        {
+            specification.info = self$get.specification.info()
+            private$jheem = initialize.jheem(version = self$VERSION,
+                                                age.cutoffs = specification.info$age.endpoints,
+                                                race.strata = specification.info$dim.names$race,
+                                                subpopulations = 'all_subpopulations',
+                                                locations = 'all_locations',
+                                                sex.strata = specification.info$dim.names$sex,
+                                                risk.strata = specification.info$dim.names$risk,
+                                                nonhiv.subsets = 'all_hiv_negative',
+                                                continuum.of.care.states = specification.info$dim.names$continuum,
+                                                cd4.strata = specification.info$dim.names$stage,
+                                                hiv.subsets = 'all_hiv_positive',
+                                                transmission.route.names = c('sexual','idu'),
+                                                first.diagnosed.hiv.continuum.states = 'diagnosed',
+                                                all.diagnosed.hiv.continuum.states = 'diagnosed',
+                                                new.diagnoses.keep.dimensions = c('age','race','subpopulation',#'location',
+                                                                                  'sex','risk','cd4'))
+            
+            #by default, minimal tracking
+            private$jheem = set.track.incidence.dimensions(private$jheem, 
+                                                              dimensions=c('age','race','subpopulation',#'location',
+                                                                           'sex', 'risk'))
+            
+            
+            # Fix strata sizes
+            #if (!is.null(specification$fix.strata.sizes.prior.to.year) && !is.na(specification$fix.strata.sizes.prior.to.year))
+            #{
+                private$jheem = set.fixed.size.strata(private$jheem, fix.age=T, fix.race=T, fix.sex=T)
                 
+                private$jheem = set.keep.strata.sizes.constant(private$jheem,
+                                                                  fix.strata.sizes = T,
+                                                                  time=-Inf)
+                
+                private$jheem = set.keep.strata.sizes.constant(private$jheem,
+                                                                  fix.strata.sizes = F,
+                                                                  time=2007)
+            #}
+        },
+        
+        
+        push.initial.population = function(need.to.push)
+        {
+            if (need.to.push('initial.population.hiv.negative', 'initial.population.hiv.positive'))
+            {
+                specification.info = self$get.specification.info()
+                
+                init.hiv.negative = expand.population(private$i.quantity.values$initial.population.uninfected[[1]],
+                                                      target.dim.names = c(specification.info$dim.names[c('age','race')],
+                                                                           list(subpopulation='all_subpopulations'),
+                                                                           specification.info$dim.names[c('sex','risk')],
+                                                                           list(non.hiv.subset='all_hiv_negative')))
+                private$jheem = set.initial.population.hiv.negative(private$jheem, init = init.hiv.negative)
+                
+                init.hiv.positive = private$i.quantity.values$initial.population.infected[[1]]
+                dim.names = dimnames(init.hiv.positive)
+                names(dim.names)[names(dim.names)=='stage'] = 'cd4'
+                dim(init.hiv.positive) = sapply(dim.names, length)
+                dimnames(init.hiv.positive) = dim.names
+                init.hiv.positive = expand.population(init.hiv.positive,
+                                                      target.dim.names = c(specification.info$dim.names[c('age','race')],
+                                                                           list(subpopulation='all_subpopulations'),
+                                                                           specification.info$dim.names[c('sex','risk','continuum')],
+                                                                           list(cd4=specification.info$dim.names$stage),
+                                                                           list(hiv.subset='all_hiv_positive')))
+                                                                           
+                private$jheem = set.initial.population.hiv.positive(private$jheem, init = init.hiv.positive)
+            }
+        },
+        
+        push.fertility.hiv.negative = function(need.to.push)
+        {
+            private$do.push.quantity.to.jheem(quantity.name='fertility',
+                                              set.function=set.fertility.hiv.negative,
+                                              need.to.push=need.to.push)
+        },
+        
+        push.fertility.hiv.positive = function(need.to.push)
+        {
+            private$do.push.quantity.to.jheem(quantity.name='fertility',
+                                              set.function=set.fertility.hiv.positive,
+                                              need.to.push=need.to.push)
+        },
+        
+        push.birth.proportions.hiv.negative = function(need.to.push)
+        {
+            if (need.to.push('birth.proportions.hiv.negative')) # Check that proportions sum to 1 for each from stratum
+            {
+                specification.info = self$get.specification.info()
+                proportions = private$i.quantity.values[['uninfected.birth.proportions']][[1]]
+                from.dimensions = grepl("\\.from$", names(dimnames(proportions)))
+                should.sum.to.1 = rowSums(proportions, dims=sum(from.dimensions))
+                if (any(should.sum.to.1 != 1))
+                    stop(paste0("Error setting birth.proportions.hiv.negative - proportions do not sum to 1 in all 'from' strata"))
+             
+                dim.names = c(specification.info$dim.names[c('race.from')],
+                              list(subpopulation.to = 'all_subpopulations'),
+                              specification.info$dim.names[c('sex.to', 'risk.to')],
+                              list(non.hiv.subset.to='all_hiv_negative'))
+                full.proportions = array(0, dim=sapply(dim.names, length), dimnames=dim.names)  
+                full.proportions[,1,,1,1] = proportions
+      
+                private$jheem = set.birth.proportions.hiv.negative(private$jheem, 
+                                                                   full.proportions)
+            }
+        },
+        
+        push.birth.proportions.hiv.positive = function(need.to.push)
+        {
+            if (need.to.push('birth.proportions.hiv.positive')) # Check that proportions sum to 1 for each from stratum
+            {
+                specification.info = self$get.specification.info()
+                proportions = private$i.quantity.values[['uninfected.birth.proportions']][[1]]
+                from.dimensions = grepl("\\.from$", names(dimnames(proportions)))
+                should.sum.to.1 = rowSums(proportions, dims=sum(from.dimensions))
+                if (any(should.sum.to.1 != 1))
+                    stop(paste0("Error setting birth.proportions.hiv.negative - proportions do not sum to 1 in all 'from' strata"))
+                
+                dim.names = c(specification.info$dim.names[c('race.from')],
+                              list(subpopulation.to = 'all_subpopulations'),
+                              specification.info$dim.names[c('sex.to', 'risk.to')],
+                              list(non.hiv.subset.to='all_hiv_negative'))
+                full.proportions = array(0, dim=sapply(dim.names, length), dimnames=dim.names)  
+                full.proportions[,1,,1,1] = proportions
+                
+                private$jheem = set.birth.proportions.hiv.positive(private$jheem, 
+                                                                   full.proportions,
+                                                                   fraction.births.infected = 0)
+            }
+        },
+        
+        push.aging.hiv.negative = function(need.to.push)
+        {
+            private$do.push.quantity.to.jheem(quantity.name='default.aging',
+                                      set.function=set.aging.hiv.negative,
+                                      need.to.push=need.to.push)
+        },
+        
+        push.aging.hiv.positive = function(need.to.push)
+        {
+            private$do.push.quantity.to.jheem(quantity.name='hiv.positive.aging.rates',
+                                      set.function=set.aging.hiv.positive,
+                                      need.to.push=need.to.push)
+        },   
+        
+        
+        push.general.mortality.hiv.negative = function(need.to.push)
+        {
+            private$do.push.quantity.to.jheem(quantity.name='general.mortality',
+                                      set.function=set.general.mortality.hiv.negative,
+                                      need.to.push=need.to.push)
+        },
+        
+        push.general.mortality.hiv.positive = function(need.to.push)
+        {
+            private$do.push.quantity.to.jheem(quantity.name='general.mortality',
+                                      set.function=set.general.mortality.hiv.positive,
+                                      need.to.push=need.to.push)
+        },
+        
+        push.hiv.mortality = function(need.to.push)
+        {
+            private$do.push.quantity.to.jheem(quantity.name='infection.specific.mortality',
+                                      set.function=set.hiv.specific.mortality,
+                                      need.to.push=need.to.push)
+        },
+        
+        push.transitions = function(need.to.push)
+        {
+            specification.info = self$get.specification.info()
+            spec = private$get.specification()
+            refs = spec$top.level.references[sapply(spec$top.level.references, function(ref){ref$type=='transition.reference'})]
+            
+            for (ont in c('uninfected','infected'))
+            {
+                o.refs = refs[sapply(refs, function(ref){ref$ontology.name==ont})]
+                transition.dimensions = unique(sapply(o.refs, function(ref){ref$dimension}))
+                
+                for (d in transition.dimensions)
+                {
+                    d.refs = o.refs[sapply(o.refs, function(ref){ref$dimension==d})]
+                    
+                    quantity.names = sapply(d.refs, function(ref){
+                        ref$value.quantity.name
+                    })
+                    
+                    dimensions = unique(c(paste0(d, c('.from','.to')),
+                                        unlist(sapply(quantity.names, function(qname){
+                                            names(private$i.quantity.dim.names[[qname]])
+                                        }))))
+                    
+                    dim.names = specification.info$dim.names[intersect(specification.info$dimensions, dimensions)]
+                    
+                    
+                    times = sort(unique(unlist(private$i.quantity.value.times[quantity.names[!private$i.quantity.is.static[quantity.names]]])))
+                    if (length(times)==0)
+                        times = 'all'
+                    skeleton.arr = array(0, dim=sapply(dim.names, length), dimnames = dim.names)
+                    
+                    values = lapply(times, function(time){
+                        arr = skeleton.arr
+                        
+                        for (ref in d.refs)
+                        {
+                            qname = ref$value.quantity.name
+                            if (length(private$i.quantity.values[[qname]])==1)
+                                val = private$i.quantity.values[[qname]][[1]]
+                            else
+                                val = interpolate(values = private$i.quantity.values[[qname]],
+                                                  value.times = private$i.quantity.value.times[[qname]],
+                                                  desired.times = time)[[1]]
+                            
+                            dimension.values = private$i.quantity.dim.names[[qname]]
+                            dimension.values[[paste0(d, '.from')]] = ref$from.compartments
+                            dimension.values[[paste0(d, '.to')]] = ref$to.compartments
+                            array.access(arr, dimension.values = dimension.values) = val
+                        }
+                        
+                        dim.names = dimnames(arr)
+                        names(dim.names)[names(dim.names)=='stage'] = 'cd4'
+                        names(dim.names)[names(dim.names)=='stage.from'] = 'cd4.from'
+                        names(dim.names)[names(dim.names)=='stage.to'] = 'cd4.to'
+                        
+                        dim(arr) = sapply(dim.names, length)
+                        dimnames(arr) = dim.names
+                        
+                        arr
+                    })
+                    
+                    for (i in 1:length(times))
+                    {
+                        time = times[i]
+                        if (time=='all')
+                            time = -Inf
+                        
+                        if (ont == 'uninfected')
+                        {
+                            private$jheem = set.transition.array.hiv.negative(private$jheem,
+                                                                              transition.array = values[[i]],
+                                                                              time = time)
+                        }
+                        else
+                        {
+                            
+                            private$jheem = set.transition.array.hiv.positive(private$jheem,
+                                                                              transition.array = values[[i]],
+                                                                              time = time)
+                        }
+                    }
+                }
+            }
+        },
+        
+        push.susceptibility = function(need.to.push)
+        {
+            for (mode in c('sexual','idu'))
+                private$do.push.quantity.to.jheem(quantity.name=paste0(mode, '.susceptibility'),
+                                                       set.function=set.susceptibility,
+                                                       need.to.push=need.to.push,
+                                                       transmission.route.names = mode)
+        },
+        
+        push.transmissibility = function(need.to.push)
+        {
+            for (mode in c('sexual','idu'))
+                private$do.push.quantity.to.jheem(quantity.name=paste0(mode, '.transmissibility'),
+                                                       set.function=set.transmissibility,
+                                                       need.to.push=need.to.push,
+                                                       transmission.route.names = mode)
+        },
+        
+        push.transmission.contact = function(need.to.push)
+        {
+            for (mode in c('sexual','idu'))
+                private$do.push.quantity.to.jheem(quantity.name=paste0(mode, '.contact'),
+                                                       set.function=set.transmission.contact.array,
+                                                       need.to.push=need.to.push,
+                                                       transmission.route.names = mode)
+        },
+        
+        push.new.infection.proportions = function(need.to.push)
+        {
+            #@need to do
+            if (need.to.push('new.infection.proportions')) # Check that proportions sum to 1 for each stratum of non-hiv specific states
+            {
+#                specification = get.components.specification(components)
+ #               sum.across = setdiff(names(specification$dimension.names.by.subgroup$all),
+  #                                   c('continuum','cd4','hiv.subset'))
+                
+   #             proportions = private$i.quantity.values[['new.infection.proportions']][[1]]
+    #            should.sum.to.1 = rowSums(proportions, dims=length(sum.across))
+     #           if (max(abs(should.sum.to.1 - 1))>0.0000001)
+      #              stop(paste0("Error setting new.infections - proportions do not sum to 1 in all strata of hiv-negative states (",
+       #                         paste0(sum.across, collapse=' x '), ")"))
+                
+                private$do.push.quantity.to.jheem(quantity.name='new.infection.proportions',
+                                          set.function=set.new.infection.proportions,
+                                          need.to.push=need.to.push)
+            }
+        },
+        
+        
+        
+        # A general helper that pulls time varying quantities from the components
+        # and pushes them to the jheem object
+        do.push.quantity.to.jheem = function(quantity.name,
+                                              set.function,
+                                              need.to.push,
+                                              ...)
+        {
+            print(quantity.name)
+            if (need.to.push(quantity.name))
+            {
+                specification.info = self$get.specification.info()
+
+                values = private$i.quantity.values[[quantity.name]]
+                values = lapply(values, function(val){
+                    if (!is.null(dimnames(val)))
+                    {
+                        dim.names = dimnames(val)
+                        dimension.values = specification.info$dim.names[names(dim.names)] 
+                        
+                        names(dim.names)[names(dim.names)=='stage'] = 'cd4'
+                        names(dimension.values)[names(dimension.values)=='stage'] = 'cd4'
+                        
+                        dim(val) = sapply(dim.names, length)
+                        dimnames(val) = dim.names
+                        
+                        array.access(val, dimension.values = dimension.values) 
+                            #to get things in the right order
+                    }
+                })
+                
+                times = private$i.quantity.value.times[[quantity.name]]
+                
+                if (is.null(values))
+                    stop(paste0("Quantity '", quantity.name, "' has not been calculated."))
+                if (is.null(times))
+                    private$jheem = set.function(jheem=private$jheem,
+                                                    values[[1]],
+                                                    ...)
+                else
+                {
+                    for (i in 1:length(values))
+                        private$jheem = set.function(jheem=private$jheem,
+                                                     values[[i]],
+                                                     time=times[i],
+                                                     ...)
+                    
+                }
+            }
+        }
+
+            
     )
 )

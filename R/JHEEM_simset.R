@@ -25,7 +25,7 @@ JHEEM.SIMSET = R6::R6Class(
             
         },
         
-        get.quantity <- function(outcome)
+        get.quantity = function(outcome)
         {
             inner.dim.names = NULL
             rv = sapply(private$i.simulations, function(sim){
@@ -43,7 +43,7 @@ JHEEM.SIMSET = R6::R6Class(
             rv
         },
         
-        get.quantities <- function(outcomes)
+        get.quantities = function(outcomes)
         {
             inner.dim.names = NULL
             rv = sapply(outcomes, function(outcome){

@@ -5,7 +5,7 @@
 
 #'Flexibly Subset an Array
 #'
-#'@description Functions for subsetting an array when the number and order of dimensions is not known at the point of coding. The array.access function performs error checking on the arguments; fast.array.access is optimized for speed but does not check arguments
+#'@title Functions for subsetting an array when the number and order of dimensions is not known at the point of coding. The array.access function performs error checking on the arguments; fast.array.access is optimized for speed but does not check arguments
 #'
 #'@param arr The array or matrix to be subsetted. Must have named dimensions and named dimnames set
 #'@param dimension.values A named list containing the values of dimensions to subset for. The names of dimension.values should correspond to the names of dimnames. The elements of dimension.values should be character, integer, or logical vectors
@@ -76,6 +76,7 @@ array.access <- function(arr,
                       dimension.values=dimension.values,
                       drop = drop)    
 }
+
 
 #'@describeIn array.access
 #'
@@ -311,9 +312,7 @@ check.array.access.arguments <- function(arr,
     }
 }
 
-#'Expand an Array to Greater Dimensions
-#'
-#'@description 
+#'@title Expand an Array to Greater Dimensions
 #'
 #'@param to.expand The value to be expanded. Can be either (1) an array or matrix with named dimensions and dimnames set, (2) a scalar value, or (3) a named vector whose names are a superset of one of the elements of target.dim.names
 #'@param target.dim.names A named list containing the values of dimensions to subset for. The names of dimension.values should correspond to the names of dimnames. The elements of dimension.values should be character, integer, or logical vectors
