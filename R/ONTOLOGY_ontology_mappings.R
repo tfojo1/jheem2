@@ -1279,7 +1279,7 @@ IDENTITY.ONTOLOGY.MAPPING = R6::R6Class(
                                  na.rm,
                                  error.prefix)
         {
-            array.access(from.arr, to.dim.names)
+            fast.array.access(from.arr, to.dim.names)
         },
         
         do.apply.non.sum = function(from.arr,
@@ -1288,7 +1288,7 @@ IDENTITY.ONTOLOGY.MAPPING = R6::R6Class(
                                     na.rm,
                                     error.prefix)
         {
-            array.access(from.arr, to.dim.names)
+            fast.array.access(from.arr, to.dim.names)
         },
         
         do.get.matrix = function(from.dim.names,
