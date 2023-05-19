@@ -291,7 +291,6 @@ RObject calculate_two_way_interaction_indices(List target_dim_names,
     int index = 0;
     
     // Iterate through the array and add (or set)
-    
     for (int i_interaction = 0; i_interaction<n_interactions; i_interaction++)
     {
         for (int i_after = 0; i_after<n_after_2; i_after++)
