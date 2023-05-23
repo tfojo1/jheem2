@@ -39,7 +39,7 @@ array.access <- function(arr,
             if (is.null(names(elem)) || any(is.na(names(elem))) || any(nchar(names(elem))==0))
                 stop(paste0(error.prefix, "Elements of ... which are lists must be NAMED"))
             
-            invalid.type.mask = !sapply(elem, is.numeric) & !sapply(elem, is.character) & !sapply(elem, is.logical)
+            invalid.type.mask = !sapply(elem, is.null) & !sapply(elem, is.numeric) & !sapply(elem, is.character) & !sapply(elem, is.logical)
             if (any(invalid.type.mask))
                 stop(paste0(error.prefix, "The elements of ... which are lists must contain only numeric, character, or logical vectors. ",
                             ifelse(sum(invalid.type.mask)==1, "The value for dimension ", "Values for dimensions "),
@@ -198,7 +198,9 @@ check.array.access.arguments <- function(arr,
     
     # Check validity of dimension values
     character.dimension.values = sapply(names(dimension.values), function(d){
-        if (is.numeric(dimension.values[[d]]))
+        if (is.null(dimension.values[[d]]))
+        {}
+        else if (is.numeric(dimension.values[[d]]))
         {
             if (any(dimension.values[[d]]<=0) || any(dimension.values[[d]]>dim(arr)[d]))
                 stop(paste0("The values of dimension '", d,
