@@ -597,7 +597,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                  ontology.name = ontology.name,
                                                                  return.as.dimensions = F)
            
-          
             # What dim.names do we need to accommodate the new data?
             #@Andrew this outer join brings in lower case "sex", then the function pulls "sex" from the ontology
             put.dim.names = private$prepare.put.dim.names(outer.join.dim.names(dimnames(data), dimension.values),
@@ -811,8 +810,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix, "'keep.dimensions' must be either NULL or a character vector with no NA values or repeats"))
             
             # *dimension.values* are valid 
-            #   - check.dimension.values.valid()
-            check.dimension.values.valid(dimension.values, "dimension.values")
+            #   - check.dimension.values.valid() doesn't accept NULL because it wants a list
+            if (!is.null(dimension.values))
+                check.dimension.values.valid(dimension.values, "dimension.values")
             
             # *sources* is either NULL or a character vector with at least one element and no NA or empty values
             #  that have all been registered previously as sources with this data manager
@@ -870,14 +870,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # These must be saved if applicable
             target.to.common.mapping = NULL
             common.ontology = NULL
-            # browser()
             
             # If sources is NULL, use all the sources from the outcome
             if (is.null(sources))
                 sources.used.names = names(private$i.data[[outcome]])
             else
                 sources.used.names = sources
-            
+
             return.data = lapply(sources.used.names, function(x) {
                 
                 # Helps us return NULL data if we later find we need denominator data for aggregation and can't find it
@@ -903,7 +902,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     if (is.null(target.ontology))
                         resolved.dimension.values = resolve.ontology.dimension.values(ont, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = FALSE)
                     
-                    if (is.null(resolved.dimension.values)) {
+                    if (is.null(resolved.dimension.values) && !is.null(dimension.values)) {
                         next
                     }
                     
@@ -954,6 +953,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     stratification.names = names(private$i.data[[outcome]][[x]][[y]])
                     
                     for (strat in stratification.names) {
+
                         strat.data = private$i.data[[outcome]][[x]][[y]][[strat]]
                         strat.dimensions = names(dim(strat.data))
                         strat.dimnames = dimnames(strat.data)
@@ -981,7 +981,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             dimnames.for.apply = dimnames.for.apply[names(dimnames.for.apply) %in% union(keep.dimensions, names(dimension.values))]
                             
                             if (allow.mapping.from.target.ontology)
-                                dimnames.for.apply = target.to.common.mapping$apply.to.dim.names(dimnames.for.apply)
+                                
+                                if (is.null(target.to.common.mapping))
+                                    dimnames.for.apply = target.to.common.mapping.placeholder$apply.to.dim.names(dimnames.for.apply)
+                                else
+                                    dimnames.for.apply = target.to.common.mapping$apply.to.dim.names(dimnames.for.apply)
                             
                             # In this case, check that the stratification has exactly the dimnames.for.apply dimensions
                             if (!setequal(strat.dimensions, names(dimnames.for.apply)))
@@ -1136,7 +1140,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                             target.ontology = denominator.ontology,
                                             allow.mapping.from.target.ontology = FALSE,
                                             from.ontology.names = NULL,
-                                            append.attributes = FALSE,
+                                            append.attributes = NULL,
                                             na.rm = na.rm)
 
                                         # If no denominator data found, break from the loops for data type, stratification, and ontology and return NULL for the whole source
@@ -1146,9 +1150,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                             break
                                         }
                                         
+                                        # Since the denominator.array came from only one source, we can remove the source so that it will match size of data
+                                        denominator.array = array(
+                                            denominator.array,
+                                            dim = dim(denominator.array)[names(dim(denominator.array)) != 'source'],
+                                            dimnames = dimnames(denominator.array)[names(dimnames(denominator.array)) != 'source']
+                                        )
+                                        
+                                        # browser()
                                         # Catch an otherwise invisible bug if denominator.array somehow doesn't have the same shape/order as the data
-                                        if (dimnames(denominator.array) != dimnames(data.to.return[[d]]))
-                                            stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect order'))
+                                        if (!identical(dimnames(denominator.array), dimnames(data.to.return[[d]])))
+                                            stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect dimensions'))
                                         
                                         # We should find totals by aggregating the denominator.array rather than pulling less stratified data
                                         # because less stratified data might not equal the sum of the more stratified data in denominator.array
@@ -1221,14 +1233,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # we have a list (one element per source) of lists (one element per data type, i.e. 'data', 'url', or 'details')
             # repackage this to be a data array with 'url', 'details' and possibly a mapping as attributes
             final.return = NULL
-            
+
             # Extract data for data, url, and details out of what lapply returned above
             for (data.type in names(return.data[[1]])) {
 
                 # make a list of the data from the sources
                 pull.return.data.list = lapply(return.data, function(x) {x[[data.type]]})
-                names(pull.return.data.list) = sources
-                dim.names.pull = c(dimnames(pull.return.data.list[[1]]), list(source=sources))
+                names(pull.return.data.list) = sources.used.names
+                dim.names.pull = c(dimnames(pull.return.data.list[[1]]), list(source=sources.used.names))
                 
                 pull.return.data = NULL
                 
