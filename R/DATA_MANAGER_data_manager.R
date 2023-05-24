@@ -264,6 +264,15 @@ get.data.source.short.names <- function(data.manager, sources)
     data.manager$get.source.short.names(sources)
 }
 
+#'@export
+get.registered.ontology <- function(data.manager, ontology.name)
+{
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+    
+    data.manager$get.registered.ontology(ontology.name)
+}
+
 ##----------------------##
 ##-- CLASS DEFINITION --##
 ##----------------------##
@@ -1294,6 +1303,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             sapply(private$i.outcome.info[outcomes], function(info){
                 info$description
             })
+        },
+        
+        get.registered.ontology = function(ontology.name)
+        {
+            # ontology.name must be in the list of registered ontologies
+            if (!ontology.name %in% names(private$i.ontologies))
+                stop(paste0(ontology.name, " is not a registered ontology"))
+            
+            rv = private$i.ontologies[[ontology.name]]
+            
         },
         
         get.source.full.names = function(sources)
