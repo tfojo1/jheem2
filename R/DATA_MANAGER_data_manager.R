@@ -531,6 +531,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         " for the '", ontology.name, "' ontology's '", d, "' dimension"))
                     }
                 })
+                
+                #@Andrew Data cannot be missing any incomplete dimensions because this would be like aggregating over them
+                missing.dimensions = setdiff(names(ont), names(dimnames(data)))
+                if (!all(ont.dimensions.complete[missing.dimensions]))
+                    stop(paste0(error.prefix, "data must contain any incomplete dimensions in the ontology"))
                     
             }
             else if (length(data)!=1)
@@ -605,7 +610,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                  data = data,
                                                                  ontology.name = ontology.name,
                                                                  return.as.dimensions = F)
-           
+            
             # What dim.names do we need to accommodate the new data?
             #@Andrew this outer join brings in lower case "sex", then the function pulls "sex" from the ontology
             put.dim.names = private$prepare.put.dim.names(outer.join.dim.names(dimnames(data), dimension.values),
@@ -879,12 +884,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # These must be saved if applicable
             target.to.common.mapping = NULL
             common.ontology = NULL
-            
+
             # If sources is NULL, use all the sources from the outcome
             if (is.null(sources))
                 sources.used.names = names(private$i.data[[outcome]])
             else
                 sources.used.names = sources
+
 
             return.data = lapply(sources.used.names, function(x) {
                 
@@ -937,7 +943,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 ont.to.common.mapping = get.ontology.mapping(ont, common.ontology)
                                 
                             } else {
-                                
                                 # Attempt a mapping to align, which returns NULL or a list of two ontology mapping objects
                                 # The first of which we use here, and the second of which we save *if* a suitable stratification is found
                                 aligning.mappings.list = get.mappings.to.align.ontologies(ont, target.ontology)
@@ -1243,9 +1248,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # repackage this to be a data array with 'url', 'details' and possibly a mapping as attributes
             final.return = NULL
 
+
             # Extract data for data, url, and details out of what lapply returned above
             for (data.type in names(return.data[[1]])) {
-
+                
                 # make a list of the data from the sources
                 pull.return.data.list = lapply(return.data, function(x) {x[[data.type]]})
                 names(pull.return.data.list) = sources.used.names
