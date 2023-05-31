@@ -530,20 +530,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                "these are not valid values"),
                                         " for the '", ontology.name, "' ontology's '", d, "' dimension"))
                     }
-                })
-                
-                #@Andrew Data cannot be missing any incomplete dimensions because this would be like aggregating over them
-                missing.dimensions = setdiff(names(ont), names(dimnames(data)))
-                if (!all(ont.dimensions.complete[missing.dimensions]))
-                    stop(paste0(error.prefix, "data must contain any incomplete dimensions in the ontology"))
-                    
+                })  
             }
             else if (length(data)!=1)
                 stop(paste0(error.prefix,
                             "If 'data' is not a single (scalar) numeric value, then it must be an array with named dimnames"))
             
+            #@Andrew Data cannot be missing any incomplete dimensions unless they are present in dimension.values
             missing.dimensions = setdiff(names(ont), c(names(dimnames(data)), names(dimension.values)))
-            # work on error message
+            if (!all(ont.dimensions.complete[missing.dimensions]))
+                stop(paste0(error.prefix, "either data or 'dimension.values' must contain any incomplete dimensions in the ontology"))
             
             # check dimension.values are valid
             # map them to character values
@@ -602,7 +598,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #--------------------------------#
             #-- Set up to receive the data --#
             #--------------------------------#
-            
+
             data.element.names = c('i.data','i.url','i.details')
             metadata.element.names = data.element.names[-1]
             
@@ -615,30 +611,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                  return.as.dimensions = F)
             
             # What dim.names do we need to accommodate the new data?
-            put.dim.names = private$prepare.put.dim.names(outer.join.dim.names(dimnames(data), dimension.values),
+            put.dim.names = private$prepare.put.dim.names(outer.join.dim.names(if (is.array(data)) dimnames(data) else list(), dimension.values),
                                                           ontology.name = ontology.name)
             
-            #@ Andrew: the below constraint is insufficient for when we want to add a new value to an incomplete dimension, such as data for a new year.
-            # If this data element for outcome has not yet been created
-            # Or if the previously-created data element does not have all the dimension values we need
             # -> make new data elements
             
             existing.dim.names = dimnames(private$i.data[[outcome]][[source]][[ontology.name]][[stratification]])
             
             data.already.present = !is.null(existing.dim.names)
             
-            # For every dimension in put.dim.names, see if the existing.dim.names have all the values
-            # This would suggest that we are trying to expand an incomplete dimension (if existing.dim.names isn't NULL, of course)
-            is.expanding.dimensions = FALSE
-            if (data.already.present) {
-                is.expanding.dimensions = any(sapply(names(put.dim.names), function(d){
-                    !setequal(put.dim.names[[d]], existing.dim.names[[d]])
-                }))
-            }
-            # if (url=='www.smoothiekingdom.net') browser()
-            #@ Andrew: now we also use old data if have some existing data but want to expand the dimension
             if (!data.already.present ||
-                is.expanding.dimensions ||
                 !dim.names.are.subset(sub.dim.names = put.dim.names,
                                       super.dim.names = existing.dim.names)
                 )
@@ -649,22 +631,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     existing.data.and.metadata = lapply(data.element.names, function(name){
                         private[[name]][[outcome]][[source]][[ontology.name]][[stratification]]
                     })
-                    #@Andrew: The following line where the arrays are named was missing for some reason. Did it work before?
                     names(existing.data.and.metadata) = data.element.names
                 }
                 
                 # Figure out the dimensions for the new data structures
-                #@ Andrew: note, this will be the same as just "put.dim.names" if we're just expanding a dimension. Could save computation?
                 if (data.already.present)
                     new.dim.names = private$prepare.put.dim.names(outer.join.dim.names(existing.dim.names, put.dim.names),
                                                                   ontology.name = ontology.name)
                 else
                     new.dim.names = put.dim.names
-                # if (url == 'www.americansmoothiefund.org') browser()
                 
-                # browser()
-                # This is now okay since new.dim.names will always have *at least* as many dimension values as the existing ontology
-                # Overwrite ontology with the union of old and new
                 # Update ontology
                 for (d in names(new.dim.names)) {
                     private$i.ontologies[[ontology.name]][[d]] = new.dim.names[[d]]
@@ -691,13 +667,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     for (name in data.element.names)
                         array.access(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]], existing.dim.names) =
                             existing.data.and.metadata[[name]]
-                    
-                    # array.access(private$i.data[[outcome]][[source]][[ontology.name]][[stratification]], existing.dim.names) =
-                    #     existing.data.and.metadata$i.data
-                    # 
-                    # for (name in metadata.element.names)
-                    #     array.access(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]], existing.dim.names) = 
-                    #         existing.data.and.metadata[[name]]
                 }
             }
             
@@ -963,41 +932,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         if (!all(attr(target.ontology, 'is.complete')[dimensions.eventually.aggregated]))
                             stop(paste0(error.prefix, "'dimension.values' cannot contain incomplete dimensions that are not also in 'keep.dimensions'"))
                     }
-                        
-                    # Check if it is possible to map this ontology to a target.ontology or common.ontology if applicable
-                    ont.to.target.mapping = NULL
-                    ont.to.common.mapping = NULL
-                    target.to.common.mapping.placeholder = NULL
-                    # browser()
-                    if (!is.null(target.ontology)) {
-                        if (allow.mapping.from.target.ontology) {
-                            
-                            if (!is.null(common.ontology)) {
-                                
-                                # we already have a common ontology to use
-                                ont.to.common.mapping = get.ontology.mapping(ont, common.ontology)
-                                
-                            } else {
-                                # Attempt a mapping to align, which returns NULL or a list of two ontology mapping objects
-                                # The first of which we use here, and the second of which we save *if* a suitable stratification is found
-                                aligning.mappings.list = get.mappings.to.align.ontologies(ont, target.ontology)
-                                
-                                if (!is.null(aligning.mappings.list)) {
-                                    ont.to.common.mapping = aligning.mappings.list[[1]]
-                                    target.to.common.mapping.placeholder = aligning.mappings.list[[2]]
-                                }
-                                
-                            }
-                        } else {
-                            ont.to.target.mapping = get.ontology.mapping(ont, target.ontology)
-                        }
-                    }
-                    
-                    # Skip this ontology if mappings couldn't be found
-                    # *** THIS ENCOMPASSES CONDITIONS 1,2, AND 3 WHEN PAIRED WITH THE !SETEQUAL LINE BELOW ***
-                    if(!is.null(target.ontology) &&
-                       (is.null(ont.to.target.mapping) && is.null(ont.to.common.mapping)))
-                        next
                     
                     stratification.names = names(private$i.data[[outcome]][[x]][[y]])
                     
@@ -1005,11 +939,36 @@ JHEEM.DATA.MANAGER = R6::R6Class(
 
                         strat.data = private$i.data[[outcome]][[x]][[y]][[strat]]
                         strat.dimensions = names(dim(strat.data))
-                        strat.dimnames = dimnames(strat.data)
+                        strat.dimnames = as.ontology(dimnames(strat.data),incomplete.dimensions = intersect(incomplete.dimensions(ont), strat.dimensions))
                         
-                        # in Put function, make the dimnames ontology objects or change it here?
-                        # as.ontology('placeholder
-                        #             ')
+                        strat.to.target.mapping = NULL
+                        strat.to.common.mapping = NULL
+                        target.to.common.mapping.placeholder = NULL
+                        
+                        if (!is.null(target.ontology)) {
+                            if (allow.mapping.from.target.ontology) {
+                                if (!is.null(common.ontology)) {
+                                    
+                                    # we already have a common ontology to use
+                                    strat.to.common.mapping = get.ontology.mapping(strat, common.ontology)
+                                } else {
+                                    
+                                    # get an aligning mapping
+                                    aligning.mappings.list = get.mappings.to.align.ontologies(strat.dimnames, target.ontology)
+                                    if (!is.null(aligning.mappings.list)) {
+                                        strat.to.common.mapping = aligning.mappings.list[[1]]
+                                        target.to.common.mapping.placeholder = aligning.mappings.list[[2]]
+                                    }
+                                } 
+                            } else {
+                                strat.to.target.mapping = get.ontology.mapping(strat.dimnames, target.ontology)
+                            }
+                        }
+                        
+                        # Skip this stratification if mappings were needed and couldn't be found
+                        if (!is.null(target.ontology) &&
+                            (is.null(strat.to.target.mapping) && is.null(strat.to.common.mapping)))
+                            next
                         
                         # Figure out the to.dimnames for when we apply a mapping/subset
                         # This will also help us check whether the dimensions for this stratification are correct post-mapping
@@ -1031,7 +990,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             
                             # Remove extra dimensions target.ontology may have brought that are not in keep.dimensions or dimension.values
                             # We checked at the beginning that the target.ontology contains both keep.dimensions and the dimension.values dimensions
-                            # Only do this is keep.dimensions is NULL, because otherwise we want all of the dimensions of target ontology.
+                            # Only do this if keep.dimensions is NULL, because otherwise we want all of the dimensions of target ontology.
                             if (!is.null(keep.dimensions))
                                 dimnames.for.apply = dimnames.for.apply[names(dimnames.for.apply) %in% union(keep.dimensions, names(dimension.values))]
                             
@@ -1057,7 +1016,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         # Save the target.to.common.mapping if we discovered one, and the mapped ontology as the common ontology
                         if (!is.null(target.to.common.mapping.placeholder)) {
                             target.to.common.mapping <<- target.to.common.mapping.placeholder
-                            common.ontology <<- ont.to.common.mapping$apply.to.ontology(ont)
+                            common.ontology <<- strat.to.common.mapping$apply.to.ontology(strat.dimnames)
                         }
                         
                         # Save the dimensions of the stratification as keep.dimensions if keep.dimensions was NULL
@@ -1098,15 +1057,15 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 
                                 if (allow.mapping.from.target.ontology) {
                                     
-                                    mapping.to.apply = ont.to.common.mapping
+                                    mapping.to.apply = strat.to.common.mapping
                                     
                                 } else {
                                     
-                                    mapping.to.apply = ont.to.target.mapping
+                                    mapping.to.apply = strat.to.target.mapping
                                     
                                 }
                             }
-                            # browser()
+
                             data.temp = mapping.to.apply$apply(
                                 data.to.process,
                                 na.rm = na.rm,
@@ -1159,7 +1118,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     scale = private$i.outcome.info[[outcome]][['metadata']][['scale']]
                                     
                                     if (scale %in% c('non.negative.number', 'number')) {
-                                        browser()
+
                                         data.to.return[[d]] = apply(data.to.return[[d]], keep.dimensions, FUN = sum, na.rm=na.rm)
                                         
                                     } else if (scale %in% c('rate', 'time', 'proportion')) {
@@ -1168,7 +1127,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         denominator.outcome = private$i.outcome.info[[outcome]][['denominator.outcome']]
                                         
                                         if (is.null(target.ontology))
-                                            denominator.ontology = ont
+                                            denominator.ontology = strat.dimnames
                                         else {
                                             if (allow.mapping.from.target.ontology)
                                                 denominator.ontology = common.ontology
@@ -1202,7 +1161,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                             dimnames = dimnames(denominator.array)[names(dimnames(denominator.array)) != 'source']
                                         )
                                         
-                                        # browser()
                                         # Catch an otherwise invisible bug if denominator.array somehow doesn't have the same shape/order as the data
                                         if (!identical(dimnames(denominator.array), dimnames(data.to.return[[d]])))
                                             stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect dimensions'))
@@ -1451,20 +1409,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         {
             ont = private$i.ontologies[[ontology.name]]
             
-            #@ Andrew changed this to enforce incomplete dimensions having all the same dimension values the ontology does. Otherwise, different stratifications of the same ontology essentially have different ontologies.
-            
-            # ontology.dimensions.complete = is_complete(ont)
-            # rv = lapply(names(dim.names), function(d){
-            #     if (ontology.dimensions.complete[d])
-            #         ont[[d]]
-            #     else
-            #         sort(dim.names[[d]])
-            # })
-            # names(rv) = names(dim.names)
-            
-            #@ Andrew change: this allows us to flesh out incomplete dimensions that start NULL in the ontology on the first put.
-            # We also need to allow expansion of any incomplete dimensions.
-            rv = lapply(names(dim.names), function(d){union(ont[[d]], dim.names[[d]])})
+            ontology.dimensions.complete = is_complete(ont)
+            rv = lapply(names(dim.names), function(d){
+                if (ontology.dimensions.complete[d])
+                    ont[[d]]
+                else
+                    sort(dim.names[[d]])
+            })
             names(rv) = names(dim.names)
             
             rv
