@@ -210,6 +210,36 @@ is_complete <- function(x)
     UseMethod('is_complete')
 }
 
+#'@rdname is_complete
+is.complete <- function(x)
+{
+    UseMethod('is_complete')
+}
+
+#'@title Get an ontology's incomplete dimensions
+#'
+#'@param ontology An ontology, as created by \code\link{ontology}}
+#'
+#'@return A vector containing the names of the ontology's incomplete dimensions
+#'
+#'@export
+incomplete.dimensions.ontology <- function(x)
+{
+    names(x)[!is.complete(x)]
+}
+
+#'@title Get an ontology's incomplete dimensions
+#'
+#'@param ontology An ontology, as created by \code\link{ontology}}
+#'
+#'@return A vector containing the names of the ontology's incomplete dimensions
+#'
+#'@export
+incomplete.dimensions <- function(x)
+{
+    UseMethod('incomplete.dimensions')
+}
+
 #'@title Subset an ont
 #'
 #'@param ont An ontology, as created by \code\link{ontology}}
