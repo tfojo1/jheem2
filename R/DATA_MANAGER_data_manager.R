@@ -452,7 +452,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #------------------------#
 
             error.prefix = paste0("Unable to put data to data.manager '", private$i.name, "': ")
-               
+            
             # 1) *outcome* is a single, non-empty, non-NA character value
             #     Which corresponds to a registered outcome
             if (!is.character(outcome) || length(outcome)!=1 || is.na(outcome) || nchar(outcome)==0)
@@ -542,6 +542,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix,
                             "If 'data' is not a single (scalar) numeric value, then it must be an array with named dimnames"))
             
+            missing.dimensions = setdiff(names(ont), c(names(dimnames(data)), names(dimension.values)))
+            # work on error message
+            
             # check dimension.values are valid
             # map them to character values
             dimension.values = resolve.ontology.dimension.values(ont = ont,
@@ -612,20 +615,33 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                  return.as.dimensions = F)
             
             # What dim.names do we need to accommodate the new data?
-            #@Andrew this outer join brings in lower case "sex", then the function pulls "sex" from the ontology
             put.dim.names = private$prepare.put.dim.names(outer.join.dim.names(dimnames(data), dimension.values),
                                                           ontology.name = ontology.name)
             
+            #@ Andrew: the below constraint is insufficient for when we want to add a new value to an incomplete dimension, such as data for a new year.
             # If this data element for outcome has not yet been created
             # Or if the previously-created data element does not have all the dimension values we need
             # -> make new data elements
             
             existing.dim.names = dimnames(private$i.data[[outcome]][[source]][[ontology.name]][[stratification]])
+            
             data.already.present = !is.null(existing.dim.names)
             
+            # For every dimension in put.dim.names, see if the existing.dim.names have all the values
+            # This would suggest that we are trying to expand an incomplete dimension (if existing.dim.names isn't NULL, of course)
+            is.expanding.dimensions = FALSE
+            if (data.already.present) {
+                is.expanding.dimensions = any(sapply(names(put.dim.names), function(d){
+                    !setequal(put.dim.names[[d]], existing.dim.names[[d]])
+                }))
+            }
+            # if (url=='www.smoothiekingdom.net') browser()
+            #@ Andrew: now we also use old data if have some existing data but want to expand the dimension
             if (!data.already.present ||
+                is.expanding.dimensions ||
                 !dim.names.are.subset(sub.dim.names = put.dim.names,
-                                      super.dim.names = existing.dim.names))
+                                      super.dim.names = existing.dim.names)
+                )
             {
                 # Backup old data, if needed
                 if (data.already.present)
@@ -633,15 +649,22 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     existing.data.and.metadata = lapply(data.element.names, function(name){
                         private[[name]][[outcome]][[source]][[ontology.name]][[stratification]]
                     })
+                    #@Andrew: The following line where the arrays are named was missing for some reason. Did it work before?
+                    names(existing.data.and.metadata) = data.element.names
                 }
                 
                 # Figure out the dimensions for the new data structures
+                #@ Andrew: note, this will be the same as just "put.dim.names" if we're just expanding a dimension. Could save computation?
                 if (data.already.present)
                     new.dim.names = private$prepare.put.dim.names(outer.join.dim.names(existing.dim.names, put.dim.names),
                                                                   ontology.name = ontology.name)
                 else
                     new.dim.names = put.dim.names
+                # if (url == 'www.americansmoothiefund.org') browser()
                 
+                # browser()
+                # This is now okay since new.dim.names will always have *at least* as many dimension values as the existing ontology
+                # Overwrite ontology with the union of old and new
                 # Update ontology
                 for (d in names(new.dim.names)) {
                     private$i.ontologies[[ontology.name]][[d]] = new.dim.names[[d]]
@@ -665,12 +688,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 # Overwrite the new structure with the old data, if needed
                 if (data.already.present)
                 {
-                    array.access(private$i.data[[outcome]][[source]][[ontology.name]][[stratification]], existing.dim.names) =
-                        existing.data.and.metadata$i.data
-                    
-                    for (name in metadata.element.names) #@ Andrew fixed typo (was "metadata.names")
-                        array.list.access(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]], existing.dim.names) = 
+                    for (name in data.element.names)
+                        array.access(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]], existing.dim.names) =
                             existing.data.and.metadata[[name]]
+                    
+                    # array.access(private$i.data[[outcome]][[source]][[ontology.name]][[stratification]], existing.dim.names) =
+                    #     existing.data.and.metadata$i.data
+                    # 
+                    # for (name in metadata.element.names)
+                    #     array.access(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]], existing.dim.names) = 
+                    #         existing.data.and.metadata[[name]]
                 }
             }
             
@@ -855,6 +882,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     stop(paste0(error.prefix, "'keep.dimensions' must be contained in 'target.ontology'"))
             }
             
+            # The target ontology cannot have any NULL dimensions (ones that do have never had any data put to them)
+            if (any(sapply(target.ontology, is.null)))
+                stop(paste0(error.prefix, "'target.ontology' cannot have any NULL dimensions"))
+            
             # *allow.mapping.from.target.ontology* is a single, non-NA logical value
             if (!is.logical(allow.mapping.from.target.ontology) || length(allow.mapping.from.target.ontology)!=1 || is.na(allow.mapping.from.target.ontology))
                 stop(paste0(error.prefix, "'allow.mapping.from.target.ontology' must be a single, non-NA logical value"))
@@ -880,6 +911,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #-- The big loop --#
             #
             # In an lapply for source
+            
+            # If keep.dimensions is NULL, we can overwrite it with the target.ontology dimensions. Otherwise, we will use the dimensions of the first successful pull.
+            if (is.null(keep.dimensions) && !is.null(target.ontology))
+                keep.dimensions = names(target.ontology)
             
             # These must be saved if applicable
             target.to.common.mapping = NULL
@@ -933,7 +968,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     ont.to.target.mapping = NULL
                     ont.to.common.mapping = NULL
                     target.to.common.mapping.placeholder = NULL
-                    
+                    # browser()
                     if (!is.null(target.ontology)) {
                         if (allow.mapping.from.target.ontology) {
                             
@@ -972,6 +1007,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         strat.dimensions = names(dim(strat.data))
                         strat.dimnames = dimnames(strat.data)
                         
+                        # in Put function, make the dimnames ontology objects or change it here?
+                        # as.ontology('placeholder
+                        #             ')
+                        
                         # Figure out the to.dimnames for when we apply a mapping/subset
                         # This will also help us check whether the dimensions for this stratification are correct post-mapping
                         dimnames.for.apply = NULL
@@ -992,7 +1031,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             
                             # Remove extra dimensions target.ontology may have brought that are not in keep.dimensions or dimension.values
                             # We checked at the beginning that the target.ontology contains both keep.dimensions and the dimension.values dimensions
-                            dimnames.for.apply = dimnames.for.apply[names(dimnames.for.apply) %in% union(keep.dimensions, names(dimension.values))]
+                            # Only do this is keep.dimensions is NULL, because otherwise we want all of the dimensions of target ontology.
+                            if (!is.null(keep.dimensions))
+                                dimnames.for.apply = dimnames.for.apply[names(dimnames.for.apply) %in% union(keep.dimensions, names(dimension.values))]
                             
                             if (allow.mapping.from.target.ontology)
                                 
@@ -1005,26 +1046,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             if (!setequal(strat.dimensions, names(dimnames.for.apply)))
                                 next
                             
-                            # @@@ THIS WILL BE FIXED BY TODD SOON
-                            # Dimnames can't have any NULL dimensions-- array.access won't accept it
-                            # For any NULL dimensions in the target, we will map the entire dimension from the stratification
-                            # to the target or to the common ontology, depending on the case, so that the apply keeps the whole dimension
-                            
-                            target.null.dimensions = names(target.ontology)[sapply(target.ontology, is.null)]
-                            
-                            if (allow.mapping.from.target.ontology) {
-                                mapped.dimnames = ont.to.common.mapping$apply.to.dim.names(strat.dimnames)
-                            } else {
-                                mapped.dimnames = ont.to.target.mapping$apply.to.dim.names(strat.dimnames)
-                            }
-                            
-                            dimnames.for.apply[names(dimnames.for.apply) %in% target.null.dimensions] =
-                                mapped.dimnames[names(mapped.dimnames) %in% target.null.dimensions]
-                            
                         }
 
                         # Check that there are data (not all NA) after any ontology is applied
-                        pull.data = private$i.data[[outcome]][[x]][[y]][[strat]]
+                        pull.data = strat.data
                         if (all(is.na(pull.data))) next
                         
                         ### SUCCESS FOR THIS ONTOLOGY ###
@@ -1033,6 +1058,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         if (!is.null(target.to.common.mapping.placeholder)) {
                             target.to.common.mapping <<- target.to.common.mapping.placeholder
                             common.ontology <<- ont.to.common.mapping$apply.to.ontology(ont)
+                        }
+                        
+                        # Save the dimensions of the stratification as keep.dimensions if keep.dimensions was NULL
+                        # This is unnecessary if there is a target.ontology
+                        if (!is.null(keep.dimensions) && is.null(target.ontology)) {
+                            keep.dimensions <<- strat.dimensions
                         }
                         
                         data.elements.accessors = 'data'
@@ -1075,7 +1106,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     
                                 }
                             }
-                            
+                            # browser()
                             data.temp = mapping.to.apply$apply(
                                 data.to.process,
                                 na.rm = na.rm,
@@ -1128,7 +1159,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     scale = private$i.outcome.info[[outcome]][['metadata']][['scale']]
                                     
                                     if (scale %in% c('non.negative.number', 'number')) {
-                                        
+                                        browser()
                                         data.to.return[[d]] = apply(data.to.return[[d]], keep.dimensions, FUN = sum, na.rm=na.rm)
                                         
                                     } else if (scale %in% c('rate', 'time', 'proportion')) {
@@ -1419,14 +1450,23 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                          ontology.name)
         {
             ont = private$i.ontologies[[ontology.name]]
-            ontology.dimensions.complete = is_complete(ont)
-            rv = lapply(names(dim.names), function(d){
-                if (ontology.dimensions.complete[d])
-                    ont[[d]]
-                else
-                    sort(dim.names[[d]])
-            })
+            
+            #@ Andrew changed this to enforce incomplete dimensions having all the same dimension values the ontology does. Otherwise, different stratifications of the same ontology essentially have different ontologies.
+            
+            # ontology.dimensions.complete = is_complete(ont)
+            # rv = lapply(names(dim.names), function(d){
+            #     if (ontology.dimensions.complete[d])
+            #         ont[[d]]
+            #     else
+            #         sort(dim.names[[d]])
+            # })
+            # names(rv) = names(dim.names)
+            
+            #@ Andrew change: this allows us to flesh out incomplete dimensions that start NULL in the ontology on the first put.
+            # We also need to allow expansion of any incomplete dimensions.
+            rv = lapply(names(dim.names), function(d){union(ont[[d]], dim.names[[d]])})
             names(rv) = names(dim.names)
+            
             rv
         }
         
