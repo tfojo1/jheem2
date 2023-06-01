@@ -158,6 +158,25 @@ get.super.locations <- function(locations, super.type,
   LOCATION.MANAGER$get.super(locations, super.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type)
 }
 
+##--------------##
+##-- Checkers --##
+##--------------##
+
+#'@description Check to see if the passed-in value matches any location code or alias
+#'
+#'@param location A character vector representing potential locations
+#'@param suggest.options A boolean indicating whether to check the aliases for potential matches
+#'
+#'@return A vector of boolean values whether the passed-in value is a location codes.  If false, this function will display a list of possibilities.
+#'
+#'@export
+is.location.valid <- function(locations, suggest.options = F)
+{
+  # How do we handle NAs?
+  # we could return FALSE
+  LOCATION.MANAGER$check.many.locations(locations, suggest.options)
+}
+
 ##-------------##
 ##-- Setters --##
 ##-------------##
