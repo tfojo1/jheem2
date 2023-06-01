@@ -11,6 +11,8 @@ source ("R/LOCATIONS_impl.R")
 ##-- Getters --##
 ##-------------##
 
+#'@title get.location.name
+#'
 #'@description Get the Name of a Location
 #'
 #'@param locations A character vector of location codes or location code aliases
@@ -25,6 +27,8 @@ get.location.name <- function(locations)
   LOCATION.MANAGER$get.names(locations)
 }
 
+#'@title get.location.code
+#'
 #'@description Get the location code for a name and a type
 #'
 #'@param location.names A list of names to get the location code for
@@ -44,6 +48,8 @@ get.location.code <- function(location.names, types)
   LOCATION.MANAGER$get.codes.from.names(location.names, types)
 }
 
+#'@title get.location.name.alias
+#'
 #'@description Get an Name alias Associated with a Location
 #'
 #'@param locations A character vector of location codes
@@ -62,6 +68,8 @@ get.location.name.alias <- function(locations, alias.name,
   LOCATION.MANAGER$get.name.aliases(locations, alias.name, throw.error.if.unregistered.alias)
 }
 
+#'@title get.location.type
+#'
 #'@description Get the Type (Geographic Resolution) of a Location
 #'
 #'@param locations A character vector of location codes
@@ -75,6 +83,8 @@ get.location.type <- function(locations)
   LOCATION.MANAGER$get.types(locations)
 }
 
+#'@title get.code.by.alias
+#'
 #'@description Get the location code from a code alias and a type 
 #'
 #'@param code.aliases A character vector of code aliases
@@ -92,6 +102,8 @@ get.code.by.alias <- function(code.aliases, types)
 }
 
 
+#'@title get.prefix.for.type
+#'
 #'@description Get the prefix for a given type
 #'
 #'@param location.types A character vector of location types
@@ -105,6 +117,8 @@ get.prefix.for.type <- function(location.types)
   LOCATION.MANAGER$get.prefix(location.types)
 }
 
+#'@title get.sub.locations
+#'
 #'@description Get Locations that Fall Within a Location
 #'
 #'@param locations A character vector of location codes
@@ -132,6 +146,8 @@ get.sub.locations <- function(locations, sub.type,
 }
 
 
+#'@title get.super.locations
+#'
 #'@description Get Locations that Enclose a Location
 #'
 #'@param locations A character vector of location codes
@@ -162,6 +178,8 @@ get.super.locations <- function(locations, super.type,
 ##-- Checkers --##
 ##--------------##
 
+#'@title is.location.valid
+#'
 #'@description Check to see if the passed-in value matches any location code or alias
 #'
 #'@param location A character vector representing potential locations
@@ -181,6 +199,8 @@ is.location.valid <- function(locations, suggest.options = F)
 ##-- Setters --##
 ##-------------##
 
+#'@title register.types
+#'
 #'@description Register location type, prefix, and prefix.longform
 #'
 #'@param type A character vector representing types to be added
@@ -202,6 +222,8 @@ register.types <- function(type,
   LOCATION.MANAGER$register.types(type, prefix, prefix.longform)
 }
 
+#'@title register.locations
+#'
 #'@description Register information about locations.  
 #'
 #'@param type The geographic resolution at which to register the locations. Can be be either a single character value, or a vector of the same length as locations
@@ -229,6 +251,8 @@ register.locations <- function(type,
   LOCATION.MANAGER$register(type, location.names, locations)
 }
 
+#'@title register.name.aliases
+#'
 #'@description Register name aliases for specific location  
 #'
 #'@param location A single, previously registered location code or a registered location code alias.
@@ -254,6 +278,8 @@ register.name.aliases <- function(location = NA,
   LOCATION.MANAGER$register.name.aliases(location, location.aliases, location.aliases.names)
 }
 
+#'@title register.code.aliases
+#'
 #'@description Register location code aliases for specific location  
 #'
 #'@param location A single, previously registered location code or a registered location code alias.
@@ -273,7 +299,9 @@ register.code.aliases <- function(location = NA,
   LOCATION.MANAGER$register.code.aliases(location, location.aliases)
 }
 
-#'@description Register sub-super relationships
+#'@title register.sub.and.super.locations
+#'
+#'@description Register hierarchical sub-super relationships
 #'
 #'@param sub.locations A character vector of locations codes/location code aliases
 #'@param super.locations A character vector of location codes/location code aliases of the same length as sub.locations, with corresponding super.locations
