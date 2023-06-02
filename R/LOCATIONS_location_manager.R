@@ -5,12 +5,43 @@
 ##-----------------------------##
 ##-----------------------------##
 
-source ("R/LOCATIONS_impl.R")
+# We have saved the state of the locations in the locations/ directory; we will
+# not need the impl if the file exists, as we can just load it into memory directly
+#
+# So first, we check to see whether or not the LOCATION.MANAGER is resident in
+# memory
+
+location.manager.cached.filename = "locations/Cached.Location.Manager.rds"
+
+if (!exists("LOCATION.MANAGER")) {
+  # The LOCATION.MANAGER is NOT resident in memory.
+  # Does the cached file exist?
+  if (file.exists(location.manager.cached.filename)) {
+    # The file exists, load it into memory
+    cat(sprintf("Loading LOCATION.MANAGER from %s...", location.manager))
+    assign ("LOCATION.MANAGER", readRDS(location.manager.cached.filename), envir = .GlobalEnv)
+    cat("Done\n")
+  } else {
+    # The file had not yet been cached
+    # The first file loads the implementation of the LOCATION.MANAGER
+    # The second file loads the location data into the LOCATION.MANAGER and then
+    # saves the cached file to disk
+    source ("R/LOCATIONS_impl.R")
+    cat("Loading location data into the LOCATION.MANAGER...")
+    source ("R/LOCATIONS_cache.R")
+    cat("Done\n")
+  }
+} else {
+  # LOCATION.MANAGER is resident in memory
+  cat("LOCATION.MANAGER already loaded\n")
+}
 
 ##-------------##
 ##-- Getters --##
 ##-------------##
 
+#'@title get.location.name
+#'
 #'@description Get the Name of a Location
 #'
 #'@param locations A character vector of location codes
@@ -25,6 +56,8 @@ get.location.name <- function(locations)
   LOCATION.MANAGER$get.names(locations)
 }
 
+#'@title get.location.code
+#'
 #'@description Get the location code for a name and a type
 #'
 #'@param location.names A list of names to get the location code for
@@ -44,6 +77,8 @@ get.location.code <- function(location.names, types)
   LOCATION.MANAGER$get.codes.from.names(location.names, types)
 }
 
+#'@title get.location.name.alias
+#'
 #'@description Get an Name alias Associated with a Location
 #'
 #'@param locations A character vector of location codes
@@ -62,6 +97,8 @@ get.location.name.alias <- function(locations, alias.name,
   LOCATION.MANAGER$get.name.aliases(locations, alias.name, throw.error.if.unregistered.alias)
 }
 
+#'@title get.location.type
+#'
 #'@description Get the Type (Geographic Resolution) of a Location
 #'
 #'@param locations A character vector of location codes
@@ -75,6 +112,27 @@ get.location.type <- function(locations)
   LOCATION.MANAGER$get.types(locations)
 }
 
+#'@title get.code.by.alias
+#'
+#'@description Get the location code from a code alias and a type 
+#'
+#'@param code.aliases A character vector of code aliases
+#'@param types A character vector of corresponding types, or a single type
+#'
+#'@return A character vector of location codes, with length(code.aliases) and names=code.aliases. 
+#'
+#'@export
+get.code.by.alias <- function(code.aliases, types)
+{
+  if (length(types) != length(code.aliases) && length(types) != 1) {
+    stop("get.code.by.alias: types is either of length 1 or matches the length of code.alias")
+  }
+  LOCATION.MANAGER$get.by.alias(code.aliases, types)
+}
+
+
+#'@title get.prefix.for.type
+#'
 #'@description Get the prefix for a given type
 #'
 #'@param location.types A character vector of location types
@@ -88,6 +146,8 @@ get.prefix.for.type <- function(location.types)
   LOCATION.MANAGER$get.prefix(location.types)
 }
 
+#'@title get.sub.locations
+#'
 #'@description Get Locations that Fall Within a Location
 #'
 #'@param locations A character vector of location codes
@@ -115,6 +175,8 @@ get.sub.locations <- function(locations, sub.type,
 }
 
 
+#'@title get.super.locations
+#'
 #'@description Get Locations that Enclose a Location
 #'
 #'@param locations A character vector of location codes
@@ -141,10 +203,33 @@ get.super.locations <- function(locations, super.type,
   LOCATION.MANAGER$get.super(locations, super.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type)
 }
 
+##--------------##
+##-- Checkers --##
+##--------------##
+
+#'@title is.location.valid
+#'
+#'@description Check to see if the passed-in value matches any location code or alias
+#'
+#'@param location A character vector representing potential locations
+#'@param suggest.options A boolean indicating whether to check the aliases for potential matches
+#'
+#'@return A vector of boolean values whether the passed-in value is a location codes.  If false, this function will display a list of possibilities.
+#'
+#'@export
+is.location.valid <- function(locations, suggest.options = F)
+{
+  # How do we handle NAs?
+  # we could return FALSE
+  LOCATION.MANAGER$check.many.locations(locations, suggest.options)
+}
+
 ##-------------##
 ##-- Setters --##
 ##-------------##
 
+#'@title register.types
+#'
 #'@description Register location type, prefix, and prefix.longform
 #'
 #'@param type A character vector representing types to be added
@@ -166,6 +251,8 @@ register.types <- function(type,
   LOCATION.MANAGER$register.types(type, prefix, prefix.longform)
 }
 
+#'@title register.locations
+#'
 #'@description Register information about locations.  
 #'
 #'@param type The geographic resolution at which to register the locations. Can be be either a single character value, or a vector of the same length as locations
@@ -193,6 +280,8 @@ register.locations <- function(type,
   LOCATION.MANAGER$register(type, location.names, locations)
 }
 
+#'@title register.name.aliases
+#'
 #'@description Register name aliases for specific location  
 #'
 #'@param location A single, previously registered location code or a registered location code alias.
@@ -218,10 +307,12 @@ register.name.aliases <- function(location = NA,
   LOCATION.MANAGER$register.name.aliases(location, location.aliases, location.aliases.names)
 }
 
+#'@title register.code.aliases
+#'
 #'@description Register location code aliases for specific location  
 #'
 #'@param location A single, previously registered location code or a registered location code alias.
-#'@param location.aliases A character vector of location code aliases for this location name
+#'@param location.aliases A character vector of location code aliases for this location name.  Code aliases are unique by type
 #'
 #'@export
 register.code.aliases <- function(location = NA,
@@ -237,7 +328,9 @@ register.code.aliases <- function(location = NA,
   LOCATION.MANAGER$register.code.aliases(location, location.aliases)
 }
 
-#'@description Register sub-super relationships
+#'@title register.sub.and.super.locations
+#'
+#'@description Register hierarchical sub-super relationships
 #'
 #'@param sub.locations A character vector of locations codes/location code aliases
 #'@param super.locations A character vector of location codes/location code aliases of the same length as sub.locations, with corresponding super.locations

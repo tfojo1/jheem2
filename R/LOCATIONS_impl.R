@@ -8,11 +8,17 @@ Location <- R6Class("Location",
       private$name <- args[1]
       private$type <- args[2]
       private$contains <- list()
+      private$contained_by <- list()
     },
     register.sub.location = function (sub.code, enclose.completely) {
       # Register one sub location at a time
       # we will already have the vector size due to error checking higher up
       private$contains <- append (private$contains, list(c(sub.code,enclose.completely)))
+    },
+    register.super.location = function (super.code, enclose.completely) {
+      # Register one sub location at a time
+      # we will already have the vector size due to error checking higher up
+      private$contained_by <- append (private$contained_by, list(c(super.code,enclose.completely)))
     },
     return.sub.locations = function( contain.completely ) {
       # returns a character vector of contained location codes
@@ -24,6 +30,17 @@ Location <- R6Class("Location",
       } else {
         sapply(private$contains[!as.logical(sapply(private$contains,"[[", 2))], "[[", 1)
       }
+    },
+    return.super.locations = function( contain.completely ) {
+      # returns a character vector of locations containing this location code
+      # if contain.completely is true, we only return those entries are completely
+      # if it is false, we only return those that are partially contained.
+      # contained (second value is true)
+      if (contain.completely) {
+        sapply(private$contained_by[as.logical(sapply(private$contained_by,"[[", 2))], "[[", 1)
+      } else {
+        sapply(private$contained_by[!as.logical(sapply(private$contained_by,"[[", 2))], "[[", 1)
+      }
     }
   ),
   active = list(
@@ -33,13 +50,17 @@ Location <- R6Class("Location",
     contains.list = function() {
       private$contains
     },
+    contained_by.list = function() {
+      private$contained_by
+    },
     return.name = function() {
       private$name
     }
   ),
   private = list(  type = NULL, # vector of characters
                    name = NULL, # string
-                   contains = NULL # list of vector pairs c("token","BOOL"),
+                   contains = NULL, # list of vector pairs c("token","BOOL"),
+                   contained_by = NULL # list of vector pairs c("token","BOOL"),
                    # where BOOL is a textual repr. of boolean
                    # values, where the value is TRUE if the
                    # current location completely encases
@@ -47,7 +68,7 @@ Location <- R6Class("Location",
                    # is the token of the contained region
                  )
 )
-#Currently an environment but will probably convert to R6 for encapsulation
+
 LOCATION.MANAGER = new.env()
 
 LOCATION.MANAGER$location.list = list()
@@ -74,6 +95,24 @@ LOCATION.MANAGER$get.names <- function(locations) {
   names(returned.names) = locations
 
   returned.names
+}
+
+LOCATION.MANAGER$get.by.alias <- function(aliases, types) {
+  aliases = toupper(aliases)
+  types = toupper(types)
+  
+  #Sizes are checked a level up; either they match or types has a length of 1.
+  types = ifelse (length(types) == 1, rep(types,length(aliases)), types)
+  rv = rep(NA,length(types))
+  results = mapply(function(alias, type) {
+    if (alias %in% names(LOCATION.MANAGER$alias.codes[[type]])) {
+      return (LOCATION.MANAGER$alias.codes[[type]][alias])
+    } else {
+      return (NA)
+    }
+  }, aliases, types, SIMPLIFY=T)
+  names(results) = aliases
+  results
 }
 
 LOCATION.MANAGER$get.types <- function(locations) {
@@ -110,7 +149,43 @@ LOCATION.MANAGER$get.prefix <- function(location.types) {
   rv
 }
 
-LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type) {
+LOCATION.MANAGER$check.many.locations <- function(locations, suggest.options) {
+  rv = sapply(locations, function(l) {
+    return (LOCATION.MANAGER$check.location(l,suggest.options))
+  })
+  names(rv) = locations
+  return (rv)
+}
+
+LOCATION.MANAGER$check.location <- function (location, suggest.options) {
+  location <- toupper(location)
+  
+  #If it's a location code, return.
+  if (location %in% names(LOCATION.MANAGER$location.list)) {
+    return (TRUE)
+  }
+  
+  if (suggest.options) {
+    # Is it an alias?
+    # Get the current list of types:
+    types = names(LOCATION.MANAGER$alias.codes)
+    
+    #For each type:
+    walk(types, function(type) {
+      # browser()
+      if (location %in% names(LOCATION.MANAGER$alias.codes[[type]])) {
+        #Found as alias to type 'type'
+        #Display results
+        location.code <- LOCATION.MANAGER$alias.codes[[type]][[location]]
+        cat(sprintf("Possible Result : %s alias of location %s, %s\n", type, location.code, LOCATION.MANAGER$get.names(location.code)))
+      }
+    })
+  }
+  return (FALSE)
+    
+}
+
+LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.enclosing, return.list = F, throw.error.if.unregistered.type = T) {
   #return If return.list==T, a list with length(locations) and names=locations. Each element is itself a character vector 
   #with zero or more locations corresponding to sub-locations. If return.list=F, returns a character vector 
   #(arbitrary length) containing all sub-locations that fall within ANY of the given locations
@@ -253,45 +328,141 @@ LOCATION.MANAGER$get.sub <- function(locations, sub.type, limit.to.completely.en
   rv
 }
 
-LOCATION.MANAGER$get.super <- function(locations, super.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type) {
-  #return If return.list==T, a list with length(locations) and names=locations. 
-  #Each element is itself a character vector with zero or more locations corresponding to super-locations. 
-  #If return.list=F, returns a character vector (arbitrary length) containing all super-locations that contain ANY of the given locations
+LOCATION.MANAGER$get.super <- function(locations, super.type, limit.to.completely.enclosing, return.list = F, throw.error.if.unregistered.type = T) {
+  #return If return.list==T, a list with length(locations) and names=locations. Each element is itself a character vector 
+  #with zero or more locations corresponding to sub-locations. If return.list=F, returns a character vector 
+  #(arbitrary length) containing all sub-locations that fall within ANY of the given locations
+  
   #Capitalize the type
   super.type = toupper(super.type)
   
   if (throw.error.if.unregistered.type) {
     #Check the type against the type list;
-    if (!super.type %in% LOCATION.MANAGER$type.list) {
-      stop(paste0("LOCATION.MANAGER$get.sub: Type ", super.type," not registered, aborting"))
+    if (!super.type %in% names(LOCATION.MANAGER$types)) {
+      stop(paste0("LOCATION.MANAGER$get.super: Type ", super.type," not registered, aborting"))
     }
   }
   
   #Resolve the location codes, preserving NAs and missing codes as NAs
   codes = unlist(lapply(locations,function(x){LOCATION.MANAGER$resolve.code(x,F)})) #Now contains the fully resolved location codes or NAs
   
-  #For each location (l), iterate over the locations in LOCATION.MANAGER$location.list to see if they contain l
-  #If they do contain l (either fully or limited, as requested), add them to the list for this location
-  
-  location.count = length(LOCATION.MANAGER$location.list)
-  location.codes = names(LOCATION.MANAGER$location.list)
+  #We need to do the fully enclosed search in both cases
+  #Here we ask each location code for a list of the regions that contain it completely.  
+  # Then we ask each of those location codes for a list of the regions that contain them
+  #completely, and so on until the list we had previously is equal to our current list.
 
-  results = lapply(locations, function(location) {
+  #Start with collecting all fully enclosed from each location
+  location.contained_by.collector = function(location, fully.contained) {
+    if (is.na(location)) {
+      return(list())
+    }
+    #TRUE in this case set the boolean contain.completely
+    rv = LOCATION.MANAGER$location.list[[location]]$return.super.locations(fully.contained)
+    
+    if (length(rv) == 0 || identical(rv,character(0))) {
+      return(list())
+    }
+    rv
+  }
+  
+  all.super.locations = lapply(codes,function(x) {location.contained_by.collector(x, TRUE)})
+  
+  #For each code in each vector, get their list of parents who fully contain them
+  fully.contained.parents = function(locations) {
+    #locations is a vector of location codes
+    unlist(lapply( locations, function(x) {location.contained_by.collector(x,TRUE)} ))
+  }
+  
+  #TWO LOOPS. Yikes.
+  repeat {
+    next.super.locations = lapply(all.super.locations, fully.contained.parents)
+    try.again = FALSE
+
     #LOOP FIXME
-    loc.list= c()
-    print(paste0("Working on ", location))
-    for (i in seq_along(location.count)) {
-      print(location.codes[i])
-      sub.list = LOCATION.MANAGER$location.list[[location.codes[i]]]$return.sub.locations(limit.to.completely.enclosing)
-      print(sub.list)
-      if (location %in% sub.list) {
-        loc.list = c(location.codes[[i]],loc.list)
+    for (i in seq_along(all.super.locations)) {
+      #If the length of the union of the current super locations and the new super locations are of different sizes,
+      #then the new super locations has something to add to all.super.locations
+      
+      if (length(union(all.super.locations[[i]], next.super.locations[[i]])) != length(all.super.locations[[i]])) {
+        diff = setdiff(next.super.locations[[i]], all.super.locations[[i]])
+        if (length(na.omit(diff)) != 0) {  #There are NA's sneaking in here and I don't know how as of yet. FIXME
+          all.super.locations[[i]] = c(all.super.locations[[i]], 
+                                     na.omit(diff))
+          #We still have locations returning 
+          try.again= TRUE
+        } 
       }
     }
-    loc.list
-  })
-  print(results)
+    if (!try.again) {
+      break;
+    }
+  }
+  
+  if (!limit.to.completely.enclosing) {
+    #We want fully and partially enclosed lists
+    #We ask each location for a list of those places that partially include it, add them on to the list
+    partially.contained.parents = function(locations) {
+      unlist(lapply(locations, function(x) {location.contained_by.collector(x,FALSE)}))
+    }
+    # Add the location itself to the locations to check for partially.contained.parents
+    all.super.locations = mapply(function(x, code) c(code, x), all.super.locations, codes, SIMPLIFY = FALSE)
+    
+    partially.contained = lapply(all.super.locations, partially.contained.parents)
+    
+    #Now we have to add these lists into the main lists and then unique the whole thing:
+    
+    #LOOP FIXME
+    for (i in seq_along(all.super.locations)) {
+      all.super.locations[[i]] = unique(c(all.super.locations[[i]], na.omit(partially.contained[[i]])))
+    }
+  }
+  #all.super.locations is a list, each entry contains a list of locations containing this location 
+  #this includes locations of all types.  The types are later filtered with the mask.collector algorithm.
+  #print(all.sub.locations)
+  
+  mask.collector = function (locations) {
+    if (anyNA(locations)) { 
+      return (NA) 
+    } 
+    unlist(lapply(locations, function(location) { LOCATION.MANAGER$location.list[[location]]$return.type == super.type} ))
+  }
+  
+  #for each list of contained locations, check to make sure they correspond to the correct type
+  super.types = lapply(all.super.locations, mask.collector)
+  
+  count = length(all.super.locations)
+  
+  #LOOP FIXME
+  for (i in 1:count) {
+    #apply the mask
+    if (length(super.types[[i]]) != 0) {
+      all.super.locations[[i]] = all.super.locations[[i]][super.types[[i]]]
+      #I confess I don't quite understand why I need this here below, but I do
+      if (identical(all.super.locations[[i]],character(0))) {
+        all.super.locations[[i]] = NA
+      }
+    }
+  }
+  
+  names(all.super.locations) = locations
+  
+  #Now sub.locations is a proper list; if we want a list returned, return it now
+  if (return.list) {
+    return (all.super.locations)
+  }
+
+  #Return a collapsed vector of valid entries for all locations
+  rv = unname(unlist(lapply(all.super.locations, function (l) {
+    l[!is.na(l)]  
+  })))
+  
+  if (length(rv) == 0) {
+    return (character())
+  }
+
+  rv
 }
+
 
 LOCATION.MANAGER$get.name.aliases <- function(locations, alias.name, throw.error.if.unregistered.alias) {
   # return A character vector of aliases, with length(locations) and names=locations. If location codes are not registered 
@@ -348,15 +519,10 @@ LOCATION.MANAGER$resolve.code <- function(code,fail.on.unknown=T) {
   
   if (!code %in% names(LOCATION.MANAGER$location.list)) {
     #The code is not in the list, check the code alias list.
-    if ( code %in% names(LOCATION.MANAGER$alias.codes) ) {
-      #the location code is an alias for another code, use it:
-      code <- LOCATION.MANAGER$alias.codes[[ code ]]
+    if (fail.on.unknown) {
+      stop(paste0("LOCATION.MANAGER: The location code used (",code,") cannot be recognized, stopping"))
     } else {
-      if (fail.on.unknown) {
-        stop(paste0("LOCATION.MANAGER: The location code used (",code,") cannot be recognized, stopping"))
-      } else {
-        code <- NA
-      }
+      code <- NA
     }
   }
   code
@@ -376,6 +542,8 @@ LOCATION.MANAGER$register.types <- function (type, prefix, prefix.longform) {
     if (!t %in% names(LOCATION.MANAGER$types)) {
       #append(LOCATION.MANAGER$types, list(t = c(p, p.l)), 1)
       LOCATION.MANAGER$types[[t]] = c(p, p.l)
+      #Add entry for the aliases to the code alias object
+      LOCATION.MANAGER$alias.codes[[t]] = list()
     } else {
       # the type name already exists
       stop(paste0("LOCATION.MANAGER$register.types: Type ",t, " already exists in the system, aborting"))
@@ -410,9 +578,9 @@ LOCATION.MANAGER$register <- function (types, location.names, codes) {
   }
 
   #Check that the code doesn't conflict with a code alias either
-  if (any (codes %in% names(LOCATION.MANAGER$alias.codes) )) {
-    stop("LOCATION.MANAGER: Attempting to add a code that conflicts with a code alias")
-  }
+  # if (any (codes %in% names(LOCATION.MANAGER$alias.codes) )) {
+  #   stop("LOCATION.MANAGER: Attempting to add a code that conflicts with a code alias")
+  # }
   
   LOCATION.MANAGER$location.list [ codes ]<- lapply(mapply(c,location.names,types,SIMPLIFY=F), Location$new)
 
@@ -440,17 +608,21 @@ LOCATION.MANAGER$register.name.aliases <- function(code, name.aliases, names.ali
 
 LOCATION.MANAGER$register.code.aliases <- function(code, code.aliases) {
   
+  # We have ONE code and one or more code.aliases
   #Sizes have already been checked up one level
   code <- LOCATION.MANAGER$resolve.code(code)
   code.aliases <- toupper(code.aliases)
   
+  #Get the name of the type to be aliased
+  location.type <- LOCATION.MANAGER$location.list[[code]]$return.type
+  
   #Verify that none of the location code aliases are currently in use
-  if ( any( code.aliases %in% names(LOCATION.MANAGER$alias.codes))) {
+  if ( any( code.aliases %in% names(LOCATION.MANAGER$alias.codes[[location.type]]))) {
     stop("LOCATION.MANAGER: One of the location code aliases are already registered")
   }
   
   #Assign the aliases
-  LOCATION.MANAGER$alias.codes[code.aliases] = code
+  LOCATION.MANAGER$alias.codes[[location.type]][code.aliases] = code
 }
 
 LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains, fail.on.unknown = T) {
@@ -465,7 +637,10 @@ LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains, fail.
     #LOOP FIXME
     #mapply and function { ?
     for (i in seq_along(sub)) {
+      # Register the sub location
       LOCATION.MANAGER$location.list[[super[i]]]$register.sub.location(sub[i],fully.contains[i])
+      # Register the super location
+      LOCATION.MANAGER$location.list[[sub[i]]]$register.super.location(super[i],fully.contains[i])
     }
   } else {
     sub = unlist(lapply(sub, function(x) { LOCATION.MANAGER$resolve.code(x,F)} ))
@@ -476,7 +651,10 @@ LOCATION.MANAGER$register.hierarchy <-function(sub, super, fully.contains, fail.
       if (!any(is.na(c(super[i],sub[i])))) {
         #Verify that neither address is NA before we attempt to register the sub location
         #Skip those that are not registered yet.
+        # Register the sub location
         LOCATION.MANAGER$location.list[[super[i]]]$register.sub.location(sub[i],fully.contains[i])
+        # Register the super location
+        LOCATION.MANAGER$location.list[[sub[i]]]$register.super.location(super[i],fully.contains[i])
       }
     }
   }
