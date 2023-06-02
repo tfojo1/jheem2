@@ -194,11 +194,11 @@ get.super.locations <- function(locations, super.type,
                                 throw.error.if.unregistered.type=T)
 {
   if (length(super.type) != 1) {
-    stop("get.sub.locations: sub.type must be a single character type")
+    stop("get.super.locations: sub.type must be a single character type")
   } 
   if (!is.logical(c(limit.to.completely.enclosing,return.list,throw.error.if.unregistered.type))
       || length(c(limit.to.completely.enclosing,return.list,throw.error.if.unregistered.type)) != 3) {
-    stop("get.sub.locations: error in one of the logical types limit.to.completely.enclosing, return.list or throw.error.if.unregistered.type")
+    stop("get.super.locations: error in one of the logical types limit.to.completely.enclosing, return.list or throw.error.if.unregistered.type")
   }
   LOCATION.MANAGER$get.super(locations, super.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type)
 }
