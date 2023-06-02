@@ -5,15 +5,6 @@
 ##-----------------------------##
 ##-----------------------------##
 
-# We have saved the state of the locations in the locations/ directory; we will
-# not need the impl if the file exists, as we can just load it into memory directly
-#
-# So first, we check to see whether or not the LOCATION.MANAGER is resident in
-# memory
-
-location.manager.cached.filename = "locations/Cached.Location.Manager.rds"
-
-
 ##-------------##
 ##-- Getters --##
 ##-------------##
@@ -332,6 +323,14 @@ register.sub.and.super.locations <- function(sub.locations,
   }
   LOCATION.MANAGER$register.hierarchy(sub.locations, super.locations, super.completely.encloses.sub) 
 }
+
+# We may have saved the state of the locations in the locations/ directory; we will
+# not need the impl if the file exists, as we can just load it into memory directly
+#
+# So first, we check to see whether or not the LOCATION.MANAGER is resident in
+# memory
+
+location.manager.cached.filename = "locations/Cached.Location.Manager.rds"
 
 if (!exists("LOCATION.MANAGER")) {
   # The LOCATION.MANAGER is NOT resident in memory.
