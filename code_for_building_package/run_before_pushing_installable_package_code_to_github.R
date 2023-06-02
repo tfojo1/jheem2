@@ -44,7 +44,7 @@ cat("\n------------------------------\nBUILDING LOCATION MANAGER...\n")
 # Read the location manager
 source('code_for_building_package/set_up_cached_location_manager.R')
 # Store it to an internal file for the package
-usethis::use_data(LOCATION.MANAGER, internal = T)
+usethis::use_data(LOCATION.MANAGER, internal = T, overwrite = T)
 
 cat("DONE BUILDING LOCATION MANAGER\n------------------------------\n")
 
