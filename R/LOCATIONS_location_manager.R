@@ -13,28 +13,6 @@
 
 location.manager.cached.filename = "locations/Cached.Location.Manager.rds"
 
-if (!exists("LOCATION.MANAGER")) {
-  # The LOCATION.MANAGER is NOT resident in memory.
-  # Does the cached file exist?
-  if (file.exists(location.manager.cached.filename)) {
-    # The file exists, load it into memory
-    cat(sprintf("Loading LOCATION.MANAGER from %s...", location.manager.cached.filename))
-    assign ("LOCATION.MANAGER", readRDS(location.manager.cached.filename), envir = .GlobalEnv)
-    cat("Done\n")
-  } else {
-    # The file had not yet been cached
-    # The first file loads the implementation of the LOCATION.MANAGER
-    # The second file loads the location data into the LOCATION.MANAGER and then
-    # saves the cached file to disk
-    source ("R/LOCATIONS_impl.R")
-    cat("Loading location data into the LOCATION.MANAGER...")
-    source ("R/LOCATIONS_cache.R")
-    cat("Done\n")
-  }
-} else {
-  # LOCATION.MANAGER is resident in memory
-  cat("LOCATION.MANAGER already loaded\n")
-}
 
 ##-------------##
 ##-- Getters --##
@@ -353,4 +331,27 @@ register.sub.and.super.locations <- function(sub.locations,
     super.completely.encloses.sub = rep(super.completely.encloses.sub,length(sub.locations))
   }
   LOCATION.MANAGER$register.hierarchy(sub.locations, super.locations, super.completely.encloses.sub) 
+}
+
+if (!exists("LOCATION.MANAGER")) {
+  # The LOCATION.MANAGER is NOT resident in memory.
+  # Does the cached file exist?
+  if (file.exists(location.manager.cached.filename)) {
+    # The file exists, load it into memory
+    cat(sprintf("Loading LOCATION.MANAGER from %s...", location.manager.cached.filename))
+    assign ("LOCATION.MANAGER", readRDS(location.manager.cached.filename), envir = .GlobalEnv)
+    cat("Done\n")
+  } else {
+    # The file had not yet been cached
+    # The first file loads the implementation of the LOCATION.MANAGER
+    # The second file loads the location data into the LOCATION.MANAGER and then
+    # saves the cached file to disk
+    source ("R/LOCATIONS_impl.R")
+    cat("Loading location data into the LOCATION.MANAGER...")
+    source ("R/LOCATIONS_cache.R")
+    cat("Done\n")
+  }
+} else {
+  # LOCATION.MANAGER is resident in memory
+  cat("LOCATION.MANAGER already loaded\n")
 }
