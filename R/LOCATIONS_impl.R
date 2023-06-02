@@ -2,6 +2,8 @@ library(R6)
 library(purrr)
 
 Location <- R6Class("Location",
+  class = FALSE,
+  clone = FALSE,
   public = list(
 
     initialize = function(args) {

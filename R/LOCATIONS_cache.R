@@ -8,7 +8,9 @@
 # CBSA: "CBSA", 'CBSA.' prefix (location code is 5 digit cbsa code)
 # zipcode : "ZIPCODE", 'ZIP.' prefix (location code is zipcode)
 
-source("R/LOCATIONS_location_manager.R")
+# source("R/LOCATIONS_location_manager.R") 
+# We shouldn't source here as we are potentially sourcing this file from location_manager
+# New way to load all the code is now in location_manager; run it.
 
 
 register.state.abbrev = function(LM, filename) {

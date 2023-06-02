@@ -5,37 +5,6 @@
 ##-----------------------------##
 ##-----------------------------##
 
-# We have saved the state of the locations in the locations/ directory; we will
-# not need the impl if the file exists, as we can just load it into memory directly
-#
-# So first, we check to see whether or not the LOCATION.MANAGER is resident in
-# memory
-
-location.manager.cached.filename = "locations/Cached.Location.Manager.rds"
-
-if (!exists("LOCATION.MANAGER")) {
-  # The LOCATION.MANAGER is NOT resident in memory.
-  # Does the cached file exist?
-  if (file.exists(location.manager.cached.filename)) {
-    # The file exists, load it into memory
-    cat(sprintf("Loading LOCATION.MANAGER from %s...", location.manager))
-    assign ("LOCATION.MANAGER", readRDS(location.manager.cached.filename), envir = .GlobalEnv)
-    cat("Done\n")
-  } else {
-    # The file had not yet been cached
-    # The first file loads the implementation of the LOCATION.MANAGER
-    # The second file loads the location data into the LOCATION.MANAGER and then
-    # saves the cached file to disk
-    source ("R/LOCATIONS_impl.R")
-    cat("Loading location data into the LOCATION.MANAGER...")
-    source ("R/LOCATIONS_cache.R")
-    cat("Done\n")
-  }
-} else {
-  # LOCATION.MANAGER is resident in memory
-  cat("LOCATION.MANAGER already loaded\n")
-}
-
 ##-------------##
 ##-- Getters --##
 ##-------------##
@@ -194,11 +163,11 @@ get.super.locations <- function(locations, super.type,
                                 throw.error.if.unregistered.type=T)
 {
   if (length(super.type) != 1) {
-    stop("get.sub.locations: sub.type must be a single character type")
+    stop("get.super.locations: sub.type must be a single character type")
   } 
   if (!is.logical(c(limit.to.completely.enclosing,return.list,throw.error.if.unregistered.type))
       || length(c(limit.to.completely.enclosing,return.list,throw.error.if.unregistered.type)) != 3) {
-    stop("get.sub.locations: error in one of the logical types limit.to.completely.enclosing, return.list or throw.error.if.unregistered.type")
+    stop("get.super.locations: error in one of the logical types limit.to.completely.enclosing, return.list or throw.error.if.unregistered.type")
   }
   LOCATION.MANAGER$get.super(locations, super.type, limit.to.completely.enclosing, return.list, throw.error.if.unregistered.type)
 }
@@ -353,4 +322,35 @@ register.sub.and.super.locations <- function(sub.locations,
     super.completely.encloses.sub = rep(super.completely.encloses.sub,length(sub.locations))
   }
   LOCATION.MANAGER$register.hierarchy(sub.locations, super.locations, super.completely.encloses.sub) 
+}
+
+# We may have saved the state of the locations in the locations/ directory; we will
+# not need the impl if the file exists, as we can just load it into memory directly
+#
+# So first, we check to see whether or not the LOCATION.MANAGER is resident in
+# memory
+
+location.manager.cached.filename = "locations/Cached.Location.Manager.rds"
+
+if (!exists("LOCATION.MANAGER")) {
+  # The LOCATION.MANAGER is NOT resident in memory.
+  # Does the cached file exist?
+  if (file.exists(location.manager.cached.filename)) {
+    # The file exists, load it into memory
+    cat(sprintf("Loading LOCATION.MANAGER from %s...", location.manager.cached.filename))
+    assign ("LOCATION.MANAGER", readRDS(location.manager.cached.filename), envir = .GlobalEnv)
+    cat("Done\n")
+  } else {
+    # The file had not yet been cached
+    # The first file loads the implementation of the LOCATION.MANAGER
+    # The second file loads the location data into the LOCATION.MANAGER and then
+    # saves the cached file to disk
+    source ("R/LOCATIONS_impl.R")
+    cat("Loading location data into the LOCATION.MANAGER...")
+    source ("R/LOCATIONS_cache.R")
+    cat("Done\n")
+  }
+} else {
+  # LOCATION.MANAGER is resident in memory
+  cat("LOCATION.MANAGER already loaded\n")
 }
