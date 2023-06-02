@@ -68,7 +68,7 @@ Location <- R6Class("Location",
                    # is the token of the contained region
                  )
 )
-#Currently an environment but will probably convert to R6 for encapsulation
+
 LOCATION.MANAGER = new.env()
 
 LOCATION.MANAGER$location.list = list()
