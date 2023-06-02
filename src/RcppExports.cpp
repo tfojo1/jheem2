@@ -170,15 +170,25 @@ BEGIN_RCPP
 END_RCPP
 }
 // compute_dx
-NumericVector compute_dx(NumericVector state, double time, NumericVector quantity_scratch);
-RcppExport SEXP _jheem2_compute_dx(SEXP stateSEXP, SEXP timeSEXP, SEXP quantity_scratchSEXP) {
+NumericVector compute_dx(NumericVector state, double time, List settings, NumericVector quantity_scratch_vector, NumericVector scratch_vector, List quantities_info, List natality_info, List mortality_info, List transitions_info, List infections_info, List remission_info, List fixed_strata_info, List population_trackers);
+RcppExport SEXP _jheem2_compute_dx(SEXP stateSEXP, SEXP timeSEXP, SEXP settingsSEXP, SEXP quantity_scratch_vectorSEXP, SEXP scratch_vectorSEXP, SEXP quantities_infoSEXP, SEXP natality_infoSEXP, SEXP mortality_infoSEXP, SEXP transitions_infoSEXP, SEXP infections_infoSEXP, SEXP remission_infoSEXP, SEXP fixed_strata_infoSEXP, SEXP population_trackersSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type state(stateSEXP);
     Rcpp::traits::input_parameter< double >::type time(timeSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type quantity_scratch(quantity_scratchSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_dx(state, time, quantity_scratch));
+    Rcpp::traits::input_parameter< List >::type settings(settingsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type quantity_scratch_vector(quantity_scratch_vectorSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type scratch_vector(scratch_vectorSEXP);
+    Rcpp::traits::input_parameter< List >::type quantities_info(quantities_infoSEXP);
+    Rcpp::traits::input_parameter< List >::type natality_info(natality_infoSEXP);
+    Rcpp::traits::input_parameter< List >::type mortality_info(mortality_infoSEXP);
+    Rcpp::traits::input_parameter< List >::type transitions_info(transitions_infoSEXP);
+    Rcpp::traits::input_parameter< List >::type infections_info(infections_infoSEXP);
+    Rcpp::traits::input_parameter< List >::type remission_info(remission_infoSEXP);
+    Rcpp::traits::input_parameter< List >::type fixed_strata_info(fixed_strata_infoSEXP);
+    Rcpp::traits::input_parameter< List >::type population_trackers(population_trackersSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_dx(state, time, settings, quantity_scratch_vector, scratch_vector, quantities_info, natality_info, mortality_info, transitions_info, infections_info, remission_info, fixed_strata_info, population_trackers));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -410,7 +420,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_jheem2_do_access_subtract", (DL_FUNC) &_jheem2_do_access_subtract, 4},
     {"_jheem2_do_access_multiply", (DL_FUNC) &_jheem2_do_access_multiply, 4},
     {"_jheem2_do_access_divide", (DL_FUNC) &_jheem2_do_access_divide, 4},
-    {"_jheem2_compute_dx", (DL_FUNC) &_jheem2_compute_dx, 3},
+    {"_jheem2_compute_dx", (DL_FUNC) &_jheem2_compute_dx, 13},
     {"_jheem2_calculate_main_effect_indices", (DL_FUNC) &_jheem2_calculate_main_effect_indices, 3},
     {"_jheem2_calculate_two_way_interaction_indices", (DL_FUNC) &_jheem2_calculate_two_way_interaction_indices, 5},
     {"_jheem2_calculate_three_way_interaction_indices", (DL_FUNC) &_jheem2_calculate_three_way_interaction_indices, 7},

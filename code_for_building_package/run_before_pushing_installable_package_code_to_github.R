@@ -40,10 +40,9 @@ cat("DONE SETTING FILES TO IGNORE IN BUILD\n------------------------------------
 ##---------------------------------------------------------##
 
 cat("\n------------------------------\nBUILDING LOCATION MANAGER...\n")
-# In real life: source the file that builds it
-# For now, just build a test one
-LOCATION.MANAGER = new.env()
 
+# Read the location manager
+source('code_for_building_package/set_up_cached_location_manager.R')
 # Store it to an internal file for the package
 usethis::use_data(LOCATION.MANAGER, internal = T)
 

@@ -1,5 +1,8 @@
-#File to load and cache the location data so it doesn't have to be parsed each
-#time the model is executed.
+
+
+# File to load and location data so it doesn't have to be parsed each
+# time the model is executed.
+# Needs to finish with LOCATION.MANAGER in the global namespace
 
 #We are currently registering 4 types:
 
@@ -8,7 +11,8 @@
 # CBSA: "CBSA", 'CBSA.' prefix (location code is 5 digit cbsa code)
 # zipcode : "ZIPCODE", 'ZIP.' prefix (location code is zipcode)
 
-# source("R/LOCATIONS_location_manager.R") 
+source("R/LOCATIONS_location_manager.R") 
+source("R/LOCATIONS_impl.R")
 # We shouldn't source here as we are potentially sourcing this file from location_manager
 # New way to load all the code is now in location_manager; run it.
 
@@ -236,12 +240,12 @@ register.types(c(county.type,            zipcode.type,            cbsa.type,    
                c(county.prefix,          zipcode.prefix,          cbsa.prefix,          state.prefix), #Prefix
                c(county.prefix.longform, zipcode.prefix.longform, cbsa.prefix.longform, state.prefix.longform)) #Longform Name
 
-LOCATION.MANAGER = register.state.abbrev(LOCATION.MANAGER, "locations/us_state_abbreviations.csv")
-LOCATION.MANAGER = register.state.fips.aliases(LOCATION.MANAGER, "locations/fips_state_aliases.csv", fips.typename= county.type) #Set the fips typename
-LOCATION.MANAGER = register.fips(LOCATION.MANAGER, "locations/fips_codes.csv", fips.typename = county.type) #Set the fips typename
-LOCATION.MANAGER = register.cbsa(LOCATION.MANAGER, "locations/cbsas.csv", cbsa.typename = cbsa.type, fips.typename = county.type) #Sets the fips and cbsa typename
-LOCATION.MANAGER = register.zipcodes(LOCATION.MANAGER, "locations/zip_codes.csv", fips.typename = county.type, zip.typename = zipcode.type)
+DATA.DIR = 'data-raw/location_manager_data'
 
-#Save the compiled structure:
-saveRDS(LOCATION.MANAGER,"locations/Cached.Location.Manager.rds")
+LOCATION.MANAGER = register.state.abbrev(LOCATION.MANAGER, file.path(DATA.DIR, "us_state_abbreviations.csv"))
+LOCATION.MANAGER = register.state.fips.aliases(LOCATION.MANAGER, file.path(DATA.DIR, "fips_state_aliases.csv"), fips.typename= county.type) #Set the fips typename
+LOCATION.MANAGER = register.fips(LOCATION.MANAGER, file.path(DATA.DIR, "fips_codes.csv"), fips.typename = county.type) #Set the fips typename
+LOCATION.MANAGER = register.cbsa(LOCATION.MANAGER, file.path(DATA.DIR, "cbsas.csv"), cbsa.typename = cbsa.type, fips.typename = county.type) #Sets the fips and cbsa typename
+LOCATION.MANAGER = register.zipcodes(LOCATION.MANAGER, file.path(DATA.DIR, "zip_codes.csv"), fips.typename = county.type, zip.typename = zipcode.type)
+
 
