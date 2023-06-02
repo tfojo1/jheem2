@@ -18,7 +18,7 @@ if (!exists("LOCATION.MANAGER")) {
   # Does the cached file exist?
   if (file.exists(location.manager.cached.filename)) {
     # The file exists, load it into memory
-    cat(sprintf("Loading LOCATION.MANAGER from %s...", location.manager))
+    cat(sprintf("Loading LOCATION.MANAGER from %s...", location.manager.cached.filename))
     assign ("LOCATION.MANAGER", readRDS(location.manager.cached.filename), envir = .GlobalEnv)
     cat("Done\n")
   } else {
