@@ -235,6 +235,9 @@ zipcode.type = "zipcode"
 zipcode.prefix = "z."
 zipcode.prefix.longform = "Zipcode"
 
+# Create the initial LOCATION.MANAGER object
+LOCATION.MANAGER = Location.Manager$new()
+
 register.types(c(county.type,            zipcode.type,            cbsa.type,            state.type), #Typename
                c(county.prefix,          zipcode.prefix,          cbsa.prefix,          state.prefix), #Prefix
                c(county.prefix.longform, zipcode.prefix.longform, cbsa.prefix.longform, state.prefix.longform)) #Longform Name
