@@ -87,12 +87,11 @@ register.fips <- function(LM, filename, fips.typename = "county") {
   #Column 7 is the names of the counties
   LM$register(types, counties[[7]], county.codes)
   #Now register the county codes as aliases:
-  #browser()
-  walk(county.codes, function(code) {
+  for (code in county.codes) {
     LM$register.code.aliases( 
       paste0(LM$get.prefix(fips.typename),code), #These will be the location codes
       code)
-  })
+  }
   
   #There appear to be entries in the county code that don't have a corresponding
   #registered state.  Refrain from trying to create a connect to the non-existent
@@ -137,9 +136,9 @@ register.zipcodes = function(LM, filename, fips.typename = "county", zip.typenam
   #No prefix
   LM$register(rep(zip.typename, length(zip.codes)), zip.names, zip.codes)
   #Now register the raw zipcodes as aliases:
-  walk(seq_along(zip.codes), function(i) {
+  for ( i in seq_along(zip.codes) ) {
     LM$register.code.aliases(unique.zip.codes[i], zip.codes[i])
-  })
+  }
   
   #Register the zip code as completely contained by the fips code. If any result is NA, skip
   #With Prefix
@@ -210,10 +209,10 @@ register.cbsa = function(LM, filename, cbsa.typename = "cbsa", fips.typename = "
     fips.county.data = sprintf("%s%02d%03d",LM$get.prefix(fips.typename),
                                             code.data$FIPS.State.Code, 
                                             code.data$FIPS.County.Code)
-    walk(fips.county.data, function(county.code) {
+    for (county.code in fips.county.data) {
       #We are marking the counties as fully contained by the cbsas
       LM$register.hierarchy ( county.code, location.codes[i], TRUE) 
-    })
+    }
   }
   
   LM
@@ -235,6 +234,9 @@ cbsa.prefix.longform = "Community Based Statistical Area"
 zipcode.type = "zipcode"
 zipcode.prefix = "z."
 zipcode.prefix.longform = "Zipcode"
+
+# Create the initial LOCATION.MANAGER object
+LOCATION.MANAGER = Location.Manager$new()
 
 register.types(c(county.type,            zipcode.type,            cbsa.type,            state.type), #Typename
                c(county.prefix,          zipcode.prefix,          cbsa.prefix,          state.prefix), #Prefix
