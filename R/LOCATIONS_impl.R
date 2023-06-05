@@ -82,7 +82,7 @@ Location.Manager = R6Class("LocationManager",
       #We allow only characters, numbers, periods or dashes
       grepl("^[A-Za-z0-9.-]*$", code)
     },
-    check.location <- function (location, suggest.options) {
+    check.location = function (location, suggest.options) {
       location <- toupper(location)
       
       #If it's a location code, return.
@@ -108,7 +108,7 @@ Location.Manager = R6Class("LocationManager",
       }
       return (FALSE)
     },
-    resolve.code <- function(code,fail.on.unknown=T) {
+    resolve.code = function(code,fail.on.unknown=T) {
       
       #Resolves a single location code from potential alias to actual code
       #If fail.on.unknown is FALSE, the result is NA
@@ -150,7 +150,7 @@ Location.Manager = R6Class("LocationManager",
       returned.names
       
     },
-    get.by.alias <- function(aliases, types) {
+    get.by.alias = function(aliases, types) {
       aliases = toupper(aliases)
       types = toupper(types)
       
@@ -167,7 +167,7 @@ Location.Manager = R6Class("LocationManager",
       names(results) = aliases
       results
     },
-    get.types <- function(locations) {
+    get.types = function(locations) {
       #return A character vector of location types, with length(locations) and names=locations. If location codes are not registered 
       #(or if they were NA), the corresponding returned type is NA
       
@@ -182,7 +182,7 @@ Location.Manager = R6Class("LocationManager",
       
       returned.types
     },
-    get.prefix <- function(location.types) {
+    get.prefix = function(location.types) {
   
       location.types <- toupper(location.types)
       #A character vector of prefixes, with length(location.types) and names=prefixes. 
@@ -199,14 +199,14 @@ Location.Manager = R6Class("LocationManager",
       names(rv) = location.types
       rv
     },
-    check.many.locations <- function(locations, suggest.options) {
+    check.many.locations = function(locations, suggest.options) {
       rv = sapply(locations, function(l) {
         return (private$check.location(l,suggest.options))
       })
       names(rv) = locations
       return (rv)
     },
-    get.sub <- function(locations, sub.type, limit.to.completely.enclosing, return.list = F, throw.error.if.unregistered.type = T) {
+    get.sub = function(locations, sub.type, limit.to.completely.enclosing, return.list = F, throw.error.if.unregistered.type = T) {
       #return If return.list==T, a list with length(locations) and names=locations. Each element is itself a character vector
       #with zero or more locations corresponding to sub-locations. If return.list=F, returns a character vector
       #(arbitrary length) containing all sub-locations that fall within ANY of the given locations
@@ -348,7 +348,7 @@ Location.Manager = R6Class("LocationManager",
     
       rv
     },
-    get.super <- function(locations, super.type, limit.to.completely.enclosing, return.list = F, throw.error.if.unregistered.type = T) {
+    get.super = function(locations, super.type, limit.to.completely.enclosing, return.list = F, throw.error.if.unregistered.type = T) {
       #return If return.list==T, a list with length(locations) and names=locations. Each element is itself a character vector
       #with zero or more locations corresponding to sub-locations. If return.list=F, returns a character vector
       #(arbitrary length) containing all sub-locations that fall within ANY of the given locations
@@ -482,7 +482,7 @@ Location.Manager = R6Class("LocationManager",
     
       rv
     },
-    get.name.aliases <- function(locations, alias.name, throw.error.if.unregistered.alias) {
+    get.name.aliases = function(locations, alias.name, throw.error.if.unregistered.alias) {
       # return A character vector of aliases, with length(locations) and names=locations. If location codes are not registered
       # (or if they were NA), or if no value for the alias.name has been registered to a location, the corresponding returned alias is NA
     
@@ -524,7 +524,7 @@ Location.Manager = R6Class("LocationManager",
     
       result
     },
-    register.types <- function (type, prefix, prefix.longform) {
+    register.types = function (type, prefix, prefix.longform) {
       #Sizes have been checked a step up
       type <- toupper(type)
       prefix <- toupper(prefix)
@@ -546,7 +546,7 @@ Location.Manager = R6Class("LocationManager",
         }
       }, type, prefix, prefix.longform))
     },
-    register <- function (types, location.names, codes) {
+    register = function (types, location.names, codes) {
       #codes and types are all uppercase; case insensitive
       codes <- toupper(codes)
       types <- toupper(types)
@@ -574,7 +574,7 @@ Location.Manager = R6Class("LocationManager",
       private$location.list [ codes ]<- lapply(mapply(c,location.names,types,SIMPLIFY=F), Location$new)
     
     },
-    register.name.aliases <- function(code, name.aliases, names.alias.labels) {
+    register.name.aliases = function(code, name.aliases, names.alias.labels) {
     
       #Sizes have already been checked up one level
       code <- private$resolve.code(code)  
@@ -593,7 +593,7 @@ Location.Manager = R6Class("LocationManager",
       }
       private$alias.names[[location.type]][name.aliases] = mapply(c,rep(code,length(names.alias.labels)),names.alias.labels,SIMPLIFY=F)
     },
-    register.code.aliases <- function(code, code.aliases) {
+    register.code.aliases = function(code, code.aliases) {
       
       # We have ONE code and one or more code.aliases
       #Sizes have already been checked up one level
@@ -611,7 +611,7 @@ Location.Manager = R6Class("LocationManager",
       #Assign the aliases
       private$alias.codes[[location.type]][code.aliases] = code
     },
-    register.hierarchy <-function(sub, super, fully.contains, fail.on.unknown = T) {
+    register.hierarchy = function(sub, super, fully.contains, fail.on.unknown = T) {
     
       #Sizes have already been checked up one level
       #We now have three vectors of equal length

@@ -87,7 +87,7 @@ register.fips <- function(LM, filename, fips.typename = "county") {
   #Column 7 is the names of the counties
   LM$register(types, counties[[7]], county.codes)
   #Now register the county codes as aliases:
-  for (code in country.codes) {
+  for (code in county.codes) {
     LM$register.code.aliases( 
       paste0(LM$get.prefix(fips.typename),code), #These will be the location codes
       code)
