@@ -173,7 +173,7 @@ LOCATION.MANAGER$check.location <- function (location, suggest.options) {
     types = names(LOCATION.MANAGER$alias.codes)
     
     #For each type:
-    walk(types, function(type) {
+    for (type in types) {
       # browser()
       if (location %in% names(LOCATION.MANAGER$alias.codes[[type]])) {
         #Found as alias to type 'type'
@@ -181,7 +181,7 @@ LOCATION.MANAGER$check.location <- function (location, suggest.options) {
         location.code <- LOCATION.MANAGER$alias.codes[[type]][[location]]
         cat(sprintf("Possible Result : %s alias of location %s, %s\n", type, location.code, LOCATION.MANAGER$get.names(location.code)))
       }
-    })
+    }
   }
   return (FALSE)
     
