@@ -32,7 +32,7 @@ get.location.name <- function(locations)
 #'@param location.names A list of names to get the location code for
 #'@param types A corresponding list of types
 #'
-#'@return A character vector of location codes, with length(location.names) and names=location.names. If if the location.name is not registered or NA, NA is returned
+#'@return A list of location.names, with values corresponding to the identified location code.  Multiple results per location.names is possible. If if the location.name is not registered or NA, NA is returned
 #'
 #'@export
 get.location.code <- function(location.names, types)

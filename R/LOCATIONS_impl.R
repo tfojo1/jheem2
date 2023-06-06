@@ -524,6 +524,34 @@ Location.Manager = R6Class("LocationManager",
     
       result
     },
+    get.codes.from.names = function(location.names, types) {
+      types <- toupper(types)
+      #Receive two vectors; one with location names, other with types
+      #They have the same length
+      result = mapply(function(location, type) {
+        #Build a list of all names of 'type'
+        if (is.na(location)) {
+          return (NA)
+        }
+        all.of.type = sapply(private$location.list, function(li) {ifelse(li$return.type == type,li$return.name,"")})
+        #We are getting warnings here because some of the names have unprintable characters
+        indexes = grep(location, all.of.type)
+        # if (length(indexes) > 1) {
+        #   #Multiple results
+        #   print(length(indexes)) 
+        # }
+        # print(names(private$location.list)[indexes])
+        rv = names(private$location.list)[indexes]
+        if (length(rv) == 0) {
+          return (NA)
+        } else {
+          return (rv)
+        }
+        # return (names(private$location.list)[indexes])
+      }, location.names, types, SIMPLIFY = FALSE)
+      
+      return (result)
+    },
     register.types = function (type, prefix, prefix.longform) {
       #Sizes have been checked a step up
       type <- toupper(type)
