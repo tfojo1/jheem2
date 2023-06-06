@@ -71,7 +71,7 @@ Location <- R6Class("Location",
 )
 
 Location.Manager = R6Class("LocationManager",
-  class = FALSE,
+#  class = FALSE,
   clone = FALSE,
   private = list (
     location.list = list(),
