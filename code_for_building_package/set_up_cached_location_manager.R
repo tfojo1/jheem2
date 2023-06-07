@@ -34,11 +34,8 @@ register.state.abbrev = function(LM, filename) {
   abbrev.data = read.csv(file= filename, header=FALSE)
   
   types = rep("state", nrow(abbrev.data))
-  
-  LM$register(types, 
-              
-              
-              abbrev.data[[1]], abbrev.data[[2]])
+  # Name is in column 1, abbreviation is in column 2
+  LM$register(types, abbrev.data[[1]], abbrev.data[[2]])
   
   #We need to do this first to register the states with their abbreviations as their 
   #location codes
@@ -260,5 +257,3 @@ LOCATION.MANAGER = register.state.fips.aliases(LOCATION.MANAGER, file.path(DATA.
 LOCATION.MANAGER = register.fips(LOCATION.MANAGER, file.path(DATA.DIR, "fips_codes.csv"), fips.typename = county.type) #Set the fips typename
 LOCATION.MANAGER = register.cbsa(LOCATION.MANAGER, file.path(DATA.DIR, "cbsas.csv"), cbsa.typename = cbsa.type, fips.typename = county.type) #Sets the fips and cbsa typename
 LOCATION.MANAGER = register.zipcodes(LOCATION.MANAGER, file.path(DATA.DIR, "zip_codes.csv"), fips.typename = county.type, zip.typename = zipcode.type)
-
-
