@@ -981,7 +981,8 @@ ONTOLOGY.MAPPING = R6::R6Class(
             if (setequal(from.dimensions, to.dimensions))
             {
                 if (length(private$i.component.names)==1)
-                    print(paste0("'", self$name, "': A basic ontology mapping over dimension",
+                    print(paste0("A basic ontology mapping ('",
+                                 self$name, "') over dimension",
                                  ifelse(length(from.dimensions)==1, ' ', 's '),
                                  collapse.with.and("'", from.dimensions, "'")))
                 else            if (setequal(from.dimensions, to.dimensions))
@@ -997,7 +998,8 @@ ONTOLOGY.MAPPING = R6::R6Class(
             else
             {
                 if (length(private$i.component.names)==1)
-                    print(paste0("'", self$name, "': A basic ontology mapping from dimension",
+                    print(paste0("A basic ontology mapping ('",
+                                 self$name, "') over dimension",
                                  ifelse(length(from.dimensions)==1, '', 's'),
                                  " <", collapse.with.and("'", from.dimensions, "'"), ">",
                                  " to <",
@@ -1285,7 +1287,7 @@ IDENTITY.ONTOLOGY.MAPPING = R6::R6Class(
         
         print = function(...)
         {
-            print("A 'no-change' ontology mapping")
+            print("An identity ('no-change') ontology mapping")
         },
         
         equals = function(other)
