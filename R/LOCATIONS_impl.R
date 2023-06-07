@@ -525,10 +525,9 @@ Location.Manager = R6Class("LocationManager",
       result
     },
     get.codes.from.names = function(location.names, types) {
-      types <- toupper(types)
       #Receive two vectors; one with location names, other with types
       #They have the same length
-      result = mapply(function(location, type) {
+      mapply(function(location, type) {
         if (is.na(location)) {
           return (NA)
         }
@@ -545,9 +544,7 @@ Location.Manager = R6Class("LocationManager",
         } else {
           return (rv)
         }
-      }, location.names, types, SIMPLIFY = FALSE)
-      
-      return (result)
+      }, location.names, toupper(types), SIMPLIFY = FALSE)
     },
     register.types = function (type, prefix, prefix.longform) {
       #Sizes have been checked a step up
