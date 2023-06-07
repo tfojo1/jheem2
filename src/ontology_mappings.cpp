@@ -72,6 +72,7 @@ RObject do_execute_ontology_mapping(List src_dim_names,
     int non_from_dim_index = 0;
     int n_before = 1;
     
+    // Figure out which of the src dimensions are ones that are being transformed by the mapping
     bool found_match;
     for (int i=0; i<n_src_dims; i++)
     {
@@ -141,7 +142,6 @@ RObject do_execute_ontology_mapping(List src_dim_names,
     int non_to_dim_indices[n_non_to_dims+1];
     
     int non_to_dims[n_non_to_dims];
-    int n_non_to = 1;
     int n_before_non_to[n_non_to_dims];
     int n_before_to[n_to_dims];
     
@@ -178,7 +178,7 @@ RObject do_execute_ontology_mapping(List src_dim_names,
     IntegerVector to_dims = to_values.attr("dim");
     if (to_dims[0] != n_values)
         return (R_NilValue);
-//return (R_NilValue);    
+    
     //----------------------------------//
     //----------------------------------//
     //-- SET UP THE DIMENSION INDICES --//
@@ -189,13 +189,13 @@ RObject do_execute_ontology_mapping(List src_dim_names,
     for (int i=0; i<n_dst_dims; i++)
         n_dst *= dst_dims[i];
     
-    // parse the integer value for each from_dim_values;
+    // Map from the 'from_values' to the src dimension values
+    //  (ie parse the integer value for each from_dim_values)
     int from_dim_values[n_values][n_from_dims];
     int n_mapped_from = 0;
     CharacterVector dim_values;
     int mapped_from_values_indices[n_values];
     
-
     bool all_dims_mapped;
     for (int i=0; i<n_values; i++)
     {
@@ -215,9 +215,10 @@ RObject do_execute_ontology_mapping(List src_dim_names,
             }
             
             // if we didn't find a match, we will just ignore this row in from_values/to_values
-            all_dims_mapped = from_dim_values[i][j]!=-1;
+            if (from_dim_values[n_mapped_from][j]==-1)
+                all_dims_mapped = false;
         }
-        
+
         if (all_dims_mapped)
         {
             mapped_from_values_indices[n_mapped_from] = i;
@@ -226,11 +227,9 @@ RObject do_execute_ontology_mapping(List src_dim_names,
     }
     
     
-//return (R_NilValue);      
     int to_dim_values[n_mapped_from][n_to_dims];
     int n_mapped = 0;
     int mapped_to_values_indices[n_mapped_from];
-    
     
     for (int i=0; i<n_mapped_from; i++)
     {
@@ -248,7 +247,8 @@ RObject do_execute_ontology_mapping(List src_dim_names,
                 }
             }
 
-            all_dims_mapped = to_dim_values[i][j]!=-1;
+            if (to_dim_values[n_mapped][j]==-1)
+                all_dims_mapped = false;
         }
         
         // if we didn't find a match, we will just ignore this row in from_values/to_values
@@ -258,9 +258,9 @@ RObject do_execute_ontology_mapping(List src_dim_names,
             n_mapped++;
         }
     }
-    
-    if (n_mapped==0) //there is nothing to map - no changes to make to dst
-        return (dst);
+
+//   if (n_mapped==0) //there is nothing to map - no changes to make to dst
+//        return (dst);
     
 
     // cut out any from values that were not used
@@ -299,6 +299,17 @@ RObject do_execute_ontology_mapping(List src_dim_names,
     
     // Map non_from to non_to dimension values
     int non_from_to_non_to_dim_values[n_non_to_dims][max_non_from_dim];
+    int included_non_from_dim_values[n_non_from_dims][max_non_from_dim];
+    int n_included_for_non_from_dim[n_non_from_dims];
+    for (int j=0; j<n_non_from_dims; j++)
+    {
+        n_included_for_non_from_dim[j] = non_from_dims[j];
+        for (int k=0; k<non_from_dims[j]; k++)
+        {
+            included_non_from_dim_values[j][k] = k;
+        }
+    }
+    // Note: a source dimension value is "included" if it is present in dst - otherwise it is ignored
     
     CharacterVector src_values;
     CharacterVector dst_values;
@@ -307,6 +318,8 @@ RObject do_execute_ontology_mapping(List src_dim_names,
         int non_from_d = non_to_to_non_from_dims[i];
         src_values = (CharacterVector) src_dim_names[non_from_dim_indices[non_from_d]];
         dst_values = (CharacterVector) dst_dim_names[non_to_dim_indices[i]];
+        
+        n_included_for_non_from_dim[non_from_d] = 0;
         
         for (int j=0; j<src_values.length(); j++)
         {
@@ -320,10 +333,20 @@ RObject do_execute_ontology_mapping(List src_dim_names,
                 }
             }
             
-            if (non_from_to_non_to_dim_values[i][j] == -1)
-                return (R_NilValue);
+            if (non_from_to_non_to_dim_values[i][j] != -1)
+            {
+                included_non_from_dim_values[non_from_d][ n_included_for_non_from_dim[non_from_d] ] = j;
+                n_included_for_non_from_dim[non_from_d]++;
+            }
         }
+        
+        if (n_included_for_non_from_dim[non_from_d]==0)
+            return(R_NilValue); //we don't have any src dimension values present in dst for the dimension
     }
+    
+    int n_included_non_from = 1;
+    for (int j=0; j<n_non_from_dims; j++)
+        n_included_non_from *= n_included_for_non_from_dim[j];
     
     //----------------------------------------------//
     //----------------------------------------------//
@@ -346,18 +369,25 @@ RObject do_execute_ontology_mapping(List src_dim_names,
             n_mapped_to_dst[i] = 0;
     }
     
-    int n_src = n_non_from * n_mapped;
-    int dst_index_for_src[(get_indices) * n_src];
+    
+    int n_for_indices = n_included_non_from * n_mapped;
+    int dst_index_for_indices[(get_indices) * n_for_indices];
+    int src_index_for_indices[(get_indices) * n_for_indices];
+    int index_for_indices = 0;
     
     // temp variables for the iteration
+    int non_from_dim_value_indices[n_non_from_dims];
+    for (int j=0; j<n_non_from_dims; j++)
+        non_from_dim_value_indices[j] = 0;
+    
     int non_from_dim_values[n_non_from_dims];
     for (int j=0; j<n_non_from_dims; j++)
-        non_from_dim_values[j] = 0;
+            non_from_dim_values[j] = included_non_from_dim_values[j][0];
     
     int base_src_index, src_index, base_dst_index, dst_index;
     
     // iterate
-    for (int i=0; i<n_non_from; i++)
+    for (int i=0; i<n_included_non_from; i++)
     {
         base_src_index = 0;
         for (int j=0; j<n_non_from_dims; j++)
@@ -398,19 +428,24 @@ RObject do_execute_ontology_mapping(List src_dim_names,
             else // get_indices
             {
                 n_mapped_to_dst[dst_index]++;
-                dst_index_for_src[src_index] = dst_index;
+                dst_index_for_indices[index_for_indices] = dst_index;
+                src_index_for_indices[index_for_indices] = src_index;
+                index_for_indices++;
             }
         }
-        
         
         // Update the non_from_dim_values
         for (int j=0; j<n_non_from_dims; j++)
         {
-            if (non_from_dim_values[j]==(non_from_dims[j]-1)) //it's at the max - set to zero and increment the value for the next dimension
-                non_from_dim_values[j] = 0;
+            if (non_from_dim_value_indices[j]==(n_included_for_non_from_dim[j]-1))
+            {
+                non_from_dim_value_indices[j] = 0;
+                non_from_dim_values[j] = included_non_from_dim_values[j][0];
+            }
             else
             {
-                non_from_dim_values[j]++;
+                non_from_dim_value_indices[j]++;
+                non_from_dim_values[j] = included_non_from_dim_values[j][ non_from_dim_value_indices[j] ];
                 break;
             }
         }
@@ -434,11 +469,11 @@ RObject do_execute_ontology_mapping(List src_dim_names,
         }
         
         // Populate the numeric vectors in the list rv
-        for (int j=0; j<n_src; j++)
+        for (int j=0; j<n_for_indices; j++)
         {
-            dst_index = dst_index_for_src[j];
-            dst_vector = rv[ dst_index ];
-            dst_vector[ n_mapped_to_dst[dst_index] ] = j+1;
+            dst_index = dst_index_for_indices[j];
+            dst_vector = rv[dst_index];
+            dst_vector[ n_mapped_to_dst[dst_index] ] = src_index_for_indices[j]+1;
             n_mapped_to_dst[dst_index]++;
         }
         
@@ -478,6 +513,8 @@ RObject apply_ontology_mapping(NumericVector src,
                                         na_rm));
 }
 
+NumericVector EMPTY_PLACEHOLDER_VECTOR(0);
+
 // [[Rcpp::export]]
 RObject get_ontology_mapping_matrix(List src_dim_names,
                                     List dst_dim_names,
@@ -487,7 +524,7 @@ RObject get_ontology_mapping_matrix(List src_dim_names,
 {
     return (do_execute_ontology_mapping(src_dim_names,
                                         dst_dim_names,
-                                        R_NilValue,
+                                        EMPTY_PLACEHOLDER_VECTOR,
                                         dst,
                                         from_values,
                                         to_values,
@@ -504,8 +541,8 @@ RObject get_ontology_mapping_indices(List src_dim_names,
 {
     return (do_execute_ontology_mapping(src_dim_names,
                                         dst_dim_names,
-                                        R_NilValue,
-                                        R_NilValue,
+                                        EMPTY_PLACEHOLDER_VECTOR,
+                                        EMPTY_PLACEHOLDER_VECTOR,
                                         from_values,
                                         to_values,
                                         false,

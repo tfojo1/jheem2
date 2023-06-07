@@ -511,7 +511,7 @@ do.get.ontology.mapping <- function(from.ontology,
             {
                 !is.null(from.ontology[[d]]) && # satisfies part of condition (1)
                     !is.null(to.ontology[[d]]) && # satisfies condition (2)
-                    length(setdiff(to.ontology[[d]], from.ontology[[d]])==0) # satisfies condition (4)
+                    length(setdiff(to.ontology[[d]], from.ontology[[d]]))==0 # satisfies condition (4)
             }
         }
         else if (from.dimensions.are.complete[d])
@@ -604,7 +604,6 @@ do.get.ontology.mapping <- function(from.ontology,
             # Update the ontology if we were to apply this mapping
             post.mapping.from.ontology = mapping$apply.to.ontology(from.ontology,
                                                                      error.prefix=error.prefix)
-            
             # Recurse
             additional.mappings = do.get.ontology.mapping(from.ontology=post.mapping.from.ontology,
                                                           to.ontology=to.ontology,
@@ -1485,7 +1484,7 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
         
         do.get.matrix = function(from.dim.names,
                                   to.dim.names,
-                                  error.prefix)
+                                  error.prefix = '')
         {
             rv = matrix(0, nrow=prod(sapply(to.dim.names, length)), ncol=prod(sapply(from.dim.names, length)))
             
@@ -1503,7 +1502,7 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
         
         do.get.mapping.indices = function(from.dim.names,
                                           to.dim.names,
-                                          error.prefix)
+                                          error.prefix = '')
         {   
             rv = get_ontology_mapping_indices(src_dim_names = from.dim.names,
                                               dst_dim_names = to.dim.names,
@@ -1911,21 +1910,31 @@ initial.check.can.apply <- function(mapping,
         }
         else
         {
-            if (is.subset(super=mapping$from.dim.names[[d]], sub=from.dim.names[[d]]))
+            if (length(intersect(mapping$from.dim.names[[d]], from.dim.names[[d]]))>0)
                 T
             else
             {
                 if (throw.errors)
-                {
-                    missing.values = setdiff(mapping$from.dim.names[[d]], from.dim.names[[d]])
-                    stop(paste0(error.prefix, 
-                                "'from.dim.names' is missing ", length(missing.values),
-                                ifelse(length(missing.values)==1, ' value', ' values'),
-                                ": ", collapse.with.and("'", missing.values, "'")))
-                }
+                    stop(paste0(error.prefix, "'from.dim.names' does not contain any mappable dimension values"))
                 else
                     F
             }
+            
+#            if (is.subset(super=mapping$from.dim.names[[d]], sub=from.dim.names[[d]]))
+#                T
+#            else
+#            {
+#                if (throw.errors)
+#                {
+#                    missing.values = setdiff(mapping$from.dim.names[[d]], from.dim.names[[d]])
+#                    stop(paste0(error.prefix, 
+#                                "'from.dim.names' is missing ", length(missing.values),
+#                                ifelse(length(missing.values)==1, ' value', ' values'),
+#                                ": ", collapse.with.and("'", missing.values, "'")))
+#                }
+#                else
+#                    F
+#            }
         }
     })
     
