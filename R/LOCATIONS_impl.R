@@ -155,6 +155,9 @@ Location.Manager = R6Class("LocationManager",
         if (is.na(location)) {
           return (NA)
         }
+        if (location %in% names(private$location.list)) {
+          return (location)
+        }
         #Build a list of all names of 'type'
         all.of.type = sapply(private$location.list, function(li) {ifelse(li$return.type == type,li$return.name,"")})
         
