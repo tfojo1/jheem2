@@ -754,7 +754,8 @@ combine.ontology.mappings <- function(...)
                                        from.values = from.values,
                                        to.values = to.values,
                                        from.dimension.chunks = from.dimension.chunks,
-                                       to.dimension.chunks = to.dimension.chunks)
+                                       to.dimension.chunks = to.dimension.chunks,
+                                       component.names = unlist(sapply(sub.mappings, function(map){map$component.names})))
         }
         else
         {
@@ -965,9 +966,10 @@ ONTOLOGY.MAPPING = R6::R6Class(
     public = list(
         
         #'@title The Constructor
-        initialize = function(name)
+        initialize = function(name, component.names=name)
         {
             private$i.name = name
+            private$i.component.names = component.names
         },
         
         #'@title The Print Function
@@ -977,16 +979,40 @@ ONTOLOGY.MAPPING = R6::R6Class(
             to.dimensions = self$to.dimensions
             
             if (setequal(from.dimensions, to.dimensions))
-                print(paste0("Ontology mapping '", self$name, "': over dimension",
-                             ifelse(length(from.dimensions)==1, ' ', 's '),
-                             collapse.with.and("'", from.dimensions, "'")))
+            {
+                if (length(private$i.component.names)==1)
+                    print(paste0("'", self$name, "': A basic ontology mapping over dimension",
+                                 ifelse(length(from.dimensions)==1, ' ', 's '),
+                                 collapse.with.and("'", from.dimensions, "'")))
+                else            if (setequal(from.dimensions, to.dimensions))
+                    print(paste0("A combination of ", length(private$i.component.names),
+                                 " ontology mappings (",
+                                 collapse.with.and("'", private$i.component.names, "'"),
+                                 ")",
+                                 " over dimension",
+                                 ifelse(length(from.dimensions)==1, ' ', 's '),
+                                 collapse.with.and("'", from.dimensions, "'")))
+            }
             
             else
-                print(paste0("Ontology mapping '", self$name, "': from dimension",
-                             ifelse(length(from.dimensions)==1, '', 's'),
-                             " <", collapse.with.and("'", from.dimensions, "'"), ">",
-                             " to <",
-                             collapse.with.and("'", to.dimensions, "'"), ">"))
+            {
+                if (length(private$i.component.names)==1)
+                    print(paste0("'", self$name, "': A basic ontology mapping from dimension",
+                                 ifelse(length(from.dimensions)==1, '', 's'),
+                                 " <", collapse.with.and("'", from.dimensions, "'"), ">",
+                                 " to <",
+                                 collapse.with.and("'", to.dimensions, "'"), ">"))
+                else
+                    print(paste0("A combination of ", length(private$i.component.names),
+                                 " ontology mappings (",
+                                 collapse.with.and("'", private$i.component.names, "'"),
+                                 ")",
+                                 " from dimension",
+                                 ifelse(length(from.dimensions)==1, '', 's'),
+                                 " <", collapse.with.and("'", from.dimensions, "'"), ">",
+                                 " to <",
+                                 collapse.with.and("'", to.dimensions, "'"), ">"))
+            }
         },
         
         #'@title A test for equality - to be overwritten in subclass --#
@@ -1139,6 +1165,14 @@ ONTOLOGY.MAPPING = R6::R6Class(
                 stop("Cannot set value for 'name' in ontology.mapping - it is read-only")
         },
         
+        component.names = function(value)
+        {
+            if (missing(value))
+                private$i.component.names
+            else
+                stop("Cannot set value for 'component.names' in ontology.mapping - they are read-only")
+        },
+        
         is.identity.mapping = function(value)
         {
             if (missing(value))
@@ -1179,6 +1213,7 @@ ONTOLOGY.MAPPING = R6::R6Class(
     
     private = list(
         i.name = NULL,
+        i.component.names = NULL,
         
         do.apply.sum = function(from.arr,
                                  to.dim.names,
@@ -1345,9 +1380,10 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                               from.values,
                               to.values,
                               from.dimension.chunks = list(from.dimensions),
-                              to.dimension.chunks = list(to.dimensions))
+                              to.dimension.chunks = list(to.dimensions),
+                              component.names=name)
         {
-            super$initialize(name)
+            super$initialize(name, component.names = component.names)
             
             # presume the error checking has been done by the
             # public-facing constructor
@@ -1367,7 +1403,6 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
             na.from.mask = apply(is.na(from.values), 1, all)[row.order]
             na.to.mask = apply(is.na(to.values), 1, all)[row.order]
             
-            private$i.name = name
             private$i.from.dimensions = from.dimensions[from.order]
             private$i.to.dimensions = to.dimensions[to.order]
             private$i.from.values = from.values[row.order,from.order,drop=F]
@@ -1391,7 +1426,7 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
             })
             names(private$i.unique.to.values) = private$i.to.dimensions
         },
-        
+
         equals = function(other)
         {
             all(dim(self$from.values)==dim(other$from.values)) &&
@@ -1448,6 +1483,7 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
     
     private = list(
         i.name = NULL,
+        i.component.names = NULL,
         
         i.from.dimensions = NULL,
         i.to.dimensions = NULL,
@@ -1620,10 +1656,11 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
         initialize = function(name,
                               sub.mappings)
         {
-            super$initialize(name)
-            
             if (!is.list(sub.mappings))
                 stop("Cannot create combination ontology mapping: sub.mappings must be a list")
+            
+            super$initialize(name,
+                             component.names=unlist(sapply(sub.mappings, function(map){map$component.names})))
                 
             private$i.sub.mappings = sub.mappings
         },
