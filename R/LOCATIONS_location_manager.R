@@ -9,6 +9,18 @@
 ##-- Getters --##
 ##-------------##
 
+#'@title get.location.types
+#'
+#'@description Get a list vector of registered location types, prefixes and longform prefix names.
+#'
+#'@return A list the same length as the registered number of types, with each list item being the name, the prefix and the longform prefix name.  If there are no registered types it will return an empty list
+#'
+#'@export
+get.location.types <- function()
+{
+  LOCATION.MANAGER$get.registered.types()
+}
+
 #'@title get.location.name
 #'
 #'@description Get the Name of a Location
