@@ -16,6 +16,14 @@ source("R/LOCATIONS_impl.R")
 # We shouldn't source here as we are potentially sourcing this file from location_manager
 # New way to load all the code is now in location_manager; run it.
 
+remove.non.locale = function(string_list) {
+  # Go through each string
+  cleaned_strings <- sapply(string_list, function(x) {
+    # Replace each run of non 7-bit ASCII characters with a hyphen
+    x <- gsub("[^\x01-\x7F]+", "-", x)
+  })
+  return(cleaned_strings)
+}
 
 register.state.abbrev = function(LM, filename) {
   #Check if the file exists
@@ -27,7 +35,10 @@ register.state.abbrev = function(LM, filename) {
   
   types = rep("state", nrow(abbrev.data))
   
-  LM$register(types, abbrev.data[[1]], abbrev.data[[2]])
+  LM$register(types, 
+              
+              
+              abbrev.data[[1]], abbrev.data[[2]])
   
   #We need to do this first to register the states with their abbreviations as their 
   #location codes
@@ -85,7 +96,7 @@ register.fips <- function(LM, filename, fips.typename = "county") {
   county.codes = sprintf("%05d", county.codes)
   
   #Column 7 is the names of the counties
-  LM$register(types, counties[[7]], county.codes)
+  LM$register(types, remove.non.locale(counties[[7]]), county.codes)
   #Now register the county codes as aliases:
   for (code in county.codes) {
     LM$register.code.aliases( 
@@ -185,7 +196,7 @@ register.cbsa = function(LM, filename, cbsa.typename = "cbsa", fips.typename = "
     # register the cbsa:
     # There will always be minimum one entry in the CBSA.Title column
     # Register the unique codes here as the prefixes are added in $register()
-    LM$register(cbsa.typename, code.data$CBSA.Title[1], unique.codes[i])
+    LM$register(cbsa.typename, remove.non.locale(code.data$CBSA.Title[1]), unique.codes[i])
     #Now register the raw cbsa codes as aliases:
     LM$register.code.aliases( location.codes[i], unique.codes[i] )
     
@@ -224,7 +235,7 @@ state.prefix = ""
 state.prefix.longform = "State"
 
 county.type = "county"
-county.prefix = "f."
+county.prefix = ""
 county.prefix.longform = "FIPS code"
 
 cbsa.type = "cbsa"

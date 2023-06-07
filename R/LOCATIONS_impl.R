@@ -524,6 +524,28 @@ Location.Manager = R6Class("LocationManager",
     
       result
     },
+    get.codes.from.names = function(location.names, types) {
+      #Receive two vectors; one with location names, other with types
+      #They have the same length
+      mapply(function(location, type) {
+        if (is.na(location)) {
+          return (NA)
+        }
+        #Build a list of all names of 'type'
+        all.of.type = sapply(private$location.list, function(li) {ifelse(li$return.type == type,li$return.name,"")})
+        
+        #Find the indexes that match the location
+        indexes = grep(location, all.of.type)
+        
+        rv = names(private$location.list)[indexes]
+        
+        if (length(rv) == 0) {
+          return (NA)
+        } else {
+          return (rv)
+        }
+      }, location.names, toupper(types), SIMPLIFY = FALSE)
+    },
     register.types = function (type, prefix, prefix.longform) {
       #Sizes have been checked a step up
       type <- toupper(type)
