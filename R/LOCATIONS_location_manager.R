@@ -43,11 +43,12 @@ get.location.name <- function(locations)
 #'
 #'@param location.names A list of names to get the location code for
 #'@param types A corresponding list of types
+#'@param search.aliases A boolean flag indicating whether we want to check the aliases if the name check fails. Default = TRUE
 #'
 #'@return A list of location.names, with values corresponding to the identified location code.  Multiple results per location.names is possible. If if the location.name is not registered or NA, NA is returned
 #'
 #'@export
-get.location.code <- function(location.names, types)
+get.location.code <- function(location.names, types, search.aliases = TRUE)
 {
   if (length(types) != 1 && length(types) != length(location.names)) {
     stop("get.location.code: Length of types can either be 1 or it must be the length of the location.names")
@@ -55,7 +56,7 @@ get.location.code <- function(location.names, types)
   if (length(types) == 1) {
     types = rep(types, length(location.names))
   }
-  LOCATION.MANAGER$get.codes.from.names(location.names, types)
+  LOCATION.MANAGER$get.codes.from.names(location.names, types, search.aliases)
 }
 
 #'@title get.location.name.alias
@@ -92,25 +93,6 @@ get.location.type <- function(locations)
   #No need to check lengths
   LOCATION.MANAGER$get.types(locations)
 }
-
-#'@title get.code.by.alias
-#'
-#'@description Get the location code from a code alias and a type 
-#'
-#'@param code.aliases A character vector of code aliases
-#'@param types A character vector of corresponding types, or a single type
-#'
-#'@return A character vector of location codes, with length(code.aliases) and names=code.aliases. 
-#'
-#'@export
-get.code.by.alias <- function(code.aliases, types)
-{
-  if (length(types) != length(code.aliases) && length(types) != 1) {
-    stop("get.code.by.alias: types is either of length 1 or matches the length of code.alias")
-  }
-  LOCATION.MANAGER$get.by.alias(code.aliases, types)
-}
-
 
 #'@title get.prefix.for.type
 #'
@@ -334,39 +316,4 @@ register.sub.and.super.locations <- function(sub.locations,
     super.completely.encloses.sub = rep(super.completely.encloses.sub,length(sub.locations))
   }
   LOCATION.MANAGER$register.hierarchy(sub.locations, super.locations, super.completely.encloses.sub) 
-}
-
-# We may have saved the state of the locations in the locations/ directory; we will
-# not need the impl if the file exists, as we can just load it into memory directly
-#
-# So first, we check to see whether or not the LOCATION.MANAGER is resident in
-# memory
-
-
-if (F)
-{
-    location.manager.cached.filename = "locations/Cached.Location.Manager.rds"
-    
-    if (!exists("LOCATION.MANAGER")) {
-      # The LOCATION.MANAGER is NOT resident in memory.
-      # Does the cached file exist?
-      if (file.exists(location.manager.cached.filename)) {
-        # The file exists, load it into memory
-        cat(sprintf("Loading LOCATION.MANAGER from %s...", location.manager.cached.filename))
-        assign ("LOCATION.MANAGER", readRDS(location.manager.cached.filename), envir = .GlobalEnv)
-        cat("Done\n")
-      } else {
-        # The file had not yet been cached
-        # The first file loads the implementation of the LOCATION.MANAGER
-        # The second file loads the location data into the LOCATION.MANAGER and then
-        # saves the cached file to disk
-        source ("R/LOCATIONS_impl.R")
-        cat("Loading location data into the LOCATION.MANAGER...")
-        source ("R/LOCATIONS_cache.R")
-        cat("Done\n")
-      }
-    } else {
-      # LOCATION.MANAGER is resident in memory
-      cat("LOCATION.MANAGER already loaded\n")
-    }
 }

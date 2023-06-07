@@ -150,22 +150,43 @@ Location.Manager = R6Class("LocationManager",
       returned.names
       
     },
+    get.codes.from.names = function(location.names, types, search.aliases) {
+      mapply(function(location, type) {
+        if (is.na(location)) {
+          return (NA)
+        }
+        #Build a list of all names of 'type'
+        all.of.type = sapply(private$location.list, function(li) {ifelse(li$return.type == type,li$return.name,"")})
+        
+        #Find the indexes that match the location
+        indexes = grep(location, all.of.type)
+        
+        rv = names(private$location.list)[indexes]
+        
+        if (length(rv) == 0) {
+          if (search.aliases) {
+            # If not found in location list, check the alias codes
+            if (location %in% names(private$alias.codes[[type]])) {
+              return (private$alias.codes[[type]][[location]])
+            }
+          }
+          return (NA)
+        } else {
+          return (rv)
+        }
+      }, location.names, toupper(types), SIMPLIFY = FALSE)
+    },
     get.by.alias = function(aliases, types) {
-      aliases = toupper(aliases)
-      types = toupper(types)
-      
       #Sizes are checked a level up; either they match or types has a length of 1.
-      types = ifelse (length(types) == 1, rep(types,length(aliases)), types)
-      rv = rep(NA,length(types))
-      results = mapply(function(alias, type) {
+      types = if (length(types) == 1) rep(types,length(aliases)) else types
+      
+      setNames(mapply(function(alias, type) {
         if (alias %in% names(private$alias.codes[[type]])) {
           return (private$alias.codes[[type]][alias])
         } else {
           return (NA)
         }
-      }, aliases, types, SIMPLIFY=T)
-      names(results) = aliases
-      results
+      }, toupper(aliases), toupper(types), SIMPLIFY=T), aliases)
     },
     get.types = function(locations) {
       #return A character vector of location types, with length(locations) and names=locations. If location codes are not registered 
@@ -523,28 +544,6 @@ Location.Manager = R6Class("LocationManager",
       names(result) = locations
     
       result
-    },
-    get.codes.from.names = function(location.names, types) {
-      #Receive two vectors; one with location names, other with types
-      #They have the same length
-      mapply(function(location, type) {
-        if (is.na(location)) {
-          return (NA)
-        }
-        #Build a list of all names of 'type'
-        all.of.type = sapply(private$location.list, function(li) {ifelse(li$return.type == type,li$return.name,"")})
-        
-        #Find the indexes that match the location
-        indexes = grep(location, all.of.type)
-        
-        rv = names(private$location.list)[indexes]
-        
-        if (length(rv) == 0) {
-          return (NA)
-        } else {
-          return (rv)
-        }
-      }, location.names, toupper(types), SIMPLIFY = FALSE)
     },
     register.types = function (type, prefix, prefix.longform) {
       #Sizes have been checked a step up
