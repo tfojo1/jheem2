@@ -155,7 +155,7 @@ Location.Manager = R6Class("LocationManager",
         if (is.na(location)) {
           return (NA)
         }
-        if (location %in% names(private$location.list)) {
+        if (location %in% names(private$location.list) && private$location.list[[location]]$return.type == type) {
           return (location)
         }
         #Build a list of all names of 'type'
