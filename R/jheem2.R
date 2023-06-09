@@ -8,5 +8,5 @@
 #'
 #' @docType package
 #' @name jheem2
-#' @useDynLib jheem2
+#' @useDynLib jheem2, .registration = TRUE
 NULL
