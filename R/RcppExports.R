@@ -2,110 +2,110 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 overwrite_arr <- function(dst, dst_indices, src, src_indices) {
-    .Call('_jheem2_overwrite_arr', PACKAGE = 'jheem2', dst, dst_indices, src, src_indices)
+    .Call(`_jheem2_overwrite_arr`, dst, dst_indices, src, src_indices)
 }
 
 add_to_arr <- function(dst, dst_indices, src, src_indices) {
-    .Call('_jheem2_add_to_arr', PACKAGE = 'jheem2', dst, dst_indices, src, src_indices)
+    .Call(`_jheem2_add_to_arr`, dst, dst_indices, src, src_indices)
 }
 
 overwrite_arr_with_scalar <- function(dst, overwrite_with) {
-    .Call('_jheem2_overwrite_arr_with_scalar', PACKAGE = 'jheem2', dst, overwrite_with)
+    .Call(`_jheem2_overwrite_arr_with_scalar`, dst, overwrite_with)
 }
 
 add_scalar_to_arr <- function(dst, to_add) {
-    .Call('_jheem2_add_scalar_to_arr', PACKAGE = 'jheem2', dst, to_add)
+    .Call(`_jheem2_add_scalar_to_arr`, dst, to_add)
 }
 
 do_array_overwrite <- function(dst_array, src_array, dimension_values) {
-    .Call('_jheem2_do_array_overwrite', PACKAGE = 'jheem2', dst_array, src_array, dimension_values)
+    .Call(`_jheem2_do_array_overwrite`, dst_array, src_array, dimension_values)
 }
 
 do_expand_array <- function(dst_array, src_array) {
-    .Call('_jheem2_do_expand_array', PACKAGE = 'jheem2', dst_array, src_array)
+    .Call(`_jheem2_do_expand_array`, dst_array, src_array)
 }
 
 do_get_expand_indices <- function(dst_array, src_dim_names) {
-    .Call('_jheem2_do_get_expand_indices', PACKAGE = 'jheem2', dst_array, src_dim_names)
+    .Call(`_jheem2_do_get_expand_indices`, dst_array, src_dim_names)
 }
 
 do_access_overwrite <- function(dst, src, dst_indices, src_indices) {
-    .Call('_jheem2_do_access_overwrite', PACKAGE = 'jheem2', dst, src, dst_indices, src_indices)
+    .Call(`_jheem2_do_access_overwrite`, dst, src, dst_indices, src_indices)
 }
 
 do_access_add <- function(dst, src, dst_indices, src_indices) {
-    .Call('_jheem2_do_access_add', PACKAGE = 'jheem2', dst, src, dst_indices, src_indices)
+    .Call(`_jheem2_do_access_add`, dst, src, dst_indices, src_indices)
 }
 
 do_access_subtract <- function(dst, src, dst_indices, src_indices) {
-    .Call('_jheem2_do_access_subtract', PACKAGE = 'jheem2', dst, src, dst_indices, src_indices)
+    .Call(`_jheem2_do_access_subtract`, dst, src, dst_indices, src_indices)
 }
 
 do_access_multiply <- function(dst, src, dst_indices, src_indices) {
-    .Call('_jheem2_do_access_multiply', PACKAGE = 'jheem2', dst, src, dst_indices, src_indices)
+    .Call(`_jheem2_do_access_multiply`, dst, src, dst_indices, src_indices)
 }
 
 do_access_divide <- function(dst, src, dst_indices, src_indices) {
-    .Call('_jheem2_do_access_divide', PACKAGE = 'jheem2', dst, src, dst_indices, src_indices)
+    .Call(`_jheem2_do_access_divide`, dst, src, dst_indices, src_indices)
 }
 
-compute_dx <- function(state, time, quantity_scratch) {
-    .Call('_jheem2_compute_dx', PACKAGE = 'jheem2', state, time, quantity_scratch)
+compute_dx <- function(state, time, settings, quantity_scratch_vector, scratch_vector, quantities_info, natality_info, mortality_info, transitions_info, infections_info, remission_info, fixed_strata_info, population_trackers) {
+    .Call(`_jheem2_compute_dx`, state, time, settings, quantity_scratch_vector, scratch_vector, quantities_info, natality_info, mortality_info, transitions_info, infections_info, remission_info, fixed_strata_info, population_trackers)
 }
 
 calculate_main_effect_indices <- function(target_dim_names, alpha_dimensions, alpha_dim_values) {
-    .Call('_jheem2_calculate_main_effect_indices', PACKAGE = 'jheem2', target_dim_names, alpha_dimensions, alpha_dim_values)
+    .Call(`_jheem2_calculate_main_effect_indices`, target_dim_names, alpha_dimensions, alpha_dim_values)
 }
 
 calculate_two_way_interaction_indices <- function(target_dim_names, alpha_dimension1, alpha_dim1_values, alpha_dimension2, alpha_dim2_values) {
-    .Call('_jheem2_calculate_two_way_interaction_indices', PACKAGE = 'jheem2', target_dim_names, alpha_dimension1, alpha_dim1_values, alpha_dimension2, alpha_dim2_values)
+    .Call(`_jheem2_calculate_two_way_interaction_indices`, target_dim_names, alpha_dimension1, alpha_dim1_values, alpha_dimension2, alpha_dim2_values)
 }
 
 calculate_three_way_interaction_indices <- function(target_dim_names, alpha_dimension1, alpha_dim1_values, alpha_dimension2, alpha_dim2_values, alpha_dimension3, alpha_dim3_values) {
-    .Call('_jheem2_calculate_three_way_interaction_indices', PACKAGE = 'jheem2', target_dim_names, alpha_dimension1, alpha_dim1_values, alpha_dimension2, alpha_dim2_values, alpha_dimension3, alpha_dim3_values)
+    .Call(`_jheem2_calculate_three_way_interaction_indices`, target_dim_names, alpha_dimension1, alpha_dim1_values, alpha_dimension2, alpha_dim2_values, alpha_dimension3, alpha_dim3_values)
 }
 
 calculate_four_way_interaction_indices <- function(target_dim_names, alpha_dimension1, alpha_dim1_values, alpha_dimension2, alpha_dim2_values, alpha_dimension3, alpha_dim3_values, alpha_dimension4, alpha_dim4_values) {
-    .Call('_jheem2_calculate_four_way_interaction_indices', PACKAGE = 'jheem2', target_dim_names, alpha_dimension1, alpha_dim1_values, alpha_dimension2, alpha_dim2_values, alpha_dimension3, alpha_dim3_values, alpha_dimension4, alpha_dim4_values)
+    .Call(`_jheem2_calculate_four_way_interaction_indices`, target_dim_names, alpha_dimension1, alpha_dim1_values, alpha_dimension2, alpha_dim2_values, alpha_dimension3, alpha_dim3_values, alpha_dimension4, alpha_dim4_values)
 }
 
 do_add_alphas_to_arr <- function(arr, dims, alpha_values, alpha_dims, alpha_indices) {
-    invisible(.Call('_jheem2_do_add_alphas_to_arr', PACKAGE = 'jheem2', arr, dims, alpha_values, alpha_dims, alpha_indices))
+    invisible(.Call(`_jheem2_do_add_alphas_to_arr`, arr, dims, alpha_values, alpha_dims, alpha_indices))
 }
 
 do_add_or_set_two_way_interaction_alphas_to_arr <- function(arr, dims, dim1, dim1_values, dim2, dim2_values, values, add) {
-    invisible(.Call('_jheem2_do_add_or_set_two_way_interaction_alphas_to_arr', PACKAGE = 'jheem2', arr, dims, dim1, dim1_values, dim2, dim2_values, values, add))
+    invisible(.Call(`_jheem2_do_add_or_set_two_way_interaction_alphas_to_arr`, arr, dims, dim1, dim1_values, dim2, dim2_values, values, add))
 }
 
 do_add_or_set_three_way_interaction_alphas_to_arr <- function(arr, dims, dim1, dim1_values, dim2, dim2_values, dim3, dim3_values, values, add) {
-    invisible(.Call('_jheem2_do_add_or_set_three_way_interaction_alphas_to_arr', PACKAGE = 'jheem2', arr, dims, dim1, dim1_values, dim2, dim2_values, dim3, dim3_values, values, add))
+    invisible(.Call(`_jheem2_do_add_or_set_three_way_interaction_alphas_to_arr`, arr, dims, dim1, dim1_values, dim2, dim2_values, dim3, dim3_values, values, add))
 }
 
 do_add_or_set_four_way_interaction_alphas_to_arr <- function(arr, dims, dim1, dim1_values, dim2, dim2_values, dim3, dim3_values, dim4, dim4_values, values, add) {
-    invisible(.Call('_jheem2_do_add_or_set_four_way_interaction_alphas_to_arr', PACKAGE = 'jheem2', arr, dims, dim1, dim1_values, dim2, dim2_values, dim3, dim3_values, dim4, dim4_values, values, add))
+    invisible(.Call(`_jheem2_do_add_or_set_four_way_interaction_alphas_to_arr`, arr, dims, dim1, dim1_values, dim2, dim2_values, dim3, dim3_values, dim4, dim4_values, values, add))
 }
 
 sorted_vectors_overlap <- function(x, y) {
-    .Call('_jheem2_sorted_vectors_overlap', PACKAGE = 'jheem2', x, y)
+    .Call(`_jheem2_sorted_vectors_overlap`, x, y)
 }
 
 setdiff_sorted_vectors <- function(x, y) {
-    .Call('_jheem2_setdiff_sorted_vectors', PACKAGE = 'jheem2', x, y)
+    .Call(`_jheem2_setdiff_sorted_vectors`, x, y)
 }
 
 union_sorted_vectors <- function(vectors) {
-    .Call('_jheem2_union_sorted_vectors', PACKAGE = 'jheem2', vectors)
+    .Call(`_jheem2_union_sorted_vectors`, vectors)
 }
 
 apply_ontology_mapping <- function(src, dst, from_values, to_values, na_rm) {
-    .Call('_jheem2_apply_ontology_mapping', PACKAGE = 'jheem2', src, dst, from_values, to_values, na_rm)
+    .Call(`_jheem2_apply_ontology_mapping`, src, dst, from_values, to_values, na_rm)
 }
 
 get_ontology_mapping_matrix <- function(src_dim_names, dst_dim_names, dst, from_values, to_values) {
-    .Call('_jheem2_get_ontology_mapping_matrix', PACKAGE = 'jheem2', src_dim_names, dst_dim_names, dst, from_values, to_values)
+    .Call(`_jheem2_get_ontology_mapping_matrix`, src_dim_names, dst_dim_names, dst, from_values, to_values)
 }
 
 get_ontology_mapping_indices <- function(src_dim_names, dst_dim_names, from_values, to_values) {
-    .Call('_jheem2_get_ontology_mapping_indices', PACKAGE = 'jheem2', src_dim_names, dst_dim_names, from_values, to_values)
+    .Call(`_jheem2_get_ontology_mapping_indices`, src_dim_names, dst_dim_names, from_values, to_values)
 }
 
