@@ -966,7 +966,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         strat.to.common.mapping = NULL
                         target.to.common.mapping.placeholder = NULL
                         
-                        # if (strat=='year__color') browser()
                         # Only for when there is no target.ontology or the need.to.set.keep.dimensions flag is on.
                         # Determine keep.dimensions if keep.dimensions is NULL. Will be all incomplete dimensions and dimension.values dimensions that are greater than length 1
                         # We use the flag because a previous, failed stratification could have set keep.dimensions in this scope but we don't want to use it
@@ -994,7 +993,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 strat.to.target.mapping = get.ontology.mapping(strat.dimnames, target.ontology)
                             }
                         }
-                        # if (strat == "year__color") browser()
+                        
                         # Skip this stratification if mappings were needed and couldn't be found
                         if (!is.null(target.ontology) &&
                             (is.null(strat.to.target.mapping) && is.null(strat.to.common.mapping)))
@@ -1004,7 +1003,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         # This will also help us check whether the dimensions for this stratification are correct post-mapping
                         dimnames.for.apply = NULL
                         
-                        # if (strat == "year__color") browser()
                         if (is.null(target.ontology)) {
                             
                             # In this case, check that the stratification has exactly keep.dimensions + dimension.values dimensions
@@ -1034,7 +1032,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 next
                             
                         }
-                        # browser()
 
                         data.elements.accessors = 'data'
                         if ('url' %in% append.attributes)
@@ -1076,7 +1073,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     
                                 }
                             }
-                            # browser()
+                            
                             data.temp = mapping.to.apply$apply(
                                 data.to.process,
                                 na.rm = na.rm,
@@ -1258,7 +1255,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         
                         # Mark this source as a success so that we can subset easier later (when some sources will have return data and others NULL)
                         sources.successful.names <<- c(sources.successful.names, x)
-                        # browser()
+                        
                         # If the pull() was called without keep.dimensions defined, use the keep.dimensions of this successful pull as keep.dimensions for other sources
                         keep.dimensions <<- keep.dimensions
                         need.to.set.keep.dimensions.flag <<- FALSE
