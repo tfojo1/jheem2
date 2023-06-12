@@ -247,7 +247,7 @@ register.ontology.mapping <- function(name,
     
     #-- Register the mapping --#
     #   (Only if it has not been registered previously)
-    
+
     equals.mapping = sapply(ONTOLOGY.MAPPING.MANAGER$mappings, function(other.mapping){
         mapping$equals(other.mapping)
     })
@@ -1432,11 +1432,11 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
         equals = function(other)
         {
             all(dim(self$from.values)==dim(other$from.values)) &&
-                all(dim(self$to.values)==dim(other$to.values)) &
+                all(dim(self$to.values)==dim(other$to.values)) &&
                 all(self$from.dimensions == other$from.dimensions) &&
                 all(self$to.dimensions == other$to.dimensions) &&
-                all(self$from.values == other$from.values) &&
-                all(self$to.values == other$to.values)
+                identical(self$from.values, other$from.values) &&
+                identical(self$to.values, other$to.values)
         }
     ),
     
