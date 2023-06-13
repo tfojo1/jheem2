@@ -487,6 +487,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #      where either
             #   --- the corresponding dimension in the ontology is incomplete OR
             #   --- the values are a subset of the values of the corresponding dimension in the ontology
+            #   --- the dimension values for any dimension named "location" contains only valid locations
             if (!is.numeric(data))
                 stop(paste0(error.prefix,
                             "'data' must be a numeric object"))
@@ -532,7 +533,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                "these are not valid values"),
                                         " for the '", ontology.name, "' ontology's '", d, "' dimension"))
                     }
-                })  
+                })
+                
+                if ('location' %in% names(dimnames(data))) {
+                    if (!all(sapply(dimnames(data)['location'], function(v) {locations::is.location.valid(v)} ))) {
+                        stop(paste0(error.prefix, "some or all locations in data are invalid"))
+                    }
+                }
+                
             }
             else if (length(data)!=1)
                 stop(paste0(error.prefix,
@@ -548,6 +556,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             dimension.values = resolve.ontology.dimension.values(ont = ont,
                                                                  dimension.values = dimension.values,
                                                                  error.prefix = paste0(error.prefix, "Error resolving 'dimension.values' - "))
+            
+            # If dimension.values contains dimension "location", check that every value is a valid location.
+            if ("location" %in% names(dimension.values)) {
+                if (!all(sapply(dimension.values['location'], function(v) {locations::is.location.valid(v)} ))) {
+                    stop(paste0(error.prefix, "some or all locations in 'dimension.values' are invalid"))
+                }
+            }
 
             # 4) *source* is
             #    a single, non-NA, non-empty character value
