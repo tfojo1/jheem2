@@ -1047,64 +1047,100 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 next
                             
                         }
+                        
 
                         data.elements.accessors = 'data'
                         if ('url' %in% append.attributes)
                             data.elements.accessors = append(data.elements.accessors, 'url')
                         if ('details' %in% append.attributes)
                             data.elements.accessors = append(data.elements.accessors, 'details')
+                        
+                        # We'll check whether all the needed incomplete dimension values are present once we can map the strat
+                        strat.missing.incomplete.dimension.values = FALSE
 
                         # Apply mapping to data and subset in one step
                         data.to.return = lapply(data.elements.accessors, function(a) {
                             
-                            # default
-                            function.to.apply = 'sum'
+                            if (strat.missing.incomplete.dimension.values) {
+                                NULL
+                            }
                             
-                            if (is.null(target.ontology)) {
+                            else {
+                                # default
+                                function.to.apply = 'sum'
                                 
-                                data.to.process = private[[paste0('i.', a)]][[outcome]][[x]][[y]][[strat]]
-                                mapping.to.apply = get.identity.ontology.mapping()
-                                
-                            } else {
-                            
-                                if (a == 'data') {
-                                    
-                                    data.to.process = strat.data
-                                    
-                                } else {
+                                if (is.null(target.ontology)) {
                                     
                                     data.to.process = private[[paste0('i.', a)]][[outcome]][[x]][[y]][[strat]]
-                                    function.to.apply = function(b) {list(unique(unlist(b)))}
-                                    
-                                }
-                                
-                                if (allow.mapping.from.target.ontology) {
-                                    
-                                    mapping.to.apply = strat.to.common.mapping
+                                    mapping.to.apply = get.identity.ontology.mapping()
                                     
                                 } else {
                                     
-                                    mapping.to.apply = strat.to.target.mapping
+                                    if (a == 'data') {
+                                        
+                                        data.to.process = strat.data
+                                        
+                                    } else {
+                                        
+                                        data.to.process = private[[paste0('i.', a)]][[outcome]][[x]][[y]][[strat]]
+                                        function.to.apply = function(b) {list(unique(unlist(b)))}
+                                        
+                                    }
                                     
+                                    if (allow.mapping.from.target.ontology) {
+                                        
+                                        mapping.to.apply = strat.to.common.mapping
+                                        
+                                    } else {
+                                        
+                                        mapping.to.apply = strat.to.target.mapping
+                                        
+                                    }
+                                }
+                                
+                                # Before we apply the mapping to the data, we need to see whether the stratification, when mapped, has all the dimension values asked for (from incomplete dimensions)
+                                mapped.dimnames = mapping.to.apply$apply.to.dim.names(strat.dimnames)
+                                incomplete.dimension.values = NULL
+                                
+                                if (is.null(target.ontology)) {
+                                    incomplete.dimension.values = dimension.values[names(dimension.values) %in% incomplete.dimensions(ont)]
+                                }
+                                else {
+                                    incomplete.dimension.values = dimension.values[names(dimension.values) %in% incomplete.dimensions(target.ontology)]
+                                }
+                                for (d in names(incomplete.dimension.values)) {
+                                    if (!(dimension.values[d] %in% mapped.dimnames)) {
+                                        strat.missing.incomplete.dimension.values <<- TRUE
+                                        break
+                                    }
+                                }
+                                # if this strat doesn't have the needed incomplete dimension values, return NULL
+                                if (strat.missing.incomplete.dimension.values) {
+                                    NULL
+                                }
+                                else {
+                                    data.temp = mapping.to.apply$apply(
+                                        data.to.process,
+                                        na.rm = na.rm,
+                                        to.dim.names = dimnames.for.apply,
+                                        fun = function.to.apply
+                                    )
+                                    
+                                    if (!is.null(target.ontology) && a != 'data') {
+                                        data.temp = lapply(data.temp, function(b) {b[[1]]})
+                                        dim(data.temp) = sapply(dimnames.for.apply, length)
+                                        dimnames(data.temp) = dimnames.for.apply
+                                    }
+                                    
+                                    data.temp
                                 }
                             }
-                            
-                            data.temp = mapping.to.apply$apply(
-                                data.to.process,
-                                na.rm = na.rm,
-                                to.dim.names = dimnames.for.apply,
-                                fun = function.to.apply
-                            )
-                            
-                            if (!is.null(target.ontology) && a != 'data') {
-                                data.temp = lapply(data.temp, function(b) {b[[1]]})
-                                dim(data.temp) = sapply(dimnames.for.apply, length)
-                                dimnames(data.temp) = dimnames.for.apply
-                            }
-                            
-                            data.temp
-                            
                         })
+                        
+                        if (strat.missing.incomplete.dimension.values) {
+                            data.to.return = NULL
+                            next
+                        }
                         
                         names(data.to.return) = data.elements.accessors
                         
