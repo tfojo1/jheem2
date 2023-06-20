@@ -19,6 +19,8 @@ register.basic.likelihood.instructions <- function(outcome.for.data,
                                                    measurement.error.coefficient.of.variance,
                                                    weights)
 {
+    #@Andrew fill in arguments to constructor
+    JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new()
     
 }
 
@@ -27,6 +29,11 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
     inherit = JHEEM.LIKELIHOOD.INSTRUCTIONS,
     
     public = list(
+        
+        initialize = function()
+        {
+            
+        }
         
     )
 )
@@ -39,8 +46,15 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
     
     public = list(
         
-        initialize = function()
+        initialize = function(version,
+                              location,
+                              instructions,
+                              error.prefix)
         {
+            super$initialize(version = version,
+                             location = location,
+                             instructions = instructions,
+                             error.prefix = error.prefix)
             
             # Need to check weights
             # - All dimension values in weights are present in the pulled data
