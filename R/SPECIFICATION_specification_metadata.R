@@ -1,9 +1,25 @@
 
 
 
+#'@name Get a Specification Metadata Object
+#'
+#'@param version The version of the model specification (must have been previously registered) for which to get metadata
+#'@param location A single character value representing the location for the metadata
+#'@param error.prefix A string to prepend to any errors generated in getting the metadata object
+#'
+#'@details A specification.metadata object contains metadata, such as dim.names of quantities, for a specification
+#'
+#'@export
+get.specification.metadata <- function(version, location,
+                                       error.prefix = paste0("Error deriving the specification-metadata for '", version, "' and location '", location, "': "))
+{
+    SPECIFICATION.METADATA$new(version=version,
+                               location=location,
+                               error.prefix=error.prefix)
+}
 
-SPECIFICATION.INFO = R6::R6Class(
-    'specification.info',
+SPECIFICATION.METADATA = R6::R6Class(
+    'specification.metadata',
     inherit = JHEEM.ENTITY,
     portable = F,
     
@@ -16,10 +32,9 @@ SPECIFICATION.INFO = R6::R6Class(
             #-- Call the superclass constructor --#
             super$initialize(version = version,
                              location = location,
-                             code.iteration = JHEEM.ENGINE.CODE.ITERATION,
                              intervention.code = NA,
                              calibration.index = NA,
-                             type = "Specification Info",
+                             type = "Specification Metadata",
                              error.prefix = error.prefix)
             
             specification = get.specification.for.version(version)
@@ -215,7 +230,12 @@ SPECIFICATION.INFO = R6::R6Class(
         
         i.age.lower.bounds = NULL,
         i.age.upper.bounds = NULL,
-        i.age.endpoints = NULL
+        i.age.endpoints = NULL,
+        
+        private$get.current.code.iteration = function()
+        {
+            JHEEM.ENGINE.CODE.ITERATION
+        }
         
     )
 )

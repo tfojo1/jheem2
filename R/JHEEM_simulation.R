@@ -29,18 +29,13 @@ JHEEM.SIMULATION = R6::R6Class(
             
         },
         
-        get.quantity = function()
+        get = function(outcomes,
+                       years,
+                       keep.dimensions,
+                       dimension.values,
+                       error.prefix = "Error getting simulation results: ")
         {
             
-        },
-        
-        get.quantities = function()
-        {
-            rv = sapply(outcomes, function(outcome){
-                sim$get.quantity()
-            })
-            
-            rv
         }
         
     ),
@@ -54,6 +49,11 @@ JHEEM.SIMULATION = R6::R6Class(
     ),
     
     private = list(
+        
+        get.current.code.iteration = function()
+        {
+            
+        }
         
     )
 )

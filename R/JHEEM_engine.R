@@ -309,7 +309,7 @@ set.element.taper.values <- function(jheem.engine,
                                           check.consistency = check.consistency)
 }
 
-#'@describe Set a "Future Slope" and the time after which it applies, for a model element
+#'@title Set a "Future Slope" and the time after which it applies, for a model element
 #'
 #'@details A future slope is applied to model elements with a functional.form set AFTER a given point in time
 #'
@@ -568,10 +568,7 @@ JHEEM.ENGINE = R6::R6Class(
             # Call the superclass constructor
             super$initialize(version = version,
                              location = location,
-                             code.iteration = JHEEM.ENGINE.CODE.ITERATION,
-                             intervention.code = NA,
-                             calibration.index = NA,
-                             type = 'JHEEM Engine',
+                             type = 'engine',
                              error.prefix = "Cannot create JHEEM Engine: ")
             
             private$set.up()
@@ -1517,6 +1514,11 @@ JHEEM.ENGINE = R6::R6Class(
         ##-- PRIVATE METHODS --##
         ##---------------------##
         ##---------------------##
+        
+        get.current.code.iteration = function()
+        {
+            JHEEM.ENGINE.CODE.ITERATION
+        },
         
         ##------------##
         ##-- SET UP --##
