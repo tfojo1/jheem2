@@ -6,9 +6,9 @@
 
 #@Andrew need to document more
 #'@export
-instantiate.likelihood <- function(version,
+instantiate.likelihood <- function(instructions.code,
+                                   version,
                                    location,
-                                   instructions.code,
                                    error.prefix = "Error instantiating likelihood from instructions: ")
 {
     instr = get.likelihood.instructions(code=instructions.code, error.prefix=error.prefix)
@@ -109,14 +109,19 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             # Validate likelihood.class.generator
             # - Needs to be an R6ClassGenerator object
             # - Recurse up the inheritance tree of the classes using $get_inherit(). Something up that chain must have $classname=='jheem.likelihood'
-            # Validate weights: must be a jheem.likelihood.weights object            
+            # Validate weights: must be a jheem.likelihood.weights object     
+            # - All dimensions named in weights must be named in the dimensions of this likelihood
             
             # Store values - @Andrew finish this off
             private$i.code = code
             private$i.name = name
             private$i.description = description
             
-            private$i.outcomes
+            private$i.outcomes = outcomes
+            private$i.years = years
+            private$i.dimensions = dimensions
+            
+            private$i.weights = weights
             
             private$i.likelihood.class.generator = likelihood.class.generator
             

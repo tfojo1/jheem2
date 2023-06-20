@@ -157,7 +157,12 @@ JHEEM.SIMULATED.ENTITY = R6::R6Class(
     
     public = list(
         
-        initialize = function()
+        initialize = function(version,
+                              location,
+                              outcomes,
+                              years,
+                              type,
+                              error.prefix)
         {
             
             

@@ -42,6 +42,9 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         initialize = function()
         {
             
+            # Need to check weights
+            # - All dimension values in weights are present in the pulled data
+            
         },
         
         compute = function(sim, log=T)

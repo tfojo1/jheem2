@@ -21,7 +21,7 @@ get.sim.quantity <- function(sim, outcome)
 
 JHEEM.SIMULATION = R6::R6Class(
     'jheem.simulation',
-    inherit = JHEEM.ENTITY,
+    inherit = JHEEM.SIMULATED.ENTITY,
     
     public = list(
         initialize = function()
