@@ -372,6 +372,65 @@ incomplete.dimensions <- function(x)
     ont
 }
 
+#'@title Modify an Ontology's Names
+#'
+#'@export
+'names<-.ontology' <- function(ont, value)
+{
+    if (length(value) != length(ont))
+        stop("In setting the names of the ontology, every dimension must have a name (the length of the names must be the same as the length of the ontology and cannot be NULL)")
+    rv = NextMethod()
+    
+    #-- Validate dimension names --#
+    
+    if (length(names(rv))==0)
+        stop("The names of an ontology cannot be set to empty")
+    
+    if (any(is.na(names(rv))))
+        stop("The names of an ontology cannot be NA")
+    
+    if (any(nchar(names(rv))==0))
+        stop("The names of an ontology cannot be empty")
+    
+    tabled.names = table(names(rv))
+    if (any(tabled.names>1))
+        stop(paste0("The names of an ontology cannot be repeated, (",
+                    paste0("'", names(tabled.names)[tabled.names>1], "'", collapse=', '),
+                    ")"))
+    
+    names(attr(rv, 'is.complete')) = names(rv)
+    
+    rv
+}
+
+c.ontology <- function(...)
+{
+    args = list(...)
+    if (all(sapply(args, is, 'ontology')))
+    {
+        list.args = as.list(args[[1]])
+        incomplete.dims = incomplete.dimensions(args[[1]])
+        for (to.add in args[-1])
+        {
+            overlapping.dimensions = intersect(names(to.add), names(list.args))
+            if (length(overlapping.dimensions)>0)
+                stop(paste0("Cannot concatenate ontologies: the ",
+                            ifelse(length(overlapping.dimensions)==1, 'dimension ', 'dimensions '),
+                            collapse.with.and("'", overlapping.dimensions, "'"),
+                            
+                            ifelse(length(overlapping.dimensions)==1, ' appears', ' appear'),
+                            " in more than one of the arguments to c()"))
+            
+            list.args = c(list.args, to.add)
+            incomplete.dims = c(incomplete.dims, incomplete.dimensions(to.add))
+        }
+        
+        do.call(ontology, args=c(list.args, list(incomplete.dimensions=incomplete.dims)))
+    }
+    else
+        rv
+}
+
 #'@title Resolve dimension.values into a set of dimnames for an ontology
 #'
 #'@param ont An ontology, as created by \code\link{ontology}}
