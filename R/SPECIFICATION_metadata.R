@@ -232,7 +232,7 @@ SPECIFICATION.METADATA = R6::R6Class(
         i.age.upper.bounds = NULL,
         i.age.endpoints = NULL,
         
-        private$get.current.code.iteration = function()
+        get.current.code.iteration = function()
         {
             JHEEM.ENGINE.CODE.ITERATION
         }
