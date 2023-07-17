@@ -87,7 +87,7 @@ ontology <- function(..., incomplete.dimensions=NULL)
         values
     })
     names(rv) = dimensions
-
+    
     #-- Set up is.complete --#
     if (is.null(incomplete.dimensions))
         is.complete = !sapply(rv, is.null)
@@ -108,14 +108,17 @@ ontology <- function(..., incomplete.dimensions=NULL)
         is.complete = sapply(names(rv), function(d){all(d!=incomplete.dimensions)})
     }
     
-    null.complete.dimension.mask = sapply(rv, is.null) & is.complete
-    if (any(null.complete.dimension.mask))
-        stop(paste0("The values of a dimension in an ontology can only be NULL if the dimension is incomplete. NULL was passed for ",
-                    ifelse(sum(null.complete.dimension.mask)==1, "dimension ", "dimensions "),
-                    collapse.with.and("'", dimensions[null.complete.dimension.mask], "'"),
-                    ", ",
-                    ifelse(sum(null.complete.dimension.mask)==1, "which was", "which were"),
-                    " not specified as incomplete"))
+    if (length(rv)>0)
+    {
+        null.complete.dimension.mask = sapply(rv, is.null) & is.complete
+        if (any(null.complete.dimension.mask))
+            stop(paste0("The values of a dimension in an ontology can only be NULL if the dimension is incomplete. NULL was passed for ",
+                        ifelse(sum(null.complete.dimension.mask)==1, "dimension ", "dimensions "),
+                        collapse.with.and("'", dimensions[null.complete.dimension.mask], "'"),
+                        ", ",
+                        ifelse(sum(null.complete.dimension.mask)==1, "which was", "which were"),
+                        " not specified as incomplete"))
+    }
     
     names(is.complete) = names(rv)
     attr(rv, 'is.complete') = is.complete
@@ -129,19 +132,26 @@ ontology <- function(..., incomplete.dimensions=NULL)
 #'@param ontology An ontology, as created by \code\link{ontology}}
 #'
 #'@export
-print.ontology <- function(ontology)
+print.ontology <- function(ont)
 {
-    to.print = lapply(ontology, function(val){val})
-    complete.text = rep('incomplete', length(ontology))
-    complete.text[attr(ontology, 'is.complete')] = 'complete'
-    names(to.print) = paste0(names(ontology), " (", complete.text, ")")
-    
-    print(to.print)
+    if (length(ont)==0)
+    {
+        print("An empty ontology")
+    }
+    else
+    {
+        to.print = lapply(ont, function(val){val})
+        complete.text = rep('incomplete', length(ont))
+        complete.text[attr(ont, 'is.complete')] = 'complete'
+        names(to.print) = paste0(names(ont), " (", complete.text, ")")
+        
+        print(to.print)
+    }
 }
 
 #'@title Convert a named list to an ontology
 #'
-#'@param x A named list of character vectors
+#'@param x A named list of charactera vectors
 #'
 #'@export
 as.ontology <- function(x, incomplete.dimensions=NULL)
@@ -166,13 +176,19 @@ as.ontology <- function(x, incomplete.dimensions=NULL)
 #'@export
 as.list.ontology <- function(ont)
 {
-    rv = lapply(1:length(ont), function(i){
-        ont[[i]]
-    })
-    names(rv) = names(ont)
-    
-    rv
+    if (length(ont)==0)
+        list()
+    else
+    {
+        rv = lapply(1:length(ont), function(i){
+            ont[[i]]
+        })
+        names(rv) = names(ont)
+        
+        rv
+    }
 }
+
 
 #'@title Test if an object is of type 'ontology'
 #'
@@ -353,8 +369,9 @@ incomplete.dimensions <- function(x)
 #'@export
 '[[<-.ontology' <- function(ont, i, value)
 {
-    ont[i] = list(value)
-    ont
+    NextMethod()
+#    ont[i] = list(value)
+#    ont
 }
 
 #'@title Modify an ontology
@@ -368,8 +385,9 @@ incomplete.dimensions <- function(x)
 #'@export
 '$<-.ontology' <- function(ont, i, value)
 {
-    ont[[i]] = value
-    ont
+    NextMethod()
+#    ont[[i]] = value
+#    ont
 }
 
 #'@title Modify an Ontology's Names
