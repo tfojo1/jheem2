@@ -1,15 +1,71 @@
-# source('R/SPECIFICATION_scales.R')
-# source('R/HELPERS_misc_helpers.R')
-# source('R/DATA_MANAGER_data_manager.R')
-# source('R/ONTOLOGY_ontology.R')
-# source('R/ONTOLOGY_ontology_mappings.R')
-# source('R/HELPERS_array_helpers.R')
-# source('R/HELPERS_dim_names_helpers.R')
-# source('R/SPECIFICATION_model_specification.R') #has the outcome.metadata object definition
-# # source('R/LOCATIONS_location_manager.R')
-# Rcpp::sourceCpp('src/array_helpers.cpp')
+source('R/SPECIFICATION_scales.R')
+source('R/HELPERS_misc_helpers.R')
+source('R/DATA_MANAGER_data_manager.R')
+source('R/ONTOLOGY_ontology.R')
+source('R/ONTOLOGY_ontology_mappings.R')
+source('R/HELPERS_array_helpers.R')
+source('R/HELPERS_dim_names_helpers.R')
+source('R/SPECIFICATION_model_specification.R') #has the outcome.metadata object definition
+# source('R/LOCATIONS_location_manager.R')
+Rcpp::sourceCpp('src/array_helpers.cpp')
+Rcpp::sourceCpp('src/ontology_mappings.cpp')
+library(locations)
 
 DATA.ROOT.DIR = '../../v1_data/'
+
+STATE.MAPPINGS = c(
+    'Alabama' = 'AL',
+    'Alaska' = 'AK',
+    'Arizona' = 'AZ',
+    'Arkansas' = 'AR',
+    'California' = 'CA',
+    'Colorado' = 'CO',
+    'Connecticut' = 'CT',
+    'Delaware' = 'DE',
+    'District of Columbia' = 'DC',
+    'Florida' = 'FL',
+    'Georgia' = 'GA',
+    'Hawaii' = 'HI',
+    'Idaho' = 'ID',
+    'Illinois' = 'IL',
+    'Indiana' = 'IN',
+    'Iowa' = 'IA',
+    'Kansas' = 'KS',
+    'Kentucky' = 'KY',
+    'Louisiana' = 'LA',
+    'Maine' = 'ME',
+    'Maryland' = 'MD',
+    'Massachusetts' = 'MA',
+    'Michigan' = 'MI',
+    'Minnesota' = 'MN',
+    'Mississippi' = 'MS',
+    'Missouri' = 'MO',
+    'Montana' = 'MT',
+    'Nebraska' = 'NE',
+    'Nevada' = 'NV',
+    'New Hampshire' = 'NH',
+    'New Jersey' = 'NJ',
+    'New Mexico' = 'NM',
+    'New York' = 'NY',
+    'North Carolina' = 'NC',
+    'North Dakota' = 'ND',
+    'Oklahoma' = 'OK',
+    'Ohio' = 'OH', #
+    'Oregon' = 'OR',
+    'Pennsylvania' = 'PA',
+    'Rhode Island' = 'RI',
+    'South Carolina' = 'SC',
+    'South Dakota' = 'SD',
+    'Tennessee' = 'TN',
+    'Texas' = 'TX',
+    'Utah' = 'UT',
+    'Vermont' = 'VT',
+    'Virginia' = 'VA',
+    'Washington' = 'WA',
+    'West Virginia' = 'WV',
+    'Wisconsin' = 'WI',
+    'Wyoming' = 'WY'
+)
 
 # load('R/sysdata.rda')
 
@@ -67,6 +123,7 @@ test.proportion.aggregation = function(browse=F) {
     names(data)[names(data)=='Year'] = 'year'
     data$year = as.character(data$year)
     names(data)[names(data)=='Geography'] = 'location'
+    data$location = STATE.MAPPINGS[data$location]
     names(data)[names(data)=='Sex'] = 'sex'
     data$sex = tolower(data$sex)
     data$age = paste0(data$Age.Group, " years")
@@ -113,9 +170,9 @@ test.proportion.aggregation = function(browse=F) {
     if (is.null(pull.test.2)) print(paste0(error.prefix, "pull.test.2 failed"))
     
     # specific values that should be present
-    if (pull.test.1[['Alaska', '2018', '13-24 years', 'male', 1]] != 73.3)
+    if (pull.test.1[['AK', '2018', '13-24 years', 'male', 1]] != 73.3)
         print(paste0(error.prefix, "pull.test.1 failed"))
-    if (pull.test.2[['Alaska', '2018', '13-24 years', 1]] != 79.975)
+    if (pull.test.2[['AK', '2018', '13-24 years', 1]] != 79.975)
         print(paste0(error.prefix, "pull.test.2 failed"))
     
     else print(paste0(error.prefix, "All tests passed"))
@@ -145,7 +202,7 @@ test.choosing.stratifications = function(browse=F) {
     data.manager$register.source('cdc', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
     
     data.manager$register.ontology(
-        'CDC_with_races',
+        'CDC_bho',
         ont=ontology(
             location=NULL,
             year=NULL,
@@ -180,6 +237,7 @@ test.choosing.stratifications = function(browse=F) {
         names(data)[names(data)=='Year'] = 'year'
         data$year = as.character(data$year)
         names(data)[names(data)=='Geography'] = 'location'
+        data$location = STATE.MAPPINGS[data$location]
         names(data)[names(data)=='Sex'] = 'sex'
         data$sex = tolower(data$sex)
         data$risk = risk.mappings[data$Transmission.Category]
@@ -219,9 +277,9 @@ test.choosing.stratifications = function(browse=F) {
     if (is.null(pull.test.2)) print(paste0(error.prefix, "pull.test.2 failed"))
     
     # specific values that should be present
-    if (pull.test.1[['Alabama', '2008', '13-24 years', 'male', 'idu', 1]] != 2)
+    if (pull.test.1[['AL', '2008', '13-24 years', 'male', 'idu', 1]] != 2)
         print(paste0(error.prefix, "pull.test.1 failed"))
-    if (pull.test.2[['Alabama', '2008', 'male', 'idu', 1]] != 26)
+    if (pull.test.2[['AL', '2008', 'male', 'idu', 1]] != 26)
         print(paste0(error.prefix, "pull.test.2 failed"))
     
     else print(paste0(error.prefix, "All tests passed"))
@@ -287,6 +345,7 @@ test.target.ontology = function(browse=F) {
         names(data)[names(data)=='Year'] = 'year'
         data$year = as.character(data$year)
         names(data)[names(data)=='Geography'] = 'location'
+        data$location = STATE.MAPPINGS[data$location]
         names(data)[names(data)=='Sex'] = 'sex'
         data$sex = tolower(data$sex)
         data$risk = risk.mappings[data$Transmission.Category]
@@ -325,9 +384,9 @@ test.target.ontology = function(browse=F) {
     if (is.null(pull.test.2)) print(paste0(error.prefix, "pull.test.2 failed"))
     
     # specific values that should be present
-    if (pull.test.1[['Alabama', '2008', '13-24 years', 'male', 'idu', 1]] != 2)
+    if (pull.test.1[['AL', '2008', '13-24 years', 'male', 'idu', 1]] != 2)
         print(paste0(error.prefix, "pull.test.1 failed"))
-    if (pull.test.2[['Alabama', '2008', 'male', 'idu', 1]] != 26)
+    if (pull.test.2[['AL', '2008', 'male', 'idu', 1]] != 26)
         print(paste0(error.prefix, "pull.test.2 failed"))
     
     else print(paste0(error.prefix, "All tests passed"))
@@ -386,6 +445,7 @@ test.argument.validation = function(browse=F) {
     names(data)[names(data)=='Year'] = 'year'
     data$year = as.character(data$year)
     names(data)[names(data)=='Geography'] = 'location'
+    data$location = STATE.MAPPINGS[data$location]
     names(data)[names(data)=='Sex'] = 'sex'
     data$sex = tolower(data$sex)
     data$age = paste0(data$Age.Group, " years")
@@ -503,8 +563,8 @@ test.argument.validation = function(browse=F) {
                     test.target.ontology.fail.2 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         target.ontology = ontology(
-                            location='Maryland',
-                            year=NULL,
+                            location='MD',
+                            year=as.character(2008:2020),
                             age=c('13-24 years', '25-34 years', '35-44 years', '45-54 years','55+ years'),
                             race=c('black','hispanic','other'),
                             sex=c('male','female'),
@@ -581,8 +641,8 @@ test.argument.validation = function(browse=F) {
                     test.target.ontology.pass.1 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         target.ontology = ontology(
-                            location='Maryland',
-                            year=NULL,
+                            location='MD',
+                            year=as.character(2008:2020),
                             age=c('13-24 years', '25-34 years', '35-44 years', '45-54 years','55+ years'),
                             race=c('black','hispanic','other'),
                             sex=c('male','female'),
@@ -674,7 +734,8 @@ test.common.ontology = function(browse=F) {
     # --Process data--
     
     data.list = list(
-        data.1 = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/npm_08.19_race.male.risk.csv/'))
+        data.1 = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/npm_08.19_race.male.risk.csv')),
+        data.2 = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/npm_08.19_male.risk.csv'))
     )
     
     outcome.mappings = c('HIV diagnoses'='new')
@@ -707,10 +768,12 @@ test.common.ontology = function(browse=F) {
         names(data)[names(data)=='Year'] = 'year'
         data$year = as.character(data$year)
         names(data)[names(data)=='Geography'] = 'location'
+        data$location = STATE.MAPPINGS[data$location]
         names(data)[names(data)=='Sex'] = 'sex'
         data$sex = tolower(data$sex)
         data$risk = risk.mappings[data$Transmission.Category]
-        data$race = race.mappings[data[['Race.Ethnicity']]]
+        if (length(unique(data$race)) > 1)
+            data$race = race.mappings[data[['Race.Ethnicity']]]
         
         # MIGHT NEED TO CONVERT SOME TO NA
         data$Cases[data$Cases %in% c("Data suppressed")] = NA
@@ -748,35 +811,43 @@ test.common.ontology = function(browse=F) {
 
     pull.test.1 = data.manager$pull(
         outcome = 'new',
-        keep.dimensions = c('location', 'year', 'sex', 'risk', 'race'),
-        dimension.values = list(location='Maryland', year='2008'),
+        keep.dimensions = c('sex', 'risk'),
+        dimension.values = list(location='MD', year='2008'),
         target.ontology = data.manager$get.registered.ontology("jheem"),
         allow.mapping.from.target.ontology = T
     )
-    
+    pull.test.2 = data.manager$pull(
+        outcome = 'new',
+        keep.dimensions = c('sex', 'risk', 'race'),
+        dimension.values = list(location='MD', year='2008', sex='msm', risk='IDU_in_remission'),
+        target.ontology = data.manager$get.registered.ontology("jheem")
+    )
+    if (!is.null(pull.test.2)) {
+        print("pull.test.2 failed to produce NULL")
+    }
     if (browse) browser()
     
 }
 
 # ----MAIN----
-# test.proportion.aggregation()
-# test.choosing.stratifications(browse=F)
-# test.argument.validation()
-test.common.ontology(browse=TRUE)
+test.proportion.aggregation()
+test.choosing.stratifications(browse=F)
+test.argument.validation()
+test.common.ontology(browse=F)
 
-jheem.ontology = ontology(
-    location='Maryland',
-    year=as.character(2008:2020),
-    age=c('13-24 years', '25-34 years', '35-44 years', '45-54 years','55+ years'),
-    race=c('black','hispanic','other'),
-    sex=c('msm', 'heterosexual_male', 'female'),
-    risk=c('never_IDU', 'active_IDU', 'IDU_in_remission'))
-
-cdc.ontology = ontology(
-    location='Maryland',
-    year=as.character(2008:2020),
-    age=c('13-24 years', '25-34 years', '35-44 years', '45-54 years','55+ years'),
-    race=c('black','hispanic', 'white', 'AAPI', 'other'),
-    sex=c('male','female'),
-    risk=c('msm','idu','msm_idu','heterosexual','other'))
+# jheem.ontology = ontology(
+#     location='MD',
+#     year=as.character(2008:2020),
+#     age=c('13-24 years', '25-34 years', '35-44 years', '45-54 years','55+ years'),
+#     race=c('black','hispanic','other'),
+#     sex=c('msm', 'heterosexual_male', 'female'),
+#     risk=c('never_IDU', 'active_IDU', 'IDU_in_remission'))
+# 
+# cdc.ontology = ontology(
+#     location='MD',
+#     year=as.character(2008:2020),
+#     age=c('13-24 years', '25-34 years', '35-44 years', '45-54 years','55+ years'),
+#     race=c('black','hispanic', 'white', 'AAPI', 'other'),
+#     sex=c('male','female'),
+#     risk=c('msm','idu','msm_idu','heterosexual','other'))
 

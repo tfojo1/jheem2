@@ -1628,7 +1628,7 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                 missing.values = setdiff(private$i.mapped.from.values[required.from.indices,d],
                                          from.dim.names[[d]])
                 if (length(missing.values)==0)
-                    T
+                    F
                 else
                 {
                     if (throw.errors)
@@ -1640,11 +1640,11 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                                     ": ", collapse.with.and("'", missing.values, "'")))
                     }
                     else
-                        F
+                        T
                 }
             })
             
-            any(missing.required.from.values)
+            !any(missing.required.from.values)
         }
     )
 )

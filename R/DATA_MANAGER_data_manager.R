@@ -740,14 +740,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (all(names(data)!='outcome'))
                     stop("Cannot put long-form data to the data.manager. Either 'outcome' must be set or it must be a column in the data object")
                 
-                unique.outcomes = unique(data[,'outcome'])
+                unique.outcomes = unique(data[['outcome']])
                 for (one.outcome in unique.outcomes)
                 {
                     self$put.long.form(outcome = one.outcome,
                                        ontology.name = ontology.name,
                                        source = source,
                                        dimension.values = dimension.values,
-                                       data = data[data[,'outcome']==one.outcome,],
+                                       data = data[data[['outcome']]==one.outcome,],
                                        url = url,
                                        details = details)
                 }
@@ -760,7 +760,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 # *data* must have a column named 'value' which is numeric
                 if (all(col.names != 'value'))
                     stop(paste0(error.prefix, "'data' must have a column named 'value'"))
-                if (!is.numeric(data[,'value']))
+                if (!is.numeric(data[['value']]))
                     stop(paste0(error.prefix, "The value column in 'data' must contain numeric values"))
                 
                 # Ontology name must be a single, non-NA character vector that refers to a registered ontology
@@ -775,16 +775,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 # Resolve them to character vectors
                 dimensions = intersect(names(ont), setdiff(col.names, c('value','outcome')))
                 sapply(dimensions, function(d){
-                    if (!is.character(data[,d]) && !is.numeric(data[,d]))
+                    if (!is.character(data[[d]]) && !is.numeric(data[[d]]))
                         stop(paste0(error.prefix, "Column '", d, "' in 'data' must contain character or numeric values"))
                     T
                 })
-                data[,dimensions] = resolve.ontology.dimension.values(ont=ont, dimension.values=data[,dimensions], 
+                
+                data[dimensions] = resolve.ontology.dimension.values(ont=ont, dimension.values=data[dimensions], 
                                                                       error.prefix=paste0(error.prefix, " Error resolving dimension values - "))
              
                 # Hydrate it to an array
                 dim.names = lapply(dimensions, function(d){
-                    unique(data[,d])
+                    unique(data[[d]])
                 })
                 names(dim.names) = dimensions
                 
@@ -1037,10 +1038,21 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             
                             if (allow.mapping.from.target.ontology)
                                 
-                                if (is.null(target.to.common.mapping))
-                                    dimnames.for.apply = target.to.common.mapping.placeholder$apply.to.dim.names(dimnames.for.apply)
+                                if (is.null(target.to.common.mapping)) {
+                                    # Skip this stratification if the mapping cannot be applied to the dimnames.for.apply
+                                    
+                                    if (!target.to.common.mapping.placeholder$can.apply.to.dim.names(dimnames.for.apply))
+                                        next
+                                    else
+                                        dimnames.for.apply = target.to.common.mapping.placeholder$apply.to.dim.names(dimnames.for.apply)
+                                }
                                 else
-                                    dimnames.for.apply = target.to.common.mapping$apply.to.dim.names(dimnames.for.apply)
+                                    # Skip this stratification if the mapping cannot be applied to the dimnames.for.apply
+
+                                    if (!target.to.common.mapping$can.apply.to.dim.names(dimnames.for.apply))
+                                        next
+                                    else
+                                        dimnames.for.apply = target.to.common.mapping$apply.to.dim.names(dimnames.for.apply)
                             
                             # In this case, check that the stratification has exactly the dimnames.for.apply dimensions
                             if (!setequal(strat.dimensions, names(dimnames.for.apply)))
@@ -1109,7 +1121,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     incomplete.dimension.values = dimension.values[names(dimension.values) %in% incomplete.dimensions(target.ontology)]
                                 }
                                 for (d in names(incomplete.dimension.values)) {
-                                    if (!(dimension.values[d] %in% mapped.dimnames)) {
+                                    if (!(dimension.values[[d]] %in% mapped.dimnames[[d]])) {
                                         strat.missing.incomplete.dimension.values <<- TRUE
                                         break
                                     }
@@ -1280,6 +1292,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 }
                                 
                             }
+                            
+                            # There are too many places where the data's dimnames could be flipped between being an ontology or just a list. So right here, I should enforce that it's forevermore just a list because ontologies cause issues, such as with concatenating an ontology with a list to get new dimnames. 
+                            dimnames(data.to.return[[d]]) = as.list(dimnames(data.to.return[[d]]))
                                 
                         } # end of loop for data types
                         
