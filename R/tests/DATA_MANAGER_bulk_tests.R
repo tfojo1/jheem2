@@ -827,6 +827,20 @@ test.common.ontology = function(browse=F) {
     }
     if (browse) browser()
     
+    ### Tests whether the patch for allowing multiple dimension values per dimension
+    pull.test.3 = data.manager$pull(
+        outcome = 'new',
+        keep.dimensions = c('sex', 'risk'),
+        dimension.values = list(location=c('MD', 'AZ'), year='2008'),
+        target.ontology = data.manager$get.registered.ontology("jheem"),
+        allow.mapping.from.target.ontology = T
+    )
+    if (is.null(pull.test.1) || !is.null(pull.test.2) || is.null(pull.test.3)) {
+        print(paste0(error.prefix, "Some or all tests failed"))
+    } else {
+        print(paste0(error.prefix, "All tests passed"))
+    }
+    
 }
 
 # ----MAIN----

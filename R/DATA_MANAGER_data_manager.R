@@ -832,7 +832,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             outcome.info = private$i.outcome.info[[outcome]]
             if (is.null(outcome.info))
-                stop(paste0(error.prefix, "'", outcome, "' is not a registered ontology."))
+                stop(paste0(error.prefix, "'", outcome, "' is not a registered outcome."))
             
             # *keep.dimensions* is either NULL or a character vector with no NA values or repeats
             if (!is.null(keep.dimensions) && (!is.character(keep.dimensions) || any(duplicated(keep.dimensions)) || anyNA(keep.dimensions)))
@@ -1121,7 +1121,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     incomplete.dimension.values = dimension.values[names(dimension.values) %in% incomplete.dimensions(target.ontology)]
                                 }
                                 for (d in names(incomplete.dimension.values)) {
-                                    if (!(dimension.values[[d]] %in% mapped.dimnames[[d]])) {
+                                    if (!all(dimension.values[[d]] %in% mapped.dimnames[[d]])) {
                                         strat.missing.incomplete.dimension.values <<- TRUE
                                         break
                                     }
