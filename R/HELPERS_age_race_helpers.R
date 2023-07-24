@@ -32,10 +32,9 @@ make.age.strata.names <- function(endpoints=NULL,
             stop(paste0("'uppers' (length ", length(uppers), 
                         ") must be the same length as 'lowers' (", length(lowers), ")"))
     }
-    else if (is.null(uppers)) # error - lowers but not uppers
+    else if (!is.null(uppers)) # error - uppers but not lowers
     {
-        if (is.null(uppers))
-            stop("If 'uppers' is specified (not NULL), 'lowers' must be specified as well")
+        stop("If 'uppers' is specified (not NULL), 'lowers' must be specified as well")
     }
     else # we are using endpoints
     {
