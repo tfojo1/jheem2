@@ -20,27 +20,20 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                               compartment.value.character.aliases,
                               compartment.value.function.aliases,
                               ontologies,
-                              required.dimensions.for.ontologies,
                               
                               compartments,
                               
+                              fixed.strata.info,
                               quantities,
+                              core.components,
+                              mechanisms,
                               
                               age.info,
-                              transmission.modes,
-                              fix.strata.sizes.prior.to,
-                              fix.strata.sizes.for.dimensions,
-                              
-                              enable.perinatal.transmission,
-                              parent.child.concordant.dimensions,
-                              all.births.into.compartments,
-                              
+
                               parent.specification,
                               do.not.inherit.model.quantity.names,
                               do.not.inherit.transitions.for.dimension,
-                              
-                              top.level.schemata,
-                              top.level.references,
+                              do.not.inherit.components.with.tags,
                               
                               do.compile)
         {
@@ -52,27 +45,21 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             private$i.compartment.value.character.aliases = compartment.value.character.aliases
             private$i.compartment.value.function.aliases = compartment.value.function.aliases
             private$i.ontologies = ontologies
-            private$i.required.dimensions.for.ontologies = required.dimensions.for.ontologies
             
             private$i.compartments = compartments
             
+            private$i.fixed.strata.info = fixed.strata.info
             private$i.quantities = lapply(quantities, function(quant){quant$compile()})
+            private$i.core.components = core.components
+            private$i.mechanisms = mechanisms
             
             private$i.age.info = age.info
-            private$i.transmission.modes = transmission.modes
-            private$i.fix.strata.sizes.prior.to = fix.strata.sizes.prior.to
-            private$i.fix.strata.sizes.for.dimensions = fix.strata.sizes.for.dimensions
-            
-            private$i.enable.perinatal.transmission = enable.perinatal.transmission
-            private$i.parent.child.concordant.dimensions = parent.child.concordant.dimensions
-            private$i.all.births.into.compartments = all.births.into.compartments
+
             
             private$i.parent.specification = parent.specification
             private$i.do.not.inherit.model.quantity.names = do.not.inherit.model.quantity.names
             private$i.do.not.inherit.transitions.for.dimension = do.not.inherit.transitions.for.dimension
-            
-            private$i.top.level.schemata = top.level.schemata
-            private$i.top.level.references = top.level.references
+            private$i.do.not.inherit.components.with.tags = do.not.inherit.components.with.tags
             
             
             #-- Copy ancestor specifications and add this one --#
@@ -138,23 +125,73 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             }
         },
         
-        resolve.reference.compartment.values = function(aliases, 
-                                                        ontology,
-                                                        unresolved.alias.names,
-                                                        ontology.name.for.error,
-                                                        error.prefix,
-                                                        wrt.specification)
+        process.core.components = function(error.prefix)
         {
-            private$i.top.level.references = lapply(private$i.top.level.references, function(ref){
-                ref$resolve.compartment.values(aliases = aliases, 
-                                               ontology = ontology,
-                                               unresolved.alias.names = unresolved.alias.names,
-                                               ontology.name.for.error = ontology.name.for.error,
-                                               error.prefix = error.prefix,
-                                               wrt.specification = wrt.specification)
-            })
+            # compile all the core components
+            compiled.components = list()
+            for (uncompiled.comp in private$i.core.components)
+            {
+                compiled.components = c(compiled.components, 
+                                        uncompiled.comp$schema$compile.component(uncompiled.comp,
+                                                                                 specification = self,
+                                                                                 unpack = T,
+                                                                                 error.prefix = error.prefix))
+            }
             
-            invisible(self)
+            # check for clashes among the compiled core components in this version
+            #  (we may have introduced previously-unrecognized clashes by swapping in aliases)
+            for (i in 1:length(compiled.components))
+            {
+                comp = compiled.components[[i]]
+                for (other.comp in compiled.components[-c(1:i)])
+                {
+                    if (comp$schema$components.clash(comp, other.comp))
+                    {
+                        stop(paste0(error.prefix, "After substituting compartment aliases in specification '",
+                                    private$i.version, "', there is a clash between ",
+                                    comp$name, " and ", other.comp$name))
+                    }
+                }
+            }
+            
+            if (!is.null(private$i.parent.specification))
+            {
+                # process the parent specification's components
+                private$i.parent.specification$process.core.components(error.prefix=error.prefix)
+            
+                # pull down components from the parent that don't clash
+                # (and don't contain tags we don't want to inherit)
+                for (comp in private$i.parent.specification$core.components)
+                {
+                    if (all(comp$tag != private$i.do.not.inherit.components.with.tags) &&
+                        (comp$type != 'transition' || all(comp$dimension != private$i.do.not.inherit.transitions.for.dimension)))
+                    {
+                        clashes = sapply(compiled.components, function(other.comp){
+                            comp$schema$components.clash(comp, other.comp)
+                        })
+                        
+                        if (!all(clashes))
+                            compiled.components = c(compiled.components, list(comp))
+                    }
+                }
+            }
+            
+            private$i.core.components = compiled.components
+            
+            # Make sure all required core components are present
+            errors = character()
+            for (sch in CORE.COMPONENT.SCHEMATA)
+            {
+                any.match = any(sapply(private$i.core.components, function(comp){comp$type})==sch$type)
+                if (sch$is.required(self) && !any.match)
+                    errors = c(errors, paste0("- No ", sch$type, " has been registered for the specification. Use ",
+                                sch$register.function.name, "() to do so"))
+            }
+            if (length(errors)>0)
+                stop(paste0(error.prefix, paste0(errors, collapse='\n')))
+            
+            #-- Done --#
+            self
         }
     ),
     
@@ -214,6 +251,38 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 private$i.quantities
             else
                 stop("Cannot modify a specification's 'quantities' - they are read-only")  
+        },
+        
+        core.components = function(value)
+        {
+            if (missing(value))
+                private$i.core.components
+            else
+                stop("Cannot modify a specification's 'core.components' - they are read-only")  
+        },
+        
+        mechanisms = function(value)
+        {
+            if (missing(value))
+                private$i.mechanisms
+            else
+                stop("Cannot modify a specification's 'mechanisms' - they are read-only")  
+        },
+        
+        resolved.aliases = function(value)
+        {
+            if (missing(value))
+                private$i.compartment.value.character.aliases
+            else
+                stop("Cannot modify a specification's 'resolved.aliases' - they are read-only")
+        },
+        
+        unresolved.alias.names = function(value)
+        {
+            if (missing(value))
+                names(private$i.compartment.value.function.aliases)
+            else
+                stop("Cannot modify a specification's 'resolved.aliases' - they are read-only")
         }
     ),
     
@@ -223,6 +292,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         
         i.verbose = NULL,
         
+        i.top.level.references = NULL,
         i.top.level.quantity.names = NULL,
         i.element.names = NULL,
         
@@ -248,23 +318,39 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             do.cat(paste0("Starting compilation of specification '", private$i.version, "'\n"))
 
             #-- Process aliases for consistency --#
-            #-- Apply aliases/resolve compartment values for top-level references --#
-            do.cat("Processing character aliases and resolving top-level reference names...")
+            do.cat("Processing character aliases...")
             private$process.compartment.aliases()
-            for (spec in private$i.ancestor.specifications)
-                spec$resolve.reference.compartment.values(aliases = private$i.compartment.value.character.aliases,
-                                                          ontology = private$i.ontologies$all,
-                                                          unresolved.alias.names = names(private$i.compartment.value.function.aliases),
-                                                          ontology.name.for.error = "the ontology",
-                                                          error.prefix = error.prefix,
-                                                          wrt.specification = self)
             do.cat("done\n")
+  
+            
+            #-- Process Core Components and Mechanisms --#
+            do.cat("Processing core components...")          
+            
+            self$process.core.components(error.prefix)
+            private$process.mechanisms(error.prefix)
+            
+            do.cat("done\n")
+            
             
             #-- Pull all top-level references --#
             #-- Make sure required are present --#
             #-- Check top-level references for clashes --#
             do.cat("Deriving top-level references...")
-            private$derive.top.level.references(error.prefix=error.prefix)
+            private$i.top.level.references = list()
+            for (i in 1:length(private$i.core.components))
+            {
+                comp = private$i.core.components[[i]]
+                references = comp$schema$create.top.level.references(comp=comp,
+                                                                     specification=self,
+                                                                     error.prefix = error.prefix)
+                
+                private$i.top.level.references = c(private$i.top.level.references, references)
+                private$i.core.components[[i]] = comp$schema$set.component.top.level.references(comp, 
+                                                                                                references=references,
+                                                                                                specification = self,
+                                                                                                error.prefix = error.prefix)
+            }
+            
             do.cat("done\n")
             
             #-- Make sure there are no circular references --#
@@ -386,6 +472,51 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         ##-- COMPILE HELPERS --##
         ##---------------------##
         
+         # call AFTER process.core.components()
+         process.mechanisms = function(error.prefix)
+         {
+             # Pull each mechanism for each core component
+             for (i in 1:length(private$i.core.components))
+             {
+                 comp = private$i.core.components[[i]]
+                 for (mechanism.type in comp$schema$mechanism.types)
+                 {
+                     mechanism = private$find.mechanism.for.component(comp,
+                                                                      mechanism.type = mechanism.type,
+                                                                      error.prefix = error.prefix)
+                     if (is.null(mechanism))
+                         stop(paste0(error.prefix,
+                                     "No '", mechanism.type, "' mechanism has been registered for ",
+                                     comp$name))
+                     
+                     # Set the quantity name to the component (for the mechanism)
+                     private$i.core.components[[i]][[mechanism.type]] = mechanism$quantity.name
+                 }
+             }
+             
+             self
+         },
+
+         find.mechanism.for.component = function(comp, mechanism.type, error.prefix, ancestor.index=1)
+         {
+             # The recursion stopping condition
+             if (ancestor.index > length(private$i.ancestor.specifications))
+                 return (NULL)
+             
+             for (mechanism in private$i.ancestor.specifications[[ancestor.index]]$mechanisms)
+             {
+                 if (mechanism$type==mechanism.type &&
+                     comp$schema$component.uses.mechanism(comp=comp, mechanism=mechanism))
+                     return (mechanism)
+             }
+             
+             # We didn't find anything, so recurse up
+             private$find.mechanism.for.component(comp, 
+                                                  mechanism.type = mechanism.type,
+                                                  error.prefix = error.prefix,
+                                                  ancestor.index = ancestor.index + 1)
+         },
+ 
         # Accomplishes several goals
         #   1) Checks for circular references
         #   2) Generates a list of every model.quantity we need (from which ancestor)
@@ -493,38 +624,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             private$i.ontologies = apply.aliases(private$i.ontologies, aliases=private$i.compartment.value.character.aliases)
             private$i.compartments = apply.aliases(private$i.compartments, aliases=private$i.compartment.value.character.aliases)
           
-            # Sub-in aliases to all.births.into.compartments
-            private$i.all.births.into.compartments = do.resolve.dimension.values(dimension.values = private$i.all.births.into.compartments,
-                                                                                 aliases = private$i.compartment.value.character.aliases,
-                                                                                 ontology = private$i.ontologies$all,
-                                                                                 unresolved.alias.names = names(private$i.compartment.value.function.aliases),
-                                                                                 variable.name.for.error = 'all.births.into.compartments',
-                                                                                 ontology.name.for.error = 'the ontology',
-                                                                                 error.prefix = paste0(error.prefix, "Cannot substitute aliases into 'all.births.into.compartments': "))
-            
-            more.than.one.element.mask = sapply(private$i.all.births.into.compartments, length)>1
-            if (any(more.than.one.element.mask))
-                stop(paste0(error.prefix,
-                            "After substituting in aliases, 'all.births.into.compartments' for ",
-                            ifelse(sum(more.than.one.element.mask)==1, 'dimension ', 'dimensions '),
-                            collapse.with.and("'", names(private$i.all.births.into.compartments)[more.than.one.element.mask], "'"),
-                            ifelse(sum(more.than.one.element.mask)==1, 'has more than one compartment in it', 'have more than one compartment in them'),
-                            ". 'all.births.into.compartments' can only have one compartment value per dimension"))
-                                                                   
-            
-            invalid.mask = sapply(private$i.all.births.into.compartments, function(val){
-                any(val == names(private$i.compartment.value.function.aliases))
-            })
-            if (any(invalid.mask))
-                stop(paste0(error.prefix,
-                            "'all.births.into.compartments' cannot contain values that are compartment.value.aliases given by functions. After substituting in (character) aliases, ",
-                            ifelse(sum(invalid.mask)==1, "dimension ", "dimensions "),
-                            collapse.with.and("'", names(private$i.all.births.into.compartments)[invalid.mask], "'"),
-                            ifelse(sum(invalid.mask)==1, "contains an invalid value: ", "contain invalid values: "),
-                            collapse.with.and("'", sapply(private$i.all.births.into.compartments[invalid.mask], function(val){val}), "'"),
-                            ifelse(sum(invalid.mask)==1, "", " respectively."),
-                ))
-            
             # Figure out where function aliases will plug in to compartments
             function.aliases.plug.into.compartments = lapply(private$i.compartments, function(compartments){
                 
@@ -566,123 +665,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                             " in both"))
         },
         
-        # NB - cannot do this until aliases have been applied (could obscure 'equals' criteria)
-        derive.top.level.references = function(error.prefix)
-        {
-            #-- Pull top-level references from ancestors --#
-            for (ancestor.spec in private$i.ancestor.specifications[-1])
-            {
-                # Decide which ones we will import from ancestor
-                # To keep from parent, must satisfy both:
-                # (1) Not duplicated (equal to) a reference in this specification
-                # (2) If a transition or not in the list of 'do-not-inherit' transition dimensions and dimension applies to group in our current ontology
-                #     If not a transition, name and ontology is in top-level schemata
-                not.duplicated.mask =  sapply(ancestor.spec$top.level.references, function(ref){
-                    !any(sapply(private$i.top.level.references, ref$equals))
-                })
-                can.inherit.mask =  sapply(ancestor.spec$top.level.references, function(ref){
-                    if (ref$type == 'transition.reference')
-                        all(ref$dimension != private$i.do.not.inherit.transitions.for.dimension) &&
-                            any(names(private$i.ontologies[[ref$ontology.name]]) == ref$dimension)
-                    else
-                        any(sapply(private$i.top.level.schemata, function(schema){
-                            schema$name == ref$name && any(schema$ontology.names == ref$ontology.name)
-                        }))
-                })
-                
-                to.inherit = ancestor.spec$top.level.references[not.duplicated.mask & can.inherit.mask]
-                
-                # Check for overlaps between references we are inheriting and this top-level references
-                sapply(private$i.top.level.references, function(ref){
-                    overlaps.mask = sapply(to.inherit, ref$overlaps)
-                    if (any(overlaps.mask))
-                    {
-                        overlaps.with = sapply(to.inherit[overlaps.mask], function(clashing.ref){
-                            paste0(clashing.ref$get.description(wrt.specification=self),
-                                   " in specification '", clashing.ref$version, "'")
-                        })
-                        
-                        stop(paste0(error.prefix,
-                                    ifelse(ref$type=='transition.reference', '', "Top-level quantity "),
-                                    ref$get.description(wrt.specification=self),
-                                    "' overlaps with ",
-                                    collapse.with.and(overlaps.with)))
-                    }
-                })
-                
-                # Merge this references with references imported from parent
-                private$i.top.level.references = c(private$i.top.level.references, to.inherit)
-            }
-            
-            #-- Check to see if missing top-level reference schemata have a matching quantity name registered --#
-            for (schema in private$i.top.level.schemata)
-            {
-                missing.ontology.name.mask = sapply(schema$ontology.names, function(ont.name){
-                    ref.matches = sapply(private$i.top.level.references, function(ref){
-                        !is.null(ref$name) && ref$name==schema$name && ref$ontology.name==ont.name
-                    })
-                    all(!ref.matches)
-                })
-                
-                if (any(missing.ontology.name.mask))
-                {
-                    missing.ontology.names = schema$ontology.names[missing.ontology.name.mask]
-                    if (is.null(private$resolve.quantity.name(schema$name,
-                                                              this.refers.to.version=private$i.version)))
-                    { # there is no quantity with that name
-                        if (schema$required)
-                        {
-                            stop(paste0(error.prefix,
-                                        "Missing required model quantity '",
-                                        schema$name, "'",
-                                        ifelse(length(schema$ontology.names)==1, 
-                                               "",
-                                               paste0(" for ", collapse.with.and("'", missing.ontology.names, "'"))
-                                        )))
-                        }
-                    }
-                    else # there is a quantity with that name - register it as a top-level reference
-                    {
-                        self$register.top.level.quantity(name = schema$name,
-                                                         value = schema$name,
-                                                         groups=names(missing.ontology.names))
-                    }
-                }
-                
-            }
-            
-            
-            #-- Check for clashes between the aging quantity and transitions in the age dimension --#
-            
-            aging.references = private$i.top.level.references[sapply(private$i.top.level.references, function(ref){
-                !is.null(ref$name) && ref$name=='aging'
-            })]
-            
-            if (length(aging.references)>0)
-            {
-                ontology.names = sapply(aging.references, function(ref){
-                    ref$ontology.name
-                })
-                
-                clashes.with.ontology.name = sapply(ontology.names, function(ont){
-                    any(sapply(private$i.top.level.references, function(ref){
-                        ref$type == 'transition.reference' && ref$ontology.name == ont &&
-                            ref$dimension == 'age'
-                    }))
-                })
-                
-                if (any(clashes.with.ontology.name))
-                    stop(paste0(error.prefix,
-                                "The quantity 'aging' has been registered for ",
-                                collapse.with.and(ontology.names[clashes.with.ontology.name]),
-                                ", but one or more transitions have been registered in the 'age' dimension. You can register EITHER the 'aging' *quantity* OR transitions in the 'age' dimension"))
-            }
-            
-            #-- Done - return --#
-            
-            invisible(self)
-        },
-        
+
         get.quantities.that.depend.on = function(depends.on.name)
         {
             private$i.quantities[sapply(private$i.quantities, function(quantity){
@@ -773,13 +756,36 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 aliases = NULL
             )
             
+            required.dim.names = list()
+            ref.sources = character()
+            
             #-- Pull from top-level references --#
             for (ref in private$get.references.that.refer.to(quantity$name))
             {
                 max.dim.names.and.aliases = union.shared.dim.names.with.aliases(dim.names.1 = max.dim.names.and.aliases$dim.names, 
                                                                                 aliases.1 = max.dim.names.and.aliases$aliases,
-                                                                                dim.names.2 = ref$get.max.dim.names(self),
-                                                                                aliases.2 = ref$get.dimension.aliases(self))
+                                                                                dim.names.2 = ref$get.max.dim.names(self, error.prefix=error.prefix),
+                                                                                aliases.2 = ref$get.dimension.aliases(self, error.prefix=error.prefix))
+                
+                new.required.dim.names = ref$get.required.dim.names(self, error.prefix=error.prefix)
+                overlapping.required.dimensions = intersect(names(required.dim.names), names(new.required.dim.names))
+                for (d in overlapping.required.dimensions)
+                {
+                    if (!setequal(required.dim.names[[d]], new.required.dim.names[[d]]))
+                        stop(paste0(error.prefix,
+                                    "Cannot calculate dimnames for quantity ", 
+                                    quantity$get.original.name(private$i.version),
+                                    " - the required dimnames in dimension '", d,
+                                    "' from the reference for ", ref$source, " [",
+                                    paste0("'", new.required.dim.names[[d]], "'", collapse=', '),
+                                    "] do not align with the required dimnames for the reference(s) for ",
+                                    collapse.with.and(ref.sources), " [",
+                                    paste0("'", required.dim.names[[d]], "'", collapse=', '),
+                                    "]"))
+                }
+                required.dim.names[names(new.required.dim.names)] = new.required.dim.names
+                
+                ref.sources = c(ref.sources, ref$source)
             }
             
             #-- Pull from parent quantity.components --#
@@ -790,6 +796,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 
                 if (comp$value.type != 'function')
                 {   
+                    bk = max.dim.names.and.aliases
                     max.dim.names.and.aliases = union.shared.dim.names.with.aliases(dim.names.1 = max.dim.names.and.aliases$dim.names, 
                                                                                     aliases.1 = max.dim.names.and.aliases$aliases,
                                                                                     dim.names.2 = comp$max.dim.names,
@@ -856,6 +863,12 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 dimension.aliases = dimension.aliases[intersect(names(dimension.aliases), names(fixed.dim.names))]
             }
             
+            #-- Make sure required.dim.names are compatible with these dimensions --#
+            for (d in names(required.dim.names))
+            {
+                
+            }
+            
             #-- Make sure applies.to for components are compatible with these dimensions --#
             sapply((1:length(quantity$components))[-1], function(i){
                 comp = quantity$components[[i]]
@@ -895,9 +908,10 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             
             #-- Set it and return --#
-            quantity$set.max.dim.names.and.dimension.aliases(max.dim.names = max.dim.names,
-                                                             dimension.aliases = dimension.aliases,
-                                                             error.prefix = paste0(error.prefix, "Cannot set aliases when calculating dimnames for quantity ", quantity$get.original.name(private$i.version), " - "))
+            quantity$set.dim.names.and.dimension.aliases(max.dim.names = max.dim.names,
+                                                         required.dim.names = required.dim.names,
+                                                         dimension.aliases = dimension.aliases,
+                                                         error.prefix = paste0(error.prefix, "Cannot set aliases when calculating dimnames for quantity ", quantity$get.original.name(private$i.version), " - "))
             
             invisible(self)
         },
@@ -1030,4 +1044,343 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
        
     )
 )
+
+##------------------------------------------##
+##------------------------------------------##
+##-- COMPILING and SORTING CORE COMPONENT --##
+##------------------------------------------##
+##------------------------------------------##
+
+compile.and.sort.core.components.for.location <- function(specification,
+                                                          specification.metadata,
+                                                          ontologies,
+                                                          error.prefix)
+{
+    #-- Compile the components --#
+    compiled.components = lapply(specification$sorted.core.components, function(comps){
+        
+        rv = list()
+        for (comp in comps)
+        {
+            rv = c(rv, 
+                   comp$schema$compile.component(comp,
+                                                 specification = specification,
+                                                 ontologies = ontologies,
+                                                 aliases = specification.metadata$compartment.aliases,
+                                                 unresolved.alias.names = character(),
+                                                 unpack = T,
+                                                 error.prefix = error.prefix))
+        }
+        
+        rv
+    })
+    
+    #-- Check for Clashes --#
+    
+    # If there is a clash
+    # - If both components are from the same version, throw an error
+    # - If different versions, throw out the later component (from an earlier version)
+    
+    i = 1
+    while (i <= length(compiled.components))
+    {
+        comp = compiled.components[[j]]
+        j = i + 1
+        while (j <= length(compiled.components))
+        {
+            other.comp = compiled.components[[j]]
+            if (comp$schema$components.clash(comp, other.comp))
+            {
+                if (comp$version == other.comp$version)
+                    stop()
+                else # remove the later component
+                    compiled.components = compiled.components[-j]
+            }
+            else
+                j = j+1
+        }
+        
+        i = i+1
+    }
+    
+
+    #-- Sort --#
+    sorted.components = lapply(CORE.COMPONENT.SCHEMATA, function(sch){
+        compiled.components[sapply(compiled.components, function(comp){comp$type}) == sch$type]
+    })
+    names(sorted.components) = names(CORE.COMPONENT.SCHEMATA)
+    
+    #-- Done: Return --#
+    sorted.components
+}
+
+
+##-----------------------------------------##
+##-----------------------------------------##
+##-- TOP-LEVEL REFERENCE CLASS HIERARCHY --##
+##-----------------------------------------##
+##-----------------------------------------##
+
+TOP.LEVEL.REFERENCE = R6::R6Class(
+    'top.level.reference',
+    portable = F,
+    
+    public = list(
+        
+        initialize = function(specification,
+                              ontology.name,
+                              value.quantity.name,
+                              source,
+                              type='top.level.reference',
+                              applies.to,
+                              required.sub.ontology.name=NULL,
+                              exclude.ontology.dimensions=character(),
+                              alias.suffix,
+                              error.prefix)
+        {
+            # Validate ontology.name
+            if (!is.character(ontology.name) || length(ontology.name)!=1 || is.na(ontology.name) || nchar(ontology.name)==0)
+                stop(paste0(error.prefix, "'ontology.name' for a ", self$descriptor, " must be a single, non-NA, non-empty character value"))
+            
+            if (is.null(names(ontology.name)) || is.na(names(ontology.name)) || nchar(names(ontology.name))==0)
+                names(ontology.name) = ontology.name
+            
+            if (all(names(ontology.name)!=names(specification$ontologies)))
+                stop(paste0(error.prefix, 
+                            "In creating a ", self$descriptor, " names(ontology.name) must be one of ",
+                            collapse.with.or("'", names(specification$ontologies), "'"),
+                            ". ", names(ontology.name), 
+                            " is not a valid name"))
+            
+            # Validate value.quantity.name
+            if (!is.character(value.quantity.name) || length(value.quantity.name)!=1 || is.na(value.quantity.name) || nchar(value.quantity.name)==0)
+                stop(paste0(error.prefix, "'value.quantity.name' for a ", self$descriptor, " must be a single, non-NA, non-empty character value"))
+            
+            # Validate type
+            if (!is.character(type) || length(type)!=1 || is.na(type) || nchar(type)==0)
+                stop(paste0(error.prefix, "'type' for a ", self$descriptor, " must be a single, non-NA, non-empty character value"))
+            
+            # Validate source
+            if (!is.character(source) || length(source)!=1 || is.na(source) || nchar(source)==0)
+                stop(paste0(error.prefix, "'source' for a ", self$descriptor, " must be a single, non-NA, non-empty character value"))
+            
+            # Validate applies.to
+            if (length(applies.to)==0)
+                applies.to = list()
+            else
+                validate.applies.to(applies.to, variable.name.for.error = 'applies.to', error.prefix = error.prefix)
+            
+            # Validate required.sub.ontology.name
+            if (!is.null(required.sub.ontology.name) &&
+                (!is.character(required.sub.ontology.name) || length(required.sub.ontology.name)!=1 || is.na(required.sub.ontology.name)))
+                stop(paste0(error.prefix, "If it is not NULL, 'required.sub.ontology.name' for a ", self$descriptor,
+                            " must be a single, non-NA character value"))
+            
+            # Validate exclude.ontology.dimensions
+            if (!is.null(exclude.ontology.dimensions) &&
+                (!is.character(exclude.ontology.dimensions) || any(is.na(exclude.ontology.dimensions))))
+                stop(paste0(error.prefix, "If it is not NULL, 'exclude.ontology.dimensions' for a ", self$descriptor,
+                            " must be a character vector without NA values"))
+            
+            
+            # Validate alias.suffix
+            if (!is.null(alias.suffix))
+            {
+                if (!is.character(alias.suffix) || length(alias.suffix)!=1 || is.na(alias.suffix) ||
+                    (alias.suffix != 'from' && alias.suffix != 'to'))
+                    stop(paste0(error.prefix, "If it is not NULL, 'alias.suffix' for a ", self$descriptor,
+                                " must be a single, non-NA character value that is either 'from' or 'to'"))
+            }
+            
+            private$i.version = specification$version
+            private$i.ontology.name = ontology.name
+            private$i.value.quantity.name = value.quantity.name
+            private$i.type = type
+            private$i.source = source
+            private$i.alias.suffix = alias.suffix
+            private$i.applies.to = applies.to
+            private$i.required.sub.ontology.name = required.sub.ontology.name
+            private$i.exclude.ontology.dimensions = exclude.ontology.dimensions
+        },
+        
+        
+        
+        
+        
+        overlaps = function(other.reference)
+        {
+            self$type == other.reference$type &&
+                self$name == other.reference$name &&
+                self$ontology.name == other.reference$ontology.name
+        },
+        
+        equals = function(other.reference)
+        {
+            self$type == other.reference$type &&
+                self$name == other.reference$name &&
+                self$ontology.name == other.reference$ontology.name
+        },
+        
+        compile = function()
+        {
+            rv = self$clone(deep=T)
+            class(rv) = NULL
+            rv
+        },
+        
+        resolve.compartment.values = function(aliases, 
+                                              ontology,
+                                              unresolved.alias.names,
+                                              ontology.name.for.error,
+                                              error.prefix,
+                                              wrt.specification)
+        {
+            # nothing to do for this class
+            invisible(self)
+        },
+        
+        get.description = function(wrt.specification, with.quotes=T)
+        {
+            if (with.quotes)
+                qu = "'"
+            else
+                qu = ''
+            
+            if (length(wrt.specification$top.level.schemata[private$i.name])>1)
+                paste0(qu, private$i.name, qu, " (for ", qu, private$i.ontology.name, qu, ")")
+            else
+                paste0(qu, private$i.name, qu)
+        },
+        
+        set.value.quantity.name = function(value.quantity.name)
+        {
+            if (!is.character(value.quantity.name) || length(value.quantity.name)!=1 || is.na(value.quantity.name))
+                stop("In set.value.quantity.name(), 'value.quantity.name' must be a single, non-NA character value")
+            
+            private$i.value.quantity.name = value.quantity.name
+        },
+        
+        get.max.dim.names = function(specification, error.prefix)
+        {
+            rv = specification$ontologies[[private$i.ontology.name]]
+            if (is.null(rv))
+                stop(paste0(error.prefix, "Missing 'ontology.name' - the specification does not contain an ontology named '", private$i.ontology.name, "'"))
+            
+            # Check that applies to is a subset of the rv
+            if (!dim.names.are.subset(sub.dim.names = private$i.applies.to, super.dim.names = rv))
+                stop(paste0(error.prefix, "The applies.to for the top-level reference using '", private$i.value.quantity.name, 
+                            "' is not a subset of the dim.names derived from the ontology ('", private$i.ontology.name, "')",
+                            ifelse(length(private$i.exclude.ontology.dimensions)==1, '', 
+                                   paste0(" less dimension(s) ", collapse.with.and("'", private$i.exclude.ontology.dimensions, "'")))))
+            
+            rv = rv[setdiff(names(rv), private$i.exclude.ontology.dimensions)]
+            
+            # Overwrite applies to values
+            rv[names(private$applies.to)] = private$i.applies.to
+            
+            rv
+        },
+
+        get.required.dim.names = function(specification, error.prefix)
+        {
+            if (is.null(private$i.required.sub.ontology.name))
+                list()
+            else
+            {
+                rv = specification$ontologies[[private$i.required.sub.ontology.name]]
+                if (is.null(rv))
+                    stop(paste0(error.prefix, "Missing 'required.sub.ontology.name' - the specification does not contain an ontology named '", private$i.required.sub.ontology.name, "'"))
+                
+                rv = rv[setdiff(names(rv), private$i.exclude.ontology.dimensions)]
+                
+                applies.to.dimensions = intersect(names(private$i.applies.to), names(rv))
+                rv[applies.to.dimensions] = private$i.applies.to[applies.to.dimensions]
+                
+                rv
+            }
+        },
+        
+        get.dimension.aliases = function(specification, error.prefix)
+        {
+            if (is.null(private$i.alias.suffix))
+                character()
+            else
+            {
+                rv = names(self$get.max.dim.names(specification, error.prefix))
+                names(rv) = rv
+                
+                has.suffix.mask = substr(rv, nchar(rv)-nchar(private$i.alias.suffix)+1, nchar(rv)) == private$i.alias.suffix
+                rv[has.suffix.mask] = substr(rv[has.suffix.mask], 1, nchar(rv[has.suffix.mask])-nchar(private$i.alias.suffix)-1)
+                
+                rv = rv[names(rv) != rv]
+                
+                rv
+            }
+        }
+    ),
+    
+    active = list(
+        
+        descriptor = function(value)
+        {
+            if (missing(value))
+                "top-level reference"
+            else
+                stop("Cannot modify a top.level.reference's 'descriptor' - it is read-only")
+        },
+        
+        version = function(value)
+        {
+            if (missing(value))
+                private$i.version
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'version' - it is read-only"))
+        },
+        
+        ontology.name = function(value)
+        {
+            if (missing(value))
+                private$i.ontology.name
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'ontology.name' - it is read-only"))
+        },
+        
+        type = function(value)
+        {
+            if (missing(value))
+                private$i.type
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'type' - it is read-only"))
+        },
+        
+        source = function(value)
+        {
+            if (missing(value))
+                private$i.source
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'source' - it is read-only"))
+        },
+        
+        value.quantity.name = function(value)
+        {
+            if (missing(value))
+                private$i.value.quantity.name
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'value.quantity.name' - it is read-only"))
+        }
+    ),
+    
+    private = list(
+        i.version = NULL,
+        i.value.quantity.name = NULL,
+        i.ontology.name = NULL,
+        i.type = NULL,
+        i.source = NULL,
+        i.alias.suffix = NULL,
+        i.applies.to = NULL,
+        i.required.sub.ontology.name = NULL,
+        i.exclude.ontology.dimensions = NULL
+    )
+)
+
 

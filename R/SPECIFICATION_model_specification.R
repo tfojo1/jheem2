@@ -22,20 +22,13 @@
 #'@param parent.version The character version of the specification from which this new specification should inherit. Must have been registered
 #'@param do.not.inherit.model.quantity.names A vector of names of model.quantities which should NOT be inherited from ancestor specifications
 #'@param do.not.inherit.transitions.for.dimension A vector of names of dimensions for which transitions should NOT be inherited from ancestor specifications
+#'@param do.not.inherit.components.with.tags A vector of tags for which core components (transmission, natality, mortality, transitions, aging) should NOT be inherited from ancestor specifications
 #'
 #'@param compartments.for.infected.only,compartments.for.uninfected.only,compartments.for.infected.and.uninfected Named lists of character vectors F@specifying the compartments for uninfected and infected groups, or compartments shared by both. The names of the lists represent dimensions, and the values the compartments for each dimension. Compartments can either be string referencing the compartments themselves, or strings representing aliases passed to compartment.value.aliases
 #'
-#'@param transmission.modes A character vector of one or more modes of transmission
 #'@param age.endpoints Optional. A numeric vector (with at least two elements) giving the endpoints of the age brackets to use for the 'age' dimension. Results in length(age.endpoints)-1 different brackets, where the first bracket spans age.endpoints[1] (inclusive) to age.endpoints[2] (exclusive), the second bracket spans age.endpoints[2] to age.endpoints[3], etc
 #'
 #'@param compartment.value.aliases A named list representing substitutions to be made into compartment names (both in compartments.for.infected.only, compartments.for.uninfected.only, compartments.for.infected.and.uninfected and in subsequent references in registering model quantities). The names of the list represent what is to be replaced. The values of the list can be either (1) character vectors that are substituted in place or (2) functions that take parameter 'location' and return a character vector
-#'
-#'@param enable.perinatal.transmission A logical indicator of whether infection can be passed through birth
-#'@param parent.child.concordant.dimensions A character vector listing the names of dimensions which must be the same for a child as for their parent (eg, if parent.child.concordant.dimensions='race', then the model will force new births into the model to have the same race as their parent)
-#'@param all.births.into.compartments A named list, each element of which is a single character or integeter value. The names of the list represent dimensions, and the values are the compartments for those dimensions into which new births must fall
-#'
-#'@param fix.strata.sizes.prior.to A numeric time, prior to which strata sizes across dimensions specified by fix.strata.sizes.for.dimensions are held constant
-#'@param fix.strata.sizes.for.dimensions A character vector of dimension names across which strata sizes should be held constant prior to fix.strata.sizes.prior.to. Must be a subset of names(compartments.for.infected.and.uninfected)
 #'
 #'@export
 create.jheem.specification <- function(version,
@@ -45,22 +38,15 @@ create.jheem.specification <- function(version,
                                        parent.version = NULL,
                                        do.not.inherit.model.quantity.names = character(),
                                        do.not.inherit.transitions.for.dimension = character(),
+                                       do.not.inherit.components.with.tags = character(),
                                        
                                        compartments.for.infected.only,
                                        compartments.for.uninfected.only,
                                        compartments.for.infected.and.uninfected,
                                        
-                                       transmission.modes,
                                        age.endpoints,
                                        
-                                       compartment.value.aliases,
-                                       
-                                       enable.perinatal.transmission,
-                                       parent.child.concordant.dimensions,
-                                       all.births.into.compartments,
-                                       
-                                       fix.strata.sizes.prior.to=NULL,
-                                       fix.strata.sizes.for.dimensions=NULL)
+                                       compartment.value.aliases)
 {
     error.prefix = "Cannot create jheem.specification: "
     
@@ -72,6 +58,10 @@ create.jheem.specification <- function(version,
     if (missing(do.not.inherit.transitions.for.dimension) ||
         is.null(do.not.inherit.transitions.for.dimension))
         do.not.inherit.transitions.for.dimension = character()
+    
+    if (missing(do.not.inherit.components.with.tags) ||
+        is.null(do.not.inherit.components.with.tags))
+        do.not.inherit.components.with.tags = character()
     
     if (missing(compartment.value.aliases) || is.null(compartment.value.aliases))
         compartment.value.aliases = list()
@@ -87,15 +77,6 @@ create.jheem.specification <- function(version,
     
     if (missing(age.endpoints))
         age.endpoints = NULL
-    
-    if (missing(enable.perinatal.transmission))
-        enable.perinatal.transmission = NULL
-    
-    if (missing(parent.child.concordant.dimensions))
-        parent.child.concordant.dimensions = NULL
-    
-    if (missing(all.births.into.compartments))
-        all.births.into.compartments = NULL
     
     ##-- CHECK ARGUMENTS --##
 
@@ -180,6 +161,9 @@ create.jheem.specification <- function(version,
         
         if (length(do.not.inherit.transitions.for.dimension)>0)
             stop("'do.not.inherit.transitions.for.dimension' can only be set if 'parent.version' is specified")
+        
+        if (length(do.not.inherit.components.with.tags)>0)
+            stop("'do.not.inherit.components.with.tags' can only be set if 'parent.version' is specified")
     }
     else
     {
@@ -190,6 +174,10 @@ create.jheem.specification <- function(version,
         if (!is.character(do.not.inherit.transitions.for.dimension))
             stop(paste0(error.prefix,
                         "'do.not.inherit.transitions.for.dimension' must be a character vector"))
+        
+        if (!is.character(do.not.inherit.components.with.tags))
+            stop(paste0(error.prefix,
+                        "'do.not.inherit.components.with.tags' must be a character vector"))
     }
 
     #-- Age Cutoffs --#
@@ -308,6 +296,7 @@ create.jheem.specification <- function(version,
     if (!is.null(age.endpoints))
     {
         compartment.value.character.aliases[['all.ages']] = age.info$ages
+        compartment.value.character.aliases[['all.ages.but.last']] = age.info$ages[-length(age.info$ages)]
     }
     
     # Pull from parent
@@ -559,238 +548,7 @@ create.jheem.specification <- function(version,
                           error.prefix = error.prefix,
                           allow.empty = T, allow.duplicate.values.across.dimensions = F)
 
-    
-    
-    #-- Transmission Modes --#
-    if (missing(transmission.modes) || is.null(transmission.modes))
-    {
-        if (is.null(parent.version))
-            stop(paste0(error.prefix,
-                        "'transmission.modes' must be specified when no parent specification is provided"))
-        
-        transmission.modes = parent.specification$transmission.modes
-    }
-    else
-    {
-        if (!is.character(transmission.modes))
-            stop(paste0(error.prefix, "'transmission.modes' must be a character vector"))
-        if (length(transmission.modes)==0)
-            stop(paste0(error.prefix, "'transmission.modes' must have at least one element"))
-        if (any(is.na(transmission.modes)))
-            stop(paste0(error.prefix, "'transmission.modes' cannot contain NA values"))
-        if (any(nchar(transmission.modes)==0))
-            stop(paste0(error.prefix, "'transmission.modes' cannot contain the empty string ('')"))
-        tabled.transmission.modes = table(transmission.modes)
-        if (any(tabled.transmission.modes>1))
-            stop(paste0(error.prefix,
-                        "'transmission.modes' cannot contain repeated values. ",
-                        collapse.with.and("'", names(tabled.transmission.modes)[tabled.transmission.modes>1], 
-                                                  "' is repeated ", 
-                                                  tabled.transmission.modes[tabled.transmission.modes>1],
-                                                  " times")))
-        
-        contains.invalid.characters.mask = sapply(transmission.modes, function(val){
-            string.contains.invalid.characters(val, valid.characters = NUMBERS.LETTERS.DASH.PERIOD.UNDERSCORE)
-        })
-        if (any(contains.invalid.characters.mask))
-        {
-            invalid.values = transmission.modes[contains.invalid.characters.mask]
-            invalid.characters = setdiff(unlist(strsplit(values, split='')),
-                                         strsplit(NUMBERS.LETTERS.DASH.PERIOD.UNDERSCORE, split='')[[1]])
-            
-           stop(paste0(error.prefix,
-                       "Invalid ",
-                       ifelse(length(invalid.values)==1, "value", "values"),
-                       " in 'transmission.mode: ",
-                       collapse.with.and("'", invalid.values, "'"),
-                       ". Transmission modes cannot contain ",
-                       collapse.with.or("'", invalid.characters, "'"),
-                       " - only numbers, letters, periods, dashes, and underscores"))
-        }
-        
-        if (!is.null(parent.specification))
-            transmission.modes = union(parent.specification$transmission.modes, transmission.modes)
-    }
-    
-    # fix.strata.sizes.prior.to, fix.strata.sizes.for.dimensions
-    if (missing(fix.strata.sizes.prior.to) || is.null(fix.strata.sizes.prior.to))
-    {
-        if (is.null(parent.specification))
-            stop(paste0(error.prefix,
-                        "'fix.strata.sizes.prior.to' must be specified when no parent specification is provided"))
-        
-        fix.strata.sizes.prior.to = parent.specification$fix.strata.sizes.prior.to
-    }
-    else
-    {
-        if (!is.numeric(fix.strata.sizes.prior.to))
-            stop(paste0(error.prefix, "'fix.strata.sizes.prior.to' must be a single, numeric value"))
-        if (length(fix.strata.sizes.prior.to)!=1)
-            stop(paste0(error.prefix, "'fix.strata.sizes.prior.to' must be a SINGLE, numeric value"))
-        if (is.na(fix.strata.sizes.prior.to))
-            stop(paste0(error.prefix, "'fix.strata.sizes.prior.to' cannot be NA"))
-    }    
-    
-    if (missing(fix.strata.sizes.for.dimensions) || is.null(fix.strata.sizes.for.dimensions))
-    {
-        if (is.null(parent.specification))
-            stop(paste0(error.prefix,
-                        "'fix.strata.sizes.for.dimensions' must be specified when no parent specification is provided"))
-        
-        fix.strata.sizes.for.dimensions = parent.specification$fix.strata.sizes.for.dimensions
-    }
-    else
-    {
-        if (!is.character(fix.strata.sizes.for.dimensions))
-            stop(paste0(error.prefix, "'fix.strata.sizes.for.dimensions' must be a character vector"))
-        if (any(is.na(fix.strata.sizes.for.dimensions)))
-            stop(paste0(error.prefix, "'fix.strata.sizes.for.dimensions' cannot contain NA values"))
-        
-        tabled.fix.strata.sizes.for.dimensions = table(fix.strata.sizes.for.dimensions)
-        if (any(tabled.fix.strata.sizes.for.dimensions>1))
-            stop(paste0(error.prefix,
-                        "'tabled.fix.strata.sizes.for.dimensions' cannot contain repeated values. ",
-                        collapse.with.and("'", names(tabled.fix.strata.sizes.for.dimensions)[tabled.fix.strata.sizes.for.dimensions>1], 
-                                          "' is repeated ", 
-                                          tabled.fix.strata.sizes.for.dimensions[tabled.fix.strata.sizes.for.dimensions>1],
-                                          " times")))
-    }
-    
-    if (length(fix.strata.sizes.for.dimensions)==0 && fix.strata.sizes.prior.to > -Inf)
-        stop(paste0(error.prefix, "'fix.strata.sizes.for.dimensions' must be a character vector if fix.strata.sizes.prior.to is >-Inf"))
-    
-    invalid.fixed.dimensions = setdiff(fix.strata.sizes.for.dimensions, names(compartments.for.infected.and.uninfected))
-    if (length(invalid.fixed.dimensions)>0)
-        stop(paste0(error.prefix,
-                    "'fix.strata.sizes.for.dimensions' can only contain dimensions given in 'compartments.for.infected.and.uninfected'",
-                    " (ie, 'fix.strata.sizes.for.dimensions' must be a subset of names(compartments.for.infected.and.uninfected) ).",
-                    collapse.with.and("'", invalid.fixed.dimensions, "'"),
-                    ifelse(length(invalid.fixed.dimensions)==1, ' is', ' are'),
-                    " not dimensions in 'compartments.for.infected.and.uninfected' (which comprise ",
-                    collapse.with.and("'", names(compartments.for.infected.and.uninfected), "'"), ")"))
-    
-    #-- perinatal transmission, parent.child.concordant.dimensions and all.births.into.compartments --#
-    
-    if (is.null(enable.perinatal.transmission))
-    {
-        if (is.null(parent.specification))
-            stop(paste0(error.prefix, "'enable.perinatal.transmission' must be specified when there is no parent specification"))
-        
-        parent.child.concordant.dimensions = parent.specification$enable.perinatal.transmission
-    }
-    else
-    {
-        if (!is.logical(enable.perinatal.transmission))
-            stop(paste0(error.prefix, "'enable.perinatal.transmission' must be a single LOGICAL value"))
-        if (length(enable.perinatal.transmission)!=1)
-            stop(paste0(error.prefix, "'enable.perinatal.transmission' must be a SINGLE, logical value"))
-        if (is.na(enable.perinatal.transmission))
-            stop(paste0(error.prefix, "'enable.perinatal.transmission' cannot be NA"))
-    }
-    
-    if (is.null(parent.child.concordant.dimensions)) #pull from parent
-    {
-        if (is.null(parent.specification))
-            stop(paste0(error.prefix, "'parent.child.concordant.dimensions' must be specified when there is no parent specification"))
-        
-        parent.child.concordant.dimensions = parent.specification$parent.child.concordant.dimensions
-    }
-    else
-    {
-        if (!is.character(parent.child.concordant.dimensions))
-            stop(paste0(error.prefix, "'parent.child.concordant.dimensions' must be a character vector"))
-        if (any(is.na(parent.child.concordant.dimensions)))
-            stop(paste0(error.prefix, "'parent.child.concordant.dimensions' cannot contain NA values"))
-        tabled.parent.child.concordant.dimensions = table(parent.child.concordant.dimensions)
-        if (any(tabled.parent.child.concordant.dimensions>1))
-            stop(paste0(error.prefix,
-                        "'parent.child.concordant.dimensions' cannot contain repeat values. ",
-                        collapse.with.and("'", names(tabled.parent.child.concordant.dimensions)[tabled.parent.child.concordant.dimensions>1], "'"),
-                        ifelse(sum(tabled.parent.child.concordant.dimensions>1)==1, " is", " are"),
-                        " included more than once"))
-        
-        invalid.dimensions = setdiff(parent.child.concordant.dimensions, all.dimensions)
-        if (length(invalid.dimensions)>0)
-            stop(paste0(error.prefix,
-                        "Invalid ",
-                        ifelse(length(invalid.dimensions)==1, "value", "values"),
-                        " for 'parent.child.concordant.dimensions': ",
-                        collapse.with.and("'", invalid.dimensions, "'"),
-                        ". Values must be one of ",
-                        collapse.with.or("'", all.dimensions, "'")))
-            
-    }
-    
-    if (is.null(all.births.into.compartments))
-    {
-        if (is.null(parent.specification))
-            stop(paste0(error.prefix, "'all.births.into.compartments' must be specified when there is no parent specification"))
-        
-        all.births.into.compartments = parent.specification$all.births.into.compartments
-    }
-    else
-    {
-        check.dimension.values.valid(all.births.into.compartments,
-                                     variable.name.for.error="all.births.into.compartments",
-                                     allow.empty=T,
-                                     allow.duplicate.values.within.dimensions = F,
-                                     error.prefix = error.prefix)
-        
-        sapply(names(all.births.into.compartments), function(d){
-            if (is.logical(all.births.into.compartments[[d]]))
-            {
-                if (sum(all.births.into.compartments[[d]])!=1)
-                    stop(paste0(error.prefix,
-                                "When values of 'all.births.into.compartments' are ",
-                                "logical vectors, they must be have exactly one TRUE value. all.births.into.compartments[['",
-                                d, "']] has ", sum(all.births.into.compartments[[d]]), 
-                                " values that are TRUE"))
-            }
-            else
-            {
-                if (length(all.births.into.compartments[[d]])>1)
-                    stop(paste0(error.prefix,
-                                "When values of 'all.births.into.compartments' are ",
-                                class(all.births.into.compartments)[1],
-                                " vectors, they must contain a single value. all.births.into.compartments[['",
-                                d, "']] contains ", length(all.births.into.compartments[[d]]), " values"))
-            }
-        })
-        
-        
-        invalid.dimensions = setdiff(names(all.births.into.compartments), all.dimensions)
-        if (length(invalid.dimensions)>0)
-            stop(paste0(error.prefix,
-                        "Invalid ",
-                        ifelse(length(invalid.dimensions)==1, "name", "names"),
-                        " for 'all.births.into.compartments': ",
-                        collapse.with.and("'", invalid.dimensions, "'"),
-                        ". names(all.births.into.compartments) must be a subset of ",
-                        collapse.with.and("'", all.dimensions, "'")))
-    }
-    
-    # Check for clashes between concordant and all births into dimensions
-    overlapping.dimensions = intersect(parent.child.concordant.dimensions, names(all.births.into.compartments))
-    if (length(overlapping.dimensions)>0)
-        stop(paste0(error.prefix,
-                    collapse.with.and("'", overlapping.dimensions, "'"),
-                    ifelse(length(overlapping.dimensions)==1, " is", " are"),
-                    " present in both 'parent.child.concordant.dimensions' and names(all.births.into.compartments). ",
-                    "A dimension must EITHER be concordant for parents/children OR specified as all born into a compartment"))
-    
-    # all.births.into.compartments cannot contain function aliases
-    invalid.mask = sapply(all.births.into.compartments, function(val){
-        any(val == names(compartment.value.function.aliases))
-    })
-    if (any(invalid.mask))
-        stop(paste0(error.prefix,
-                    "'all.births.into.compartments' cannot contain values that are compartment.value.aliases given by functions. ",
-                    ifelse(sum(invalid.mask)==1, "Dimension ", "Dimensions "),
-                    collapse.with.and("'", names(all.births.into.compartments)[invalid.mask], "'"),
-                    ifelse(sum(invalid.mask)==1, "contains an invalid value: ", "contain invalid values: "),
-                    collapse.with.and("'", sapply(all.births.into.compartments[invalid.mask], function(val){val}), "'"),
-                    ifelse(sum(invalid.mask)==1, "", " respectively."),
-                    ))
+
     
     #-- Call the constructor --#
     JHEEM.SPECIFICATION$new(
@@ -802,28 +560,61 @@ create.jheem.specification <- function(version,
         parent.specification = parent.specification,
         do.not.inherit.model.quantity.names = do.not.inherit.model.quantity.names,
         do.not.inherit.transitions.for.dimension = do.not.inherit.transitions.for.dimension,
+        do.not.inherit.components.with.tags = do.not.inherit.components.with.tags,
         
         compartments.for.infected.only = compartments.for.infected.only,
         compartments.for.uninfected.only = compartments.for.uninfected.only,
         compartments.for.infected.and.uninfected = compartments.for.infected.and.uninfected,
-        transmission.modes = transmission.modes,
         age.info = age.info,
         
         compartment.value.character.aliases = compartment.value.character.aliases,
         compartment.value.function.aliases = compartment.value.function.aliases,
-        
-        enable.perinatal.transmission = enable.perinatal.transmission,
-        parent.child.concordant.dimensions = parent.child.concordant.dimensions,
-        all.births.into.compartments = all.births.into.compartments,
-        
-        fix.strata.sizes.prior.to = fix.strata.sizes.prior.to,
-        fix.strata.sizes.for.dimensions = fix.strata.sizes.for.dimensions,
-        
-        model.quantities = list(),
-        top.level.references = list()
+
+        model.quantities = list()
     )
 }
 
+
+#'@title Set Whether to Fix Strata Sizes During a Time Period
+#'
+#'@param specification The jheem.specification object
+#'@param applies.after.time,applies.before.time Single numeric values giving the time frame over whether this setting applies
+#'@param fix.strata A single logical value indicating whether strata should be fixed during this time frame
+#'@param dimensions.to.fix A character vector denoting which dimensions should be fixed. These should be dimensions common to both infected and uninfected groups. These are only used if fix.strata==TRUE
+#'
+#'@export
+register.fixed.model.strata <- function(specification,
+                                        applies.after.time,
+                                        applies.before.time,
+                                        fix.strata=T,
+                                        dimensions.to.fix=NULL)
+{
+    if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
+        stop("'specification' must be an R6 object with class 'jheem.specification")
+
+    specification$register.fixed.strata(applies.after.time = applies.after.time,
+                                      applies.before.time = applies.before.time,
+                                      fix.strata = fix.strata,
+                                      dimensions.to.fix = dimensions.to.fix)    
+}
+
+#'@title Set The Initial Model Population
+#'
+#'@inheritParams register.model.quantity
+#'@param specification The jheem.specification object
+#'@param group Which group ("infected" or "uninfected") this initial population is for
+#'
+#'@export
+register.initial.population <- function(specification,
+                                        value,
+                                        group)
+{
+    if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
+        stop("'specification' must be an R6 object with class 'jheem.specification")
+    
+    specification$register.initial.population(value = value,
+                                              group = group)
+}
 
 #'@title Register a Model Element
 #'
@@ -997,7 +788,7 @@ register.model.element.values <- function(specification,
 #'@inheritParams register.model.element
 #'@param specification The jheem.specification object to modify
 #'@param name The name of the model quantity. Cannot overlap with names of model elements
-#'@param value Either: (1) a numeric object, (2) a character string giving the name of another model quantity or a model element, (3) an 'call' or 'expression' object (generated by expression() or expr()) containing an expression comprising other model quantities or model elements, and the operators +, -, *, /, ^, sqrt, log, and exp, or (4) a function whose arguments are some subset of 'specification.info', 'location', other model quantities and model elements, and ...
+#'@param value Either: (1) a numeric object, (2) a character string giving the name of a model quantity or a model element, (3) an 'call' or 'expression' object (generated by expression() or expr()) containing an expression comprising other model quantities or model elements, and the operators +, -, *, /, ^, sqrt, log, and exp, or (4) a function whose arguments are some subset of 'specification.metadata', 'location', other model quantities and model elements, and ...
 #'@param scale An optional parameter, indicating the scale for this model.quantity. If specified, running the model will throw an error if evaluating the quantity results in an invalid value for the scale (eg a negative rate or a proportion > 1). Can be 'rate', 'ratio', 'proportion', 'time', 'number', 'non.negative.number'
 #'@param dimensions An optional parameter, indicating the dimensions the quantity is expected to have (if dim.names is not specified, the specific values of the dimensions will be inferred automatically)
 #'@param dimension.values An optional parameter, indicating (some of) the elements that the dimnames of the quantity are supposed to contain. This must be a named list of character vectors, whose names are a subset of dimensions.
@@ -1066,46 +857,174 @@ register.model.quantity.subset <- function(specification,
                                            ...)
 }
 
-#'@title Register a Top-Level Quantity (ie a quantity required or pre-specified as optional for running a JHEEM simulation)
+
+
+
+
+#'@title Register Information about Mortality for a Model Specification
 #'
 #'@inheritParams register.model.quantity
-#'@param name The name of the quantity. Must be one of specification$top.level.quantity.names
-#'@param groups The groups to which this quantity applies. Either 'uninfected', 'infected', or 'all' ('all' applies the quantity to all groups which it could apply to)
+#'@param mortality.rate.value The mortality.rate. Either: (1) a numeric object, (2) a character string giving the name of a model quantity or a model element, (3) an 'call' or 'expression' object (generated by expression() or expr()) containing an expression comprising other model quantities or model elements, and the operators +, -, *, /, ^, sqrt, log, and exp, or (4) a function whose arguments are some subset of 'specification.metadata', 'location', other model quantities and model elements, and ...
+#'@param groups The group(s) to which the mortality apply. Either 'infected' or 'uninfected' or both
+#'@param tag A tag used to follow track this component
+#'@param applies.to A named list of character or integer vectors, denoting what subset of the groups the component apply to
+#'
+#'@family Defining Core Components for a Model Specification
 #'
 #'@export
-register.top.level.quantity <- function(specification,
-                                        name,
-                                        value,
-                                        groups='all',
-                                        na.replacement = as.numeric(NA),
-                                        ...)
+register.mortality <- function(specification,
+                               mortality.rate.value,
+                               groups = c('uninfected','infected'),
+                               tag = 'mortality',
+                               applies.to=list())
 {
     if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
         stop("'specification' must be an R6 object with class 'jheem.specification")
     
-    specification$register.top.level.quantity(name = name,
-                                              value = value,
-                                              groups = groups,
-                                              na.replacement = na.replacement,
-                                              ...)
+    specification$register.mortality(mortality.rate.value = mortality.rate.value,
+                                     groups = groups,
+                                     tag = tag,
+                                     applies.to = applies.to)
 }
 
-#'@title Register a Transition between Compartments in a Dimension
+#'@title Register Information about Natality (Births) for a Model Specification
 #'
-#'@inheritParams register.model.quantity
-#'@param name The name by which to refer to this transition. Optional, but if not specified (NULL), you will not be able to refer to this transition in other quantities or override it in descendant specifications
+#'@inheritParams register.mortality
+#'@param from.groups The group representing parents (infected or uninfected)
+#'@param to.groups The group into which births are distributed (infected or uninfected)
+#'@param fertility.rate.value,birth.proportions.value The values for the fertility rate and the proportions by which births are distributed into the to.group. Either: (1) a numeric object, (2) a character string giving the name of a model quantity or a model element, (3) an 'call' or 'expression' object (generated by expression() or expr()) containing an expression comprising other model quantities or model elements, and the operators +, -, *, /, ^, sqrt, log, and exp, or (4) a function whose arguments are some subset of 'specification.metadata', 'location', other model quantities and model elements, and ...
+#'@param parent.child.concordant.dimensions A character vector of the dimensions for which all new births share the same value as their parents
+#'@param all.births.into.compartments A named list of single character or integer values. The names represent dimensions and the elements represent the single compartment in that dimension into which all births go
+#'@param applies.to A named list of character or integer vectors, denoting what subset of the from.group fertility applies to
+#'
+#'@family Defining Core Components for a Model Specification
+#'
+#'@export
+register.natality <- function(specification,
+                              from.groups,
+                              to.groups,
+                              fertility.rate.value,
+                              birth.proportions.value,
+                              parent.child.concordant.dimensions=character(),
+                              all.births.into.compartments=character(),
+                              tag='natality',
+                              applies.to=list())
+{
+    if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
+        stop("'specification' must be an R6 object with class 'jheem.specification")
+    
+    specification$register.natality(from.groups = from.groups,
+                                    to.groups = to.groups,
+                                    fertility.rate.value = fertility.rate.value,
+                                    birth.proportions.value = birth.proportions.value,
+                                    parent.child.concordant.dimensions = parent.child.concordant.dimensions,
+                                    all.births.into.compartments = all.births.into.compartments,
+                                    tag = tag,
+                                    applies.to = applies.to)
+}
+
+#'@title Register Information about Remission from Infection for a Model Specification
+#'
+#'@inheritParams register.mortality
+#'@param remission.rate.value,remission.proportions.value The values for the remission rate and the proportions by which remitted cases are distributed into the uninfected group. Either: (1) a numeric object, (2) a character string giving the name of a model quantity or a model element, (3) an 'call' or 'expression' object (generated by expression() or expr()) containing an expression comprising other model quantities or model elements, and the operators +, -, *, /, ^, sqrt, log, and exp, or (4) a function whose arguments are some subset of 'specification.metadata', 'location', other model quantities and model elements, and ...
+#'@param applies.to A named list of character or integer vectors, denoting what subset of the infected group remissions apply to
+#'
+#'@family Defining Core Components for a Model Specification
+#'
+#'@export
+register.remission <- function(specification,
+                               remission.rate.value,
+                               remission.proportions.value,
+                               tag = 'remission',
+                               applies.to = list(),
+                               all.remissions.into.compartments = character())
+{
+    if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
+        stop("'specification' must be an R6 object with class 'jheem.specification")
+    
+    specification$register.remission(remission.rate.value =remission.rate.value,
+                                     remission.proportions.value = remission.proportions.value,
+                                     tag = tag,
+                                     applies.to = applies.to,
+                                     all.remissions.into.compartments = all.remissions.into.compartments)
+}
+
+#'@title Register Information about Aging for a Model Specification
+#'
+#'@inheritParams register.mortality
+#'@param groups The group(s) to which the aging apply. Either 'infected' or 'uninfected' or both
+#'@param aging.rate.value The values for the aging rate. Either: (1) a numeric object, (2) a character string giving the name of a model quantity or a model element, (3) an 'call' or 'expression' object (generated by expression() or expr()) containing an expression comprising other model quantities or model elements, and the operators +, -, *, /, ^, sqrt, log, and exp, or (4) a function whose arguments are some subset of 'specification.metadata', 'location', other model quantities and model elements, and ...
+#'@param applies.to A named list of character or integer vectors, denoting what subset of the group aging applies to
+#'
+#'@family Defining Core Components for a Model Specification
+#'
+#'@export
+register.aging <- function(specification,
+                           aging.rate.value,
+                           tag = 'aging',
+                           groups = c('uninfected','infected'),
+                           applies.to = list())
+{
+    if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
+        stop("'specification' must be an R6 object with class 'jheem.specification")
+    
+    specification$register.aging(aging.rate.value = aging.rate.value,
+                                 tag = tag,
+                                 groups = groups,
+                                 applies.to = applies.to)
+}
+
+#'@title Register Information about Disease Transmission for a Model Specification
+#'
+#'@inheritParams register.mortality
+#'@param contact.value,susceptibility.value,transmissibility.value,new.infection.proportions.value The values for the contact matrix, susceptibility, transmissibility, and proportions by which new infections are distributed into the infected group. Either: (1) a numeric object, (2) a character string giving the name of a model quantity or a model element, (3) an 'call' or 'expression' object (generated by expression() or expr()) containing an expression comprising other model quantities or model elements, and the operators +, -, *, /, ^, sqrt, log, and exp, or (4) a function whose arguments are some subset of 'specification.metadata', 'location', other model quantities and model elements, and ...
+#'@param from.applies.to A named list of character or integer vectors, denoting what subset of the uninfected group susceptibility and contact apply to
+#'@param to.applies.to A named list of character or integer vectors, denoting what subset of the infected group transmissibility and contact apply to
+#'
+#'@family Defining Core Components for a Model Specification
+#'
+#'@export
+register.transmission <- function(specification,
+                                  contact.value,
+                                  susceptibility.value,
+                                  transmissibility.value,
+                                  new.infection.proportions.value,
+                                  tag = 'transmission',
+                                  all.new.infections.into.compartments=character(),
+                                  from.applies.to=list(),
+                                  to.applies.to=list())
+{
+    if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
+        stop("'specification' must be an R6 object with class 'jheem.specification")
+    
+    specification$register.transmission(contact.value = contact.value,
+                                        susceptibility.value = susceptibility.value,
+                                        transmissibility.value = transmissibility.value,
+                                        new.infection.proportions.value = new.infection.proportions.value,
+                                        tag = tag,
+                                        all.new.infections.into.compartments = all.new.infections.into.compartments,
+                                        from.applies.to = from.applies.to, 
+                                        to.applies.to = to.applies.to)
+}
+
+#'@title Register Information about Disease Transmission for a Model Specification
+#'
+#'@inheritParams register.mortality,register.model.quantity
 #'@param dimension The name of the dimension in which this transition operates
 #'@param from.compartments,to.compartments The compartments from and to which this transition applies. May be (1) one or more names of compartments, (2) one or more character compartment.value.aliases, (3) one or more integers denoting compartments, (4) a logical vector, which, when applied to the dimension names, denotes the compartments
-#'@param groups The groups to which this transition applies. Either 'uninfected', 'infected', or 'all' ('all' applies the transition to all groups which it could apply to)
+#'@param groups The group(s) to which this transition applies. Either 'uninfected', 'infected', or both
+#'
+#'@family Defining Core Components for a Model Specification
 #'
 #'@export
 register.transition <- function(specification,
-                                name = NULL,
                                 dimension,
                                 from.compartments,
                                 to.compartments,
                                 value,
-                                groups,
+                                groups=NULL,
+                                applies.to=list(),
+                                tag='transition',
                                 na.replacement = as.numeric(NA),
                                 ...)
 {
@@ -1115,19 +1034,46 @@ register.transition <- function(specification,
     value.name = deparse(substitute(value))
     if (!is.character(value.name) || length(value.name) != 1 || is.na(value.name))
         value.name = 'value'
-
-    specification$register.transition(name = name,
-                                      dimension = dimension,
+    
+    specification$register.transition(dimension = dimension,
                                       from.compartments = from.compartments,
                                       to.compartments = to.compartments,
                                       value = value,
                                       groups = groups,
+                                      applies.to = applies.to,
+                                      tag = tag,
                                       na.replacement = na.replacement,
                                       ...)
 }
 
 
-
+#'@title Register Information about Disease Transmission for a Model Specification
+#'
+#'@inheritParams register.mortality,register.model.quantity
+#'@param type The type of the model mechanism. Must be one of 'mortality.rate', 'fertility.rate', 'birth.proportions', 'aging.rate', 'transition.rate', 'susceptibility', 'transmissibility', 'contact', 'new.infection.proportions', 'remission.rate', 'remission.proportions'
+#'@param dimension The name of the dimension in which this transition operates
+#'@param from.compartments,to.compartments The compartments from and to which this transition applies. May be (1) one or more names of compartments, (2) one or more character compartment.value.aliases, (3) one or more integers denoting compartments, (4) a logical vector, which, when applied to the dimension names, denotes the compartments
+#'@param group The group(s) to which this transition applies. Either 'uninfected', 'infected', or both
+#'
+#'@family Defining Core Components for a Model Specification
+#'
+#'@export
+#'
+register.model.mechanism <- function(specification,
+                                     type,
+                                     value,
+                                     tags,
+                                     groups,
+                                     from.groups,
+                                     to.groups,
+                                     dimension,
+                                     from.compartments,
+                                     to.compartments,
+                                     na.replacement = as.numeric(NA),
+                                     ...)
+{
+    
+}
 
 
 #'@title Indicate a Transition to Track for Simulations
@@ -1148,7 +1094,7 @@ register.transition <- function(specification,
 #'@details Integrates the transition (or the product of transition x multiply by), such that the simulation stores, for each year y, the integral from y to y-1 of (transition * multiply.by)
 #'
 #'@export
-track.transition <- function(specification,
+OLD.track.transition <- function(specification,
                              
                              groups='all',
                              dimension,
@@ -1214,29 +1160,103 @@ track.quantity <- function(specification,
 }
 
 
-track.dynamic.quantity <- function(specification,
-                                   name,
-                                   dynamic.quantity,
-                                   multiply.by = NULL)
-{
-    
-}
 
-track.quantity <- function(specification,
-                           name,
-                           value,
-                           cumulative=F)
+##----------------------##
+##-- OUTCOME TRACKING --##
+##----------------------##
+
+track.dynamic.outcome <- function(specification,
+                                  name,
+                                  outcome.metadata,
+                                  dynamic.quantity.name,
+                                  
+                                  tags = NULL,
+                                  groups = NULL,
+                                  
+                                  multiply.by = NULL,
+                                  keep.dimensions = NULL,
+                                  exclude.dimensions = NULL,
+                                  subset.dimension.values = NULL,
+                                  save = T)
 {
     
 }
 
 track.transition <- function(specification,
                              name,
+                             outcome.metadata,
                              dimension,
                              from.compartments,
                              to.compartments,
+                             
+                             tags = NULL,
+                             groups = NULL,
+                             
                              multiply.by = NULL,
-                             keep.dimensions = NULL)
+                             keep.dimensions = NULL,
+                             exclude.dimensions = NULL,
+                             subset.dimension.values = NULL,
+                             save = T)
+{
+    
+}
+
+track.integrated.outcome <- function(specification,
+                                     name,
+                                     outcome.metadata,
+                                     
+                                     outcome.name.to.integrate,
+                                     multiply.by = NULL,
+                                     
+                                     keep.dimensions = NULL,
+                                     exclude.dimensions = NULL,
+                                     subset.dimension.values = NULL,
+                                     save = T)
+{
+    
+}
+
+track.cumulative.outcome <- function(specification,
+                                     name,
+                                     outcome.metadata,
+                                     value,
+                                     
+                                     denominator.outcome = NULL,
+                                     keep.dimensions = NULL,
+                                     exclude.dimensions = NULL,
+                                     subset.dimension.values = NULL,
+                                     scale = NULL,
+                                     save = T)
+{
+    
+}
+
+track.quantity.outcome <- function(specification,
+                                   name,
+                                   outcome.metadata,
+                                   value,
+                                   
+                                   denominator.outcome = NULL,
+                                   keep.dimensions = NULL,
+                                   exclude.dimensions = NULL,
+                                   subset.dimension.values = NULL,
+                                   scale = NULL,
+                                   save = T)
+{
+    
+}
+
+track.cumulative.proportion.from.rate <- function(specification,
+                                                  name,
+                                                  outcome.metadata,
+                                                  rate.quantity.name,
+                                                  
+                                                  denominator.outcome,
+                                                  keep.dimensions = NULL,
+                                                  exclude.dimensions = NULL,
+                                                  subset.dimension.values = NULL,
+                                                  calculate.proportion.leaving = T,
+                                                  save = T)
 {
     
 }
@@ -1268,9 +1288,9 @@ track.transition <- function(specification,
 #'@return An object of class 'outcome.metadata' which can be passed to \code{\link{track.transition}}, \code{\link{track.quantity}}, \code{\link{track.dynamic.quantity}}
 #'
 #'@export
-create.outcome.metadata <- function(scale,
-                                    display.name,
+create.outcome.metadata <- function(display.name,
                                     description,
+                                    scale,
                                     axis.name,
                                     units,
                                     display.as.percent = scale=='proportion')
@@ -1391,6 +1411,76 @@ OUTCOME.METADATA = R6::R6Class(
     )
 )
 
+MODEL.OUTCOME.METADATA = R6::R6Class(
+    'model.outcome.metadata',
+    inherit = OUTCOME.METADATA,
+    
+    public = list(
+        
+        initialize = function(outcome.metadata,
+                              ontology,
+                              is.cumulative,
+                              corresponding.observed.outcome)
+        {
+            super$initialize(scale = outcome.metadata$scale,
+                             display.name = outcome.metadata$display.name,
+                             description = outcome.metadata$description,
+                             axis.name = outcome.metadata$axis.name,
+                             units = outcome.metadata$units,
+                             display.as.percent = outcome.metadata$display.as.percent)
+            
+            error.prefix = "Error creating model outcome.metadata: "
+            
+            # Validate ontology
+            if (!is.ontology(ontology))
+                stop(paste0(error.prefix, "'ontology' must be an object of class 'ontology' (as created by the ontology() function)"))
+            
+            # Validate is.cumulative
+            # Validate corresponding.observed.outcome
+            
+            # Store variables
+            private$i.ontology = ontology
+            private$i.is.cumulative = is.cumulative
+            private$i.corresponding.observed.outcome = corresponding.observed.outcome
+        }
+            
+    ),
+    
+    active = list(
+        
+        ontology = function(value)
+        {
+            if (missing(value))
+                private$i.ontology
+            else
+                stop("Cannot modify outcome.metadata's 'ontology' - it is read-only")
+        },
+        
+        is.cumulative = function(value)
+        {
+            if (missing(value))
+                private$i.is.cumulative
+            else
+                stop("Cannot modify outcome.metadata's 'is.cumulative' - it is read-only")
+        },
+        
+        corresponding.observed.outcome = function(value)
+        {
+            if (missing(value))
+                private$i.corresponding.observed.outcome
+            else
+                stop("Cannot modify outcome.metadata's 'corresponding.observed.outcome' - it is read-only")
+        }
+    ),
+    
+    private = list(
+        
+        i.ontology = NULL,
+        i.is.cumulative = NULL,
+        i.corresponding.observed.outcome = NULL
+    )
+)
+
 ##-----------------------##
 ##-----------------------##
 ##-- CLASS DEFINITIONS --##
@@ -1422,117 +1512,7 @@ ALLOWED.MODEL.QUANTITY.VALUE.EXPRESSION.FUNCTIONS = c("+","-","*","/","(","log",
 MIN.FUNCTIONAL.FORM.FROM.YEAR = 1970
 MAX.FUNCTIONAL.FORM.FROM.YEAR.OFFSET.FROM.CURRENT.YEAR = 50
 
-
-##-------------------------------##
-##-- TOP-LEVEL QUANTITY SCHEMA --##
-##-------------------------------##
-
-TOP.LEVEL.QUANTITY.GROUPS = c('all','uninfected','infected')
-TOP.LEVEL.QUANTITY.SCHEMA = R6::R6Class(
-    'top.level.quantity.schema',
-    portable = F,
-    
-    public = list(
-        
-        initialize = function(name,
-                              ontology.names,
-                              required=T,
-                              specification,
-                              alias.suffix=NULL)
-        {
-            #-- Validate name --#
-            if (!is.character(name) || length(name) != 1 || is.na(name) || nchar(name)==0)
-                stop("In creating a top.level.quantity.schema, 'name' must be a single, non-NA character value")
-            
-            #-- Validate required --#
-            if (!is.logical(required) || length(required)!=1 || is.na(required))
-                stop("In creating a top.level.quantity.schema, 'required' must be a single, non-NA logical value")
-            
-            #-- Validate groups --#
-            if (!is.character(ontology.names) || length(ontology.names)==0 || 
-                any(is.na(ontology.names)) || any(nchar(ontology.names)==0))
-                stop("In creating a top.level.quantity.schema, 'ontology.names' must be a non-empty, non-NA character vector")
-            
-            if (is.null(names(ontology.names)))
-                names(ontology.names) = ontology.names
-            
-            invalid.names = setdiff(names(ontology.names), TOP.LEVEL.QUANTITY.GROUPS)
-            if (length(invalid.names)>0)
-                stop(paste0("In creating a top.level.quantity.schema, names(ontology.names) must be one of ",
-                            collapse.with.or("'", TOP.LEVEL.QUANTITY.GROUPS, "'"),
-                            ". ",
-                            collapse.with.and("'", invalid.names, "'"),
-                            ifelse(length(invalid.names)==1, " is not a valid name", " are not valid names")))
-            
-            invalid.ontology.names = setdiff(ontology.names, specification$ontology.names)
-            if (length(invalid.ontology.names)>0)
-                stop(paste0("Invalid ",
-                            ifelse(length(invalid.ontology.names)==1, 'ontology.name','ontology.names'),
-                            " ", collapse.with.and("'", invalid.ontology.names, "'"),
-                            " in creating top.level.quantity.schema for specification '",
-                            specification$name, "'. Ontology names must be one of ",
-                            collapse.with.or("'", specification$ontology.names, "'")))
-            
-            #-- Validate alias.suffix --#
-            if (!is.null(alias.suffix))
-            {
-                if (!is.character(alias.suffix) || length(alias.suffix)!=1 || is.na(alias.suffix) ||
-                    (alias.suffix != 'from' && alias.suffix != 'to'))
-                    stop(paste0("If it is not NULL, 'alias.suffix' for a ", self$descriptor,
-                                " must be a single, non-NA character value that is either 'from' or 'to'"))
-            }
-            
-            #-- Store Values --#
-            private$i.name = name
-            private$i.ontology.names = ontology.names
-            private$i.required = required
-            private$i.alias.suffix = alias.suffix
-        }
-    ),
-    
-    active = list(
-        
-        ontology.names = function(value)
-        {
-            if (missing(value))
-                private$i.ontology.names
-            else
-                stop("Cannot modify 'ontology.names' for a top.level.quantity.schema - they are read-only")
-        },
-        
-        name = function(value)
-        {
-            if (missing(value))
-                private$i.name
-            else
-                stop("Cannot modify 'name' for a top.level.quantity.schema - it is read-only")
-        },
-        
-        required = function(value)
-        {
-            if (missing(value))
-                private$i.required
-            else
-                stop("Cannot modify 'required' for a top.level.quantity.schema - it is read-only")
-        },
-        
-        alias.suffix = function(value)
-        {
-            if (missing(value))
-                private$i.alias.suffix
-            else
-                stop("Cannot modify 'alias.suffix' for a top.level.quantity.schema - it is read-only")
-        }
-    ),
-    
-    private = list(
-        i.name = NULL,
-        i.ontology.names = NULL,
-        i.required = NULL,
-        i.alias.suffix = NULL
-    )
-)
-
+ALLOWED.GROUPS = c('infected', 'uninfected')
 
 ##------------------------------------------##
 ##------------------------------------------##
@@ -1549,8 +1529,11 @@ JHEEM.SPECIFICATION = R6::R6Class(
     ##-- PUBLIC --##
     public = list(
         
-        ##-- CONSTRUCTOR --## 
+        ##------------------------------##
+        ##--     The CONSTRUCTOR      --## 
         ##-- (private to the package) --##    
+        ##------------------------------##
+        
         initialize = function(version,
                               iteration,
                               description,
@@ -1558,25 +1541,17 @@ JHEEM.SPECIFICATION = R6::R6Class(
                               parent.specification,
                               do.not.inherit.model.quantity.names,
                               do.not.inherit.transitions.for.dimension,
+                              do.not.inherit.components.with.tags,
                               
                               compartments.for.infected.only,
                               compartments.for.uninfected.only,
                               compartments.for.infected.and.uninfected,
-                              transmission.modes,
                               age.info,
                               
                               compartment.value.character.aliases,
                               compartment.value.function.aliases,
                               
-                              enable.perinatal.transmission,
-                              parent.child.concordant.dimensions,
-                              all.births.into.compartments,
-                              
-                              fix.strata.sizes.prior.to,
-                              fix.strata.sizes.for.dimensions,
-                              
-                              model.quantities,
-                              top.level.references)
+                              model.quantities)
         {
             # As of now, I am assuming these have already been error-checked
             # Either by the create.jheem.specification function
@@ -1591,23 +1566,16 @@ JHEEM.SPECIFICATION = R6::R6Class(
             private$i.parent.specification = parent.specification
             private$i.do.not.inherit.model.quantity.names = do.not.inherit.model.quantity.names
             private$i.do.not.inherit.transitions.for.dimension = do.not.inherit.transitions.for.dimension
-            
-            private$i.transmission.modes = transmission.modes
+            private$i.do.not.inherit.components.with.tags = do.not.inherit.components.with.tags
             
             private$i.age.info = age.info
             
             private$i.compartment.value.character.aliases = compartment.value.character.aliases
             private$i.compartment.value.function.aliases = compartment.value.function.aliases
-            
-            private$i.enable.perinatal.transmission = enable.perinatal.transmission
-            private$i.parent.child.concordant.dimensions = parent.child.concordant.dimensions
-            private$i.all.births.into.compartments = all.births.into.compartments
-            
-            private$i.fix.strata.sizes.prior.to = fix.strata.sizes.prior.to
-            private$i.fix.strata.sizes.for.dimensions = fix.strata.sizes.for.dimensions
-            
+
             private$i.quantities = model.quantities
-            
+            private$i.core.components = list()
+            private$i.mechanisms = list()
             
             #-- Process dim.names --#
             
@@ -1642,141 +1610,68 @@ JHEEM.SPECIFICATION = R6::R6Class(
             names(general.infected.from.dim.names) = paste0(names(general.infected.from.dim.names), '.from')
             names(general.infected.to.dim.names) = paste0(names(general.infected.to.dim.names), '.to')
             
-            general.uninfected.from.dim.names = general.uninfected.to.dim.names = c(compartments.for.infected.and.uninfected, compartments.for.infected.only)
+            general.uninfected.from.dim.names = general.uninfected.to.dim.names = c(compartments.for.infected.and.uninfected, compartments.for.uninfected.only)
             names(general.uninfected.from.dim.names) = paste0(names(general.uninfected.from.dim.names), '.from')
             names(general.uninfected.to.dim.names) = paste0(names(general.uninfected.to.dim.names), '.to')
-            
-            # figure out what we can leave out of birth proportions
-            uninfected.birth.proportions.to.dimensions = setdiff(names(general.uninfected.to.dim.names),
-                                                                 c(private$i.parent.child.concordant.dimensions,
-                                                                   names(private$i.all.births.into.compartments)))
-            infected.birth.proportions.to.dimensions = setdiff(names(general.infected.to.dim.names),
-                                                               c(private$i.parent.child.concordant.dimensions,
-                                                                 names(private$i.all.births.into.compartments)))
             
             # Store the combined dim.names
             private$i.ontologies = list(
                 general = compartments.for.infected.and.uninfected,
                 infected = c(compartments.for.infected.and.uninfected, compartments.for.infected.only),
                 uninfected = c(compartments.for.infected.and.uninfected, compartments.for.uninfected.only),
+                
+                general.compartments = compartments.for.infected.and.uninfected,
+                infected.compartments = compartments.for.infected.only,
+                uninfected.compartments = compartments.for.uninfected.only,
+                
+                infected.from = general.infected.from.dim.names,
+                infected.to = general.infected.to.dim.names,
+                uninfected.from = general.uninfected.from.dim.names,
+                uninfected.to = general.uninfected.to.dim.names,
+                
+                infected.plus.uninfected = c(compartments.for.infected.and.uninfected, compartments.for.infected.only, compartments.for.uninfected.only),
+                
                 all = c(alternating.orig.from.dim.names, to.dim.names),
                 
-                contact = c(general.infected.from.dim.names, general.uninfected.to.dim.names),
+                contact = c(general.uninfected.to.dim.names, general.infected.from.dim.names),
                 
-                birth.proportions.uninfected = c(general.uninfected.from.dim.names, general.uninfected.to.dim.names[uninfected.birth.proportions.to.dimensions]),
-                birth.proportions.infected.to.uninfected = c(general.infected.from.dim.names, general.uninfected.to.dim.names[uninfected.birth.proportions.to.dimensions]),
-                birth.proportions.infected.to.infected = c(general.infected.from.dim.names, general.infected.to.dim.names[infected.birth.proportions.to.dimensions])
+                birth.proportions.uninfected.to.uninfected = c(general.uninfected.from.dim.names, general.uninfected.to.dim.names),
+                birth.proportions.uninfected.to.infected = c(general.uninfected.from.dim.names, general.infected.to.dim.names),
+                birth.proportions.infected.to.uninfected = c(general.infected.from.dim.names, general.uninfected.to.dim.names),
+                birth.proportions.infected.to.infected = c(general.infected.from.dim.names, general.infected.to.dim.names)
             )
             
-            private$i.required.dimensions.for.ontologies = list(
-                birth.proportions.uninfected = uninfected.birth.proportions.to.dimensions,
-                birth.proportions.infected.to.uninfected = uninfected.birth.proportions.to.dimensions,
-                birth.proportions.infected.to.infected = infected.birth.proportions.to.dimensions
-            )
+            # add in ontologies for aging
+            if (!is.null(private$i.age.info) && length(private$i.age.info$endpoints)>2)
+            {
+                private$i.ontologies$aging.infected = private$i.ontologies$infected
+                private$i.ontologies$aging.infected$age = 'all.ages.but.last'
+                
+                private$i.ontologies$aging.uninfected = private$i.ontologies$uninfected
+                private$i.ontologies$aging.uninfected$age = 'all.ages.but.last'
+            }
+
+            # add in ontologies for transitions
+            for (group in c('infected', 'uninfected'))
+            {
+                ont = private$i.ontologies[[group]]
+                group.dimensions = names(ont)
+                for (d in group.dimensions)
+                {
+                    transition.ontology = c(ont, ont[d])
+                    names(transition.ontology)[names(transition.ontology)==d] = paste0(d, '.from')
+                    names(transition.ontology)[length(transition.ontology)] = paste0(d, '.to')
+                    
+                    private$i.ontologies[[paste0('transition.',d,'.',group)]] = transition.ontology
+                }
+            }
+            
+            # Convert all ontologies to ontology objects
+            private$i.ontologies = lapply(private$i.ontologies, as.ontology)
             
             # Some default settings
             private$i.locked = F
-            
-            # Create the top-level schema
-            private$i.top.level.schemata = list(
-                
-                TOP.LEVEL.QUANTITY.SCHEMA$new(name = "new.infection.proportions",
-                                              ontology.names = 'all',
-                                              required = T,
-                                              specification = self),
-                
-                #-- Mortality --#
-                TOP.LEVEL.QUANTITY.SCHEMA$new(name = "infection.specific.mortality",
-                                              ontology.names = 'infected',
-                                              required = T,
-                                              specification = self),
-                
-                TOP.LEVEL.QUANTITY.SCHEMA$new(name = "general.mortality",
-                                              ontology.names = c('uninfected','infected'),
-                                              required = T,
-                                              specification = self),
-                
-                #-- Initial Population --#
-                TOP.LEVEL.QUANTITY.SCHEMA$new(name = "initial.population",
-                                              ontology.names = c('uninfected','infected'),
-                                              required = T,
-                                              specification = self),
-                
-                #-- Fertility/Births --#
-                TOP.LEVEL.QUANTITY.SCHEMA$new(name = "fertility",
-                                              ontology.names = c('uninfected','infected'),
-                                              required = T,
-                                              specification = self),
-                
-                TOP.LEVEL.QUANTITY.SCHEMA$new(name = 'uninfected.birth.proportions',
-                                              ontology.names = c(uninfected='birth.proportions.uninfected',
-                                                                 infected='birth.proportions.infected.to.uninfected'),
-                                              required = T,
-                                              specification = self,
-                                              alias.suffix = 'from')
-            )
-            
-            # Only if perinatal transmission is enabled
-            if (private$i.enable.perinatal.transmission)
-            {
-                private$i.top.level.schemata = c(private$i.top.level.schemata,
-                                                 list(
-                                                     TOP.LEVEL.QUANTITY.SCHEMA$new(name = 'fraction.births.infected',
-                                                                                   ontology.names = 'infected',
-                                                                                   required = T,
-                                                                                   specification = self),
-                                                     
-                                                     TOP.LEVEL.QUANTITY.SCHEMA$new(name = 'infected.birth.proportions',
-                                                                                   ontology.names = c(infected='birth.proportions.infected.to.infected'),
-                                                                                   required = T,
-                                                                                   specification = self,
-                                                                                   alias.suffix = 'from')
-                                                 ))
-            }
-            
-            
-            # Aging (optional, if we have an age dimension)
-            if (any(self$all.dimensions=='age'))
-                private$i.top.level.schemata = c(private$i.top.level.schemata,
-                                                 list(TOP.LEVEL.QUANTITY.SCHEMA$new("aging",
-                                                                                    ontology.names = c('infected','uninfected'),
-                                                                                    required = F,
-                                                                                    specification = self)))
-            
-            # Add in transmission-mode specific schema
-            for (mode in transmission.modes)
-            {
-                to.add = list(
-                    
-                    TOP.LEVEL.QUANTITY.SCHEMA$new(name = paste0(mode, ".susceptibility"),
-                                                  ontology.names = 'uninfected',
-                                                  required = F,
-                                                  specification = self),
-                    
-                    TOP.LEVEL.QUANTITY.SCHEMA$new(name = paste0(mode, ".transmissibility"),
-                                                  ontology.names = 'infected',
-                                                  required = F,
-                                                  specification = self),
-                    
-                    TOP.LEVEL.QUANTITY.SCHEMA$new(name = paste0(mode, ".contact"),
-                                                  ontology.names = c(all='contact'),
-                                                  required = T,
-                                                  specification = self,
-                                                  alias.suffix = 'from')
-                )
-                
-                private$i.top.level.schemata = c(private$i.top.level.schemata, to.add)
-            }
-            
-            # Set the schema names
-            names(private$i.top.level.schemata) = sapply(private$i.top.level.schemata, function(sch){sch$name})
-            
-            # Check for duplicate schema (shouldn't happen)
-            tabled.schema.names = table(names(private$i.top.level.schemata))
-            if (any(tabled.schema.names>1))
-                stop(paste0("Error creating specification: repeated top-level schema name(s): ",
-                            collapse.with.and("'", names(tabled.schema.names)[tabled.schema.names>1], "'")))
-            
+
             #-- We're done! --#
         },
         
@@ -1787,8 +1682,41 @@ JHEEM.SPECIFICATION = R6::R6Class(
         
             invisible(self)
         },
-
-    ##-- PUBLIC-FACING FUNCTIONS --##
+        
+        ##----------------##
+        ##-- FIX STRATA --##
+        ##----------------##
+        
+        register.fixed.strata = function(applies.after.time,
+                                        applies.before.time,
+                                        fix.strata,
+                                        dimensions.to.fix,
+                                        error.prefix = 'Cannot register to fix model strata: ')
+        {
+            fixed.strata.info = FIXED.STRATA.INFO$new(applies.after.time = applies.after.time,
+                                                  applies.before.time = applies.before.time,
+                                                  fix.strata = fix.strata,
+                                                  dimensions.to.fix = dimensions.to.fix)
+            
+            for (other.fix.info in private$i.fixed.strata.info)
+            {
+                if (fixed.strata.info$overlaps(other.fix.info) &&
+                    (fix.strata != other.fix.info$fix.strata || 
+                     !setequal(dimensions.to.fix, other.fix.info$dimensions.to.fix)))
+                {
+                    stop(paste0(error.prefix, "The interval [", applies.after.time, ", ", applies.before.time, "] ",
+                                "overlaps previously-registered fix strata information on the interval [",
+                                other.fix.info$applies.after.time, ", ", other.fix.info$applies.before.time, "]"))
+                }
+            }
+            
+            private$i.fixed.strata.info = c(private$i.fixed.strata.info, list(fixed.strata.info))
+        },
+        
+        ##-----------------------------------------##
+        ##-- REGISTERING ELEMENTS and QUANTITIES --##
+        ##-----------------------------------------##
+        
         register.element = function(name,
                                     scale,
                                     
@@ -1877,7 +1805,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                         
                                         error.prefix = error.prefix)
             
-            private$do.register.quantity(element, error.prefix=error.prefix)
+            private$do.store.quantity(element, error.prefix=error.prefix)
         },
         
         register.quantity = function(name,
@@ -1888,38 +1816,25 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                      dimension.values=NULL,
                                      apply.aliases.to.dimension.values=F,
                                      na.replacement=as.numeric(NA),
-                                     ...)
+                                     ...,
+                                     error.prefix=NULL)
         {
             #-- Validate name --#
             validate.quantity.name(name, descriptor = 'model quantity',
-                                   error.prefix = "Cannot register model quantity: ")
+                                   error.prefix = ifelse(is.null(error.prefix), "Cannot register model quantity: ", error.prefix))
             
-            error.prefix = paste0("Cannot register model quantity '", name, "': ")
-            
-            #-- Get value name --#
-            if (is.null(value.name))
-            {
-                value.name = deparse(substitute(value))
-                if (!is.character(value.name) || length(value.name) != 1 || is.na(value.name))
-                    value.name = 'value'
-            }
-            
-            #-- Call the constructor and register --#
-            quantity = NON.TERMINAL.MODEL.QUANTITY$new(name = name,
-                                                       version = private$i.version,
-                                                       value = value,
-                                                       value.name = value.name,
-                                                       scale = scale,
-                                                       dimensions = dimensions,
-                                                       dimension.values = dimension.values,
-                                                       apply.aliases.to.dimension.values = apply.aliases.to.dimension.values,
-                                                       na.replacement = na.replacement,
-                                                       ...,
-                                                       error.prefix = error.prefix)
-
-            private$do.register.quantity(quantity, error.prefix=error.prefix)
+            private$do.register.quantity(name = name,
+                                     value = value,
+                                     value.name = value.name,
+                                     scale = scale,
+                                     dimensions = dimensions,
+                                     dimension.values = dimension.values,
+                                     apply.aliases.to.dimension.values = apply.aliases.to.dimension.values,
+                                     na.replacement = na.replacement,
+                                     ...,
+                                     error.prefix = error.prefix)
         },
-        
+
         register.quantity.subset = function(name,
                                             value,
                                             applies.to,
@@ -1987,238 +1902,301 @@ JHEEM.SPECIFICATION = R6::R6Class(
             #-- Return --#
             invisible(self)
         },
+    
+        ##---------------------------------##
+        ##-- REGISTERING CORE COMPONENTS --##
+        ##---------------------------------##
         
-        register.transition = function(name = NULL,
-                                       dimension,
+        
+        register.mortality = function(mortality.rate.value,
+                                      groups = c('uninfected','infected'),
+                                      tag = 'mortality',
+                                      applies.to=list(),
+                                      error.prefix = "Error registering mortality: ")
+        {
+            mortality.rate.quantity.name = private$do.register.quantity.if.needed(value = mortality.rate.value,
+                                                                          value.name = 'mortality.rate.value',
+                                                                          scale = 'rate',
+                                                                          error.prefix = error.prefix)
+            
+            for (one.group in groups)
+            {
+                args = list(group = one.group,
+                            tag = tag,
+                            applies.to = applies.to)
+                
+                private$do.register.core.component(type='mortality',
+                                                   args = args,
+                                                   error.prefix = error.prefix)
+             
+                
+                private$do.register.mechanism(type = 'mortality.rate', 
+                                              quantity.name = mortality.rate.quantity.name,
+                                              tags = tag,
+                                              args = args, 
+                                              error.prefix = error.prefix)   
+            }
+        },
+
+        
+        register.natality = function(from.groups,
+                                     to.groups,
+                                     fertility.rate.value,
+                                     birth.proportions.value,
+                                     parent.child.concordant.dimensions=character(),
+                                     all.births.into.compartments=character(),
+                                     tag=NULL,
+                                     applies.to=list(),
+                                     na.replacement = as.numeric(NA),
+                                     ...,
+                                     error.prefix = "Error registering natality: ")
+        {
+            fertility.rate.quantity.name = private$do.register.quantity.if.needed(value = fertility.rate.value,
+                                                                          value.name = 'fertility.rate.value',
+                                                                          scale = 'rate',
+                                                                          error.prefix = error.prefix)
+            
+            birth.proportions.quantity.name = private$do.register.quantity.if.needed(value = birth.proportions.value,
+                                                                             value.name = 'birth.proportions.value',
+                                                                             scale = 'proportion',
+                                                                             error.prefix = error.prefix)
+            
+            for (one.from.group in from.groups)
+            {
+                for (one.to.group in to.groups)
+                {
+                    args = list(group.from = one.from.group,
+                                group.to = one.to.group,
+                                tag = tag,
+                                applies.to = applies.to,
+                                all.births.into.compartments = all.births.into.compartments,
+                                parent.child.concordant.dimensions = parent.child.concordant.dimensions)
+                    
+                    private$do.register.core.component(type='natality',
+                                                       args = args,
+                                                       error.prefix = error.prefix)
+                    
+                    private$do.register.mechanism(type = 'fertility.rate', 
+                                                  quantity.name = fertility.rate.quantity.name,
+                                                  tags = tag,
+                                                  args = args, 
+                                                  error.prefix = error.prefix)   
+                    
+                    private$do.register.mechanism(type = 'birth.proportions', 
+                                                  quantity.name = birth.proportions.quantity.name,
+                                                  tags = tag,
+                                                  args = args, 
+                                                  error.prefix = error.prefix)
+                }
+            }
+        },
+        
+        register.remission = function(remission.rate.value,
+                                      remission.proportions.value,
+                                      tag = 'remission',
+                                      applies.to = list(),
+                                      all.remissions.into.compartments = character(),
+                                      na.replacement = as.numeric(NA),
+                                      ...,
+                                      error.prefix = "Error registering remission: ")
+        {
+            remission.rate.quantity.name = private$do.register.quantity.if.needed(value = remission.rate.value,
+                                                                          value.name = 'remission.rate.value',
+                                                                          scale = 'rate',
+                                                                          error.prefix = error.prefix)
+            
+            remission.proportions.quantity.name = private$do.register.quantity.if.needed(value = remission.proportions.value,
+                                                                                 value.name = 'remission.proportions.value',
+                                                                                 scale = 'proportion',
+                                                                                 error.prefix = error.prefix)
+            
+            args = list(tag = tag,
+                        applies.to = applies.to,
+                        all.remissions.into.compartments = all.remissions.into.compartments)
+            
+            private$do.register.core.component(type='remission',
+                                               args = args,
+                                               error.prefix = error.prefix)
+            
+            private$do.register.mechanism(type = 'remission.rate', 
+                                          quantity.name = remission.rate.quantity.name,
+                                          tags = tag,
+                                          args = args, 
+                                          error.prefix = error.prefix)   
+            
+            private$do.register.mechanism(type = 'remission.proportions', 
+                                          quantity.name = remission.proportions.quantity.name,
+                                          tags = tag,
+                                          args = args, 
+                                          error.prefix = error.prefix)
+        },
+        
+        register.aging = function(aging.rate.value,
+                                  tag = 'aging',
+                                  groups = c('uninfected','infected'),
+                                  applies.to = list(),
+                                  na.replacement = as.numeric(NA),
+                                  ...,
+                                  error.prefix = "Error registering aging: ")
+        {
+            aging.rate.quantity.name = private$do.register.quantity.if.needed(value = aging.rate.value,
+                                                                      value.name = 'aging.rate.value',
+                                                                      scale = 'rate',
+                                                                      error.prefix = error.prefix)
+            
+            for (one.group in groups)
+            {
+                args = list(group = one.group,
+                            tag = tag,
+                            applies.to = applies.to)
+                
+                private$do.register.core.component(type='aging',
+                                                   args = args,
+                                                   error.prefix = error.prefix)
+                
+                
+                private$do.register.mechanism(type = 'aging.rate', 
+                                              quantity.name = aging.rate.quantity.name,
+                                              tags = tag,
+                                              args = args, 
+                                              error.prefix = error.prefix)   
+            }
+        },
+        
+        register.transmission = function(contact.value,
+                                         susceptibility.value,
+                                         transmissibility.value,
+                                         new.infection.proportions.value,
+                                         tag=NULL,
+                                         all.new.infections.into.compartments = character(),
+                                         from.applies.to=list(),
+                                         to.applies.to=list(),
+                                         na.replacement = as.numeric(NA),
+                                         ...,
+                                         error.prefix = "Error registering transmission: ")
+        {
+            contact.quantity.name = private$do.register.quantity.if.needed(value = contact.value,
+                                                                   value.name = 'contact.value',
+                                                                   scale = 'non.negative.number',
+                                                                   error.prefix = error.prefix)
+            
+            susceptibility.quantity.name = private$do.register.quantity.if.needed(value = susceptibility.value,
+                                                                          value.name = 'susceptibility.value',
+                                                                          scale = 'non.negative.number',
+                                                                          error.prefix = error.prefix)
+            
+            transmissibility.quantity.name = private$do.register.quantity.if.needed(value = transmissibility.value,
+                                                                            value.name = 'transmissibility.value',
+                                                                            scale = 'non.negative.number',
+                                                                            error.prefix = error.prefix)
+            
+            new.infection.proportions.quantity.name = private$do.register.quantity.if.needed(value = new.infection.proportions.value,
+                                                                                     value.name = 'new.infection.proportions.value',
+                                                                                     scale = 'proportion',
+                                                                                     error.prefix = error.prefix)
+            
+            args = list(tag = tag,
+                        all.new.infections.into.compartments = all.new.infections.into.compartments,
+                        from.applies.to = from.applies.to,
+                        to.applies.to = to.applies.to)
+            
+            private$do.register.core.component(type='transmission',
+                                               args = args,
+                                               error.prefix = error.prefix)
+            
+            private$do.register.mechanism(type = 'contact', 
+                                          quantity.name = contact.quantity.name,
+                                          tags = tag,
+                                          args = args, 
+                                          error.prefix = error.prefix)   
+            
+            private$do.register.mechanism(type = 'susceptibility', 
+                                          quantity.name = susceptibility.quantity.name,
+                                          tags = tag,
+                                          args = args, 
+                                          error.prefix = error.prefix)   
+            
+            private$do.register.mechanism(type = 'transmissibility', 
+                                          quantity.name = transmissibility.quantity.name,
+                                          tags = tag,
+                                          args = args, 
+                                          error.prefix = error.prefix)   
+            
+            private$do.register.mechanism(type = 'new.infection.proportions', 
+                                          quantity.name = new.infection.proportions.quantity.name,
+                                          tags = tag,
+                                          args = args, 
+                                          error.prefix = error.prefix)
+        },
+        
+        register.transition = function(dimension,
                                        from.compartments,
                                        to.compartments,
                                        value,
-                                       groups,
-                                       value.name = NULL,
+                                       groups=NULL,
+                                       applies.to=list(),
+                                       tag='default',
                                        na.replacement = as.numeric(NA),
-                                       ...)
+                                       ...,
+                                       error.prefix = "Error registering transition: ")
         {
-            #-- Set up error prefix --#
-            #-- Validate name (if not NULL) --#
-            if (is.null(name))
-            {
-                if (is.character(dimension) && length(dimension)==1 && !is.na(dimension))
-                    error.prefix = paste0("Cannot register transition in dimension '", dimension, "': ")
-                else
-                    error.prefix = "Cannot register transition: "
-            }
-            else
-            {
-                validate.quantity.name(name, descriptor = "transition",
-                                       error.prefix = "Cannot register transition: ")
-                error.prefix = paste0("Cannot register transition '", name, "': ")
-            }        
-            error.prefix = "Cannot register transition: "
+            transition.rate.quantity.name = private$do.register.quantity.if.needed(value = value,
+                                                                           value.name = 'value',
+                                                                           scale = 'rate',
+                                                                           error.prefix = error.prefix,
+                                                                           na.replacement = na.replacement,
+                                                                           ...)
             
-            #-- Validate groups --#
-            if (!is.null(groups))
+            for (one.group in groups)
             {
-                if (!is.character(groups))
-                    stop(paste0(error.prefix, "'groups' must be a character vector"))
-                if (length(groups)==0)
-                    stop(paste0(error.prefix, "'groups' must have at least one element"))
-                if (any(is.na(groups)))
-                    stop(paste0(error.prefix, "'groups' cannot contain NA values"))
+                args = list(group = one.group,
+                            tag = tag,
+                            applies.to = applies.to,
+                            dimension = dimension,
+                            from.compartments = from.compartments,
+                            to.compartments = to.compartments)
                 
-                invalid.groups = setdiff(groups, TOP.LEVEL.QUANTITY.GROUPS)
-                if (length(invalid.groups)>0)
-                {
-                    stop(paste0(error.prefix, "Invalid ",
-                                ifelse(length(invalid.groups)==0, 'value', 'values'),
-                                " for 'groups': ",
-                                collapse.with.and("'", invalid.groups, "'"),
-                                ". (Must be a subset of ",
-                                collapse.with.and("'", TOP.LEVEL.QUANTITY.GROUPS, "'")))
-                }
+                private$do.register.core.component(type='transition',
+                                                   args = args,
+                                                   error.prefix = error.prefix)
+                
+                
+                private$do.register.mechanism(type = 'transition.rate', 
+                                              quantity.name = transition.rate.quantity.name,
+                                              tags = tag,
+                                              args = args, 
+                                              error.prefix = error.prefix)   
             }
+        },
+        
+        register.initial.population = function(value,
+                                               group,
+                                               error.prefix = "Error registering initial population: ")
+        {
+            initial.population.quantity.name = private$do.register.quantity.if.needed(value = value,
+                                                                              value.name = 'value',
+                                                                              scale = 'non.negative.number',
+                                                                              error.prefix = error.prefix)
+            
+            tag = 'initial.population'
+            args = list(group = group,
+                        tag = tag)
+            
+            private$do.register.core.component(type='initial.population',
+                                               args = args,
+                                               error.prefix = error.prefix)
             
             
-            #-- Validate dimension --#
-            if (!is.character(dimension))
-                stop(paste0(error.prefix, "'dimension' must be a single CHARACTER value"))
-            if (length(dimension)!=1)
-                stop(paste0(error.prefix, "'dimension' must be a SINGLE character value"))
-            if (is.na(dimension))
-                stop(paste0(error.prefix, "'dimension' cannot be NA"))
-            
-            dimension.valid.for.group = sapply(TOP.LEVEL.QUANTITY.GROUPS, function(g){
-                any(names(private$i.ontologies[[g]]) == dimension)
-            })
-            
-            if (!dimension.valid.for.group['all'])
-                stop(paste0(error.prefix,
-                            "'", dimension, "' is not a valid dimension for a version '",
-                            self$version, "' specification"))
-            
-            invalid.groups.for.dimension = groups[!dimension.valid.for.group[groups]]
-            valid.groups.for.dimension = setdiff(TOP.LEVEL.QUANTITY.GROUPS[dimension.valid.for.group], 'all')
-            if (length(invalid.groups.for.dimension)>0)
-                stop(paste0(error.prefix, 
-                            "'", group, "' is not a valid group for dimension '",
-                            dimension, "'. Only ", 
-                            collapse.with.and("'", c(valid.groups.for.dimension, 'all'), "'"),
-                            " are valid groups for '", dimension, "'"))
+            private$do.register.mechanism(type = 'initial.population', 
+                                          quantity.name = initial.population.quantity.name,
+                                          tags = tag,
+                                          args = args, 
+                                          error.prefix = error.prefix)   
+        },
 
-            #-- Set up ontology names for groups --#
-            
-            if (any(groups=='all'))
-                ontology.names = valid.groups.for.dimension
-            else
-                ontology.names = groups
-            
-            #-- Validate from.compartments, to.compartments --#
-            validate.from.or.to.compartments(value = from.compartments,
-                                             variable.name.for.error = 'from.compartments',
-                                             error.prefix = error.prefix)
-            validate.from.or.to.compartments(value = to.compartments,
-                                             variable.name.for.error = 'to.compartments',
-                                             error.prefix = error.prefix)
-            
-            #-- If the name is NULL, make it --#
-            #   (If not NULL, it has already been validated) 
-            
-            if (is.null(name))
-            {
-                if (is.logical(from.compartments))
-                    from.val = (1:length(from.compartments))[from.compartments]
-                else
-                    from.val = from.compartments
-                
-                if (is.logical(to.compartments))
-                    to.val = (1:length(to.compartments))[to.compartments]
-                else
-                    to.val = to.compartments
-                
-                name = paste0(DEFAULT.TRANSITION.NAME.PREFIX,
-                              dimension, "_",
-                              paste0(from.val, collapse=','),
-                              "--",
-                              paste0(to.val, collapse=','))
-                
-                error.prefix = paste0("Cannot register transition in dimension '", dimension, 
-                                      "' (from ", paste0("'", from.compartments, "'", collapse='/'),
-                                      " to ", paste0("'", to.compartments, "'", collapse='/'),
-                                      ")",
-                                      ifelse(length(groups)==1, paste0("for '", groups, "'"), ""),
-                                      ": ")
-                
-            }
-            
-            #-- Get value name --#
-            if (is.null(value.name))
-            {
-                value.name = deparse(substitute(value))
-                if (!is.character(value.name) || length(value.name) != 1 || is.na(value.name))
-                    value.name = 'value'
-            }
-            
-            #-- Make the transition object --#
-            transition = NON.TERMINAL.MODEL.QUANTITY$new(name = name,
-                                                         version = private$i.version,
-                                                         value = value,
-                                                         value.name = value.name,
-                                                         is.transition = T,
-                                                         na.replacement = na.replacement,
-                                                         ...,
-                                                         error.prefix = error.prefix)
-            
-        #-- Register a reference to the transition for each group --#
-            for (ontology.name in ontology.names)
-            {
-                ref = TRANSITION.REFERENCE$new(value.quantity.name = name,
-                                               specification = self,
-                                               ontology.name = ontology.name,
-                                               dimension = dimension,
-                                               from.compartments = from.compartments,
-                                               to.compartments = to.compartments)
-                private$do.register.top.level.reference(ref, error.prefix)
-            }
-            
-            #-- Register the transition as a quantity --#
-            private$do.register.quantity(transition, error.prefix=error.prefix)
-        },
-    
-        register.top.level.quantity = function(name,
-                                               value,
-                                               groups='all',
-                                               na.replacement = as.numeric(NA),
-                                               ...)
-        {
-            error.prefix = "Cannot register top-level quantity: "
-            #-- Check that name is a valid name for an expected top-level quantity --#
-            if (!is.character(name))
-                stop(paste0(error.prefix, "'name' must be a character value"))
-            if (length(name)!=1)
-                stop(paste0(error.prefix, "'name' must be a SINGLE character value"))
-            if (is.na(name))
-                stop(paste0(error.prefix, "'name' cannot be NA"))
-            if (nchar(name)==0)
-                stop(paste0(error.prefix, "'name' cannot be an empty string('')"))
-            if (all(name != names(private$i.top.level.schemata)))
-                stop(paste0(error.prefix, "'", name, "' is not a valid name for a top-level quantity. Must be one of: ",
-                            collapse.with.or("'", names(private$i.top.level.schemata), "'")))
-            
-            error.prefix = paste0("Cannot register top-level quantity '", name, "': ")
-            
-            #-- Check the group argument --#
-            schema = private$i.top.level.schemata[[name]]
-            valid.groups = union(names(schema$ontology.names), 'all')
-            invalid.groups = setdiff(groups, valid.groups)
-            
-            if (length(invalid.groups)>0)
-                stop(paste0(error.prefix,
-                            collapse.with.and("'", invalid.groups, "'"),
-                            ifelse(length(invalid.groups)==1, ' is not a valid group ', ' are not valid groups '),
-                            "for quantity '", name, "'. Must be one of ",
-                            collapse.with.or("'", valid.groups, "'")))
-            
-            ontology.names = character()
-            if (any(groups=='all'))
-                ontology.names = schema$ontology.names
-            else
-                ontology.names = schema$ontology.names[groups]
-            
-            #-- If we need to register this as a quantity before registering the reference, do so --#
-            if (is.character(value) && length(value)==1 && !is.na(value) && nchar(value)!=0)
-            {
-                #do we want to check that this is a valid quantity name
-                # (ie, no 'this' or 'super')
-                
-                value.quantity.name = value
-            }
-            else
-            {
-                self$register.quantity(name = name,
-                                       value = value,
-                                       dimensions = NULL,
-                                       dimension.values = NULL,
-                                       apply.aliases.to.dimension.values = F,
-                                       na.replacement = na.replacement,
-                                       ...)
-                
-                value.quantity.name = name
-            }
-            
-            #-- Register a reference to the quantity for each group --#
-            error.prefix = paste0("Cannot register top-level quantity '", name, "': ")
-            for (ontology.name in ontology.names)
-            {
-                ref = TOP.LEVEL.REFERENCE$new(name = name,
-                                              specification = self,
-                                              ontology.name = ontology.name,
-                                              value.quantity.name = value.quantity.name,
-                                              alias.suffix = schema$alias.suffix)
-                
-                private$do.register.top.level.reference(ref, error.prefix)
-            }
-            
-            invisible(self)
-        },
+        ##---------------------------------##
+        ##-- REGISTER TRACKED QUANTITIES --##
+        ##---------------------------------##
         
         track.transition = function(specification,
                                     name,
@@ -2267,27 +2245,20 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                   compartment.value.character.aliases = private$i.compartment.value.character.aliases,
                                                   compartment.value.function.aliases = private$i.compartment.value.function.aliases,
                                                   ontologies = private$i.ontologies,
-                                                  required.dimensions.for.ontologies = private$i.required.dimensions.for.ontologies,
-                                                  
+
                                                   compartments = private$i.compartments,
                                                   
+                                                  fixed.strata.info = private$i.fixed.strata.info,
                                                   quantities = private$i.quantities,
+                                                  core.components = private$i.core.components,
+                                                  mechanisms = private$i.mechanisms,
                                                   
                                                   age.info = private$i.age.info,
-                                                  transmission.modes = private$i.transmission.modes,
-                                                  fix.strata.sizes.prior.to = private$i.fix.strata.sizes.prior.to,
-                                                  fix.strata.sizes.for.dimensions = private$i.fix.strata.sizes.for.dimensions,
-                                                  
-                                                  enable.perinatal.transmission = private$i.enable.perinatal.transmission,
-                                                  parent.child.concordant.dimensions = private$i.parent.child.concordant.dimensions,
-                                                  all.births.into.compartments = private$i.all.births.into.compartments,
-                                                  
+
                                                   parent.specification = private$i.parent.specification,
                                                   do.not.inherit.model.quantity.names = private$i.do.not.inherit.model.quantity.names,
                                                   do.not.inherit.transitions.for.dimension = private$i.do.not.inherit.transitions.for.dimension,
-                                                  
-                                                  top.level.schemata = private$i.top.level.schemata,
-                                                  top.level.references = private$i.top.level.references,
+                                                  do.not.inherit.components.with.tags = private$i.do.not.inherit.components.with.tags,
                                                   
                                                   do.compile = !is.recursive.call)
             
@@ -2337,30 +2308,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 private$i.compartment.value.function.aliases
             else
                 stop("Cannot modify 'compartment.value.function.aliases' for a jheem.specification - they are read-only")
-        },
-        
-        enable.perinatal.transmission = function(value)
-        {
-            if (missing(value))
-                private$i.enable.perinatal.transmission
-            else
-                stop("Cannot modify 'enable.perinatal.transmission' for a jheem.specification - it is read-only")
-        },
-        
-        parent.child.concordant.dimensions = function(value)
-        {
-            if (missing(value))
-                private$i.parent.child.concordant.dimensions
-            else
-                stop("Cannot modify 'parent.child.concordant.dimensions' for a jheem.specification - they are read-only")
-        },
-        
-        all.births.into.compartments = function(value)
-        {
-            if (missing(value))
-                private$i.all.births.into.compartments
-            else
-                stop("Cannot modify 'all.births.into.compartments' for a jheem.specification - they are read-only")
         },
         
         ontology.names = function(value)
@@ -2434,31 +2381,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
             else
                 stop("Cannot modify a specification's 'age.info' - it is read-only")
         },
-        
-        transmission.modes = function(value)
-        {
-            if (missing(value))
-                private$i.transmission.modes
-            else
-                stop("Cannot modify a specification's 'transmission.modes' - they are read-only")
-        },
-        
-        fix.strata.sizes.prior.to = function(value)
-        {
-            if (missing(value))
-                private$i.fix.strata.sizes.prior.to
-            else
-                stop("Cannot modify a specification's 'fix.strata.sizes.prior.to' - it is read-only")
-        },
-        
-        fix.strata.sizes.for.dimensions = function(value)
-        {
-            if (missing(value))
-                private$i.fix.strata.sizes.for.dimensions
-            else
-                stop("Cannot modify a specification's 'fix.strata.sizes.for.dimensions' - it is read-only")
-        },
-        
+
         is.locked = function(value)
         {
             if (missing(value))
@@ -2467,28 +2390,12 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 stop("Cannot modify a specification's 'is.locked' value - it is read-only")
         },
         
-        required.quantity.schema = function(value)
-        {
-            if (missing(value))
-                stop('need to implement')
-            else
-                stop("Cannot modify a specification's 'required.quantity.schema' - it is read-only")
-        },
-        
         quantity.names = function(value)
         {
             if (missing(value))
                 names(private$i.quantities)
             else
                 stop("Cannot modify a specification's 'quantity.names' - it is read-only")
-        },
-        
-        top.level.quantity.names = function(value)
-        {
-            if (missing(value))
-                names(private$i.top.level.schemata)
-            else
-                stop("Cannot modify a specification's 'top.level.quantity.names' - it is read-only")
         }
     ),
 
@@ -2508,25 +2415,20 @@ JHEEM.SPECIFICATION = R6::R6Class(
         
         i.ontologies = NULL,
         i.compartments = NULL,
-        i.required.dimensions.for.ontologies = NULL,
         
-        i.enable.perinatal.transmission = NULL,
-        i.parent.child.concordant.dimensions = NULL,
-        i.all.births.into.compartments = NULL,
-        
+        i.fixed.strata.info = NULL,
         i.quantities = NULL,
+        i.core.components = NULL,
+        i.mechanisms = NULL,
         
         i.age.info = NULL,
-        i.transmission.modes = NULL,
-        i.fix.strata.sizes.prior.to = NULL,
-        i.fix.strata.sizes.for.dimensions = NULL,
-        
+
         i.parent.specification = NULL,
         i.do.not.inherit.model.quantity.names = NULL,
         i.do.not.inherit.transitions.for.dimension = NULL,
+        i.do.not.inherit.components.with.tags = NULL,
         
-        i.top.level.schemata = NULL,
-        i.top.level.references = NULL,
+        i.internal.name.counter = 0,
         
     ##-- INTERNAL METHODS --##
     
@@ -2536,7 +2438,93 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 stop(paste0(error.prefix, "The '", private$i.name, "' specification has already been registered and cannot be modified further"))
         },
     
-        do.register.quantity = function(quantity, error.prefix=error.prefix)
+        get.unique.internal.name = function()
+        {
+            private$i.internal.name.counter = private$i.internal.name.counter + 1
+            paste0("quant_", private$i.internal.name.counter, "_", private$i.version)
+        },
+    
+        do.register.quantity = function(name,
+                                        value,
+                                        value.name = NULL,
+                                        scale=NULL,
+                                        dimensions=names(dimension.values),
+                                        dimension.values=NULL,
+                                        apply.aliases.to.dimension.values=F,
+                                        na.replacement=as.numeric(NA),
+                                        ...,
+                                        error.prefix=NULL)
+        {
+            # name is already validated
+            
+            if (is.null(error.prefix))
+                error.prefix = paste0("Cannot register model quantity '", name, "': ")
+            
+            #-- Get value name --#
+            if (is.null(value.name))
+            {
+                value.name = deparse(substitute(value))
+                if (!is.character(value.name) || length(value.name) != 1 || is.na(value.name))
+                    value.name = 'value'
+            }
+            
+            #-- Call the constructor and register --#
+            quantity = NON.TERMINAL.MODEL.QUANTITY$new(name = name,
+                                                       version = private$i.version,
+                                                       value = value,
+                                                       value.name = value.name,
+                                                       scale = scale,
+                                                       dimensions = dimensions,
+                                                       dimension.values = dimension.values,
+                                                       apply.aliases.to.dimension.values = apply.aliases.to.dimension.values,
+                                                       na.replacement = na.replacement,
+                                                       ...,
+                                                       error.prefix = error.prefix)
+            
+            private$do.store.quantity(quantity, error.prefix=error.prefix)
+        },
+    
+        # if value is NULL, do nothing (return NULL)
+        # if value is a single character value, then no need to register (return value)
+        # otherwise, register a quantity under a uniquely-generated name (return the unique name)
+        do.register.quantity.if.needed = function(value,
+                                                  value.name,
+                                                  scale=NULL,
+                                                  dimensions=names(dimension.values),
+                                                  dimension.values=NULL,
+                                                  apply.aliases.to.dimension.values=F,
+                                                  na.replacement=as.numeric(NA),
+                                                  ...,
+                                                  error.prefix=NULL)
+        {
+            if (is.null(value))
+                value
+            else if (is.character(value))
+            {
+                if (length(value) != 1 || is.na(value))
+                    stop(paste0(error.prefix, "If '", value.name, "' is a character, it must be a single, non-NA value"))
+                
+                value
+            }
+            else
+            {
+                quantity.name = private$get.unique.internal.name()
+                private$do.register.quantity(name = quantity.name,
+                                             value = value,
+                                             value.name = value.name,
+                                             scale = scale,
+                                             dimensions = names(dimension.values),
+                                             dimension.values = NULL,
+                                             apply.aliases.to.dimension.values = F,
+                                             na.replacement = na.replacement,
+                                             ...,
+                                             error.prefix = error.prefix)
+                
+                quantity.name
+            }
+        },
+    
+        do.store.quantity = function(quantity, error.prefix=error.prefix)
         {
             # Check lock
             private$check.lock(error.prefix)
@@ -2561,33 +2549,40 @@ JHEEM.SPECIFICATION = R6::R6Class(
             invisible(self)
         },
     
-        do.register.top.level.reference = function(ref, error.prefix)
+        do.register.core.component = function(type, args, error.prefix)
         {
-            #-- Check for clashes --#
-            sapply(private$i.top.level.references, function(other.ref){
-                
-                if (ref$overlaps(other.ref))
-                {
-                    if (ref$type=='transition')
-                        stop(paste0(error.prefix,
-                                    "An overlapping in the '", dimension, "' (from ",
-                                    collapse.with.and("'", intersect(ref$from.compartments, other.ref$from.compartments), "'"),
-                                    " to ",
-                                    collapse.with.and("'", intersect(ref$to.compartments, other.ref$to.compartments), "'"),
-                                    ") for group '", ref$group, "' has already been registered"))
-                    else
-                    {
-                        stop(paste0(error.prefix,
-                                    "The top-level quantity '", ref$name, 
-                                    "' for group '", names(ref$ontology.name), 
-                                    "' has already been registered"))
-                    }
-                }
-            })
+            schema = CORE.COMPONENT.SCHEMATA[[type]]
+            if (is.null(schema))
+                stop(paste0(error.prefix, "'", type, 
+                            "' is not a valid core-component type"))
             
-            private$i.top.level.references = c(private$i.top.level.references, ref)
+            core.comp = schema$create.component(args=args, version=private$i.version, error.prefix=error.prefix)
+            for (other.comp in private$i.core.components)
+            {
+                if (schema$components.clash(core.comp, other.comp))
+                    stop(paste0(error.prefix, core.comp$name, " has already been registered"))
+            }
+
+            private$i.core.components = c(private$i.core.components, list(core.comp))
+        },
+    
+        do.register.mechanism = function(type, 
+                                         quantity.name,
+                                         tags,
+                                         args, 
+                                         error.prefix)
+        {
+            schema = CORE.COMPONENT.SCHEMATA.FOR.MECHANISMS[[type]]
+            if (is.null(schema))
+                stop(paste0(error.prefix, "'", type, 
+                            "' is not a valid mechanism type"))
             
-            invisible(self)
+            mechanism = schema$create.mechanism(type = type, 
+                                                quantity.name = quantity.name,
+                                                tags = tags,
+                                                args = args,
+                                                error.prefix)
+            private$i.mechanisms = c(private$i.mechanisms, list(mechanism))
         },
     
         ##----------------------------------------------##
@@ -2620,6 +2615,116 @@ JHEEM.SPECIFICATION = R6::R6Class(
             
             rv
         }
+    )
+)
+
+##-----------------------------##
+##-----------------------------##
+##-- FIXED STRATA INFO CLASS --##
+##-----------------------------##
+##-----------------------------##
+
+FIXED.STRATA.INFO = R6::R6Class(
+    'fixed.strata.info',
+    
+    public = list(
+        
+        initialize = function(applies.after.time,
+                              applies.before.time,
+                              fix.strata,
+                              dimensions.to.fix,
+                              error.prefix)
+        {
+            #-- Validate Arguments --#
+            
+            if (!is.numeric(applies.after.time) || length(applies.after.time)!=1 || is.na(applies.after.time))
+                stop(paste0(error.prefix, "'applies.after.time' must be a single, non-NA numeric value"))
+            
+            if (!is.numeric(applies.before.time) || length(applies.before.time)!=1 || is.na(applies.before.time))
+                stop(paste0(error.prefix, "'applies.before.time' must be a single, non-NA numeric value"))
+            
+            if (applies.before.time <= applies.after.time)
+                stop(paste0(error.prefix, "'applies.before.time' (",
+                            applies.before.time, ") must be GREATER THAN 'applies.after.time' (",
+                            applies.after.time, ")"))
+            
+            if (!is.logical(fix.strata) || length(fix.strata)!=1 || is.na(fix.strata))
+                stop(paste0(error.prefix, "'fix.strata' must be a single, non-NA logical value"))
+            
+            if (fix.strata)
+            {
+                if (is.null(dimensions.to.fix))
+                    stop(paste0(error.prefix, "If 'fix.strata' is TRUE, 'dimensions.to.fix' must be specified"))
+                
+                if (!is.character(dimensions.to.fix) || length(dimensions.to.fix)==0 || any(is.na(dimensions.to.fix)))
+                    stop(paste0(error.prefix, "If 'fix.strata' is TRUE, 'dimensions.to.fix' must be a non-empty, non-NA character vector"))
+            }
+            else
+            {
+                if (is.null(dimensions.to.fix))
+                    stop(paste0(error.prefix, "If 'fix.strata' is FALSE, 'dimensions.to.fix' must be NULL"))
+            }
+            
+            #-- Store --#
+            private$i.applies.before.time = applies.before.time
+            private$i.applies.after.time = applies.after.time
+            private$i.fix.strata = fix.strata
+            private$i.dimensions.to.fix = unique(dimensions.to.fix)
+        },
+        
+        overlaps = function(other.info)
+        {
+            private$i.applies.before.time >= other.info$applies.after.time &&
+                private$i.applies.after.time <= other.info$applies.before.time
+        },
+        
+        is.valid.for.specification = function(specification)
+        {
+            # Make sure dimensions.to.fix are all in general dim names
+        }
+    ),
+    
+    active = list(
+        
+        applies.before.time = function(value)
+        {
+            if (missing(value))
+                private$i.applies.before.time
+            else
+                stop("Cannot overwrite a fixed.strata.info's 'applies.before.time' - it is read-only")
+        },
+        
+        applies.after.time = function(value)
+        {
+            if (missing(value))
+                private$i.applies.after.time
+            else
+                stop("Cannot overwrite a fixed.strata.info's 'applies.after.time' - it is read-only")
+        },
+        
+        fix.strata = function(value)
+        {
+            if (missing(value))
+                private$i.fix.strata
+            else
+                stop("Cannot overwrite a fixed.strata.info's 'fix.strata' - it is read-only")
+        },
+        
+        dimensions.to.fix = function(value)
+        {
+            if (missing(value))
+                private$i.dimensions.to.fix
+            else
+                stop("Cannot overwrite a fixed.strata.info's 'dimensions.to.fix' - they are read-only")
+        }
+    ),
+    
+    private = list(
+        
+        i.applies.before.time = NULL,
+        i.applies.after.time = NULL,
+        i.fix.strata = NULL,
+        i.dimensions.to.fix = NULL
     )
 )
 
@@ -2723,10 +2828,16 @@ MODEL.QUANTITY = R6::R6Class(
             private$i.fixed.dim.names = NULL
         },
         
-        set.max.dim.names.and.dimension.aliases = function(max.dim.names, dimension.aliases, error.prefix)
+        set.dim.names.and.dimension.aliases = function(max.dim.names, 
+                                                       required.dim.names,
+                                                       dimension.aliases, 
+                                                       error.prefix)
         {
             # Set the max dim names
             private$i.maximum.dim.names = max.dim.names
+            
+            # Set the required.dim.names
+            private$i.required.dim.names = required.dim.names
             
             # Check dimension.aliases
             if (length(dimension.aliases)==0)
@@ -2964,7 +3075,15 @@ MODEL.QUANTITY = R6::R6Class(
             if (missing(value))
                 private$i.maximum.dim.names
             else
-                stop(paste0("Cannot modify a ", self$descriptor, "'s 'max.dim.names' value - it is read-only"))
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'max.dim.names' value - they are read-only"))
+        },
+        
+        required.dim.names = function(value)
+        {
+            if (missing(value))
+                private$i.required.dim.names
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'required.dim.names' value - they are read-only"))
         },
         
         dimension.aliases = function(value)
@@ -3032,6 +3151,7 @@ MODEL.QUANTITY = R6::R6Class(
         i.reversed.dimension.alias.mapping = NULL,
         
         i.maximum.dim.names = NULL,
+        i.required.dim.names = NULL,
         
         i.fixed.dimensions = NULL,
         i.fixed.dimension.values = NULL,
@@ -3092,7 +3212,7 @@ MODEL.ELEMENT = R6::R6Class(
                              apply.aliases.to.dimension.values = apply.aliases.to.dimension.values,
                              allow.scale.missing = F,
                              error.prefix = error.prefix)
-            
+
             #-- Check model scales --#
             check.model.scale(functional.form.scale, 'functional.form.scale', error.prefix = error.prefix)
             check.model.scale(ramp.scale, 'ramp.scale', error.prefix = error.prefix)
@@ -3508,24 +3628,29 @@ MODEL.ELEMENT = R6::R6Class(
                                               wrt.version = wrt.specification$version)
         },
         
-        get.element.background = function(specification.info,
+        get.element.background = function(specification.metadata,
                                           error.prefix)
         {
+            error.prefix = paste0(error.prefix, "When generating the background for model element ", 
+                                  self$get.original.name(wrt.version = specification.metadata$version), ", ")
+            
             value = private$i.value
             if (!is.null(private$i.get.value.function.wrapper))
             {
+                if (private$i.get.value.function.name=='get.value.function')
+                    get.value.function.name = "the get.value.function()"
+                else
+                    get.value.function.name = paste0(private$i.get.value.function.name, "()",
+                                                 " (the get.value.function)")
                 # get the value
                 tryCatch({
-                    value = private$i.get.value.function.wrapper$execute(location=specification.info$location, 
-                                                                         specification.info=specification.info)
+                    value = private$i.get.value.function.wrapper$execute(location=specification.metadata$location, 
+                                                                         specification.metadata=specification.metadata)
                 },
                 error = function(e){
-                    e$message = paste0(error.prefix, "There was an error evaluating ", private$i.get.value.function.name,
-                                "()",
-                                ifelse(private$i.get.value.function.name=='get.value.function', '',
-                                       " (the get.value.function)"),
+                    e$message = paste0(error.prefix, "There was an error evaluating ", get.value.function.name,
                                 " for model element ",
-                                self$get.original.name(wrt.version = specification.info$version), ": ",
+                                self$get.original.name(wrt.version = specification.metadata$version), ": ",
                                 e$message)
                     
                     stop(e)
@@ -3533,65 +3658,70 @@ MODEL.ELEMENT = R6::R6Class(
                 
                 # make sure it is numeric, non-empty, non-NA
                 if (!is.numeric(value))
-                    stop(paste0(error.prefix, "Evaluating get.value.function() for model element ",
-                                private$get.original.name(wrt.version = specification.info$version),
+                    stop(paste0(error.prefix, "Evaluating ", get.value.function.name, " for model element ",
+                                private$get.original.name(wrt.version = specification.metadata$version),
                                 " yields a non-numeric value"))
                 if (length(value)==0)
-                    stop(paste0(error.prefix, "Evaluating get.value.function() for model element ",
-                                private$get.original.name(wrt.version = specification.info$version),
+                    stop(paste0(error.prefix, "Evaluating ", get.value.function.name, " for model element ",
+                                private$get.original.name(wrt.version = specification.metadata$version),
                                 " yields an empty (length-zero) value"))
                 if (any(is.na(value)))
-                    stop(paste0(error.prefix, "Evaluating get.value.function() for model element ",
-                                private$get.original.name(wrt.version = specification.info$version),
+                    stop(paste0(error.prefix, "Evaluating ", get.value.function.name, " for model element ",
+                                private$get.original.name(wrt.version = specification.metadata$version),
                                 " yields NAs"))
                 
                 # make sure it accords with the expected max.dim.names
                 verify.dim.names.for.quantity(dim.names = dimnames(value),
                                               quantity = self,
-                                              variable.name.for.error = "the value generated by get.value.function()",
+                                              variable.name.for.error = paste0("the value generated by ", get.value.function.name),
                                               error.prefix = error.prefix,
-                                              wrt.version = specification$version)
+                                              wrt.version = specification.metadata$version)
             }
             
             functional.form = private$i.functional.form
             if (!is.null(private$i.get.functional.form.function.wrapper))
             {
+                if (private$i.get.functional.form.function.name=='get.functional.form.function')
+                    get.functional.form.function.name = "the get.functional.form.function()"
+                else
+                    get.functional.form.function.name = paste0(private$i.get.functional.form.function.name, "()",
+                                                     " (the get.functional.form.function)")
+                
                 # get the functional.form
                 tryCatch({
-                    functional.form = private$i.get.functional.form.function.wrapper$execute(location=specification.info$location, 
-                                                                                             specification.info=specification.info)
+                    functional.form = private$i.get.functional.form.function.wrapper$execute(location=specification.metadata$location, 
+                                                                                             specification.metadata=specification.metadata)
                 },
                 error = function(e){
                     e$message = paste0(error.prefix, "There was an error evaluating ",
-                                       private$i.get.functional.form.function.name, "()",
-                                       ifelse(private$i.get.functional.form.function.name=='get.functional.form.function', '',
-                                              " (the get.functional.form.function)"),
+                                       get.functional.form.function.name,
                                        " for model element ",
-                                       self$get.original.name(wrt.version = specification.info$version), ": ",
+                                       self$get.original.name(wrt.version = specification.metadata$version), ": ",
                                        e$message)
                     stop(e)
                 })
                 
                 # make sure it is a functional form object
                 if (!is(functional.form, 'functional.form'))
-                    stop(paste0(error.prefix, "Evaluating get.functional.form.function() for model element ",
-                                private$get.original.name(wrt.version = specification.info$version),
+                    stop(paste0(error.prefix, "Evaluating ", get.functional.form.function.name, " for model element ",
+                                private$get.original.name(wrt.version = specification.metadata$version),
                                 " yields a value that is NOT an object of class 'functional.form'"))
                     
                 # make sure it's minimum.dim.names accords with the expected max.dim.names
                 verify.dim.names.for.quantity(dim.names = functional.form$minimum.dim.names,
                                               quantity = self,
-                                              variable.name.for.error = "the minimum dimnames of the functional.form generated by get.functional.form.function()",
+                                              variable.name.for.error = paste0("the minimum dimnames of the functional.form generated by ", get.functional.form.function.name),
                                               error.prefix = error.prefix,
-                                              wrt.version = specification.info$version)
+                                              wrt.version = specification.metadata$version)
                 
                 # If no from/to times have been set, then make sure this is a static model
                 if (!functional.form$is.static &&
                     (is.null(private$i.functional.form.from.time) || is.null(private$i.functional.form.to.time)))
                 {
-                    stop(paste0(error.prefix, "Evaluating get.functional.form.function() for model element ",
-                                private$get.original.name(wrt.version = specification.info$version),
-                                " yields a functional.form that is NOT static. However, no functional.form.from.time or functional.form.to.time were set for the element. These must either be set, or get.functional.form.function() must return a static functional form"))
+                    stop(paste0(error.prefix, "evaluating ", get.functional.form.function.name, " for model element ",
+                                private$get.original.name(wrt.version = specification.metadata$version),
+                                " yields a functional.form that is NOT static. However, no functional.form.from.time or functional.form.to.time were set for the element. These must either be set, or ",
+                                get.functional.form.function.name, " must return a static functional form"))
                 }
             }
             
@@ -4059,7 +4189,7 @@ MODEL.QUANTITY.COMPONENT = R6::R6Class(
                              allow.expression.value = T,
                              allow.function.value = T,
                              allowed.expression.functions = ALLOWED.MODEL.QUANTITY.VALUE.EXPRESSION.FUNCTIONS,
-                             function.arguments.to.be.supplied.later = c('specification.info', 'location'),
+                             function.arguments.to.be.supplied.later = c('specification.metadata', 'location'),
                              ...,
                              error.prefix = error.prefix)
             
@@ -4115,7 +4245,7 @@ MODEL.QUANTITY.COMPONENT = R6::R6Class(
             #-- Make sure all the arguments to the function are valid quantity names --#
             if (private$i.value.type=='function' && length(private$i.depends.on)>0)
             {
-                non.reserved.depends.on = setdiff(private$i.depends.on, c('specification.info','location'))
+                non.reserved.depends.on = setdiff(private$i.depends.on, c('specification.metadata','location'))
                 if (length(non.reserved.depends.on)>0)
                 {
                     if (private$i.parent.quantity$n.components==0)
@@ -4378,174 +4508,617 @@ MODEL.QUANTITY.COMPONENT = R6::R6Class(
     )
 )
 
-##-----------------------------------------##
-##-----------------------------------------##
-##-- TOP-LEVEL REFERENCE CLASS HIERARCHY --##
-##-----------------------------------------##
-##-----------------------------------------##
+##------------------------------------##
+##------------------------------------##
+##-- CORE COMPONENT CLASS HIERARCHY --##
+##------------------------------------##
+##------------------------------------##
 
-TOP.LEVEL.REFERENCE = R6::R6Class(
-    'top.level.reference',
+CORE.COMPONENT.SCHEMA = R6::R6Class(
+    'core.component.schema',
     portable = F,
     
     public = list(
         
-        initialize = function(name,
-                              specification,
-                              ontology.name,
-                              value.quantity.name,
-                              type='top.level.reference',
-                              alias.suffix)
+        initialize = function(type,
+                              mechanism.types,
+                              ontology.name.for.mechanism,
+                              applies.to.name.for.mechanism,
+                              required,
+                              group.names=character(),
+                              required.sub.ontology.name.for.mechanism=character(),
+                              into.compartments.name.for.mechanism=character(),
+                              into.compartments.suffix = NULL,
+                              alias.suffix.for.mechanism=character(),
+                              additional.member.names=character(),
+                              register.function.name = paste0('register.', type),
+                              trackable.types,
+                              ontology.name.for.trackable=character(),
+                              applies.to.name.for.trackable=character(),
+                              into.compartments.name.for.trackable=character())
         {
-            if (!is.null(name) &&
-                (!is.character(name) || length(name)!=1 || is.na(name) || nchar(name)==0))
-                stop(paste0("If 'name' is specified for a ", self$descriptor, " it must be a single, non-NA, non-empty character value"))
-
-#            if (!is.character(version) || length(version)!=1 || is.na(version) || nchar(version)==0)
- #               stop("'version' for a ", self$descriptor, " must be a single, non-NA, non-empty character value")
-  
-            if (!is.character(ontology.name) || length(ontology.name)!=1 || is.na(ontology.name) || nchar(ontology.name)==0)
-                stop(paste0("'ontology.name' for a ", self$descriptor, " must be a single, non-NA, non-empty character value"))
             
-            if (is.null(names(ontology.name)) || is.na(names(ontology.name)) || nchar(names(ontology.name))==0)
-                names(ontology.name) = ontology.name
+            #-- Validate the arguments --#
+            error.prefix = "Error creating CORE.COMPONENT.SCHEMA: "
             
-            if (all(names(ontology.name)!=names(specification$ontologies)))
-                stop(paste0("In creating a ", self$descriptor, " names(ontology.name) must be one of ",
-                            collapse.with.or("'", names(specification$ontologies), "'"),
-                            ". ", names(ontology.name), 
-                            " is not a valid name"))
+            # Validate Type
+            if (!is.character(type) || length(type) != 1 || is.na(type))
+                stop(paste0(error.prefix, "'type' must be a single, non-NA character value"))
             
-            if (!is.character(value.quantity.name) || length(value.quantity.name)!=1 || is.na(value.quantity.name) || nchar(value.quantity.name)==0)
-                stop(paste0("'value.quantity.name' for a ", self$descriptor, " must be a single, non-NA, non-empty character value"))
+            error.prefix = paste0("Error creating CORE.COMPONENT.SCHEMA '", type, "': ")
             
-            if (!is.character(type) || length(type)!=1 || is.na(type) || nchar(type)==0)
-                stop(paste0("'type' for a ", self$descriptor, " must be a single, non-NA, non-empty character value"))
+            # Validate required
+            if (!is.logical(required) || length(required)!=1 || is.na(required))
+                stop(paste0(error.prefix, "'required' must be a single, non-NA logical value"))
             
-            if (!is.null(alias.suffix))
+            # Validate mechanism types
+            if (!is.character(mechanism.types) || length(mechanism.types) == 0 || any(is.na(mechanism.types)))
+                stop(paste0(error.prefix, "'mechanism.types' must be a non-empty character vector with no NA values"))
+            mechanism.types = unique(mechanism.types)
+            
+            # Validate Group Names
+            if (!is.character(group.names) || any(is.na(group.names)))
+                stop(paste0(error.prefix, "'group.names' must be a character vector with no NA values"))
+            
+            # Validate ontology.name.for.mechanism
+            if (!is.character(ontology.name.for.mechanism))
+                stop(paste0(error.prefix, "'ontology.name.for.mechanism' must be a character vector"))
+            if (length(ontology.name.for.mechanism)>0 && is.null(names(ontology.name.for.mechanism)))
+                stop(paste0(error.prefix, "'ontology.name.for.mechanism' must be a NAMED character vector"))
+            if (any(table(names(ontology.name.for.mechanism))>1))
+                stop(paste0(error.prefix, "The names of 'ontology.name.for.mechanism' must be unique"))
+            if (any(is.na(ontology.name.for.mechanism)))
+                stop(paste0(error.prefix, "'ontology.name.for.mechanism' cannot contain NA values"))
+            
+            
+            valid.ontology.names = c('infected',
+                                     'uninfected',
+                                     'contact',
+                                     'infected.plus.uninfected')
+            invalid.ontology.names = setdiff(ontology.name.for.mechanism, 
+                                             union(valid.ontology.names, group.names))
+            if (length(invalid.ontology.names)>0)
+                stop(paste0(error.prefix, "Invalid ",
+                            ifelse(length(invalid.ontology.names)==1, "value", "values"),
+                            " for ontology.name.for.mechanism: ",
+                            collapse.with.and("'", invalid.ontology.names, "'"),
+                            ". (Must be one of ",
+                            collapse.with.and("'", valid.ontology.names, "'"), ")"))
+            
+            invalid.mechanism.names = setdiff(names(ontology.name.for.mechanism), mechanism.types)
+            if (length(invalid.mechanism.names)>0)
+                stop(paste0(error.prefix,
+                            "Invalid mechanism ",
+                            ifelse(length(invalid.mechanism.names)==1, "name", "names"),
+                            " in the names of 'ontology.name.for.mechanism': ",
+                            collapse.with.and("'", invalid.mechanism.names, "'")))
+            
+#            missing.for.mechanism = setdiff(mechanism.types, names(ontology.name.for.mechanism))
+#            if (length(missing.for.mechanism)>0)
+#                stop(paste0(error.prefix,
+#                            "Missing value in 'ontology.name.for.mechanism' for ",
+#                            ifelse(length(missing.for.mechanism)==1, "mechanism", "mechanisms"),
+#                            " ", collapse.with.and("'", missing.for.mechanism, "'")))
+            
+            
+            # Validate required.sub.ontology.name.for.mechanism
+            if (!is.character(required.sub.ontology.name.for.mechanism))
+                stop(paste0(error.prefix, "'required.sub.ontology.name.for.mechanism' must be a character vector"))
+            if (length(required.sub.ontology.name.for.mechanism)>0 && is.null(names(required.sub.ontology.name.for.mechanism)))
+                stop(paste0(error.prefix, "'required.sub.ontology.name.for.mechanism' must be a NAMED character vector"))
+            if (any(table(names(required.sub.ontology.name.for.mechanism))>1))
+                stop(paste0(error.prefix, "The names of 'required.sub.ontology.name.for.mechanism' must be unique"))
+            if (any(is.na(required.sub.ontology.name.for.mechanism)))
+                stop(paste0(error.prefix, "'required.sub.ontology.name.for.mechanism' cannot contain NA values"))
+            
+            
+            valid.required.sub.ontology.names = c('infected.compartments', 'uninfected.compartments',group.names)
+            invalid.ontology.names = setdiff(required.sub.ontology.name.for.mechanism, 
+                                             valid.required.sub.ontology.names)
+            if (length(invalid.ontology.names)>0)
+                stop(paste0(error.prefix, "Invalid ",
+                            ifelse(length(invalid.ontology.names)==1, "value", "values"),
+                            " for required.sub.ontology.name.for.mechanism: ",
+                            collapse.with.and("'", invalid.ontology.names, "'"),
+                            ". (Must be one of ",
+                            collapse.with.and("'", valid.required.sub.ontology.names, "'"), ")"))
+            
+            invalid.mechanism.names = setdiff(names(required.sub.ontology.name.for.mechanism), mechanism.types)
+            if (length(invalid.mechanism.names)>0)
+                stop(paste0(error.prefix,
+                            "Invalid mechanism ",
+                            ifelse(length(invalid.mechanism.names)==1, "name", "names"),
+                            " in the names of 'required.sub.ontology.name.for.mechanism': ",
+                            collapse.with.and("'", invalid.mechanism.names, "'")))
+            
+            
+            # Validate applies.to.name.for.mechanism
+            if (!is.character(applies.to.name.for.mechanism))
+                stop(paste0(error.prefix, "'applies.to.name.for.mechanism' must be a character vector"))
+            if (length(applies.to.name.for.mechanism)>0 && is.null(names(applies.to.name.for.mechanism)))
+                stop(paste0(error.prefix, "'applies.to.name.for.mechanism' must be a NAMED character vector"))
+            if (any(table(names(applies.to.name.for.mechanism))>1))
+                stop(paste0(error.prefix, "The names of 'applies.to.name.for.mechanism' must be unique"))
+            if (any(is.na(applies.to.name.for.mechanism)))
+                stop(paste0(error.prefix, "'applies.to.name.for.mechanism' cannot contain NA values"))
+            
+#            missing.for.mechanism = setdiff(mechanism.types, names(applies.to.name.for.mechanism))
+#            if (length(missing.for.mechanism)>0)
+#                stop(paste0(error.prefix,
+#                            "Missing value in 'applies.to.name.for.mechanism' for ",
+#                            ifelse(length(missing.for.mechanism)==1, "mechanism", "mechanisms"),
+#                            " ", collapse.with.and("'", missing.for.mechanism, "'")))
+            
+            invalid.mechanism.names = setdiff(names(applies.to.name.for.mechanism), mechanism.types)
+            if (length(invalid.mechanism.names)>0)
+                stop(paste0(error.prefix,
+                            "Invalid mechanism ",
+                            ifelse(length(invalid.mechanism.names)==1, "name", "names"),
+                            " in the names of 'applies.to.name.for.mechanism': ",
+                            collapse.with.and("'", invalid.mechanism.names, "'")))
+            
+            
+            # Validate into.compartments.name.for.mechanism
+            if (!is.character(into.compartments.name.for.mechanism))
+                stop(paste0(error.prefix, "'into.compartments.name.for.mechanism' must be a character vector"))
+            if (length(into.compartments.name.for.mechanism)>0 && is.null(names(into.compartments.name.for.mechanism)))
+                stop(paste0(error.prefix, "'into.compartments.name.for.mechanism' must be a NAMED character vector"))
+            if (any(table(names(into.compartments.name.for.mechanism))>1))
+                stop(paste0(error.prefix, "The names of 'into.compartments.name.for.mechanism' must be unique"))
+            if (any(is.na(into.compartments.name.for.mechanism)))
+                stop(paste0(error.prefix, "'into.compartments.name.for.mechanism' cannot contain NA values"))
+            
+            invalid.mechanism.names = setdiff(names(into.compartments.name.for.mechanism), mechanism.types)
+            if (length(invalid.mechanism.names)>0)
+                stop(paste0(error.prefix,
+                            "Invalid mechanism ",
+                            ifelse(length(invalid.mechanism.names)==1, "name", "names"),
+                            " in the names of 'into.compartments.name.for.mechanism': ",
+                            collapse.with.and("'", invalid.mechanism.names, "'")))
+            
+            # Validate into.compartments.suffix
+            if (!is.null(into.compartments.suffix))
             {
-                if (!is.character(alias.suffix) || length(alias.suffix)!=1 || is.na(alias.suffix) ||
-                    (alias.suffix != 'from' && alias.suffix != 'to'))
-                    stop(paste0("If it is not NULL, 'alias.suffix' for a ", self$descriptor,
-                                " must be a single, non-NA character value that is either 'from' or 'to'"))
+                if (!is.character(into.compartments.suffix) || length(into.compartments.suffix)!=1 || is.na(into.compartments.suffix))
+                    stop(paste0(error.prefix, "'into.compartments.suffix' must be a single, non-NA character value"))
             }
             
-            private$i.name = name
-            private$i.version = specification$version
-            private$i.ontology.name = ontology.name
-            private$i.value.quantity.name = value.quantity.name
+            
+            # Validate alias.suffix.for.mechanism
+            if (!is.character(alias.suffix.for.mechanism))
+                stop(paste0(error.prefix, "'alias.suffix.for.mechanism' must be a character vector"))
+            if (length(alias.suffix.for.mechanism)>0 && is.null(names(alias.suffix.for.mechanism)))
+                stop(paste0(error.prefix, "'alias.suffix.for.mechanism' must be a NAMED character vector"))
+            if (any(table(names(alias.suffix.for.mechanism))>1))
+                stop(paste0(error.prefix, "The names of 'alias.suffix.for.mechanism' must be unique"))
+            
+            invalid.mechanism.names = setdiff(names(alias.suffix.for.mechanism), mechanism.types)
+            if (length(invalid.mechanism.names)>0)
+                stop(paste0(error.prefix,
+                            "Invalid mechanism ",
+                            ifelse(length(invalid.mechanism.names)==1, "name", "names"),
+                            " in the names of 'alias.suffix.for.mechanism': ",
+                            collapse.with.and("'", invalid.mechanism.names, "'")))
+            
+            
+            # Validate additional.member.names
+            if (!is.character(additional.member.names) || any(is.na(additional.member.names)))
+                stop(paste0(error.prefix, "'additional.member.names' must be a character vector with no NA values"))
+            
+            # Validate register.function.name
+            if (!is.character(register.function.name) || length(register.function.name) != 1 || is.na(register.function.name))
+                stop(paste0(error.prefix, "'register.function.name' must be a single, non-NA character value"))
+            
+            #-- Create the object --#
+            
             private$i.type = type
-            private$i.alias.suffix = alias.suffix
+            
+            # Pull Mechanism Types
+            private$i.mechanism.types = mechanism.types
+            
+            # Pull applies.to.names
+            private$i.applies.to.names = unique(applies.to.name.for.mechanism)
+            
+            # Pull into.compartments.names
+            private$i.into.compartments.names = unique(into.compartments.name.for.mechanism)
+            private$i.into.compartments.suffix = into.compartments.suffix
+            
+            # Store other variables
+            private$i.required = required
+            private$i.group.names = unique(group.names)
+            private$i.ontology.name.for.mechanism = ontology.name.for.mechanism
+            private$i.required.sub.ontology.name.for.mechanism = required.sub.ontology.name.for.mechanism
+            private$i.applies.to.name.for.mechanism = applies.to.name.for.mechanism
+            private$i.into.comparments.name.for.mechanism = into.compartments.name.for.mechanism
+            private$i.alias.suffix.for.mechanism = alias.suffix.for.mechanism
+            private$i.additional.member.names = additional.member.names
+            private$i.register.function.name = register.function.name
+            
+            private$i.trackable.types = trackable.types
+            private$i.ontology.name.for.trackable = ontology.name.for.trackable
+            private$i.applies.to.name.for.trackable = applies.to.name.for.trackable
+            private$i.into.compartments.name.for.trackable = into.compartments.name.for.trackable
         },
         
-        overlaps = function(other.reference)
-        {
-            self$type == other.reference$type &&
-                self$name == other.reference$name &&
-                self$ontology.name == other.reference$ontology.name
-        },
+        ##-- Functions to Create and Compile Components --##
         
-        equals = function(other.reference)
+        create.component = function(args, version, error.prefix)
         {
-            self$type == other.reference$type &&
-                self$name == other.reference$name &&
-                self$ontology.name == other.reference$ontology.name
-        },
-        
-        compile = function()
-        {
-            rv = self$clone(deep=T)
-            class(rv) = NULL
+            # Make sure other members are present in arguments
+            missing.names = setdiff(private$i.additional.member.names, names(args))
+            if (length(missing.names)>0)
+                stop(paste0(error.prefix,
+                            "Missing ",
+                            ifelse(length(missing.names)==1, "value", "values"),
+                            " for ",
+                            collapse.with.and("'", missing.names, "'")))
+            
+            # Validate tag
+            if (is.null(args$tag))
+                stop(paste0(error.prefix, "Missing value for 'tag'"))
+            else if (!is.character(args$tag) || length(args$tag)!=1 || is.na(args$tag))
+                stop(paste0(error.prefix, "'tag' must be a single, non-NA character value"))
+            
+            # Validate groups
+            for (group.name in private$i.group.names)
+            {
+                if (all(names(args) != group.name))
+                    stop(paste0(error.prefix, "Missing value for '", group.name, "'"))
+                
+                group.val = args[[group.name]]
+                if (!is.character(group.val))
+                    stop(paste0(error.prefix, "'", group.name, "' must be a single CHARACTER value"))
+                if (length(group.val) != 1)
+                    stop(paste0(error.prefix, "'", group.name, "' must be a SINGLE character value"))
+                if (is.na(group.val))
+                    stop(paste0(error.prefix, "'", group.name, "' cannot be NA"))
+                if (all(group.val != ALLOWED.GROUPS))
+                    stop(paste0(error.prefix, "Invalid ", group.name, " value '", group.val, "' - must be either ",
+                                collapse.with.or("'", ALLOWED.GROUPS, "'")))
+            }
+            
+            # Validate applies.to
+            for (applies.to.name in private$i.applies.to.names)
+            {
+                if (all(names(args) != applies.to.name))
+                    stop(paste0(error.prefix, "Missing value for '", applies.to.name, "'"))
+                
+                applies.to.val = args[[applies.to.name]]
+                check.dimension.values.valid(applies.to.val, 
+                                             variable.name.for.error = applies.to.name, 
+                                             allow.empty = T, 
+                                             error.prefix = error.prefix)
+                
+            }
+            
+            # Validate into.compartments
+            for (into.comparments.name in private$i.into.compartments.names)
+            {
+                if (all(names(args) != into.comparments.name))
+                    stop(paste0(error.prefix, "Missing value for '", into.comparments.name, "'"))
+                
+                into.compartments.val = args[[into.comparments.name]]
+                
+                check.dimension.values.valid(into.compartments.val,
+                                             variable.name.for.error = into.compartments.val, 
+                                             allow.empty = T, 
+                                             error.prefix = error.prefix)
+                
+                too.long = sapply(into.compartments.val, length) > 1
+                if (any(too.long))
+                    stop(paste0(error.prefix, "'", into.comparments.name, "' can only contain length-one vectors (ie, each element of the list is a single value)"))
+                
+                if (!is.null(private$i.into.compartments.suffix))
+                {
+                    suffix = private$i.into.compartments.suffix
+                    if (!substr(suffix, 1, 1)=='.')
+                        suffix = paste0(".", suffix)
+                    
+                    missing.suffix = substr(names(into.compartments.val), 
+                                            nchar(names(into.compartments.val)) - nchar(suffix) + 1,
+                                            nchar(names(into.compartments.val))) != suffix
+                    
+                    names(into.compartments.val)[missing.suffix] = paste0(names(into.compartments.val)[missing.suffix], suffix)
+                    
+                    args[[into.comparments.name]] = into.compartments.val
+                }
+            }
+            
+            # Make sure into.compartments don't overlap dimensions with applies.to
+            for (mechanism.type in names(private$i.into.comparments.name.for.mechanism))
+            {
+                into.compartments.name = private$i.into.comparments.name.for.mechanism[mechanism.type]
+                into.compartments.val = args[[into.compartments.name]]
+                
+                applies.to.name = private$i.applies.to.name.for.mechanism[mechanism.type]
+                applies.to.val = args[[applies.to.name]]
+                
+                overlapping.dimensions = intersect(names(into.compartments.val), names(applies.to.val))
+                if (length(overlapping.dimensions)>0)
+                    stop(paste0(error.prefix, "'", applies.to.name, "' and '", 
+                                into.compartments.name, "' cannot share dimensions but ",
+                                ifelse(length(overlapping.dimensions)==1, "dimension ", "dimensions "),
+                                collapse.with.and("'", overlapping.dimensions, "'"),
+                                ifelse(length(overlapping.dimensions)==1, " is", " are"),
+                                " present in both."))
+            }
+            
+            # Validate version
+            if (!is.character(version) || length(version)!=1 || is.na(version))
+                stop(paste0(error.prefix, "'version' must be a single, non-NA character value"))
+            
+            # Set class and return
+            rv = c(list(type = private$i.type,
+                        tag = args$tag,
+                        schema = self,
+                        version = version),
+                   args[c(private$i.additional.member.names,
+                          private$i.group.names,
+                          private$i.applies.to.names,
+                          private$i.into.compartments.names)])
+            
+            rv$name = private$get.component.name(rv)
+            
+            class(rv) = 'core.component'
             rv
         },
         
-        resolve.compartment.values = function(aliases, 
-                                              ontology,
-                                              unresolved.alias.names,
-                                              ontology.name.for.error,
-                                              error.prefix,
-                                              wrt.specification)
+        # unpack - whether to split the component into multiple components if warranted
+        compile.component = function(comp,
+                                     specification,
+                                     ontologies = specification$ontologies,
+                                     aliases = specification$resolved.aliases,
+                                     unresolved.alias.names = specification$unresolved.alias.names,
+                                     unpack,
+                                     error.prefix)
         {
-            # nothing to do for this class
-            invisible(self)
+            #-- Validate and Resolve applies.to --#
+            for (mechanism.type in private$i.mechanism.types)
+            {
+                if (mechanism.type != 'initial.population')
+                {
+                    applies.to = private$get.applies.to.for.mechanism(mechanism.type, comp=comp, specification=specification)
+                    if (!is.null(applies.to))
+                    {
+                        ont.name = private$get.ontology.name.for.mechanism(mechanism.type, comp=comp, specification=specification)
+                        ont = ontologies[[ont.name]]
+                        
+                        #-- Validate and Resolve into.compartments --#
+                        if (!is.na(private$i.into.comparments.name.for.mechanism[mechanism.type]))
+                        {
+                            into.compartments = comp[[ private$i.into.comparments.name.for.mechanism[mechanism.type] ]]
+                            if (length(into.compartments)>0)
+                            {
+                                into.compartments = do.resolve.dimension.values(dimension.values = into.compartments,
+                                                                                aliases = aliases,
+                                                                                ontology = ont,
+                                                                                unresolved.alias.names = unresolved.alias.names,
+                                                                                variable.name.for.error = paste0(private$i.into.comparments.name.for.mechanism[mechanism.type], " for '", mechanism.type, "' of ", comp$name),
+                                                                                ontology.name.for.error = paste0("the ontology ('", ont.name, "')"),
+                                                                                error.prefix = error.prefix)
+                                # Make sure they are length 1 after resolving
+                                too.long.mask = sapply(into.compartments, length)>1
+                                if (any(too.long.mask))
+                                    stop(paste0(error.prefix, "'", private$i.into.comparments.name.for.mechanism[mechanism.type], "' for '", mechanism.type,
+                                                "' of ", comp$name, " can only contain single values, but after resolving aliases, some elements of the list contain more than one value"))
+                                
+                                # Store
+                                comp[[ private$i.into.comparments.name.for.mechanism[mechanism.type] ]] = into.compartments
+                             
+                                ont = ont[setdiff(names(ont), names(into.compartments))]
+                                ont.name = paste0(ont.name, " after excluding ", paste0(names(into.compartments), collapse='/'))
+                            }
+                        }
+                        
+                        if (is.na(private$i.applies.to.name.for.mechanism[mechanism.type]))
+                            applies.to.name = paste0("the applies.to for '", mechanism.type, "'")
+                        else
+                            applies.to.name = paste0(private$i.applies.to.name.for.mechanism[mechanism.type], 
+                                                     " (for '", mechanism.type, "' mechanism)")
+                        
+                        resolved.applies.to = do.resolve.dimension.values(dimension.values = applies.to,
+                                                                          aliases = aliases,
+                                                                          ontology = ont,
+                                                                          unresolved.alias.names = unresolved.alias.names,
+                                                                          variable.name.for.error = paste0(applies.to.name, " of ", comp$name),
+                                                                          ontology.name.for.error = paste0("the ontology ('", ont.name, "')"),
+                                                                          error.prefix = error.prefix)
+                        
+                        if (!is.na(private$i.applies.to.name.for.mechanism[mechanism.type]))
+                            comp[[ private$i.applies.to.name.for.mechanism[mechanism.type] ]] = resolved.applies.to
+                        
+                        if (!is.null(comp$mechanism.dim.names))
+                        {
+                            comp$mechanism.dim.names[[mechanism.type]] = do.resolve.dimension.values(dimension.values = comp$mechanism.dim.names[[mechanism.type]],
+                                                                                                     aliases = aliases,
+                                                                                                     ontology = ont,
+                                                                                                     unresolved.alias.names = unresolved.alias.names,
+                                                                                                     variable.name.for.error = paste0("mechanism '", mechanism.type, "' of ", comp$name),
+                                                                                                     ontology.name.for.error = paste0("the ontology ('", ont.name, "')"),
+                                                                                                     error.prefix = error.prefix)
+                        }
+                    }
+                }
+            }
+            
+            list(comp)
         },
         
-        get.description = function(wrt.specification, with.quotes=T)
+        is.required = function(specification)
         {
-            if (with.quotes)
-                qu = "'"
-            else
-                qu = ''
+            private$i.required
+        },
+        
+        is.allowed = function(specification)
+        {
+            T
+        },
+        
+        #-- Functions to Create a Mechanism or Top-Level Quantity --#
+        
+        create.mechanism = function(type, 
+                                    quantity.name,
+                                    tags,
+                                    args,
+                                    error.prefix)
+        {
+            if (!is.character(type) || length(type) != 1 || is.na(type))
+                stop(paste0(error.prefix, "'type' must be a single, non-NA character value"))
             
-            if (length(wrt.specification$top.level.schemata[private$i.name])>1)
-                paste0(qu, private$i.name, qu, " (for ", qu, private$i.ontology.name, qu, ")")
-            else
-                paste0(qu, private$i.name, qu)
-        },
-
-        set.value.quantity.name = function(value.quantity.name)
-        {
-            if (!is.character(value.quantity.name) || length(value.quantity.name)!=1 || is.na(value.quantity.name))
-                stop("In set.value.quantity.name(), 'value.quantity.name' must be a single, non-NA character value")
+            if (all(private$i.mechanism.types != type))
+                stop(error.prefix, "'", type, "' is not a valid mechanism for a '",
+                     private$i.type, "' core-component (must be ",
+                     collapse.with.or("'", private$i.mechanism.types, "'"), ")")
             
-            private$i.value.quantity.name = value.quantity.name
-        },
-
-        get.max.dim.names = function(specification)
-        {
-            specification$ontologies[[private$i.ontology.name]]
-        },
-
-        get.dimension.aliases = function(specification)
-        {
-            if (is.null(private$i.alias.suffix))
-                character()
-            else
+            if (!is.character(quantity.name) || length(quantity.name) != 1 || is.na(quantity.name))
+                stop(paste0(error.prefix, "'quantity.name' must be a single, non-NA character value"))
+            
+            for (group.name in private$i.group.names)
             {
-                rv = names(self$get.max.dim.names(specification))
-                names(rv) = rv
+                group.val = args[[group.name]]
                 
-                has.suffix.mask = substr(rv, nchar(rv)-nchar(private$i.alias.suffix)+1, nchar(rv)) == private$i.alias.suffix
-                rv[has.suffix.mask] = substr(rv[has.suffix.mask], 1, nchar(rv[has.suffix.mask])-nchar(private$i.alias.suffix)-1)
+                if (is.null(group.val))
+                    stop(paste0(error.prefix,
+                                "Must specify '", group.name, "' in creating a '", type, "' mechanism"))
                 
-                rv
+                if (!is.character(group.val) || length(group.val)!=1 || is.na(group.val))
+                    stop(paste0(error.prefix, "'", group.name, 
+                                "' must be a single, non-NA character value when creating a '",
+                                type, "' mechanism"))
             }
+            
+            
+            rv = c(list(type = type,
+                        quantity.name = quantity.name,
+                        tags = tags,
+                        schema = self),
+                   args[private$i.group.names])
+            
+            class(rv) = 'model.mechanism'
+            rv
+        },
+        
+        create.top.level.references = function(comp, 
+                                               specification,
+                                               error.prefix)
+        {
+            lapply(private$i.mechanism.types, function(mechanism.type){
+                
+                applies.to = private$get.applies.to.for.mechanism(mechanism.type, comp=comp, specification=specification)
+                into.compartments = comp[[ private$i.into.comparments.name.for.mechanism[mechanism.type] ]]
+                
+                if (length(intersect(names(applies.to), names(into.compartments)))>0)
+                    stop(paste0("Unable to merge applies.to and into.compartments for mechanism '",
+                                mechanism.type, "': applies.to and into.compartments cannot have overlapping dimensions, but both contain ",
+                                collapse.with.and("'", intersect(names(applies.to), names(into.compartments)), "'")))
+                applies.to = c(applies.to)
+                
+                ontology.name = private$get.ontology.name.for.mechanism(mechanism.type, comp=comp, specification=specification)
+                
+                required.sub.ontology.name = private$get.required.sub.ontology.name.for.mechanism(mechanism.type, comp=comp, specification=specification)
+                
+                alias.suffix = private$i.alias.suffix.for.mechanism[mechanism.type]
+                if (is.na(alias.suffix))
+                    alias.suffix = NULL
+                
+                exclude.ontology.dimensions = private$get.exclude.ontology.dimensions.for.mechanism(mechanism.type, comp=comp, specification=specification)
+                
+                TOP.LEVEL.REFERENCE$new(specification = specification,
+                                        source = comp$name,
+                                        ontology.name = ontology.name,
+                                        required.sub.ontology.name = required.sub.ontology.name,
+                                        value.quantity.name = comp[[mechanism.type]],
+                                        applies.to = applies.to,
+                                        exclude.ontology.dimensions = exclude.ontology.dimensions,
+                                        alias.suffix = alias.suffix,
+                                        error.prefix = error.prefix)
+            })
+        },
+
+        set.component.top.level.references = function(comp,
+                                                      references,
+                                                      specification,
+                                                      error.prefix)
+        {
+            comp$mechanism.dim.names = lapply(references, function(ref){
+                ref$get.max.dim.names(specification = specification,
+                                      error.prefix = paste0(error.prefix, " - cannot get dimnames for ", comp$name, ": "))
+            })
+            names(comp$mechanism.dim.names) = private$i.mechanism.types
+            
+            comp
+        },
+        
+        ##-- Functions to Check if Components are "the same" or Use a Particular Mechanism --##
+        component.uses.mechanism = function(comp, mechanism)
+        {
+            # mechanism is for component
+            # tags overlap
+            # groups overlap
+            
+            any(private$i.mechanism.types == mechanism$type) &&
+                (is.null(mechanism$tag) || any(comp$tag == mechanism$tag)) &&
+                all(sapply(private$i.group.names, function(group.name){
+                    is.null(mechanism[[group.name]]) ||
+                        comp[[group.name]] == mechanism[[group.name]]
+                }))
+            
+        },
+        
+        components.clash = function(comp1, comp2)
+        {
+            # type equal
+            # tags equal
+            # groups equal
+            
+            comp1$type == comp2$type &&
+                comp1$tag == comp2$tag &&
+                all(sapply(private$i.group.names, function(group.name){
+                    comp1[[group.name]] == comp2[[group.name]]
+                }))
+        },
+
+        dynamic.tracker.involves.component = function(tracker, comp)
+        {
+            any(tracker$type == private$i.trackable.types) &&
+                ( is.null(tracker$tags) || any(tracker$tags == comp$tag) ) &&
+                ( is.null(tracker$groups) || any(tracker$groups == comp[[ private$i.ontology.name.for.trackable[tracker$type] ]]) )
+            # ^The last term of the last line relies on the fact that if a group applies to this tracker
+            #  then the ontology name for the tracker is the group name
+        },
+
+        get.ontology.for.trackable = function(trackable.type,
+                                              comp,
+                                              ontologies)
+        {
+            # Pull Down the Ontology
+            ontology.name = private$get.ontology.name.for.trackable(trackable.type, comp)
+            rv = ontologies[[ontology.name]]
+            
+            # Merge with applies.to
+            applies.to = private$get.applies.to.for.trackable(trackable.type, comp = comp)
+            if (!is.null(applies.to))
+            {
+                applicable.applies.to.dimensions = intersect(names(rv),
+                                                             names(applies.to))
+                rv[applicable.applies.to.dimensions] = applies.to[applicable.applies.to.dimensions]
+            }
+            
+            # Fold in into-compartments
+            into.compartments.name = private$i.into.compartments.for.trackable[trackable.type]
+            if (!is.na(into.compartments.name))
+            {
+                applicable.into.dimensions = intersect(names(rv), 
+                                                       names(comp[[into.compartments.name]]))
+                rv[applicable.into.dimensions] = comp[[into.compartments.name]][applicable.into.dimensions]
+            }
+            
+            # Return
+            rv
         }
     ),
     
     active = list(
-        
-        descriptor = function(value)
-        {
-            if (missing(value))
-                "top-level reference"
-            else
-                stop("Cannot modify a top.level.reference's 'descriptor' - it is read-only")
-        },
-        
-        name = function(value)
-        {
-            if (missing(value))
-                private$i.name
-            else
-                stop(paste0("Cannot modify a ", self$descriptor, "'s 'name' - it is read-only"))
-        },
-        
-        version = function(value)
-        {
-            if (missing(value))
-                private$i.version
-            else
-                stop(paste0("Cannot modify a ", self$descriptor, "'s 'version' - it is read-only"))
-        },
-        
-        ontology.name = function(value)
-        {
-            if (missing(value))
-                private$i.ontology.name
-            else
-                stop(paste0("Cannot modify a ", self$descriptor, "'s 'ontology.name' - it is read-only"))
-        },
         
         type = function(value)
         {
@@ -4555,184 +5128,1045 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                 stop(paste0("Cannot modify a ", self$descriptor, "'s 'type' - it is read-only"))
         },
         
-        value.quantity.name = function(value)
+        mechanism.types = function(value)
         {
             if (missing(value))
-                private$i.value.quantity.name
+                private$i.mechanism.types
             else
-                stop(paste0("Cannot modify a ", self$descriptor, "'s 'value.quantity.name' - it is read-only"))
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'mechanism.types' - they are read-only"))
+        },
+        
+        register.function.name = function(value)
+        {
+            if (missing(value))
+                private$i.register.function.name
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'register.function.name' - it is read-only"))
+        },
+        
+        trackable.types = function(value)
+        {
+            if (missing(value))
+                private$i.trackable.types
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'trackable.types' - they are read-only"))
         }
     ),
     
     private = list(
-        i.name = NULL,
-        i.version = NULL,
-        i.value.quantity.name = NULL,
-        i.ontology.name = NULL,
         i.type = NULL,
-        i.alias.suffix = NULL
+        
+        i.mechanism.types = NULL,
+        
+        i.required = NULL,
+        
+        i.group.names = NULL,
+        i.applies.to.names = NULL,
+        i.into.compartments.names = NULL,
+        
+        i.into.compartments.suffix = NULL,
+        
+        i.ontology.name.for.mechanism = NULL,
+        i.required.sub.ontology.name.for.mechanism = NULL,
+        i.applies.to.name.for.mechanism = NULL,
+        i.into.comparments.name.for.mechanism = NULL,
+        i.alias.suffix.for.mechanism = NULL,
+        
+        i.additional.member.names = NULL,
+        
+        i.register.function.name = NULL,
+        
+        i.trackable.types = NULL,
+        i.ontology.name.for.trackable = NULL,
+        i.applies.to.name.for.trackable = NULL,
+        i.into.compartments.name.for.trackable = NULL,
+        
+        
+        # Private Member Functions
+        get.ontology.name.for.mechanism = function(mechanism.type, comp, specification)
+        {
+            ontology.name = private$i.ontology.name.for.mechanism[[mechanism.type]]
+            if (is.na(ontology.name))
+                stop(paste0("CORE.COMPONENT.SCHEMA cannot find ontology name for mechanism '", mechanism.type, "' for a '", private$i.type, "' core component"))
+            
+            if (any(ontology.name == private$i.group.names))
+                ontology.name = comp[[ontology.name]]
+            
+            ontology.name
+        },
+        
+        get.ontology.name.for.trackable = function(trackable.type, comp)
+        {
+            ontology.name = private$i.ontology.name.for.trackable[[trackable.type]]
+            if (is.na(ontology.name))
+                stop(paste0("CORE.COMPONENT.SCHEMA cannot find ontology name for trackable '", trackable.type, "' for a '", private$i.type, "' core component"))
+            
+            if (any(ontology.name == private$i.group.names))
+                ontology.name = comp[[ontology.name]]
+            
+            ontology.name
+        },
+        
+        get.required.sub.ontology.name.for.mechanism = function(mechanism.type, comp, specification)
+        {
+            required.sub.ontology.name = private$i.required.sub.ontology.name.for.mechanism[mechanism.type]
+            if (is.na(required.sub.ontology.name))
+                required.sub.ontology.name = NULL
+            else if (any(required.sub.ontology.name == private$i.group.names))
+                required.sub.ontology.name = comp[[required.sub.ontology.name]]
+            
+            required.sub.ontology.name
+        },
+        
+        get.applies.to.for.mechanism = function(mechanism.type, comp, specification)
+        {
+            applies.to.name = private$i.applies.to.name.for.mechanism[mechanism.type]
+            if (is.na(applies.to.name))
+                NULL
+            else
+                comp[[applies.to.name]]
+        },
+        
+        get.applies.to.for.trackable = function(trackable.type, comp)
+        {
+            applies.to.name = private$i.applies.to.name.for.trackable[trackable.type]
+            if (is.na(applies.to.name))
+                NULL
+            else
+                comp[[applies.to.name]]
+        },
+        
+        get.exclude.ontology.dimensions.for.mechanism = function(mechanism.type, comp, specification)
+        {
+            rv = names(comp[[ private$i.into.comparments.name.for.mechanism[mechanism.type] ]])
+            rv = rv[!is.na(rv)]
+            rv
+        },
+        
+        get.component.name = function(comp)
+        {
+            rv = private$i.type
+            if (length(private$i.group.names)==0)
+            {}
+            else if (length(private$i.group.names)==1)
+            {
+                rv = paste0(rv, " for ",
+                            paste0("'", comp[[private$i.group.names]], "'", collapse='/'))
+            }
+            else
+            {
+                group.descriptors = sapply(private$i.group.names, function(group.name){
+                    paste0(group.name, "=", 
+                           paste0("'", comp[[group.name]], "'", collapse='/'))
+                })
+                rv = paste0(rv, " for ", paste0(group.descriptors, collapse=', '))
+            }
+            
+            if (comp$tag != private$i.type)
+                rv = paste0(rv, " (with tag='", comp$tag, "')")
+            
+            rv
+        }
     )
 )
 
-TRANSITION.REFERENCE = R6::R6Class(
-    'transition.reference',
-    inherit = TOP.LEVEL.REFERENCE,
+AGING.CORE.COMPONENT.SCHEMA = R6::R6Class(
+    'aging.core.component.schema',
+    inherit = CORE.COMPONENT.SCHEMA,
     portable = F,
     
     public = list(
         
-        initialize = function(value.quantity.name,
-                              specification,
-                              ontology.name,
-                              dimension,
-                              from.compartments,
-                              to.compartments)
+        initialize = function()
         {
-            super$initialize(name = NULL,
-                             specification = specification,
-                             ontology.name = ontology.name,
-                             value.quantity.name = value.quantity.name,
-                             type = 'transition.reference',
-                             alias.suffix = 'from')
-            
-            if (!is.character(dimension) || length(dimension)!=1 || is.na(dimension) || nchar(dimension)==0)
-                stop("'dimension' for a ", self$descriptor, " must be a single, non-NA, non-empty character value")
-            
-            if (!is.character(from.compartments) || length(from.compartments)==0 || 
-                any(is.na(from.compartments)) || any(nchar(from.compartments)==0))
-                stop("'from.compartments' for a ", self$descriptor, " (in dimension '", dimension, 
-                     "') must be a non-NA, non-empty character vector")
-            
-            if (!is.character(to.compartments) || length(to.compartments)==0 ||
-                any(is.na(to.compartments)) || any(nchar(to.compartments)==0))
-                stop("'to.compartments' for a ", self$descriptor, " (in dimensions '", dimension,
-                     "') must be a non-NA, non-empty character vector")
-            
-            private$i.dimension = dimension
-            private$i.from.compartments = from.compartments
-            private$i.to.compartments = to.compartments
+            super$initialize(type = 'aging',
+                             mechanism.types = "aging.rate",
+                             group.names='group',
+                             ontology.name.for.mechanism = c(aging.rate='group'),
+                             applies.to.name.for.mechanism = c(aging.rate='applies.to'),
+                             required = F,
+                             trackable.types = NULL)
         },
         
-        overlaps = function(other.reference)
+        is.allowed = function(specification)
         {
-            super$overlaps(other.reference) &&
-                self$dimension == other.reference$dimension &&
-                length(intersect(self$from.compartments, other.reference$from.compartments)) > 0 &&
-                length(intersect(self$to.compartments, other.reference$to.compartments)) > 0
-        },
+            !is.null(specification$age.info) &&  length(specification$age.info$endpoints)>2
+        }
+    ),
+    
+    private = list(
         
-        equals = function(other.reference)
+        get.ontology.name.for.mechanism = function(mechanism.type, comp, specification)
         {
-            self$type == other.reference$type &&
-                self$ontology.name == other.reference$ontology.name &&
-                self$dimension == other.reference$dimension &&
-                setequal(self$from.compartments, other.reference$from.compartments) &&
-                setequal(self$to.compartments, other.reference$to.compartments)
-        },
-        
-        resolve.compartment.values = function(aliases, 
-                                              ontology,
-                                              unresolved.alias.names,
-                                              ontology.name.for.error,
-                                              error.prefix,
-                                              wrt.specification)
-        {
-            private$i.from.compartments = do.resolve.compartment.values(values = private$i.from.compartments,
-                                                                        aliases = aliases,
-                                                                        template = ontology[[private$i.dimension]],
-                                                                        unresolved.alias.names= unresolved.alias.names,
-                                                                        variable.name.for.error = "'from.compartments' for transition",
-                                                                        template.name.for.error = ontology.name.for.error,
-                                                                        dimension = private$i.dimension,
-                                                                        error.prefix = error.prefix)
-                
-            private$i.to.compartments = do.resolve.compartment.values(values = private$i.to.compartments,
-                                                                      aliases = aliases,
-                                                                      template = ontology[[private$i.dimension]],
-                                                                      unresolved.alias.names= unresolved.alias.names,
-                                                                      variable.name.for.error = "'to.compartments' for transition",
-                                                                      template.name.for.error = ontology.name.for.error,
-                                                                      dimension = private$i.dimension,
-                                                                      error.prefix = error.prefix)
+            ontology.name = private$i.ontology.name.for.mechanism[[mechanism.type]]
+            if (is.na(ontology.name))
+                stop(paste0("CORE.COMPONENT.SCHEMA cannot find ontology name for mechanism '", mechanism.type, "' for a '", private$i.type, "' core component"))
+            
+            if (any(ontology.name == private$i.group.names))
+                ontology.name = paste0('aging.', comp[[ontology.name]])
+            
+            ontology.name
+        }
+    )
+)
 
-            self
+
+NATALITY.CORE.COMPONENT.SCHEMA = R6::R6Class(
+    'natality.core.component.schema',
+    inherit = CORE.COMPONENT.SCHEMA,
+    portable = F,
+ 
+    public = list(
+        
+        initialize = function()
+        {
+            super$initialize(type = 'natality',
+                             mechanism.types = c('fertility.rate', 'birth.proportions'),
+                             group.names = c('group.from','group.to'),
+                             ontology.name.for.mechanism = c(fertility.rate='group.from'),
+                             applies.to.name.for.mechanism = c(fertility.rate='applies.to'),
+                             required = T,
+                             into.compartments.name.for.mechanism=c(birth.proportions='all.births.into.compartments'),
+                             into.compartments.suffix = '.to',
+                             alias.suffix.for.mechanism=c(birth.proportions='from'),
+                             additional.member.names='parent.child.concordant.dimensions',
+                             trackable.types = c('births.from','births.to',
+                                                 'incidence.to','incidence.by'),
+                             ontology.name.for.trackable = c(births.from='group.from',
+                                                             births.to='group.to',
+                                                             incidence.to='infected',
+                                                             incidence.by='infected'),
+                             applies.to.name.for.trackable = c(births.from='applies.to',
+                                                               incidency.by='applies.to'))
         },
         
-        get.description = function(wrt.specification, with.quotes=T)
+        create.component = function(args, version, error.prefix)
         {
-            if (with.quotes)
-                qu = "'"
+            if (is.null(args$all.births.into.compartments))
+                args$parent.child.concordant.dimensions = character()
             else
-                qu = ''
+            {
+                if (!is.character(args$parent.child.concordant.dimensions) || any(is.na(args$parent.child.concordant.dimensions)))
+                    stop(paste0(error.prefix, "'parent.child.concordant.dimensions' must be a character vector with no NA values"))
+            }
             
-            dimension.valid.for.group = sapply(TOP.LEVEL.QUANTITY.GROUPS, function(g){
-                any(names(wrt.specification$ontologies[[g]]) == dimension)
-            })
+            super$create.component(args, version=version, error.prefix=error.prefix)
+        },
+        
+        compile.component = function(comp,
+                                     specification,
+                                     ontologies = specification$ontologies,
+                                     aliases = specification$resolved.aliases,
+                                     unresolved.alias.names = specification$unresolved.alias.names,
+                                     unpack,
+                                     error.prefix)
+        {
+            comp = super$compile.component(comp, 
+                                           specification=specification, 
+                                           ontologies = ontologies,
+                                           aliases = aliases,
+                                           unresolved.alias.names = unresolved.alias.names,
+                                           unpack = unpack,
+                                           error.prefix=error.prefix)[[1]]
+                
+            #-- Make sure that all parent.child.concordant.dimensions are in both the from and to ontologies --#
+            from.ontology = ontologies[[comp$group.from]]
+            to.ontology = ontologies[[comp$group.to]]
             
-            if (sum(dimension.valid.for.group)>1)
-                paste0("transition in ", qu, private$i.dimension, qu, " (for ", qu, private$i.ontology.name, qu, ")")
+            # Check for missing from from.ontology
+            concordant.dimensions.missing.from.from = setdiff(comp$parent.child.concordant.dimensions,
+                                                              names(from.ontology))
+            
+            if (length(concordant.dimensions.missing.from.from)>0)
+                stop(paste0(error.prefix,
+                            ifelse(length(concordant.dimensions.missing.from.from)>1, "Dimensions ", "Dimension "),
+                            collapse.with.and("'", concordant.dimensions.missing.from.from, "'"),
+                            ifelse(length(concordant.dimensions.missing.from.from)>1, " are included as ", " is included as one of "),
+                            "'parent.child.concordant.dimensions' for ", comp$name,
+                            " but ",
+                            ifelse(length(concordant.dimensions.missing.from.from)>1, "are", "is"),
+                            " not present in the parent ontology ('", comp$group.from, "')"))
+
+            # Check for missing from to.ontology
+            concordant.dimensions.missing.from.to = setdiff(comp$parent.child.concordant.dimensions,
+                                                              names(to.ontology))
+            if (length(concordant.dimensions.missing.from.to)>0)
+                stop(paste0(error.prefix,
+                            ifelse(length(concordant.dimensions.missing.from.to)>1, "Dimensions ", "Dimension "),
+                            collapse.with.and("'", concordant.dimensions.missing.from.to, "'"),
+                            ifelse(length(concordant.dimensions.missing.from.to)>1, " are included as ", " is included as one of "),
+                            "'parent.child.concordant.dimensions' for ", comp$name,
+                            " but ",
+                            ifelse(length(concordant.dimensions.missing.from.to)>1, "are", "is"),
+                            " not present in the child ontology ('", comp$group.to, "')"))
+            
+            # Check for not the same in from and to ontologies
+            for (d in comp$parent.child.concordant.dimensions)
+            {
+                if (!setequal(from.ontology[[d]], to.ontology[[d]]))
+                    stop(paste0(error.prefix,
+                                "Dimension '", d, "' is included as one of 'parent.child.concordant.dimensions' for ", comp$name,
+                                " but does not have the same values in the parent - '", comp$group.from, "' - ontology (",
+                                paste0("'", from.ontology[[d]], "'", collapse=', '),
+                                ") as in the child - '", comp$group.to, "' - ontology (",
+                                paste0("'", to.ontology[[d]], "'", collapse=', '),
+                                ")"))
+            }
+            
+            
+            #-- Check for clashes between all.births.into.compartments and parent.child.concordant.dimensions --#
+            clashing.dimensions = intersect(names(comp$all.births.into.compartments), comp$parent.child.concordant.dimensions)
+            if (length(clashing.dimensions)>0)
+                stop(paste0(error.prefix, 
+                            ifelse(length(clashing.dimensions)>1, "Dimensions ", "Dimension "),
+                            collapse.with.and("'", clashing.dimensions, "'"),
+                            ifelse(length(clashing.dimensions)>1, " are", " is"),
+                            " present in both 'all.births.into.compartments' and 'parent.child.concordant.dimensions' for ",
+                            comp$name, ". Dimensions may only be present in one or the other, but not both"
+                            ))
+            
+            list(comp)
+        }
+    ),
+    
+    private = list(
+        
+        get.ontology.name.for.mechanism = function(mechanism.type, comp, specification)
+        {
+            if (mechanism.type=='birth.proportions')
+                paste0('birth.proportions.', comp$group.from, ".to.", comp$group.to)
             else
-                paste0("transition in ", qu, private$i.dimension, qu)
+                super$get.ontology.name.for.mechanism(mechanism.type, comp=comp, specification=specification)
         },
         
-        get.max.dim.names = function(specification)
+        get.required.sub.ontology.name.for.mechanism = function(mechanism.type, comp, specification)
         {
-            dim.names = specification$ontologies[[private$i.ontology.name]]
-            names(dim.names)[names(dim.names)==private$i.dimension] = paste0(private$i.dimension, '.from')
+            if (mechanism.type=='birth.proportions')
+                paste0(comp$group.to, ".to")
+            else
+                super$get.required.sub.ontology.name.for.mechanism(mechanism.type, comp=comp, specification=specification)
+        },
+        
+        get.applies.to.for.mechanism = function(mechanism.type, comp, specification)
+        {
+            if (mechanism.type=='birth.proportions')
+            {
+                applies.to = comp$applies.to
+                if (length(applies.to)>0)
+                    names(applies.to) = paste0(names(applies.to), ".from")
+                applies.to
+            }
+            else
+                super$get.applies.to.for.mechanism(mechanism.type, comp=comp, specification=specification)
+        },
+        
+        get.applies.to.for.trackable = function(trackable.type, comp, specification)
+        {
+            if (trackable.type=='births.to' || trackable.type=='incidence.to')
+            {
+                concordant.dimensions.in.applies.to = intersect(substr(comp$parent.child.concordant.dimensions, 1, nchar(comp$parent.child.concordant.dimensions)-nchar(private$i.into.compartments.suffix)), 
+                                                                names(comp$applies.to))
+                comp$applies.to[concordant.dimensions.in.applies.to]
+            }
+            else
+                super$get.applies.to.for.mechanism(mechanism.type, comp=comp, specification=specification)
+        },
+        
+        get.exclude.ontology.dimensions.for.mechanism = function(mechanism.type, comp, specification)
+        {
+            rv = super$get.exclude.ontology.dimensions.for.mechanism(mechanism.type, comp=comp, specification=specification)
+            if (mechanism.type=='birth.proportions')
+                rv = c(rv, paste0(comp$parent.child.concordant.dimensions, '.to'))
             
-            dim.names
-        },
-        
-        get.dimension.aliases = function(specification)
-        {
-            rv = private$i.dimension
-            names(rv) = paste0(rv, ".from")
             rv
+        }
+    )
+)
+
+TRANSMISSION.CORE.COMPONENT.SCHEMA = R6::R6Class(
+    'transmission.core.component.schema',
+    inherit = CORE.COMPONENT.SCHEMA,
+    portable = F,
+    
+    public = list(
+        
+        initialize = function()
+        {
+            super$initialize(type = 'transmission',
+                             mechanism.types = c('susceptibility','transmissibility','contact','new.infection.proportions'),
+                             required = T,
+                             ontology.name.for.mechanism = c(susceptibility='uninfected',
+                                                             transmissibility='infected',
+                                                             contact='contact',
+                                                             new.infection.proportions='infected.plus.uninfected'),
+                             applies.to.name.for.mechanism = c(susceptibility='to.applies.to',
+                                                               transmissibility='from.applies.to',
+                                                               new.infection.proportions='from.applies.to'),
+                             required.sub.ontology.name.for.mechanism=c(new.infection.proportions='infected.compartments'),
+                             into.compartments.name.for.mechanism=c(new.infection.proportions='all.new.infections.into.compartments'),
+                             alias.suffix.for.mechanism=c(contact='from'),
+                             trackable.types = c('incidence.from','incidence.by','incidence.to'),
+                             ontology.name.for.trackable = c(incidence.from='uninfected',
+                                                             incidence.by='infected',
+                                                             incidence.to='infected'),
+                             applies.to.name.for.trackable = c(incidence.from='to.applies.to',
+                                                               incidence.by='from.applies.to',
+                                                               incidence.to='to.applies.to'),
+                             into.compartments.name.for.trackable = c(incidence.to='all.new.infections.into.compartments'))
+        }
+    ),
+    
+    private = list(
+        
+        get.applies.to.for.mechanism = function(mechanism.type, comp, specification)
+        {
+            if (mechanism.type=='contact')
+            {
+                # Create 'extra' contact.applies.to variable out of from.applies.to and to.applies.to
+                from.applies.to = comp$from.applies.to
+                if (length(from.applies.to)>0)
+                    names(from.applies.to) = paste0(names(from.applies.to), '.from')
+                
+                to.applies.to = comp$to.applies.to
+                if (length(to.applies.to)>0)
+                    names(to.applies.to) = paste0(names(to.applies.to), '.to')
+                
+                contact.applies.to = c(to.applies.to, from.applies.to)
+                
+                contact.applies.to = contact.applies.to[intersect(names(contact.applies.to),
+                                                                  names(specification$ontologies[['contact']]))]
+                
+                contact.applies.to
+            }
+            else
+                super$get.applies.to.for.mechanism(mechanism.type, comp=comp, specification=specification)
+        }
+    )
+    
+)
+
+TRANSITION.CORE.COMPONENT.SCHEMA = R6::R6Class(
+    'transition.core.component.schema',
+    inherit = CORE.COMPONENT.SCHEMA,
+    portable = F,
+    
+    public = list(
+        
+        initialize = function()
+        {
+            super$initialize(type = 'transition',
+                             mechanism.types = 'transition.rate',
+                             group.names='group',
+                             ontology.name.for.mechanism=character(),
+                             applies.to.name.for.mechanism=c(transition.rate='applies.to'),
+                             required=F,
+                             alias.suffix.for.mechanism=c(transition.rate='from'),
+                             additional.member.names=c('dimension','from.compartments','to.compartments'),
+                             trackable.types = 'transition')
+        },
+        
+        create.component = function(args, version, error.prefix)
+        {
+            # Check dimension
+            if (is.null(args$dimension))
+                stop(paste0(error.prefix, "'dimension' must be specified"))
+            if (!is.character(args$dimension) || length(args$dimension)!=1 || is.na(args$dimension))
+                stop(paste0(error.prefix, "'dimension' must be a single, non-NA character value"))
+            
+            # Check from.compartments
+            if (is.null(args$from.compartments))
+                stop(paste0(error.prefix, "'from.compartments' must be specified"))
+            if (!is.character(args$from.compartments) || length(args$from.compartments)==0 || any(is.na(args$from.compartments)))
+                stop(paste0(error.prefix, "'from.compartments' must be a character vector with length >= 1 and no NA values"))
+            
+            # Check to.compartments
+            if (is.null(args$to.compartments))
+                stop(paste0(error.prefix, "'to.compartments' must be specified"))
+            if (!is.character(args$to.compartments) || length(args$to.compartments)==0 || any(is.na(args$to.compartments)))
+                stop(paste0(error.prefix, "'to.compartments' must be a character vector with length >= 1 and no NA values"))
+            
+            rv = super$create.component(args, version=version, error.prefix=error.prefix)
+            
+            # Check applies to
+            if (any(names(args$applies.to)==paste0(args$dimension, '.from')))
+                stop(paste0(error.prefix, "'applies.to' for a transition in the '",
+                            args$dimension, "' dimension cannot contain values for '",
+                            paste0(args$dimension, '.from'), "'"))
+            
+            if (any(names(args$applies.to)==paste0(args$dimension, '.to')))
+                stop(paste0(error.prefix, "'applies.to' for a transition in the '",
+                            args$dimension, "' dimension cannot contain values for '",
+                            paste0(args$dimension, '.to'), "'"))
+            
+            rv
+        },
+        
+        compile.component = function(comp,
+                                     specification,
+                                     ontologies = specification$ontologies,
+                                     aliases = specification$resolved.aliases,
+                                     unresolved.alias.names = specification$unresolved.alias.names,
+                                     unpack,
+                                     error.prefix)
+        {
+            comp = super$compile.component(comp, 
+                                           specification=specification, 
+                                           ontologies = ontologies,
+                                           aliases = aliases,
+                                           unresolved.alias.names = unresolved.alias.names,
+                                           unpack = unpack,
+                                           error.prefix=error.prefix)[[1]]
+            
+            # Make sure that dimension is in the ontology for the group
+            ont = ontologies[[comp$group]]
+            if (all(comp$dimension != names(ont)))
+                stop(paste0(error.prefix, "Dimension '", comp$dimension, "', which was passed as the transition dimension for '",
+                            comp$group, "'",
+                            ifelse(comp$tag=='transition', '', paste0(" with tag='", comp$tag, "'")),
+                            " is not a valid dimension for the '", comp$group, "' ontology"))
+            
+            # Make sure that from.compartments and to.compartments are the dimensions in the ontology for the group
+            dimension.values = ont[[comp$dimension]]
+            
+            missing.to.compartments = setdiff(comp$to.compartments, union(dimension.values, unresolved.alias.names))
+            if (length(missing.to.compartments)>1)
+                stop(paste0(error.prefix, "'to.compartments' for transition in dimension '", comp$dimension,
+                            "' for '", comp$group, "'",
+                            ifelse(tag=='transition', "", paste0(" with tag='", comp$tag, "'")),
+                            " includes ",
+                            collapse.with.and("'", missing.to.compartments, "'"),
+                            " but ",
+                            ifelse(length(missing.to.compartments)==1, "it is", "they are"),
+                            " not valid values for the '", comp$dimension, "' dimension"))
+            
+            missing.from.compartments = setdiff(comp$from.compartments, union(dimension.values, unresolved.alias.names))
+            if (length(missing.from.compartments)>1)
+                stop(paste0(error.prefix, "'from.compartments' for transition in dimension '", comp$dimension,
+                            "' for '", comp$group, "'",
+                            ifelse(tag=='transition', "", paste0(" with tag='", comp$tag, "'")),
+                            " includes ",
+                            collapse.with.and("'", missing.to.compartments, "'"),
+                            " but ",
+                            ifelse(length(missing.to.compartments)==1, "it is", "they are"),
+                            " not valid values for the '", comp$dimension, "' dimension"))
+             
+            # Make sure from.compartments and to.compartments do not overlap
+            overlapping.compartments = intersect(comp$from.compartments, comp$to.compartments)
+            if (length(overlapping.compartments)>1)
+                stop(paste0(error.prefix, "'from.compartments' and 'to.compartments' for transition in dimension '", comp$dimension,
+                            "' for '", comp$group, "'",
+                            ifelse(tag=='transition', "", paste0(" with tag='", comp$tag, "'")),
+                            " both include ",
+                            collapse.with.and("'", overlapping.compartments, "'"),
+                            " after substituting in aliases; 'from.compartments' and 'to.compartments' for a transition cannot overlap"))
+            
+            if (unpack)
+            {
+                # Split into one component for each single-pair combo for a from and to compartment
+                rv = list()
+                for (one.from.compartment in comp$from.compartments)
+                {
+                    for (one.to.compartment in comp$to.compartments)
+                    {
+                        new.comp = comp
+                        new.comp$from.compartments = one.from.compartment
+                        new.comp$to.compartments = one.to.compartment
+                        new.comp$name = private$get.component.name(new.comp)
+                        
+                        rv = c(rv, list(new.comp))
+                    }
+                }
+                
+                rv
+            }
+            else
+                list(comp)
+        },
+        
+        create.mechanism = function(type, 
+                                    quantity.name,
+                                    tags,
+                                    args,
+                                    error.prefix)
+        {
+            rv = super$create.mechanism(type,
+                                        quantity.name = quantity.name,
+                                        tags = tags,
+                                        args = args,
+                                        error.prefix)
+            
+            # Check dimension
+            if (is.null(args$dimension))
+                stop(paste0(error.prefix, "'dimension.value' must be specified"))
+            if (!is.character(args$dimension) || length(args$dimension)!=1 || is.na(args$dimension))
+                stop(paste0(error.prefix, "'dimension' must be a single, non-NA character value"))
+            
+            # Check from.compartments
+            if (is.null(args$from.compartments))
+                stop(paste0(error.prefix, "'from.compartments' must be specified"))
+            if (!is.character(args$from.compartments) || length(args$from.compartments)==0 || any(is.na(args$from.compartments)))
+                stop(paste0(error.prefix, "'from.compartments' must be a character vector with length >= 1 and no NA values"))
+            
+            # Check to.compartments
+            if (is.null(args$to.compartments))
+                stop(paste0(error.prefix, "'to.compartments' must be specified"))
+            if (!is.character(args$to.compartments) || length(args$to.compartments)==0 || any(is.na(args$to.compartments)))
+                stop(paste0(error.prefix, "'to.compartments' must be a character vector with length >= 1 and no NA values"))
+            
+            # Store and return
+            rv$dimension = args$dimension
+            rv$from.compartments = args$from.compartments
+            rv$to.compartments = args$to.compartments
+            
+            rv
+        },
+        
+        component.uses.mechanism = function(comp, mechanism)
+        {
+            comp$type=='transition' && mechanism$type=='transition.rate' &&
+                super$component.uses.mechanism(comp, mechanism = mechanism) &&
+                comp$dimension == mechanism$dimension &&
+                setequal(comp$from.compartments, mechanism$from.compartments) &&
+                setequal(comp$to.compartments, mechanism$to.compartments)
+        },
+        
+        components.clash = function(comp1, comp2)
+        {
+            comp1$type=='transition' && comp2$type=='transition' &&
+                super$components.clash(comp1, comp2) &&
+                comp1$dimension == comp2$dimension &&
+                length(intersect(comp1$from.compartments, comp2$from.compartments)>1) &&
+                length(intersect(comp1$to.compartments, comp2$to.compartments)>1)
+        }
+    ),
+    
+    private = list(
+        
+        get.ontology.name.for.mechanism = function(mechanism.type, comp, specification)
+        {
+            if (mechanism.type=='transition.rate')
+                paste0('transition.', comp$dimension, '.', comp$group)
+            else
+                super$get.ontology.name.for.mechanism(mechanism.type, comp=comp, specification=specification)
+        },
+        
+        get.applies.to.for.mechanism = function(mechanism.type, comp, specification)
+        {
+            if (mechanism.type=='transition.rate')
+            {
+                applies.to = comp$applies.to
+                applies.to[[paste0(comp$dimension, '.from')]] = comp$from.compartments
+                applies.to[[paste0(comp$dimension, '.to')]] = comp$to.compartments
+                
+                applies.to
+            }
+            else
+                super$get.applies.to.for.mechanism(mechanism.type, comp=comp, specification=specification)
+        },
+        
+        get.component.name = function(comp)
+        {
+            rv = super$get.component.name(comp)
+            rv = substr(rv, nchar(private$i.type)+2, nchar(rv))
+            
+            paste0("'", comp$dimension, "' transition from ",
+                   paste0("'", comp$from.compartments, "'", collapse='/'),
+                   " to ",
+                   paste0("'", comp$to.compartments, "'", collapse='/'),
+                   " ", rv)
+        }
+    )
+)
+
+# Make a list of all the schemata for Core Components
+
+CORE.COMPONENT.SCHEMATA = list(
+    mortality = CORE.COMPONENT.SCHEMA$new(type = 'mortality',
+                                          mechanism.types = 'mortality.rate',
+                                          required = T,
+                                          group.names = 'group',
+                                          ontology.name.for.mechanism = c(mortality.rate='group'),
+                                          applies.to.name.for.mechanism = c(mortality.rate='applies.to'),
+                                          trackable.types = 'mortality',
+                                          ontology.name.for.trackable = 'group',
+                                          applies.to.name.for.trackable = 'applies.to'),
+    natality = NATALITY.CORE.COMPONENT.SCHEMA$new(),
+    aging = AGING.CORE.COMPONENT.SCHEMA$new(),
+    transition = TRANSITION.CORE.COMPONENT.SCHEMA$new(),
+    transmission = TRANSMISSION.CORE.COMPONENT.SCHEMA$new(),
+    remission = CORE.COMPONENT.SCHEMA$new(type='remission',
+                                          mechanism.types = c('remission.rate','remission.proportions'),
+                                          required = F,
+                                          ontology.name.for.mechanism=c(remission.rate='infected',
+                                                                         remission.proportions='infected.plus.uninfected'),
+                                          required.sub.ontology.name.for.mechanism=c(remission.proportions='uninfected.compartments'),
+                                          applies.to.name.for.mechanism=c(remission.rate='applies.to',
+                                                                          remission.proportions='applies.to'),
+                                          into.compartments.name.for.mechanism=c(remission.proportions='all.remissions.into.compartments'),
+                                          trackable.types = c('remission.from','remission.to'),
+                                          ontology.name.for.trackable = c(remission.from='infected',
+                                                                          remission.to='uninfected'),
+                                          applies.to.name.for.trackable = c(remission.from='applies.to',
+                                                                            remission.to='applies.to'),
+                                          into.compartments.name.for.trackable = c(remission.to='all.remissions.into.compartments')),
+    initial.population = CORE.COMPONENT.SCHEMA$new(type='initial.population',
+                                                   mechanism.types = 'initial.population',
+                                                   required = T,
+                                                   group.names = 'group',
+                                                   required.sub.ontology.name.for.mechanism = c(initial.population='group'),
+                                                   ontology.name.for.mechanism = c(initial.population='group'),
+                                                   applies.to.name.for.mechanism = character(),
+                                                   trackable.types = character())
+)
+names(CORE.COMPONENT.SCHEMATA) = sapply(CORE.COMPONENT.SCHEMATA, function(sch){
+    sch$type
+})
+
+CORE.COMPONENT.SCHEMATA.FOR.MECHANISMS = list()
+for (sch in CORE.COMPONENT.SCHEMATA)
+{
+    for (mechanism.type in sch$mechanism.types)
+        CORE.COMPONENT.SCHEMATA.FOR.MECHANISMS[[mechanism.type]] = sch
+}
+
+
+##-----------------------------------##
+##-----------------------------------##
+##-- MODEL OUTCOME CLASS HIERARCHY --##
+##-----------------------------------##
+##-----------------------------------##
+
+
+MODEL.OUTCOME = R6::R6Class(
+    'model.outcome',
+    portable = F,
+    
+    public = list(
+        
+        initialize = function(name,
+                              type,
+                              outcome.metadata,
+                              scale,
+                              keep.dimensions,
+                              exclude.dimensions,
+                              subset.dimension.values,
+                              save)
+        {
+            # Validate type
+            if (!is.character(type) || length(type)!=1 || is.na(type))
+                stop("Error registering model outcome: 'type' must be a single, non-NA character value")
+            
+            # Validate name
+            validate.quantity.name(name, descriptor = type,
+                                   error.prefix = paste0("Error setting tracking for ", type, ": "))
+            
+            erro.prefix = paste0("Error setting tracking for ", type, " '", name, "': ")
+            
+            # Validate save
+            if (!is.logical(save) || length(save)!=1 || is.na(save))
+                stop(paste0(error.prefix, "'save must be a single, non-NA logical value"))
+            
+            # Validate outcome.metadata
+            
+            # Validate scale
+            
+            # Validate keep.dimension
+            # Validate exclude.dimensions
+            # Validate subset.dimension.value
+            
+            
+            # Store variables
+            private$i.name = name
+            private$i.type = type
+            private$i.metadata = outcome.metadata
+            private$i.scale = scale
+            private$i.keep.dimensions = keep.dimensions
+            private$i.exclude.dimensions = exclude.dimensions
+            private$i.subset.dimension.values = subset.dimension.values
+            private$i.save = save
+        },
+        
+        compile = function()
+        {
+            
+        },
+        
+        validate.arguments = function()
+        {
+            # Instantiate in
         }
     ),
     
     active = list(
         
-        descriptor = function(value)
+        metadata = function(value)
         {
-            if (missing(value))
-                "transition reference"
-            else
-                stop("Cannot modify a top.level.reference's 'descriptor' - it is read-only")
+            xxxx
         },
         
-        dimension = function(value)
+        depends.on = function(value)
         {
-            if (missing(value))
-                private$i.dimension
-            else
-                stop("Cannot modify a top.level.reference's 'dimension' - it is read-only")
+            
         },
         
-        from.compartments = function(value)
+        is.cumulative = function(value)
         {
-            if (missing(value))
-                private$i.from.compartments
-            else
-                stop("Cannot modify a top.level.reference's 'from.compartments' - they are read-only")
-        },
-        
-        to.compartments = function(value)
-        {
-            if (missing(value))
-                private$i.to.compartments
-            else
-                stop("Cannot modify a top.level.reference's 'to.compartments' - they are read-only")
+            
         }
     ),
     
     private = list(
         
-        i.dimension = NULL,
-        i.from.compartments = NULL,
-        i.to.compartments = NULL
+        i.metadata = NULL,
+        
+        i.keep.dimensions = NULL,
+        i.exclude.dimensions = NULL,
+        i.subset.dimension.values = NULL,
+        i.save = NULL,
+        
+        i.dim.names = NULL
+        
+        
     )
 )
+
+DYNAMIC.MODEL.OUTCOME = R6::R6Class(
+    'dynamic.model.outcome',
+    inherit = MODEL.OUTCOME,
+    portable = F,
+    
+    public = list(
+        
+    ),
+    
+    active = list(
+        
+        depends.on = function(value)
+        {
+            if (missing(value))
+                character()
+            else
+                stop(paste0("Cannot modify a model outcome's 'depends.on' - it is read-only"))
+        },
+        
+        is.cumulative = function(value)
+        {
+            if (missing(value))
+                T
+            else
+                stop(paste0("Cannot modify a model outcome's 'is.cumulative' - it is read-only"))
+        }
+    ),
+    
+    private = list(
+        
+    )
+)
+
+TRANSITION.MODEL.OUTCOME = R6::R6Class(
+    'transition.model.outcome',
+    inherit = DYNAMIC.MODEL.OUTCOME,
+    portable = F,
+    
+    public = list(
+        
+    ),
+    
+    active = list(
+        
+    ),
+    
+    private = list(
+        
+    )
+)
+
+INTEGRATED.MODEL.OUTCOME = R6::R6Class(
+    'integrated.model.outcome',
+    inherit = MODEL.OUTCOME,
+    portable = F,
+    
+    public = list(
+        
+    ),
+    
+    active = list(
+        
+        depends.on = function(value)
+        {
+            
+        },
+        
+        is.cumulative = function(value)
+        {
+            if (missing(value))
+                T
+            else
+                stop(paste0("Cannot modify a model outcome's 'is.cumulative' - it is read-only"))
+        }
+    ),
+    
+    private = list(
+        
+    )
+)
+
+RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
+    'rate.to.proportion.model.outcome',
+    inherit = MODEL.OUTCOME,
+    portable = F,
+    
+    public = list(
+        
+    ),
+    
+    active = list(
+        
+        depends.on = function(value)
+        {
+            
+        },
+        
+        is.cumulative = function(value)
+        {
+            if (missing(value))
+                T
+            else
+                stop(paste0("Cannot modify a model outcome's 'is.cumulative' - it is read-only"))
+        }
+    ),
+    
+    private = list(
+        
+    )
+)
+
+COMBINED.CUMULATIVE.MODEL.OUTCOME = R6::R6Class(
+    'integrated.model.outcome',
+    inherit = MODEL.OUTCOME,
+    portable = F,
+    
+    public = list(
+        
+    ),
+    
+    active = list(
+        
+        depends.on = function(value)
+        {
+            
+        },
+        
+        is.cumulative = function(value)
+        {
+            if (missing(value))
+                T
+            else
+                stop(paste0("Cannot modify a model outcome's 'is.cumulative' - it is read-only"))
+        }
+    ),
+    
+    private = list(
+        
+    )
+)
+
+QUANTITY.MODEL.OUTCOME = R6::R6Class(
+    'integrated.model.outcome',
+    inherit = MODEL.OUTCOME,
+    portable = F,
+    
+    public = list(
+        
+    ),
+    
+    active = list(
+        
+        depends.on = function(value)
+        {
+            
+        },
+        
+        is.cumulative = function(value)
+        {
+            if (missing(value))
+                F
+            else
+                stop(paste0("Cannot modify a model outcome's 'is.cumulative' - it is read-only"))
+        }
+    ),
+    
+    private = list(
+        
+    )
+)
+
+##-------------------------------------##
+##-------------------------------------##
+##-- DYNAMIC TRACKER CLASS HIERARCHY --##
+##-------------------------------------##
+##-------------------------------------##
+
+DYNAMIC.TRACKER.SCHEMA = R6::R6Class(
+    'dynamic.tracker.schema',
+    
+    public = list(
+        
+        initialize = function(type,
+                              aliases=character(),
+                              group.applies)
+        {
+            
+            private$i.type = type
+        }
+    ),
+    
+    active = list(
+        
+        type = function(value)
+        {
+            if (missing(value))
+                private$i.type
+            else
+                stop(paste0("Cannot modify a dynamic-tracker-schema's 'type' - it is read-only"))
+        }
+    ),
+    
+    private = list(
+        i.type = NULL
+    )
+)
+
+DYNAMIC.TRACKER.SCHEMATA = list(
+    DYNAMIC.TRACKER.SCHEMA$new('mortality',
+                               group.applies=T),
+    DYNAMIC.TRACKER.SCHEMA$new('births.from',
+                               group.applies=T),
+    DYNAMIC.TRACKER.SCHEMA$new('births.to',
+                               aliases='births',
+                               group.applies=T),
+    DYNAMIC.TRACKER.SCHEMA$new('incidence.to',
+                               aliases='incidence',
+                               group.applies=F),
+    DYNAMIC.TRACKER.SCHEMA$new('incidence.by',
+                               group.applies=F),
+    DYNAMIC.TRACKER.SCHEMA$new('incidence.from',
+                               group.applies=F),
+    DYNAMIC.TRACKER.SCHEMA$new('transition',
+                               group.applies=T),
+    DYNAMIC.TRACKER.SCHEMA$new('remission.from',
+                               group.applies=F),
+    DYNAMIC.TRACKER.SCHEMA$new('remission.to',
+                               aliases='remission',
+                               group.applies=F)
+)
+names(DYNAMIC.TRACKER.SCHEMATA) = sapply(DYNAMIC.TRACKER.SCHEMATA, function(sch){sch$type})
+
+missing.tracker.schema.types = setdiff(unique(unlist(lapply(CORE.COMPONENT.SCHEMATA, function(sch){sch$trackable.types}))),
+                                       names(DYNAMIC.TRACKER.SCHEMATA))
+if (length(missing.tracker.schema.types)>0)
+    stop(paste0("We are missing dynamic tracker schemata for ",
+                paste0("'", missing.tracker.schema.types, "'", collapse=', ')))
 
 ##----------------------##
 ##----------------------##
@@ -4766,7 +6200,8 @@ RESERVED.DIMENSION.POSTFIXES = c(
 RESERVED.COMPARTMENT.VALUES = character()
 
 RESERVED.COMPARTMENT.VALUE.ALIASES = c(
-    'all.ages'
+    'all.ages',
+    'all.ages.but.last'
 )
 
 # Quantity and element names cannot EQUAL these
@@ -4777,7 +6212,8 @@ RESERVED.QUANTITY.NAMES = c(
     "births",
     "infected.mortality",
     "infected.specific.mortality",
-    "uninfected.mortality"
+    "uninfected.mortality",
+    "population"
 )
 
 DEFAULT.TRANSITION.NAME.PREFIX = 'transition_'
@@ -4787,7 +6223,18 @@ RESERVED.QUANTITY.NAME.PREFIXES = c(
     'super',
     'this',
     'location',
-    'specification'
+    'specification',
+    'quant'
+)
+
+RESERVED.OUTCOME.NAMES = c(
+    'infected',
+    'uninfected',
+    'population'
+)
+
+RESERVED.OUTCOME.NAME.PREFIXES = c(
+    RESERVED.QUANTITY.NAME.PREFIXES
 )
 
 do.validate.names.or.values <- function(values,
@@ -5114,6 +6561,32 @@ validate.quantity.name <- function(name,
                                 is.single.value = T)
 }
 
+validate.outcome.name <- function(name, 
+                                   descriptor,
+                                   descriptor.plural=paste0(descriptor, 's'),
+                                   error.prefix = paste0("Cannot register ", descriptor, ": "))
+{
+    if (!is.character(name))
+        stop(paste0(error.prefix, "'name' must be a single *character* value"))
+    if (length(name)!=1)
+        stop(paste0(error.prefix, "'name' must be a *SINGLE* character value"))
+    if (is.na(name))
+        stop(paste0(error.prefix, "'name' cannot be NA"))
+    if (nchar(name)==0)
+        stop(paste0(error.prefix, "'name' cannot be an empty string ('')"))
+    
+    do.validate.names.or.values(values = name,
+                                variable.name.for.error = 'name',
+                                descriptor = descriptor,
+                                descriptor.plural = descriptor.plural,
+                                error.prefix = error.prefix,
+                                reserved.values = RESERVED.OUTCOME.NAMES,
+                                reserved.prefixes = RESERVED.OUTCOME.NAME.PREFIXES,
+                                reserved.postfixes = NULL,
+                                reserved.infixes = RESERVED.INFIXES,
+                                is.single.value = T)
+}
+
 validate.from.or.to.compartments <- function(value,
                                              variable.name.for.error,
                                              error.prefix = "Cannot register model transition: ")
@@ -5166,11 +6639,6 @@ validate.applies.to <- function(applies.to,
                                  allow.empty = F,
                                  allow.duplicate.values.within.dimensions = F,
                                  error.prefix = error.prefix)
-
-    sapply(names(applies.to), function(d){
-        
-    })
-    
 }
 
 ##---------------------------------------------------##
@@ -5188,7 +6656,7 @@ prepare.specification.function.wrapper <- function(fn,
                          fn.name=fn.name.for.error,
                          require.all.arguments.up.front=require.all.arguments.up.front,
                          throw.error.if.missing.arguments.at.execute=T,
-                         arguments.to.be.supplied.later = c('specification.info','location'),
+                         arguments.to.be.supplied.later = c('specification.metadata','location'),
                          error.prefix=error.prefix)
 }
 
@@ -5316,16 +6784,22 @@ do.resolve.dimension.values <- function(dimension.values,
 {
     if (is.null(dimension.values))
         return (dimension.values)
+
+    invalid.dimensions = setdiff(names(dimension.values), names(ontology))
+    if (length(invalid.dimensions)>0)
+        stop(paste0(error.prefix,
+                    "Cannot resolve dimension values for ",
+                    variable.name.for.error, " for ",
+                    ifelse(length(invalid.dimensions)==1, "dimension ", "dimensions "),
+                    collapse.with.and("'", invalid.dimensions, "'"), 
+                    " - ",
+                    ifelse(length(invalid.dimensions)==1, "it is", "they are"),
+                    " not present in ", ontology.name.for.error))
     
     rv = lapply(names(dimension.values), function(d){
         
         template = ontology[[d]]
-        if (is.null(template))
-            stop(paste0(error.prefix,
-                        "Cannot resolve dimension values for ",
-                        variable.name.for.error, " for dimension '", d, 
-                        "' - the ontology has no template for dimension '", d, "'"))
-        
+
         do.resolve.compartment.values(values = dimension.values[[d]],
                                       aliases = aliases,
                                       template = ontology[[d]],
@@ -5338,6 +6812,10 @@ do.resolve.dimension.values <- function(dimension.values,
     })
     
     names(rv) = names(dimension.values)
+    
+    if (is.ontology(dimension.values))
+        rv = as.ontology(rv, incomplete.dimensions = incomplete.dimensions(dimension.values))
+    
     rv
 }
 
@@ -5345,6 +6823,11 @@ apply.aliases <- function(apply.to, aliases)
 {
     if (is.character(apply.to))
         substitute.aliases.into.vector(values=apply.to, aliases=aliases)
+    else if (is.ontology(apply.to))
+    {
+        rv = apply.aliases(as.list(apply.to), aliases=aliases)
+        as.ontology(rv, incomplete.dimensions = incomplete.dimensions(apply.to))
+    }
     else if (is.list(apply.to))
         lapply(apply.to, apply.aliases, aliases=aliases)
     else if (is.null(apply.to) || is.numeric(apply.to) || is.logical(apply.to))
@@ -5476,7 +6959,7 @@ verify.dim.names.for.quantity <- function(dim.names,
         
         if (any(mismatched.dimensions))
             stop(paste0(error.prefix,
-                        variable.name.for.error, " do not match expected dimnames for ",
+                        variable.name.for.error, " does not match expected dimnames for ",
                         ifelse(component.index==1, '', paste0("the ", get.ordinal(component.index-1), " subset of ")),
                         "model quantity ",
                         quantity$get.original.name(wrt.version), " for ",

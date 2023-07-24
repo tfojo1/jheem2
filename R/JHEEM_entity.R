@@ -39,9 +39,9 @@ JHEEM.ENTITY = R6::R6Class(
                 stop(paste0(error.prefix, "'type' must be a single, non-NA, non-empty character value"))
             
             # Pull the code iteration
-            code.iteration = private$get.current.code.iteration
+            code.iteration = private$get.current.code.iteration()
             if (!is.character(code.iteration) || length(code.iteration)!=1 || is.na(code.iteration) || nchar(code.iteration)==0)
-                stop(paste0(error.prefix, "The 'code.iteration' returrned by the subclass method of private$get.current.code.iteration (in ",
+                stop(paste0(error.prefix, "The 'code.iteration' returned by the subclass method of private$get.current.code.iteration (in ",
                             paste0(setdiff(class(self), c("R6",'jheem.entity')), collapse=','),
                             ") must be a single, non-NA, non-empty character value"))
             
@@ -99,11 +99,11 @@ JHEEM.ENTITY = R6::R6Class(
         {
             if (missing(value))
             {
-                if (is.null(private$i.specification.metadata) || private$i.specification.info$is.out.of.date())
+                if (is.null(private$i.specification.metadata) || private$i.specification.metadata$is.out.of.date())
                 {
                     private$i.specification.metadata = get.specification.metadata(version = private$i.version,
                                                                                   location = private$i.location,
-                                                                                  error.prefix = paste0("Error deriving the specification-metadata for '", version, "' and location '", location, "': "))
+                                                                                  error.prefix = paste0("Error deriving the specification-metadata for '", private$i.version, "' and location '", private$i.location, "': "))
                 }
                 private$i.specification.metadata
             }
@@ -120,7 +120,7 @@ JHEEM.ENTITY = R6::R6Class(
                 {
                     private$i.simulation.metadata = get.simulation.metadata(version = private$i.version,
                                                                                   location = private$i.location,
-                                                                                  error.prefix = paste0("Error deriving the simulation-metadata for '", version, "' and location '", location, "': "))
+                                                                                  error.prefix = paste0("Error deriving the simulation-metadata for '", private$i.version, "' and location '", private$i.location, "': "))
                 }
                 private$i.simulation.metadata
             }

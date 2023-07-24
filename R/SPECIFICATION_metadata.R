@@ -11,8 +11,11 @@
 #'
 #'@export
 get.specification.metadata <- function(version, location,
-                                       error.prefix = paste0("Error deriving the specification-metadata for '", version, "' and location '", location, "': "))
+                                       error.prefix = NULL)
 {
+    if (is.null(error.prefix))
+        error.prefix = paste0("Error deriving the specification-metadata for '", version, "' and location '", location, "': ")
+    
     SPECIFICATION.METADATA$new(version=version,
                                location=location,
                                error.prefix=error.prefix)
@@ -32,12 +35,10 @@ SPECIFICATION.METADATA = R6::R6Class(
             #-- Call the superclass constructor --#
             super$initialize(version = version,
                              location = location,
-                             intervention.code = NA,
-                             calibration.index = NA,
                              type = "Specification Metadata",
                              error.prefix = error.prefix)
             
-            specification = get.specification.for.version(version)
+            specification = get.compiled.specification.for.version(version)
             private$i.specification.iteration = specification$iteration
             
             #-- Pull and resolve aliases --#
@@ -100,6 +101,7 @@ SPECIFICATION.METADATA = R6::R6Class(
             private$i.age.upper.bounds = specification$age.info$uppers
             private$i.age.endpoints = specification$age.info$endpoints
             
+            
             #-- All Done! --#
             
         },
@@ -111,6 +113,11 @@ SPECIFICATION.METADATA = R6::R6Class(
             else if (is.character(dim.names))
             {
                 substitute.aliases.into.vector(dim.names, aliases = private$i.aliases)
+            }
+            else if (is.ontology(dim.names))
+            {
+                rv = self$apply.aliases(dim.names=as.list(dim.names), error.prefix=error.prefix)
+                as.ontology(rv, incomplete.dimensions = incomplete.dimensions(dim.names))
             }
             else if (is.list(dim.names))
             {
@@ -126,7 +133,7 @@ SPECIFICATION.METADATA = R6::R6Class(
                         stop(paste0(error.prefix, "In apply.aliases(), ",
                                     ifelse(length(invalid.dimensions)==1, "dimension ", "dimensions "),
                                     collapse.with.and("'", invalid.dimensions, "'"),
-                                    ifelse(length(invalid.dimensions)==1, "is not a valid dimension", "are not valid dimensions"),
+                                    ifelse(length(invalid.dimensions)==1, " is not a valid dimension", " are not valid dimensions"),
                                     " for the specification for version '", private$i.version, "'"))
                     
                     rv = lapply(names(dim.names), function(d){
