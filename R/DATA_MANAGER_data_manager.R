@@ -819,10 +819,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         from.ontology.names = NULL,
                         append.attributes = NULL,
                         na.rm = F,
+                        debug = F,
                         ...)
         {
-            #-- Validate arguments --#
             
+            if (debug)
+                browser()
+            
+            #-- Validate arguments --#
             error.prefix = paste0("Cannot pull '", outcome, "' data from the data manager: ")
             
             # *outcome* is a single, non-NA character value
@@ -1009,7 +1013,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 strat.to.target.mapping = get.ontology.mapping(strat.dimnames, target.ontology)
                             }
                         }
-                        
                         # Skip this stratification if mappings were needed and couldn't be found
                         if (!is.null(target.ontology) &&
                             (is.null(strat.to.target.mapping) && is.null(strat.to.common.mapping)))
