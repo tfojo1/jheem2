@@ -22,6 +22,57 @@ create.data.manager <- function(name,
                            description=description)
 }
 
+#'@title Create a copy of a JHEEM Data Manager
+#'
+#'@param data.manager A jheem.data.manager object to be copied
+#'@param name The name of the new data manager
+#'@param description A short description of the new data manager. If NULL, the description of the copied data manager.
+#'
+#'@export
+copy <- function(data.manager,
+                 name,
+                 description)
+{
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+    
+    data.manager$copy(name=name,
+                      description=description)
+}
+
+#'@title Import data from another JHEEM Data Manager
+#'
+#'@param to.data.manager A jheem.data.manager object
+#'@param from.data.manager A jheem.data.manager object
+#'
+#'@export
+import.data <- function(to.data.manager,
+                        from.data.manager)
+{
+    if (!R6::is.R6(to.data.manager) || !is(to.data.manager, 'jheem.data.manager'))
+        stop("'to.data.manager' must be an R6 object with class 'jheem.data.manager'")
+    
+    to.data.manager$import.data(from.data.manager)
+}
+
+#'@title Subset a JHEEM Data Manager
+#'
+#'@param data.manager A jheem.data.manager object
+#'@param dimension.values A named list that indicates what subset of the data should be kept. The values of dimension.values must be character vectors unless an 'ontology.name' is specified, in which case logical and numeric vectors may also be used.
+#'@param ontology.name The name of a registered ontology for which data should be subset. If NULL, data from all ontologies will be subset.
+#'
+#'@export
+subset <- function(data.manager,
+                   dimension.values,
+                   ontology.name)
+{
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+    
+    data.manager$subset(dimension.values=dimension.values,
+                        ontology=ontology)
+}
+
 #'@title Register a new data ontology to a data manager before putting data to it
 #'
 #'@param data.manager A jheem.data.manager object
@@ -294,8 +345,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         initialize = function(name, description)
         {
             # Validate arguments
-            # -name, description are single, non-NA character values
-            # @NEED TO DO
+            # *name* is a single, non-empty, non-NA character value
+            if (!is.character(name) || length(name)!=1 || is.na(name) || nchar(name)==0)
+                stop(paste0(error.prefix, "'name' must be a single, non-empty, non-NA character value"))
+            
+            # *description* must be a single, non-empty, non-NA character value
+            if (!is.character(description) || length(description)!=1 || is.na(description) || nchar(description)==0)
+                stop(paste0(error.prefix, "'description' must be a single, non-empty, non-NA character value"))
             
             # Store them
             private$i.name = name
@@ -308,6 +364,193 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             private$i.outcome.info = list()
             private$i.ontologies = list()
+        },
+        
+        copy = function(name,
+                        description=private$i.description)
+        {
+            
+            error.prefix = paste0("Unable to copy data manager '", private$i.name, "': ")
+            
+            # ---Validate arguments---
+            # *name* is a single, non-empty, non-NA character value
+            if (!is.character(name) || length(name)!=1 || is.na(name) || nchar(name)==0)
+                stop(paste0(error.prefix, "'name' must be a single, non-empty, non-NA character value"))
+            
+            # *description* must be a single, non-empty, non-NA character value
+            if (!is.character(description) || length(description)!=1 || is.na(description) || nchar(description)==0)
+                stop(paste0(error.prefix, "'description' must be NULL or a single, non-empty, non-NA character value"))
+            
+            new.data.manager = JHEEM.DATA.MANAGER$new(name=name,
+                                                      description=description)
+            
+            # register ontologies
+            for (i in seq_along(private$i.ontologies)) {
+                new.data.manager$register.ontology(name = names(private$i.ontologies)[[i]],
+                                                   ont = private$i.ontologies[[i]])
+            }
+            
+            # register outcomes
+            for (outcome in private$i.outcome.info) {
+                new.data.manager$register.outcome(outcome = outcome$outcome,
+                                                  metadata = outcome$metadata,
+                                                  denominator.outcome = outcome$denominator.outcome)
+            }
+            
+            # register sources
+            for (source in private$i.source.info) {
+                new.data.manager$register.source(source = source$source,
+                                                 full.name = source$full.name,
+                                                 short.name = source$short.name)
+            }
+            
+            # take all i.data, i.url, and i.details and put them in the new data manager
+            for (outcome in names(private[['i.data']])) {
+                for (source in names(private[['i.data']][[outcome]])) {
+                    for (ontology in names(private[['i.data']][[outcome]][[source]])) {
+                        for (stratification in names(private[['i.data']][[outcome]][[source]][[ontology]])) {
+                            
+                            new.data.manager$put(data = private[['i.data']][[outcome]][[source]][[ontology]][[stratification]],
+                                                 outcome = outcome,
+                                                 source = source,
+                                                 ontology.name = ontology,
+                                                 dimension.values = list(),
+                                                 url = unlist(private[['i.url']][[outcome]][[source]][[ontology]][[stratification]]),
+                                                 details = unlist(private[['i.details']][[outcome]][[source]][[ontology]][[stratification]]))
+                        }
+                    }
+                }
+            }
+            
+            new.data.manager
+            
+        },
+        
+        import.data = function(from.data.manager)
+        {
+            
+            if (!R6::is.R6(from.data.manager) || !is(from.data.manager, 'jheem.data.manager'))
+                stop("'from.data.manager' must be an R6 object with class 'jheem.data.manager'")
+            
+            # register ontologies if necessary
+            for (ontology.name in from.data.manager$ontology.names) {
+                if (!(ontology.name %in% self$ontology.names))
+                    self$register.ontology(ontology.name,
+                                           from.data.manager$ontologies[[ontology.name]])
+            }
+            
+            # register outcomes if necessary
+            for (outcome.name in names(from.data.manager$outcome.info)) {
+                if (!(outcome.name %in% names(self$outcome.info)))
+                    self$register.outcome(outcome = from.data.manager$outcome.info[[outcome.name]][['outcome']],
+                                          metadata = from.data.manager$outcome.info[[outcome.name]][['metadata']],
+                                          denominator.outcome = from.data.manager$outcome.info[[outcome.name]][['denominator.outcome']])
+            }
+            
+            # register sources if necessary
+            for (source.name in names(from.data.manager$source.info)) {
+                if (!(source.name %in% names(self$source.info)))
+                    self$register.source(source = from.data.manager$source.info[[source.name]][['source']],
+                                         full.name = from.data.manager$source.info[[source.name]][['full.name']],
+                                         short.name = from.data.manager$source.info[[source.name]][['short.name']])
+            }
+            
+            # import data
+            data = from.data.manager$data
+            url = from.data.manager$url
+            details = from.data.manager$details
+            
+            for (outcome in names(data)) {
+                for (source in names(data[[outcome]])) {
+                    for (ontology in names(data[[outcome]][[source]])) {
+                        for (stratification in names(data[[outcome]][[source]][[ontology]])) {
+                            
+                            self$put(data = data[[outcome]][[source]][[ontology]][[stratification]],
+                                     outcome = outcome,
+                                     source = source,
+                                     ontology.name = ontology,
+                                     dimension.values = list(),
+                                     url = unlist(url[[outcome]][[source]][[ontology]][[stratification]]),
+                                     details = unlist(details[[outcome]][[source]][[ontology]][[stratification]]))
+                            
+                        }
+                    }
+                }
+            }
+            
+        },
+        
+        subset = function(dimension.values,
+                          ontology.name=NULL)
+        {
+            
+            # --- Validate arguments ---
+            error.prefix = paste0("Unable to subset data.manager '", private$i.name, "': ")
+            
+            # *ontology* is NULL or a single, non-empty, non-NA character value which refers to a registered ontology
+            # *dimension.values* is a named list of character vectors. If an 'ontology.name' is specified, logical and numeric vectors may also be used.
+            
+            if (!is.null(ontology.name)) {
+                if (!is.character(ontology.name) || length(ontology.name)!=1 || is.na(ontology.name) || nchar(ontology.name)==0)
+                    stop(paste0, error.prefix, "'ontology.name' must be NULL or a single, non-empty, non-NA character value")
+                ont = private$i.ontologies[[ontology.name]]
+                if (is.null(ont))
+                    stop(paste0(error.prefix, "'", ontology.name, "' is not a registered ontology"))
+                dimension.values = resolve.ontology.dimension.values(ont = ont,
+                                                                     dimension.values = dimension.values,
+                                                                     error.prefix = paste0(error.prefix, "Error resolving 'dimension.values' - "))
+            }
+            else {
+                check.dimension.values.valid(dimension.values,
+                                             variable.name.for.error = 'dimension.values')
+                for(d in names(dimension.values)) {
+                    if(!is.character(dimension.values[[d]]))
+                        stop(paste0(error.prefix, "each element of 'dimension.values' must be a character vector if 'ontology.name' is NULL"))
+                }
+            }
+            
+            # --- Subset data
+            for (data.type in c('i.data', 'i.url', 'i.details')) {
+                
+                private[[data.type]] = lapply(private[[data.type]], function(outcome) {
+                    
+                    lapply(outcome, function(source) {
+                        
+                        # To make sure we get a named list for the source
+                        ontology.iterator = seq_along(source)
+                        names(ontology.iterator) = names(source)
+                        
+                        lapply(ontology.iterator, function(i) {
+                            
+                            if (names(source)[[i]] == ontology.name || is.null(ontology.name)) {
+                                
+                                lapply(source[[i]], function(stratification) {
+                                    
+                                    dimensions.to.subset = dimension.values[names(dimension.values) %in% names(dim(stratification))]
+                                    
+                                    if (length(dimensions.to.subset) > 0) {
+                                        
+                                        dimnames.for.subset = dimnames(stratification)
+                                        
+                                        for (d in names(dimensions.to.subset))
+                                            dimnames.for.subset[[d]] = dimensions.to.subset[[d]]
+                                        
+                                        fast.array.access(stratification, dimnames.for.subset)
+                                        
+                                    }
+                                    else
+                                        stratification
+                                })
+                                
+                            }
+                            else source[[i]]
+                            
+                        })
+                        
+                    })
+                })
+            }
+            
         },
         
         register.ontology = function(name, ont)
@@ -1473,6 +1716,54 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 names(private$i.ontologies)
             else
                 stop("Cannot modify 'ontology.names' in jheem.data.manager - they are read-only")
+        },
+        
+        data = function(value)
+        {
+            if (missing(value))
+                private$i.data
+            else
+                stop("Cannot modify 'data' in jheem.data.manager - it is read-only")
+        },
+        
+        url = function(value)
+        {
+            if (missing(value))
+                private$i.url
+            else
+                stop("Cannot modify 'url' in jheem.data.manager - it is read-only")
+        },
+        
+        details = function(value)
+        {
+            if (missing(value))
+                private$i.details
+            else
+                stop("Cannot modify 'details' in jheem.data.manager - it is read-only")
+        },
+        
+        outcome.info = function(value)
+        {
+            if (missing(value))
+                private$i.outcome.info
+            else
+                stop("Cannot modify 'outcome.info' in jheem.data.manager - it is read-only")
+        },
+        
+        source.info = function(value)
+        {
+            if (missing(value))
+                private$i.source.info
+            else
+                stop("Cannot modify 'data' in jheem.data.manager - it is read-only")
+        },
+        
+        ontologies = function(value)
+        {
+            if (missing(value))
+                private$i.ontologies
+            else
+                stop("Cannot modify 'ontologies' in jheem.data.manager - it is read-only")
         }
     ),
     
