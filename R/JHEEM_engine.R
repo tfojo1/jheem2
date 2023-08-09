@@ -438,7 +438,7 @@ set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
-    specification.info = jheem.engine$get.specification.info()
+    specification.metadata = jheem.engine$specification.metadata
     
     #-- Check Arguments --#
     if (check.consistency)
@@ -453,7 +453,7 @@ set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
             stop("Cannot set functional.form alphas from parameters: the names of 'parameters' cannot be NA")
         
         invalid.dimensions.by.name = setdiff(dimensions.with.values.referred.to.by.name, 
-                                             specification.info$dimensions)
+                                             specification.metadata$dimensions)
         if (length(invalid.dimensions.by.name)>1)
             stop(paste0("Cannot set functional.form alphas from parameters: ",
                         collapse.with.and("'", invalid.dimensions.by.name, "'"),
@@ -462,7 +462,7 @@ set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
                         " in the specification for version '", jheem.engine$version, "'"))
         
         invalid.dimensions.by.index = setdiff(dimensions.with.values.referred.to.by.index, 
-                                             specification.info$dimensions)
+                                             specification.metadata$dimensions)
         if (length(invalid.dimensions.by.index)>1)
             stop(paste0("Cannot set functional.form alphas from parameters: ",
                         collapse.with.and("'", invalid.dimensions.by.index, "'"),
@@ -477,13 +477,13 @@ set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
     if (length(dimensions.with.values.referred.to.by.name)>0)
     {
         parameter.dim.values = unlist(sapply(dimensions.with.values.referred.to.by.name, function(d){
-            specification.info$dim.names[[d]]
+            specification.metadata$dim.names[[d]]
         }))
         
         parameter.names = paste0(parameter.name.prefix, parameter.dim.values, parameter.name.suffix)
         
         parameter.dimensions = unlist(sapply(dimensions.with.values.referred.to.by.name, function(d){
-            rep(d, length(specification.info$dim.names[[d]]))
+            rep(d, length(specification.metadata$dim.names[[d]]))
         }))
     }
     else
@@ -495,16 +495,16 @@ set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
     {
         parameter.names = c(parameter.names, unlist(sapply(dimensions.with.values.referred.to.by.index, function(d){
             paste0(parameter.name.prefix, 
-                   d, 1:length(specification.info$dim.names[[d]]),
+                   d, 1:length(specification.metadata$dim.names[[d]]),
                    parameter.name.suffix)
         })))
         
         parameter.dim.values = c(parameter.dim.values, unlist(sapply(dimensions.with.values.referred.to.by.index, function(d){
-            specification.info$dim.names[[d]]
+            specification.metadata$dim.names[[d]]
         })))
         
         parameter.dimensions = c(parameter.dimensions, unlist(sapply(dimensions.with.values.referred.to.by.index, function(d){
-            rep(d, length(specification.info$dim.names[[d]]))
+            rep(d, length(specification.metadata$dim.names[[d]]))
         })))
     }
     
@@ -585,7 +585,7 @@ JHEEM.ENGINE = R6::R6Class(
         {
             # If the specification has changed since we last crunched/set-up, reset
             specification = get.specification.for.version(private$i.version)
-            if (specification$iteration != private$i.specification.info$specification.iteration)
+            if (specification$iteration != self$specification.metadata$specification.iteration)
                 private$set.up()
             
             # Set the times
@@ -594,9 +594,14 @@ JHEEM.ENGINE = R6::R6Class(
                              error.prefix = paste0("Error preparing JHEEM Engine to run: "))
 
             # Do the work
-            specification = get.specification()
+            specification = private$get.specification()
             sapply(specification$top.level.quantity.names, calculate.quantity.value,
                    check.consistency = check.consistency)
+            
+            private$i.diffeq.settings = prepare.diffeq.settings(settings = private$i.diffeq.settings,
+                                                                quantity.dim.names = private$i.quantity.dim.names,
+                                                                quantity.values = private$i.quantity.values,
+                                                                error.prefix = paste0("Error preparing JHEEM Engine to run (while setting up the diffeq interface): "))
             
             # Set the i.has.been.crunched flag
             private$i.has.been.crunched = T
@@ -618,7 +623,38 @@ JHEEM.ENGINE = R6::R6Class(
                         end.year = end.year,
                         check.consistency = check.consistency)
             
-            # Do the work
+            # Handoff to the Rcpp
+            
+            initial.state = numeric(private$i.diffeq.settings$state_length)
+            compute.fn = function(x, t){
+                compute_dx(state = x,
+                           time = t,
+                           settings = private$i.diffeq.settings,
+                           quantity_scratch_vector = private$i.diffeq.settings$quantity_scratch_vector,
+                           scratch_vector = private$i.diffeq.settings$scratch_vector,
+                           quantity_values = private$i.quantity.values,
+                           quantity_times = private$i.quantity.value.times,
+                           quantity_scratch_offsets = private$i.diffeq.settings$quantity_scratch_offsets,
+                           natality_info = private$i.diffeq.settings$natality_info,
+                           mortality_info = private$i.diffeq.settings$mortality_info,
+                           transitions_info = private$i.diffeq.settings$transitions_info,
+                           infections_info = private$i.diffeq.settings$infections_info,
+                           remission_info = private$i.diffeq.settings$remission_info,
+                           fixed_strata_info = private$i.diffeq.settings$fixed_strata_info,
+                           population_trackers = private$i.diffeq.settings$population_trackers)
+            }
+            
+            ode.results = odeintr::integrate_sys(sys = compute.fn,
+                                                 init = private$i.diffeq.settings$initial_state,
+                                                 duration = x, 
+                                                 start = x,
+                                                 atol = atol,
+                                                 rtol = rtol)
+            
+            # Process the Results
+            
+            # for now, just return
+            ode.results
         },
         
         ##------------------------------##
@@ -1480,13 +1516,12 @@ JHEEM.ENGINE = R6::R6Class(
         ##----------------------##
         ##----------------------##
         
-        i.specification.info = NULL,
-        
         i.element.names = NULL,
         i.element.backgrounds = NULL,
         i.instructions = NULL,
         
         i.quantity.max.dim.names = NULL,
+        i.quantity.required.dim.names = NULL,
         i.quantity.component.max.dim.names = NULL,
         i.quantity.component.applies.to = NULL,
         
@@ -1509,6 +1544,8 @@ JHEEM.ENGINE = R6::R6Class(
         
         i.has.been.crunched = NULL,
         
+        i.diffeq.settings = NULL,
+        
         ##---------------------##
         ##---------------------##
         ##-- PRIVATE METHODS --##
@@ -1526,23 +1563,24 @@ JHEEM.ENGINE = R6::R6Class(
         
         set.up = function()
         {
-            specification = get.compiled.specification.for.version(version)
-            
-            # Pull the specification.info
-            private$i.specification.info = SPECIFICATION.INFO$new(version = version,
-                                                                  location = private$i.location,
-                                                                  error.prefix = paste0("Error initializing JHEEM Engine, version '", version, "' for location '", location, "': "))
+            specification = get.compiled.specification.for.version(private$i.version)
             
             # Finalize max.dim.names and applies.to for quantities and components
             private$i.quantity.max.dim.names = lapply(specification$quantities, function(quantity){
-                private$i.specification.info$apply.aliases(quantity$max.dim.names,
+                self$specification.metadata$apply.aliases(quantity$max.dim.names,
                                                            error.prefix=paste0("Error finalizing max.dim.names for model quantity ", 
+                                                                               quantity$get.original.name(specification$version)))
+            })
+            
+            private$i.quantity.required.dim.names = lapply(specification$quantities, function(quantity){
+                self$specification.metadata$apply.aliases(quantity$required.dim.names,
+                                                           error.prefix=paste0("Error finalizing required.dim.names for model quantity ", 
                                                                                quantity$get.original.name(specification$version)))
             })
             
             private$i.quantity.component.max.dim.names = lapply(specification$quantities, function(quantity){
                 lapply(quantity$components, function(comp){
-                    private$i.specification.info$apply.aliases(comp$max.dim.names,
+                    self$specification.metadata$apply.aliases(comp$max.dim.names,
                                                                error.prefix=paste0("Error finalizing max.dim.names for the ",
                                                                                    get.ordinal(i-1), " subset of model quantity ", 
                                                                                    quantity$get.original.name(specification$version)))
@@ -1552,7 +1590,7 @@ JHEEM.ENGINE = R6::R6Class(
             
             private$i.quantity.component.applies.to = lapply(specification$quantities, function(quantity){
                 lapply(quantity$components, function(comp){
-                    private$i.specification.info$apply.aliases(comp$applies.to,
+                    self$specification.metadata$apply.aliases(comp$applies.to,
                                                                error.prefix=paste0("Error finalizing applies.to for the ",
                                                                                    get.ordinal(i-1), " subset of model quantity ", 
                                                                                    quantity$get.original.name(specification$version)))
@@ -1563,8 +1601,8 @@ JHEEM.ENGINE = R6::R6Class(
             # Set up the element backgrounds
             private$i.element.backgrounds = lapply(specification$element.names, function(elem.name){
                 elem = specification$get.quantity(elem.name)
-                bkgd = elem$get.element.background(specification.info = private$i.specification.info,
-                                                   error.prefix = paste0("Error creating JHEEM Engine for version '", version, "' and location '", location, "': "))
+                bkgd = elem$get.element.background(specification.metadata = self$specification.metadata,
+                                                   error.prefix = paste0("Error creating JHEEM Engine for version '", private$i.version, "' and location '", private$i.location, "': "))
                 
                 if (!is.null(bkgd$functional.form))
                 {
@@ -1604,6 +1642,10 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.quantity.values = list()
             private$i.quantity.self.times = list()
             private$i.quantity.value.times = list()
+            
+            # Set up the diffeq settings
+            private$i.diffeq.settings = create.diffeq.settings(engine = self,
+                                                               error.prefix = paste0("Error creating diffeq settings for JHEEM Engine for version '", private$i.version, "' and location '", private$i.location, "': "))
             
             # Clear the i.has.been.crunched flag
             private$i.has.been.crunched = F
@@ -1829,6 +1871,10 @@ JHEEM.ENGINE = R6::R6Class(
                 private$i.quantity.value.times[[quantity.name]] = union_sorted_vectors(i.quantity.self.times[dynamic.top.level.dependent.names])
             }
             
+            # Notify diffeq settings
+            private$i.diffeq.settings = notify.diffeq.settings.of.quantity.values.change(private$i.diffeq.settings,
+                                                                                         quantity.name = quantity.name)
+            
             # A debugging check
             if (length(i.quantity.value.times[[quantity.name]])==0)
                  browser()
@@ -1856,12 +1902,12 @@ JHEEM.ENGINE = R6::R6Class(
                                             depth=0) #depth is for debugging
         {
             # For debugging
-        #    if (is.element.name(quantity.name))
-        #        print(paste0(paste0(rep(" ", depth), collapse=''),
-        #                     "-Calculate element '", quantity.name, "'"))
-        #    else
-        #        print(paste0(paste0(rep(" ", depth), collapse=''),
-        #                     "-Calculate quantity '", quantity.name, "'"))
+            if (is.element.name(quantity.name))
+                print(paste0(paste0(rep(" ", depth), collapse=''),
+                             "-Calculate element '", quantity.name, "'"))
+            else
+                print(paste0(paste0(rep(" ", depth), collapse=''),
+                             "-Calculate quantity '", quantity.name, "'"))
             
             if (is.element.name(quantity.name))
                 calculate.element.value(quantity.name, check.consistency=check.consistency)
@@ -1928,8 +1974,9 @@ JHEEM.ENGINE = R6::R6Class(
                             names(bindings) = comp$depends.on
                             
                             #-- Calculate the value --#
-                            bindings$specification.info = private$i.specification.info
+                            bindings$specification.metadata = self$specification.metadata
                             bindings$location = private$i.location
+                            
                             value = comp$evaluate(bindings = bindings,
                                                   error.prefix = error.prefix)
                             
@@ -1985,8 +2032,8 @@ JHEEM.ENGINE = R6::R6Class(
                             expand.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]
                             access.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.access[[i]]
                             
-                #    if (quantity.name == 'uninfected.birth.proportions')        
-                   #     browser()
+               #     if (quantity.name == 'sexual.contact.by.race')        
+                #        browser()
                             # Fold it in to the rv
                             if (is.null(access.indices))
                                 rv = value[expand.indices]
@@ -2045,10 +2092,6 @@ JHEEM.ENGINE = R6::R6Class(
         # interpolates ramp on the model scale
         calculate.element.value = function(element.name, check.consistency)
         {
-            print(element.name)
-            if (element.name=='idu.trates')
-                master.debug <<- F
-            
             element = private$get.specification()$get.quantity(element.name)
             if (is.null(private$i.quantity.value.times[[element.name]]))
                 calculate.quantity.value.times(element.name)
@@ -2181,7 +2224,7 @@ JHEEM.ENGINE = R6::R6Class(
                                          scale = element$scale,
                                          variable.name.for.error = "the calculated values",
                                          error.prefix =  paste0("Error calculating values for model element '", element.name, "': "))
-            
+
             # Done
             invisible(self)
         },
@@ -2367,7 +2410,7 @@ JHEEM.ENGINE = R6::R6Class(
         calculate.quantity.dim.names = function(quantity)
         {
             quantity.name = quantity$name
-
+            
             if (is.element.name(quantity.name))
             {
                 # Element dim.names are a combination of:
@@ -2386,7 +2429,7 @@ JHEEM.ENGINE = R6::R6Class(
                 else if (is.null(i.quantity.max.dim.names[[quantity.name]]))
                 {
                     private$i.quantity.dim.names[[quantity.name]] = outer.join.dim.names(bkgd$functional.form$minimum.dim.names,
-                                                         lapply(bkgd$functional.form.alphas, get.alphas.minimum.dim.names))
+                                                                                         lapply(bkgd$functional.form.alphas, get.alphas.minimum.dim.names))
                 }
                 else # this formulation is equivalent to the block above, but more efficient IF we have max.dim.names set
                 {
@@ -2424,23 +2467,25 @@ JHEEM.ENGINE = R6::R6Class(
                         for (i in 1:quantity$n.components)
                         {
                             comp = quantity$components[[i]]
-                            sapply(names(private$i.quantity.component.dim.names[[quantity.name]][[i]], function(d){
-                                if (any(d==names(private$i.quantity.component.applies.to[[quantity.name]][[i]])))
-                                {
-                                    if (i>1 && !setequal(dim.names[[d]], private$i.quantity.component.applies.to[[quantity.name]][[i]]))
-                                        stop(paste0("Error calculating dimnames for quantity ",
-                                                    quantity$get.original.name(self$version),
-                                                    ": the dimnames of the ",
-                                                    get.ordinal(i-1),
-                                                    " subset do not match the applies.to values for dimension '", d, "'"))
-                                }
-                                else
-                                {
+                            
+                        #    sapply(names(private$i.quantity.component.dim.names[[quantity.name]][[i]], function(d){
+                            sapply(setdiff(names(private$i.quantity.component.dim.names[[quantity.name]][[i]], names(private$i.quantity.component.applies.to[[quantity.name]][[i]])), function(d){
+                                    #       if (any(d==names(private$i.quantity.component.applies.to[[quantity.name]][[i]])))
+                         #       {
+                         #           if (i>1 && !setequal(dim.names[[d]], private$i.quantity.component.applies.to[[quantity.name]][[i]]))
+                         #               stop(paste0("Error calculating dimnames for quantity ",
+                         #                          quantity$get.original.name(self$version),
+                         #                           ": the dimnames of the ",
+                         #                           get.ordinal(i-1),
+                         #                           " subset do not match the applies.to values for dimension '", d, "'"))
+                         #       }
+                         #       else
+                         #       {
                                     if (!setequal(dim.names[[d]], private$i.quantity.component.dim.names[[quantity.name]][[i]][[d]]))
                                         stop(paste0("Error calculating dimnames for quantity ",
                                                     quantity$get.original.name(self$version),
                                                     ": the dimnames of its sub-components do not align in dimension '", d, "'"))
-                                }
+                         #       }
                             }))
                         }
                     }
@@ -2458,6 +2503,33 @@ JHEEM.ENGINE = R6::R6Class(
                 }
             }
             
+            #-- Make sure dim.names are a superset of required.dim.names --#
+            required.dim.names = private$i.quantity.required.dim.names[[quantity.name]]
+            if (length(required.dim.names)>0)
+            {
+                dimensions.length.greater.than.one = sapply(required.dim.names, length)>1
+                missing.required.dimensions = setdiff(names(required.dim.names)[dimensions.length.greater.than.one],
+                                                      names(private$i.quantity.dim.names[[quantity.name]]))
+                if (length(missing.required.dimensions)>0)
+                    stop(paste0("Error calculating dimnames for quantity ",
+                                quantity$get.original.name(self$version),
+                                ": the quantity's dimnames are missing required ",
+                                ifelse(length(missing.required.dimensions)==1, "dimension ", "dimensions "),
+                                collapse.with.and("'", missing.required.dimensions, "'")))
+
+                sapply(names(required.dim.names), function(d){
+                    values = private$i.quantity.dim.names[[quantity.name]][[d]]
+                    if (!is.null(values) && !setequal(values, required.dim.names[[d]]))
+                        stop(paste0("Error calculating dimnames for quantity ",
+                                    quantity$get.original.name(self$version),
+                                    ": the quantity's dimnames for dimension '", d,
+                                    "' (", paste0("'", values, "'", collapse=', '),
+                                    ") do not match the required dimnames for '", d, 
+                                    "' (", paste0("'", required.dim.names[[d]], "'", collapse=', '), ")"))
+                })
+                
+#                private$i.quantity.dim.names[[quantity.name]][names(private$i.quantity.required.dim.names[[quantity.name]])] = private$i.quantity.required.dim.names[[quantity.name]]
+            }
             
             #--  If the dim.names have changed from previous, clear dependencies --#
             #    (and set these dimnames to be the reference - ie crunched - dimnames)
@@ -2466,6 +2538,8 @@ JHEEM.ENGINE = R6::R6Class(
                                  i.quantity.dim.names[[quantity.name]]))
             {
                 clear.dependent.on.quantity.dim.names(quantity.name)
+                private$i.diffeq.settings = notify.diffeq.settings.of.quantity.dim.names.change(private$i.diffeq.settings,
+                                                                                                quantity.name = quantity.name)
                 i.crunched.quantity.dim.names[[quantity.name]] = i.quantity.dim.names[[quantity.name]]
             }
             
@@ -2933,17 +3007,17 @@ JHEEM.ENGINE = R6::R6Class(
 
         do.setup.jheem.skeleton = function()
         {
-            specification.info = self$get.specification.info()
+            specification.metadata = self$specification.metadata
             private$jheem = initialize.jheem(version = self$VERSION,
-                                                age.cutoffs = specification.info$age.endpoints,
-                                                race.strata = specification.info$dim.names$race,
+                                                age.cutoffs = specification.metadata$age.endpoints,
+                                                race.strata = specification.metadata$dim.names$race,
                                                 subpopulations = 'all_subpopulations',
                                                 locations = 'all_locations',
-                                                sex.strata = specification.info$dim.names$sex,
-                                                risk.strata = specification.info$dim.names$risk,
+                                                sex.strata = specification.metadata$dim.names$sex,
+                                                risk.strata = specification.metadata$dim.names$risk,
                                                 nonhiv.subsets = 'all_hiv_negative',
-                                                continuum.of.care.states = specification.info$dim.names$continuum,
-                                                cd4.strata = specification.info$dim.names$stage,
+                                                continuum.of.care.states = specification.metadata$dim.names$continuum,
+                                                cd4.strata = specification.metadata$dim.names$stage,
                                                 hiv.subsets = 'all_hiv_positive',
                                                 transmission.route.names = c('sexual','idu'),
                                                 first.diagnosed.hiv.continuum.states = 'diagnosed',
@@ -2977,12 +3051,12 @@ JHEEM.ENGINE = R6::R6Class(
         {
             if (need.to.push('initial.population.hiv.negative', 'initial.population.hiv.positive'))
             {
-                specification.info = self$get.specification.info()
+                specification.metadata = self$specification.metadata
                 
                 init.hiv.negative = expand.population(private$i.quantity.values$initial.population.uninfected[[1]],
-                                                      target.dim.names = c(specification.info$dim.names[c('age','race')],
+                                                      target.dim.names = c(specification.metadata$dim.names[c('age','race')],
                                                                            list(subpopulation='all_subpopulations'),
-                                                                           specification.info$dim.names[c('sex','risk')],
+                                                                           specification.metadata$dim.names[c('sex','risk')],
                                                                            list(non.hiv.subset='all_hiv_negative')))
                 private$jheem = set.initial.population.hiv.negative(private$jheem, init = init.hiv.negative)
                 
@@ -2992,10 +3066,10 @@ JHEEM.ENGINE = R6::R6Class(
                 dim(init.hiv.positive) = sapply(dim.names, length)
                 dimnames(init.hiv.positive) = dim.names
                 init.hiv.positive = expand.population(init.hiv.positive,
-                                                      target.dim.names = c(specification.info$dim.names[c('age','race')],
+                                                      target.dim.names = c(specification.metadata$dim.names[c('age','race')],
                                                                            list(subpopulation='all_subpopulations'),
-                                                                           specification.info$dim.names[c('sex','risk','continuum')],
-                                                                           list(cd4=specification.info$dim.names$stage),
+                                                                           specification.metadata$dim.names[c('sex','risk','continuum')],
+                                                                           list(cd4=specification.metadata$dim.names$stage),
                                                                            list(hiv.subset='all_hiv_positive')))
                                                                            
                 private$jheem = set.initial.population.hiv.positive(private$jheem, init = init.hiv.positive)
@@ -3020,16 +3094,16 @@ JHEEM.ENGINE = R6::R6Class(
         {
             if (need.to.push('birth.proportions.hiv.negative')) # Check that proportions sum to 1 for each from stratum
             {
-                specification.info = self$get.specification.info()
+                specification.metadata = self$specification.metadata
                 proportions = private$i.quantity.values[['uninfected.birth.proportions']][[1]]
                 from.dimensions = grepl("\\.from$", names(dimnames(proportions)))
                 should.sum.to.1 = rowSums(proportions, dims=sum(from.dimensions))
                 if (any(should.sum.to.1 != 1))
                     stop(paste0("Error setting birth.proportions.hiv.negative - proportions do not sum to 1 in all 'from' strata"))
              
-                dim.names = c(specification.info$dim.names[c('race.from')],
+                dim.names = c(specification.metadata$dim.names[c('race.from')],
                               list(subpopulation.to = 'all_subpopulations'),
-                              specification.info$dim.names[c('sex.to', 'risk.to')],
+                              specification.metadata$dim.names[c('sex.to', 'risk.to')],
                               list(non.hiv.subset.to='all_hiv_negative'))
                 full.proportions = array(0, dim=sapply(dim.names, length), dimnames=dim.names)  
                 full.proportions[,1,,1,1] = proportions
@@ -3043,16 +3117,16 @@ JHEEM.ENGINE = R6::R6Class(
         {
             if (need.to.push('birth.proportions.hiv.positive')) # Check that proportions sum to 1 for each from stratum
             {
-                specification.info = self$get.specification.info()
+                specification.metadata = self$specification.metadata
                 proportions = private$i.quantity.values[['uninfected.birth.proportions']][[1]]
                 from.dimensions = grepl("\\.from$", names(dimnames(proportions)))
                 should.sum.to.1 = rowSums(proportions, dims=sum(from.dimensions))
                 if (any(should.sum.to.1 != 1))
                     stop(paste0("Error setting birth.proportions.hiv.negative - proportions do not sum to 1 in all 'from' strata"))
                 
-                dim.names = c(specification.info$dim.names[c('race.from')],
+                dim.names = c(specification.metadata$dim.names[c('race.from')],
                               list(subpopulation.to = 'all_subpopulations'),
-                              specification.info$dim.names[c('sex.to', 'risk.to')],
+                              specification.metadata$dim.names[c('sex.to', 'risk.to')],
                               list(non.hiv.subset.to='all_hiv_negative'))
                 full.proportions = array(0, dim=sapply(dim.names, length), dimnames=dim.names)  
                 full.proportions[,1,,1,1] = proportions
@@ -3101,7 +3175,7 @@ JHEEM.ENGINE = R6::R6Class(
         
         push.transitions = function(need.to.push)
         {
-            specification.info = self$get.specification.info()
+            specification.metadata = self$specification.metadata
             spec = private$get.specification()
             refs = spec$top.level.references[sapply(spec$top.level.references, function(ref){ref$type=='transition.reference'})]
             
@@ -3123,7 +3197,7 @@ JHEEM.ENGINE = R6::R6Class(
                                             names(private$i.quantity.dim.names[[qname]])
                                         }))))
                     
-                    dim.names = specification.info$dim.names[intersect(specification.info$dimensions, dimensions)]
+                    dim.names = specification.metadata$dim.names[intersect(specification.metadata$dimensions, dimensions)]
                     
                     
                     times = sort(unique(unlist(private$i.quantity.value.times[quantity.names[!private$i.quantity.is.static[quantity.names]]])))
@@ -3245,14 +3319,14 @@ JHEEM.ENGINE = R6::R6Class(
             print(quantity.name)
             if (need.to.push(quantity.name))
             {
-                specification.info = self$get.specification.info()
+                specification.metadata = self$specification.metadata
 
                 values = private$i.quantity.values[[quantity.name]]
                 values = lapply(values, function(val){
                     if (!is.null(dimnames(val)))
                     {
                         dim.names = dimnames(val)
-                        dimension.values = specification.info$dim.names[names(dim.names)] 
+                        dimension.values = specification.metadata$dim.names[names(dim.names)] 
                         
                         names(dim.names)[names(dim.names)=='stage'] = 'cd4'
                         names(dimension.values)[names(dimension.values)=='stage'] = 'cd4'

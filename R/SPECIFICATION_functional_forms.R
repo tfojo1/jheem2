@@ -990,8 +990,6 @@ LINEAR.FUNCTIONAL.FORM = R6::R6Class(
                               check.consistency,
                               error.prefix)
         {
-            if (master.debug)
-                browser()
             intercept = terms$intercept
             slope = terms$slope
             
