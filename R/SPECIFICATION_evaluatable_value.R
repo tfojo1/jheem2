@@ -171,7 +171,7 @@ EVALUATABLE.VALUE = R6::R6Class(
             #-- Store values --#
             private$i.value = value
             private$i.value.name = value.name
-            
+            private$i.depends.on.to.binding.name = character()
             
             #-- Return --#
             invisible(self)
@@ -179,30 +179,40 @@ EVALUATABLE.VALUE = R6::R6Class(
         
         evaluate = function(bindings, error.prefix)
         {
-            if (i.value.type=='numeric')
+            if (private$i.value.type=='numeric')
             {
-                rv = i.value
+                rv = private$i.value
             }
-            else if (i.value.type=='character')
+            else if (private$i.value.type=='character')
             {
-                rv = bindings[[i.value]]
+                rv = bindings[[private$i.value]]
                 names(rv) = NULL
             }
-            else if (i.value.type=='expression')
+            else if (private$i.value.type=='expression')
             {
-                rv = eval(i.value, envir=bindings)
+                rv = eval(private$i.value, envir=bindings)
             }
-            else if (i.value.type=='function')
+            else if (private$i.value.type=='function')
             {
-                rv = i.value$execute(bindings=bindings, error.prefix = error.prefix)
+                if (length(bindings)>0 && !is.null(names(bindings)))
+                {
+                    names(bindings) = sapply(names(bindings), function(name){
+                        if (any(name==names(private$i.depends.on.to.binding.name)))
+                            private$private$i.depends.on.to.binding.name[name]
+                        else
+                            name
+                    })
+                }
+                
+                rv = private$i.value$execute(bindings=bindings, error.prefix = error.prefix)
             }
             else
                 stop(paste0(error.prefix,
                             "Invalid value.type for an 'evaluatable.value': '", 
-                            i.value.type, "'"))
+                            private$i.value.type, "'"))
             
             if (!is.na(na.replacement))
-                rv[is.na(rv)] = i.na.replacement
+                rv[is.na(rv)] = private$i.na.replacement
             
             rv
         },
@@ -222,6 +232,38 @@ EVALUATABLE.VALUE = R6::R6Class(
                     all(sapply(bindings, is.numeric))
             }
         },
+        
+        rename.depends.on = function(mapping)
+        {
+            if (private$i.value.type=='character')
+            {
+                if (any(names(mapping)==private$i.value))
+                    self$set.value(mapping[private$i.value])
+            }
+            else if (private$i.value.type=='expression')
+            {
+                if (length(intersect(names(mapping), private$i.depends.on))>0)
+                    self$set.value(rename.expression.vars(expr = private$i.value,
+                                                          new.names = mapping))
+            }
+            else if (private$i.value.type=='function')
+            {
+                mapping = mapping[names(mapping)!=mapping]
+                
+                for (map.name in names(mapping))
+                {
+                    map.value = mapping[map.name]
+                    if (any(names(private$i.depends.on.to.binding.name)==map.value))
+                        names(private$i.depends.on.to.binding.name)[names(private$i.depends.on.to.binding.name)==map.value] = map.name
+                    else
+                        private$i.depends.on.to.binding.name[map.name] = map.value
+                }
+                private$i.depends.on.to.binding.name = mapping
+            }
+            
+            self
+        },
+        
         
         simplify = function(bindings, error.prefix)
         {
@@ -255,6 +297,7 @@ EVALUATABLE.VALUE = R6::R6Class(
         i.value.name = NULL,
 
         i.depends.on = NULL,
+        i.depends.on.to.binding.name = NULL, #names are elements of depends.on; values are the names needed by bindings
                 
         i.allow.numeric.value = NULL,
         i.allow.character.value = NULL,

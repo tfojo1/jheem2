@@ -109,24 +109,24 @@ JHEEM.ENTITY = R6::R6Class(
             }
             else
                 stop(paste0("Cannot set 'specification.metadata' for a ", private$i.type, " - it is read-only"))
-        },
+        }
         
         # Lazily evaluates the simulation metadata - to avoid infinite loop if this IS a simulation.metadata object
-        simulation.metadata = function(value)
-        {
-            if (missing(value))
-            {
-                if (is.null(private$i.simulation.metadata) || private$i.simulation.info$is.out.of.date())
-                {
-                    private$i.simulation.metadata = get.simulation.metadata(version = private$i.version,
-                                                                                  location = private$i.location,
-                                                                                  error.prefix = paste0("Error deriving the simulation-metadata for '", private$i.version, "' and location '", private$i.location, "': "))
-                }
-                private$i.simulation.metadata
-            }
-            else
-                stop(paste0("Cannot set 'simulation.metadata' for a ", private$i.type, " - it is read-only"))
-        }
+ #       simulation.metadata = function(value)
+ #       {
+ #           if (missing(value))
+ #           {
+ #               if (is.null(private$i.simulation.metadata) || private$i.simulation.info$is.out.of.date())
+ #               {
+ #                   private$i.simulation.metadata = get.simulation.metadata(version = private$i.version,
+ #                                                                                 location = private$i.location,
+ #                                                                                 error.prefix = paste0("Error deriving the simulation-metadata for '", private$i.version, "' and location '", private$i.location, "': "))
+ #               }
+ #               private$i.simulation.metadata
+ #           }
+ #           else
+ #               stop(paste0("Cannot set 'simulation.metadata' for a ", private$i.type, " - it is read-only"))
+ #       }
         
     ),
     
@@ -138,7 +138,7 @@ JHEEM.ENTITY = R6::R6Class(
         i.type = NULL,
         
         i.specification.metadata = NULL,
-        i.simulation.metadata = NULL,
+  #      i.simulation.metadata = NULL,
         
         get.current.code.iteration = function()
         {

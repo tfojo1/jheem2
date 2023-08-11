@@ -31,4 +31,6 @@ source('../jheem2/R/JHEEM_entity.R')
 source('../jheem2/R/JHEEM_engine.R')
 source('../jheem2/R/SPECIFICATION_metadata.R')
 
+source('../jheem2/R/JHEEM_simulation.R')
+
 Rcpp::sourceCpp('../jheem2/src/misc_helpers.cpp')
