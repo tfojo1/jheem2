@@ -6,10 +6,38 @@ JHEEM.SIMULATION.CODE.ITERATION = '2.0'
 ##----------------------##
 ##----------------------##
 
-
-get.sim.quantity <- function(sim, outcome)
+#'@name Get Simulation Data
+#'
+#'@param outcomes A character vector with one or more outcomes for which to pull data. Must be a subset of sim$outcomes
+#'@param keep.dimensions Which dimensions should be retained in the resulting array
+#'@param dimension.values A set of dimension values according to which to subset the data (will be combined with ...)
+#'@param ... The parameters in ... are interpreted as additional dimension values according to which to subset the data. Each must be named, and either a character, integer, or logical vector
+#'@param check.consistency Whether to check the consistency of arguments. Setting to FALSE will yield faster performance but unintelligible error messages
+#'@param drop.single.outcome.dimensions When set to FALSE, the resulting array will have 'outcome' as its last dimension regardless of how many outcomes we are getting data for. If TRUE, the returned array will omit that dimension when only one outcome is requested
+#'@param error.prefix A character value to prepend to any errors generating in getting these data
+#'
+#'@details Returns an array whose dimensions are keep.dimensions - plus (if there is more than one outcome or drop.single.outcome.dimensions==FALSE) an 'outcome' dimension at the end
+#'
+#'@export
+get.sim.data <- function(sim,
+                         outcomes,
+                         keep.dimensions=NULL,
+                         dimension.values = list(),
+                         ...,
+                         check.consistency = T,
+                         drop.single.outcome.dimension = T,
+                         error.prefix = "Error getting simulation results: ")
 {
+    if (!is(jheem.engine, "R6") || !is(sim, "jheem.simulation"))
+        stop("sim must be an R6 object of class 'jheem.simulation'") 
     
+    sim$get(outcomes = outcomes,
+            keep.dimensions = keep.dimensions,
+            dimension.values = dimension.values,
+            ...,
+            check.consistency = check.consistency,
+            drop.single.outcome.dimension = drop.single.outcome.dimension,
+            error.prefix = error.prefix)
 }
 
 
@@ -19,6 +47,7 @@ get.sim.quantity <- function(sim, outcome)
 #'@param version The version of the model specification (must have been previously registered) for which to get metadata
 #'@param location A single character value representing the location for the metadata
 #'@param error.prefix A string to prepend to any errors generated in getting the metadata object
+#'@param from.year,to.year The years which a corresponding simulation will have data for
 #'
 #'@details A simulation.metadata object contains metadata, such as the dim.names to which its contents will conform
 #'
@@ -142,6 +171,8 @@ SIMULATION.METADATA = R6::R6Class(
                                  keep.dimensions=NULL,
                                  dimension.values = list(),
                                  ...,
+                                 check.consistency = T,
+                                 drop.single.outcome.dimension = T,
                                  error.prefix = "Error getting dimnames of simulation results: ")
         {
             #@Andrew - need to calculate default keep.dimensions as we did for data manager
@@ -161,94 +192,124 @@ SIMULATION.METADATA = R6::R6Class(
                             ifelse(length(invalid.outcomes)==1, ' is', ' are'),
                             " not defined in the '", self$version, "' model specification"))
             
+            keep.dimension.values = dimension.values[intersect(keep.dimensions, names(dimension.values))]
+            
             # Pull the ontologies
             ontologies = lapply(outcomes, function(outcome){
                 
                 ont = self$outcome.ontologies[[outcome]]
                 
-                # Make sure keep dimensions work
-                invalid.keep.dimensions = setdiff(keep.dimensions, names(ont))
-                if (length(invalid.keep.dimensions)>0)
-                    stop(paste0(error.prefix, "For the '", outcome, 
-                                "' outcome, ",
-                                ifelse(length(invalid.keep.dimensions)==1, "dimension ", "dimensions "),
-                                collapse.with.and("'", invalid.keep.dimensions, "'"),
-                                ifelse(length(invalid.keep.dimensions)==1, " is requested as a keep.dimension, but is", " are requested as keep.dimensions, but are"),
-                                " not present in the ontology"))
+                if (check.consistency)
+                {
+                    # Make sure keep dimensions work
+                    invalid.keep.dimensions = setdiff(keep.dimensions, names(ont))
+                    if (length(invalid.keep.dimensions)>0)
+                        stop(paste0(error.prefix, "For the '", outcome, 
+                                    "' outcome, ",
+                                    ifelse(length(invalid.keep.dimensions)==1, "dimension ", "dimensions "),
+                                    collapse.with.and("'", invalid.keep.dimensions, "'"),
+                                    ifelse(length(invalid.keep.dimensions)==1, " is requested as a keep.dimension, but is", " are requested as keep.dimensions, but are"),
+                                    " not present in the ontology"))
+                    
+                    # Make sure dimension.values dimensions work
+                    invalid.dimension.value.dimensions = setdiff(names(dimension.values), names(ont))
+                    if (length(invalid.dimension.value.dimensions)>0)
+                        stop(paste0(error.prefix, "For the '", outcome, 
+                                    "' outcome, ",
+                                    ifelse(length(invalid.dimension.value.dimensions)==1, "dimension ", "dimensions "),
+                                    collapse.with.and("'", invalid.dimension.value.dimensions, "'"),
+                                    ifelse(length(invalid.dimension.value.dimensions)==1, " is specified in dimension.values, but is", " are specified in dimension.values, but are"),
+                                    " not present in the ontology"))
+                    
+                    # If any of the ontologies dimensions are NULL, they must have dimension.values set
+                    null.dimensions.in.ontology = names(ont)[sapply(ont, is.null)]
+                    missing.dimension.values = setdiff(null.dimensions.in.ontology, names(dimension.values))
+                    if (length(missing.dimension.values)>0)
+                        stop(paste0(error.prefix,
+                                    "For the '", outcome, "' outcome, '",
+                                    ifelse(length(missing.dimension.values)==1, "dimension ", "dimensions "),
+                                    collapse.with.and("'", missing.dimension.values, "'"),
+                                    " must have dimension.values specified (",
+                                    ifelse(length(missing.dimension.values)==1, "it is", "they are"),
+                                    " NULL in the ontology and must be specified in the get() call)"
+                        ))
+                    
+                    ont = resolve.ontology.dimension.values(ont = ont,
+                                                            dimension.values = dimension.values,
+                                                            error.prefix = error.prefix)
+                    
+                    
+                    # The below should be rendered unnecessary by the resolve.ontology.dimension.values above
+                    # HOWEVER - do we need to check that years is within to/from for complete outcomes? if years is NULL?
+                    # Make sure dimension.values work
+#                    for (d in names(dimension.values))
+#                    {
+#                        if (is.null(ont[[d]]))
+#                        {
+#                            # do we need to check that years is within to/from for complete outcomes?
+#                        }
+#                        else
+#                        {
+#                            invalid.dimension.values = setdiff(dimension.values[[d]], ont[[d]])
+#                            if (length(invalid.dimension.values)>0)
+#                                stop(paste0(error.prefix, "For the '", outcome, 
+#                                            "' outcome, ",
+#                                            collapse.with.and("'", invalid.dimension.values, "'"),
+#                                            ifelse(length(invalid.dimension.value.dimensions)==1, " is an invalid value", " are invalid values"),
+#                                            " for the '", d, "' dimension of the ontology",
+#                                            ifelse(length(ont[[d]])<=6, 
+#                                                   paste0(" (", paste0("'", ont[[d]], "'", collapse=", "), ")"),
+#                                                   "")
+#                                ))
+#                        }
+#                    }
+
+                }
                 
-                # Make sure dimension.values dimensions work
-                invalid.dimension.value.dimensions = setdiff(names(dimension.values), names(ont))
-                if (length(invalid.dimension.value.dimensions)>0)
-                    stop(paste0(error.prefix, "For the '", outcome, 
-                                "' outcome, ",
-                                ifelse(length(invalid.dimension.value.dimensions)==1, "dimension ", "dimensions "),
-                                collapse.with.and("'", invalid.dimension.value.dimensions, "'"),
-                                ifelse(length(invalid.dimension.value.dimensions)==1, " is specified in dimension.values, but is", " are specified in dimension.values, but are"),
-                                " not present in the ontology"))
-                
-                # If any of the ontologies dimensions are NULL, they must have dimension.values set
-                null.dimensions.in.ontology = names(ont)[sapply(ont, is.null)]
-                missing.dimension.values = setdiff(null.dimensions.in.ontology, names(dimension.values))
-                if (length(missing.dimension.values)>0)
-                    stop(paste0(error.prefix,
-                                "For the '", outcome, "' outcome, '",
-                                ifelse(length(missing.dimension.values)==1, "dimension ", "dimensions "),
-                                collapse.with.and("'", missing.dimension.values, "'"),
-                                " must have dimension.values specified (",
-                                ifelse(length(missing.dimension.values)==1, "it is", "they are"),
-                                " NULL in the ontology and must be specified in the get() call)"
-                    ))
-                
-                # Make sure dimension.values work
                 for (d in names(dimension.values))
                 {
                     if (is.null(ont[[d]]))
                         ont[[d]] = dimension.values[[d]]
-                    else
-                    {
-                        invalid.dimension.values = setdiff(dimension.values[[d]], ont[[d]])
-                        if (length(invalid.dimension.values)>0)
-                            stop(paste0(error.prefix, "For the '", outcome, 
-                                        "' outcome, ",
-                                        collapse.with.and("'", invalid.dimension.values, "'"),
-                                        ifelse(length(invalid.dimension.value.dimensions)==1, " is an invalid value", " are invalid values"),
-                                        " for the '", d, "' dimension of the ontology",
-                                        ifelse(length(ont[[d]])<=6, 
-                                               paste0(" (", paste0("'", ont[[d]], "'", collapse=", "), ")"),
-                                               "")
-                            ))
-                    }
                 }
                 
-                ont[names(dimension.values)] = dimension.values
-                ont[keep.dimensions]
+                ont = ont[keep.dimensions]
+                if (length(keep.dimension.values)>0 && !check.consistency)
+                    resolve.ontology.dimension.values(ont, dimension.values=keep.dimension.values, error.prefix = error.prefix)
+                else
+                    ont
             })
             names(ontologies) = outcomes
             
             # Make sure the ontologies are congruous
-            out1 = outcomes[1]
             ont1 = ontologies[[1]]
-            for (out2 in outcomes[-1])
+            if (check.consistency)
             {
-                ont2 = ontologies[[2]]
-                
-                unequal.dimensions.mask = sapply(names(ont1), function(d){
-                    !identical(ont1[[d]], ont2[[d]])
-                })
-                
-                if (any(unequal.dimensions.mask))
+                out1 = outcomes[1]
+                for (out2 in outcomes[-1])
                 {
-                    unequal.dimensions = names(ont1)[unequal.dimensions.mask]
-                    stop(paste0(error.prefix, "Cannot get data for outcomes '", out1, "' and '", out2, 
-                                "' in one function call. Their ontologies have differing values for the ",
-                                collapse.with.and("'", unequal.dimensions, "'"),
-                                ifelse(length(unequal.dimensions)==1, " dimension.", " dimensions.")))
+                    ont2 = ontologies[[2]]
+                    
+                    unequal.dimensions.mask = sapply(names(ont1), function(d){
+                        !identical(ont1[[d]], ont2[[d]])
+                    })
+                    
+                    if (any(unequal.dimensions.mask))
+                    {
+                        unequal.dimensions = names(ont1)[unequal.dimensions.mask]
+                        stop(paste0(error.prefix, "Cannot get data for outcomes '", out1, "' and '", out2, 
+                                    "' in one function call. Their ontologies have differing values for the ",
+                                    collapse.with.and("'", unequal.dimensions, "'"),
+                                    ifelse(length(unequal.dimensions)==1, " dimension.", " dimensions.")))
+                    }
                 }
             }
             
             # Fold together, with outcome as the last dimension
-            c(ont1,
-              ontology(outcome=outcomes, incomplete.dimensions = 'outcome'))
+            if (!drop.single.outcome.dimension || length(outcomes)>1)
+                c(ont1,
+                  ontology(outcome=outcomes, incomplete.dimensions = 'outcome'))
+            else
+                ont1
         }
         
     ),
@@ -375,21 +436,29 @@ JHEEM.SIMULATION = R6::R6Class(
                        keep.dimensions=NULL,
                        dimension.values = list(),
                        ...,
+                       check.consistency = T,
+                       drop.single.outcome.dimension = T,
                        error.prefix = "Error getting simulation results: ")
         {
             dim.names = self$get.dim.names(outcomes = outcomes,
                                            keep.dimensions = keep.dimensions,
                                            dimension.values = dimension.values,
                                            ...,
+                                           check.consistency = check.consistency,
+                                           drop.single.outcome.dimension = drop.single.outcome.dimension,
                                            error.prefix = error.prefix)
             
             dimension.values = private$process.dimension.values(dimension.values, ..., error.prefix=error.prefix)
-            keep.dimensions = names(dim.names)[-length(dim.names)]
+            if (drop.single.outcome.dimension && length(outcomes)==1)
+                keep.dimensions = names(dim.names)
+            else
+                keep.dimensions = names(dim.names)[-length(dim.names)]
             
             # The below implementation is not correct
             # - need to access to make sure dimension values are in the right order
             # - will probably make sense to write a custom cpp call for this
             # - we need to aggregate with denominators
+            # - we should probably also optimize if there is just one outcome?
             rv = sapply(outcomes, function(outcome){
                 
                 outcome.data = private$i.data[[outcome]]
