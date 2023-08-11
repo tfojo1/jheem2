@@ -175,9 +175,6 @@ SIMULATION.METADATA = R6::R6Class(
                                  drop.single.outcome.dimension = T,
                                  error.prefix = "Error getting dimnames of simulation results: ")
         {
-            #@Andrew - need to calculate default keep.dimensions as we did for data manager
-            if (is.null(keep.dimensions))
-                keep.dimensions = 'year'
             
             dimension.values = private$process.dimension.values(dimension.values, ..., error.prefix=error.prefix)
             
@@ -192,13 +189,15 @@ SIMULATION.METADATA = R6::R6Class(
                             ifelse(length(invalid.outcomes)==1, ' is', ' are'),
                             " not defined in the '", self$version, "' model specification"))
             
-            keep.dimension.values = dimension.values[intersect(keep.dimensions, names(dimension.values))]
             
             # Pull the ontologies
             ontologies = lapply(outcomes, function(outcome){
                 
                 ont = self$outcome.ontologies[[outcome]]
-                
+                if (is.null(keep.dimensions))
+                    keep.dimensions <<- intersect(names(ont),
+                                                  union(names(ont)[!is.complete(ont)],
+                                                        names(dimension.values)[sapply(dimension.values, length)>1]))
                 if (check.consistency)
                 {
                     # Make sure keep dimensions work
@@ -234,9 +233,11 @@ SIMULATION.METADATA = R6::R6Class(
                                     " NULL in the ontology and must be specified in the get() call)"
                         ))
                     
-                    ont = resolve.ontology.dimension.values(ont = ont,
-                                                            dimension.values = dimension.values,
-                                                            error.prefix = error.prefix)
+                    
+                    dimension.values = resolve.ontology.dimension.values(ont = ont,
+                                                                         dimension.values = dimension.values,
+                                                                         error.prefix = error.prefix)
+                    ont[names(dimension.values)] = dimension.values
                     
                     
                     # The below should be rendered unnecessary by the resolve.ontology.dimension.values above
@@ -271,12 +272,12 @@ SIMULATION.METADATA = R6::R6Class(
                     if (is.null(ont[[d]]))
                         ont[[d]] = dimension.values[[d]]
                 }
-                
                 ont = ont[keep.dimensions]
+                keep.dimension.values = dimension.values[intersect(keep.dimensions, names(dimension.values))]
                 if (length(keep.dimension.values)>0 && !check.consistency)
-                    resolve.ontology.dimension.values(ont, dimension.values=keep.dimension.values, error.prefix = error.prefix)
-                else
-                    ont
+                    ont[names(keep.dimension.values)] = resolve.ontology.dimension.values(ont, dimension.values=keep.dimension.values, error.prefix = error.prefix)
+                
+                ont
             })
             names(ontologies) = outcomes
             
@@ -376,13 +377,16 @@ SIMULATION.METADATA = R6::R6Class(
             #@Andrew - need to fold ... into dimension.values, as we did for data manager
             # is how I did it right?
             dot.dot.dot = list(...)
+            
             check.dimension.values.valid(dot.dot.dot,
                                          variable.name.for.error = "The elements of ...",
-                                         error.prefix = error.prefix)
+                                         error.prefix = error.prefix,
+                                         allow.empty = T)
             
             check.dimension.values.valid(dimension.values,
                                          variable.name.for.error = "dimension.values",
-                                         error.prefix = error.prefix)
+                                         error.prefix = error.prefix,
+                                         allow.empty = T)
             
             dimension.values[names(dot.dot.dot)] = dot.dot.dot
             
@@ -461,8 +465,12 @@ JHEEM.SIMULATION = R6::R6Class(
             # - we should probably also optimize if there is just one outcome?
             rv = sapply(outcomes, function(outcome){
                 
-                outcome.data = private$i.data[[outcome]]
-                apply(array.access(outcome.data, dimension.values), keep.dimensions, sum)
+                outcome.data = array.access(private$i.data[[outcome]], dimension.values)
+                
+                if (length(keep.dimensions)==0)
+                    sum(outcome.data)
+                else
+                    apply(outcome.data, keep.dimensions, sum)
             })
             
             dim(rv) = sapply(dim.names, length)
