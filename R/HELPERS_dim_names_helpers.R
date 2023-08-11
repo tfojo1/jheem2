@@ -152,11 +152,11 @@ stop("NEED TO IMPLEMENT CHECKS HERE!")
     rv
 }
 
-##-------------------------------------------##
-##--        UNION *SHARED* DIM NAMES       --##
-##-- (union the values for dimensions that --##
-##--   are shared in two dim.names lists)  --##
-##-------------------------------------------##
+##---------------------------------------------------------##
+##--        UNION and INTERSECT *SHARED* DIM NAMES       --##
+##-- (union or intersect the values for dimensions that  --##
+##--         are shared in two dim.names lists)          --##
+##---------------------------------------------------------##
 
 ##-----------------------##
 ##-- LOW-LEVEL HELPERS --##
@@ -182,6 +182,52 @@ union.shared.dim.names <- function(dim.names.1, dim.names.2)
         rv
     }
 }
+
+# - Any dimension that does not appear in ALL the dim.names above is dropped
+# - For any dimension that does appear in ALL the dim.names above, the value is the intersect of the values for that dimension in each of the dim.names above
+intersect.shared.dim.names <- function(dim.names.1, dim.names.2)
+{
+    if (is.null(dim.names.1))
+        dim.names.2
+    else if (is.null(dim.names.2))
+        dim.names.1
+    else
+    {
+        all.dimensions = union(names(dim.names.1), names(dim.names.2))
+        
+        rv = lapply(all.dimensions, function(d){
+            if (is.null(dim.names.1[[d]]))
+                dim.names.2[[d]]
+            else if (is.null(dim.names.2[[d]]))
+                dim.names.1[[d]]
+            else
+                intersect(dim.names.1[[d]], dim.names.2[[d]])
+        })
+        names(rv) = all.dimensions
+        rv
+    }
+}
+
+# - Any dimension that appears in ANY dim.names is included
+# - For any dimension that does appear in ANY the dim.names above, the value is the intersect of the values for that dimension in each of the dim.names that contains the dimension
+intersect.joined.dim.names <- function(dim.names.1, dim.names.2)
+{
+    if (is.null(dim.names.1))
+        dim.names.2
+    else if (is.null(dim.names.2))
+        dim.names.1
+    else
+    {
+        overlapping.dimensions = intersect(names(dim.names.1), names(dim.names.2))
+        
+        rv = lapply(overlapping.dimensions, function(d){
+            intersect(dim.names.1[[d]], dim.names.2[[d]])
+        })
+        names(rv) = overlapping.dimensions
+        rv
+    }
+}
+
 
 # Returns a list with two elements
 # $dim.names

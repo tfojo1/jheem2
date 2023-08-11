@@ -25,6 +25,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                               
                               fixed.strata.info,
                               quantities,
+                              outcomes,
                               core.components,
                               mechanisms,
                               
@@ -32,6 +33,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
 
                               parent.specification,
                               do.not.inherit.model.quantity.names,
+                              do.not.inherit.model.outcome.names,
                               do.not.inherit.transitions.for.dimension,
                               do.not.inherit.components.with.tags,
                               
@@ -50,6 +52,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             private$i.fixed.strata.info = fixed.strata.info
             private$i.quantities = lapply(quantities, function(quant){quant$compile()})
+            private$i.outcomes = lapply(outcomes, function(outcome){outcome$compile(self)})
             private$i.core.components = core.components
             private$i.mechanisms = mechanisms
             
@@ -58,6 +61,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             private$i.parent.specification = parent.specification
             private$i.do.not.inherit.model.quantity.names = do.not.inherit.model.quantity.names
+            private$i.do.not.inherit.model.outcome.names = do.not.inherit.model.outcome.names
             private$i.do.not.inherit.transitions.for.dimension = do.not.inherit.transitions.for.dimension
             private$i.do.not.inherit.components.with.tags = do.not.inherit.components.with.tags
             
@@ -69,6 +73,8 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 private$i.ancestor.specifications = c(private$i.ancestor.specifications,
                                                       private$i.parent.specification$ancestor.specifications)
             
+            private$i.locked = F
+            
             #-- If requested, do the compilation --#
             if (do.compile)
                 private$do.compile()
@@ -77,10 +83,51 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         ##--------------------------------------##
         ##-- PUBLIC to the JHEEM.ENGINE CLASS --##
         ##--------------------------------------##
-                
+        
         get.quantity = function(name)
         {
-            i.quantities[[name]]
+            if (private$i.locked)
+                private$i.quantities[[name]]
+            else
+            {
+                # as an intermediate step in compiling, the name in the quantity may be
+                # different from the name it is stored under in the specification
+                # we need to search for both
+                
+                rv = private$i.quantities[[name]]
+                if (is.null(rv))
+                {
+                    for (quant in private$i.quantities)
+                    {
+                        if (quant$name==name)
+                            return (quant)
+                    }
+                }
+                rv
+            }
+        },
+        
+        get.outcome = function(name)
+        {
+            if (private$i.locked)
+                private$i.outcomes[[name]]
+            else
+            {
+                # as an intermediate step in compiling, the name in the outcome may be
+                # different from the name it is stored under in the specification
+                # we need to search for both
+                
+                rv = private$i.outcomes[[name]]
+                if (is.null(rv))
+                {
+                    for (out in private$i.outcomes)
+                    {
+                        if (out$name==name)
+                            return (out)
+                    }
+                }
+                rv
+            }
         },
         
         get.dependent.quantity.names = function(quantity.name)
@@ -123,6 +170,31 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 
                 private$i.parent.specification$rename.quantities(names.in.use)
             }
+            
+            self
+        },
+        
+        # returns a vector of the names of saved outcomes
+        process.and.rename.outcomes = function(names.in.use)
+        {
+            rv = character()
+            for (outcome in private$i.outcomes)
+            {
+                if (any(outcome$name==names.in.use))
+                    outcome$rename(paste0(outcome$name, "__", outcome$version))
+                else if (outcome$save)
+                    rv = c(rv, outcome$name)
+            }
+            
+            if (!is.null(private$i.parent.specification))
+            {
+                names.in.use = union(names.in.use,
+                                     sapply(private$i.outcomes, function(outcome){outcome$name}))
+                
+                rv = c(rv, private$i.parent.specification$process.and.rename.outcomes(names.in.use))
+            }
+            
+            rv
         },
         
         process.core.components = function(error.prefix)
@@ -211,6 +283,14 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 private$i.do.not.inherit.model.quantity.names
             else
                 stop("Cannot modify a specification's 'do.not.inherit.model.quantity.names' - they are read-only")
+        },
+        
+        do.not.inherit.model.outcome.names = function(value)
+        {
+            if (missing(value))
+                private$i.do.not.inherit.model.outcome.names
+            else
+                stop("Cannot modify a specification's 'do.not.inherit.model.outcome.names' - they are read-only")
         },
 
         top.level.references = function(value)
@@ -309,7 +389,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         #-- COMPILE FUNCTION and HELPERS --#
         #----------------------------------#
         
-        do.compile = function(verbose=F) #the verbose flag is for debugging only
+        do.compile = function(verbose=T) #the verbose flag is for debugging only
         {
             private$i.verbose = verbose
             error.prefix = paste0("Error compiling model specification for '", private$i.version, "': ")
@@ -321,22 +401,35 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             do.cat("Processing character aliases...")
             private$process.compartment.aliases()
             do.cat("done\n")
-  
+
             
-            #-- Process Core Components and Mechanisms --#
-            do.cat("Processing core components...")          
-            
-            self$process.core.components(error.prefix)
-            private$process.mechanisms(error.prefix)
-            
+            #-- Rename outcomes and quantities so they are unique across versions --#
+            do.cat("Renaming outcomes and quantities...")
+            top.level.outcome.names = self$process.and.rename.outcomes(character()) # rename the quantities first so we can get a unique name for each
+            self$rename.quantities(character()) # rename the quantities first so we can get a unique name for each
             do.cat("done\n")
             
             
-            #-- Pull all top-level references --#
+            #-- Parse outcomes --#
+            #-- Make sure there are no circular references --#
+            do.cat("Parsing outcome tree...")
+            top.level.outcomes = sapply(top.level.outcome.names, private$resolve.outcome.name, this.refers.to.version=self$version)
+            outcomes.to.use = private$parse.outcome.tree(top.level.outcomes)
+            do.cat("done\n")
+
+            
+            #-- Process Core Components and Mechanisms --#
             #-- Make sure required are present --#
-            #-- Check top-level references for clashes --#
+            #-- Check for clashes --#
+            do.cat("Processing core components...")          
+            self$process.core.components(error.prefix)
+            private$process.mechanisms(error.prefix)
+            do.cat("done\n")
+            
+            
+            #-- Pull all top-level references FROM CORE COMPONENTS --#
             do.cat("Deriving top-level references...")
-            private$i.top.level.references = list()
+            references.from.core.components = list()
             for (i in 1:length(private$i.core.components))
             {
                 comp = private$i.core.components[[i]]
@@ -344,14 +437,26 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                                                                      specification=self,
                                                                      error.prefix = error.prefix)
                 
-                private$i.top.level.references = c(private$i.top.level.references, references)
+                references.from.core.components = c(references.from.core.components, references)
                 private$i.core.components[[i]] = comp$schema$set.component.top.level.references(comp, 
                                                                                                 references=references,
                                                                                                 specification = self,
                                                                                                 error.prefix = error.prefix)
             }
             
+            #-- (First of twice) Pull top-level references FROM OUTCOMES --#
+            references.from.outcomes = list()
+            for (outcome in outcomes.to.use)
+            {
+                references.from.outcomes = c(references.from.outcomes,
+                                             outcome$create.top.level.references(specification = self,
+                                                                                 all.outcomes = outcomes.to.use,
+                                                                                 error.prefix = error.prefix))
+            }
+            
+            private$i.top.level.references = c(references.from.core.components, references.from.outcomes)
             do.cat("done\n")
+            
             
             #-- Make sure there are no circular references --#
             #-- Make sure that any reference to 'super' and 'this' (in parent mapping) model.quantities are valid --#
@@ -359,8 +464,8 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             #-- Identify all the quantities and elements we will need --#
             #     (Either in this mapping or in an ancestor mapping)    #
             do.cat("Parsing model.quantity tree...")
-            self$rename.quantities(character()) # rename the quantities first so we can get a unique name for each
-            quantities.to.use = private$parse.quantity.tree(private$i.top.level.references)
+            quantities.to.use = private$parse.quantity.tree(quantities.or.references = c(references.from.core.components,
+                                                                                         references.from.outcomes))
             do.cat("done\n")
             
             #-- Check for missing quantities that have not been registered --#
@@ -386,8 +491,9 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 cat(paste0("*** WARNING: The following have been registered as model quantities or elements, but are not actually used to define any transitions or required model quantities:\n",
                            paste0("- '", surplus.quantity.names, "'", collapse='\n'),
                            "\nThey will be ignored.\n"))
-            
-            
+
+
+                        
             #-- Pull Top-Level Quantities --#
             do.cat("Pulling top-level quantities...")
             private$i.top.level.quantity.names = unique(sapply(private$i.top.level.references, function(ref){
@@ -396,13 +502,20 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             do.cat("done\n")
 
 
-            #-- Remake into a new, flattened (parentless) mapping with just the quantities we need --#
+            #-- Remake into a new, flattened (parentless) mapping with just the quantities and outcomes we need --#
             private$i.quantities = quantities.to.use
+            private$i.outcomes = outcomes.to.use
             private$i.parent.specification = NULL
             private$i.ancestor.specifications = private$i.ancestor.specifications[1]
             
             
             ##** FROM HERE DOWN THE TRANSITION MAPPING IS FLATTENED **##
+            
+            #-- Check that outcomes depends.on outcomes/quantities are appropriately cumulative/static or not --#
+            do.cat("Checking outcome depends.on for consistency...")
+            for (outcome in private$i.outcomes)
+                private$check.outcome.depends.on(outcome, error.prefix=error.prefix)
+            do.cat("done\n")
             
             #-- Resolve compartment names for quantities --#
             do.cat("Resolving aliases for needed quantities...")
@@ -420,6 +533,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             can.reduce.quantities = sapply(private$i.quantities, function(quant){
                 private$can.reduce.quantity(quant)
             })
+            
             if (sum(can.reduce.quantities)==0)
                 do.cat("No model quantities to reduce\n")
             else
@@ -437,13 +551,50 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 do.cat("Done reducing\n")
             }
             
+            #-- Map out dim.names --#
+            #   We have to do the following sequence
+            #     1) Calculate quantity dim.names (preliminary)
+            #     2) Derive outcome dim.names
+            #     3) Re-calculate quantity dim.names
+            #   We have to do it this way because some outcomes' dim.names may depend on their depends on quantities (preliminary) dim.names
+            #   But setting dim.names for outcomes can restrict the max dim.names of quantities
             
-            #-- Map out max dim.names for each quantity --#
+            #-- 1) Map out max dim.names for each quantity --#
             #-- Check that applies.to dimensions are a subset of the calculated dim.names --#
-            do.cat("Calculating dim.names for quantities...")
+            do.cat("Calculating preliminary dim.names for quantities...")
             for (quantity in private$i.quantities)
                 private$calculate.quantity.dim.names(quantity, error.prefix=error.prefix)
             do.cat("done\n")
+            
+            #-- 2) Derive the outcome dim.names --#
+            do.cat("Calculating dim.names for outcomes...")
+            for (outcome in private$i.outcomes)
+                outcome$derive.dim.names(specification = self,
+                                         all.outcomes = private$i.outcomes,
+                                         error.prefix = error.prefix, 
+                                         set = T)
+            
+            # 2B: Update the top-level references from outcomes
+            references.from.outcomes = list()
+            for (outcome in outcomes.to.use)
+            {
+                references.from.outcomes = c(references.from.outcomes,
+                                             outcome$create.top.level.references(specification = self,
+                                                                                 all.outcomes = outcomes.to.use,
+                                                                                 error.prefix = error.prefix))
+            }
+            private$i.top.level.references = c(references.from.core.components, references.from.outcomes)
+            
+            do.cat("done\n")
+            
+            
+            #-- 3) Recalculate max dim.names for each quantity --#
+            #-- Check that applies.to dimensions are a subset of the calculated dim.names --#
+            do.cat("Calculating final dim.names for quantities...")
+            for (quantity in private$i.quantities)
+                private$calculate.quantity.dim.names(quantity, error.prefix=error.prefix)
+            do.cat("done\n")
+            
             
             #-- Check that numeric values of model quantity components have appropriate dimensions --#
             #-- Check that models for model.elements have appropriate dimensions --#
@@ -479,6 +630,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
              for (i in 1:length(private$i.core.components))
              {
                  comp = private$i.core.components[[i]]
+                 
                  for (mechanism.type in comp$schema$mechanism.types)
                  {
                      mechanism = private$find.mechanism.for.component(comp,
@@ -490,7 +642,12 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                                      comp$name))
                      
                      # Set the quantity name to the component (for the mechanism)
-                     private$i.core.components[[i]][[mechanism.type]] = mechanism$quantity.name
+                     quantity = private$resolve.quantity.name(mechanism$quantity.name, this.refers.to.version=mechanism$version)
+                     
+                     private$i.core.components[[i]] = 
+                         private$i.core.components[[i]]$schema$set.mechanism.for.component(comp = private$i.core.components[[i]],
+                                                                                           mechanism = mechanism,
+                                                                                           quantity = quantity)
                  }
              }
              
@@ -600,8 +757,15 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                     depends.on.quantities = depends.on.quantities[!sapply(depends.on.quantities, is.null)]
                     
                     if (length(depends.on.quantities)>0)
+                    {
                         rv = private$parse.quantity.tree(depends.on.quantities,
                                                          ancestor.quantities = new.ancestor.quantities)
+                    
+                        # Sub the new names of the depends.on quantities into this quantity 
+                        new.depends.on.names = sapply(depends.on.quantities, function(quant){quant$name})
+                        names(new.depends.on.names) = names(depends.on.quantities)
+                        quantity$rename.depends.on(mapping = new.depends.on.names)   
+                    }
                     else
                         rv = list()
                     
@@ -613,6 +777,224 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 rv[[quantity$name]] = quantity
                 
                 rv
+            }
+        },
+        
+        parse.outcome.tree = function(outcomes,
+                                      ancestor.outcomes = list(),
+                                      error.prefix='')
+        {
+            rv = list()
+            for (outcome in outcomes)
+            {
+                new.ancestor.outcomes = c(ancestor.outcomes, list(outcome))
+                
+                #-- Make sure we don't have a loop --#
+                matches.ancestor = sapply(ancestor.outcomes, function(anc.outcome){
+                    anc.outcome$name == outcome$name && anc.outcome$version == outcome$version
+                })
+                
+                if (any(matches.ancestor))
+                {
+                    ancestor.names = sapply(new.ancestor.outcomes, function(out){
+                        out$get.original.name(wrt.version = private$i.version)
+                    })
+                    
+                    # Get just the loop
+                    ancestor.names = ancestor.names[first.index.of(ancestor.names, ancestor.names[length(ancestor.names)]):length(ancestor.names)]
+                    
+                    stop(paste0(error.prefix,
+                                "There is a circular loop of dependencies through model outcome ",
+                                outcome$get.original.name(wrt.version=private$i.version),
+                                ": ",
+                                paste0(ancestor.names, collapse=" -> ")))
+                    
+                }
+                
+                #-- Resolve Dependencies --#
+                # Resolve depends on outcomes
+                depends.on.outcomes = lapply(outcome$depends.on.outcomes, private$resolve.outcome.name, this.refers.to.version=outcome$version)
+                names(depends.on.outcomes) = outcome$depends.on.outcomes
+                if (length(depends.on.outcomes)>0)
+                {
+                    missing.depends.on = outcome$depends.on.outcomes[sapply(depends.on.outcomes, is.null)]
+                    if (length(missing.depends.on)>0)
+                        stop(paste0(error.prefix,
+                                    "Model outcome ", outcome$get.original.name(wrt.version=private$i.version), " depends on ",
+                                    ifelse(length(missing.depends.on)==1, "another model outcome ", "other model outcomes "),
+                                    collapse.with.and("'", missing.depends.on, "'"),
+                                    ifelse(length(missing.depends.on)==1, ' which has ', ' which have '),
+                                    "not been registered as ",
+                                    ifelse(length(missing.depends.on)==1, "a tracked outcome", "tracked outcomes")))
+                }
+                
+                # Resolve depends on quantities
+                depends.on.quantities = lapply(outcome$depends.on.quantities, private$resolve.quantity.name, this.refers.to.version=outcome$version)
+                names(depends.on.quantities) = outcome$depends.on.quantities
+                if (length(depends.on.quantities)>0)
+                {
+                    missing.depends.on = outcome$depends.on.quantities[sapply(depends.on.quantities, is.null)]
+                    if (length(missing.depends.on)>0)
+                        stop(paste0(error.prefix,
+                                    "Model outcome ", outcome$get.original.name(wrt.version=private$i.version), " depends on ",
+                                    ifelse(length(missing.depends.on)==1, "model quantity ", "model quantities "),
+                                    collapse.with.and("'", missing.depends.on, "'"),
+                                    ifelse(length(missing.depends.on)==1, ' which has ', ' which have '),
+                                    "not been registered using register.model.outcome()"))
+                }
+                
+                # Resolve depends on ambiguous whether outcomes or quantities
+                depends.on.ambiguous.as.outcomes = lapply(outcome$depends.on.quantities.or.outcomes, private$resolve.outcome.name, this.refers.to.version=outcome$version)
+                depends.on.ambiguous.as.quantities = lapply(outcome$depends.on.quantities.or.outcomes, private$resolve.quantity.name, this.refers.to.version=outcome$version)
+                names(depends.on.ambiguous.as.outcomes) = names(depends.on.ambiguous.as.quantities) = outcome$depends.on.quantities.or.outcomes
+            
+                ambiguous.is.outcome = !as.logical(sapply(depends.on.ambiguous.as.outcomes, is.null)) & 
+                    sapply(depends.on.ambiguous.as.outcomes, function(outcome){outcome$name}) != outcome$name
+                ambiguous.is.quantity = !ambiguous.is.outcome & !as.logical(sapply(depends.on.ambiguous.as.quantities, is.null))
+                
+                missing.depends.on = outcome$depends.on.outcomes[!ambiguous.is.outcome & !ambiguous.is.quantity]
+                if (length(missing.depends.on)>0)
+                    stop(paste0(error.prefix,
+                                "Model outcome ", outcome$get.original.name(wrt.version=private$i.version), " depends on ",
+                                collapse.with.and("'", missing.depends.on, "'"),
+                                ifelse(length(missing.depends.on)==1, ' which has ', ' which have '),
+                                "not been registered as either model.quantities (using register.model.outcome() ) or tracked model outcomes"))
+                
+                depends.on.outcomes = c(depends.on.outcomes, depends.on.ambiguous.as.outcomes[ambiguous.is.outcome])
+                depends.on.quantities = c(depends.on.outcomes, depends.on.ambiguous.as.quantities[ambiguous.is.quantity])
+                
+                depends.on.outcomes = depends.on.outcomes[unique(names(depends.on.outcomes))]
+                depends.on.quantities = depends.on.quantities[unique(names(depends.on.quantities))]
+ 
+# I believe we no longer need this - have split into two functions. Keeping just in case i'm wrong 8/10/23                               
+#                double.counted.names = intersect(names(depends.on.outcomes), names(depends.on.quantities))
+#                if (length(double.counted.names)>0)
+#                    stop(paste0(error.prefix,
+#                                "Model outcome ", outcome$get.original.name(wrt.version=private$i.version), " depends on both ",
+#                                ifelse(length(double.counted.names)==1, 'a model quantity and a model outcome', 'model quantities and model outcomes'),
+#                                " named ",
+#                                collapse.with.and("'", double.counted.names, "'"),
+#                                ". This introduces an ambiguitiy - a model outcome cannot depend on quantities and other outcomes with the same name."))
+                
+                # Rename the depends on
+                new.depends.on.outcome.names = sapply(depends.on.outcomes, function(outcome){
+                    outcome$name
+                })
+                outcome$rename.depends.on.outcomes(new.depends.on.outcome.names)
+                
+                new.depends.on.quantity.names = sapply(depends.on.quantities, function(quantity){
+                    quantity$name
+                })
+                outcome$rename.depends.on.quantities(new.depends.on.quantity.names)
+                
+                # Save to our rv
+                rv[[outcome$name]] = outcome
+                
+                # Recurse
+                sub.rv = private$parse.outcome.tree(outcomes = depends.on.outcomes,
+                                                    ancestor.outcomes = new.ancestor.outcomes,
+                                                    error.prefix = error.prefix)
+                for (sub.name in names(sub.rv))
+                    rv[[sub.name]] = sub.rv[[sub.name]]
+                
+            }
+            
+            rv
+        },
+
+        # Should only be called on flattened specification
+        check.outcome.depends.on = function(outcome, error.prefix)
+        {
+            error.prefix = paste0(error.prefix, "Cannot parse model outcome ",
+                                  outcome$get.original.name(wrt.version=self$version), " - ")
+            
+            # Figure out which depends.on outcomes and quantities are cumulative
+            depends.on.outcomes.mask = !sapply(lapply(outcome$depends.on, self$get.outcome), is.null)
+            depends.on.outcomes = outcome$depends.on[depends.on.outcomes.mask]
+            depends.on.quantities = outcome$depends.on[!depends.on.outcomes.mask]
+            
+            depends.on.outcomes.cumulative = intersect(depends.on.outcomes, outcome$depends.on.cumulative)
+            depends.on.outcomes.non.cumulative = setdiff(depends.on.outcomes, depends.on.outcomes.cumulative)
+            depends.on.quantities.static = intersect(depends.on.quantities, outcome$depends.on.cumulative)
+            
+            # Check that these are cumulative or not as they should be
+            invalid.outcomes.cumulative = depends.on.outcomes.cumulative[as.logical(sapply(depends.on.outcomes.cumulative, function(dep.on){
+                !self$get.outcome(dep.on)$is.cumulative
+            }))]
+            
+            if (length(invalid.outcomes.cumulative)>0)
+                stop(paste0(error.prefix, "The outcome requires ",
+                            collapse.with.and("'", invalid.outcomes.cumulative, "'"),
+                            " to be *cumulative*, ",
+                            ifelse(length(invalid.outcomes.cumulative)==1, "but it is", "but they are"),
+                            " NON-cumulative"))
+            
+            
+            invalid.outcomes.non.cumulative = depends.on.outcomes.non.cumulative[as.logical(sapply(depends.on.outcomes.non.cumulative, function(dep.on){
+                self$get.outcome(dep.on)$is.cumulative
+            }))]
+            
+            if (length(invalid.outcomes.non.cumulative)>0)
+                stop(paste0(error.prefix, "The outcome requires ",
+                            collapse.with.and("'", invalid.outcomes.non.cumulative, "'"),
+                            " to be *NON-cumulative*, ",
+                            ifelse(length(invalid.outcomes.non.cumulative)==1, "but it IS", "but they ARE"),
+                            " cumulative"))
+            
+            
+            invalid.quantities.non.static = depends.on.quantities.static[!as.logical(sapply(depends.on.quantities.static, private$quantity.may.be.static, error.prefix=error.prefix))]
+            
+            if (length(invalid.quantities.non.static)>0)
+                stop(paste0(error.prefix, "The outcome requires ",
+                            collapse.with.and("'", invalid.quantities.non.static, "'"),
+                            " to be *static*, ",
+                            ifelse(length(invalid.quantities.non.static)==1, "but it", "but they"),
+                            " CANNOT be static as defined"))
+            
+            # Flag that the static quantities must be static
+            sapply(depends.on.quantities.static, private$set.quantity.must.be.static, error.prefix=error.prefix)
+        },
+        
+        # Can only be called AFTER flattening quantities
+        quantity.may.be.static = function(quantity.name, error.prefix, ignore.missing=F)
+        {
+            quant = self$get.quantity(quantity.name)
+            if (is.null(quantity))
+            {
+                if (ignore.missing)
+                    return (T)
+                else
+                    stop(paste0(error.prefix, "Quantity '", quantity.name, "' has not been registered"))
+            }
+            else if (quantity$type=='element')
+            {
+                quantity$may.be.static()
+            }
+            else
+            {
+                depends.on.may.be.static = sapply(quantity$depends.on, private$quantity.may.be.static, 
+                                                  ignore.missing=ignore.missing, error.prefix=error.prefix)
+                
+                all(depends.on.may.be.static)
+            }
+        },
+        
+        # Can only be called AFTER flattening quantities
+        set.quantity.must.be.static = function(quantity.name, error.prefix, ignore.missing=T)
+        {
+            quantity = self$get.quantity(quantity.name)
+            if (is.null(quantity))
+            {
+                if (ignore.missing)
+                    return()
+                else
+                    stop(paste0("Quantity '", quantity.name, "' has not been registered"))
+            }
+            else
+            {
+                quantity$set.must.be.static()
+                sapply(quantity$depends.on, private$set.quantity.must.be.static, 
+                       error.prefix=error.prefix, ignore.missing=ignore.missing)
             }
         },
 
@@ -1017,6 +1399,11 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 min.ancestor.index = index.of(names(private$i.ancestor.specifications), this.refers.to.version)
                 name = substr(name, 6, nchar(name))
             }
+            else if (string.begins.with(name, prefix='quantity'))
+            {
+                min.ancestor.index = 1
+                name = substr(name, 10, nchar(name))
+            }
             else
             {
                 min.ancestor.index = 1
@@ -1030,6 +1417,37 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                     return(quantity)
                 
                 if (any(name == private$i.ancestor.specifications[[index]]$do.not.inherit.model.quantity.names))
+                    return (NULL)
+            }
+            
+            # we didn't find it
+            NULL
+        },
+
+        resolve.outcome.name = function(name, this.refers.to.version)
+        {
+            if (string.begins.with(name, prefix='super'))
+            {
+                min.ancestor.index = 1 + first.index.of(names(private$i.ancestor.specifications), this.refers.to.version)
+                name = substr(name, 7, nchar(name))
+            }
+            else if (string.begins.with(name, prefix='this'))
+            {
+                min.ancestor.index = index.of(names(private$i.ancestor.specifications), this.refers.to.version)
+                name = substr(name, 6, nchar(name))
+            }
+            else
+            {
+                min.ancestor.index = 1
+            }
+            
+            for (index in min.ancestor.index:length(private$i.ancestor.specifications))
+            {
+                outcome = private$i.ancestor.specifications[[index]]$get.outcome(name)
+                if (!is.null(outcome)) # we found it, package up and return
+                    return(outcome)
+                
+                if (any(name == private$i.ancestor.specifications[[index]]$do.not.inherit.model.outcome.names))
                     return (NULL)
             }
             
@@ -1128,7 +1546,9 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
     public = list(
         
         initialize = function(specification,
-                              ontology.name,
+                              version,
+                              ontology.name = NULL,
+                              dim.names = NULL,
                               value.quantity.name,
                               source,
                               type='top.level.reference',
@@ -1138,19 +1558,40 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                               alias.suffix,
                               error.prefix)
         {
-            # Validate ontology.name
-            if (!is.character(ontology.name) || length(ontology.name)!=1 || is.na(ontology.name) || nchar(ontology.name)==0)
-                stop(paste0(error.prefix, "'ontology.name' for a ", self$descriptor, " must be a single, non-NA, non-empty character value"))
+            # Validate dim.names or ontology.name
+            if (is.null(dim.names))
+            {
+                # Validate ontology.name
+                if (!is.character(ontology.name) || length(ontology.name)!=1 || is.na(ontology.name) || nchar(ontology.name)==0)
+                    stop(paste0(error.prefix, "'ontology.name' for a ", self$descriptor, " must be a single, non-NA, non-empty character value"))
+                
+                
+                if (is.null(names(ontology.name)) || is.na(names(ontology.name)) || nchar(names(ontology.name))==0)
+                    names(ontology.name) = ontology.name
+                
+                if (all(names(ontology.name)!=names(specification$ontologies)))
+                    stop(paste0(error.prefix, 
+                                "In creating a ", self$descriptor, " names(ontology.name) must be one of ",
+                                collapse.with.or("'", names(specification$ontologies), "'"),
+                                ". ", names(ontology.name), 
+                                " is not a valid name"))
+            }
+            else
+            {
+                if (!is.null(ontology.name))
+                    stop(paste0(error.prefix, "In creating a top-level reference, either 'ontology.name' or 'dim.names' but NOT both can be set. One or the other must be NULL"))
+                
+                check.dim.names.valid(dim.names = dim.names,
+                                      variable.name.for.error = 'dim.names',
+                                      allow.empty = T,
+                                      allow.duplicate.values.across.dimensions = T,
+                                      error.prefix = error.prefix)
+            }
             
-            if (is.null(names(ontology.name)) || is.na(names(ontology.name)) || nchar(names(ontology.name))==0)
-                names(ontology.name) = ontology.name
             
-            if (all(names(ontology.name)!=names(specification$ontologies)))
-                stop(paste0(error.prefix, 
-                            "In creating a ", self$descriptor, " names(ontology.name) must be one of ",
-                            collapse.with.or("'", names(specification$ontologies), "'"),
-                            ". ", names(ontology.name), 
-                            " is not a valid name"))
+            # Validate version
+            if (!is.character(version) || length(version)!=1 || is.na(version))
+                stop(paste0(error.prefix, "'version' for a ", self$descriptor, " must be a single, non-NA character vector"))
             
             # Validate value.quantity.name
             if (!is.character(value.quantity.name) || length(value.quantity.name)!=1 || is.na(value.quantity.name) || nchar(value.quantity.name)==0)
@@ -1192,7 +1633,8 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                                 " must be a single, non-NA character value that is either 'from' or 'to'"))
             }
             
-            private$i.version = specification$version
+            private$i.version = version
+            private$i.dim.names = dim.names
             private$i.ontology.name = ontology.name
             private$i.value.quantity.name = value.quantity.name
             private$i.type = type
@@ -1262,7 +1704,11 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
         
         get.max.dim.names = function(specification, error.prefix)
         {
-            rv = specification$ontologies[[private$i.ontology.name]]
+            if (is.null(private$i.dim.names))
+                rv = specification$ontologies[[private$i.ontology.name]]
+            else
+                rv = private$i.dim.names
+            
             if (is.null(rv))
                 stop(paste0(error.prefix, "Missing 'ontology.name' - the specification does not contain an ontology named '", private$i.ontology.name, "'"))
             
@@ -1371,8 +1817,10 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
     ),
     
     private = list(
+        
         i.version = NULL,
         i.value.quantity.name = NULL,
+        i.dim.names = NULL,
         i.ontology.name = NULL,
         i.type = NULL,
         i.source = NULL,
