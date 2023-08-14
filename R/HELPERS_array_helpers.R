@@ -85,6 +85,9 @@ fast.array.access <- function(arr,
                               dimension.values,
                               drop=F)
 {
+    if (length(dimension.values)==0)
+        return (arr)
+    
     subset.values = lapply(names(dim(arr)), function(d){
         if (is.null(dimension.values[[d]]))
             1:dim(arr)[d]

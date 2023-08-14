@@ -6,31 +6,70 @@
 ##----------------------------------------------------------##
 ##----------------------------------------------------------##
 
+#'@name Create a Target Population to Which Interventions May be Applied
+#'
+#'@param ... Dimension values that denote the categories that comprise this target population. Each element must be namned with the name of the dimension, and can be either (1) character values, (2) integers, or (3) logical vectors
+#'@param name A short (<= 20 characters) descriptive name for the target population. Should be nicely formatted for public display
+#'@param description An optional extended description of the population
+#'@param invert A logical indicating whether the target population should be the INVERSE of the characteristics specified in ... (ie, everyone who does NOT fall into those categories)
+#'
+#'@family Functions to create Target Populations
+#'
 #'@export
-create.target.population <- function(dimension.values,
+create.target.population <- function(...,
+                                     name,
+                                     description = NULL,
                                      invert=F)
 {
-    new('simple.target.population',
-        dim.names=dim.names,
-        invert=invert)
+    SIMPLE.TARGET.POPULATION$new(...,
+                                 name = name,
+                                 description = description,
+                                 invert = invert)
 }
 
 # Wrappers for combination target populations
 
+#'@name Create a Target Population that is the UNION Other Target Populations
+#'
+#'@inheritParams create.target.population
+#'@param ... One or more target.population objects or lists of target populations
+#'
+#'@family Functions to create Target Populations
+#'
 #'@export
-union.target.populations <- function(..., name)
+union.target.populations <- function(..., name, description=NULL)
 {
-    do.union.or.intersect.target.populations(..., combine.function='union', name=name)
+    do.union.or.intersect.target.populations(...,
+                                             combine.function = 'union',
+                                             name = name,
+                                             description = description)
 }
 
+#'@name Create a Target Population that is the INTERSECTION of Other Target Populations
+#'
+#'@inheritParams union.target.populations
+#'
+#'@family Functions to create Target Populations
+#'
 #'@export
-intersect.target.populations <- function(..., name, description)
+intersect.target.populations <- function(..., name, description=NULL)
 {
-    do.union.or.intersect.target.populations(..., combine.function='intersect', name=name)
+    do.union.or.intersect.target.populations(..., 
+                                             combine.function = 'intersect',
+                                             name = name,
+                                             description = description)
 }
 
+#'@name Create a Target Population that is the DIFFERENCE between two other Target Populations
+#'
+#'@param pop1,pop2 Target Population Objects
+#'
+#'@details The resulting target population contains everyone who IS in pop1 but NOT in pop2
+#'
+#'@family Functions to create Target Populations
+#'
 #'@export
-diff.target.populations <- function(pop1, pop2, name)
+diff.target.populations <- function(pop1, pop2, name, description=NULL)
 {
     if (!is(pop1, 'target.population') || !R6::is.R6(pop1))
         stop("'pop1' must be an R6 object of class 'target.population'")
@@ -38,7 +77,10 @@ diff.target.populations <- function(pop1, pop2, name)
     if (!is(pop2, 'target.population') || !R6::is.R6(pop2))
         stop("'pop2' must be an R6 object of class 'target.population'")
              
-    COMBINATION.TARGET.POPULATION$new(subpopulations=list(pop1, pop2), combine.function='diff', name=name)
+    COMBINATION.TARGET.POPULATION$new(subpopulations = list(pop1, pop2), 
+                                      combine.function = 'diff',
+                                      name = name,
+                                      description = description)
 }
 
 ##-------------##
@@ -47,7 +89,7 @@ diff.target.populations <- function(pop1, pop2, name)
 ##-------------##
 ##-------------##
 
-do.union.or.intersect.target.populations <- function(..., combine.function, name)
+do.union.or.intersect.target.populations <- function(..., combine.function, name, description)
 {
     args = list(...)
     subpopulations = list()
@@ -76,11 +118,14 @@ do.union.or.intersect.target.populations <- function(..., combine.function, name
     }
     
     if (length(subpopulations)==0)
-        stop("... must at least one 'target.population' object")
+        stop("Cannot ", combine.function, " target populations: ... must contain at least one 'target.population' object")
     else if (length(subpopulations)==1)
         subpopulations[[1]]
     else
-        COMBINATION.TARGET.POPULATION$new(subpopulations=subpopulations, combine.function=combine.function, name=name)
+        COMBINATION.TARGET.POPULATION$new(subpopulations = subpopulations, 
+                                          combine.function = combine.function,
+                                          name = name,
+                                          description = description)
 }
 
 ##-----------------------##
@@ -89,6 +134,8 @@ do.union.or.intersect.target.populations <- function(..., combine.function, name
 ##-----------------------##
 ##-----------------------##
 
+MAX.NCHAR.TARGET.POPULATION.NAME = 20
+
 TARGET.POPULATION = R6::R6Class(
     'target.population',
     
@@ -96,18 +143,43 @@ TARGET.POPULATION = R6::R6Class(
         initialize = function(dimension.values,
                               name)
         {
-            # Check arguments
+            # Check Name
+            if (!is.character(name) || length(name)!=1 || is.na(name) || nchar(name)==0)
+                stop(paste0("Cannot create ", self$descriptor, 
+                            ": 'name' must be a single, non-empty, non-NA character value"))
             
+            if (nchar(name)>MAX.NCHAR.TARGET.POPULATION.NAME)
+                stop(paste0("Cannot create ", self$descriptor, 
+                            ": the name ('", name, 
+                            "') cannot be longer than ", 
+                            MAX.NCHAR.TARGET.POPULATION.NAME, " characters"))
+            
+            
+            if (string.contains.invalid.characters(name, valid.characters = NUMBERS.LETTERS.DASH.PERIOD.SPACE))
+            {
+                invalid.characters = setdiff(unlist(strsplit(name, split='')),
+                                             strsplit(NUMBERS.LETTERS.DASH.PERIOD.SPACE, split='')[[1]])
+                
+                stop(paste0("Cannot create ", self$descriptor, 
+                            ": the name ('", name, "') cannot contain ", 
+                            collapse.with.or("'", invalid.characters, "'"), 
+                            " - it can only contain numbers, letters, periods, dashes, and spaces"))
+            }
+            
+            # Assume dimension values has already been validated
+            
+            # Check description
+            if (!is.null(description) && 
+                (!is.character(description) || length(description)!=1 || is.na(description) || nchar(description)==0))
+                stop(paste0("Cannot create ", self$descriptor, " '", name,
+                            ": if 'description' is not NULL, it must be a single, non-empty, non-NA character value"))
+                
+            # Store variables
             private$i.dimension.values = dimension.values
             private$i.name = name
             private$i.description = description
         },
-        
-        get.description = function(model.specification)
-        {
-            stop("This needs to be implemented in a sub-class")
-        },
-        
+
         render.population.mask = function(model.specification, dimensions = self$dimensions)
         {
             stop("This needs to be implemented in a sub-class")
@@ -143,6 +215,14 @@ TARGET.POPULATION = R6::R6Class(
                 names(self$i.name)
             else
                 stop("Cannot modify 'name' for a target.population - it is read-only")
+        },
+        
+        description = function(value)
+        {
+            if (missing(value))
+                names(self$i.description)
+            else
+                stop("Cannot modify 'description' for a target.population - it is read-only")
         }
     ),
     
@@ -156,20 +236,33 @@ SIMPLE.TARGET.POPULATION = R6::R6Class(
     'simple.target.population',
     
     public = list(
-        initialize = function(dimension.values,
+        initialize = function(...,
                               name,
+                              description,
                               invert)
         {
-            super$initialize(dimension.values, name=name)
+            dimension.values = list(...)
+            super$initialize(dimension.values = dimension.values,
+                             name = name,
+                             description = description)
+            
+            error.prefix = paste0("Cannot create ", self$descriptor, " '", name, "': ")
+            
+            if (length(dimension.values)>0)
+                check.dimension.values.valid(dimension.values = dimension.values,
+                                             variable.name.for.error = "the elements of ...",
+                                             allow.empty = F,
+                                             allow.duplicate.values.within.dimensions = F,
+                                             error.prefix = error.prefix)
+            
+            
+            if (!is.logical(invert) || length(invert)!=1 || is.na(invert))
+                stop(paste0(error.prefix, "'invert' must be a single, non-NA logical value (ie TRUE or FALSE)"))
+
             private$i.invert = invert
         },
         
-        get.description = function(model.specification)
-        {
-            stop("need to implement")
-        },
-        
-        render.population.mask = function(model.specification, dimensions = self$dimensions)
+        render.population.mask = function(ontology, error.prefix)
         {
             # Check dimensions
             invalid.dims = setdiff(self$dimensions, model.specification$all.dimensions)
@@ -221,6 +314,14 @@ SIMPLE.TARGET.POPULATION = R6::R6Class(
     
     active = list(
         
+        descriptor = function(value)
+        {
+            if (missing(value))
+                'simple target population'
+            else
+                stop("Cannot modify 'descriptor' for a target.population - it is read-only")
+        },
+        
         inverted = function(value)
         {
             if (missing(value))
@@ -239,15 +340,32 @@ COMBINATION.TARGET.POPULATION = R6::R6Class(
     'combination.target.population',
     
     public = list(
-        initialize = function(subpopulations, combine.function, name)
-        {
+        initialize = function(subpopulations, 
+                              combine.function, 
+                              name,
+                              description)
+        { 
             # Check argument classes
+            if (any(!sapply(subpopulations, is, 'target.population')))
+                stop(paste0("Cannot create ", self$descriptor, ": subpopulations must all be objects of class 'target.population'"))
+            
+            # Call the super-constructor
+            dimension.values = union.dimension.values.list(lapply(subpopulations, function(subpop){
+                subpop$dimension.values
+            }))
+            
+            super$initialize(dimension.values = dimension.values, name = name)
+            error.prefix = paste0("Cannot create ", self$descriptor, " '", name, "': ")
+            
             
             # Check combine.function
+            if (!is.character(combine.function) || length(combine.function)!=1 || is.na(combine.function))
+                stop(paste0(error.prefix, "'combine.function' must be a single, non-NA character value"))
+            
             if (combine.function=='diff')
             {
                 if (length(subpopulations)!=2)
-                    stop("If 'combine.function' is 'diff' - there must be exactly two subpopulations")
+                    stop(paste0(error.prefix, "If 'combine.function' is 'diff' - there must be exactly two subpopulations"))
             }
             else if (combine.function == 'union' || combine.function=='intersect')
             {
@@ -259,18 +377,14 @@ COMBINATION.TARGET.POPULATION = R6::R6Class(
                     else
                         new.subpopulations = c(new.subpopulations, subpop)
                 }
+                subpopulations = new.subpopulations
             }
             else
             {
-                stop(paste0("Invalid 'combine.function' ('",
-                            combine.function, "') - must be one of 'union', 'intersect', or 'diff'"))
+                stop(paste0(error.prefix, "Invalid 'combine.function' ('",
+                            combine.function, "') - must be either 'union', 'intersect', or 'diff'"))
             }
             
-            # Call the super-constructor
-            dimension.values = union.dimension.values.list(lapply(subpopulations, function(subpop){
-                subpop$dimension.values
-            }))
-            super$initialize(dimension.values = dimension.values, name = name)
             
             # Add in the subclass values
             private$i.combine.function = combine.function
@@ -284,7 +398,7 @@ COMBINATION.TARGET.POPULATION = R6::R6Class(
             stop("need to finish implementing")
         },
         
-        render.population.mask = function(model.specification, dimensions = self$dimensions)
+        render.population.mask = function(ontology, error.prefix)
         {
             mask = private$i.subpopulations[[1]]$render.population.mask(model.specification, dimensions=dimensions)
             
