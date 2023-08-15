@@ -1391,15 +1391,28 @@ IDENTITY.ONTOLOGY.MAPPING = R6::R6Class(
                                     throw.errors,
                                     error.prefix)
         {
-            if (is.null(to.dim.names) || dim.names.are.subset(sub.dim.names = to.dim.names,
-                                                          super.dim.names = from.dim.names))
+            # if (is.null(to.dim.names) || dim.names.are.subset(sub.dim.names = to.dim.names,
+            #                                               super.dim.names = from.dim.names))
+            #     T
+            if (is.null(to.dim.names))
                 T
             else
             {
-                if (throw.errors)
-                    stop(paste0(error.prefix, "'to.dim.names' must be a subset of 'from.dim.names'"))
-                else
-                    F
+                dimensions.are.subset = length(setdiff(names(to.dim.names), names(from.dim.names))) == 0
+                if (dimensions.are.subset) {
+                    dim.names.intersect = sapply(names(to.dim.names), function(d) {
+                        length(intersect(to.dim.names[[d]], from.dim.names[[d]])) > 0
+                    })
+                } else
+                    dim.names.intersect = F
+                
+                if (!dimensions.are.subset || !all(dim.names.intersect)) {
+                    if (throw.errors)
+                        stop(paste0(error.prefix, "'to.dim.names' must intersect 'from.dim.names' in every dimension"))
+                    else
+                        F
+                } else T
+                
             }
         },
         
@@ -1669,7 +1682,7 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                 missing.values = setdiff(private$i.mapped.from.values[required.from.indices,d],
                                          from.dim.names[[d]])
                 if (length(missing.values)==0)
-                    T
+                    F
                 else
                 {
                     if (throw.errors)
@@ -1679,13 +1692,11 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                                     length(missing.values),
                                     ifelse(length(missing.values)==1, ' value', ' values'),
                                     ": ", collapse.with.and("'", missing.values, "'")))
-                    }
-                    else
-                        F
+                    } else T
                 }
             })
             
-            any(missing.required.from.values)
+            !any(missing.required.from.values)
         },
         
         do.get.required.from.dim.names = function(to.dim.names)
