@@ -1180,6 +1180,7 @@ ONTOLOGY.MAPPING = R6::R6Class(
             
             to.dim.names = self$to.dim.names[to.dimensions]
             to.dim.names[sapply(to.dim.names, is.null)] = 'placeholder'
+            names(to.dim.names) = to.dimensions
             
             names(private$do.get.required.from.dim.names(to.dim.names))
         }
