@@ -1154,6 +1154,34 @@ ONTOLOGY.MAPPING = R6::R6Class(
             private$do.get.mapping.indices(from.dim.names=from.dim.names,
                                            to.dim.names=to.dim.names,
                                            error.prefix=error.prefix)
+        },
+        
+        get.required.from.dim.names = function(to.dim.names)
+        {
+            if (is.list(to.dim.names) && length(to.dim.names)==0)
+                list()
+            else
+            {
+                check.dim.names.valid(dim.names = to.dim.names,
+                                      variable.name.for.error = 'to.dim.names',
+                                      allow.empty = T,
+                                      allow.duplicate.values.within.dimensions = T,
+                                      allow.duplicate.values.across.dimensions = T,
+                                      error.prefix='Error in get.required.from.dim.names(): ')
+                
+                private$do.get.required.from.dim.names(to.dim.names)
+            }
+        },
+        
+        get.required.from.dimensions = function(to.dimensions)
+        {
+            if (!is.character(to.dimensions) || length(to.dimensions)==0 || any(is.na(to.dimensions)) || any(nchar(to.dimensions)==0))
+                stop("'to.dimensions' must be a non-empty character vector with no NA values")
+            
+            to.dim.names = self$to.dim.names[to.dimensions]
+            to.dim.names[sapply(to.dim.names, is.null)] = 'placeholder'
+            
+            names(private$do.get.required.from.dim.names(to.dim.names))
         }
     ),
     
@@ -1271,7 +1299,13 @@ ONTOLOGY.MAPPING = R6::R6Class(
                                     error.prefix)
         {
             stop("This subclass of 'ontology.mapping' is incompletely specified. The private 'check.can.apply' method must be implemented at the subclass level")            
+        },
+        
+        do.get.required.from.dim.names = function(to.dim.names)
+        {
+            stop("do.get.required.from.dim.names() for an ontology.mapping must be implented at the subclass level")
         }
+        
     )
 )
 
@@ -1366,7 +1400,13 @@ IDENTITY.ONTOLOGY.MAPPING = R6::R6Class(
                 else
                     F
             }
+        },
+        
+        do.get.required.from.dim.names = function(to.dim.names)
+        {
+            to.dim.names
         }
+        
     )
 )
 
@@ -1645,6 +1685,37 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
             })
             
             any(missing.required.from.values)
+        },
+        
+        do.get.required.from.dim.names = function(to.dim.names)
+        {
+            present.to.dimensions = intersect(names(to.dim.names), self$to.dimensions)
+            absent.to.dimensions = setdiff(self$to.dimensions, present.to.dimensions)
+            unmapped.dim.names = to.dim.names[setdiff(names(to.dim.names), present.to.dimensions)]
+            
+            if (length(present.to.dimensions)==0)
+                unmapped.dim.names
+            else
+            {
+                to.values = get.every.combination(to.dim.names[present.to.dimensions])
+                required.from.indices = unlist(apply(to.values, 1, row.indices.of, 
+                                                     haystack = private$i.mapped.to.values[,present.to.dimensions,drop=F]))
+            
+                if (length(absent.to.dimensions)>0) # Check to see if any from.dimensions are unnecessary
+                {
+                    relevant.from.dimensions = get.relevant.mapping.from.dimensions(from.values=private$i.mapped.from.values,
+                                                                                    to.values=private$i.mapped.to.values[,present.to.dimensions,drop=F])
+                }
+                else #we *could* check if all from dimensions are relevant even if we're using all to dimension - but we presume no one creates a mapping with irrelevant dimensions
+                    relevant.from.dimensions = self$from.dimensions
+                
+                mapped.from.dim.names = lapply(relevant.from.dimensions, function(d){
+                    unique(private$i.mapped.from.values[required.from.indices,d])
+                })
+                names(mapped.from.dim.names) = relevant.from.dimensions
+                
+                c(mapped.from.dim.names, unmapped.dim.names)
+            }
         }
     )
 )
@@ -1841,6 +1912,15 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
                                                     throw.errors = throw.errors,
                                                     error.prefix = error.prefix)
             
+        },
+        
+        do.get.required.from.dim.names = function(to.dim.names)
+        {
+            rv = to.dim.names
+            for (sub.mapping in rev(private$i.sub.mappings))
+                rv = sub.mapping$get.required.from.dim.names(rv)
+            
+            rv
         }
     )
 )
@@ -1851,6 +1931,52 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
 
 
 ##-- HELPER --##
+
+# From dimenions are relevant if any given combination of from values in from.values
+#   always maps to same combination of to.values
+# (ie, a dimension is irrelevant if its presence does not change mapping based on the other values)
+get.relevant.mapping.from.dimensions <- function(from.values,
+                                                 to.values)
+{
+    from.dimensions = dimnames(from.values)[[2]]
+    n.from.dimensions = length(from.dimensions)
+    n.from.dimension.combos = 2^n.from.dimensions
+    
+    for (n.to.include in 0:(n.from.dimensions-1))
+    {
+        if (n.to.include==0)
+        {
+            all(apply(to.values, 1, function(x){
+                all(x==to.values[1,])
+            }))
+        }
+        
+        combos = combn(from.dimensions, m=n.to.include)
+        for (i in 1:dim(combos)[2])
+        {
+            dimensions.to.include = combos[,i]
+            from.values.to.include = from.values[,dimensions.to.include,drop=F]
+            
+            valid = T
+            for (j in 1:dim(from.values.to.include)[1]) #we could iterate over just the unique from values, but I think calling unique is more expensive than duplicating efforts
+            {
+                indices = row.indices.of(from.values.to.include, needle=from.values.to.include[j,drop=F])
+                to.needle = to.values[indices,,drop=F]
+                valid = all(apply(to.values[indices[-1],,drop=F], 1, function(x){
+                    all(x==to.needle)
+                }))
+                
+                if (!valid)
+                    break
+            }
+            
+            if (valid)
+                return (dimensions.to.include)
+        }
+    }
+    
+    return (from.dimensions)
+}
 
 initial.check.can.apply <- function(mapping,
                                     from.dim.names,
