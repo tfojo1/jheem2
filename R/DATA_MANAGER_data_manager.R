@@ -18,8 +18,42 @@
 create.data.manager <- function(name,
                                 description)
 {
-    JHEEM.DATA.MANAGER$new(name, 
+    JHEEM.DATA.MANAGER$new(name,
                            description=description)
+}
+
+#'@title Load a cached data manager
+#'
+#'@param file A file storing a cached data manager object (only)
+#'@param name A name for the local data manager. If NULL, the name of the cached data manager.
+#'@param description A description for the local data manager. If NULL, the description of the cached data manager.
+#'
+#'@export
+load.data.manager <- function(file,
+                              name=NULL,
+                              description=NULL)
+{
+    error.prefix = "Error loading cached data manager: "
+    imported.object.names = load(file)
+    if (length(imported.object.names) != 1) {
+        stop(paste0(error.prefix, "'file' must store exactly one cached R object"))
+    }
+
+    loaded.data.manager = get(imported.object.names[[1]])
+
+    if (!R6::is.R6(loaded.data.manager) || !is(loaded.data.manager, 'jheem.data.manager'))
+        stop(paste0(error.prefix, "'file' must store an R6 object with class 'jheem.data.manager'"))
+
+    copy.name = ifelse(is.null(name),
+                       loaded.data.manager$name,
+                       name)
+    copy.description = ifelse(is.null(description),
+                              loaded.data.manager$description,
+                              description)
+    copy.data.manager(loaded.data.manager,
+                      name=copy.name,
+                      description=copy.description)
+
 }
 
 #'@title Create a copy of a JHEEM Data Manager
@@ -29,15 +63,16 @@ create.data.manager <- function(name,
 #'@param description A short description of the new data manager. If NULL, the description of the copied data manager.
 #'
 #'@export
-copy <- function(data.manager,
-                 name,
-                 description)
+copy.data.manager <- function(data.manager,
+                              name,
+                              description)
 {
-    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
-        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
-    data.manager$copy(name=name,
-                      description=description)
+
+    new.data.manager = JHEEM.DATA.MANAGER$new(name=name,
+                                              description=description)
+    new.data.manager$import.data(from.data.manager=data.manager)
+    new.data.manager
+
 }
 
 #'@title Import data from another JHEEM Data Manager
@@ -51,7 +86,7 @@ import.data <- function(to.data.manager,
 {
     if (!R6::is.R6(to.data.manager) || !is(to.data.manager, 'jheem.data.manager'))
         stop("'to.data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     to.data.manager$import.data(from.data.manager)
 }
 
@@ -62,13 +97,13 @@ import.data <- function(to.data.manager,
 #'@param ontology.name The name of a registered ontology for which data should be subset. If NULL, data from all ontologies will be subset.
 #'
 #'@export
-subset <- function(data.manager,
-                   dimension.values,
-                   ontology.name)
+subset.data <- function(data.manager,
+                        dimension.values,
+                        ontology.name)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$subset(dimension.values=dimension.values,
                         ontology=ontology)
 }
@@ -86,7 +121,7 @@ register.data.ontology <- function(data.manager,
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$register.ontology(name=name,
                                    ont=ont)
 }
@@ -108,7 +143,7 @@ register.data.outcome <- function(data.manager,
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$register.outcome(outcome = outcome,
                                   metadata = metadata,
                                   denominator.outcome = denominator.outcome,
@@ -132,7 +167,7 @@ register.data.source <- function(data.manager,
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$register.source(source=source,
                                  full.name=full.name,
                                  short.name=short.name)
@@ -164,7 +199,7 @@ put.data <- function(data.manager,
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$put(data=data,
                      outcome=outcome,
                      source=source,
@@ -193,7 +228,7 @@ put.data.long.form <- function(data.manager,
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$put.long.form(data=data,
                                outcome=outcome,
                                source=source,
@@ -201,7 +236,7 @@ put.data.long.form <- function(data.manager,
                                dimension.values=dimension.values,
                                url=url,
                                details=details,
-                               allow.na.to.overwrite=allow.na.to.overwrite) 
+                               allow.na.to.overwrite=allow.na.to.overwrite)
 }
 
 #'@title Pull data from a data manager
@@ -240,7 +275,7 @@ pull.data <- function(data.manager,
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$pull(outcome = outcome,
                      keep.dimensions = keep.dimensions,
                      dimension.values = dimension.values,
@@ -266,7 +301,7 @@ get.data.outcome.pretty.names <- function(data.manager, outcomes)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$get.outcome.pretty.names(outcomes)
 }
 
@@ -276,7 +311,7 @@ get.data.outcome.labels <- function(data.manager, outcomes)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$get.outcome.labels(outcomes)
 }
 
@@ -286,7 +321,7 @@ get.data.outcome.descriptions <- function(data.manager, outcomes)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$get.outcome.descriptions(outcomes)
 }
 
@@ -304,7 +339,7 @@ get.data.source.full.names <- function(data.manager, sources)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$get.source.full.names(sources)
 }
 
@@ -314,7 +349,7 @@ get.data.source.short.names <- function(data.manager, sources)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$get.source.short.names(sources)
 }
 
@@ -323,7 +358,7 @@ get.registered.ontology <- function(data.manager, ontology.name)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
+
     data.manager$get.registered.ontology(ontology.name)
 }
 
@@ -335,110 +370,50 @@ get.registered.ontology <- function(data.manager, ontology.name)
 
 JHEEM.DATA.MANAGER = R6::R6Class(
     'jheem.data.manager',
-    
+
     public = list(
         check = function()
         {
             browser()
         },
-      
+
         initialize = function(name, description)
         {
             # Validate arguments
             # *name* is a single, non-empty, non-NA character value
             if (!is.character(name) || length(name)!=1 || is.na(name) || nchar(name)==0)
                 stop(paste0(error.prefix, "'name' must be a single, non-empty, non-NA character value"))
-            
+
             # *description* must be a single, non-empty, non-NA character value
             if (!is.character(description) || length(description)!=1 || is.na(description) || nchar(description)==0)
                 stop(paste0(error.prefix, "'description' must be a single, non-empty, non-NA character value"))
-            
+
             # Store them
             private$i.name = name
             private$i.description = description
-            
+
             # Create the empty values for other member variables
             private$i.data = list()
             private$i.url = list()
             private$i.details = list()
-            
+
             private$i.outcome.info = list()
             private$i.ontologies = list()
         },
-        
-        copy = function(name,
-                        description=private$i.description)
-        {
-            
-            error.prefix = paste0("Unable to copy data manager '", private$i.name, "': ")
-            
-            # ---Validate arguments---
-            # *name* is a single, non-empty, non-NA character value
-            if (!is.character(name) || length(name)!=1 || is.na(name) || nchar(name)==0)
-                stop(paste0(error.prefix, "'name' must be a single, non-empty, non-NA character value"))
-            
-            # *description* must be a single, non-empty, non-NA character value
-            if (!is.character(description) || length(description)!=1 || is.na(description) || nchar(description)==0)
-                stop(paste0(error.prefix, "'description' must be NULL or a single, non-empty, non-NA character value"))
-            
-            new.data.manager = JHEEM.DATA.MANAGER$new(name=name,
-                                                      description=description)
-            
-            # register ontologies
-            for (i in seq_along(private$i.ontologies)) {
-                new.data.manager$register.ontology(name = names(private$i.ontologies)[[i]],
-                                                   ont = private$i.ontologies[[i]])
-            }
-            
-            # register outcomes
-            for (outcome in private$i.outcome.info) {
-                new.data.manager$register.outcome(outcome = outcome$outcome,
-                                                  metadata = outcome$metadata,
-                                                  denominator.outcome = outcome$denominator.outcome)
-            }
-            
-            # register sources
-            for (source in private$i.source.info) {
-                new.data.manager$register.source(source = source$source,
-                                                 full.name = source$full.name,
-                                                 short.name = source$short.name)
-            }
-            
-            # take all i.data, i.url, and i.details and put them in the new data manager
-            for (outcome in names(private[['i.data']])) {
-                for (source in names(private[['i.data']][[outcome]])) {
-                    for (ontology in names(private[['i.data']][[outcome]][[source]])) {
-                        for (stratification in names(private[['i.data']][[outcome]][[source]][[ontology]])) {
-                            
-                            new.data.manager$put(data = private[['i.data']][[outcome]][[source]][[ontology]][[stratification]],
-                                                 outcome = outcome,
-                                                 source = source,
-                                                 ontology.name = ontology,
-                                                 dimension.values = list(),
-                                                 url = unlist(private[['i.url']][[outcome]][[source]][[ontology]][[stratification]]),
-                                                 details = unlist(private[['i.details']][[outcome]][[source]][[ontology]][[stratification]]))
-                        }
-                    }
-                }
-            }
-            
-            new.data.manager
-            
-        },
-        
+
         import.data = function(from.data.manager)
         {
-            
+
             if (!R6::is.R6(from.data.manager) || !is(from.data.manager, 'jheem.data.manager'))
                 stop("'from.data.manager' must be an R6 object with class 'jheem.data.manager'")
-            
+
             # register ontologies if necessary
             for (ontology.name in from.data.manager$ontology.names) {
                 if (!(ontology.name %in% self$ontology.names))
                     self$register.ontology(ontology.name,
                                            from.data.manager$ontologies[[ontology.name]])
             }
-            
+
             # register outcomes if necessary
             for (outcome.name in names(from.data.manager$outcome.info)) {
                 if (!(outcome.name %in% names(self$outcome.info)))
@@ -446,7 +421,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                           metadata = from.data.manager$outcome.info[[outcome.name]][['metadata']],
                                           denominator.outcome = from.data.manager$outcome.info[[outcome.name]][['denominator.outcome']])
             }
-            
+
             # register sources if necessary
             for (source.name in names(from.data.manager$source.info)) {
                 if (!(source.name %in% names(self$source.info)))
@@ -454,17 +429,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                          full.name = from.data.manager$source.info[[source.name]][['full.name']],
                                          short.name = from.data.manager$source.info[[source.name]][['short.name']])
             }
-            
+
             # import data
             data = from.data.manager$data
             url = from.data.manager$url
             details = from.data.manager$details
-            
+
             for (outcome in names(data)) {
                 for (source in names(data[[outcome]])) {
                     for (ontology in names(data[[outcome]][[source]])) {
                         for (stratification in names(data[[outcome]][[source]][[ontology]])) {
-                            
+
                             self$put(data = data[[outcome]][[source]][[ontology]][[stratification]],
                                      outcome = outcome,
                                      source = source,
@@ -472,24 +447,24 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                      dimension.values = list(),
                                      url = unlist(url[[outcome]][[source]][[ontology]][[stratification]]),
                                      details = unlist(details[[outcome]][[source]][[ontology]][[stratification]]))
-                            
+
                         }
                     }
                 }
             }
-            
+
         },
-        
-        subset = function(dimension.values,
-                          ontology.name=NULL)
+
+        subset.data = function(dimension.values,
+                               ontology.name=NULL)
         {
-            
+
             # --- Validate arguments ---
             error.prefix = paste0("Unable to subset data.manager '", private$i.name, "': ")
-            
+
             # *ontology* is NULL or a single, non-empty, non-NA character value which refers to a registered ontology
             # *dimension.values* is a named list of character vectors. If an 'ontology.name' is specified, logical and numeric vectors may also be used.
-            
+
             if (!is.null(ontology.name)) {
                 if (!is.character(ontology.name) || length(ontology.name)!=1 || is.na(ontology.name) || nchar(ontology.name)==0)
                     stop(paste0, error.prefix, "'ontology.name' must be NULL or a single, non-empty, non-NA character value")
@@ -508,75 +483,75 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         stop(paste0(error.prefix, "each element of 'dimension.values' must be a character vector if 'ontology.name' is NULL"))
                 }
             }
-            
+
             # --- Subset data
             for (data.type in c('i.data', 'i.url', 'i.details')) {
-                
+
                 private[[data.type]] = lapply(private[[data.type]], function(outcome) {
-                    
+
                     lapply(outcome, function(source) {
-                        
+
                         # To make sure we get a named list for the source
                         ontology.iterator = seq_along(source)
                         names(ontology.iterator) = names(source)
-                        
+
                         lapply(ontology.iterator, function(i) {
-                            
+
                             if (names(source)[[i]] == ontology.name || is.null(ontology.name)) {
-                                
+
                                 lapply(source[[i]], function(stratification) {
-                                    
+
                                     dimensions.to.subset = dimension.values[names(dimension.values) %in% names(dim(stratification))]
-                                    
+
                                     if (length(dimensions.to.subset) > 0) {
-                                        
+
                                         dimnames.for.subset = dimnames(stratification)
-                                        
+
                                         for (d in names(dimensions.to.subset))
                                             dimnames.for.subset[[d]] = dimensions.to.subset[[d]]
-                                        
+
                                         fast.array.access(stratification, dimnames.for.subset)
-                                        
+
                                     }
                                     else
                                         stratification
                                 })
-                                
+
                             }
                             else source[[i]]
-                            
+
                         })
-                        
+
                     })
                 })
             }
-            
+
         },
-        
+
         register.ontology = function(name, ont)
         {
             # Validate arguments
             # - name is a single, non-empty, non-NA character value
             # - ont is an ontology
-            
+
             #@need to implement
-            
+
             # If this name has not already been registered, store it
             # If it has, make sure the new ontology is a 'superset'
             # - all dimensions in the old are still present in the new
             # - dimensions present in the old have the same values as in the new
             # - complete dimensions present in the old are still complete, ditto for incomplete
             # If it is a superset, then store it. Otherwise throw an error
-            
+
             #@need to implement
-            
+
             # Store it
             private$i.ontologies[[name]] = ont
-            
+
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
-        
+
         register.outcome = function(outcome,
                                     metadata,
                                     denominator.outcome=NULL,
@@ -584,34 +559,34 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         {
             #-- Validate arguments --#
             error.prefix = paste0("Unable to register outcome for data.manager '", private$i.name, "': ")
-            
+
             # - outcome is a single, non-empty, non-NA character value
             if (!is.character(outcome) || length(outcome)!=1 || is.na(outcome) || nchar(outcome)==0)
                 stop(paste0(error.prefix, "'outcome' must be a single, non-empty, non-NA character value"))
-            error.prefix = paste0("Unable to register outcome '", outcome, 
+            error.prefix = paste0("Unable to register outcome '", outcome,
                                   "' for data.manager '", private$i.name, "': ")
-            
-            
+
+
             # - metadata is a 'outcome.metadata' object
             if (!is(metadata, "outcome.metadata"))
                 stop(paste0(error.prefix, "'metadata' must be an object of class 'outcome.metadata' as returned by create.outcome.metadata()"))
 
-            # - If metadata$scale is 'rate', 'proportion', or 'time', 
+            # - If metadata$scale is 'rate', 'proportion', or 'time',
             #   denominator outcome is non-NULL.
             #   Otherwise it is NULL
             # - If non-NULL, denominator outcome:
             # -- is a single, non-empty, non-NA character value
             # -- corresponds to a previously-registered outcome with scale 'non.negative.number'
-            
+
             #@need to implement
-            
+
             # If this outcome has not previously been registered, store it
             # Otherwise, if scale and denominator outcome are the same as before, ignore.
             #   If different, throw an error
-            
+
             #@need to implement
-            
-            
+
+
             previous.outcome.info = private$i.outcome.info[[outcome]]
             if (!is.null(previous.outcome.info))
             {
@@ -622,21 +597,21 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                      denominator.outcome != previous.outcome.info$denominator.outcome))
                     stop(paste0(error.prefix, "The outcome '", outcome, "' was previously registered with a different scale and/or denominator outcome"))
             }
-            
-            
+
+
             # Store it
             outcome.info = list(
                 outcome = outcome,
                 metadata = metadata,
                 denominator.outcome = denominator.outcome
             )
-            
+
             private$i.outcome.info[[outcome]] = outcome.info
-            
+
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
-        
+
         register.source = function(source,
                                    full.name,
                                    short.name,
@@ -644,27 +619,27 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         {
             #-- Validate arguments --#
             error.prefix = paste0("Unable to register source for data.manager '", private$i.name, "': ")
-            
+
             # - source is a single, non-empty, non-NA character value
             if (!is.character(source) || length(source)!=1 || is.na(source) || nchar(source)==0)
                 stop(paste0(error.prefix, "'source' must be a single, non-empty, non-NA character value"))
-            error.prefix = paste0("Unable to register source '", source, 
+            error.prefix = paste0("Unable to register source '", source,
                                   "' for data.manager '", private$i.name, "': ")
-            
-            
+
+
             # - full.name is a single, non-empty, non-NA character value
             if (!is.character(full.name) || length(full.name)!=1 || is.na(full.name) || nchar(full.name)==0)
                 stop(paste0(error.prefix, "'full.name' must be a single, non-empty, non-NA character value"))
-            
+
             # - short.name is a single, non-empty, non-NA character value
             if (!is.character(short.name) || length(short.name)!=1 || is.na(short.name) || nchar(short.name)==0)
                 stop(paste0(error.prefix, "'short.name' must be a single, non-empty, non-NA character value"))
-            
+
             # If this outcome has not previously been registered, store it
             # Otherwise, if overwrite==T, store the new one
             # Otherwise, throw an error if full.name or short.name is different
             #   If different, throw an error
-            
+
             previous.source.info = private$i.source.info[[source]]
             if (overwrite || is.null(previous.source.info))
             {
@@ -672,7 +647,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     source = source,
                     full.name = full.name,
                     short.name = short.name)
-                
+
                 private$i.source.info[[source]] = source.info
             }
             else if (previous.source.info$full.name != full.name || previous.source.info$short.name != short.name)
@@ -683,7 +658,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
-        
+
         put = function(data,
                        outcome,
                        source,
@@ -698,33 +673,33 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #------------------------#
 
             error.prefix = paste0("Unable to put data to data.manager '", private$i.name, "': ")
-            
+
             # 1) *outcome* is a single, non-empty, non-NA character value
             #     Which corresponds to a registered outcome
             if (!is.character(outcome) || length(outcome)!=1 || is.na(outcome) || nchar(outcome)==0)
                 stop(paste0(error.prefix, "'outcome' must be a single, non-empty, non-NA character value"))
-            
+
             outcome.info = private$i.outcome.info[[outcome]]
             if (is.null(outcome.info))
                 stop(paste0(error.prefix, "'", outcome, "' is not a registered outcome. Call register.data.outcome() to register it before putting data for that outcome"))
-            
+
             error.prefix = paste0("Unable to put '", outcome, "' data to data.manager '", private$i.name, "': ")
-               
+
             # 2) *ontology.name* is single, non-empty, non-NA character value
             #     Which refers to a registered ontology
             if (!is.character(ontology.name) || length(ontology.name)!=1 || is.na(ontology.name) || nchar(ontology.name)==0)
                 stop(paste0(error.prefix, "'ontology.name' must be a single, non-empty, non-NA character value"))
-            
+
             ont = private$i.ontologies[[ontology.name]]
             if (is.null(ont))
                 stop(paste0(error.prefix, "'", ontology.name, "' is not a registered ontology. Call register.data.ontology() to register it before putting data for that ontology"))
-            
+
             ont.dimensions.complete = is_complete(ont)
-            
+
             error.prefix = paste0("Unable to put '", outcome, "' data to ontology '",
                                   ontology.name, "' in data.manager '", private$i.name, "': ")
-            
-            # 3) *data* is 
+
+            # 3) *data* is
             #   -- numeric
             #   -- appropriate for the scale of the outcome
             #   -- either a single scalar value, or an array with named dimnames
@@ -738,21 +713,21 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (length(data)==0)
                 stop(paste0(error.prefix,
                             "'data' must have length > 0"))
-            
+
             do.check.values.for.model.scale(data, scale=outcome.info$metadata$scale,
                                             variable.name.for.error = 'data',
                                             error.prefix = error.prefix)
-            
+
             if (is.array(data))
             {
                 if (is.null(dimnames(data)))
                     stop(paste0(error.prefix,
                                 "If 'data' is an array, then it must be an array with named dimnames"))
-                
+
                 if (is.null(names(dimnames(data))))
                     stop(paste0(error.prefix,
                                 "If 'data' is an array, then it must be an array with NAMED dimnames"))
-                
+
                 invalid.dimensions = setdiff(names(dimnames(data)), names(ont))
                 if (length(invalid.dimensions)>0)
                     stop(paste0(error.prefix,
@@ -761,7 +736,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 " which ",
                                 ifelse(length(invalid.dimensions)==1, 'is', 'are'),
                                 " not present in the '", ontology.name, "' ontology"))
-                
+
                 sapply(names(dimnames(data)), function(d){
                     if (ont.dimensions.complete[d])
                     {
@@ -772,35 +747,35 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         ifelse(length(invalid.values)==0, '', 's'),
                                         collapse.with.and("'", invalid.values, "'"),
                                         " but ",
-                                        ifelse(length(invalid.values)==0, 
+                                        ifelse(length(invalid.values)==0,
                                                "this is not a valid value",
                                                "these are not valid values"),
                                         " for the '", ontology.name, "' ontology's '", d, "' dimension"))
                     }
                 })
-                
+
                 if ('location' %in% names(dimnames(data))) {
                     if (!all(sapply(dimnames(data)['location'], function(v) {locations::is.location.valid(v)} ))) {
                         stop(paste0(error.prefix, "some or all locations in data are invalid"))
                     }
                 }
-                
+
             }
             else if (length(data)!=1)
                 stop(paste0(error.prefix,
                             "If 'data' is not a single (scalar) numeric value, then it must be an array with named dimnames"))
-            
+
             #@Andrew Data cannot be missing any incomplete dimensions unless they are present in dimension.values
             missing.dimensions = setdiff(names(ont), c(names(dimnames(data)), names(dimension.values)))
             if (!all(ont.dimensions.complete[missing.dimensions]))
                 stop(paste0(error.prefix, "either data or 'dimension.values' must contain any incomplete dimensions in the ontology"))
-            
+
             # check dimension.values are valid
             # map them to character values
             dimension.values = resolve.ontology.dimension.values(ont = ont,
                                                                  dimension.values = dimension.values,
                                                                  error.prefix = paste0(error.prefix, "Error resolving 'dimension.values' - "))
-            
+
             # If dimension.values contains dimension "location", check that every value is a valid location.
             if ("location" %in% names(dimension.values)) {
                 if (!all(sapply(dimension.values['location'], function(v) {locations::is.location.valid(v)} ))) {
@@ -819,19 +794,19 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix, "'source' cannot be NA"))
             if (nchar(source)=='')
                 stop(paste0(error.prefix, "'source' cannot be empty ('')"))
-            
+
             source.info = private$i.source.info[[source]]
             if (is.null(source.info))
                 stop(paste0(error.prefix, "'", source, "' is not a registered data source. Call register.data.source() to register it before putting data from that source"))
-            
-            
-            # 5) *url, and details* are 
+
+
+            # 5) *url, and details* are
             #    -- character vectors
             #    -- with at least one value
             #    -- with no NA values
             #    -- with no empty values
             #    -- with no duplicates
-            
+
             if (!is.character(url))
                 stop(paste0(error.prefix, "'url' must be a character vector"))
             if (length(url)==0)
@@ -841,7 +816,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (any(nchar(url)==0))
                 stop(paste0(error.prefix, "'url' cannot contain empty values ('')"))
             url = unique(url)
-                
+
             if (!is.character(details))
                 stop(paste0(error.prefix, "'details' must be a character vector"))
             if (length(details)==0)
@@ -851,18 +826,18 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (any(nchar(details)==0))
                 stop(paste0(error.prefix, "'details' cannot contain empty values ('')"))
             details = unique(details)
-            
+
             # 6) *allow.na.to.overwrite* is a single, non-NA, logical value
             if (!is.logical(allow.na.to.overwrite) || length(allow.na.to.overwrite)!=1 || is.na(allow.na.to.overwrite))
                 stop(paste0(error.prefix, "'allow.na.to.overwrite' must be a single, non-NA logical value"))
-            
+
             #--------------------------------#
             #-- Set up to receive the data --#
             #--------------------------------#
 
             data.element.names = c('i.data','i.url','i.details')
             metadata.element.names = data.element.names[-1]
-            
+
             # Figure out what stratification it goes in as the union of:
             # (1) dimensions in the data
             # (2) dimensions in dimension.values
@@ -870,17 +845,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                  data = data,
                                                                  ontology.name = ontology.name,
                                                                  return.as.dimensions = F)
-            
+
             # What dim.names do we need to accommodate the new data?
             put.dim.names = private$prepare.put.dim.names(outer.join.dim.names(if (is.array(data)) dimnames(data) else list(), dimension.values),
                                                           ontology.name = ontology.name)
-            
+
             # -> make new data elements
-            
+
             existing.dim.names = dimnames(private$i.data[[outcome]][[source]][[ontology.name]][[stratification]])
-            
+
             data.already.present = !is.null(existing.dim.names)
-            
+
             if (!data.already.present ||
                 !dim.names.are.subset(sub.dim.names = put.dim.names,
                                       super.dim.names = existing.dim.names)
@@ -894,34 +869,34 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     })
                     names(existing.data.and.metadata) = data.element.names
                 }
-                
+
                 # Figure out the dimensions for the new data structures
                 if (data.already.present)
                     new.dim.names = private$prepare.put.dim.names(outer.join.dim.names(existing.dim.names, put.dim.names),
                                                                   ontology.name = ontology.name)
                 else
                     new.dim.names = put.dim.names
-                
+
                 # Update ontology
                 for (d in names(new.dim.names)) {
                     private$i.ontologies[[ontology.name]][[d]] = new.dim.names[[d]]
                 }
-                
+
                 # Make the new (empty) data structures
                 private$i.data[[outcome]][[source]][[ontology.name]][[stratification]] =
                     array(NaN, dim=sapply(new.dim.names, length), dimnames = new.dim.names)
-                
+
                 for (name in metadata.element.names)
                 {
-                    private[[name]][[outcome]][[source]][[ontology.name]][[stratification]] = 
+                    private[[name]][[outcome]][[source]][[ontology.name]][[stratification]] =
                         lapply(1:prod(sapply(new.dim.names, length)), function(i){
                             NULL
                         })
-                    
+
                     dim(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]]) = sapply(new.dim.names, length)
                     dimnames(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]]) = new.dim.names
                 }
-                    
+
                 # Overwrite the new structure with the old data, if needed
                 if (data.already.present)
                 {
@@ -930,15 +905,15 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             existing.data.and.metadata[[name]]
                 }
             }
-            
+
             #-- Put the data and its metadata --#
-            
+
             # get the indices we're going to write into
             #@Andrew get.array.access.indices makes an array full of 1:prod(sapply(arr.dim.names, length))
             #@ then it calls fast.array.access with that array and the data dimnames and dimension.values
             #@ fast.array.access loops five times if five dimensions (location, year, age, risk, sex...) with lapply
             #@ within fast.array.access, subset.values is a list of length(dims) and each element has all the dim values
-            
+
             overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[outcome]][[source]][[ontology.name]][[stratification]]),
                                                          dimension.values = c(dimnames(data), dimension.values))
             if (!allow.na.to.overwrite)
@@ -946,21 +921,21 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 overwrite.indices = overwrite.indices[!is.na(data)]
                 data = data[!is.na(data)]
             }
-                
+
             # Put data
             private$i.data[[outcome]][[source]][[ontology.name]][[stratification]][overwrite.indices] = data
 
             # Put metadata
-            private$i.url[[outcome]][[source]][[ontology.name]][[stratification]][overwrite.indices] = 
+            private$i.url[[outcome]][[source]][[ontology.name]][[stratification]][overwrite.indices] =
                 lapply(1:length(overwrite.indices), function(i){ url })
-            private$i.details[[outcome]][[source]][[ontology.name]][[stratification]][overwrite.indices] = 
+            private$i.details[[outcome]][[source]][[ontology.name]][[stratification]][overwrite.indices] =
                 lapply(1:length(overwrite.indices), function(i){ details })
-            
-            
+
+
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
-        
+
         put.long.form = function(data,
                                  outcome,
                                  source,
@@ -971,19 +946,19 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                  allow.na.to.overwrite=F)
         {
             #-- Initial validate arguments --#
-            
+
             # *data* must be a 2d object with named columns
             if (is.null(dim(data)) || length(dim(data))!=2)
                 stop("Cannot put long-form data to the data.manager. 'data' must be a 2-dimensional object")
             if (is.null(dimnames(data)[[2]]))
                 stop("Cannot put long-form data to the data.manager. 'data' must have named columns")
-            
+
             if (missing(outcome) || is.null(outcome))
             {
-                # If 'outcome' is NULL, then data must have a named outcome 
+                # If 'outcome' is NULL, then data must have a named outcome
                 if (all(names(data)!='outcome'))
                     stop("Cannot put long-form data to the data.manager. Either 'outcome' must be set or it must be a column in the data object")
-                
+
                 unique.outcomes = unique(data[['outcome']])
                 for (one.outcome in unique.outcomes)
                 {
@@ -997,7 +972,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 }
             }
             else
-            { 
+            {
                 #-- Validate Arguments --#
                 error.prefix = paste0("Cannot put long-form '", outcome, "' data to the data.manager: ")
                 col.names = dimnames(data)[[2]]
@@ -1006,15 +981,15 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     stop(paste0(error.prefix, "'data' must have a column named 'value'"))
                 if (!is.numeric(data[['value']]))
                     stop(paste0(error.prefix, "The value column in 'data' must contain numeric values"))
-                
+
                 # Ontology name must be a single, non-NA character vector that refers to a registered ontology
                 if (!is.character(ontology.name) || length(ontology.name)!=1 || is.na(ontology.name) || nchar(ontology.name)==0)
                     stop(paste0(error.prefix, "'ontology.name' must be a single, non-empty, non-NA character value"))
-                
+
                 ont = private$i.ontologies[[ontology.name]]
                 if (is.null(ont))
                     stop(paste0(error.prefix, "'", ontology.name, "' is not a registered ontology. Call register.data.ontology() to register it before putting data for that ontology"))
-                
+
                 # All the other columns of data which are dimensions in the ontology must be either character or numeric vectors
                 # Resolve them to character vectors
                 dimensions = intersect(names(ont), setdiff(col.names, c('value','outcome')))
@@ -1023,24 +998,24 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         stop(paste0(error.prefix, "Column '", d, "' in 'data' must contain character or numeric values"))
                     T
                 })
-                
-                data[dimensions] = resolve.ontology.dimension.values(ont=ont, dimension.values=data[dimensions], 
+
+                data[dimensions] = resolve.ontology.dimension.values(ont=ont, dimension.values=data[dimensions],
                                                                       error.prefix=paste0(error.prefix, " Error resolving dimension values - "))
-             
+
                 # Hydrate it to an array
                 dim.names = lapply(dimensions, function(d){
                     unique(data[[d]])
                 })
                 names(dim.names) = dimensions
-                
-                
+
+
                 arr.data = array(as.numeric(NA), dim=sapply(dim.names, length), dimnames=dim.names)
 
                 for (i in 1:nrow(data))
                 {
                     array.access(arr.data, dimension.values = as.list(data[i,dimensions])) = data[i,'value']
                 }
-                
+
                 #-- Pass through to main put function --#
                 self$put(outcome = outcome,
                          ontology.name = ontology.name,
@@ -1052,7 +1027,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                          allow.na.to.overwrite = allow.na.to.overwrite)
             }
         },
-        
+
         pull = function(data.manager,
                         outcome,
                         keep.dimensions = NULL,
@@ -1066,32 +1041,32 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         debug = F,
                         ...)
         {
-            
+
             if (debug)
                 browser()
-            
+
             #-- Validate arguments --#
             error.prefix = paste0("Cannot pull '", outcome, "' data from the data manager: ")
-            
+
             # *outcome* is a single, non-NA character value
             #  that has been previously registered as an outcome for this data manager
             if (!is.character(outcome) || length(outcome)!=1 || is.na(outcome) || nchar(outcome)==0)
                 stop(paste0(error.prefix, "'outcome' must be a single, non-empty, non-NA character value"))
-            
+
             outcome.info = private$i.outcome.info[[outcome]]
             if (is.null(outcome.info))
                 stop(paste0(error.prefix, "'", outcome, "' is not a registered outcome."))
-            
+
             # *keep.dimensions* is either NULL or a character vector with no NA values or repeats
             if (!is.null(keep.dimensions) && (!is.character(keep.dimensions) || any(duplicated(keep.dimensions)) || anyNA(keep.dimensions)))
                 stop(paste0(error.prefix, "'keep.dimensions' must be either NULL or a character vector with no NA values or repeats"))
-            
+
             # *extra dimensions* are an alternative to 'dimension.values' and must pass the same checks if used
             extra.dimension.values = list(...)
-            
+
             # make a variable name for error to pass to check.dimension.values.valid
             check.dimension.values.valid.error.name = "dimension.values"
-            
+
             # check that either this or dimension.values is len(0)
             if (length(extra.dimension.values)>0 && length(dimension.values)>0)
                 stop(paste0(error.prefix, "'dimension.values' must be specified in either the 'dimension.values' argument or as additional arguments to the function"))
@@ -1099,17 +1074,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 dimension.values = extra.dimension.values
                 check.dimension.values.valid.error.name = "pull function extra arguments"
             }
-                
-            # *dimension.values* are valid 
+
+            # *dimension.values* are valid
             #   - check.dimension.values.valid() doesn't accept NULL because it wants a list
             if (!is.null(dimension.values))
                 check.dimension.values.valid(dimension.values, "dimension.values")
-            
+
             # *sources* is either NULL or a character vector with at least one element and no NA or empty values
             #  that have all been registered previously as sources with this data manager
             if (!is.null(sources) && (!is.character(sources) || !length(sources)>0 || anyNA(sources) || any(nchar(sources)==0)))
                 stop(paste0(error.prefix, "'sources' must be a character vector with at least one element and no NA or empty values"))
-            
+
             unregistered.sources = sapply(sources, function(x){is.null(private$i.source.info[[x]])})
             if (any(unregistered.sources))
                 stop(paste0(error.prefix, "all sources must be registered with this data manager"))
@@ -1117,7 +1092,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # *target.ontology* is either NULL or an ontology object
             if (!is.null(target.ontology) && !is.ontology(target.ontology))
                 stop(paste0(error.prefix, "'target.ontology' must be either NULL or an ontology object"))
-            
+
             # If there is a target ontology, it needs to contain the dimension.values if any
             resolved.dimension.values = NULL
             if (!is.null(target.ontology) && !is.null(dimension.values)) {
@@ -1125,54 +1100,54 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (is.null(resolved.dimension.values))
                     stop(paste0(error.prefix, "'dimension.values' must be contained in 'target.ontology'"))
             }
-            
+
             # The target ontology also needs to contain the keep dimensions if any
             if (!is.null(target.ontology) && !is.null(keep.dimensions)) {
                 if (!any(keep.dimensions %in% names(target.ontology)))
                     stop(paste0(error.prefix, "'keep.dimensions' must be contained in 'target.ontology'"))
             }
-            
+
             # The target ontology cannot have any NULL dimensions (ones that do have never had any data put to them)
             if (any(sapply(target.ontology, is.null)))
                 stop(paste0(error.prefix, "'target.ontology' cannot have any NULL dimensions"))
-            
+
             # If *keep.dimensions* are NULL and there is a target ontology, set keep.dimensions to empty char vector
             if (!is.null(target.ontology) && is.null(keep.dimensions))
                 keep.dimensions = character(0)
-            
+
             # *allow.mapping.from.target.ontology* is a single, non-NA logical value
             if (!is.logical(allow.mapping.from.target.ontology) || length(allow.mapping.from.target.ontology)!=1 || is.na(allow.mapping.from.target.ontology))
                 stop(paste0(error.prefix, "'allow.mapping.from.target.ontology' must be a single, non-NA logical value"))
-            
+
             # *from.ontology.names* is either NULL or a character vector with no NA or empty values
             if (!is.null(from.ontology.names) && (!is.character(from.ontology.names) || anyNA(from.ontology.names) || any(nchar(from.ontology.names)==0)))
                 stop(paste0(error.prefix, "from.ontology.names must be either NULL or a character vector with no NA or empty values"))
-            
+
             #  all of which have been previously registered with this data manager (if not NULL)
             unregistered.ontologies = sapply(from.ontology.names, function(x){is.null(private$i.ontologies[[x]])})
             if (is.null(from.ontology.names) && any(unregistered.ontologies))
                 stop(paste0(error.prefix, "all ontologies in from.ontology.names must be registered with this data manager"))
-            
-            # *append.attributes* is either NULL or a character vector with no NA values that 
+
+            # *append.attributes* is either NULL or a character vector with no NA values that
             #  contains only "details" or "url" or both
             if (!is.null(append.attributes) && (!is.character(append.attributes) || anyNA(append.attributes) || !all(append.attributes %in% c("details", "url"))))
                 stop(paste0(error.prefix, "append.attributes' must be either NULL or a character vector with no NA values that contains only 'details' or 'url' or both"))
-            
+
             # *na.rm* is a single, non-NA logical value
             if (!is.logical(na.rm) || length(na.rm)!=1 || is.na(na.rm))
                 stop(paste0(error.prefix, "na.rm must be a single, non-NA, logical value"))
-            
+
             #-- The big loop --#
             #
             # In an lapply for source
-            
+
             # These must be saved if applicable
             target.to.common.mapping = NULL
             common.ontology = NULL
-            
+
             # If we have no target.ontology, the ontology first successful stratification will serve as the target.ontology for subsequent sources
             target.represents.successful.stratification.flag = FALSE
-            
+
             # If we have no keep.dimensions, we will need to find them. Once we have a success, we won't need to look during subsequent sources.
             need.to.set.keep.dimensions.flag = is.null(keep.dimensions)
 
@@ -1181,28 +1156,28 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 sources.used.names = names(private$i.data[[outcome]])
             else
                 sources.used.names = sources
-            
+
             # Keep track of which sources found data that is going to be returned from the pull
             sources.successful.names = c()
 
             return.data = lapply(sources.used.names, function(x) {
-                
+
                 # Helps us return NULL data if we later find we need denominator data for aggregation and can't find it
                 source.lacks.denominator.data.flag = FALSE
-                
+
                 # Use all ontologies in the source or only those also in from.ontology.names
                 source.ontology.names = names(private$i.data[[outcome]][[x]])
                 ontologies.used.names = ifelse(
                     is.null(from.ontology.names),
                     source.ontology.names,
                     intersect(source.ontology.names, from.ontology.names))
-                
+
                 data.to.return = NULL
-                
+
                 for (y in ontologies.used.names) {
-                    
+
                     ont = private$i.ontologies[[y]]
-                    
+
                     # Resolving dimension values gives us character vector version even though input could be logical or numeric
                     # check if any dimensions in dimension.values but not in keep.dimensions include all possible values for that dimension (complete)
                     # if so, drop them from dimension.values
@@ -1210,26 +1185,26 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     # If we lacked a target.ontology but had a successful stratification set to be a 'target.ontology', we'll need to do this each time
                     if (is.null(target.ontology) || target.represents.successful.stratification.flag)
                         resolved.dimension.values = resolve.ontology.dimension.values(ont, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = FALSE)
-                    
+
                     if (is.null(resolved.dimension.values) && !is.null(dimension.values)) {
                         next
                     }
-                    
+
                     stratification.names = names(private$i.data[[outcome]][[x]][[y]])
-                    
+
                     for (strat in stratification.names) {
 
                         strat.data = private$i.data[[outcome]][[x]][[y]][[strat]]
                         strat.dimensions = names(dim(strat.data))
                         strat.dimnames = as.ontology(dimnames(strat.data),incomplete.dimensions = intersect(incomplete.dimensions(ont), strat.dimensions))
-                        
+
                         # Check that there are data (not all NA) before any mapping is applied
                         if (all(is.na(strat.data))) next
-                        
+
                         strat.to.target.mapping = NULL
                         strat.to.common.mapping = NULL
                         target.to.common.mapping.placeholder = NULL
-                        
+
                         # Only for when there is no target.ontology or the need.to.set.keep.dimensions flag is on.
                         # Determine keep.dimensions if keep.dimensions is NULL. Will be all incomplete dimensions and dimension.values dimensions that are greater than length 1
                         # We use the flag because a previous, failed stratification could have set keep.dimensions in this scope but we don't want to use it
@@ -1237,22 +1212,22 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             dimension.values.dimensions.longer.than.one = names(dimension.values)[sapply(dimension.values, length)>1]
                             keep.dimensions = setdiff(incomplete.dimensions(strat.dimnames), dimension.values.dimensions.longer.than.one)
                         }
-                        
+
                         if (!is.null(target.ontology)) {
                             if (allow.mapping.from.target.ontology) {
                                 if (!is.null(common.ontology)) {
-                                    
+
                                     # we already have a common ontology to use
                                     strat.to.common.mapping = get.ontology.mapping(strat.dimnames, common.ontology)
                                 } else {
-                                    
+
                                     # get an aligning mapping
                                     aligning.mappings.list = get.mappings.to.align.ontologies(strat.dimnames, target.ontology)
                                     if (!is.null(aligning.mappings.list)) {
                                         strat.to.common.mapping = aligning.mappings.list[[1]]
                                         target.to.common.mapping.placeholder = aligning.mappings.list[[2]]
                                     }
-                                } 
+                                }
                             } else {
                                 strat.to.target.mapping = get.ontology.mapping(strat.dimnames, target.ontology)
                             }
@@ -1261,33 +1236,33 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         if (!is.null(target.ontology) &&
                             (is.null(strat.to.target.mapping) && is.null(strat.to.common.mapping)))
                             next
-                        
+
                         # Figure out the to.dimnames for when we apply a mapping/subset
                         # This will also help us check whether the dimensions for this stratification are correct post-mapping
                         dimnames.for.apply = NULL
-                        
+
                         if (is.null(target.ontology)) {
-                            
+
                             # In this case, check that the stratification has exactly keep.dimensions + dimension.values dimensions
                             if (!setequal(strat.dimensions, union(keep.dimensions, names(dimension.values))))
                                 next
-                            
+
                             dimnames.for.apply = strat.dimnames
                             dimnames.for.apply[names(dimension.values)] = dimension.values
-                            
+
                         } else {
 
                             dimnames.for.apply = target.ontology
                             dimnames.for.apply[names(dimension.values)] = dimension.values
-                            
+
                             # For cases with target ontologies, cut out unneeded dimensions
                             dimnames.for.apply = dimnames.for.apply[names(dimnames.for.apply) %in% union(keep.dimensions, names(dimension.values))]
-                            
+
                             if (allow.mapping.from.target.ontology)
-                                
+
                                 if (is.null(target.to.common.mapping)) {
                                     # Skip this stratification if the mapping cannot be applied to the dimnames.for.apply
-                                    
+
                                     if (!target.to.common.mapping.placeholder$can.apply.to.dim.names(dimnames.for.apply))
                                         next
                                     else
@@ -1300,67 +1275,67 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         next
                                     else
                                         dimnames.for.apply = target.to.common.mapping$apply.to.dim.names(dimnames.for.apply)
-                            
+
                             # In this case, check that the stratification has exactly the dimnames.for.apply dimensions
                             if (!setequal(strat.dimensions, names(dimnames.for.apply)))
                                 next
-                            
+
                         }
-                        
+
 
                         data.elements.accessors = 'data'
                         if ('url' %in% append.attributes)
                             data.elements.accessors = append(data.elements.accessors, 'url')
                         if ('details' %in% append.attributes)
                             data.elements.accessors = append(data.elements.accessors, 'details')
-                        
+
                         # We'll check whether all the needed incomplete dimension values are present once we can map the strat
                         strat.missing.incomplete.dimension.values = FALSE
 
                         # Apply mapping to data and subset in one step
                         data.to.return = lapply(data.elements.accessors, function(a) {
-                            
+
                             if (strat.missing.incomplete.dimension.values) {
                                 NULL
                             }
-                            
+
                             else {
                                 # default
                                 function.to.apply = 'sum'
-                                
+
                                 if (is.null(target.ontology)) {
-                                    
+
                                     data.to.process = private[[paste0('i.', a)]][[outcome]][[x]][[y]][[strat]]
                                     mapping.to.apply = get.identity.ontology.mapping()
-                                    
+
                                 } else {
-                                    
+
                                     if (a == 'data') {
-                                        
+
                                         data.to.process = strat.data
-                                        
+
                                     } else {
-                                        
+
                                         data.to.process = private[[paste0('i.', a)]][[outcome]][[x]][[y]][[strat]]
                                         function.to.apply = function(b) {list(unique(unlist(b)))}
-                                        
+
                                     }
-                                    
+
                                     if (allow.mapping.from.target.ontology) {
-                                        
+
                                         mapping.to.apply = strat.to.common.mapping
-                                        
+
                                     } else {
-                                        
+
                                         mapping.to.apply = strat.to.target.mapping
-                                        
+
                                     }
                                 }
-                                
+
                                 # Before we apply the mapping to the data, we need to see whether the stratification, when mapped, has all the dimension values asked for (from incomplete dimensions)
                                 mapped.dimnames = mapping.to.apply$apply.to.dim.names(strat.dimnames)
                                 incomplete.dimension.values = NULL
-                                
+
                                 if (is.null(target.ontology)) {
                                     incomplete.dimension.values = dimension.values[names(dimension.values) %in% incomplete.dimensions(ont)]
                                 }
@@ -1384,71 +1359,71 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         to.dim.names = dimnames.for.apply,
                                         fun = function.to.apply
                                     )
-                                    
+
                                     if (!is.null(target.ontology) && a != 'data') {
                                         data.temp = lapply(data.temp, function(b) {b[[1]]})
                                         dim(data.temp) = sapply(dimnames.for.apply, length)
                                         dimnames(data.temp) = dimnames.for.apply
                                     }
-                                    
+
                                     data.temp
                                 }
                             }
                         })
-                        
+
                         if (strat.missing.incomplete.dimension.values) {
                             data.to.return = NULL
                             next
                         }
-                        
+
                         names(data.to.return) = data.elements.accessors
-                        
+
                         # Dims and dimnames before the following transformations
                         initial.dim = sapply(dimnames.for.apply, length)
                         initial.dimnames = dimnames.for.apply
-                        
+
                         for (d in seq_along(data.to.return)) {
-                            
+
                             # Drop length 1 dimensions that aren't in keep.dimensions
                             dimensions.to.drop = intersect(
                                 which(initial.dim == 1),
                                 which(!(names(initial.dim) %in% keep.dimensions)))
-                            
+
                             # Dim and dimnames before possible aggregation
                             pre.agg.dim = initial.dim
                             pre.agg.dimnames = initial.dimnames
-                            
+
                             if (length(dimensions.to.drop) > 0) {
                                 pre.agg.dim = pre.agg.dim[-dimensions.to.drop]
                                 pre.agg.dimnames = pre.agg.dimnames[-dimensions.to.drop]
-                                
+
                                 data.to.return[[d]] = array(
                                     data.to.return[[d]],
                                     dim = pre.agg.dim,
                                     dimnames = pre.agg.dimnames)
                             }
-                            
+
                             # check if NEED to aggregate (i.e., any dimensions not in keep.dimensions)
                             if (length(pre.agg.dim) > length(keep.dimensions)) {
-                                
+
                                 # determine post-aggregation dim and dimnames
                                 post.agg.dim = pre.agg.dim[names(pre.agg.dim) %in% keep.dimensions]
                                 post.agg.dimnames = pre.agg.dimnames[names(pre.agg.dimnames) %in% keep.dimensions]
-                                
+
                                 if (names(data.to.return)[[d]] == 'data') {
                                     scale = private$i.outcome.info[[outcome]][['metadata']][['scale']]
-                                    
+
                                     if (scale %in% c('non.negative.number', 'number')) {
 
                                         data.to.return[[d]] = apply(data.to.return[[d]], keep.dimensions, FUN = sum, na.rm=na.rm)
                                         dim(data.to.return[[d]]) = post.agg.dim
                                         dimnames(data.to.return[[d]]) = post.agg.dimnames
-                                        
+
                                     } else if (scale %in% c('rate', 'time', 'proportion')) {
-                                        
+
                                         # We'll do weighted averages with a denominator value as weight.
                                         denominator.outcome = private$i.outcome.info[[outcome]][['denominator.outcome']]
-                                        
+
                                         if (is.null(target.ontology))
                                             denominator.ontology = strat.dimnames
                                         else {
@@ -1457,7 +1432,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                             else
                                                 denominator.ontology = target.ontology
                                         }
-                                        
+
                                         # Recursive call to pull -- might not find anything
                                         denominator.array = self$pull(
                                             outcome = denominator.outcome,
@@ -1476,14 +1451,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                             data.to.return = NULL
                                             break
                                         }
-                                        
+
                                         # Since the denominator.array came from only one source, we can remove the source so that it will match size of data
                                         denominator.array = array(
                                             denominator.array,
                                             dim = dim(denominator.array)[names(dim(denominator.array)) != 'source'],
                                             dimnames = dimnames(denominator.array)[names(dimnames(denominator.array)) != 'source']
                                         )
-                                        
+
                                         # Catch an otherwise invisible bug if denominator.array somehow doesn't have the same shape/order as the data
                                         if (!identical(dimnames(denominator.array), dimnames(data.to.return[[d]])))
                                             stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect dimensions'))
@@ -1493,104 +1468,104 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         denominator.totals.array = apply(denominator.array, keep.dimensions, FUN = sum, na.rm=na.rm)
                                         dim(denominator.totals.array) = post.agg.dim
                                         dimnames(denominator.totals.array) = post.agg.dimnames
-                                        
+
                                         # Generate an array that multiplies every cell in data.to.return[[d]] by its weight from denominator.array
                                         weighted.value.array = data.to.return[[d]] * denominator.array
-                                        
+
                                         # Take the sum of the weighted values
                                         data.to.return[[d]] = apply(weighted.value.array, keep.dimensions, FUN = sum, na.rm=na.rm)
                                         dim(data.to.return[[d]]) = post.agg.dim
                                         dimnames(data.to.return[[d]]) = post.agg.dimnames
-                                        
+
                                         # Divide by the denominator.totals.array values to finish the weighted average
                                         data.to.return[[d]] = data.to.return[[d]] / denominator.totals.array
-                                        
+
                                     } else if (scale == 'ratio') {
                                         stop(paste0(error.prefix, scale, ' data cannot be aggregated'))
                                     }
-                                    
+
                                     else {
-                                        
+
                                         stop(paste0(error.prefix, 'aggregating with the ', scale, ' scale is not yet implemented'))
-                                        
+
                                     }
-                                    
+
                                 } else {
-                                    
+
                                     data.to.return[[d]] = apply(
                                         data.to.return[[d]],
                                         keep.dimensions,
                                         function(x) {
                                             list(unique(unlist(x)))
                                         })
-                                    
+
                                     dim(data.to.return[[d]]) = post.agg.dim
                                     dimnames(data.to.return[[d]]) = post.agg.dimnames
-                                    
+
                                     # fix apply's annoying behavior
                                     data.data = lapply(
                                         data.to.return[[d]],
                                         function(x) {x[[1]]})
-                                    
+
                                     data.to.return[[d]] = array(
                                         data.data,
                                         dim = post.agg.dim,
-                                        dimnames = post.agg.dimnames) 
+                                        dimnames = post.agg.dimnames)
                                 }
-                                
+
                             }
-                            
-                            # There are too many places where the data's dimnames could be flipped between being an ontology or just a list. So right here, I should enforce that it's forevermore just a list because ontologies cause issues, such as with concatenating an ontology with a list to get new dimnames. 
+
+                            # There are too many places where the data's dimnames could be flipped between being an ontology or just a list. So right here, I should enforce that it's forevermore just a list because ontologies cause issues, such as with concatenating an ontology with a list to get new dimnames.
                             dimnames(data.to.return[[d]]) = as.list(dimnames(data.to.return[[d]]))
-                                
+
                         } # end of loop for data types
-                        
+
                         # If we end up with only NA, erase data.to.return and try the next stratification
                         if (all(is.na(data.to.return[['data']]))) {
                             data.to.return = NULL
                             next
                         }
-                        
+
                         ### SUCCESS FOR THIS ONTOLOGY ### -- only now that we still have data after mapping and aggregation can we save what we found
-                        
+
                         # Save the target.to.common.mapping if we discovered one, and the mapped ontology as the common ontology
                         if (!is.null(target.to.common.mapping.placeholder)) {
                             target.to.common.mapping <<- target.to.common.mapping.placeholder
                             common.ontology <<- strat.to.common.mapping$apply.to.ontology(strat.dimnames)
                         }
-                        
+
                         # If we don't have a target.ontology, save this stratication's dimnames (as an ontology) as target.ontology so that subsequent sources must conform to it
                         if (is.null(target.ontology)) {
                             target.ontology <<- strat.dimnames
                             allow.mapping.from.target.ontology <<- FALSE
                             target.represents.successful.stratification.flag <<- TRUE
                         }
-                        
+
                         # Mark this source as a success so that we can subset easier later (when some sources will have return data and others NULL)
                         sources.successful.names <<- c(sources.successful.names, x)
-                        
+
                         # If the pull() was called without keep.dimensions defined, use the keep.dimensions of this successful pull as keep.dimensions for other sources
                         keep.dimensions <<- keep.dimensions
                         need.to.set.keep.dimensions.flag <<- FALSE
-                        
+
                         # If we found a match, or lack denominator data, then we won't search any more stratifications for this ontology
                         break
-                                
+
                     } # end of loop for stratification
-                    
+
                     # If we found a match, or lack denominator data, then we won't search any more ontologies for this source
                     if (!is.null(data.to.return) || source.lacks.denominator.data.flag) break
-                    
+
                 } # end of loop for ontology
-                
+
                 data.to.return
-                
+
             }) # end of lapply for sources
-   
+
             # we have a list (one element per source) of lists (one element per data type, i.e. 'data', 'url', or 'details')
             # repackage this to be a data array with 'url', 'details' and possibly a mapping as attributes
             final.return = NULL
-            
+
             # Some sources may have returned NULL above and should be removed.
             return.data = return.data[!unlist(lapply(return.data, is.null))]
 
@@ -1602,21 +1577,21 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     pull.return.data.list = lapply(return.data, function(x) {x[[data.type]]})
                     names(pull.return.data.list) = sources.successful.names
                     dim.names.pull = c(dimnames(pull.return.data.list[[1]]), list(source=sources.successful.names))
-                    
+
                     pull.return.data = NULL
-                    
+
                     if (data.type == 'data') {
                         pull.return.data = sapply(pull.return.data.list, function(x) {x})
-                        
+
                     } else {
                         for (src.data in pull.return.data.list) {
                             pull.return.data = append(pull.return.data, src.data)
                         }
                     }
-                    
+
                     dim(pull.return.data) = sapply(dim.names.pull, length)
                     dimnames(pull.return.data) = dim.names.pull
-                    
+
                     # incorporate it into final.return
                     if (data.type == 'data') {
                         final.return = pull.return.data
@@ -1625,57 +1600,57 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     } else if (data.type == 'details') {
                         attr(final.return, 'details') = pull.return.data
                     }
-                    
+
                 }
             }
-            
-            
+
+
             # add mapping
             if (!is.null(target.to.common.mapping))
                 attr(final.return, 'mapping') = target.to.common.mapping
-            
+
             #-- Return --#
             final.return
         },
-        
+
         get.outcome.pretty.names = function(outcomes)
         {
             sapply(private$i.outcome.info[outcomes], function(info){
                 info$pretty.name
             })
         },
-        
+
         get.outcome.units = function(outcomes)
         {
             sapply(private$i.outcome.info[outcomes], function(info){
                 info$units
             })
         },
-        
+
         get.outcome.descriptions = function(outcomes)
         {
             sapply(private$i.outcome.info[outcomes], function(info){
                 info$description
             })
         },
-        
+
         get.registered.ontology = function(ontology.name)
         {
             # ontology.name must be in the list of registered ontologies
             if (!ontology.name %in% names(private$i.ontologies))
                 stop(paste0(ontology.name, " is not a registered ontology"))
-            
+
             rv = private$i.ontologies[[ontology.name]]
-            
+
         },
-        
+
         get.source.full.names = function(sources)
         {
             sapply(private$i.source.info[sources], function(info){
                 info$full.name
             })
         },
-        
+
         get.source.short.names = function(sources)
         {
             sapply(private$i.source.info[sources], function(info){
@@ -1683,9 +1658,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             })
         }
     ),
-    
+
     active = list(
-        
+
         name = function(value)
         {
             if (missing(value))
@@ -1693,7 +1668,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else
                 stop("Cannot modify 'name' in jheem.data.manager - it is read-only")
         },
-        
+
         description = function(value)
         {
             if (missing(value))
@@ -1701,7 +1676,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else
                 stop("Cannot modify 'description' in jheem.data.manager - it is read-only")
         },
-        
+
         outcomes = function(value)
         {
             if (missing(value))
@@ -1709,7 +1684,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else
                 stop("Cannot modify 'outcomes' in jheem.data.manager - they are read-only")
         },
-        
+
         ontology.names = function(value)
         {
             if (missing(value))
@@ -1717,7 +1692,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else
                 stop("Cannot modify 'ontology.names' in jheem.data.manager - they are read-only")
         },
-        
+
         data = function(value)
         {
             if (missing(value))
@@ -1725,7 +1700,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else
                 stop("Cannot modify 'data' in jheem.data.manager - it is read-only")
         },
-        
+
         url = function(value)
         {
             if (missing(value))
@@ -1733,7 +1708,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else
                 stop("Cannot modify 'url' in jheem.data.manager - it is read-only")
         },
-        
+
         details = function(value)
         {
             if (missing(value))
@@ -1741,7 +1716,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else
                 stop("Cannot modify 'details' in jheem.data.manager - it is read-only")
         },
-        
+
         outcome.info = function(value)
         {
             if (missing(value))
@@ -1749,7 +1724,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else
                 stop("Cannot modify 'outcome.info' in jheem.data.manager - it is read-only")
         },
-        
+
         source.info = function(value)
         {
             if (missing(value))
@@ -1757,7 +1732,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else
                 stop("Cannot modify 'data' in jheem.data.manager - it is read-only")
         },
-        
+
         ontologies = function(value)
         {
             if (missing(value))
@@ -1766,13 +1741,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop("Cannot modify 'ontologies' in jheem.data.manager - it is read-only")
         }
     ),
-    
+
     private = list(
-        
+
         #-- About the Data Manager itself --#
         i.name = NULL,
         i.description = NULL,
-        
+
         #-- Storage structures for data and metadata --#
         # These three are lists of lists of lists of lists, indexed
         # [[outcome]][[source]][[ontology.name]][[stratification]]
@@ -1781,17 +1756,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         i.data = NULL,
         i.url = NULL,
         i.details = NULL,
-        
+
         #-- Metadata --#
         # These are named lists, with the names being the names of outcomes or data groups
         i.outcome.info = NULL,
         i.source.info = NULL,
         i.ontologies = NULL,
-        
+
         ##------------------------------##
         ##-- Private Member Functions --##
         ##------------------------------##
-        
+
         # Gets the stratification to either
         # - get data with keep.dimensions and dimension.values
         # - put the given 'data' using dimension.values
@@ -1802,20 +1777,20 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                return.as.dimensions) #if true, returns the vector of dimensions. If false, collapses to the stratification name
         {
             dimensions = intersect(names(private$i.ontologies[[ontology.name]]),
-                                   union(names(dimension.values), 
+                                   union(names(dimension.values),
                                          union(names(dimnames(data)), keep.dimensions)))
-            
+
             if (return.as.dimensions)
                 dimensions
             else
                 paste0(dimensions, collapse='__')
         },
-        
+
         prepare.put.dim.names = function(dim.names,
                                          ontology.name)
         {
             ont = private$i.ontologies[[ontology.name]]
-            
+
             ontology.dimensions.complete = is_complete(ont)
             rv = lapply(names(dim.names), function(d){
                 if (ontology.dimensions.complete[d])
@@ -1824,9 +1799,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     sort(dim.names[[d]])
             })
             names(rv) = names(dim.names)
-            
+
             rv
         }
-        
+
     )
 )
