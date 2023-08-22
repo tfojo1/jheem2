@@ -316,11 +316,11 @@ create.jheem.specification <- function(version,
     {
         to.add.compartment.value.character.aliases = compartment.value.character.aliases
         compartment.value.character.aliases = parent.specification$compartment.value.character.aliases
-        compartment.value.character.aliases[name(to.add.compartment.value.character.aliases)] = to.add.compartment.value.character.aliases
+        compartment.value.character.aliases[names(to.add.compartment.value.character.aliases)] = to.add.compartment.value.character.aliases
         
         to.add.compartment.value.function.aliases = compartment.value.function.aliases
         compartment.value.function.aliases = parent.specification$compartment.value.function.aliases
-        compartment.value.function.aliases[name(to.add.compartment.value.function.aliases)] = to.add.compartment.value.function.aliases
+        compartment.value.function.aliases[names(to.add.compartment.value.function.aliases)] = to.add.compartment.value.function.aliases
     }
     
     #-- Dim Names --#
