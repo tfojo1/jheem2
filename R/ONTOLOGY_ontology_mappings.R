@@ -604,6 +604,7 @@ do.get.ontology.mapping <- function(from.ontology,
             # Update the ontology if we were to apply this mapping
             post.mapping.from.ontology = mapping$apply.to.ontology(from.ontology,
                                                                      error.prefix=error.prefix)
+            
             # Recurse
             additional.mappings = do.get.ontology.mapping(from.ontology=post.mapping.from.ontology,
                                                           to.ontology=to.ontology,
@@ -949,8 +950,8 @@ create.age.ontology.mapping <- function(from.values,
 ##----------------------------------##
 
 
-ONTOLOGY.MAPPING.MANAGER = new.env()
-ONTOLOGY.MAPPING.MANAGER$mappings=list()
+#ONTOLOGY.MAPPING.MANAGER = new.env()
+#ONTOLOGY.MAPPING.MANAGER$mappings=list()
 
 
 ##-----------------------##

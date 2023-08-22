@@ -476,17 +476,35 @@ JHEEM.SIMULATION = R6::R6Class(
             dim(rv) = sapply(dim.names, length)
             dimnames(rv) = dim.names
             rv
-        }
+        },
         
+        get.engine = function()
+        {
+            
+        },
+        
+        get.intervention = function()
+        {
+            
+        }
     ),
     
     active = list(
+        
+        parameters = function(value)
+        {
+            
+        }
         
     ),
     
     private = list(
         
-        i.data = NULL
+        i.data = NULL,
+        i.parameters = NULL,
+        
+        i.intervention = NULL,
+        i.intervention.code = NULL
         
     )
 )

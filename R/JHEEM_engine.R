@@ -6,112 +6,31 @@
 ##----------------------##
 
 
-##-----------------##
-##-- CONSTRUCTOR --##
-##-----------------##
-
-
-#'@title Create a JHEEM Engine (to run simulations for a given version and location)
-#'
-#'@param version The name of the version to run. Must have had a model specification registered with \code{\link{register.model.specification}}
-#'@param location A single character value indicating the location of the model
-#'
-#'@family Functions to create and modify a jheem.engine
-#'
-#'@export
-create.jheem.engine <- function(version,
-                                location)
-{
-    JHEEM.ENGINE$new(version, location)
-}
-
-##-------------------------------------------------##
-##-- FUNCTIONS to PRODUCE OUTPUT from the ENGINE --##
-##-------------------------------------------------##
-
-#'@title Perform Pre-Calculations Needed to Run a Simulation From a JHEEM Engine
-#'
-#'@param jheem.engine A jheem.engine object (created by \code{\link{create.jheem.engine}})
-#'@param start.year,end.year The years across which the simulation is to run
-#'@param check.consistency Whether to perform consistency checks during calculations, which can catch errors, but imposes a computational cost. In general, this is likely only necessary on the first time an engine is crunched or run
-#'
-#'@family Functions to create and modify a jheem.engine
-#'
-#'@export
-crunch.jheem.engine <- function(jheem.engine,
-                                start.year,
-                                end.year,
-                                check.consistency = T)
-{
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
-    
-    jheem.engine$crunch(start.year = start.year,
-                        end.year = end.year,
-                        check.consistency = check.consistency)
-}
-
-#'@title Produce a Simulation from a JHEEM Engine
-#'
-#'@inheritParams crunch.jheem.engine
-#'@param max.run.time.seconds The maximum number of seconds a simulation is allowed to run before being terminated
-#'@param prior.sim A jheem.simulation object from which to start this simulation. NULL if not running from a prior simulation
-#'@param keep.years The years for which to keep simulation data
-#'@param atol,rtol The absolute and relative tolerance parameters to be passed along to the differential equation solver
-#'
-#'@family Functions to create and modify a jheem.engine
-#'
-#'@return A jheem.simulation object
-#'
-#'@export
-run.jheem.engine <- function(jheem.engine,
-                             start.year, 
-                             end.year,
-                             check.consistency = T,
-                             max.run.time.seconds=Inf,
-                             prior.sim=NULL,
-                             keep.years=start.year:end.year,
-                             atol=1e-04, rtol=1e-04)
-{
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
-    
-    jheem.engine$run(start.year = start.year,
-                     end.year = end.year,
-                     check.consistency = check.consistency,
-                     max.run.time.seconds = max.run.time.seconds,
-                     prior.sim = prior.sim,
-                     keep.years = keep.years,
-                     atol = atol, 
-                     rtol = rtol)
-}
-
-
 ##-----------------------------------------------##
 ##-- FUNCTIONS to MODIFY the ENGINE'S SETTINGS --##
 ##-----------------------------------------------##
 
 #'@title Set the Value of a Model Element
 #'
-#'@inheritParams run.jheem.engine
+#'@param model.settings An object of class 'jheem.model.settings'
 #'@param element.name The name of the model element to update a value for
 #'@param value The new value for the model element
 #'@param check.consistency A logical indicator whether to sanitize arguments and check for consistency during calculations. Setting to F increases performance
 #'
-#'@family Functions to create and modify a jheem.engine
+#'@family Functions to modify model settings
 #'
 #'@export
-set.element.value <- function(jheem.engine,
+set.element.value <- function(model.settings,
                               element.name,
                               value,
                               check.consistency = !jheem.engine$has.been.crunched())
 {
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
+        stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
-    jheem.engine$set.element.value(element.name = element.name,
-                                   value = value,
-                                   check.consistency = check.consistency)
+    model.settings$set.element.value(element.name = element.name,
+                                     value = value,
+                                     check.consistency = check.consistency)
 }
 
 #'@title Set Main Effect Alpha Values for a Functional Form for a Model Element
@@ -128,7 +47,7 @@ set.element.value <- function(jheem.engine,
 #'@family Functions to create and modify a jheem.engine
 #'
 #'@export
-set.element.functional.form.main.effect.alphas <- function(jheem.engine,
+set.element.functional.form.main.effect.alphas <- function(model.settings,
                                                            element.name,
                                                            alpha.name,
                                                            values,
@@ -139,7 +58,7 @@ set.element.functional.form.main.effect.alphas <- function(jheem.engine,
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
-    jheem.engine$set.element.functional.form.main.effect.alphas(element.name = element.name,
+    model.settings$set.element.functional.form.main.effect.alphas(element.name = element.name,
                                                                 alpha.name = alpha.name,
                                                                 values = values,
                                                                 applies.to.dimension.values = applies.to.dimension.values,
@@ -158,7 +77,7 @@ set.element.functional.form.main.effect.alphas <- function(jheem.engine,
 #'@family Functions to create and modify a jheem.engine
 #'
 #'@export
-set.element.functional.form.interaction.alphas <- function(jheem.engine,
+set.element.functional.form.interaction.alphas <- function(model.settings,
                                                            element.name,
                                                            alpha.name,
                                                            value,
@@ -169,7 +88,7 @@ set.element.functional.form.interaction.alphas <- function(jheem.engine,
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
-    jheem.engine$set.element.functional.form.interaction.alphas(element.name = element.name,
+    model.settings$set.element.functional.form.interaction.alphas(element.name = element.name,
                                                                 alpha.name = alpha.name,
                                                                 value = value,
                                                                 applies.to.dimension.values = applies.to.dimension.values,
@@ -179,13 +98,14 @@ set.element.functional.form.interaction.alphas <- function(jheem.engine,
 
 #'@family Functions to create and modify a jheem.engine
 #' Still need to flesh out this interface
-set.element.foreground <- function(jheem.engine,
+set.element.foreground <- function(model.settings,
                                    foreground,
                                    check.consistency = !self$has.been.crunched())
 {
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
+    stop("Need to implement")
 }
 
 #'@title Set the Times From and To Which the Functional Form Determines a Model Element's Value
@@ -197,7 +117,7 @@ set.element.foreground <- function(jheem.engine,
 #'@family Functions to create and modify a jheem.engine
 #'
 #'@export
-set.element.functional.form.from.time <- function(jheem.engine,
+set.element.functional.form.from.time <- function(model.settings,
                                                   element.name,
                                                   from.time,
                                                   check.consistency = !jheem.engine$has.been.crunched())
@@ -205,7 +125,7 @@ set.element.functional.form.from.time <- function(jheem.engine,
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
-    jheem.engine$set.element.functional.form.from.time(element.name = element.name,
+    model.settings$set.element.functional.form.from.time(element.name = element.name,
                                                        from.time = from.time,
                                                        check.consistency = check.consistency)
 }
@@ -214,7 +134,7 @@ set.element.functional.form.from.time <- function(jheem.engine,
 #'@describeIn set.element.functional.form.from.time
 #'
 #'@export
-set.element.functional.form.to.time <- function(jheem.engine,
+set.element.functional.form.to.time <- function(model.settings,
                                                 element.name,
                                                 to.time,
                                                 check.consistency = !jheem.engine$has.been.crunched())
@@ -222,7 +142,7 @@ set.element.functional.form.to.time <- function(jheem.engine,
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
-    jheem.engine$set.element.functional.form.to.time(element.name = element.name,
+    model.settings$set.element.functional.form.to.time(element.name = element.name,
                                                      to.time = to.time,
                                                      check.consistency = check.consistency)
 }
@@ -240,7 +160,7 @@ set.element.functional.form.to.time <- function(jheem.engine,
 #'@family Functions to create and modify a jheem.engine
 #'
 #'@export
-set.element.ramp.times <- function(jheem.engine,
+set.element.ramp.times <- function(model.settings,
                                    element.name,
                                    times,
                                    indices=1:length(times),
@@ -249,7 +169,7 @@ set.element.ramp.times <- function(jheem.engine,
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
-    jheem.engine$set.element.ramp.times(element.name = element.name,
+    model.settings$set.element.ramp.times(element.name = element.name,
                                         times = times,
                                         indices = indices,
                                         check.consistency = check.consistency)
@@ -258,7 +178,7 @@ set.element.ramp.times <- function(jheem.engine,
 #'@describeIn set.element.ramp.times
 #'
 #'@export
-set.element.ramp.values <- function(jheem.engine,
+set.element.ramp.values <- function(model.settings,
                                     element.name,
                                     values,
                                     indices=1:length(values),
@@ -267,7 +187,7 @@ set.element.ramp.values <- function(jheem.engine,
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
-    jheem.engine$set.element.ramp.values(element.name = element.name,
+    model.settings$set.element.ramp.values(element.name = element.name,
                                          values = values,
                                          indices = indices,
                                          check.consistency = check.consistency)
@@ -276,7 +196,7 @@ set.element.ramp.values <- function(jheem.engine,
 #'@describeIn set.element.ramp.times
 #'
 #'@export
-set.element.taper.times <- function(jheem.engine,
+set.element.taper.times <- function(model.settings,
                                     element.name,
                                     times,
                                     indices=1:length(times),
@@ -285,7 +205,7 @@ set.element.taper.times <- function(jheem.engine,
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
-    jheem.engine$set.element.taper.times(element.name = element.name,
+    model.settings$set.element.taper.times(element.name = element.name,
                                          times = times,
                                          indices = indices,
                                          check.consistency = check.consistency)
@@ -294,7 +214,7 @@ set.element.taper.times <- function(jheem.engine,
 #'@describeIn set.element.ramp.times
 #'
 #'@export
-set.element.taper.values <- function(jheem.engine,
+set.element.taper.values <- function(model.settings,
                                      element.name,
                                      values,
                                      indices=1:length(values),
@@ -303,7 +223,7 @@ set.element.taper.values <- function(jheem.engine,
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
-    jheem.engine$set.element.taper.values(element.name = element.name,
+    model.settings$set.element.taper.values(element.name = element.name,
                                           values = values,
                                           indices = indices,
                                           check.consistency = check.consistency)
@@ -321,7 +241,7 @@ set.element.taper.values <- function(jheem.engine,
 #'@family Functions to create and modify a jheem.engine
 #'
 #'@export
-set.element.functional.form.future.slope <- function(jheem.engine,
+set.element.functional.form.future.slope <- function(model.settings,
                                                      element.names,
                                                      slope,
                                                      check.consistency = !jheem.engine$has.been.crunched())
@@ -329,7 +249,7 @@ set.element.functional.form.future.slope <- function(jheem.engine,
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
-    jheem.engine$set.element.functional.form.future.slope(element.names = element.names,
+    model.settings$set.element.functional.form.future.slope(element.names = element.names,
                                                           slope = slope,
                                                           check.consistency = check.consistency)
 }
@@ -338,7 +258,7 @@ set.element.functional.form.future.slope <- function(jheem.engine,
 #'@describeIn set.element.functional.form.future.slope
 #'
 #'@export
-set.element.functional.form.future.slope.after.time <- function(jheem.engine,
+set.element.functional.form.future.slope.after.time <- function(model.settings,
                                                                 element.names,
                                                                 after.year,
                                                                 check.consistency = !jheem.engine$has.been.crunched())
@@ -346,7 +266,7 @@ set.element.functional.form.future.slope.after.time <- function(jheem.engine,
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
-    jheem.engine$set.element.functional.form.future.slope.after.time(element.names = element.names,
+    model.settings$set.element.functional.form.future.slope.after.time(element.names = element.names,
                                                                      after.year = after.year,
                                                                      check.consistency = check.consistency)
 }
@@ -367,7 +287,7 @@ set.element.functional.form.future.slope.after.time <- function(jheem.engine,
 #'@family Functions to create and modify a jheem.engine
 #'
 #'@export
-set.element.values.from.parameters <- function(jheem.engine,
+set.element.values.from.parameters <- function(model.settings,
                                                element.names,
                                                parameters,
                                                check.consistency = !jheem.engine$has.been.crunched())
@@ -398,7 +318,7 @@ set.element.values.from.parameters <- function(jheem.engine,
     }
     
     for (elem.name in element.names)
-        jheem.engine$set.element.value(element.name = elem.name,
+        model.settings$set.element.value(element.name = elem.name,
                                        value = parameters[elem.name],
                                        check.consistency = check.consistency)
     
@@ -424,7 +344,7 @@ set.element.values.from.parameters <- function(jheem.engine,
 #'@return The names of parameters that were used
 #'
 #'@export
-set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
+set.element.functional.form.alphas.from.parameters <- function(model.settings,
                                                                element.name,
                                                                alpha.name,
                                                                parameters,
@@ -438,7 +358,7 @@ set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
     if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
         stop("jheem.engine must be an R6 object of class 'jheem.engine'")
     
-    specification.metadata = jheem.engine$specification.metadata
+    specification.metadata = model.settings$specification.metadata
     
     #-- Check Arguments --#
     if (check.consistency)
@@ -459,7 +379,7 @@ set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
                         collapse.with.and("'", invalid.dimensions.by.name, "'"),
                         " passed to 'dimensions.with.values.referred.to.by.name' ",
                         ifelse(length(invalid.dimensions.by.name)==1, "is not a valid dimension", "are not valid dimensions"),
-                        " in the specification for version '", jheem.engine$version, "'"))
+                        " in the specification for version '", model.settings$version, "'"))
         
         invalid.dimensions.by.index = setdiff(dimensions.with.values.referred.to.by.index, 
                                              specification.metadata$dimensions)
@@ -468,7 +388,7 @@ set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
                         collapse.with.and("'", invalid.dimensions.by.index, "'"),
                         " passed to 'dimensions.with.values.referred.to.by.index' ",
                         ifelse(length(invalid.dimensions.by.name)==1, "is not a valid dimension", "are not valid dimensions"),
-                        " in the specification for version '", jheem.engine$version, "'"))
+                        " in the specification for version '", model.settings$version, "'"))
     }
     
     #-- Values for main effects --#
@@ -525,7 +445,7 @@ set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
     else
     {
         # Push the main effect values to the engine
-        jheem.engine$set.element.functional.form.main.effect.alphas(element.name = element.name,
+        model.settings$set.element.functional.form.main.effect.alphas(element.name = element.name,
                                                                     alpha.name = alpha.name,
                                                                     values = parameter.values,
                                                                     applies.to.dimension.values = parameter.dim.values,
@@ -545,7 +465,178 @@ set.element.functional.form.alphas.from.parameters <- function(jheem.engine,
 ##-----------------------##
 ##-----------------------##
 
+
+##---------------##
+##-- CONSTANTS --##
+##---------------##
+
 JHEEM.ENGINE.CODE.ITERATION = '2.0'
+
+
+##------------------------------------##
+##-- THE JHEEM MODEL SETTINGS CLASS --##
+##                                    ##
+##   This class is a pass-through     ##
+##   wrapper to the jheem.engine      ##
+##   class, so that we can expose     ##
+##   some of the engine's methods     ##
+##   while protecting others          ##
+##------------------------------------##
+
+JHEEM.MODEL.SETTINGS = R6::R6Class(
+    'jheem.model.settings',
+    portable = F,
+    
+    public = list(
+        
+        initialize = function(jheem.engine, check.consistency)
+        {
+            if (!is(jheem.engine, 'jheem.engine'))
+                stop("Cannot create JHEEM Model Settings: jheem.engine must be an object of class 'jheem.engine'")
+            
+            if (!is.logical(check.consistency) || length(check.consistency)!=1 || is.na(check.consistency))
+                stop("Cannot create JHEEM Model Settings: 'check.consistency' must be a single, non-NA logical value")
+            
+            private$i.engine = jheem.engine
+            private$i.check.consistency = check.consistency
+        },
+        
+        set.element.value = function(element.name,
+                                     value)
+        {
+            private$i.engine$set.element.value(element.name = element.name,
+                                               value = value,
+                                               check.consistency = private$i.check.consistency)
+        },
+        
+        set.element.functional.form.main.effect.alphas = function(element.name,
+                                                                  alpha.name,
+                                                                  values,
+                                                                  applies.to.dimension.values=names(values),
+                                                                  dimensions=names(applies.to.dimension.values))
+        {
+            private$i.engine$set.element.functional.form.main.effect.alphas(element.name = element.name,
+                                                                            alpha.name = alpha.name,
+                                                                            values = values,
+                                                                            applies.to.dimension.values = applies.to.dimension.values,
+                                                                            dimensions = dimensions,
+                                                                            check.consistency = private$i.check.consistency)
+        },
+        
+        set.element.functional.form.interaction.alphas = function(element.name,
+                                                                  alpha.name,
+                                                                  value,
+                                                                  applies.to.dimension.values=names(values),
+                                                                  dimensions=names(applies.to.dimension.values))
+        {
+            private$i.engine$set.element.functional.form.interaction.alphas(element.name = element.name,
+                                                                            alpha.name = alpha.name,
+                                                                            value = value,
+                                                                            applies.to.dimension.values = applies.to.dimension.values,
+                                                                            dimensions = dimensions,
+                                                                            check.consistency = private$i.check.consistency)
+        },
+        
+        #' Still need to flesh out this interface
+        set.quantity.foreground = function(foreground)
+        {
+            private$i.engine$set.quantity.foreground(foreground = foreground,
+                                                     check.consistency = private$i.check.consistency)
+        },
+        
+        set.element.functional.form.from.time = function(element.name,
+                                                         from.time)
+        {
+            private$i.engine$set.element.functional.form.from.time(element.name = element.name,
+                                                                   from.time = from.time,
+                                                                   check.consistency = private$i.check.consistency)
+        },
+        
+        set.element.functional.form.to.time = function(element.name,
+                                                       to.time)
+        {
+            private$i.engine$set.element.functional.form.to.time(element.name = element.name,
+                                                                 to.time = to.time,
+                                                                 check.consistency = private$i.check.consistency)
+        },
+        
+        set.element.ramp.times = function(element.name,
+                                          times,
+                                          indices=1:length(times))
+        {
+            private$i.engine$set.element.ramp.times(element.name = element.name,
+                                                    times = times,
+                                                    indices = indices,
+                                                    check.consistency = private$i.check.consistency)
+        },
+        
+        set.element.ramp.values = function(element.name,
+                                           values,
+                                           indices=1:length(values))
+        {
+            private$i.engine$set.element.ramp.values(element.name = element.name,
+                                                     values = values,
+                                                     indices = indices,
+                                                     check.consistency = private$i.check.consistency)
+        },
+        
+        set.element.taper.times = function(element.name,
+                                           times,
+                                           indices=1:length(times))
+        {
+            private$i.engine$set.element.taper.times(element.name = element.name,
+                                                     times = times,
+                                                     indices = indices,
+                                                     check.consistency = private$i.check.consistency)
+        },
+        
+        set.element.taper.values = function(element.name,
+                                            values,
+                                            indices=1:length(values))
+        {
+            private$i.engine$set.element.taper.values(element.name = element.name,
+                                                      values = values,
+                                                      indices = indices,
+                                                      check.consistency = private$i.check.consistency)
+        },
+        
+        set.element.functional.form.future.slope = function(element.names,
+                                                            slope)
+        {
+            private$i.engine$set.element.functional.form.future.slope(element.names,
+                                                                      slope,
+                                                                      check.consistency = private$i.check.consistency)
+        },
+        
+        set.element.functional.form.future.slope.after.time = function(element.names,
+                                                                       after.time)
+        {
+            private$i.engine$set.element.functional.form.future.slope.after.time(element.names = element.names,
+                                                                                 after.time = after.time,
+                                                                                 check.consistency = private$i.check.consistency)
+        }
+        
+    ),
+    
+    active = list(
+        
+    ),
+    
+    private = list(
+        
+        i.engine = NULL,
+        i.check.consistency = NULL,
+        
+        get.current.code.iteration = function()
+        {
+            JHEEM.ENGINE.CODE.ITERATION
+        }
+    )
+)
+
+##----------------------------##
+##-- THE JHEEM ENGINE CLASS --##
+##----------------------------##
 
 JHEEM.ENGINE = R6::R6Class(
     'jheem.engine',
@@ -869,10 +960,12 @@ JHEEM.ENGINE = R6::R6Class(
         },
         
         #' Still need to flesh out this interface
-        set.element.foreground = function(element.name,
-                                           foreground,
+        set.quantity.foreground = function(foreground,
                                            check.consistency = !self$has.been.crunched())
         {
+            # Check if quantity must be static
+            # Check if quantity is intervenable
+            
             private$i.quantity.is.static[[element.name]] = F
             private$i.quantity.is.static[[specification$get.dependent.quantity.names(element.name)]] = F
             
@@ -1459,8 +1552,23 @@ JHEEM.ENGINE = R6::R6Class(
         {
             private$do.test.crunch()
             private$jheem
-        }
+        },
         
+        # Does NOT actually do anything with the intervention
+        # Just records it to the engine
+        set.intervention = function(intervention)
+        {
+            if (!is.null(private$i.intervention) || !is.null(private$i.intervention.code))
+                stop(paste0("Cannot set an intervention for JHEEM engine: an intervention has already been set for this engine"))
+                     
+            if (!is(intervention, "jheem.intervention"))
+                stop("Cannot set intervention for JHEEM engine: 'intervention' must be an object of class 'jheem.intervention'")
+            
+            if (is.null(intervention$code))
+                private$i.intervention = intervention
+            else
+                private$i.intervention.code = intervention$code
+        }
     ),
     
     active = list(
@@ -1545,6 +1653,9 @@ JHEEM.ENGINE = R6::R6Class(
         i.has.been.crunched = NULL,
         
         i.diffeq.settings = NULL,
+        
+        i.intervention = NULL,
+        i.intervention.code = NULL,
         
         ##---------------------##
         ##---------------------##

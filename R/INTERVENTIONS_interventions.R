@@ -6,15 +6,28 @@
 ##-----------------------------------------------------##
 ##-----------------------------------------------------##
 
+#'@name Create an Intervention
+#'
+#'@param ... Either (a) objects of class 'target.population', (b) objects of class 'intervention.effect', or (c) lists containing only 'target.population' or 'intervention.effect' objects. Must contain at least one 'target.population' object and at least one 'intervention.effect' object
+#'@param code
+#'@param name
+#'
+#'@details Creates a 'jheem.intervention' object where all the intervention effects given in ... apply to all the target populations given in ...
+#'
 #'@export
 create.intervention <- function(..., code=NULL, name=NULL)
 {
     
 }
 
+#'@name Join Multiple Interventions into a Single Intervention
+#'
+#'@inheritParams create.intervention
 #'@param ... One or more interventions to join. These may be either objects of class jheem.intervention or lists which contain only objects of class jheem.intervention
+#'@param sequential
+#'
 #'@export
-join.interventions <- function(..., code, name)
+join.interventions <- function(..., code=NULL, name=NULL, sequential=F)
 {
     args = list(...)
     
@@ -29,7 +42,7 @@ join.interventions <- function(..., code, name)
                 sub.elem = elem[[j]]
                 if (is(sub.elem, 'jheem.intervention'))
                 {
-                    if (!sub.elem$is.combinable)
+                    if (!sub.elem$is.combinable
                         stop(paste0("Interventions passed to join.interventions must be *combinable*. The ",
                                     get.ordinal(j), " element of the ",
                                     get.ordinal(i), " element of ... is not combinable"))
@@ -85,36 +98,37 @@ is.no.intervention <- function(intervention)
 INTERVENTION.MANAGER = new.env()
 
 #'@export
-get.intervention <- function(code, throw.error.if.missing=T)
+get.intervention <- function(code, throw.error.if.missing=T, error.prefix='')
 {
     if (!is.character(code) || length(code)!=1 || is.na(code))
-        stop("'code' must be a single, non-NA character value")
+        stop(paste0(error.prefix, "'code' must be a single, non-NA character value"))
     
     rv = INTERVENTION.MANAGER[[code]]
     if (throw.error.if.missing && is.null(rv))
-        stop("No intervention with code '", code, "' has been registered")
+        stop(paste0(error.prefix, "No intervention with code '", code, "' has been registered"))
     
     rv
 }
 
-#'@export
-register.intervention <- function(intervention)
+register.intervention <- function(intervention, error.prefix='')
 {
     if (!is(intervention, 'jheem.intervention') && R6::is.R6(int))
-        stop("'intervention' must be an R6 object with class 'jheem.intervention'")
-
+        stop(paste0(error.prefix, "Cannot register intervention - 'intervention' must be an R6 object with class 'jheem.intervention'"))
+    
+    error.prefix = paste0(error.prefix, "Cannot register intervention '", intervention$name, "' - ")
+    
     # Check intervention validity
     if (is.null(intervention$code))
-        stop("interventions can only be registered if they have a code specified")
+        stop(paste0(error.prefix, "interventions can only be registered if they have a code specified"))
         
     if (!is.character(intervention$code) || length(intervention$code)!=1 || is.na(intervention$code) || 
         nchar(intervention$code)<MINIMUM.INTERVENTION.CODE.NCHAR || nchar(intervention$code)>MAXIMUM.INTERVENTION.CODE.NCHAR)
-        stop(paste0("Invalid intervention: 'code' must be a single, non-NA character value with between ",
+        stop(paste0(error.prefix, "Invalid intervention: 'code' must be a single, non-NA character value with between ",
                     MINIMUM.INTERVENTION.CODE.NCHAR, " and ", MAXIMUM.INTERVENTION.CODE.NCHAR, "letters"))
     
     if (!is.character(intervention$name) || length(intervention$name)!=1 || is.na(intervention$name) || 
         nchar(intervention$name)<MINIMUM.INTERVENTION.CODE.NCHAR || nchar(intervention$name)>MAXIMUM.INTERVENTION.CODE.NCHAR)
-        stop(paste0("Invalid intervention: 'name' must be a single, non-NA character value with between ",
+        stop(paste0(error.prefix, "Invalid intervention: 'name' must be a single, non-NA character value with between ",
                     MINIMUM.INTERVENTION.CODE.NCHAR, " and ", MAXIMUM.INTERVENTION.CODE.NCHAR, "letters"))
     
     if (is.logical(intervention$is.combinable) && length(intervention$is.combinable) && !is.na(intervention$is.combinable))
@@ -153,27 +167,63 @@ JHEEM.INTERVENTION = R6::R6Class(
     public = list(
         
         initialize = function(name,
-                               code,
-                               is.combinable)
+                              code)
         {
             # Do some error checking
             
             # Store the values
             private$i.name = name
             private$i.code = code
-            private$i.is.combinable = is.combinable
-            
+
             # Register to the intervention manager
             if (!is.null(code))
                 register.intervention(self)
         },
         
-        reduce.to.standard.intervention = function()
+        crunch = function(sim,
+                          start.year,
+                          end.year,
+                          check.consistency = !self$has.been.crunched())
         {
-            stop("The method 'reduce.to.standard.intervention' must be implemented in a descendant class of jheem.intervention")
+            
         },
         
-        get.description = function(model.specification)
+        run = function(sim,
+                       start.year,
+                       end.year,
+                       check.consistency=NULL,
+                       max.run.time.seconds=Inf,
+                       keep.years=start.year:end.year,
+                       atol=1e-04, rtol=1e-04,
+                       save.engine = F,
+                       error.prefix='')
+        {
+            if (!is(sim, 'jheem.simulation'))
+                stop(paste0(error.prefix, "'sim' must be an object of class 'jheem.simulation'"))
+            
+            # Get the engine
+            engine = sim$get.engine()
+            if (is.null(check.consistency))
+                check.consistency = !engine$has.been.crunched()
+            
+            # Set this intervention to the engine
+            engine$set.intervention(self)
+            
+            # Set up the engine for the intervention
+            private$do.prepare.to.run(engine)
+            
+            # Run
+            new.sim = engine$run(start.year = start.year,
+                                 end.year = end.year,
+                                 check.consistency = check.consistency,
+                                 prior.sim = sim,
+                                 max.run.time.seconds = max.run.time.seconds,
+                                 keep.years = keep.years,
+                                 atol = atol, rtol = rtol,
+                                 save.engine = save.engine)
+        },
+        
+        get.description = function(version)
         {
             stop("The method 'get.description' must be implemented in a descendant class of jheem.intervention")
         },
@@ -203,14 +253,6 @@ JHEEM.INTERVENTION = R6::R6Class(
                 private$i.code
             else
                 stop("Cannot modify 'code' for a jheem.intervention - it is read-only")
-        },
-        
-        is.combinable = function(value)
-        {
-            if (missing(value))
-                private$i.is.combinable
-            else
-                stop("Cannot modify 'is.combinable' for a jheem.intervention - it is read-only")
         }
     ),
     
@@ -218,7 +260,41 @@ JHEEM.INTERVENTION = R6::R6Class(
         
         i.name = NULL,
         i.code = NULL,
-        i.is.combinable = NULL
+        
+        do.prepare.to.run = function(engine)
+        {
+            stop("The method 'do.prepare.to.run' must be implemented in a descendant class of jheem.intervention")
+        }
+    )
+)
+
+SINGLE.ITERATION.INTERVENTION = R6::R6Class(
+    'single.iteration.intervention',
+    inherit = JHEEM.INTERVENTION,
+    
+    public = list(
+        
+        initialize = function(code, name)
+        {
+            
+        },
+        
+        # Returns a list of one or more jheem.model.foreground objects
+        # engine is an optional argument, which will yield foregrounds optimized for that particular engine
+        render.foregrounds = function(version, location, engine=NULL)
+        {
+            stop("The method 'render.foregrounds' must be implemented in a descendant class of jheem.intervention")
+        },
+        
+        
+    ),
+    
+    active = list(
+        
+    ),
+    
+    private = list(
+        
     )
 )
 
