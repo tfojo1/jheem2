@@ -446,7 +446,7 @@ c.ontology <- function(...)
         do.call(ontology, args=c(list.args, list(incomplete.dimensions=incomplete.dims)))
     }
     else
-        rv
+        NextMethod()
 }
 
 #'@title Resolve dimension.values into a set of dimnames for an ontology
