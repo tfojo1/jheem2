@@ -472,7 +472,7 @@ resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefi
         return (dimension.values)
     if (is.null(names(dimension.values)))
         stop(paste0(error.prefix, "'dimension.values' must be a NAMED list"))
-    if (!setequal(names(dimension.values), names(ont))) {
+    if (length(setdiff(names(dimension.values), names(ont))) > 0) {
         if (throw.error.if.unresolvable)
             stop(paste0(error.prefix, "'dimension.values' and 'ont' must have the same dimension names"))
         else
