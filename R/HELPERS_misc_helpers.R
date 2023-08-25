@@ -53,14 +53,6 @@ interpolate <- function(values,
 ##----------------------------##
 
 
-# str - a single character value
-string.contains.invalid.characters <- function(str, valid.characters)
-{
-    valid.characters = unlist(strsplit(valid.characters, ''))
-    sapply(strsplit(str, ''), function(chars){
-        length(setdiff(chars, valid.characters))>0
-    })
-}
 
 # str - a character vector
 # contents - a single string value
