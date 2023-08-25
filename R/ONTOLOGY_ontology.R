@@ -464,6 +464,17 @@ resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefi
     if (!is(ont, 'ontology'))
         stop(paste0(error.prefix, "'ont' must be an object of class 'ontology'"))
     
+    
+    resolve.dimension.values.against.dim.names(dimension.values = dimension.values,
+                                               dim.names = ont,
+                                               error.prefix = error.prefix,
+                                               throw.error.if.unresolvable = throw.error.if.unresolvable,
+                                               dim.names.name.for.error='ont')
+}
+
+resolve.dimension.values.against.dim.names <- function(dimension.values, dim.names, error.prefix, throw.error.if.unresolvable=T,
+                                                       dim.names.name.for.error='dim.names')
+{
     if (is.null(dimension.values))
         return (NULL)
     if (!is.list(dimension.values))
@@ -472,16 +483,37 @@ resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefi
         return (dimension.values)
     if (is.null(names(dimension.values)))
         stop(paste0(error.prefix, "'dimension.values' must be a NAMED list"))
-    if (length(setdiff(names(dimension.values), names(ont))) > 0) {
+    
+    if (!is.ontology(dim.names))
+        check.dim.names.valid(dim.names,
+                              variable.name.for.error = 'dim.names',
+                              allow.duplicate.values.across.dimensions = T,
+                              error.prefix = error.prefix)
+    
+    missing.dimensions = setdiff(names(dimension.values), names(dim.names))
+    if (length(missing.dimensions) > 0) 
+    {
         if (throw.error.if.unresolvable)
-            stop(paste0(error.prefix, "'dimension.values' and 'ont' must have the same dimension names"))
+            stop(paste0(error.prefix, "'", dim.names.name.for.error, "' is missing ",
+                        ifelse(length(missing.dimensions)==1, "dimension ", "dimensions "),
+                        collapse.with.and("'", missing.dimensions, "'"),
+                        ", which ",
+                        ifelse(length(missing.dimensions)==1, "is", 'are'),
+                        " present in 'dimension.values'"))
         else
             return (NULL)
     }
     
-    ontology.dimensions.complete = is_complete(ont)
+    if (is.ontology(dim.names))
+        ontology.dimensions.complete = is_complete(dim.names)
+    else
+    {
+        ontology.dimensions.complete = rep(T, length(dim.names))
+        names(ontology.dimensions.complete) = names(dim.names)
+    }
     
     rv = lapply(names(dimension.values), function(d){
+        
         if (!ontology.dimensions.complete[d])
         {
             if (is.character(dimension.values[[d]]))
@@ -493,7 +525,7 @@ resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefi
         {
             if (is.character(dimension.values[[d]]))
             {
-                invalid.values = setdiff(dimension.values[[d]], ont[[d]])
+                invalid.values = setdiff(dimension.values[[d]], dim.names[[d]])
                 if (length(invalid.values)>0)
                 {
                     if (throw.error.if.unresolvable)
@@ -509,22 +541,22 @@ resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefi
             }
             else if (is.numeric(dimension.values[[d]]))
             {
-                if (any(dimension.values[[d]]<1) || any(dimension.values[[d]]>length(ont[[d]])))
+                if (any(dimension.values[[d]]<1) || any(dimension.values[[d]]>length(dim.names[[d]])))
                 {
                     if (throw.error.if.unresolvable)
-                        stop(paste0(error.prefix, "If it is a numeric vector, values for dimension '", d, "' must contain values between 1 and ", length(ont[[d]])))
+                        stop(paste0(error.prefix, "If it is a numeric vector, values for dimension '", d, "' must contain values between 1 and ", length(dim.names[[d]])))
                     else
                         return (NULL)
                 }
                 
-                ont[[d]][ dimension.values[[d]] ]
+                dim.names[[d]][ dimension.values[[d]] ]
             }
             else if (is.logical(dimension.values[[d]]))
             {
-                if (length(dimension.values[[d]]) != length(ont[[d]]))
+                if (length(dimension.values[[d]]) != length(dim.names[[d]]))
                 {
                     if (throw.error.if.unresolvable)
-                        stop(paste0(error.prefix, "If it is a logical vector, values for dimension '", d, "' must be of length ", length(ont[[d]])))
+                        stop(paste0(error.prefix, "If it is a logical vector, values for dimension '", d, "' must be of length ", length(dim.names[[d]])))
                     else
                         return (NULL)
                 }
@@ -532,7 +564,7 @@ resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefi
                 if (!any(dimension.values[[d]]))
                     stop(paste0(error.prefix, "If it is a logical vector, values for dimension '", d, "' must be contain at least one TRUE value"))
                 
-                ont[[d]][ dimension.values[[d]] ]
+                dim.names[[d]][ dimension.values[[d]] ]
             }
             else
                 stop(paste0(error.prefix, "values for dimension '", d, "', which is incomplete, must be either a character, numeric, or logical vector"))

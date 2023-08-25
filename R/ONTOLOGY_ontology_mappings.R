@@ -518,7 +518,8 @@ do.get.ontology.mapping <- function(from.ontology,
         {
             is.null(to.ontology[[d]]) || # if it's NULL, we'll take anything
                 (!is.null(from.ontology[[d]]) && 
-                     length(setdiff(to.ontology[[d]], from.ontology[[d]]))==0)
+                     length(intersect(from.ontology[[d]], to.ontology[[d]]))>0)
+            #         length(setdiff(to.ontology[[d]], from.ontology[[d]]))==0)
         }
         else
         {
@@ -530,7 +531,7 @@ do.get.ontology.mapping <- function(from.ontology,
     
     success = to.has.only.required && from.has.all.required && excess.from.dimensions.are.complete &&
         !any(from.out.of.alignment.mask)
-    
+
     if (success)
     {
         if (get.two.way.alignment)
@@ -604,7 +605,7 @@ do.get.ontology.mapping <- function(from.ontology,
             # Update the ontology if we were to apply this mapping
             post.mapping.from.ontology = mapping$apply.to.ontology(from.ontology,
                                                                      error.prefix=error.prefix)
-            
+
             # Recurse
             additional.mappings = do.get.ontology.mapping(from.ontology=post.mapping.from.ontology,
                                                           to.ontology=to.ontology,
@@ -630,7 +631,8 @@ do.get.ontology.mapping <- function(from.ontology,
         reverse.mappings = do.get.ontology.mapping(from.ontology=to.ontology,
                                                    to.ontology=from.ontology,
                                                    required.dimensions=required.dimensions,
-                                                   required.dim.names=required.dim.names,
+#                                                   required.dim.names=required.dim.names,
+                                                   required.dim.names=required.dim.names[from.out.of.alignment.mask],
                                                    get.two.way.alignment=F) #leave off mappings to reset to the default
         
         if (is.null(reverse.mappings)) # We couldn't make it work
