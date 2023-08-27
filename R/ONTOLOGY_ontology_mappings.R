@@ -1369,11 +1369,17 @@ IDENTITY.ONTOLOGY.MAPPING = R6::R6Class(
                                   to.dim.names,
                                   error.prefix)
         {
-            rv = diag(rep(1, prod(sapply(from.dim.names, length))))
-            indices = get.array.access.indices(arr.dim.names=from.dim.names,
-                                               dimension.values=to.dim.names)
+            expand.indices = get.expand.array.indices(to.expand.dim.names = to.dim.names,
+                                                      target.dim.names = from.dim.names)
+            n.from = length(expand.indices)
+            n.to = prod(sapply(to.dim.names, length))
             
-            rv[indices,,drop=F]
+            nonzero.indices = (1:n.from-1)*n.to + expand.indices
+            
+            rv = matrix(0, nrow=n.to, ncol=n.from)
+            rv[nonzero.indices] = 1
+            
+            rv
         },
         
         do.get.mapping.indices = function(from.dim.names,

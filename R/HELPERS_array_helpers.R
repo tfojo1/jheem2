@@ -373,7 +373,7 @@ get.expand.array.indices <- function(to.expand.dim.names, target.dim.names)
             rv = do_get_expand_indices(dst_array=rv, src_dim_names = to.expand.dim.names)
             if (is.null(rv))
             {
-                check.expand.arguments(to.expand=to.expand, target.dim.names=target.dim.names)
+                check.expand.arguments(to.expand.dim.names=to.expand.dim.names, target.dim.names=target.dim.names)
                 stop("There was an error creating the expand indices")
             }
             rv
