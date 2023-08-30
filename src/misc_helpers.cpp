@@ -52,6 +52,7 @@ RObject union_sorted_vectors(List vectors)
     int n_non_empty_vectors = 0;
     int non_empty_vector_indices[vectors.length()];
     int max_v_len = 0;
+    int summed_v_len = 0;
     
     // Figure out which are non-empty vectors
     for (int i=0; i<vectors.length(); i++)
@@ -64,6 +65,7 @@ RObject union_sorted_vectors(List vectors)
                 non_empty_vector_indices[n_non_empty_vectors] = i;
                 n_non_empty_vectors++;
         
+                summed_v_len += len;
                 if (len > max_v_len)
                     max_v_len = len;
             }
@@ -80,6 +82,8 @@ RObject union_sorted_vectors(List vectors)
     double expected_size_factor = 2;
     double increment_size_factor = 1.5;
     int sorted_capacity = max_v_len * expected_size_factor;
+    if (sorted_capacity>summed_v_len)
+        sorted_capacity = summed_v_len;
     
     double *sorted_values;
     sorted_values = (double *) malloc(sorted_capacity * sizeof(double));
