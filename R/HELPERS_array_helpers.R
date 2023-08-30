@@ -36,7 +36,8 @@ array.access <- function(arr,
         elem = args[[elem.index]]
         if (is.list(elem))
         {
-            if (is.null(names(elem)) || any(is.na(names(elem))) || any(nchar(names(elem))==0))
+            if (length(elem)>0 && 
+                (is.null(names(elem)) || any(is.na(names(elem))) || any(nchar(names(elem))==0)))
                 stop(paste0(error.prefix, "Elements of ... which are lists must be NAMED"))
             
             invalid.type.mask = !sapply(elem, is.null) & !sapply(elem, is.numeric) & !sapply(elem, is.character) & !sapply(elem, is.logical)
@@ -175,7 +176,7 @@ check.array.access.arguments <- function(arr,
     if (!is.list(dimension.values))
         stop(paste0(dimension.values.name, " must be a named list"))
     
-    if (is.null(names(dimension.values)))
+    if (length(dimension.values)>0 && is.null(names(dimension.values)))
         stop(paste0(dimension.values.name, " must be a NAMED list"))
     
     if (length(unique(names(dimension.values))) != length(dimension.values))

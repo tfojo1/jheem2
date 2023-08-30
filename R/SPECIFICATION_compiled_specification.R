@@ -389,7 +389,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         #-- COMPILE FUNCTION and HELPERS --#
         #----------------------------------#
         
-        do.compile = function(verbose=T) #the verbose flag is for debugging only
+        do.compile = function(verbose=F) #the verbose flag is for debugging only
         {
             private$i.verbose = verbose
             error.prefix = paste0("Error compiling model specification for '", private$i.version, "': ")

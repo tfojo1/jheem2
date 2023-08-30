@@ -78,6 +78,7 @@ outer.join.dim.names <- function(..., error.prefix='')
 }
 
 
+
 # I need to figure out what 'union' means before moving on
 union.dim.names <- function(...)
 {
@@ -291,12 +292,60 @@ replace.with.aliases <- function(values, aliases)
 ##-- TESTING FOR EQUALITY/SUBSETS --##
 ##----------------------------------##
 
-dimension.values.equal <- function(dimension.values.1,
-                                   dimension.values.2,
+dimension.values.equal <- function(dv1,
+                                   dv2,
                                    match.order.of.dimensions = T,
                                    match.order.within.dimensions = T)
 {
-stop('need to implement')
+    dimensions1 = names(dv1)
+    dimensions2 = names(dv2)
+    
+    if (match.order.of.dimensions)
+    {
+        if (length(dimensions1)!=length(dimensions2) ||
+            any(dimensions1!=dimensions2))
+            return (F)
+    }
+    else
+    {
+        if (length(dimensions1)!=length(dimensions2) ||
+            !setequal(dimensions1, dimensions2))
+            return (F)
+    }
+    
+    all(sapply(dimensions1, function(d){
+        
+        val1 = dv1[[d]]
+        val2 = dv2[[d]]
+        
+        if (is.character(val1) && is.character(val2))
+        {
+            if (match.order.within.dimensions)
+                length(val1)==length(val2) && all(val1==val2)
+            else
+                length(val1)==length(val2) && setequal(val1, val2)
+        }
+        else if (is.character(val1) || is.character(val2))
+            F
+        # neither is a character
+        else if (is.logical(val1) && is.logical(val2))
+            length(val1)==length(val2) && all(val1==val2)
+        else # at least one is an integer
+        {
+            match.order = match.order.within.dimensions && !is.logical(val1) && !is.logical(val2)
+            if (is.logical(val1))
+                val1 = (1:length(val1))[val1]
+            if (is.logical(val2))
+                val2 = (1:length(val2))[val2]
+
+            if (match.order)
+                length(val1)==length(val2) && all(val1==val2)
+            else
+                length(val1)==length(val2) && setequal(val1, val2)
+        }
+        
+        
+    }))
 }
 
 dim.names.equal <- function(dim.names.1, dim.names.2,
@@ -678,4 +727,60 @@ check.dimension.values.valid <- function(dimension.values,
                         "' must either be character, numeric, or logical vectors. ",
                         variable.name.for.error, "[['", d, "']] is none of these"))
     })
+}
+
+# we assume that dv1 and dv2 are valid dimension values objects
+# returns NULL if no overlap
+get.dimension.values.overlap <- function(dv1, dv2)
+{
+    dimensions1 = names(dv1)
+    dimensions2 = names(dv2)
+    all.dimensions = union(dimensions1, dimensions2)
+    rv = lapply(all.dimensions, function(d){
+        if (is.null(dv1[[d]]))
+            dv2[[d]]
+        else if (is.null(dv2[[d]]))
+            dv1[[d]]
+        else
+        {
+            values1 = dv1[[d]]
+            values2 = dv2[[d]]
+            
+            if (is.character(values1))
+            {
+                if (is.character(values2))
+                    intersect(values1, values2)
+                else
+                    NULL
+            }
+            else if (is.character(values2)) # we already know values1 is not a character
+                NULL
+            # below here, neither is a character
+            else if (is.logical(values1) && is.logical(values2))
+            {
+                if (length(values1)==length(values2))
+                    values1 & values2
+                else
+                    NULL
+            }
+            else # at least one is integer
+            {
+                if (is.logical(values1))
+                    values1 = (1:length(values1))[values1]
+                if (is.logical(values2))
+                    values2 = (1:length(values2))[values2]
+                
+                intersect(values1, values2)
+            }
+        }
+    }) 
+    names(rv) = all.dimensions
+    
+    if (any(sapply(rv, function(values){
+        length(values)==0 || 
+            (is.logical(values) && !any(values))
+    })))
+        NULL
+    else
+        rv
 }
