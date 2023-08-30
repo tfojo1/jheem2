@@ -1,4 +1,5 @@
 source('R/ONTOLOGY_ontology_mappings.R')
+source('R/HELPERS_misc_helpers.R')
 
 register.ontology.mapping('lump.other.risk.and.heterosexual',
                           from.dimensions = 'risk',
@@ -42,3 +43,5 @@ map.race = ONTOLOGY.MAPPING.MANAGER$mappings$cdc.to.jheem.race
 
 # All three are 'basic.ontology.mapping' objects
 # But only map.race can access the method "get.required.from.dimensions"
+
+map.lump$get.required.from.dimensions('race')
