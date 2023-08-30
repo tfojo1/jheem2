@@ -71,7 +71,7 @@ get.likelihood.instructions = function(code, error.prefix)
 # - will probably need to override the constructor BUT needs to call the superclass constructor
 
 JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
-    class='jheem.likelihood.instructions',
+    'jheem.likelihood.instructions',
     
     public = list(
         
@@ -392,7 +392,7 @@ JHEEM.LIKELIHOOD.WEIGHTS = R6::R6Class(
 # Subclasses need to implement the following methods:
 # - do.compute
 JHEEM.LIKELIHOOD = R6::R6Class(
-    class ='jheem.likelihood',
+    'jheem.likelihood',
     inherit= JHEEM.ENTITY,
     portable = F,
     
