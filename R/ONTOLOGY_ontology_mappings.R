@@ -952,8 +952,8 @@ create.age.ontology.mapping <- function(from.values,
 ##----------------------------------##
 
 
-#ONTOLOGY.MAPPING.MANAGER = new.env()
-#ONTOLOGY.MAPPING.MANAGER$mappings=list()
+ONTOLOGY.MAPPING.MANAGER = new.env()
+ONTOLOGY.MAPPING.MANAGER$mappings=list()
 
 
 ##-----------------------##
