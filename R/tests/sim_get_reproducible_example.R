@@ -8,8 +8,8 @@ source('../jheem_analyses/applications/EHE/ehe_specification.R')
 
 sim = make.dummy.sim(version='ehe',
                      location='MD',
-                     from.year=2009,
-                     to.year=2013)
+                     from.year=1970,
+                     to.year=2025)
 sim.numerator.data = sim$get(outcome='new',
                              keep.dimensions = c('year', 'age', 'sex', 'race', 'risk'))
 

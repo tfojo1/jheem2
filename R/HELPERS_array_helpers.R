@@ -219,7 +219,7 @@ check.array.access.arguments <- function(arr,
             if (length(invalid.values)>0)
                 stop(paste0("Invalid ",
                             ifelse(length(invalid.values)==1, 'value', 'values'),
-                            " fir dimension '", d, "' in ", dimension.values.name, ": ",
+                            " for dimension '", d, "' in ", dimension.values.name, ": ",
                             paste0("'", invalid.values, "'", collapse=', ')))
             
             dimension.values[[d]]
