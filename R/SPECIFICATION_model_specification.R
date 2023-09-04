@@ -16,6 +16,7 @@
 #'@title Create a Model Specification for Running the JHEEM
 #'
 #'@param version A single character value denoting the version
+#'@param sub.versions A character vector indicating the names of 'sub-versions' of the model. A sub-version has the same structure but records a different set of outcomes
 #'@param iteration A single character or numeric value denoting the iteration of the model specification for this version
 #'@param description A short text description of this version
 #'
@@ -35,6 +36,7 @@
 create.jheem.specification <- function(version,
                                        iteration,
                                        description,
+                                       sub.versions=character(),
                                        
                                        parent.version = NULL,
                                        do.not.inherit.model.quantity.names = character(),
@@ -82,6 +84,9 @@ create.jheem.specification <- function(version,
     
     if (missing(age.endpoints))
         age.endpoints = NULL
+    
+    if (missing(sub.versions))
+        sub.versions = NULL
     
     ##-- CHECK ARGUMENTS --##
 
@@ -156,6 +161,35 @@ create.jheem.specification <- function(version,
         
         parent.specification = get.specification.for.version(parent.version)
     }    
+    
+    #-- Sub Versions --#
+    if (!is.character(sub.versions) || any(is.na(sub.versions)))
+        stop(paste0(error.prefix, "'sub.versions' must be a character vector with no NA values"))
+    
+    for (one.sub.version in sub.versions)
+    {
+        if (nchar(one.sub.version)<MIN.SPECIFICATION.SUBVERSION.NCHAR || nchar(one.sub.version)>MAX.SPECIFICATION.SUBVERSION.NCHAR)
+            stop(paste0(error.prefix,
+                        "'sub.versions' must have between ", MIN.SPECIFICATION.VERSION.NCHAR,
+                        " and ", MAX.SPECIFICATION.VERSION.NCHAR, " letters. ('",
+                        one.sub.version, "' has ", nchar(one.sub.version), ")"))
+        
+        if (string.contains.invalid.characters(one.sub.version, valid.characters = NUMBERS.LETTERS))
+        {
+            invalid = setdiff(strsplit(one.sub.version, '')[[1]], strsplit(NUMBERS.LETTERS, '')[[1]])
+            stop(paste0(error.prefix,
+                        "Invalid ",
+                        ifelse(length(invalid)==1, "character", "characters"),
+                        "(", paste0(invalid, collapse=', '), 
+                        ") in sub.version '", one.sub.version, 
+                        "' - can only contain numbers and letters"))
+        }
+    }
+    
+    
+    if (!is.null(parent.specification))
+        sub.versions = c(sub.versions, parent.specification$sub.versions)
+    sub.versions = unique(sub.versions)
     
     #--  Do not inherit <x> --#
     
@@ -568,6 +602,7 @@ create.jheem.specification <- function(version,
         version = version,
         iteration = iteration,
         description = description,
+        sub.versions = sub.versions,
         
         parent.specification = parent.specification,
         do.not.inherit.model.quantity.names = do.not.inherit.model.quantity.names,
@@ -870,8 +905,25 @@ register.model.quantity.subset <- function(specification,
                                            ...)
 }
 
+#'@name Register a Foreground for a Model Specification
+#'
+#'@inheritParams register.model.quantity
+#'@param foreground An object of class 'jheem.foreground', as created by \code{\link{create.model.foreground}}
+#'
+#'@export
+register.model.foreground <- function(specification,
+                                      foreground)
+{
+    
+}
 
 
+#'@name Create
+register.default.parameters <- function(specification,
+                                        parameters)
+{
+    
+}
 
 
 #'@title Register Information about Mortality for a Model Specification
@@ -1070,7 +1122,7 @@ register.transition <- function(specification,
 #'
 #'@family Defining Core Components for a Model Specification
 #'
-#'@export
+#@export
 #'
 register.model.mechanism <- function(specification,
                                      type,
@@ -1087,7 +1139,6 @@ register.model.mechanism <- function(specification,
 {
     stop("This function is not currently implemented")
 }
-
 
 ##----------------------##
 ##-- OUTCOME TRACKING --##
@@ -1616,6 +1667,8 @@ MIN.SPECIFICATION.VERSION.NCHAR = 2
 MAX.SPECIFICATION.VERSION.NCHAR = 12
 MIN.SPECIFICATION.ITERATION.NCHAR = 1
 MAX.SPECIFICATION.ITERATION.NCHAR = 20
+MIN.SPECIFICATION.SUBVERSION.NCHAR = 1
+MAX.SPECIFICATION.SUBVERSION.NCHAR = 3
 
 MIN.SPECIFICATION.DESCRIPTION.NCHAR = 2
 MAX.SPECIFICATION.DESCRIPTION.NCHAR = 500
@@ -1659,6 +1712,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         initialize = function(version,
                               iteration,
                               description,
+                              sub.versions,
                               
                               parent.specification,
                               do.not.inherit.model.quantity.names,
@@ -1685,6 +1739,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
             private$i.version = version
             private$i.iteration = iteration
             private$i.description = description
+            private$i.sub.versions = sub.versions
             
             private$i.parent.specification = parent.specification
             private$i.do.not.inherit.model.quantity.names = do.not.inherit.model.quantity.names
@@ -2035,7 +2090,22 @@ JHEEM.SPECIFICATION = R6::R6Class(
             #-- Return --#
             invisible(self)
         },
-    
+        
+        ##---------------------------------##
+        ##-- MISC REGISTRATION FUNCTIONS --##
+        ##---------------------------------##
+        
+        register.foreground = function(foreground)
+        {
+            
+        },
+        
+        register.default.parameters = function(parameters)
+        {
+            
+        },
+        
+        
         ##---------------------------------##
         ##-- REGISTERING CORE COMPONENTS --##
         ##---------------------------------##
@@ -2598,7 +2668,15 @@ JHEEM.SPECIFICATION = R6::R6Class(
 
 ##-- ACTIVE - GETTERS --##
     active = list(
-    
+        
+        sub.versions = function(value)
+        {
+            if (missing(value))
+                private$i.sub.versions
+            else
+                stop("Cannot modify 'sub.versions' for a jheem.specification - they are read-only")
+        },
+        
         parent.version = function(value)
         {
             if (missing(value))
@@ -2743,12 +2821,16 @@ JHEEM.SPECIFICATION = R6::R6Class(
         i.version = NULL,
         i.iteration = NULL,
         i.description = NULL,
+        i.sub.versions = NULL,
         
         i.compartment.value.character.aliases = NULL,
         i.compartment.value.function.aliases = NULL,
         
         i.ontologies = NULL,
         i.compartments = NULL,
+        
+        i.foregrounds = NULL,
+        i.default.parameters = NULL,
         
         i.fixed.strata.info = NULL,
         i.quantities = NULL,

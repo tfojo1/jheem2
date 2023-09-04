@@ -1,27 +1,186 @@
 
 #'@name Create an Effect for an Intervention to Have on a Model Quantity
 #'
-#'@param target.quantity.name The name of the quantity, defined in a jheem.model.specification, which an intervention affects
+#'@param quantity.name The name of the quantity, defined in a jheem.model.specification, which an intervention affects
 #'@param start.time The time at which the intervention begins to take effect (ie, depart from what the value of the quantity would otherwise have been)
-#'@param values The values to apply to the quantity at times. Must be either (1) a numeric vector of the same length as times, (2) a character vector of the same length as times, (3) a list containing scalar numeric values, single character values, expressions, or calls, with the same length as times, or (d) a single expression or call value, only if length(times)==1
+#'@param effect.values The values to apply to the quantity at times. Must be either (1) a numeric vector, (2) a character vector, (3) an expression or call, or (4) a list containing only numeric vectors, character vectors, expressions, or calls
 #'@param times The times as which values apply to the quantity. 
 #'@param end.time The time at which the intervention stops taking effect (ie, returns to what the value of the quantity otherwise would have been)
-#'@param apply.values.as A character vector indicating how values should be applied to the quantity. Choices are (1) 'absolute' - the quantity takes the given value, (2) 'multiplier' - the value is multiplied by the value the quantity would otherwise have taken, or (3) 'addend' - the value is added to the value the quantity would otherwise have taken. Must either be a single character value (in which case, it is applied to all the times) or have the same length as times and values
+#'@param apply.values.as A character vector indicating how values should be applied to the quantity. Choices are (1) 'value' - the quantity takes the given value, (2) 'multiplier' - the value is multiplied by the value the quantity would otherwise have taken, or (3) 'addend' - the value is added to the value the quantity would otherwise have taken. Must either be a single character value (in which case, it is applied to all the times) or have the same length as times and values
 #'@param scale The scale at which values are applied to the quantity
 #'@param allow.values.less.than.otherwise,allow.values.greater.than.otherwise Logical indicators of whether the intervention may cause the value of the quantity to be less/greater than it otherwise would have been
 #'
 #'@export
-create.intervention.effect <- function(target.quantity.name,
+create.intervention.effect <- function(quantity.name,
                                        start.time,
-                                       values,
+                                       effect.values,
                                        times,
                                        end.time=Inf,
-                                       apply.values.as = c('absolute','multiplier','addend')[1],
+                                       apply.effects.as = c('value','multiplier','addend')[1],
                                        scale,
                                        allow.values.less.than.otherwise,
-                                       allow.values.greater.than.otherwise)
+                                       allow.values.greater.than.otherwise,
+                                       bindings=NULL)
 {
+    # Validate target quantity name
+    error.prefix = "Cannot create intervention effect: "
+    if (!is.character(quantity.name) || length(quantity.name)!=1 ||
+        is.na(quantity.name) || nchar(quantity.name)==0)
+        stop(paste0(error.prefix, "'quantity.name' must be a single, non-NA, non-empty character value"))
     
+    error.prefix = paste0("Cannot create intervention effect for quantity '", quantity.name, "': ")
+    
+    # Process times (start.time, end.time, times)
+    start.time = create.effect.evaluatable.value(value = start.time, 
+                                                 value.name = 'start.time', 
+                                                 allowed.expression.functions = ALLOWED.EFFECT.START.END.TIME.EXPRESSION.FUNCTIONS, 
+                                                 return.as.list = F,
+                                                 error.prefix = error.prefix)
+    
+    end.time = create.effect.evaluatable.value(value = end.time, 
+                                               value.name = 'end.time', 
+                                               allowed.expression.functions = ALLOWED.EFFECT.START.END.TIME.EXPRESSION.FUNCTIONS, 
+                                               return.as.list = F,
+                                               error.prefix = error.prefix)
+    
+    times = create.effect.evaluatable.value(value = times, 
+                                            value.name = 'times', 
+                                            allowed.expression.functions = ALLOWED.EFFECT.TIMES.EXPRESSION.FUNCTIONS, 
+                                            return.as.list = T,
+                                            error.prefix = error.prefix)
+    
+    
+    # Process values
+    effect.values = create.effect.evaluatable.value(value = effect.values, 
+                                                    value.name = 'effect.values', 
+                                                    allowed.expression.functions = ALLOWED.EFFECT.VALUES.EXPRESSION.FUNCTIONS, 
+                                                    return.as.list = T,
+                                                    error.prefix = error.prefix)
+    
+    # Validate scale
+    check.model.scale(scale = scale,
+                      error.prefix = error.prefix)
+    
+    
+    # Validate allow.values.less.than.otherwise, allow.values.greater.than.otherwise
+    if (!is.logical(allow.values.less.than.otherwise) || length(allow.values.less.than.otherwise)!=1 ||
+        is.na(allow.values.less.than.otherwise))
+        stop(paste0(error.prefix, "'allow.values.less.than.otherwise', must be a single, non-NA logical value"))
+    
+    if (!is.logical(allow.values.greater.than.otherwise) || length(allow.values.greater.than.otherwise)!=1 ||
+        is.na(allow.values.greater.than.otherwise))
+        stop(paste0(error.prefix, "'allow.values.greater.than.otherwise', must be a single, non-NA logical value"))
+    
+    if (allow.values.less.than.otherwise && allow.values.greater.than.otherwise)
+        stop(paste0(error.prefix, "'allow.values.less.than.otherwise' and 'allow.values.greater.than.otherwise' cannot BOTH be TRUE"))
+    
+    # Validate apply.effects.as
+    if (!is.character(apply.effects.as) || length(apply.effects.as)==0 || any(is.na(apply.effects.as)))
+        stop(paste0(error.prefix, "'apply.effects.as' must be a non-empty character vector with no NA values"))
+    valid.apply.effects.as = c('value','multiplier','addend')
+    invalid.apply.effects.as = setdiff(apply.effects.as, valid.apply.effects.as)
+    if (length(invalid.apply.effects.as)>0)
+        stop(paste0(error.prefix,
+                    collapse.with.and("'", invalid.apply.effects.as, "'"),
+                    ifelse(length(invalid.apply.effects.as)==1, " is not a valid value", " are not valid values"),
+                    " for 'apply.effects.as'. Must be either ",
+                    collapse.with.or("'", valid.apply.effects.as, "'")))
+    
+    
+    # Validate bindings
+    if (!is.null(bindings))
+    {
+        if (!is.list(bindings))
+            stop(paste0(error.prefix, "'bindings' must be a named list"))
+        
+        if (length(bindings)>0)
+        {
+            if (is.null(names(bindings)))
+                stop(paste0(error.prefix, "'bindings' must be a NAMED list"))
+            
+            if (any(!sapply(bindings, is.numeric)))
+                stop(paste0(error.prefix, "The elements of 'bindings' must be numeric vectors"))
+            
+            if (any(sapply(bindings, function(val){
+                any(is.na(val))
+            })))
+                stop(paste0(error.prefix, "The elements of 'bindings' cannot contain NA values"))
+        }
+    }
+    
+    # Call the constructor
+    rv = JHEEM.INTERVENTION.EFFECT$new(quantity.name = quantity.name,
+                                       start.time = start.time,
+                                       effect.values = effect.values,
+                                       times = times,
+                                       end.time = end.time,
+                                       apply.effects.as = apply.effects.as,
+                                       scale = scale,
+                                       allow.values.less.than.otherwise = allow.values.less.than.otherwise,
+                                       allow.values.greater.than.otherwise = allow.values.greater.than.otherwise,
+                                       bindings = bindings,
+                                       error.prefix = error.prefix)
+    
+    # Resolve if appropriate
+    if (!rv$is.resolved && length(rv$depends.on)==0)
+        rv$resolve(bindings = list(), error.prefix = error.prefix)
+    else
+        rv
+}
+
+##---------------------------##
+##-- CONSTANTS and HELPERS --##
+##---------------------------##
+
+ALLOWED.EFFECT.START.END.TIME.EXPRESSION.FUNCTIONS = c("+","-","*","/","(","log","exp","sqrt")
+ALLOWED.EFFECT.TIMES.EXPRESSION.FUNCTIONS = c("+","-","*","/","(","log","exp","sqrt", "c", ":")
+ALLOWED.EFFECT.VALUES.EXPRESSION.FUNCTIONS = ALLOWED.EFFECT.TIMES.EXPRESSION.FUNCTIONS
+
+# A helper
+# If numeric, just returns the numeric value
+create.effect.evaluatable.value <- function(value, 
+                                            allowed.expression.functions, 
+                                            value.name, 
+                                            return.as.list,
+                                            error.prefix)
+{
+    if (is.numeric(value))
+        value
+    else
+    {
+        was.list = is.list(value)
+        if (!is.list(value))
+            value = list(value)
+        
+        rv = lapply(1:length(value), function(i){
+            
+            one.val = value[[i]]
+            if (is.numeric(one.val))
+                one.val
+            else
+            {
+                one.rv = EVALUATABLE.VALUE$new(na.replacement = as.numeric(NA),
+                                           allow.numeric.value = T,
+                                           allow.character.value = T,
+                                           allow.expression.value = T,
+                                           allow.function.value = F,
+                                           allowed.expression.functions = allowed.expression.functions,
+                                           function.arguments.to.be.supplied.later = character(), 
+                                           error.prefix = error.prefix)
+                
+                one.rv$set.value(value = one.val, 
+                             value.name = ifelse(was.list, paste0("the ", get.ordinal(i), " element of ", value.name), value.name),
+                             error.prefix = error.prefix)
+                
+                one.rv
+            }
+        })
+        
+        if (return.as.list)
+            rv
+        else
+            rv[[1]]
+    }
 }
 
 ##-----------------------##
@@ -35,51 +194,374 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
     
     public = list(
         
-        initialize = function(target.quantity.name,
+        initialize = function(quantity.name,
                               start.time,
-                              values,
+                              effect.values,
                               times,
-                              end.time=Inf,
+                              end.time,
+                              apply.effects.as,
                               scale,
                               allow.values.less.than.otherwise,
-                              allow.values.greater.than.otherwise)
+                              allow.values.greater.than.otherwise,
+                              bindings,
+                              error.prefix)
         {
-            # Validate target quantity name
-            error.prefix = "Cannot create intervention effect: "
-            if (!is.character(target.quantity.name) || length(target.quantity.name)!=1 ||
-                is.na(target.quantity.name) || nchar(target.quantity.name)==0)
-                stop(paste0(error.prefix, "'target.quantity.name' must be a single, non-NA, non-empty character value"))
+            # This constructor is partly 'dumb' - some error checking is done by other functions that call it
             
-            error.prefix = paste0("Cannot create intervention effect for quantity '", target.quantity.name, "': ")
+            if (is.numeric(times))
+                n = length(times)
+            else if (is.numric(effect.values))
+                n = length(effect.values)
+            else
+                n = NA
             
-            # Validate times (start.time, end.time, times)
+            # Check that times, effect.values, and apply.effects.as are all the same length
+            if (is.numeric(times) || is.numeric(effect.values))
+            {
+                if (is.numeric(times) && is.numeric(effect.values))
+                {
+                    if (length(times) != length(effect.values))
+                        stop(paste0(error.prefix, "'times' (length ", length(times), 
+                                    ") and 'effect.values' (length ", length(effect.values),
+                                    ") must be the same length"))
+                }
+                
+                if (length(apply.effects.as)==1)
+                    apply.effects.as = rep(apply.effects.as, n)
+                else if (length(apply.effects.as) != n)
+                    stop(paste0(error.prefix, "'apply.effects.as' (length ", length(apply.effects.as),
+                                ") must either have length 1 or have the same length as 'effect.values' and 'times' (length ", 
+                                n, ")"))
+            }
             
-            # Validate values
+            # Check start.time
+            if (is.numeric(start.time))
+            {
+                if (length(start.time)!=1)
+                    stop(paste0(error.prefix, "'start.time' must be a SINGLE numeric value"))
+                
+                if (is.na(start.time))
+                    stop(paste0(error.prefix, "'start.time' cannot be NA"))
+            }
             
-            # Validate scale
+            # Check end.time
+            if (is.numeric(end.time))
+            {
+                if (length(end.time)!=1)
+                    stop(paste0(error.prefix, "'end.time' must be a SINGLE numeric value"))
+                
+                if (is.na(end.time))
+                    stop(paste0(error.prefix, "'end.time' cannot be NA"))
+                
+                if (is.numeric(start.time))
+                {
+                    if (start.time >= end.time)
+                        stop(paste0(error.prefix, "'start.time' (", start.time, 
+                                    ") must be BEFORE 'end.time' (", end.time, ")"))
+                }
+            }
             
-            # Validate allow.values.less.than.otherwise, allow.values.greater.than.otherwise
-            if (!is.logical(allow.values.less.than.otherwise) || length(allow.values.less.than.otherwise)!=1 ||
-                is.na(allow.values.less.than.otherwise))
-                stop(paste0(error.prefix, "'allow.values.less.than.otherwise', must be a single, non-NA logical value"))
+            # Check times - for NAs, for order
+            if (is.numeric(times))
+            {
+                if (any(is.na(times)))
+                    stop(paste0(error.prefix, "'times' cannot contain NA values"))
+                
+                if (any(times[-1]<=times[-length(times)]))
+                    stop(paste0(error.prefix, "'times' must be in ascending order"))
+                
+                if (is.numeric(start.time) && start.time >= times[1])
+                    stop(paste0(error.prefix, "'start.time' (",
+                                start.time, ") must be BEFORE the first element of 'times' (",
+                                times[1], ")"))
+                
+                if (is.numeric(end.time) && end.time <= times[length(times)])
+                    stop(paste0(error.prefix, "'end.time' (",
+                                start.time, ") must be AFTER the last element of 'times' (",
+                                times[length(times)], ")"))
+            }
+            else
+            {
+                if (any(sapply(times, function(one.time){
+                    is.numeric(one.time) && any(is.na(one.time))
+                })))
+                    stop(paste0(error.prefix, "'times' cannot contain numeric vectors with NA values"))
+            }
             
-            if (!is.logical(allow.values.greater.than.otherwise) || length(allow.values.greater.than.otherwise)!=1 ||
-                is.na(allow.values.greater.than.otherwise))
-                stop(paste0(error.prefix, "'allow.values.greater.than.otherwise', must be a single, non-NA logical value"))
+            # Check effect values - for NA and >= 0 if multiplier
+            if (is.numeric(effect.values))
+            {
+                if (any(is.na(effect.values)))
+                    stop(paste0(error.prefix, "'effect.values' cannot contain NA values"))
+                
+                if (any(apply.effects.as=='multiplier' & effect.values<0))
+                    stop(paste0(error.prefix, "When 'apply.effects.as' is 'multiplier', corresponding 'effect.values' must be non-negative"))
+                
+                if (any(sapply(effect.values, function(one.effect){
+                    is.numeric(one.effect) && any(is.na(one.effect))
+                })))
+                    stop(paste0(error.prefix, "'effect.values' cannot contain numeric vectors with NA values"))
+            }
             
-            if (allow.values.less.than.otherwise && allow.values.greater.than.otherwise)
-                stop(paste0(error.prefix, "'allow.values.less.than.otherwise' and 'allow.values.greater.than.otherwise' cannot BOTH be TRUE"))
             
             # Store values
-        }
+            private$i.quantity.name = quantity.name
+            private$i.start.time = start.time
+            private$i.effect.values = effect.values
+            private$i.times = times
+            private$i.end.time = end.time
+            private$i.apply.effects.as = apply.effects.as
+            private$i.scale = scale
+            private$i.allow.values.less.than.otherwise = allow.values.less.than.otherwise
+            private$i.allow.values.greater.than.otherwise = allow.values.greater.than.otherwise
+            private$i.bindings = bindings
+            private$i.is.resolved = is.numeric(effect.values) && is.numeric(times) && is.numeric(start.time) && is.numeric(end.time)
+            
+            private$i.depends.on = character()
+            if (!private$i.is.resolved)
+            {
+                if (!is.numeric(start.time))
+                    private$i.depends.on = c(private$i.depends.on, start.time$depends.on)
+                
+                if (!is.numeric(end.time))
+                    private$i.depends.on = c(private$i.depends.on, end.time$depends.on)
+                
+                if (!is.numeric(times))
+                    private$i.depends.on = c(private$i.depends.on, 
+                                             unlist(sapply(times, function(one.time){
+                                                 if (is.numeric(one.time))
+                                                     character()
+                                                 else
+                                                     one.time$depends.on
+                                             })))
+                
+                if (!is.numeric(effect.values))
+                    private$i.depends.on = c(private$i.depends.on, 
+                                             unlist(sapply(effect.values, function(one.effect){
+                                                 if (is.numeric(one.effect))
+                                                     character()
+                                                 else
+                                                     one.effect$depends.on
+                                             })))
+                
+                private$i.depends.on = setdiff(private$i.depends.on, names(bindings))
+            }
+        },
         
+        resolve = function(bindings, error.prefix='')
+        {
+            if (private$i.is.resolved)
+                self
+            else
+            {
+                # Check for missing bindings
+                
+                bindings[names(private$i.bindings)] = private$i.bindings
+                
+                if (is.numeric(private$i.start.time))
+                    start.time = private$i.start.time
+                else
+                    start.time = private$i.start.time$evaluate(bindings, error.prefix = error.prefix)
+                
+                if (is.numeric(private$i.end.time))
+                    end.time = private$i.end.time
+                else
+                    end.time = private$i.end.time$evaluate(bindings, error.prefix = error.prefix)
+                
+                if (is.numeric(private$i.times))
+                    times = private$i.times
+                else
+                    times = unlist(lapply(private$i.times, function(one.time){
+                        if (is.numeric(one.time))
+                            one.time
+                        else
+                            one.time$evaluate(bindings, error.prefix = error.prefix)
+                    }))
+                
+                if (is.numeric(private$i.effect.values))
+                    effect.values = private$i.effect.values
+                else
+                    effect.values = unlist(lapply(private$i.effect.values, function(one.effect){
+                        if (is.numeric(one.effect))
+                            one.effect
+                        else
+                            one.effect$evaluate(bindings, error.prefix = error.prefix)
+                    }))
+                
+                JHEEM.INTERVENTION.EFFECT$new(quantity.name = private$i.quantity.name,
+                                              start.time = start.time,
+                                              effect.values = effect.values,
+                                              times = times,
+                                              end.time = end.time,
+                                              apply.effects.as = private$i.apply.effects.as,
+                                              scale = private$i.scale,
+                                              allow.values.less.than.otherwise = private$i.allow.values.less.than.otherwise,
+                                              allow.values.greater.than.otherwise = private$i.allow.values.greater.than.otherwise,
+                                              bindings = NULL,
+                                              error.prefix = error.prefix)
+            }
+        }
     ),
     
     active = list(
         
+        quantity.name = function(value)
+        {
+            if (missing(value))
+                private$i.quantity.name
+            else
+                stop("Cannot set a jheem.intervention.effect's 'quantity.name' - it is read only")
+        },
+        
+        start.time = function(value)
+        {
+            if (missing(value))
+            {
+                if (is.numeric(private$i.start.time))
+                    private$i.start.time
+                else
+                    NULL
+            }
+            else
+                stop("Cannot set a jheem.intervention.effect's 'start.time' - it is read only")
+        },
+        
+        effect.values = function(value)
+        {
+            if (missing(value))
+            {
+                if (is.numeric(private$i.effect.values))
+                    private$i.effect.values
+                else
+                    NULL
+            }
+            else
+                stop("Cannot set a jheem.intervention.effect's 'effect.values' - they are read only")
+        },
+        
+        times = function(value)
+        {
+            if (missing(value))
+            {
+                if (is.numeric(private$i.times))
+                    private$i.times
+                else
+                    NULL
+            }
+            else
+                stop("Cannot set a jheem.intervention.effect's 'times' - they are read only")
+        },
+        
+        end.time = function(value)
+        {
+            if (missing(value))
+            {
+                if (is.numeric(private$i.end.time))
+                    private$i.end.time
+                else
+                    NULL
+            }
+            else
+                stop("Cannot set a jheem.intervention.effect's 'end.time' - it is read only")
+        },
+        
+        apply.effects.as = function(value)
+        {
+            if (missing(value))
+                private$i.apply.effects.as
+            else
+                stop("Cannot set a jheem.intervention.effect's 'apply.effects.as' - it is read only")
+        },
+        
+        # This and the following two bindings are provided to make the cpp interface in engine_helpers.cpp easier to code
+        apply.effects.as.value = function(value)
+        {
+            if (missing(value))
+                private$i.apply.effects.as == 'value'
+            else
+                stop("Cannot set a jheem.intervention.effect's 'apply.effects.as.value' - it is read only")
+        },
+        
+        apply.effects.as.multiplier = function(value)
+        {
+            if (missing(value))
+                private$i.apply.effects.as == 'multiplier'
+            else
+                stop("Cannot set a jheem.intervention.effect's 'apply.effects.as.value' - it is read only")
+        },
+        
+        apply.effects.as.addend = function(value)
+        {
+            if (missing(value))
+                private$i.apply.effects.as == 'addend'
+            else
+                stop("Cannot set a jheem.intervention.effect's 'apply.effects.as.value' - it is read only")
+        },
+        
+        scale = function(value)
+        {
+            if (missing(value))
+                private$i.scale
+            else
+                stop("Cannot set a jheem.intervention.effect's 'scale' - it is read only")
+        },
+        
+        allow.values.less.than.otherwise = function(value)
+        {
+            if (missing(value))
+                private$i.allow.values.less.than.otherwise
+            else
+                stop("Cannot set a jheem.intervention.effect's 'allow.values.less.than.otherwise' - it is read only")
+        },
+        
+        allow.values.greater.than.otherwise = function(value)
+        {
+            if (missing(value))
+                private$i.allow.values.greater.than.otherwise
+            else
+                stop("Cannot set a jheem.intervention.effect's 'allow.values.greater.than.otherwise' - it is read only")
+        },
+        
+        is.resolved = function(value)
+        {
+            if (missing(value))
+                private$i.is.resolved
+            else
+                stop("Cannot set a jheem.intervention.effect's 'is.resolved' - it is read only")
+        },
+        
+        depends.on = function(value)
+        {
+            if (missing(value))
+                private$i.depends.on
+            else
+                stop("Cannot set a jheem.intervention.effect's 'depends.on' - it is read only")
+        },
+        
+        effect.values.depend.on = function(value)
+        {
+            
+        },
+        
+        all.times.depend.on = function(value)
+        {
+            
+        }
     ),
     
     private = list(
         
+        i.quantity.name = NULL,
+        i.start.time = NULL,
+        i.effect.values = NULL,
+        i.times = NULL,
+        i.end.time = NULL,
+        i.apply.effects.as = NULL,
+        i.scale = NULL,
+        i.allow.values.less.than.otherwise = NULL,
+        i.allow.values.greater.than.otherwise = NULL,
+        i.bindings = NULL,
+        i.depends.on = NULL,
+        i.is.resolved = NULL
     )
 )

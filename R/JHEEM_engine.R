@@ -96,18 +96,6 @@ set.element.functional.form.interaction.alphas <- function(model.settings,
                                                                 check.consistency = check.consistency)
 }
 
-#'@family Functions to create and modify a jheem.engine
-#' Still need to flesh out this interface
-set.element.foreground <- function(model.settings,
-                                   foreground,
-                                   check.consistency = !self$has.been.crunched())
-{
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
-    
-    stop("Need to implement")
-}
-
 #'@title Set the Times From and To Which the Functional Form Determines a Model Element's Value
 #'
 #'@inheritParams set.element.value
@@ -537,13 +525,6 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                                                             check.consistency = private$i.check.consistency)
         },
         
-        #' Still need to flesh out this interface
-        set.quantity.foreground = function(foreground)
-        {
-            private$i.engine$set.quantity.foreground(foreground = foreground,
-                                                     check.consistency = private$i.check.consistency)
-        },
-        
         set.element.functional.form.from.time = function(element.name,
                                                          from.time)
         {
@@ -963,15 +944,170 @@ JHEEM.ENGINE = R6::R6Class(
         set.quantity.foreground = function(foreground,
                                            check.consistency = !self$has.been.crunched())
         {
+            #-- Validation Steps --#
+            
+            # Make sure this is a foreground object
+            if (!is(foreground, 'jheem.model.foreground'))
+                stop("Cannot set.quantity.foreground() for engine: 'foreground' must be an object of class 'jheem.model.foreground'")
+            quantity.name = foreground$quantity.name
+            error.prefix = paste0("Cannot set foreground for quantity '", quantity.name, "': ")
+            
+            # Check quantity valid
+            specification = get.specification()
+            quantity = specification$get.quantity(quantity.name)
+            
+            not.intervenable.message = paste0(error.prefix, "Quantity '", quantity.name, 
+                                              "' is not intervenable. You must set a scale when defining the model specification for it to be intervenable")
+            if (is.null(quantity))
+            {
+                uncompiled.specification = get.specification.for.version(self$version)
+                if (all(uncompiled.specification$quantity.names!=quantity.name))
+                    stop(paste0(error.prefix, "Quantity '", quantity.name, "' is not registered in the '", self$version, "' specification"))
+                else
+                    stop(not.intervenable.message)
+            }
+            
             # Check if quantity must be static
+            if (quantity$must.be.static)
+                stop(paste0(error.prefix, "Quantity '", quantity.name, 
+                            "' must be static (due to its appearance or the appearance of a descendant quantity in model outcome values) and CANNOT have a foreground set. Consider revising the '", 
+                            self$version, "' specification"))
+            
             # Check if quantity is intervenable
+            if (is.null(quantity$scale))
+                stop(not.intervenable.message)
             
-            private$i.quantity.is.static[[element.name]] = F
-            private$i.quantity.is.static[[specification$get.dependent.quantity.names(element.name)]] = F
+            if (is.null(quantity$max.dim.names))
+                stop(paste0(error.prefix, "Quantity '", quantity.name, 
+                            "' is not intervenable. Since its max.dim.names cannot be inferred, you must explicitly set the dimension.values argument when registered the quantity to the '",
+                            self$version, "' specification"))
             
-            # Clear dim.names
-            # Clear all values after start of intervention
+            #-- Resolve Target Populations --#
+            if (!foreground$target.populations.are.resolved)
+                foreground = foreground$resolve.target.populations(self$specification.metadata, error.prefix = error.prefix)
+            
+            #-- Generate an ID and store --#
+            foreground.id = paste0('frgd', length(private$i.unresolved.foregrounds)+1)
+            private$i.unresolved.foregrounds[[foreground.id]] = foreground
+            
+            #-- Figure out What Parameters this Depends On --#
+            # Make sure we're not missing any of them
+            if (check.consistency)
+            {
+                missing.parameters = setdiff(foreground$depends.on, names(private$i.parameters))
+                if (length(missing.parameters)>0)
+                    stop(paste0(error.prefix, 
+                                ifelse(length(missing.parameters)==1, "A value for parameter ", "Values for parameters "),
+                                collapse.with.and("'", missing.parameters, "'"),
+                                " - upon which foreground '", foreground$name, "' depends - ",
+                                ifelse(length(missing.parameters)==1, "has", "have"),
+                                " not been set to the JHEEM Engine"))
+            }
+            
+            # Set up to track dependencies
+            depends.on = foreground$depends.on
+            updated.dependencies = lapply(private$i.dependent.foreground.ids.for.parameters[depends.on], function(dep.on.ids){
+                    c(dep.on.ids, foreground.id)
+                })
+            private$i.dependent.foreground.ids.for.parameters[depends.on] = updated.dependencies
+            
+            #-- Set static to false on this quantity and its dependent quantities --#
+            private$i.quantity.is.static[[quantity.name]] = F
+            private$i.quantity.is.static[[specification$get.dependent.quantity.names(quantity.name)]] = F
+            
+            #-- Clear dim.names --#
+            private$clear.dim.names(quantity.name)
+            
+            #-- Resolve it --#
+            private$resolve.foreground(foreground.id)
+        },
+        
+        # This function will only be called
+        # (a) when this foreground is first set or
+        # (b) when a parameter this foreground depends on changes
+        resolve.foreground = function(id)
+        {
+            unresolved.foreground = private$i.unresolved.foregrounds[[id]]
+            
+            # Store the old start and end times
+            previously.resolved.foreground = private$i.resolved.foregrounds[[unresolved.foreground$quantity.name]][[id]]
+            if (is.null())
+            {
+                previous.start.time = Inf
+                previous.end.time = -Inf
+                previous.times = NULL
+            }
+            else
+            {
+                previous.start.time = previously.resolved.foreground$min.start.time
+                previous.end.time = previously.resolved.foreground$max.end.time
+                previous.times = previously.resolved.foreground$all.effect.times
+            }
+            
+            # Store the resolved foreground
+            resolved.foreground = unresolved.foreground$resolve.effects(private$i.parameters)
+            private$i.resolved.foregrounds[[unresolved.foreground$quantity.name]][[id]] = resolved.foreground
+            
+            
+            #-- Clear Dependent Values --#
+            quantity.name = resolved.foreground$quantity.name
+            
+            # Clear all values after start of intervention (or previous start time, whichever comes first)
+            clear.after.time = min(resolved.foreground$min.start.time,
+                                   previous.start.time)
+            clear.before.time = max(resolved.foregrounds$max.end.time,
+                                    previous.end.time)
+            times.to.clear.values.for.mask = private$i.quantity.value.times[[quantity.name]] > clear.after.time &
+                private$i.quantity.value.times[[quantity.name]] < clear.before.time
+            clear.dependent.values(quantity.name, times = private$i.quantity.value.times[[quantity.anme]][times.to.clear.values.for.mask])
+            
+            
             # Clear times
+            if (is.null(previous.times) || !setequal(previous.times, resolved.foreground$all.effect.times))
+                clear.dependent.times(quantity.name)
+        },
+        
+        i.unresolved.foregrounds = NULL, #list, indexed by foreground.id
+        i.resolved.foregrounds = NULL, #list of lists, indexed [[quantity.name]][[foreground.id]]
+        i.parameters = NULL,
+        i.dependent.foreground.ids.for.parameters = NULL, # A list of character vectors; names are parameters names, elements are vectors of foreground ids
+        
+        set.parameters = function(parameters, check.consistency)
+        {
+            error.prefix = paste0("Error setting parameters for engine for '", self$version, "' model in '", self$location, "': ")
+            if (!is.numeric(parameters))
+                stop(paste0(error.prefix, "'parameters' must be a numeric vector"))
+            if (any(is.na(parameters)))
+                stop(paste0(error.prefix, "'parameters' cannot contain any NA values"))
+            if (is.null(names(parameters)))
+                stop(paste0(error.prefix, "'parameters' must be a NAMED numeric vector"))
+            
+            # overwrite into parameters vector
+            private$i.parameters[names(parameters)] = parameters
+            
+            # Set the values for any elements with matching names
+            element.values = intersect(names(parameters), jheem.engine$element.names)
+            
+            for (elem.name in element.names)
+                self$set.element.value(element.name = elem.name,
+                                       value = parameters[elem.name],
+                                       check.consistency = check.consistency)
+            
+            # Call the registered parameter setting function if there is one
+stop("need to implement")
+            
+            # Re-resolve any dependent foregrounds
+            if (length(private$i.unresolved.foregrounds)>0)
+            {
+                dependent.ids = unlist(private$i.dependent.foreground.ids.for.parameters[names(parameters)])
+                re.resolve.mask = sapply(names(private$i.unresolved.foregrounds), function(id){
+                    any(id == dependent.ids)
+                })
+                
+                re.resolve.ids = names(private$i.unresolved.foregrounds)[re.resolve.mask]
+                for (id in re.resolve.ids)
+                    private$resolve.foreground(id)
+            }
         },
         
         set.element.functional.form.from.time = function(element.name,
@@ -1542,7 +1678,8 @@ JHEEM.ENGINE = R6::R6Class(
             #-- Done --#
             invisible(self)
         },
-        
+    
+
         has.been.crunched = function()
         {
             private$i.has.been.crunched
@@ -1840,6 +1977,8 @@ JHEEM.ENGINE = R6::R6Class(
                 
                 if (quantity$is.element)
                 {
+                    stop('what am i going to do now about value elements that were static, but now have a foreground. What is their baseline value time?')
+                    
                     if (is.null(private$i.element.backgrounds[[quantity.name]]$ramp.interpolated.times))
                         private$i.element.backgrounds[[quantity.name]] = calculate.ramp.interpolated.times(private$i.element.backgrounds[[quantity.name]])
                     if (is.null(private$i.element.backgrounds[[quantity.name]]$functional.form.times))
@@ -1871,6 +2010,13 @@ JHEEM.ENGINE = R6::R6Class(
             # A debugging check
             if (length(i.quantity.self.times[[quantity.name]])==0)
                 browser()
+            
+            # Add in the foreground times
+            private$calculate.quantity.self.foreground.times(quantity.name)
+            if (length(private$i.quantity.self.foreground.times[[quantity.name]])>0)
+                private$i.quantity.self.times[[quantity.name]] = 
+                    union_sorted_vectors(list(private$i.quantity.self.times[[quantity.nae]],
+                                              private$i.quantity.self.foreground.times[[quantity.name]]))
             
             # Done
             invisible(self)
@@ -1946,6 +2092,52 @@ JHEEM.ENGINE = R6::R6Class(
             
             bkgd
         },
+        
+        calculate.quantity.self.foreground.times = function(quantity.name)
+        {
+            if (is.null(private$i.resolved.foregrounds[[quantity.name]]))
+                private$i.quantity.self.foreground.times[[quantity.name]] = numeric()
+            else
+            {
+                times.from.foregrounds = lapply(private$i.resolved.foregrounds[[quantity.name]], function(frgd){
+                    frgd.times = frgd$all.effect.times[frgd$all.effect.times>=private$i.run.from.time & frgd$all.effect.times<=private$i.run.to.time]
+                    
+                    # Make sure we have a start time to interpolate from if start to first spans the start time for a 'value' effect type
+                    required.start.times = frgd$start.time.by.effect[frgd$scale.by.effect=='value' & 
+                                                                          frgd$min.effect.time.by.effect > private$i.run.from.time &
+                                                                          frgd$start.time.by.effect < private$i.run.from.time] # if == on this line, would already be in frgd.times above
+                    required.start.times[is.infinite(required.start.times)] = private$i.run.from.time
+                    
+                    
+                    # Similarly, make sure we have an end time to interpolate to if last to end spans the end time for a 'value' effect type
+                    required.end.times = frgd$end.time.by.effect[frgd$scale.by.effect=='value' &
+                                                                     frgd$max.effect.time.by.effect < private$i.run.to.time &
+                                                                     frgd$end.time.by.effect > private$i.run.to.time]# if == on this line, would already be in frgd.times above
+                    required.end.times[is.infinite(required.end.times)] = private$i.run.to.time
+                    
+                    if (length(required.start.times)>0 || length(required.end.times)>0)
+                        frgd.times = union_sorted_vectors(c(list(frgd.times, 
+                                                                 as.list(required.start.times),
+                                                                 as.list(required.end.times))))
+                    
+                    frgd.times
+                })
+                
+                if (length(times.from.foregrounds)==1)
+                    private$i.quantity.self.foreground.times[[quantity.name]] = times.from.foregrounds[[1]]
+                else
+                    private$i.quantity.self.foreground.times[[quantity.name]] = union_sorted_vectors(times.from.foregrounds)
+            }
+            
+            invisible(self)
+        },
+        
+        calculate.value.may.not.apply.times = function(quantity.name)
+        {
+            stop('need to implement')
+        },
+        
+        i.quantity.self.foreground.times = NULL,
         
         # Broadly speaking, "value" times are the times for which a quantity needs to produce values
         #   EITHER for it's own time-varying changes OR to merge with other quantities in a higher-level
@@ -2071,9 +2263,9 @@ JHEEM.ENGINE = R6::R6Class(
                                     if (length(private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on) < i ||
                                         is.null(private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on[[i]][[dep.on]]))
                                     {
-                                        calculate.quantity.component.depends.on.indices(quantity, 
-                                                                                        component.index = i,
-                                                                                        depends.on = dep.on)
+                                        private$calculate.quantity.component.depends.on.indices(quantity, 
+                                                                                                component.index = i,
+                                                                                                depends.on = dep.on)
                                     } 
                                     dep.on.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on[[i]][[dep.on]]
                                     
@@ -2168,13 +2360,6 @@ JHEEM.ENGINE = R6::R6Class(
                                             "'. Must be one of 'overwrite', 'add', 'subtract', 'multiply', or 'divide'"))
                         }
                         
-                        #-- Check scale --#
-                        if (check.consistency && !is.null(quantity$scale))
-                            check.values.for.model.scale(values = rv, 
-                                                         scale = quantity$scale, 
-                                                         variable.name.for.error = paste0("the calculated values at time ", time),
-                                                         error.prefix =  paste0("Error calculating values for model quantity '", quantity.name, "': "))
-                        
                         #-- Check for NA --#
                         if (any(is.na(rv)))
                             browser()
@@ -2195,10 +2380,61 @@ JHEEM.ENGINE = R6::R6Class(
                     #-- Order the values by time --#
                     private$i.quantity.values[[quantity.name]] = private$i.quantity.values[[quantity.name]][required.times]
                 }
-
-                invisible(self)
             }
+            
+            
+            #-- Fold in foreground if there is any --#
+            if (length(private$i.resolved.foregrounds[[quantity.name]])>0)
+            {
+                for (foreground.id in names(private$i.resolved.foregrounds))
+                {
+                    foreground = private$i.resolved.foregrounds[[foreground.id]]
+                    if (is.null(private$i.quantity.foreground.effect.indices[[quantity.name]][[foreground.id]]))
+                        private$calculate.foreground.effect.indices(quantity.name, foreground.id)
+                    
+                    # Overwrite into the values
+                    for (scale in foreground$distinct.scales)
+                    {
+                        foreground.times = as.character(foreground$get.all.times.for.scale(scale))
+                stop('this is not right')
+                        
+                        # Convert to the scale
+                        private$i.quantity.values[[quantity.name]][[foreground.times]] =
+                            convert.model.scale(private$i.quantity.values[[quantity.name]][[foreground.times]],
+                                                convert.from.scale = quantity$scale,
+                                                convert.to.scale = scale)
+                        
+                        # Fold in the foreground
+                        private$i.quantity.values[[quantity.name]][[foreground.times]] = 
+                            apply_foreground_values(values = private$i.quantity.values[[quantity.name]][[foreground.times]],
+                                                    effects = foreground$get.effects.for.scale(scale),
+                                                    indices_per_effect = private$i.quantity.foreground.effect.indices[[quantity.name]][[foreground.id]][foreground$get.effect.indices.for.scale])
+                        
+                        # Convert the scale back
+                        private$i.quantity.values[[quantity.name]][[foreground.times]] =
+                            convert.model.scale(private$i.quantity.values[[quantity.name]][[foreground.times]],
+                                                convert.from.scale = scale,
+                                                convert.to.scale = quantity$scale)
+                    }
+                    
+                    # Set the use.value matrix
+                }
+            }
+            
+            
+            #-- Check scale --#
+            if (check.consistency && !is.null(quantity$scale))
+                check.values.for.model.scale(values = rv, 
+                                             scale = quantity$scale, 
+                                             variable.name.for.error = paste0("the calculated values at time ", time),
+                                             error.prefix =  paste0("Error calculating values for model quantity '", quantity.name, "': "))
+            
+            #-- Done --#
+            invisible(self)
         },
+
+
+        i.quantity.foreground.effect.indices = NULL,
 
         # interpolates ramp on the model scale
         calculate.element.value = function(element.name, check.consistency)
@@ -2227,23 +2463,46 @@ JHEEM.ENGINE = R6::R6Class(
             bkgd = private$i.element.backgrounds[[element.name]]
             
             #-- Now actually calculate --#
-            if (private$i.quantity.is.static[element.name])
+            if (is.null(bkgd$functional.form) || bkgd$functional.form$is.static)
             {
-                if (is.null(i.quantity.values[['all']]))
+                missing.times = numeric()
+                if (private$i.quantity.is.static[element.name])
+                    need.to.calculate = is.null(i.quantity.values[['all']])
+                else
+                {
+                    missing.times = setdiff_sorted_vectors(private$i.quantity.value.times[[element.name]], 
+                                                           as.numeric(names(private$i.quantity.values[[element.name]])))
+                    need.to.calculate = length(missing.times)>0
+                }
+                
+                if (need.to.calculate)
                 {
                     if (is.null(bkgd$functional.form))
-                        private$i.quantity.values[[element.name]][['all']] = bkgd$value
+                        value = bkgd$value
                     else
-                        private$i.quantity.values[[element.name]][['all']] =
-                            convert.model.scale(bkgd$functional.form$project.static(alphas = bkgd$functional.form.alphas,
-                                                                                    dim.names = i.quantity.dim.names[[element.name]],
-                                                                                    check.consistency = check.consistency,
-                                                                                    error.prefix = paste0("Error projecting values from the (static) functional form for element '", element.name, "': ")),
-                                                convert.from.scale = element$functional.form.scale,
-                                                convert.to.scale = element$scale)
+                        value = convert.model.scale(bkgd$functional.form$project.static(alphas = bkgd$functional.form.alphas,
+                                                                                        dim.names = i.quantity.dim.names[[element.name]],
+                                                                                        check.consistency = check.consistency,
+                                                                                        error.prefix = paste0("Error projecting values from the (static) functional form for element '", element.name, "': ")),
+                                                    convert.from.scale = element$functional.form.scale,
+                                                    convert.to.scale = element$scale)
+                    
+                    if (private$i.quantity.is.static[element.name])
+                    {
+                        private$i.quantity.values[[element.name]][['all']] = value
+                    }
+                    else # This is a static value at baseline, but has a foreground overlaid
+                    {
+                        private$i.quantity.values[[element.name]][as.character(missing.times)] = lapply(1:length(missing.times), function(i){
+                            value + 0 
+                                # The +0 here forces a DEEP copy of value. 
+                                # This is important, because applying foregrounds will overwrite in place,
+                                #  so we need each time for the value to be referring to a different instance
+                        })
+                    }
                 }
             }
-            else
+            else # The values are determined by functional form
             {
                 missing.times = setdiff_sorted_vectors(private$i.quantity.value.times[[element.name]], 
                                                        as.numeric(names(private$i.quantity.values[[element.name]])))
@@ -2324,147 +2583,14 @@ JHEEM.ENGINE = R6::R6Class(
                 }
             }
             
-            # Fold in the foreground
-            
             # A debug check
             if (any(sapply(private$i.quantity.values[[element.name]], length)==0))
                 browser()
             
-            # Check scale
-            check.values.for.model.scale(private$i.quantity.values[[element.name]],
-                                         scale = element$scale,
-                                         variable.name.for.error = "the calculated values",
-                                         error.prefix =  paste0("Error calculating values for model element '", element.name, "': "))
-
             # Done
             invisible(self)
         },
 
-        # interpolates ramp on the element scale
-        ORIG.calculate.element.value = function(element.name, check.consistency)
-        {
-            element = private$get.specification()$get.quantity(element.name)
-            if (is.null(private$i.quantity.value.times[[element.name]]))
-                calculate.quantity.value.times(element.name)
-            if (is.null(private$i.quantity.dim.names[[element.name]]))
-                calculate.quantity.dim.names(element)
-            
-            #-- First, if there is a functional form, make sure the alphas are crunched --#
-            if (!is.null(private$i.element.backgrounds[[element.name]]$functional.form))
-            {
-                private$i.element.backgrounds[[element.name]]$functional.form.alphas = 
-                    lapply(private$i.element.backgrounds[[element.name]]$functional.form.alphas, function(alphas){
-                        crunch.alphas(alphas,
-                                      betas = private$i.element.backgrounds[[element.name]]$functional.form$betas[[alphas$name]],
-                                      target.dim.names = private$i.quantity.dim.names[[element.name]],
-                                      error.prefix = paste0("Error calculating the value for model element ",
-                                                            element$get.original.name(wrt.version=self$version),
-                                                            " - in crunching '", alphas$name, "' alphas for the functional form: "))
-                    })
-            }
-            
-            #-- Pull the background --#
-            bkgd = private$i.element.backgrounds[[element.name]]
-            if (element.name=='testing')
-                browser()
-            #-- Now actually calculate --#
-            if (private$i.quantity.is.static[element.name])
-            {
-                if (is.null(i.quantity.values[['all']]))
-                {
-                    if (is.null(bkgd$functional.form))
-                        private$i.quantity.values[[element.name]][['all']] = bkgd$value
-                    else
-                        private$i.quantity.values[[element.name]][['all']] =
-                            convert.model.scale(bkgd$functional.form$project.static(alphas = bkgd$functional.form.alphas,
-                                                                                    dim.names = i.quantity.dim.names[[element.name]],
-                                                                                    check.consistency = check.consistency,
-                                                                                    error.prefix = paste0("Error projecting values from the (static) functional form for element '", element.name, "': ")),
-                                                convert.from.scale = element$functional.form.scale,
-                                                convert.to.scale = element$scale)
-                }
-            }
-            else
-            {
-                missing.times = setdiff_sorted_vectors(private$i.quantity.value.times[[element.name]], 
-                                                       as.numeric(names(private$i.quantity.values[[element.name]])))
-                if (length(missing.times)>0)
-                {
-                    #-- Calculate functional form values --#
-                    if (sorted_vectors_overlap(bkgd$functional.form.times, missing.times)) #practically, we will never have just one functional form value missing - it will either be all of them or none of them
-                    {
-                        private$i.quantity.values[[element.name]][as.character(bkgd$functional.form.times)] = 
-                            convert.model.scale(bkgd$functional.form$project(years = bkgd$functional.form.times,
-                                                                             alphas = bkgd$functional.form.alphas,
-                                                                             dim.names = i.quantity.dim.names[[element.name]],
-                                                                             future.slope = bkgd$future.slope,
-                                                                             future.slope.after.year = bkgd$future.slope.after.time,
-                                                                             future.slope.is.on.transformed.scale = F, #is this what we want?
-                                                                             check.consistency = check.consistency,
-                                                                             error.prefix = paste0("Error projecting values from the functional form for element '", element.name, "': ")),
-                                                convert.from.scale = element$functional.form.scale,
-                                                convert.to.scale = element$scale)
-                    }
- 
-                    #-- Calculate ramp values --#
-                    if (!is.null(bkgd$ramp.interpolated.times) && sorted_vectors_overlap(bkgd$ramp.interpolated.times, missing.times))
-                    {
-                        private$i.quantity.values[[element.name]][as.character(bkgd$ramp.interpolated.times)] = 
-                            element$calculate.ramp.values(ramp.values = bkgd$ramp.values,
-                                                          ramp.times = bkgd$ramp.times,
-                                                          first.functional.form.value = i.quantity.values[[element.name]][[ as.character(bkgd$functional.form.times[1]) ]],
-                                                          functional.form.from.time = bkgd$functional.form.times[1])[as.character(bkgd$ramp.interpolated.times)]
-                    }
-                    
-                    #-- Calculate taper.values --#
-                    if (!is.null(bkgd$taper.interpolated.times) && sorted_vectors_overlap(bkgd$taper.interpolated.times, missing.times))
-                    {
-                        n.functional.form.times = length(bkgd$functional.form.times)
-                        private$i.quantity.values[[element.name]][as.character(bkgd$taper.interpolated.times)] = 
-                            element$calculate.taper.values(taper.values = bkgd$taper.values,
-                                                          taper.times = bkgd$taper.times,
-                                                          last.functional.form.value = i.quantity.values[[element.name]][[ as.character(bkgd$functional.form.times[n.functional.form.times]) ]],
-                                                          functional.form.to.time = bkgd$functional.form.times[n.functional.form.times])[as.character(bkgd$taper.interpolated.times)]
-                    }
-                    
-                    
-                    #-- Other times to interpolate --#
-                    missing.interpolated.times = setdiff_sorted_vectors(missing.times,
-                                                                       c(bkgd$ramp.interpolated.times, 
-                                                                         bkgd$functional.form.times, 
-                                                                         bkgd$taper.interpolated.times))
-                    
-                    if (length(missing.interpolated.times)>0)
-                    {
-                        interpolate.from.times = c(bkgd$ramp.interpolated.times, bkgd$functional.form.times, bkgd$taper.interpolated.times)
-                        
-                        private$i.quantity.values[[element.name]][as.character(missing.interpolated.times)] = 
-                            interpolate(values = i.quantity.values[[element.name]][as.character(interpolate.from.times)],
-                                        value.times = interpolate.from.times,
-                                        desired.times = missing.interpolated.times)
-                    }                    
-                    
-                    #-- Sort the result --#
-                    private$i.quantity.values[[element.name]] = private$i.quantity.values[[element.name]][ as.character(private$i.quantity.value.times[[element.name]]) ]
-                }
-            }
-            
-            # Fold in the foreground
-            
-            # A debug check
-            if (any(sapply(private$i.quantity.values[[element.name]], length)==0))
-                browser()
-            
-            # Check scale
-            check.values.for.model.scale(private$i.quantity.values[[element.name]],
-                                         scale = element$scale,
-                                         variable.name.for.error = "the calculated values",
-                                         error.prefix =  paste0("Error calculating values for model element '", element.name, "': "))
-            
-            # Done
-            invisible(self)
-        },
-        
         check.function.quantity.component.value = function(value, 
                                                            quantity, 
                                                            component.index, 
@@ -2797,7 +2923,20 @@ JHEEM.ENGINE = R6::R6Class(
             # Done
             invisible(self)
         },
-        
+
+        calculate.foreground.effect.indices = function(quantity.name, foreground.id)
+        {
+            indices.into.quantity = 1:prod(sapply(private$i.quantity.dim.names, length))
+            foreground = private$i.resolved.foregrounds[[quantity.name]][[foreground.id]]
+            private$i.foreground.effect.indices[[quantity.name]][[foreground.id]] = lapply(foreground$target.population.masks, function(tpop.mask){
+                
+                expand.tpop.mask.indices = get.expand.array.indices(to.expand.dim.names = dimnames(tpop.mask))
+                indices.into.quantity[ tpop.mask[expand.tpop.mask.indices] ]
+            })
+            
+            # Done
+            invisible(self)
+        },
         
         ##-------------------------------##
         ##-- Clearing Dependent Values --##
@@ -2908,6 +3047,9 @@ JHEEM.ENGINE = R6::R6Class(
                         private$i.quantity.mapping.indices[[dependent.on]]$components.depends.on[[component.index]][[quantity.name]] = NULL
                 })
             })
+            
+            # Clear foreground indices
+            private$i.foreground.effect.indices[[quantity.name]] = NULL
             
             # Done
             invisible(self)
@@ -3067,409 +3209,7 @@ JHEEM.ENGINE = R6::R6Class(
             
             # Return
             indices
-        },
-    
-        # Uses the old JHEEM package for testing
-        do.test.crunch = function()
-        {
-            need.to.push <- function(...){
-                T
-            }
-            
-            #-----------------------------------------#
-            #-- Go one by one and push to the JHEEM --#
-            #-----------------------------------------#
-            
-            #-- SET-UP JHEEM --#
-            private$do.setup.jheem.skeleton()
-            
-            #-- INITIAL POPULATION --#
-            private$push.initial.population(need.to.push)
-            
-            #-- BIRTHS --#
-            private$push.fertility.hiv.negative(need.to.push)
-            private$push.fertility.hiv.positive(need.to.push)
-            
-            private$push.birth.proportions.hiv.negative(need.to.push)
-            private$push.birth.proportions.hiv.positive(need.to.push)
-            
-            #-- AGING --#
-            private$push.aging.hiv.negative(need.to.push)
-            private$push.aging.hiv.positive(need.to.push)
-            
-            #-- MORTALITY --#
-            private$push.general.mortality.hiv.negative(need.to.push)
-            private$push.general.mortality.hiv.positive(need.to.push)
-            private$push.hiv.mortality(need.to.push)
-            
-            #-- TRANSITIONS --#
-            private$push.transitions(need.to.push)
-            
-            #-- TRANSMISSION --#
-            private$push.susceptibility(need.to.push)
-            private$push.transmissibility(need.to.push)
-            private$push.transmission.contact(need.to.push)
-            private$push.new.infection.proportions(need.to.push)
-            
-            
-        },
-    
-        jheem = NULL,
-
-        do.setup.jheem.skeleton = function()
-        {
-            specification.metadata = self$specification.metadata
-            private$jheem = initialize.jheem(version = self$VERSION,
-                                                age.cutoffs = specification.metadata$age.endpoints,
-                                                race.strata = specification.metadata$dim.names$race,
-                                                subpopulations = 'all_subpopulations',
-                                                locations = 'all_locations',
-                                                sex.strata = specification.metadata$dim.names$sex,
-                                                risk.strata = specification.metadata$dim.names$risk,
-                                                nonhiv.subsets = 'all_hiv_negative',
-                                                continuum.of.care.states = specification.metadata$dim.names$continuum,
-                                                cd4.strata = specification.metadata$dim.names$stage,
-                                                hiv.subsets = 'all_hiv_positive',
-                                                transmission.route.names = c('sexual','idu'),
-                                                first.diagnosed.hiv.continuum.states = 'diagnosed',
-                                                all.diagnosed.hiv.continuum.states = 'diagnosed',
-                                                new.diagnoses.keep.dimensions = c('age','race','subpopulation',#'location',
-                                                                                  'sex','risk','cd4'))
-            
-            #by default, minimal tracking
-            private$jheem = set.track.incidence.dimensions(private$jheem, 
-                                                              dimensions=c('age','race','subpopulation',#'location',
-                                                                           'sex', 'risk'))
-            
-            
-            # Fix strata sizes
-            #if (!is.null(specification$fix.strata.sizes.prior.to.year) && !is.na(specification$fix.strata.sizes.prior.to.year))
-            #{
-                private$jheem = set.fixed.size.strata(private$jheem, fix.age=T, fix.race=T, fix.sex=T)
-                
-                private$jheem = set.keep.strata.sizes.constant(private$jheem,
-                                                                  fix.strata.sizes = T,
-                                                                  time=-Inf)
-                
-                private$jheem = set.keep.strata.sizes.constant(private$jheem,
-                                                                  fix.strata.sizes = F,
-                                                                  time=2007)
-            #}
-        },
-        
-        
-        push.initial.population = function(need.to.push)
-        {
-            if (need.to.push('initial.population.hiv.negative', 'initial.population.hiv.positive'))
-            {
-                specification.metadata = self$specification.metadata
-                
-                init.hiv.negative = expand.population(private$i.quantity.values$initial.population.uninfected[[1]],
-                                                      target.dim.names = c(specification.metadata$dim.names[c('age','race')],
-                                                                           list(subpopulation='all_subpopulations'),
-                                                                           specification.metadata$dim.names[c('sex','risk')],
-                                                                           list(non.hiv.subset='all_hiv_negative')))
-                private$jheem = set.initial.population.hiv.negative(private$jheem, init = init.hiv.negative)
-                
-                init.hiv.positive = private$i.quantity.values$initial.population.infected[[1]]
-                dim.names = dimnames(init.hiv.positive)
-                names(dim.names)[names(dim.names)=='stage'] = 'cd4'
-                dim(init.hiv.positive) = sapply(dim.names, length)
-                dimnames(init.hiv.positive) = dim.names
-                init.hiv.positive = expand.population(init.hiv.positive,
-                                                      target.dim.names = c(specification.metadata$dim.names[c('age','race')],
-                                                                           list(subpopulation='all_subpopulations'),
-                                                                           specification.metadata$dim.names[c('sex','risk','continuum')],
-                                                                           list(cd4=specification.metadata$dim.names$stage),
-                                                                           list(hiv.subset='all_hiv_positive')))
-                                                                           
-                private$jheem = set.initial.population.hiv.positive(private$jheem, init = init.hiv.positive)
-            }
-        },
-        
-        push.fertility.hiv.negative = function(need.to.push)
-        {
-            private$do.push.quantity.to.jheem(quantity.name='fertility',
-                                              set.function=set.fertility.hiv.negative,
-                                              need.to.push=need.to.push)
-        },
-        
-        push.fertility.hiv.positive = function(need.to.push)
-        {
-            private$do.push.quantity.to.jheem(quantity.name='fertility',
-                                              set.function=set.fertility.hiv.positive,
-                                              need.to.push=need.to.push)
-        },
-        
-        push.birth.proportions.hiv.negative = function(need.to.push)
-        {
-            if (need.to.push('birth.proportions.hiv.negative')) # Check that proportions sum to 1 for each from stratum
-            {
-                specification.metadata = self$specification.metadata
-                proportions = private$i.quantity.values[['uninfected.birth.proportions']][[1]]
-                from.dimensions = grepl("\\.from$", names(dimnames(proportions)))
-                should.sum.to.1 = rowSums(proportions, dims=sum(from.dimensions))
-                if (any(should.sum.to.1 != 1))
-                    stop(paste0("Error setting birth.proportions.hiv.negative - proportions do not sum to 1 in all 'from' strata"))
-             
-                dim.names = c(specification.metadata$dim.names[c('race.from')],
-                              list(subpopulation.to = 'all_subpopulations'),
-                              specification.metadata$dim.names[c('sex.to', 'risk.to')],
-                              list(non.hiv.subset.to='all_hiv_negative'))
-                full.proportions = array(0, dim=sapply(dim.names, length), dimnames=dim.names)  
-                full.proportions[,1,,1,1] = proportions
-      
-                private$jheem = set.birth.proportions.hiv.negative(private$jheem, 
-                                                                   full.proportions)
-            }
-        },
-        
-        push.birth.proportions.hiv.positive = function(need.to.push)
-        {
-            if (need.to.push('birth.proportions.hiv.positive')) # Check that proportions sum to 1 for each from stratum
-            {
-                specification.metadata = self$specification.metadata
-                proportions = private$i.quantity.values[['uninfected.birth.proportions']][[1]]
-                from.dimensions = grepl("\\.from$", names(dimnames(proportions)))
-                should.sum.to.1 = rowSums(proportions, dims=sum(from.dimensions))
-                if (any(should.sum.to.1 != 1))
-                    stop(paste0("Error setting birth.proportions.hiv.negative - proportions do not sum to 1 in all 'from' strata"))
-                
-                dim.names = c(specification.metadata$dim.names[c('race.from')],
-                              list(subpopulation.to = 'all_subpopulations'),
-                              specification.metadata$dim.names[c('sex.to', 'risk.to')],
-                              list(non.hiv.subset.to='all_hiv_negative'))
-                full.proportions = array(0, dim=sapply(dim.names, length), dimnames=dim.names)  
-                full.proportions[,1,,1,1] = proportions
-                
-                private$jheem = set.birth.proportions.hiv.positive(private$jheem, 
-                                                                   full.proportions,
-                                                                   fraction.births.infected = 0)
-            }
-        },
-        
-        push.aging.hiv.negative = function(need.to.push)
-        {
-            private$do.push.quantity.to.jheem(quantity.name='default.aging',
-                                      set.function=set.aging.hiv.negative,
-                                      need.to.push=need.to.push)
-        },
-        
-        push.aging.hiv.positive = function(need.to.push)
-        {
-            private$do.push.quantity.to.jheem(quantity.name='hiv.positive.aging.rates',
-                                      set.function=set.aging.hiv.positive,
-                                      need.to.push=need.to.push)
-        },   
-        
-        
-        push.general.mortality.hiv.negative = function(need.to.push)
-        {
-            private$do.push.quantity.to.jheem(quantity.name='general.mortality',
-                                      set.function=set.general.mortality.hiv.negative,
-                                      need.to.push=need.to.push)
-        },
-        
-        push.general.mortality.hiv.positive = function(need.to.push)
-        {
-            private$do.push.quantity.to.jheem(quantity.name='general.mortality',
-                                      set.function=set.general.mortality.hiv.positive,
-                                      need.to.push=need.to.push)
-        },
-        
-        push.hiv.mortality = function(need.to.push)
-        {
-            private$do.push.quantity.to.jheem(quantity.name='infection.specific.mortality',
-                                      set.function=set.hiv.specific.mortality,
-                                      need.to.push=need.to.push)
-        },
-        
-        push.transitions = function(need.to.push)
-        {
-            specification.metadata = self$specification.metadata
-            spec = private$get.specification()
-            refs = spec$top.level.references[sapply(spec$top.level.references, function(ref){ref$type=='transition.reference'})]
-            
-            for (ont in c('uninfected','infected'))
-            {
-                o.refs = refs[sapply(refs, function(ref){ref$ontology.name==ont})]
-                transition.dimensions = unique(sapply(o.refs, function(ref){ref$dimension}))
-                
-                for (d in transition.dimensions)
-                {
-                    d.refs = o.refs[sapply(o.refs, function(ref){ref$dimension==d})]
-                    
-                    quantity.names = sapply(d.refs, function(ref){
-                        ref$value.quantity.name
-                    })
-                    
-                    dimensions = unique(c(paste0(d, c('.from','.to')),
-                                        unlist(sapply(quantity.names, function(qname){
-                                            names(private$i.quantity.dim.names[[qname]])
-                                        }))))
-                    
-                    dim.names = specification.metadata$dim.names[intersect(specification.metadata$dimensions, dimensions)]
-                    
-                    
-                    times = sort(unique(unlist(private$i.quantity.value.times[quantity.names[!private$i.quantity.is.static[quantity.names]]])))
-                    if (length(times)==0)
-                        times = 'all'
-                    skeleton.arr = array(0, dim=sapply(dim.names, length), dimnames = dim.names)
-                    
-                    values = lapply(times, function(time){
-                        arr = skeleton.arr
-                        
-                        for (ref in d.refs)
-                        {
-                            qname = ref$value.quantity.name
-                            if (length(private$i.quantity.values[[qname]])==1)
-                                val = private$i.quantity.values[[qname]][[1]]
-                            else
-                                val = interpolate(values = private$i.quantity.values[[qname]],
-                                                  value.times = private$i.quantity.value.times[[qname]],
-                                                  desired.times = time)[[1]]
-                            
-                            dimension.values = private$i.quantity.dim.names[[qname]]
-                            dimension.values[[paste0(d, '.from')]] = ref$from.compartments
-                            dimension.values[[paste0(d, '.to')]] = ref$to.compartments
-                            array.access(arr, dimension.values = dimension.values) = val
-                        }
-                        
-                        dim.names = dimnames(arr)
-                        names(dim.names)[names(dim.names)=='stage'] = 'cd4'
-                        names(dim.names)[names(dim.names)=='stage.from'] = 'cd4.from'
-                        names(dim.names)[names(dim.names)=='stage.to'] = 'cd4.to'
-                        
-                        dim(arr) = sapply(dim.names, length)
-                        dimnames(arr) = dim.names
-                        
-                        arr
-                    })
-                    
-                    for (i in 1:length(times))
-                    {
-                        time = times[i]
-                        if (time=='all')
-                            time = -Inf
-                        
-                        if (ont == 'uninfected')
-                        {
-                            private$jheem = set.transition.array.hiv.negative(private$jheem,
-                                                                              transition.array = values[[i]],
-                                                                              time = time)
-                        }
-                        else
-                        {
-                            
-                            private$jheem = set.transition.array.hiv.positive(private$jheem,
-                                                                              transition.array = values[[i]],
-                                                                              time = time)
-                        }
-                    }
-                }
-            }
-        },
-        
-        push.susceptibility = function(need.to.push)
-        {
-            for (mode in c('sexual','idu'))
-                private$do.push.quantity.to.jheem(quantity.name=paste0(mode, '.susceptibility'),
-                                                       set.function=set.susceptibility,
-                                                       need.to.push=need.to.push,
-                                                       transmission.route.names = mode)
-        },
-        
-        push.transmissibility = function(need.to.push)
-        {
-            for (mode in c('sexual','idu'))
-                private$do.push.quantity.to.jheem(quantity.name=paste0(mode, '.transmissibility'),
-                                                       set.function=set.transmissibility,
-                                                       need.to.push=need.to.push,
-                                                       transmission.route.names = mode)
-        },
-        
-        push.transmission.contact = function(need.to.push)
-        {
-            for (mode in c('sexual','idu'))
-                private$do.push.quantity.to.jheem(quantity.name=paste0(mode, '.contact'),
-                                                       set.function=set.transmission.contact.array,
-                                                       need.to.push=need.to.push,
-                                                       transmission.route.names = mode)
-        },
-        
-        push.new.infection.proportions = function(need.to.push)
-        {
-            #@need to do
-            if (need.to.push('new.infection.proportions')) # Check that proportions sum to 1 for each stratum of non-hiv specific states
-            {
-#                specification = get.components.specification(components)
- #               sum.across = setdiff(names(specification$dimension.names.by.subgroup$all),
-  #                                   c('continuum','cd4','hiv.subset'))
-                
-   #             proportions = private$i.quantity.values[['new.infection.proportions']][[1]]
-    #            should.sum.to.1 = rowSums(proportions, dims=length(sum.across))
-     #           if (max(abs(should.sum.to.1 - 1))>0.0000001)
-      #              stop(paste0("Error setting new.infections - proportions do not sum to 1 in all strata of hiv-negative states (",
-       #                         paste0(sum.across, collapse=' x '), ")"))
-                
-                private$do.push.quantity.to.jheem(quantity.name='new.infection.proportions',
-                                          set.function=set.new.infection.proportions,
-                                          need.to.push=need.to.push)
-            }
-        },
-        
-        
-        
-        # A general helper that pulls time varying quantities from the components
-        # and pushes them to the jheem object
-        do.push.quantity.to.jheem = function(quantity.name,
-                                              set.function,
-                                              need.to.push,
-                                              ...)
-        {
-            print(quantity.name)
-            if (need.to.push(quantity.name))
-            {
-                specification.metadata = self$specification.metadata
-
-                values = private$i.quantity.values[[quantity.name]]
-                values = lapply(values, function(val){
-                    if (!is.null(dimnames(val)))
-                    {
-                        dim.names = dimnames(val)
-                        dimension.values = specification.metadata$dim.names[names(dim.names)] 
-                        
-                        names(dim.names)[names(dim.names)=='stage'] = 'cd4'
-                        names(dimension.values)[names(dimension.values)=='stage'] = 'cd4'
-                        
-                        dim(val) = sapply(dim.names, length)
-                        dimnames(val) = dim.names
-                        
-                        array.access(val, dimension.values = dimension.values) 
-                            #to get things in the right order
-                    }
-                })
-                
-                times = private$i.quantity.value.times[[quantity.name]]
-                
-                if (is.null(values))
-                    stop(paste0("Quantity '", quantity.name, "' has not been calculated."))
-                if (is.null(times))
-                    private$jheem = set.function(jheem=private$jheem,
-                                                    values[[1]],
-                                                    ...)
-                else
-                {
-                    for (i in 1:length(values))
-                        private$jheem = set.function(jheem=private$jheem,
-                                                     values[[i]],
-                                                     time=times[i],
-                                                     ...)
-                    
-                }
-            }
         }
-
             
     )
 )

@@ -3,21 +3,26 @@
 
 MODEL.SCALE.INFO = list(
     rate = list(needs.denominator = T,
-                aggregatable = T),
-    ratio = list(needs.denominator = F,
-                 aggregatable = F),
+                aggregate.on.scale = 'rate'),
+    ratio = list(needs.denominator = NA),
     proportion = list(needs.denominator = T,
-                      aggregatable = T),
+                      aggregate.on.scale = 'proportion'),
     proportion.leaving = list(needs.denominator = T,
-                              aggregatable = T),
+                              aggregate.on.scale = 'proportion.leaving'),
     proportion.staying = list(needs.denominator = T,
-                              aggregatable = T),
+                              aggregate.on.scale = 'proportion.staying'),
     time = list(needs.denominator = T,
-                aggregatable = T),
+                aggregate.on.scale = 'time'),
     number = list(needs.denominator = F,
-                  aggregatable = T),
+                  aggregate.on.scale = 'number'),
     non.negative.number = list(needs.denominator = T,
-                               aggregatable = T)
+                               aggregate.on.scale = 'non.negative.number'),
+    odds = list(needs.denominator = T,
+                aggregate.on.scale = 'proportion'),
+    odds.leaving = list(needs.denominator = T,
+                        aggregate.on.scale = 'proportion.leaving'),
+    odds.staying = list(needs.denominator = T,
+                        aggregate.on.scale = 'proportion.staying')
 )
 
 MODEL.SCALES = names(MODEL.SCALE.INFO)
@@ -29,7 +34,7 @@ MODEL.SCALES = names(MODEL.SCALE.INFO)
 scale.is.aggregatable <- function(scales)
 {
     sapply(MODEL.SCALE.INFO[scales], function(info){
-        info$aggregatable
+        !is.na(info$aggregate.on.scale)
     })
 }
 
@@ -67,7 +72,11 @@ do.convert.model.scale <- function(values,
                                    convert.to.scale,
                                    error.prefix='')
 { 
-    if (convert.from.scale==convert.to.scale)
+    if (convert.from.scale==convert.to.scale ||
+        (convert.from.scale=='proportion' && convert.to.scale=='proportion.leaving') ||
+        (convert.from.scale=='proportion.leaving' && convert.to.scale=='proportion') ||
+        (convert.from.scale=='odds' && convert.to.scale=='odds.leaving') ||
+        (convert.from.scale=='odds.leaving' && convert.to.scale=='odds'))
         values
     else if (convert.from.scale=='ratio' || convert.from.scale=='number' || convert.from.scale=='non.negative.number')
         stop(paste0(error.prefix, "Cannot convert from scale '", convert.from.scale,"' (to '", convert.to.scale, "')"))
@@ -81,6 +90,10 @@ do.convert.model.scale <- function(values,
             exp(-values)
         else if (convert.to.scale=='time')
             1/values
+        else if (convert.to.scale=='odds' || convert.to.scale=='odds.leaving')
+            exp(values) - 1
+        else if (convert.to.scale=='odds.staying')
+            1 / (exp(values)-1)
         else
             stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
     }
@@ -92,6 +105,10 @@ do.convert.model.scale <- function(values,
             1-values
         else if (convert.to.scale=='time')
             -1/log(1-values)
+        else if (convert.to.scale=='odds' || convert.to.scale=='odds.leaving')
+            values / (1-values)
+        else if (convert.to.scale=='odds.staying')
+            (1-values) / values
         else
             stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
     }
@@ -103,6 +120,10 @@ do.convert.model.scale <- function(values,
             1-values
         else if (convert.to.scale=='time')
             -1/log(values)
+        else if (convert.to.scale=='odds' || convert.to.scale=='odds.leaving')
+            (1-values) / values
+        else if (convert.to.scale=='odds.staying')
+            values / (1-values)
         else
             stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
     }
@@ -114,6 +135,41 @@ do.convert.model.scale <- function(values,
             1-exp(-1/values)
         else if (convert.to.scale=='proportion.staying')
             exp(-1/values)
+        else if (convert.to.scale=='odds' || convert.to.scale=='odds.leaving')
+            exp(1/values) - 1
+        else if (convert.to.scale=='odds.staying')
+            1 / (exp(1/values)-1)
+        else
+            stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
+    }
+    else if (convert.from.scale=='odds' || convert.from.scale=='odds.leaving')
+    {
+        if (convert.to.scale=='rate')
+            log(values+1)
+        else if (convert.to.scale=='proportion' || convert.to.scale=='proportion.leaving')
+            values / (1+values)
+        else if (convert.to.scale=='proportion.staying')
+            1 - values / (1+values)
+        else if (convert.to.scale=='time')
+            1 / (log(values+1))
+        else if (convert.to.scale=='odds.staying')
+            1 / values
+        else
+            stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
+        
+    }
+    else if (convert.from.scale=='odds.staying')
+    {
+        if (convert.to.scale=='rate')
+            log(1/values+1)
+        else if (convert.to.scale=='proportion' || convert.to.scale=='proportion.leaving')
+            1 - values / (1+values)
+        else if (convert.to.scale=='proportion.staying')
+            values / (1+values)
+        else if (convert.to.scale=='time')
+            1 / (log(1/values+1))
+        else if (scale=='odds' || scale=='odds.leaving')
+            1 / values
         else
             stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
     }
@@ -181,151 +237,31 @@ do.check.values.for.model.scale <- function(values, scale,
                     "'", scale, "' is not defined as a valid model scale"))
 }
 
+##----------------------------##
+##-- AGGREGATING FOR SCALES --##
+##----------------------------##
 
-##----------------------------------##
-##-- INFERRING and JOINING SCALES --##
-##----------------------------------##
-
-infer.two.arg.expr.scale <- function(transition.mapping,
-                                     operator,
-                                     val1,
-                                     val2,
-                                     scale1,
-                                     scale2)
+aggregate.for.scale <- function(values,
+                                scale,
+                                keep.dimensions,
+                                denominator.values = NULL)
 {
-    if (operator=='+')
+    if (MODEL.SCALE.INFO[[scale]]$needs.denominator)
     {
-        if ((scale1=='number' | scale1=='non.negative.number') ||
-            (scale2=='number' | scale2=='non.negative.number'))
-            'number'
-        else
-            join.scales(scale1, scale2)
-    }
-    else if (operator=='-')
-    {
-        # A rate minus a rate is a rate
-        # 1 - proportion or proportion leaving -> proportion staying
-        # 1 - proportion.staying -> proportion
-        # number - number -> number
-        # any combo of number and non-negative.number -> number
+        aggregate.on.scale = MODEL.SCALE.INFO[[scale]]$aggregate.on.scale
         
-        if (scale1=='rate' && scale2=='rate')
-            'rate'
-        else if ((is.numeric(val1) && length(val1)==1 && val1==1))
-        {
-            if (scale2=='proportion' || scale2=='proportion.leaving')
-                'proportion.staying'
-            else if (scale2=='proportion.staying')
-                'proportion'
-        }
-        else if ((scale1=='number' | scale1=='non.negative.number') ||
-                 (scale2=='number' | scale2=='non.negative.number'))
-            'number'
-        else
-            'unknown'
-    }
-    else if (operator=='*')
-    {
-        # rate * anything is a rate
-        # time * anything is a time
-        # <scale> * ratio is <scale>
+        if (aggregate.on.scale != scale)
+            values = do.convert.model.scale(values, convert.from.scale=scale, convert.to.scale=aggregate.on.scale)
         
-        if (scale1=='rate')
-        {
-            if (scale2=='time')
-                c('rate','time')
-            else
-                'rate'
-        }
-        else if (scale2=='rate')
-        {
-            if (scale1=='time')
-                c('rate','time')
-            else
-                'rate'
-        }
-        else if (scale1=='time' || scale2=='time')
-            'time'
-        else if (scale1=='ratio')
-            scale2
-        else if (scale2=='ratio')
-            scale1
-        else if (scale1=='non.negative.number' && scale2=='non.negative.number')
-            'non.negative.number'
-        else if ((scale1=='number' || scale1=='non.negative.number') &&
-                 (scale2=='number' || scale2=='non.negative.number'))
-            'number'
-        else
-            'unknown'
-    }
-    else if (operator=='/')
-    {
-        # numeric / rate -> time
-        # numeric / time -> rate
-        # time / anything -> time
-        # rate / anything -> rate
-        # two non.negative.numbers --> non.negative.number
-        # otherwise, any combo of numbers and non.negative.numbers -> number
+        numerators = apply(values * denominator.values, keep.dimensions, sum)
+        denominators = apply(denominator.values, keep.dimensions, sum)
+        values = numerators / denominators
         
-        if (is.numeric(val1) && scale2=='rate')
-            'time'
-        else if (is.numeric(val1) && scale2=='time')
-            'rate'
-        else if (scale1=='rate')
-            'rate'
-        else if (scale1=='time')
-            'time'
-        else if (scale1=='non.negative.number' && scale2=='non.negative.number')
-            'non.negative.number'
-        else if ((scale1=='number' || scale1=='non.negative.number') &&
-                 (scale2=='number' || scale2=='non.negative.number'))
-            'number'
+        if (aggregate.on.scale)
+            do.convert.model.scale(values, convert.from.scale = aggregate.on.scale, convert.to.scale = scale)
         else
-            'unknown'
+            values
     }
     else
-        'unknown'
-}
-
-infer.one.arg.expr.scale <- function(transition.mapping,
-                                     operator, val, scale)
-{
-    if (operator=='-')
-    {
-        if (any(scale=='rate'))
-            'rate'
-        else if (scale=='number' || scale=='non.negative.number')
-            'number'
-        else
-            'unknown'
-    }
-    else if (operator=='log')
-    {
-        if (scale=='proportion.staying')
-            'rate'
-        else if (scale=='non.negative.number' || scale=='number')
-            'number'
-        else
-            'unknown'
-    }
-    else if (operator=='exp')
-    {
-        if (any(scale=='rate'))
-            'proportion.staying'
-        else
-            'unknown'
-    }
-    else
-        'unknown'
-}
-
-join.scales <- function(scale1, scale2)
-{
-    scale1[scale1=='proportion.leaving'] = 'proportion'
-    scale2[scale2=='proportion.leaving'] = 'proportion'
-    
-    rv = intersect(scale1, scale2)
-    if (length(rv)>1)
-        rv = rv[rv!='unknown']
-    rv
+        apply(values, keep.dimensions, sum)
 }

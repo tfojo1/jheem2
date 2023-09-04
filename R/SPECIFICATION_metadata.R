@@ -137,7 +137,7 @@ SPECIFICATION.METADATA = R6::R6Class(
                                     " for the specification for version '", private$i.version, "'"))
                     
                     rv = lapply(names(dim.names), function(d){
-                        if (length(private$i.categorized.aliases[[d]])>0)
+                        if (length(private$i.categorized.aliases[[d]])>0 && is.character(dim.names[[d]]))
                             substitute.aliases.into.vector(dim.names[[d]], aliases=private$i.categorized.aliases[[d]])
                         else
                             dim.names[[d]]
