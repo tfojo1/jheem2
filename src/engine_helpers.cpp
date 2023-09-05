@@ -27,6 +27,7 @@ List apply_foregrounds(List values,
             int start_time = (int) one_effect["start.time"];
             int end_time = (int) one_effect["end.time"];
             IntegerVector effect_times = (IntegerVector) one_effect["times"];
+            NumericVector effect_values = (NumericVector) one_effect["effect.values"];
             
             int n_effect_times = effect_times.length();
             
@@ -35,12 +36,134 @@ List apply_foregrounds(List values,
             bool effect_is_overwrite = !effect_is_multiplier && !effect_is_addend;
             
             IntegerVector indices = (IntegerVector) indices_per_effect[i_effect];
+            int n_indices = indices.length();
             
             // i indexes the time/values
             // j indexes within the effect
             
+            // set up the index into values
+            // advance it such that it is between start_time and effect_times[0]
             int i=0;
-            int j=-1;
+            while (value_times[i] < start_time)
+                i++;
+            
+            int j = -1; //index into effect_times
+            double val_before;
+            if (effect_is_multiplier)
+                val_before = 1;
+            else if (effect_is_addend)
+                val_before = 0;
+            double val_after = effect_values[0];
+            double val;
+            double val_to_write_after;
+            
+            double time_before = start_time;
+            double time_after = effect_times[0];
+            
+            double arr;
+            bool write_value, write_after_value;
+            
+            while (j <= n_effect_times)
+            {
+                // at the start of this loop, we know that
+                //   value_times[i] >= time_before
+                while (value_times[i] <= time_after)
+                {
+                    if (time_before == time_after)
+                    // we need to write values[i] using with val_before
+                    // and after_values[i] using val_after
+                    // we don't need to interpolate here - we know we're right at
+                    //  value_times[i] == time_before == time_after
+                    {
+                        if (j==-1) //we're at the start time and don't need to overwrite values
+                            write_value = F;
+                        else
+                        {
+                            write_value = T;
+                            val = val_before;
+                        }
+                        
+                        if (j==n+effects) // we're at the end time and don't need to overwrite after_values
+                            write_after_value = F;
+                        else
+                        {
+                            write_after_value = T;
+                            val_to_write_after = val_after;
+                        }
+                    
+                    }
+                    else 
+                    {
+                        if (after_values[i]==R_NilValue) // overwrite both 
+                    }
+                }
+                
+                // do the overwrite
+                if (write_value)
+                {
+                    arr = (NumericVector) values[i];
+                    
+                    if (effect_is_multiplier)
+                    {
+                        for (int k=0; k<n_indices; k++)
+                            arr[ indices[k] ] *= val;
+                    }
+                    else if (effect_is_addend)
+                    {
+                        for (int k=0; k<n_indices; k++)
+                            arr[ indices[k] ] += val;
+                    }
+                    else
+                    {
+                        for (int k=0; k<n_indices; k++)
+                            arr[ indices[k] ] = val;
+                    }
+                    
+                    values[i] = arr;
+                }
+                
+                if (write_after_value)
+                {
+                    arr = (NumericVector) after_values[i];
+                    
+                    if (effect_is_multiplier)
+                    {
+                        for (int k=0; k<n_indices; k++)
+                            arr[ indices[k] ] *= val_to_write_after;
+                    }
+                    else if (effect_is_addend)
+                    {
+                        for (int k=0; k<n_indices; k++)
+                            arr[ indices[k] ] += val_to_write_after;
+                    }
+                    else
+                    {
+                        for (int k=0; k<n_indices; k++)
+                            arr[ indices[k] ] = val_to_write_after;
+                    }
+                    
+                    after_values[i] = arr;
+                }
+                
+                // update for the next iteration of the loop
+                j++;
+                val_before = val_after;
+                time_before = time_after;
+                if (j==n_effect_times)
+                {
+                    if (effect_is_multiplier)
+                        val_after = 1;
+                    else if (effect_is_addend)
+                        val_after = 0;
+                    
+                    time_after = end_time;
+                }
+                else
+                {
+                    val_after = effect_values[j];
+                    time_after = effect_times[j];
+                }
+            }
             
             
         }
