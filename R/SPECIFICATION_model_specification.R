@@ -86,7 +86,7 @@ create.jheem.specification <- function(version,
         age.endpoints = NULL
     
     if (missing(sub.versions))
-        sub.versions = NULL
+        sub.versions = character()
     
     ##-- CHECK ARGUMENTS --##
 
