@@ -29,6 +29,9 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                               core.components,
                               mechanisms,
                               
+                              foregrounds,
+                              default.parameter.values,
+                              
                               age.info,
 
                               parent.specification,
@@ -52,9 +55,12 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             private$i.fixed.strata.info = fixed.strata.info
             private$i.quantities = lapply(quantities, function(quant){quant$compile()})
-            private$i.outcomes = lapply(outcomes, function(outcome){outcome$compile(self)})
+            private$i.outcomes = outcomes
             private$i.core.components = core.components
             private$i.mechanisms = mechanisms
+            
+            private$i.foregrounds = foregrounds
+            private$i.default.parameter.values = default.parameter.values
             
             private$i.age.info = age.info
 
@@ -175,9 +181,11 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         },
         
         # returns a vector of the names of saved outcomes
-        process.and.rename.outcomes = function(names.in.use)
+        process.and.rename.outcomes = function(wrt.specification, names.in.use)
         {
             rv = character()
+            private$i.outcomes = lapply(private$i.outcomes, function(outcome){outcome$compile(wrt.specification)})
+            
             for (outcome in private$i.outcomes)
             {
                 if (any(outcome$name==names.in.use))
@@ -185,13 +193,13 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 else if (outcome$save)
                     rv = c(rv, outcome$name)
             }
-            
+
             if (!is.null(private$i.parent.specification))
             {
                 names.in.use = union(names.in.use,
                                      sapply(private$i.outcomes, function(outcome){outcome$name}))
                 
-                rv = c(rv, private$i.parent.specification$process.and.rename.outcomes(names.in.use))
+                rv = c(rv, private$i.parent.specification$process.and.rename.outcomes(self, names.in.use=names.in.use))
             }
             
             rv
@@ -363,6 +371,14 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 names(private$i.compartment.value.function.aliases)
             else
                 stop("Cannot modify a specification's 'resolved.aliases' - they are read-only")
+        },
+        
+        foregrounds = function(value)
+        {
+            if (missing(value))
+                names(private$i.foregrounds)
+            else
+                stop("Cannot modify a specification's 'foregrounds' - they are read-only")
         }
     ),
     
@@ -402,10 +418,9 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             private$process.compartment.aliases()
             do.cat("done\n")
 
-            
             #-- Rename outcomes and quantities so they are unique across versions --#
-            do.cat("Renaming outcomes and quantities...")
-            top.level.outcome.names = self$process.and.rename.outcomes(character()) # rename the quantities first so we can get a unique name for each
+            do.cat("Compiling outcomes, renaming outcomes and quantities...")
+            top.level.outcome.names = self$process.and.rename.outcomes(self, names.in.use = character()) # rename the quantities first so we can get a unique name for each
             self$rename.quantities(character()) # rename the quantities first so we can get a unique name for each
             do.cat("done\n")
             
@@ -426,6 +441,10 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             private$process.mechanisms(error.prefix)
             do.cat("done\n")
             
+            #-- Process Foregrounds --#
+            do.cat("Processing foregrounds...")
+            private$process.foregrounds(error.prefix)
+            do.cat("done\n")
             
             #-- Pull all top-level references FROM CORE COMPONENTS --#
             do.cat("Deriving top-level references...")
@@ -623,36 +642,65 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         ##-- COMPILE HELPERS --##
         ##---------------------##
         
-         # call AFTER process.core.components()
-         process.mechanisms = function(error.prefix)
-         {
-             # Pull each mechanism for each core component
-             for (i in 1:length(private$i.core.components))
-             {
-                 comp = private$i.core.components[[i]]
-                 
-                 for (mechanism.type in comp$schema$mechanism.types)
-                 {
-                     mechanism = private$find.mechanism.for.component(comp,
-                                                                      mechanism.type = mechanism.type,
-                                                                      error.prefix = error.prefix)
-                     if (is.null(mechanism))
-                         stop(paste0(error.prefix,
-                                     "No '", mechanism.type, "' mechanism has been registered for ",
-                                     comp$name))
-                     
-                     # Set the quantity name to the component (for the mechanism)
-                     quantity = private$resolve.quantity.name(mechanism$quantity.name, this.refers.to.version=mechanism$version)
-                     
-                     private$i.core.components[[i]] = 
-                         private$i.core.components[[i]]$schema$set.mechanism.for.component(comp = private$i.core.components[[i]],
-                                                                                           mechanism = mechanism,
-                                                                                           quantity = quantity)
-                 }
-             }
-             
-             self
-         },
+        process.foregrounds = function(error.prefix)
+        {
+            foregrounds = list()
+            for (i in (1:length(private$i.ancestor.specifications))[-1])
+            {
+                one.foregrounds = private$i.ancestor.specifications[[i]]$foregrounds
+                to.add = setdiff(names(one.foregrounds), names(private$i.foregrounds))
+                
+                private$i.foregrounds[names(to.add)] = to.add
+            }
+            
+            for (frgd.name in names(private$i.foregrounds))
+            {
+                frgd = private$i.foregrounds[[frgd.name]]
+                missing.parameters = setdiff(frgd$depends.on, names(private$i.default.parameter.values))
+                
+                if (length(missing.parameters)>0)
+                    stop(paste0(error.prefix, "Foreground '", frgd.name, "' depends on ",
+                                ifelse(length(paramaters)==1, "parameter ", "parameters "),
+                                collapse.with.and("'", missing.parameters, "'"),
+                                ifelse(length(paramaters)==1, " but it has", " but they have"),
+                                " not had default values set. Use register.default.parameter.values() to do so"
+                                ))
+            }
+            
+            
+            self
+        },
+        
+        # call AFTER process.core.components()
+        process.mechanisms = function(error.prefix)
+        {
+            # Pull each mechanism for each core component
+            for (i in 1:length(private$i.core.components))
+            {
+                comp = private$i.core.components[[i]]
+                
+                for (mechanism.type in comp$schema$mechanism.types)
+                {
+                    mechanism = private$find.mechanism.for.component(comp,
+                                                                     mechanism.type = mechanism.type,
+                                                                     error.prefix = error.prefix)
+                    if (is.null(mechanism))
+                        stop(paste0(error.prefix,
+                                    "No '", mechanism.type, "' mechanism has been registered for ",
+                                    comp$name))
+                    
+                    # Set the quantity name to the component (for the mechanism)
+                    quantity = private$resolve.quantity.name(mechanism$quantity.name, this.refers.to.version=mechanism$version)
+                    
+                    private$i.core.components[[i]] = 
+                        private$i.core.components[[i]]$schema$set.mechanism.for.component(comp = private$i.core.components[[i]],
+                                                                                          mechanism = mechanism,
+                                                                                          quantity = quantity)
+                }
+            }
+            
+            self
+        },
 
          find.mechanism.for.component = function(comp, mechanism.type, error.prefix, ancestor.index=1)
          {

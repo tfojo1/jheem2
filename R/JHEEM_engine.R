@@ -1891,6 +1891,17 @@ stop("need to implement")
             private$i.quantity.self.times = list()
             private$i.quantity.value.times = list()
             
+            # Import the default parameters
+            self$set.parameters(parameters = specification$default.parameter.values,
+                                check.consistency = T)
+            
+            # Import the foregrounds
+            for (frgd in specification$foregrounds)
+            {
+                self$set.quantity.foreground(foreground = frgd,
+                                             check.consistency = T)
+            }
+            
             # Set up the diffeq settings
             private$i.diffeq.settings = create.diffeq.settings(engine = self,
                                                                error.prefix = paste0("Error creating diffeq settings for JHEEM Engine for version '", private$i.version, "' and location '", private$i.location, "': "))

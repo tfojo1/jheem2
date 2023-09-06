@@ -616,9 +616,7 @@ create.jheem.specification <- function(version,
         age.info = age.info,
         
         compartment.value.character.aliases = compartment.value.character.aliases,
-        compartment.value.function.aliases = compartment.value.function.aliases,
-
-        model.quantities = list()
+        compartment.value.function.aliases = compartment.value.function.aliases
     )
 }
 
@@ -908,21 +906,29 @@ register.model.quantity.subset <- function(specification,
 #'@name Register a Foreground for a Model Specification
 #'
 #'@inheritParams register.model.quantity
-#'@param foreground An object of class 'jheem.foreground', as created by \code{\link{create.model.foreground}}
+#'@param foreground An object of class 'jheem.model.foreground', as created by \code{\link{create.model.foreground}}
+#'@param name A single character value giving the name by which the foreground can be referred to
 #'
 #'@export
 register.model.foreground <- function(specification,
-                                      foreground)
+                                      foreground,
+                                      name)
 {
+    if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
+        stop("'specification' must be an R6 object with class 'jheem.specification")
     
+    specification$register.foreground(foreground, name=name)
 }
 
 
 #'@name Create
-register.default.parameters <- function(specification,
-                                        parameters)
+register.default.parameter.values <- function(specification,
+                                        parameter.values)
 {
+    if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
+        stop("'specification' must be an R6 object with class 'jheem.specification")
     
+    specification$register.default.parameter.values(parameter.values)
 }
 
 
@@ -1726,9 +1732,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                               age.info,
                               
                               compartment.value.character.aliases,
-                              compartment.value.function.aliases,
-                              
-                              model.quantities)
+                              compartment.value.function.aliases)
         {
             # As of now, I am assuming these have already been error-checked
             # Either by the create.jheem.specification function
@@ -1752,9 +1756,15 @@ JHEEM.SPECIFICATION = R6::R6Class(
             private$i.compartment.value.character.aliases = compartment.value.character.aliases
             private$i.compartment.value.function.aliases = compartment.value.function.aliases
 
-            private$i.quantities = model.quantities
+            private$i.quantities = list()
             private$i.core.components = list()
             private$i.mechanisms = list()
+            
+            private$i.foregrounds = list()
+            if (is.null(parent.specification))
+                private$i.default.parameter.values = numeric()
+            else
+                private$i.default.parameter.values = parent.specification$default.parameter.values
             
             #-- Process dim.names --#
             
@@ -2095,14 +2105,48 @@ JHEEM.SPECIFICATION = R6::R6Class(
         ##-- MISC REGISTRATION FUNCTIONS --##
         ##---------------------------------##
         
-        register.foreground = function(foreground)
+        register.foreground = function(foreground, name)
         {
+            if (!is(foreground, 'jheem.model.foreground'))
+                stop("Cannot register model foreground: foreground must be an object of class 'jheem.model.foreground', as created by create.model.foreground()")
             
+            if (!is.character(name) || length(name)!=1 || is.na(name) || nchar(name)==0)
+                stop("Cannot register model foreground: 'name' must be a single, non-NA, non-empty character value")
+            
+            if (any(names(private$i.foregrounds)==name))
+                stop("Cannot register model foreground: a foreground with name '", name, 
+                     "' has already been registered to the '", private$i.version, "' specification")
+            
+            
+            private$i.foregrounds[[name]] = foreground
+            
+            invisible(self)
         },
         
-        register.default.parameters = function(parameters)
+        register.default.parameter.values = function(parameter.values)
         {
+            if (!is.numeric(parameter.values))
+                stop("Cannot register model default parameter values: 'parameter.values' must be a numeric vector")
             
+            if (length(parameter.values)==0)
+                stop("Cannot register model default parameter values: 'parameter.values' cannot be an empty vector")
+            
+            if (any(is.na(parameter.values)))
+                stop("Cannot register model default parameter values: 'parameter.values' cannot contain NA values")
+            
+            if (is.null(names(parameter.values)))
+                stop("Cannot register model default parameter values: 'parameter.values' must be a NAMED numeric vector")
+            
+            if (any(is.na(names(parameter.values))) || any(nchar(names(parameter.values))==0))
+                stop("Cannot register model default parameter values: the names of 'parameter.values' must be non-empty and non-NA")
+            
+            if (max(table(names(parameter.values))))
+                stop("Cannot register model default parameter values: the names of 'parameter.values' must be unique")
+            
+            
+            private$i.default.parameter.values[names(parameter.values)] = parameter.values
+            
+            invisible(self)
         },
         
         
@@ -2618,15 +2662,16 @@ JHEEM.SPECIFICATION = R6::R6Class(
         #to be called by code in the package
         compile = function()
         {            
-            if (private$i.locked || !is.specification.registered.for.version(private$i.version) ||
-                is.compiled.specification.registered.for.version(private$i.version))
-                stop("compile() should not be invoked directly for a JHEEM specification object - use register.model.specification() to register the specification instead")
-            
             is.recursive.call = is(parent.env(parent.frame()), 'jheem.specification')
             # ^true if the call to compile on THIS specification was a recursive call 
             #   on the parent.specification within the compile() method of a
             #   descendant specification
-    
+            
+            if (!is.recursive.call && 
+                (private$i.locked || !is.specification.registered.for.version(private$i.version) ||
+                 is.compiled.specification.registered.for.version(private$i.version)))
+                stop("compile() should not be invoked directly for a JHEEM specification object - use register.model.specification() to register the specification instead")
+            
             if (is.null(private$i.parent.specification))
                 compiled.parent = NULL
             else
@@ -2648,9 +2693,12 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                   core.components = private$i.core.components,
                                                   mechanisms = private$i.mechanisms,
                                                   
+                                                  foregrounds = private$i.foregrounds,
+                                                  default.parameter.values = private$i.default.parameter.values,
+                                                  
                                                   age.info = private$i.age.info,
 
-                                                  parent.specification = private$i.parent.specification,
+                                                  parent.specification = compiled.parent,
                                                   do.not.inherit.model.quantity.names = private$i.do.not.inherit.model.quantity.names,
                                                   do.not.inherit.model.outcome.names = private$i.do.not.inherit.model.outcome.names,
                                                   do.not.inherit.transitions.for.dimension = private$i.do.not.inherit.transitions.for.dimension,
@@ -2799,7 +2847,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
             if (missing(value))
                 names(private$i.quantities)
             else
-                stop("Cannot modify a specification's 'quantity.names' - it is read-only")
+                stop("Cannot modify a specification's 'quantity.names' - they are read-only")
         },
         
         outcome.names = function(value)
@@ -2807,7 +2855,15 @@ JHEEM.SPECIFICATION = R6::R6Class(
             if (missing(value))
                 names(private$i.outcomes)
             else
-                stop("Cannot modify a specification's 'outcome.names' - it is read-only")
+                stop("Cannot modify a specification's 'outcome.names' - they are read-only")
+        },
+        
+        default.parameter.values = function(value)
+        {
+            if (missing(value))
+                names(private$i.default.parameter.values)
+            else
+                stop("Cannot modify a specification's 'default.parameter.values' - they are read-only")
         }
     ),
 
@@ -2830,7 +2886,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         i.compartments = NULL,
         
         i.foregrounds = NULL,
-        i.default.parameters = NULL,
+        i.default.parameter.values = NULL,
         
         i.fixed.strata.info = NULL,
         i.quantities = NULL,
@@ -7306,8 +7362,28 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
             })]
             
             if (length(relevant.components)==0)
-                stop(paste0(error.prefix,
-                            "No core components apply to the outcome ", self$get.original.name(wrt.version=specification$version)))
+            {
+                if (is(self, 'transition.model.outcome'))
+                    stop(paste0(error.prefix,
+                                "Empty model outcome '", 
+                                self$get.original.name(wrt.version=specification$version),
+                                "' - no transitions from <",
+                                paste0(private$i.from.compartments, collapse=', '),
+                                "> to <", 
+                                paste0(private$i.to.compartments, collapse=', '),
+                                ">",
+                                ifelse(length(private$i.tags)==0, '', 
+                                       paste0(", for tag(s) '", collapse.with.or("'", private$i.tags, "'"), ", ")),
+                                " have been registered to the '", specification$version, "' specification"))
+                else
+                    stop(paste0(error.prefix,
+                                "Empty model outcome '", 
+                                self$get.original.name(wrt.version=specification$version),
+                                "' - no '", private$i.dynamic.quantity.name, "' core components ",
+                                ifelse(length(private$i.tags)==0, '', 
+                                       paste0(" for tag(s) '", collapse.with.or("'", private$i.tags, "'"), ", ")),
+                                " have registered to the '",  specification$version, "' specification"))
+            }
             
             dim.names = NULL
             for (comp in relevant.components)

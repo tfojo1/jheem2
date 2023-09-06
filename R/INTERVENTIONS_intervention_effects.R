@@ -279,6 +279,12 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                     stop(paste0(error.prefix, "'end.time' (",
                                 start.time, ") must be AFTER the last element of 'times' (",
                                 times[length(times)], ")"))
+                
+                
+                stop("need to change this")
+                # end time can be = last time
+                # times can be repeated at most once (ie, two times the same, no more)
+                # times cannot be infinite
             }
             else
             {

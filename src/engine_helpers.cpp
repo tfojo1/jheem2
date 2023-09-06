@@ -48,13 +48,13 @@ List apply_foregrounds(List values,
                 i++;
             
             int j = -1; //index into effect_times
-            double val_before;
+            double val_before = 0;
             if (effect_is_multiplier)
                 val_before = 1;
-            else if (effect_is_addend)
-                val_before = 0;
+         //   else if (effect_is_addend)
+        //        val_before = 0;
             double val_after = effect_values[0];
-            double val;
+            double val, weight;
             double val_to_write_after;
             
             double time_before = start_time;
@@ -62,6 +62,7 @@ List apply_foregrounds(List values,
             
             double arr;
             bool write_value, write_after_value;
+            bool interpolate_abs_start, interpolate_abs_end;
             
             while (j <= n_effect_times)
             {
@@ -69,6 +70,8 @@ List apply_foregrounds(List values,
                 //   value_times[i] >= time_before
                 while (value_times[i] <= time_after)
                 {
+                    // Figure out what we need to overwrite
+                    
                     if (time_before == time_after)
                     // we need to write values[i] using with val_before
                     // and after_values[i] using val_after
@@ -76,73 +79,159 @@ List apply_foregrounds(List values,
                     //  value_times[i] == time_before == time_after
                     {
                         if (j==-1) //we're at the start time and don't need to overwrite values
-                            write_value = F;
+                            write_value = false;
                         else
                         {
-                            write_value = T;
+                            write_value = true;
                             val = val_before;
                         }
                         
-                        if (j==n+effects) // we're at the end time and don't need to overwrite after_values
-                            write_after_value = F;
+                        if (j==n_effects) // we're at the end time and don't need to overwrite after_values
+                            write_after_value = false;
                         else
                         {
-                            write_after_value = T;
+                            write_after_value = true;
                             val_to_write_after = val_after;
                         }
-                    
-                    }
-                    else 
-                    {
-                        if (after_values[i]==R_NilValue) // overwrite both 
-                    }
-                }
-                
-                // do the overwrite
-                if (write_value)
-                {
-                    arr = (NumericVector) values[i];
-                    
-                    if (effect_is_multiplier)
-                    {
-                        for (int k=0; k<n_indices; k++)
-                            arr[ indices[k] ] *= val;
-                    }
-                    else if (effect_is_addend)
-                    {
-                        for (int k=0; k<n_indices; k++)
-                            arr[ indices[k] ] += val;
+                        
+                        interpolate_abs_start = false;
+                        interpolate_abs_end = false;
                     }
                     else
                     {
-                        for (int k=0; k<n_indices; k++)
-                            arr[ indices[k] ] = val;
+                        write_value = j!=-1;
+                        write_after_value = j!=n_effect_times && after_values[i]!=R_NilValue;
+                        
+                        if (time_before == R_NegInf)
+                        {
+                            weight_before = 1;
+                            weight_after = 0;
+                            val = val_to_write_after = value_before;
+                        }
+                        else if (time_after == R_PosInf)
+                        {
+                            weight_before = 0;
+                            weight_after = 1;
+                            val = val_to_write_after = val_after;
+                        }
+                        else
+                        {
+                            weight_before = (time_after - value_times[i]) / (time_after - time_before);
+                            weight_after = 1 - weight_before;
+                            val = val_to_write_after = weight_before * val_before + weight_after * val_after;
+                        }
+                        
+                        interpolate_abs_start = j==-1;
+                        interpolate_abs_end = j==n_effect_times;
                     }
-                    
-                    values[i] = arr;
-                }
                 
-                if (write_after_value)
-                {
-                    arr = (NumericVector) after_values[i];
+                    // do the overwrite
+                    if (write_value)
+                    {
+                        arr = (NumericVector) values[i];
+                        
+                        if (effect_is_multiplier)
+                        {
+                            for (int k=0; k<n_indices; k++)
+                                arr[ indices[k] ] *= val;
+                        }
+                        else if (effect_is_addend)
+                        {
+                            for (int k=0; k<n_indices; k++)
+                                arr[ indices[k] ] += val;
+                        }
+                        else if (interpolate_abs_start) // need to interpolate between the start value and the 1st foreground value
+                        {
+                            if (weight_after==1)
+                            {
+                                for (int k=0; k<n_indices; k++)
+                                    arr[ indices[k] ] = val_after;
+                            }
+                            else if (weight_after > 0)
+                            {
+                                for (int k=0; k<n_indices; k++)
+                                    arr[ indices[k] ] = arr[ indices[k] ] * weight_before + val_after * weight_after;
+                            }
+                            // if weight_before == 1, don't need to to anything
+                                
+                        }
+                        else if (interpolate_abs_end) // need to interpolate between the end value and the 1st foreground value
+                        {
+                            if (weight_before==1)
+                            {
+                                for (int k=0; k<n_indices; k++)
+                                    arr[ indices[k] ] = val_before;
+                            }
+                            else if (weight_before > 0)
+                            {
+                                for (int k=0; k<n_indices; k++)
+                                    arr[ indices[k] ] = arr[ indices[k] ] * weight_after + val_before * weight_before;
+                            }
+                            // if weight_after == 1, don't need to to anything
+                        }
+                        else
+                        {
+                            for (int k=0; k<n_indices; k++)
+                                arr[ indices[k] ] = val;
+                        }
+                        
+                        values[i] = arr;
+                    }
                     
-                    if (effect_is_multiplier)
+                    if (write_after_value)
                     {
-                        for (int k=0; k<n_indices; k++)
-                            arr[ indices[k] ] *= val_to_write_after;
-                    }
-                    else if (effect_is_addend)
-                    {
-                        for (int k=0; k<n_indices; k++)
-                            arr[ indices[k] ] += val_to_write_after;
-                    }
-                    else
-                    {
-                        for (int k=0; k<n_indices; k++)
-                            arr[ indices[k] ] = val_to_write_after;
+                        arr = (NumericVector) after_values[i];
+                        
+                        if (effect_is_multiplier)
+                        {
+                            for (int k=0; k<n_indices; k++)
+                                arr[ indices[k] ] *= val_to_write_after;
+                        }
+                        else if (effect_is_addend)
+                        {
+                            for (int k=0; k<n_indices; k++)
+                                arr[ indices[k] ] += val_to_write_after;
+                        }
+                        else if (interpolate_abs_start) // need to interpolate between the start value and the 1st foreground value
+                        {
+                            if (weight_after==1)
+                            {
+                                for (int k=0; k<n_indices; k++)
+                                    arr[ indices[k] ] = val_after;
+                            }
+                            else if (weight_after > 0)
+                            {
+                                for (int k=0; k<n_indices; k++)
+                                    arr[ indices[k] ] = arr[ indices[k] ] * weight_before + val_after * weight_after;
+                            }
+                            // if weight_before == 1, don't need to to anything
+                            
+                        }
+                        else if (interpolate_abs_end) // need to interpolate between the end value and the 1st foreground value
+                        {
+                            if (weight_before==1)
+                            {
+                                for (int k=0; k<n_indices; k++)
+                                    arr[ indices[k] ] = val_before;
+                            }
+                            else if (weight_before > 0)
+                            {
+                                for (int k=0; k<n_indices; k++)
+                                    arr[ indices[k] ] = arr[ indices[k] ] * weight_after + val_before * weight_before;
+                            }
+                            // if weight_after == 1, don't need to to anything
+                        }
+                        else
+                        {
+                            for (int k=0; k<n_indices; k++)
+                                arr[ indices[k] ] = val_to_write_after;
+                        }
+                        
+                        after_values[i] = arr;
                     }
                     
-                    after_values[i] = arr;
+                    //increment to the next value point
+                    i++;
                 }
                 
                 // update for the next iteration of the loop
@@ -169,7 +258,7 @@ List apply_foregrounds(List values,
         }
     }
     
-    
+    // make the list and return
 }
 
 
