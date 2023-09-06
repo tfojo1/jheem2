@@ -181,10 +181,10 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         },
         
         # returns a vector of the names of saved outcomes
-        process.and.rename.outcomes = function(wrt.specification, names.in.use)
+        process.and.rename.outcomes = function(wrt.specification, names.in.use, error.prefix)
         {
             rv = character()
-            private$i.outcomes = lapply(private$i.outcomes, function(outcome){outcome$compile(wrt.specification)})
+            private$i.outcomes = lapply(private$i.outcomes, function(outcome){outcome$compile(wrt.specification, error.prefix)})
             
             for (outcome in private$i.outcomes)
             {
@@ -199,7 +199,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 names.in.use = union(names.in.use,
                                      sapply(private$i.outcomes, function(outcome){outcome$name}))
                 
-                rv = c(rv, private$i.parent.specification$process.and.rename.outcomes(self, names.in.use=names.in.use))
+                rv = c(rv, private$i.parent.specification$process.and.rename.outcomes(self, names.in.use=names.in.use, error.prefix=error.prefix))
             }
             
             rv
@@ -420,7 +420,9 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
 
             #-- Rename outcomes and quantities so they are unique across versions --#
             do.cat("Compiling outcomes, renaming outcomes and quantities...")
-            top.level.outcome.names = self$process.and.rename.outcomes(self, names.in.use = character()) # rename the quantities first so we can get a unique name for each
+            top.level.outcome.names = self$process.and.rename.outcomes(self, 
+                                                                       names.in.use = character(),
+                                                                       error.prefix = error.prefix) # rename the quantities first so we can get a unique name for each
             self$rename.quantities(character()) # rename the quantities first so we can get a unique name for each
             do.cat("done\n")
             

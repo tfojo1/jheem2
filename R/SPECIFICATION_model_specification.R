@@ -2909,7 +2909,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         check.lock = function(error.prefix)
         {
             if (private$i.locked)
-                stop(paste0(error.prefix, "The '", private$i.name, "' specification has already been registered and cannot be modified further"))
+                stop(paste0(error.prefix, "The '", private$i.version, "' specification has already been registered and cannot be modified further"))
         },
     
         get.unique.internal.name = function()
@@ -6610,7 +6610,7 @@ MODEL.OUTCOME = R6::R6Class(
             private$i.to.year = to.year
         },
         
-        compile = function(specification)
+        compile = function(specification, error.prefix)
         {
             self$clone(deep=T)
         },
@@ -7462,9 +7462,9 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
             private$i.to.compartments = to.compartments
         },
         
-        compile = function(specification)
+        compile = function(specification, error.prefix)
         {
-            rv = super$compile(specification)
+            rv = super$compile(specification, error.prefix)
             rv$resolve.compartment.aliases(specification$resolved.aliases)
             rv
         },
@@ -7740,9 +7740,9 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
             private$i.value$rename.depends.on(mapping)
         },
         
-        compile = function(specification)
+        compile = function(specification, error.prefix)
         {
-            rv = super$compile(specification)
+            rv = super$compile(specification, error.prefix)
             rv$compile.value()
             rv
         },
@@ -7881,6 +7881,24 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
             
             # Store variables
             private$i.calculate.proportion.leaving = calculate.proportion.leaving
+        },
+        
+        compile = function(specification, error.prefix)
+        {
+            if (private$i.value$value.type=='character')
+            {
+                quantity = specification$get.quantity(private$i.value$depends.on)
+                if (!is.null(quantity$scale) && quantity$scale != 'rate')
+                {
+                    stop(paste0(error.prefix, "Outcome ",
+                                self$get.original.name(specification$version),
+                                ", a rate-to-proportion outcome, needs to integrate a *rate*, but the scale for quantity ",
+                                quantity$get.original.name(specification$version),
+                                " is '", quantity$scale, "'"))
+                }
+            }
+            
+            super$compile(specification, error.prefix)
         }
     ),
     

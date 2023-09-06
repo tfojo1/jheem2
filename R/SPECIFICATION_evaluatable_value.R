@@ -287,6 +287,14 @@ EVALUATABLE.VALUE = R6::R6Class(
                 private$i.value.name
             else
                 stop("Cannot modify 'value.name' - it is read-only")
+        },
+        
+        value.type = function(value)
+        {
+            if (missing(value))
+                private$i.value.type
+            else
+                stop("Cannot modify 'value.type' - it is read-only")
         }
     ),
     
