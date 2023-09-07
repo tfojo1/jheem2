@@ -1157,9 +1157,11 @@ register.model.mechanism <- function(specification,
 #'@param outcome.metadata An object created by \code{\link{create.outcome.metadata}}, giving information on the outcome
 #'
 #'@param dynamic.quantity.name The name of the dynamic quantity to track for the outcome. Must be one of 'population', 'mortality', 'births', 'births.from', 'births.to', 'incidence', 'incidence.to', 'incidence.from', 'incidence.by', 'remission', 'remission.from', 'remission.to'
+#'@param denominator.outcome Optional: A denominator for calculating proportions. Must be the name of a separately registered cumulative outcome that has type 'non.negative.number'
 #'
 #'@param groups The groups to track for ('infected' or 'uninfected'). Choosing NULL (the default value) tracks for all groups for which the outcome could apply
 #'@param tags The tags to track for (as given in the call to \code{\link{register.transition}}). Choosing NULL (the default value) tracks for all tags for which the outcome could apply
+#'@param sub.versions The sub-versions of the model for which this outcome will be recorded. If NULL, the outcome will be recorded for all sub-versions
 #'
 #'@param multiply.by An optional quantity to multiply the outcome value by at each time step before storing. Can be either (1) a numeric value, (2) a single character value referencing a model quantity or element, or (3) an expression that includes only the names of model quantities and elements and operators +, -, *, /, ^, sqrt, log, and exp
 #'
@@ -1168,7 +1170,7 @@ register.model.mechanism <- function(specification,
 #'@param keep.dimensions The dimensions which to keep in storing outcome values. All other dimensions are marginalized. Either keep.dimensions OR exclude.dimensions but not both can be set; if both are NULL, will keep all possible dimensions for the outcome.
 #'@param exclude.dimensions Dimensions to be marginalized out when storing outcome values. Either keep.dimensions OR exclude.dimensions but not both can be set; if both are NULL, will keep all possible dimensions for the outcome.
 #'@param subset.dimension.values A list of dimension values indicating for which values of which dimensions the outcome should be tracked
-#'@param save A logical indicator of whether this outcome should be stored in simulations. If FALSE, the outcome will be available for calculating other outcomes (with \code{\link{track.cumulative.outcome}} or \code{\link{track.quantity.outcome}}), but will not be retrievable afterwards
+#'@param save A logical indicator of whether this outcome should be stored in simulations. If FALSE, the outcome will be available for calculating other outcomes (with \code{\link{track.cumulative.outcome}} or \code{\link{track.point.outcome}}), but will not be retrievable afterwards
 #'@param from.year,to.year The time span during which the outcome should be recorded
 #'
 #'@details Integrates the dynamic quantity (or the product of the dynamic quantity x multiply by), such that the simulation stores, for each year y, the integral from y to y+1 of (dynamic quantity * multiply.by)
@@ -1178,9 +1180,11 @@ track.dynamic.outcome <- function(specification,
                                   name,
                                   outcome.metadata,
                                   dynamic.quantity.name,
+                                  denominator.outcome = NULL,
                                   
                                   tags = NULL,
                                   groups = NULL,
+                                  sub.versions = NULL,
                                   
                                   multiply.by = NULL,
                                   corresponding.data.outcome = NULL,
@@ -1197,8 +1201,10 @@ track.dynamic.outcome <- function(specification,
     specification$track.dynamic.outcome(name = name,
                                         outcome.metadata = outcome.metadata,
                                         dynamic.quantity.name = dynamic.quantity.name,
+                                        denominator.outcome = denominator.outcome,
                                         tags = tags,
                                         groups = groups,
+                                        sub.versions = sub.versions,
                                         multiply.by = multiply.by,
                                         corresponding.data.outcome = corresponding.data.outcome,
                                         keep.dimensions = keep.dimensions,
@@ -1225,9 +1231,11 @@ track.transition <- function(specification,
                              dimension,
                              from.compartments,
                              to.compartments,
+                             denominator.outcome = NULL,
                              
                              tags = NULL,
                              groups = NULL,
+                             sub.versions = NULL,
                              
                              multiply.by = NULL,
                              corresponding.data.outcome = NULL,
@@ -1246,8 +1254,10 @@ track.transition <- function(specification,
                                    dimension = dimension,
                                    from.compartments = from.compartments,
                                    to.compartments = to.compartments,
+                                   denominator.outcome = denominator.outcome,
                                    tags = tags,
                                    groups = groups,
+                                   sub.versions = sub.versions,
                                    multiply.by = multiply.by,
                                    corresponding.data.outcome = corresponding.data.outcome,
                                    keep.dimensions = keep.dimensions,
@@ -1264,20 +1274,23 @@ track.transition <- function(specification,
 #'
 #'@inheritParams track.dynamic.outcome
 #'
-#'@param outcome.name.to.integrate The name of a "point" outcome with scale 'non.negative.number' or 'number'. Either "infected" or "uninfected" (which are stored by default) or the name of an outcome previously registered using \code{\link{track.quantity.outcome}}
+#'@param value.to.integrate Either (1) a single character value referencing a separately-registered "point" (non-cumulative) outcome or a quantity, or (2) an expression that includes only the names of point outcomes and model quantities and operators +, -, *, /, ^, sqrt, log, and exp
 #'
 #'@export
 track.integrated.outcome <- function(specification,
                                      name,
                                      outcome.metadata,
                                      
-                                     outcome.name.to.integrate,
+                                     value.to.integrate,
                                      multiply.by = NULL,
+                                     denominator.outcome = NULL,
+                                     sub.versions = NULL,
                                      
                                      corresponding.data.outcome = NULL,
                                      keep.dimensions = NULL,
                                      exclude.dimensions = NULL,
                                      subset.dimension.values = NULL,
+                                     scale = NULL,
                                      from.year = -Inf,
                                      to.year = Inf,
                                      save = T)
@@ -1287,14 +1300,17 @@ track.integrated.outcome <- function(specification,
     
     specification$track.integrated.outcome(name = name,
                                            outcome.metadata = outcome.metadata,
-                                           outcome.name.to.integrate = outcome.name.to.integrate,
+                                           value.to.integrate = value.to.integrate,
                                            multiply.by = multiply.by,
+                                           denominator.outcome = denominator.outcome,
+                                           sub.versions = sub.versions,
                                            corresponding.data.outcome = corresponding.data.outcome,
                                            keep.dimensions = keep.dimensions,
                                            exclude.dimensions = exclude.dimensions,
                                            subset.dimension.values = subset.dimension.values,
                                            from.year = from.year,
                                            to.year = to.year,
+                                           scale = scale,
                                            save = save)
 }
 
@@ -1305,7 +1321,7 @@ track.integrated.outcome <- function(specification,
 #'@inheritParams track.dynamic.outcome
 #'
 #'@param value Either (1) a single character value referencing a separately-registered cumulative outcome or a static (value does not change over time) quantity, or (2) an expression that includes only the names of cumulative outcomes and static model quantities and operators +, -, *, /, ^, sqrt, log, and exp
-#'@param denominator.outcome If the scale of this outcome is not 'number' or 'non.negative.number', then a denominator for aggregating the outcome is required. Must be the name of a separately registered cumulative outcome that has type 'non.negative.number'
+#'@param denominator.outcome A denominator for aggregating the outcome or calculating proportions. Required if the scale of this outcome is not 'number' or 'non.negative.number', otherwise optional. Must be the name of a separately registered cumulative outcome that has type 'non.negative.number'
 #'@param scale The scale of this outcome. Can be NULL when outcome.metadata is not NULL (only required when not saving and not using outcome.metadata)
 #'
 #'@export
@@ -1313,6 +1329,7 @@ track.cumulative.outcome <- function(specification,
                                      name,
                                      outcome.metadata,
                                      value,
+                                     sub.versions = NULL,
                                      
                                      denominator.outcome = NULL,
                                      corresponding.data.outcome = NULL,
@@ -1327,9 +1344,10 @@ track.cumulative.outcome <- function(specification,
     if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
         stop("'specification' must be an R6 object with class 'jheem.specification")
     
-    specification$track.quantity.outcome(name = name,
+    specification$track.cumulative.outcome(name = name,
                                          outcome.metadata = outcome.metadata,
                                          value = value,
+                                         sub.versions = sub.versions,
                                          denominator.outcome = denominator.outcome,
                                          corresponding.data.outcome = corresponding.data.outcome,
                                          keep.dimensions = keep.dimensions,
@@ -1348,13 +1366,14 @@ track.cumulative.outcome <- function(specification,
 #'@inheritParams track.cumulative.outcome
 #'
 #'@param value Either (1) a single character value referencing a separately-registered "point" (non-cumulative) outcome or a quantity, or (2) an expression that includes only the names of point outcomes and model quantities and operators +, -, *, /, ^, sqrt, log, and exp
-#'@param denominator.outcome If the scale of this outcome is not 'number' or 'non.negative.number', then a denominator for aggregating the outcome is required. Must be the name of a separately registered "point" (non-cumulative) outcome that has type 'non.negative.number'
+#'@param denominator.outcome A denominator for aggregating the outcome or calculating proportions. Required if the scale of this outcome is not 'number' or 'non.negative.number', otherwise optional. Must be the name of a separately registered "point" (non-cumulative) outcome that has type 'non.negative.number'
 #'
 #'@export
-track.quantity.outcome <- function(specification,
+track.point.outcome <- function(specification,
                                    name,
                                    outcome.metadata,
                                    value,
+                                   sub.versions = NULL,
                                    
                                    denominator.outcome = NULL,
                                    corresponding.data.outcome = NULL,
@@ -1369,9 +1388,10 @@ track.quantity.outcome <- function(specification,
     if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
         stop("'specification' must be an R6 object with class 'jheem.specification")
     
-    specification$track.quantity.outcome(name = name,
+    specification$track.point.outcome(name = name,
                                          outcome.metadata = outcome.metadata,
                                          value = value,
+                                         sub.versions = sub.versions,
                                          denominator.outcome = denominator.outcome,
                                          corresponding.data.outcome = corresponding.data.outcome,
                                          keep.dimensions = keep.dimensions,
@@ -1390,7 +1410,7 @@ track.quantity.outcome <- function(specification,
 #'@inheritParams track.dynamic.outcome
 #'
 #'@param rate.value The rate to be integrated. Either (1) a single character value referencing a separately-registered "point" (non-cumulative) outcome or a quantity, or (2) an expression that includes only the names of point outcomes and model quantities and operators +, -, *, /, ^, sqrt, log, and exp
-#'@param denominator.outcome The name of the outcome that will serve as the denominator for aggregating this outcome. Must be the name of a separately registered cumulative outcome that has type 'non.negative.number'
+#'@param denominator.outcome A denominator for aggregating the outcome or calculating proportions. Required if the scale of this outcome is not 'number' or 'non.negative.number', otherwise optional. Must be the name of a separately registered cumulative outcome that has type 'non.negative.number'
 #'@param calculate.proportion.leaving If TRUE, integrates to get the proportion of those who "leave" the imaginary compartment at the given rate. If FALSE, calculates the proportion who have not left (ie 1-proportion.leaving)
 #'
 #'@export
@@ -1400,6 +1420,7 @@ track.cumulative.proportion.from.rate <- function(specification,
                                                   rate.value,
                                                   
                                                   denominator.outcome,
+                                                  sub.versions = NULL,
                                                   corresponding.data.outcome = NULL,
                                                   calculate.proportion.leaving = T,
                                                   keep.dimensions = NULL,
@@ -1416,6 +1437,7 @@ track.cumulative.proportion.from.rate <- function(specification,
                                                         outcome.metadata = outcome.metadata,
                                                         rate.value = rate.value,
                                                         denominator.outcome = denominator.outcome,
+                                                        sub.versions = sub.versions,
                                                         corresponding.data.outcome = corresponding.data.outcome,
                                                         calculate.proportion.leaving = calculate.proportion.leaving,
                                                         keep.dimensions = keep.dimensions,
@@ -2444,13 +2466,16 @@ JHEEM.SPECIFICATION = R6::R6Class(
         ##---------------------------------##
         ##-- REGISTER TRACKED QUANTITIES --##
         ##---------------------------------##
+
         
         track.dynamic.outcome = function(name,
                                          outcome.metadata,
                                          dynamic.quantity.name,
+                                         denominator.outcome = NULL,
                                          
                                          tags = NULL,
                                          groups = NULL,
+                                         sub.versions = NULL,
                                          
                                          multiply.by = NULL,
                                          corresponding.data.outcome = corresponding.data.outcome,
@@ -2467,8 +2492,10 @@ JHEEM.SPECIFICATION = R6::R6Class(
             
             outcome = DYNAMIC.MODEL.OUTCOME$new(name = name,
                                                 version = self$version,
+                                                sub.versions = sub.versions,
                                                 outcome.metadata = outcome.metadata,
                                                 dynamic.quantity.name = dynamic.quantity.name,
+                                                denominator.outcome = denominator.outcome,
                                                 multiply.by = multiply.by,
                                                 corresponding.data.outcome = corresponding.data.outcome,
                                                 tags = tags,
@@ -2480,6 +2507,9 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                 to.year = to.year,
                                                 save = save)
             
+            private$check.sub.versions(outcome$sub.versions,
+                                       error.prefix = paste0("Cannot track dynamic outcome '", outcome$name, "': "))
+            
             private$do.store.outcome(outcome,
                                      error.prefix = "Error tracking dynamic outcome: ")
         },
@@ -2489,9 +2519,11 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                     dimension,
                                     from.compartments,
                                     to.compartments,
+                                    denominator.outcome = NULL,
                                     
                                     tags = NULL,
                                     groups = NULL,
+                                    sub.versions = NULL,
                                     
                                     multiply.by = NULL,
                                     corresponding.data.outcome = NULL,
@@ -2508,10 +2540,12 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 
             outcome = TRANSITION.MODEL.OUTCOME$new(name = name,
                                                    version = self$version,
+                                                   sub.versions = sub.versions,
                                                    outcome.metadata = outcome.metadata,
                                                    dimension = dimension,
                                                    from.compartments = from.compartments,
                                                    to.compartments = to.compartments,
+                                                   denominator.outcome = denominator.outcome,
                                                    multiply.by = multiply.by,
                                                    corresponding.data.outcome = corresponding.data.outcome,
                                                    tags = tags,
@@ -2523,6 +2557,9 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    to.year = to.year,
                                                    save = save)
             
+            private$check.sub.versions(outcome$sub.versions,
+                                       error.prefix = paste0("Cannot track transition '", outcome$name, "': "))
+            
             private$do.store.outcome(outcome,
                                      error.prefix = "Error tracking transition: ")
         },
@@ -2531,8 +2568,10 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                             name,
                                             outcome.metadata,
                                             
-                                            outcome.name.to.integrate,
+                                            value.to.integrate,
+                                            denominator.outcome = NULL,
                                             multiply.by = NULL,
+                                            sub.versions = NULL,
                                             
                                             corresponding.data.outcome = NULL,
                                             keep.dimensions = NULL,
@@ -2540,12 +2579,15 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                             subset.dimension.values = NULL,
                                             from.year = -Inf,
                                             to.year = Inf,
+                                            scale = NULL,
                                             save = T)
         {
             outcome = INTEGRATED.MODEL.OUTCOME$new(name = name,
                                                    version = self$version,
+                                                   sub.versions = sub.versions,
                                                    outcome.metadata = outcome.metadata,
-                                                   outcome.name.to.integrate = outcome.name.to.integrate,
+                                                   value.to.integrate = value.to.integrate,
+                                                   denominator.outcome = denominator.outcome,
                                                    multiply.by = multiply.by,
                                                    corresponding.data.outcome = corresponding.data.outcome,
                                                    keep.dimensions = keep.dimensions,
@@ -2553,7 +2595,11 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    subset.dimension.values = subset.dimension.values,
                                                    from.year = from.year,
                                                    to.year = to.year,
+                                                   scale = scale,
                                                    save = save)
+            
+            private$check.sub.versions(outcome$sub.versions,
+                                       error.prefix = paste0("Cannot track integrated outcome '", outcome$name, "': "))
             
             private$do.store.outcome(outcome,
                                      error.prefix = "Error tracking integrated outcome: ")
@@ -2562,6 +2608,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         track.cumulative.outcome = function(name,
                                             outcome.metadata,
                                             value,
+                                            sub.versions = NULL,
                                             
                                             denominator.outcome = NULL,
                                             corresponding.data.outcome = NULL,
@@ -2575,6 +2622,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         {
             outcome = CUMULATIVE.MODEL.OUTCOME$new(name = name,
                                                    version = self$version,
+                                                   sub.versions = sub.versions,
                                                    outcome.metadata = outcome.metadata,
                                                    value = value,
                                                    denominator.outcome = denominator.outcome,
@@ -2587,13 +2635,17 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    scale = scale,
                                                    save = save)
             
+            private$check.sub.versions(outcome$sub.versions,
+                                       error.prefix = paste0("Cannot track cumulative outcome '", outcome$name, "': "))
+            
             private$do.store.outcome(outcome,
                                      error.prefix = "Error tracking cumulative outcome: ")
         },
         
-        track.quantity.outcome = function(name,
+        track.point.outcome = function(name,
                                           outcome.metadata,
                                           value,
+                                          sub.versions = NULL,
                                           
                                           denominator.outcome = NULL,
                                           corresponding.data.outcome = NULL,
@@ -2605,8 +2657,9 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                           to.year = Inf,
                                           save = T)
         {
-            outcome = QUANTITY.MODEL.OUTCOME$new(name = name,
+            outcome = POINT.MODEL.OUTCOME$new(name = name,
                                                  version = self$version,
+                                                 sub.versions = sub.versions,
                                                  outcome.metadata = outcome.metadata,
                                                  value = value,
                                                  denominator.outcome = denominator.outcome,
@@ -2619,8 +2672,11 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                  to.year = to.year,
                                                  save = save)
             
+            private$check.sub.versions(outcome$sub.versions,
+                                       error.prefix = paste0("Cannot track point outcome '", outcome$name, "': "))
+            
             private$do.store.outcome(outcome,
-                                     error.prefix = "Error tracking quantity outcome: ")
+                                     error.prefix = "Error tracking point outcome: ")
         },
         
         track.cumulative.proportion.from.rate = function(name,
@@ -2628,6 +2684,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                          rate.value,
                                                          
                                                          denominator.outcome,
+                                                         sub.versions = NULL,
                                                          calculate.proportion.leaving = T,
                                                          corresponding.data.outcome = NULL,
                                                          keep.dimensions = NULL,
@@ -2639,6 +2696,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         {
             outcome = RATE.TO.PROPORTION.MODEL.OUTCOME$new(name = name,
                                                            version = self$version,
+                                                           sub.versions = sub.versions,
                                                            outcome.metadata = outcome.metadata,
                                                            rate.value = rate.value,
                                                            denominator.outcome = denominator.outcome,
@@ -2650,6 +2708,9 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                            from.year = from.year,
                                                            to.year = to.year,
                                                            save = save)
+            
+            private$check.sub.versions(outcome$sub.versions,
+                                       error.prefix = paste0("Cannot track cumulative proportion from rate '", outcome$name, "': "))
             
             private$do.store.outcome(outcome,
                                      error.prefix = "Error tracking rate-to-proportion outcome: ")
@@ -2912,6 +2973,24 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 stop(paste0(error.prefix, "The '", private$i.version, "' specification has already been registered and cannot be modified further"))
         },
     
+        check.sub.versions = function(sub.versions, error.prefix)
+        {
+            invalid.sub.versions = setdiff(sub.versions, private$i.sub.versions)
+            if (length(invalid.sub.versions)>0)
+                stop(paste0(error.prefix,
+                            collapse.with.and("'", invalid.sub.versions, "'"),
+                            ifelse(length(invalid.sub.versions)==1, 
+                                   " is not a sub-version",
+                                   " are not sub-versions"),
+                            " in the '", private$i.version, "' specification. ",
+                            ifelse(length(private$i.sub.versions)==0,
+                                   "There are no sub-versions registered",
+                                   paste0("Sub-versions must be ",
+                                          ifelse(length(private$i.sub.versions)==1, "", "one of "),
+                                          collapse.with.or("'", private$i.sub.versions, "'")
+                                   ))))
+        },
+        
         get.unique.internal.name = function()
         {
             private$i.internal.name.counter = private$i.internal.name.counter + 1
@@ -6473,9 +6552,11 @@ MODEL.OUTCOME = R6::R6Class(
         
         initialize = function(name,
                               version,
+                              sub.versions,
                               outcome.metadata,
                               scale,
                               corresponding.data.outcome,
+                              denominator.outcome,
                               keep.dimensions,
                               exclude.dimensions,
                               subset.dimension.values,
@@ -6494,6 +6575,13 @@ MODEL.OUTCOME = R6::R6Class(
             # Validate version
             if (!is.character(version) || length(version)!=1 || is.na(version))
                 stop(paste0(error.prefix, "'version' must be a single, non-NA character value"))
+            
+            # Validate sub-versions
+            if (length(sub.versions)==0)
+                sub.versions = NULL
+            else if (!is.character(sub.versions) || any(is.na(sub.versions)) || any(nchar(sub.versions)==0))
+                stop(paste0(error.prefix, "sub.versions must either be NULL or a character vector with no empty or NA values"))
+           
             
             # Validate save
             if (!is.logical(save) || length(save)!=1 || is.na(save))
@@ -6542,6 +6630,18 @@ MODEL.OUTCOME = R6::R6Class(
                         stop(paste0(error.prefix, "If 'scale' is specified, it must match the scale given by outcome.metadata$scale"))
                 }
             }
+            
+            # Validate denominator.outcome
+            if (scale != 'non.negative.number' && scale != 'number')
+            {
+                if (is.null(denominator.outcome))
+                    stop(paste0(error.prefix, "When the outcome's scale is '", scale, "', a denominator.outcome must be specified (to be able to aggregate this outcome)"))
+            }
+            
+            if (!is.null(denominator.outcome) &&
+                (!is.character(denominator.outcome) || length(denominator.outcome)!=1 || is.na(denominator.outcome)))
+                stop(paste0(error.prefix, "'denominator.outcome' must be a single, non-NA character value"))
+            
             
             # Validate corresponding.data.outcome
             if (!is.null(corresponding.data.outcome))
@@ -6599,6 +6699,8 @@ MODEL.OUTCOME = R6::R6Class(
             # Store variables
             private$i.name = private$i.original.name = name
             private$i.version = version
+            private$i.sub.versions = sub.versions
+            private$i.denominator.outcome = denominator.outcome
             private$i.type = class(self)[1]
             private$i.metadata = outcome.metadata
             private$i.scale = scale
@@ -6736,12 +6838,36 @@ MODEL.OUTCOME = R6::R6Class(
                 stop(paste0("Cannot modify a model outcome's 'name' - it is read-only"))
         },
         
+        original.name = function(value)
+        {
+            if (missing(value))
+                private$i.original.name
+            else
+                stop(paste0("Cannot modify a model outcome's 'original.name' - it is read-only"))
+        },
+        
         version = function(value)
         {
             if (missing(value))
                 private$i.version
             else
                 stop(paste0("Cannot modify a model outcome's 'version' - it is read-only"))
+        },
+        
+        sub.versions = function(value)
+        {
+            if (missing(value))
+                private$i.sub.versions
+            else
+                stop(paste0("Cannot modify a model outcome's 'sub.versions' - they are read-only"))
+        },
+        
+        denominator.outcome = function(value)
+        {
+            if (missing(value))
+                private$i.denominator.outcome
+            else
+                stop(paste0("Cannot modify a model outcome's 'denominator.outcome' - it is read-only"))
         },
         
         type = function(value)
@@ -6789,7 +6915,12 @@ MODEL.OUTCOME = R6::R6Class(
         depends.on.outcomes = function(value)
         {
             if (missing(value))
-                character()
+            {
+                if (is.null(private$i.denominator.outcome))
+                    character()
+                else
+                    private$i.denominator.outcome
+            }
             else
                 stop(paste0("Cannot modify a model outcome's 'depends.on.outcomes' - it is read-only"))
         },
@@ -6807,7 +6938,7 @@ MODEL.OUTCOME = R6::R6Class(
             if (missing(value))
             {
                 if (self$is.cumulative)
-                    self$depends.on
+                    c(self$depends.on, private$i.denominator.outcome)
                 else
                     character()
             }
@@ -6909,9 +7040,11 @@ MODEL.OUTCOME = R6::R6Class(
         i.name = NULL,
         i.original.name = NULL,
         i.version = NULL,
+        i.sub.versions = NULL,
         i.type = NULL,
         i.scale = NULL,
         i.metadata = NULL,
+        i.denominator.outcome = NULL,
         
         i.corresponding.data.outcome = NULL,
         i.keep.dimensions = NULL,
@@ -7086,7 +7219,9 @@ INTRINSIC.MODEL.OUTCOME = R6::R6Class(
         
             super$initialize(name = name,
                              version = version,
+                             sub.versions = NULL,
                              outcome.metadata = outcome.metadata,
+                             denominator.outcome = NULL,
                              scale = 'non.negative.number',
                              corresponding.data.outcome = corresponding.data.outcome,
                              keep.dimensions = NULL,
@@ -7104,7 +7239,7 @@ INTRINSIC.MODEL.OUTCOME = R6::R6Class(
         descriptor = function(value)
         {
             if (missing(value))
-                'tracked dynamic outcome'
+                'intrinsic outcome'
             else
                 stop(paste0("Cannot modify a model outcome's 'descriptor' - it is read-only"))
         },
@@ -7147,8 +7282,10 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
         
         initialize = function(name,
                               version,
+                              sub.versions,
                               outcome.metadata,
                               dynamic.quantity.name,
+                              denominator.outcome,
                               
                               multiply.by,
                               corresponding.data.outcome,
@@ -7165,7 +7302,9 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
         {
             super$initialize(name = name,
                              version = version,
+                             sub.versions = sub.versions,
                              outcome.metadata = outcome.metadata,
+                             denominator.outcome = denominator.outcome,
                              scale = 'non.negative.number',
                              corresponding.data.outcome = corresponding.data.outcome,
                              keep.dimensions = keep.dimensions,
@@ -7272,7 +7411,7 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
         descriptor = function(value)
         {
             if (missing(value))
-                'tracked dynamic outcome'
+                'dynamic outcome'
             else
                 stop(paste0("Cannot modify a model outcome's 'descriptor' - it is read-only"))
         },
@@ -7280,7 +7419,12 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
         depends.on.cumulative = function(value)
         {
             if (missing(value))
-                character()
+            {
+                if (is.null(private$i.denominator.outcome))
+                    character()
+                else
+                    private$i.denominator.outcome
+            }
             else
                 stop(paste0("Cannot modify a model outcome's 'is.cumulative' - it is read-only"))
         },
@@ -7409,7 +7553,9 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
         
         initialize = function(name,
                               version,
+                              sub.versions,
                               outcome.metadata,
+                              denominator.outcome,
 
                               dimension,
                               from.compartments,
@@ -7430,7 +7576,9 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
         {
             super$initialize(name = name,
                              version = version,
+                             sub.versions = sub.versions,
                              outcome.metadata = outcome.metadata,
+                             denominator.outcome = denominator.outcome,
                              dynamic.quantity.name = 'transition',
                              multiply.by = multiply.by,
                              corresponding.data.outcome = corresponding.data.outcome,
@@ -7481,7 +7629,7 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
         descriptor = function(value)
         {
             if (missing(value))
-                'tracked transition'
+                'transition'
             else
                 stop(paste0("Cannot modify a model outcome's 'descriptor' - it is read-only"))
         },
@@ -7528,15 +7676,18 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
         
         initialize = function(name,
                               version,
+                              sub.versions,
                               outcome.metadata,
                               
-                              outcome.name.to.integrate,
+                              value.to.integrate,
                               multiply.by,
+                              denominator.outcome,
                               
                               corresponding.data.outcome,
                               keep.dimensions,
                               exclude.dimensions,
                               subset.dimension.values,
+                              scale,
                               save,
                               
                               from.year,
@@ -7544,22 +7695,23 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
         {
             super$initialize(name,
                              version = version,
+                             sub.versions = sub.versions,
                              outcome.metadata = outcome.metadata,
-                             scale = 'non.negative.number',
+                             denominator.outcome = denominator.outcome,
+                             scale = scale,
                              corresponding.data.outcome = corresponding.data.outcome,
                              keep.dimensions = keep.dimensions,
                              exclude.dimensions = exclude.dimensions,
                              subset.dimension.values = subset.dimension.values,
                              save = save,
                              from.year = from.year,
-                             to.year = to.year,
-                             required.scale = 'non.negative.number')
+                             to.year = to.year)
             
             error.prefix = paste0("Error setting tracking for ", self$descriptor, " '", name, "': ")
             
-            # Validate outcome.name.to.integrate
-            if (!is.character(outcome.name.to.integrate) || length(outcome.name.to.integrate) != 1 || is.na(outcome.name.to.integrate))
-                stop(paste0(error.prefix, "'outcome.name.to.integrate' must be a single, non-NA character value"))
+            # Validate value.to.integrate
+            if (!is.character(value.to.integrate) || length(value.to.integrate) != 1 || is.na(value.to.integrate))
+                stop(paste0(error.prefix, "'value.to.integrate' must be a single, non-NA character value"))
             
             
             # Validate multiply.by
@@ -7569,7 +7721,7 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                 stop(paste0(error.prefix, "If it is not NULL, 'multiply.by' must be a single, non-NA character value"))
             
             # Store Variables
-            private$i.outcome.name.to.integrate = outcome.name.to.integrate
+            private$i.value.to.integrate = value.to.integrate
             private$i.multiply.by = multiply.by
         },
         
@@ -7581,8 +7733,8 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
         
         rename.depends.on.outcomes = function(mapping)
         {
-            if (any(names(mapping)==private$i.outcome.name.to.integrate))
-                private$i.outcome.name.to.integrate = mapping[private$i.outcome.name.to.integrate]
+            if (any(names(mapping)==private$i.value.to.integratee))
+                private$i.value.to.integrate = mapping[private$i.value.to.integrate]
         }
     ),
     
@@ -7591,7 +7743,7 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
         descriptor = function(value)
         {
             if (missing(value))
-                'tracked integrated outcome'
+                'integrated outcome'
             else
                 stop(paste0("Cannot modify a model outcome's 'descriptor' - it is read-only"))
         },
@@ -7599,17 +7751,22 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
         depends.on.cumulative = function(value)
         {
             if (missing(value))
-                character()
+            {
+                if (is.null(private$i.denominator.outcome))
+                    character()
+                else
+                    private$i.denominator.outcome
+            }
             else
                 stop(paste0("Cannot modify a model outcome's 'is.cumulative' - it is read-only"))
         },
         
-        depends.on.outcomes = function(value)
+        depends.on.quantities.or.outcomes = function(value)
         {
             if (missing(value))
-                private$i.outcome.name.to.integrate
+                private$i.value.to.integrate
             else
-                stop(paste0("Cannot modify a model outcome's 'depends.on.outcomes' - it is read-only"))
+                stop(paste0("Cannot modify a model outcome's 'depends.on.quantities.or.outcomes' - it is read-only"))
         },
         
         depends.on.quantities = function(value)
@@ -7633,12 +7790,12 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                 stop(paste0("Cannot modify a model outcome's 'is.cumulative' - it is read-only"))
         },
         
-        outcome.name.to.integrate = function(value)
+        value.to.integrate = function(value)
         {
             if (missing(value))
-                private$i.outcome.name.to.integrate
+                private$i.value.to.integrate
             else
-                stop(paste0("Cannot modify a model outcome's 'outcome.name.to.integrate' - it is read-only"))
+                stop(paste0("Cannot modify a model outcome's 'value.to.integrate' - it is read-only"))
         },
         
         multiply.by = function(value)
@@ -7652,11 +7809,13 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
     
     private = list(
         
-        i.outcome.name.to.integrate = NULL,
+        i.value.to.integrate = NULL,
         i.multiply.by = NULL
     )
 )
 
+# An 'abstract' (never instantiated class) that allows the main value to be 
+#   an expression that *combines* quantities and outcomes
 COMBINED.MODEL.OUTCOME = R6::R6Class(
     'combined.model.outcome',
     inherit = MODEL.OUTCOME,
@@ -7666,6 +7825,7 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
         
         initialize = function(name,
                               version,
+                              sub.versions,
                               outcome.metadata,
                               value,
                               denominator.outcome,
@@ -7681,7 +7841,9 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
         {
             super$initialize(name,
                              version = version,
+                             sub.versions = sub.versions,
                              outcome.metadata = outcome.metadata,
+                             denominator.outcome = denominator.outcome,
                              scale = scale,
                              corresponding.data.outcome = corresponding.data.outcome,
                              keep.dimensions = keep.dimensions,
@@ -7706,25 +7868,9 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
             evaluatable.value$set.value(value, 
                                         value.name = 'value',
                                         error.prefix = error.prefix)
-    
-            # Validate denominator.outcome
-            if (private$i.scale == 'non.negative.number' || private$i.scale == 'number')
-            {
-                if (!is.null(denominator.outcome))
-                    stop(paste0(error.prefix, "When the outcome's scale is '", private$i.scale, "', the denominator.outcome must be NULL (no denominator will be used)"))
-            }
-            else
-            {
-                if (is.null(denominator.outcome))
-                    stop(paste0(error.prefix, "When the outcome's scale is '", private$i.scale, "', a denominator.outcome must be specified (to aggregate this outcome if needed)"))
-                
-                if (!is.character(denominator.outcome) || length(denominator.outcome)!=1 || is.na(denominator.outcome))
-                    stop(paste0(error.prefix, "'denominator.outcome' must be a single, non-NA character value"))
-            }
-            
+
             # Store Variables
             private$i.value = evaluatable.value
-            private$i.denominator.outcome = denominator.outcome
         },
         
         rename.depends.on.outcomes = function(mapping)
@@ -7755,14 +7901,6 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
     
     active = list(
         
-        depends.on.outcomes = function(value)
-        {
-            if (missing(value))
-                private$i.denominator.outcome
-            else
-                stop(paste0("Cannot modify a model outcome's 'depends.on.outcomes' - it is read-only"))
-        },
-        
         depends.on.quantities.or.outcomes = function(value)
         {
             if (missing(value))
@@ -7774,8 +7912,7 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
     
     private = list(
         
-        i.value = NULL,
-        i.denominator.outcome = NULL
+        i.value = NULL
     )
 )
 
@@ -7789,7 +7926,7 @@ CUMULATIVE.MODEL.OUTCOME = R6::R6Class(
         descriptor = function(value)
         {
             if (missing(value))
-                'tracked cumulative outcome'
+                'cumulative outcome'
             else
                 stop(paste0("Cannot modify a model outcome's 'descriptor' - it is read-only"))
         },
@@ -7805,8 +7942,8 @@ CUMULATIVE.MODEL.OUTCOME = R6::R6Class(
     
 )
 
-QUANTITY.MODEL.OUTCOME = R6::R6Class(
-    'quantity.model.outcome',
+POINT.MODEL.OUTCOME = R6::R6Class(
+    'point.model.outcome',
     inherit = COMBINED.MODEL.OUTCOME,
     portable = F,
     
@@ -7815,7 +7952,7 @@ QUANTITY.MODEL.OUTCOME = R6::R6Class(
         descriptor = function(value)
         {
             if (missing(value))
-                'tracked quantity outcome'
+                'point outcome'
             else
                 stop(paste0("Cannot modify a model outcome's 'descriptor' - it is read-only"))
         },
@@ -7841,6 +7978,7 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
         initialize = function(specification,
                               name,
                               version,
+                              sub.versions,
                               outcome.metadata,
                               rate.value,
                               
@@ -7866,6 +8004,7 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
             # Call the super-constructor
             super$initialize(name = name,
                              version = version,
+                             sub.versions = sub.versions,
                              outcome.metadata = outcome.metadata,
                              value = rate.value,
                              scale = required.scale[1],
@@ -7894,7 +8033,7 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                                 self$get.original.name(specification$version),
                                 ", a rate-to-proportion outcome, needs to integrate a *rate*, but the scale for quantity ",
                                 quantity$get.original.name(specification$version),
-                                " is '", quantity$scale, "'"))
+                                " is *", quantity$scale, "*"))
                 }
             }
             
@@ -7907,7 +8046,7 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
         descriptor = function(value)
         {
             if (missing(value))
-                'tracked rate-to-cumulative-proportion outcome'
+                'rate-to-cumulative-proportion outcome'
             else
                 stop(paste0("Cannot modify a model outcome's 'descriptor' - it is read-only"))
         },

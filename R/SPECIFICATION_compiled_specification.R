@@ -899,7 +899,8 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 names(depends.on.ambiguous.as.outcomes) = names(depends.on.ambiguous.as.quantities) = outcome$depends.on.quantities.or.outcomes
             
                 ambiguous.is.outcome = !as.logical(sapply(depends.on.ambiguous.as.outcomes, is.null)) & 
-                    sapply(depends.on.ambiguous.as.outcomes, function(outcome){outcome$name}) != outcome$name
+                    sapply(depends.on.ambiguous.as.outcomes, function(out){out$original.name}) != outcome$original
+                
                 ambiguous.is.quantity = !ambiguous.is.outcome & !as.logical(sapply(depends.on.ambiguous.as.quantities, is.null))
                 
                 missing.depends.on = outcome$depends.on.outcomes[!ambiguous.is.outcome & !ambiguous.is.quantity]
@@ -959,13 +960,15 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                                   outcome$get.original.name(wrt.version=self$version), " - ")
             
             # Figure out which depends.on outcomes and quantities are cumulative
-            depends.on.outcomes.mask = !sapply(lapply(outcome$depends.on, self$get.outcome), is.null)
+            depends.on.outcomes.mask = !sapply(lapply(outcome$depends.on, self$get.outcome), is.null) & outcome$depends.on != outcome$original.name
             depends.on.outcomes = outcome$depends.on[depends.on.outcomes.mask]
             depends.on.quantities = outcome$depends.on[!depends.on.outcomes.mask]
             
             depends.on.outcomes.cumulative = intersect(depends.on.outcomes, outcome$depends.on.cumulative)
             depends.on.outcomes.non.cumulative = setdiff(depends.on.outcomes, depends.on.outcomes.cumulative)
             depends.on.quantities.static = intersect(depends.on.quantities, outcome$depends.on.cumulative)
+            
+            # Check that depends.on.outcomes
             
             # Check that these are cumulative or not as they should be
             invalid.outcomes.cumulative = depends.on.outcomes.cumulative[as.logical(sapply(depends.on.outcomes.cumulative, function(dep.on){
