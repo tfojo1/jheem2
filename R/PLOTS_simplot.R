@@ -1,10 +1,15 @@
 
 sim = make.dummy.sim()
 
-#'@param ... One or more of either (1) jheem.simulation objects or (2) jheem.simset objects or 93) lists containing only jheem.simulation or jheem.simset objects
-#'@param outcomes A character vector of which outcomes to plot
+#'@param ... One or more of either (1) jheem.simulation objects or (2) jheem.simset objects or (3) lists containing only jheem.simulation or jheem.simset objects
+#'@param outcomes A character vector of which simulation outcomes to plot
+#'@param split.by
+#'@param facet.by
+#'@param dimension.values
+#'@param data.manager The data.manager from which to draw real-world data for the plots
+#'@param style.manager We are going to have to define this down the road. It's going to govern how we do lines and sizes and colors. For now, just hard code those in, and we'll circle back to it
 #'
-#'@details A ggplot object:
+#'@details Returns a ggplot object:
 #'  - With one panel for each combination of outcome x facet.by
 #'  - x-axis is year
 #'  - y-axis is outcome
@@ -16,23 +21,45 @@ simplot <- function(...,
                     facet.by = character(),
                     dimension.values,
                     data.manager,
-                    palette)
+                    style.manager)
 {
-    # Get the sims list out of ...
+    #-- STEP 1: PRE-PROCESSING --#
+    # Get a list out of ... where each element is one simset (or sim for now)
     
-    #-- Make df.sim --#
+    sims.list = list()
+    # @Andrew - fill in
+    # - make sure they are all the same version and the location
+    
+    # Check outcomes
+    # - make sure it's a non-empty character vector, no NAs
+    # - make sure each outcome is present in sim$outcomes for at least one sim/simset
+    
+    # Get the real-world outcome names
+    # - eventually we're going to want to pull this from info about the likelihood if the sim notes which likelihood was used on it
+    # - what we'll do now will be the back-up to above
+    #   sim$outcome.metadata[[outcome]]$corresponding.observed.outcome
+    
+    # Get the locations to pull data for for each outcome
+    # - for now, just use the sim$location
+    
+    #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
     # columns:
     # $year
     # $value
     # $outcome
+    # $split
+    # $sim.name - name for this simulation
+    # <a column for each element of facet.by>
+    
+    #-- STEP 3: MAKE A DATA FRAME WITH ALL THE SIMULATIONS' DATA --#
+    # columns:
+    # $year
+    # $value
+    # $outcome
+    # $split
     # $sim.name - name for the simulation
     # <a column for each element of facet.by>
     
-    df.truth = NULL
-    for (outcome in outcomes)
-    {
-        data.manager$pull()
-    }
     
     df.sim = NULL
     for (sim in sims)
@@ -46,6 +73,9 @@ simplot <- function(...,
         
         df.sim = rbind(df.sim, one.df.sim)
     }
+    
+    
+    #- STEP 4: MAKE THE PLOT --#
     
     facet.formula = as.formula(paste0("~outcome",
                                       paste0(" + ", facet.by, collapse='')))
