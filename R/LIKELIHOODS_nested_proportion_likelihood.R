@@ -53,8 +53,14 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
 ## - a 'mapping'
 
 
+# Given the simulated proportion suppressed in the MSA, what is the likelihood of getting the observed proportions at the MSA, state, and county levels?
+# Sense of numerators and denominators in each location and stratum
+# multiplier: assume county # of black, ageX, msm in a county some multiple of the simulation MSA stratum count
+# Condition. Good sense of each stratum in NJ and NY states from real life data. We know the real life values *with some uncertainty*.
+
 #-- SET-UP ARGUMENTS --#
 #
+# p and n are the only ones needed to be found at compute time
 # NumericMatrix p - the vector of probabilities (our outcome) from sim$get
 # NumericMatrix n - the vector of denominators corresponding to each p from sim$get
 #
@@ -72,16 +78,18 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
 #       (a) some (arbitrary) number of observations which are a combination of metalocations
 #       (b) the metalocation n's for the MSA
 #
+# for (a), could be our state population
 # List obs_n - a list of length n.strata, each element of which is a matrix indexed [year, locations for which we have n's]. 
 #   - It will have n.years row
 #   - It has one column for each of the locations in (a) above - obs.locations where we know the stratified population 
 #   - The value at [[s]][y,l] is the observed number of people in stratum s for location l in year y
 # 
+# in practice, each stratum has the same mapping
 # List year_metalocation_to_year_obs_n_mapping - A list of length n.strata, each element of which is a matrix indexed [obs, year x condition-on-metalocation].
 #   - Gives a map, for each stratum, from year x metalocation to the n's we will condition on (we will condition on n.years + a combo of metalocations)
 #   - The columns are organized with (a) first followed by (b) - as above
 #
-# List obs_n_plus_conditioned_error_variances - A list of length n.strata, each element of which is a matrix indexed [obs, year x condition-on-metalocation]
+# List obs_n_plus_conditioned_error_variances - A list of length n.strata, each element of which is a matrix indexed [obs, year x condition-on-metalocation] @AZ should be a vector of length [obs], which is a+b.
 #   - Gives the variance around the estimate of each n we are conditioning on
 #   - This variance will be non-zero for the (a)'s above
 #   - But it must be zero for the (b)'s
@@ -104,7 +112,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
 # LogicalVector year_metalocation_to_year_obs_location_mask - a logical vector of length n.years x n.metalocations
 #   - A mask that isolates just the year x metalocation elements in each stratum that we need to map to the observed locations
 # 
-# NumericMatrix year_metalocation_to_year_obs_location_mapping - a matrix indexed [year x obs-location, year x metalocation]
+# NumericMatrix year_metalocation_to_year_obs_location_mapping - a matrix indexed [year x obs-location, year x metalocation] # these are observed p's
 #   - Maps from the metalocations to the obs for each year
 #   - The year x metalocation is AFTER applying the above mask
 # 
@@ -116,11 +124,13 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
 #   - Each element is indexed [obs, year x metalocation]
 #   - The year x obs.location is BEFORE applying any masks
 # 
-# List year_metalocation_to_obs_mapping - a list of length n.strata.
+# List year_metalocation_to_obs_mapping - a list of length n.strata. # redundant but saves computation time to precompute
 #   - Each element is a matrix indexed [obs, year x metalocation] that gives, for each stratum, the mapping from values for that year and metalocation to the obs p vector
 # 
 # IntegerVector obs_year_index - an integer vector the length of obs_p, which gives the index of the year to which each observation in obs_p corresponds
 # 
 # NumericVector obs_p - the vector of observed proportions
 # 
-# NumericMatrix obs_error - the observation measurement error covariance matrix
+# NumericMatrix obs_error - the observation measurement error covariance matrix # assumes 0 correlation between locations
+
+
