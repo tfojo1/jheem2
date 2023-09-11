@@ -26,7 +26,7 @@ simplot <- function(...,
     #-- STEP 1: PRE-PROCESSING --#
     # Get a list out of ... where each element is one simset (or sim for now)
     
-    sims.list = list()
+    simset.list = list(...)
     # @Andrew - fill in
     # - make sure they are all the same version and the location
     
@@ -38,6 +38,12 @@ simplot <- function(...,
     # - eventually we're going to want to pull this from info about the likelihood if the sim notes which likelihood was used on it
     # - what we'll do now will be the back-up to above
     #   sim$outcome.metadata[[outcome]]$corresponding.observed.outcome
+    sim.one = simset.list[[1]] #if a list of sims
+    sim.outcome.metadata = sim.one$outcome.metadata
+    outcomes.for.data = sapply(outcomes, function(outcome) {
+        sim.outcome.metadata[[outcome]]$corresponding.observed.outcome
+    })
+    outcome.mapping = setNames(outcomes, outcomes.for.data)
     
     # Get the locations to pull data for for each outcome
     # - for now, just use the sim$location
@@ -50,6 +56,19 @@ simplot <- function(...,
     # $split
     # $sim.name - name for this simulation
     # <a column for each element of facet.by>
+    
+    df.truth = NULL
+    # I probably want to make sure this data frame is still indexed by simulation outcome
+    for (outcome in outcomes.for.data)
+    {
+        outcome.data = data.manager$pull(outcome = outcome,
+                                         dimension.values = dimension.values,
+                                         keep.dimensions = union('year', facet.by))
+        one.df.outcome = reshape2::melt(outcome.data) # I need to add an outcome column, don't I?
+        df.truth = rbind(df.truth, one.df.outcome)
+    }
+    df.truth[[outcome]] = lapply(df.truth[[outcome]], function(x){outcome.mapping[[x]]}) # probably incorrect syntax
+    
     
     #-- STEP 3: MAKE A DATA FRAME WITH ALL THE SIMULATIONS' DATA --#
     # columns:
