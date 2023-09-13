@@ -6,12 +6,13 @@
 #'
 #'@export
 create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
+                                                             denominator.outcome.for.data, # is NEVER null here because we are working with proportions
                                                              outcome.for.sim,
-                                                             denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute
+                                                             denominator.outcome.for.sim, # If NULL (as it would be for population), will be doing the Poisson version of compute
                                                              
                                                              super.location.type, # test with 'state'
                                                              sub.location.type, # test with 'county'
-                                                             minimum.geographic.resolution.type, # test with 'county'
+                                                             minimum.geographic.resolution.type, # test with 'county' #metalocations MUST contain these
                                                              
                                                              dimensions,
                                                              denominator.dimensions = dimensions,
@@ -32,6 +33,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              correlation.same.source.different.details = 0.3,
                                                              observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
                                                              measurement.error.sd, #this is different here - with proportions we can just do a SD
+                                                             n.multiplier.cv = 0.1,
                                                              weights,
                                                              equalize.weight.by.year = F)
 {
@@ -248,6 +250,36 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                               throw.error.if.no.data,
                               error.prefix)
         {
+            
+            # for each type that isn't msa, check super and sub locations.
+            
+            
+            
+            # # pull the observed locations. What locations will I look for data in?
+            # super.locations = locations::get.super.locations(location, super.type='state', limit.to.completely.enclosing = F)
+            # sub.locations = locations::get.sub.locations(location, sub.type = 'county', limit.to.completely.enclosing = T) # pass in subtype and super types
+            
+            # for c('state', 'county'), check it as both super AND sub, and anything that shows up as either should be checked
+            # now we have a list of states and counties (and the MSA) to check for data
+            
+            # look at who (supers, subs, and self) has data for the outcome.for.data
+            
+            # now partition the metalocations
+            # for each observed location, what is the set of minimum geographic resolution locations that comprise it?
+            # only other case we'll have ever is super is the NSTUH regions, another partitioning of states besides counties
+            
+            # get sublocations AND superlocations of each type. Any locations that appear in either (or both) OVERLAP
+            
+            # assume that counties are completely contained by MSA or completely excluded from MSA
+            # super locations may partially contain the MSA (like the DC MSA)
+            
+            # have a list with each location's set of minimum geo res locations is
+            # want the minimum set of county groups such that each county group fits COMPLETELY into EACH observed group that it overlaps
+            # for each observed location, the metalocation must be completely INSIDE or completely OUTSIDE
+            
+            # make a mapping from metalocation to observed location
+            
+            
             super$initialize(instructions = instructions,
                              version = version,
                              location = location,
@@ -263,6 +295,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                          data.manager = data.manager,
                                          outcome.for.data = private$i.outcome.for.data)
             
+            all.locations = private$get.all.locations(location = location,
+                                                      location.types = c(instructions$i.super.location.type, instructions$i.sub.location.type))
+            
+            # Now, check each location for data on the outcome.for.data
+            
+            
             ## ---- PREPARE DATA STRUCTURES ---- ##
             
             sim.metadata = get.simulation.metadata(version=version,
@@ -275,21 +313,16 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             private$i.sim.ontology = sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
             private$i.sim.ontology[['year']] = as.character(years)
-            
             private$i.obs.vector = c()
             
-            private$i.details = list() # details can't be in a data frame because its elements (character vectors) may have different lengths
             private$i.metadata = data.frame(year = character(0),
-                                            stratum = character(0),
-                                            source = character(0)
+                                           stratum = character(0),
+                                           source = character(0)
             )
             
             mappings.list = list()
-            dimnames.list = list()
             private$i.transformation.matrix = NULL
             private$i.sim.required.dimnames = list()
-            
-            
             remove.mask = c()
             
             ## ---- PULL DATA ---- ##
@@ -300,83 +333,40 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 data = data.manager$pull(outcome = private$i.outcome.for.data,
                                          sources = private$i.sources.to.use,
                                          keep.dimensions = keep.dimensions,
-                                         dimension.values = list(location=location), # leave this for now. Will get more complicated when we have multi location models
+                                         dimension.values = list(location = all.locations), ##
                                          target.ontology = private$i.sim.ontology,
                                          allow.mapping.from.target.ontology = T,
                                          append.attributes = 'details',
                                          debug = F)
-                
-                
                 one.mapping = attr(data, 'mapping')
-                one.dimnames = dimnames(data)
                 one.obs.vector = as.numeric(data)
-                one.details = attr(data, 'details')
-                
                 one.remove.mask = is.na(one.obs.vector)
                 remove.mask = c(remove.mask, one.remove.mask)
                 one.obs.vector = one.obs.vector[!one.remove.mask]
-                one.details = one.details[!one.remove.mask]
                 
                 if (is.null(data)) {
                     if (throw.error.if.no.data)
                         stop(paste0(error.prefix, "no data was found for the stratification '", strat, "'"))
-                    else {
-                        # one.sim.keep.dimensions = NULL
+                    else
                         one.metadata = NULL
-                        one.sim.required.dimnames = list()
-                    }
                 }
                 else {
-                    # one.sim.keep.dimensions = one.mapping$get.required.from.dimensions(to.dimensions = names(dim(data))[names(dim(data)) != 'source'])
-                    
                     # Metadata will involve melting both arrays (data and details) as well as making "stratum"
                     one.metadata = reshape2::melt(data)
-                    
                     one.metadata = one.metadata[!one.remove.mask,]
-                    
-                    # Recover required dimnames from one.metadata
-                    one.sim.required.dimnames = one.mapping$get.required.from.dim.names(lapply(one.metadata[!(colnames(one.metadata) %in% c('source', 'value'))],
-                                                                                               function(x) {as.character(unique(x))}))
-                    
                     one.metadata = one.metadata[, sort(colnames(one.metadata))]
                     one.metadata['stratum'] = do.call(paste, c(subset.data.frame(one.metadata, select=-c(year, source, value)), sep="__"))
                     one.metadata[is.na(one.metadata$stratum), 'stratum'] = ".TOTAL."
                     one.metadata = subset.data.frame(one.metadata, select = c(year, stratum, source))
                 }
                 
-                # Find the required.dimnames
-                for (d in names(one.sim.required.dimnames)) {
-                    
-                    if (!(d %in% names(private$i.sim.required.dimnames)))
-                        private$i.sim.required.dimnames = c(private$i.sim.required.dimnames, setNames(list(one.sim.required.dimnames[[d]]), d))
-                    else
-                        private$i.sim.required.dimnames[[d]] = union(private$i.sim.required.dimnames[[d]], one.sim.required.dimnames[[d]])
-                }
-                
                 private$i.obs.vector = c(private$i.obs.vector, one.obs.vector)
-                private$i.details = c(private$i.details, one.details)
                 private$i.metadata = rbind(private$i.metadata, one.metadata)
                 
                 # save all the one.mappings in a list?
                 mappings.list[[length(mappings.list) + 1]] = one.mapping
-                dimnames.list[[length(dimnames.list) + 1]] = one.dimnames
                 
             }
-            
-            ## ---- FIND REQUIRED DIMENSION VALUES, ETC. ---- ##
-            private$i.sim.dimension.values = private$i.sim.required.dimnames[sapply(names(private$i.sim.required.dimnames),
-                                                                                    function(d) {
-                                                                                        !identical(private$i.sim.required.dimnames[[d]],
-                                                                                                   private$i.sim.ontology[[d]])
-                                                                                    })]
-            denominator.keep.dimensions = c(instructions$denominator.dimensions, 'year')[c(instructions$denominator.dimensions, 'year') %in% names(private$i.sim.required.dimnames)]
-            private$i.denominator.required.dimnames = private$i.sim.required.dimnames[names(private$i.sim.required.dimnames) %in% denominator.keep.dimensions]
-            private$i.denominator.dimension.values = private$i.denominator.required.dimnames[sapply(names(private$i.denominator.required.dimnames),
-                                                                                                    function(d) {
-                                                                                                        !identical(private$i.denominator.required.dimnames[[d]],
-                                                                                                                   private$i.sim.ontology[[d]])
-                                                                                                    })]
-            private$i.years = private$i.sim.required.dimnames[['year']]
             
             ## ---- GENERATE TRANSFORMATION MATRIX ---- ##
             # browser()
@@ -399,6 +389,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             #----------#
             
+            # So if I have the data (in metadata)
+            
             # Things needed for the n.multipliers.
             
             n.metalocations = NULL
@@ -419,7 +411,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             n.multipliers = sapply(1:n.metalocations, function(i) {
                 if (metalocation.type[i] == "msa")
                     matrix(1, nrow=n.years, ncol=n.strata)
-                else if (denominator.outcome.for.sim == 'population')
+                else if (denominator.outcome.for.data == 'population')
                 {
                     NULL
                     # the population data from the data manager
@@ -441,7 +433,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     else
                         super.locations = super.surv = diff.super.to.1.locations = diff.super.to.1.surv = NULL
                     
-                    calculate.outcome.differences()
+                    calculate.outcome.differences(...)
+                    # I will rewrite this
+                    # write it recursively. Find a number (ratio) for a stratum. Can we find full strat? Yes, use. If not, check subsets. Do this for the "common ontology". Then map the ratios BACK to the sim ontology.
                     # I guess I just have to wait for Todd on this one. Not worth the time to figure it out on my own
                 }
             })
@@ -455,7 +449,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 mult * n.multiplier.cv * sd.inflation.extra.msa.to.msa / sd.inflation
             })
             
-            # P.BIAS
+            # P.BIAS Is the same for all strata because we have very little data compared to what we have for the n's
             private$i.p.bias = lapply(1:n.strata, function(d) {
                 sapply(metalocation.type, function(type) {
                     if (type=='county-in-msa')
@@ -468,6 +462,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             })
             
             # P.SD
+            # we'll have one bias/sd pair if outside the model location, and another if inside
             private$i.p.sd = lapply(1:n.strata, function(d) {
                 sapply(metalocation.type, function(type) {
                     if (type=='county-in-msa')
@@ -512,7 +507,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             sim.numerator.data = sim$get(outcome = private$i.outcome.for.sim,
                                          keep.dimensions = names(private$i.sim.required.dimnames),
                                          dimension.values = private$i.sim.dimension.values)
-            # include Poisson option for when outcome is 'population'? Or will that not happen?
+            # include Poisson option for when outcome is 'population'? Or will that not happen? --> It will not happen. We are always working with proportions here.
             sim.denominator.data = sim$get(outcome = private$i.denominator.outcome.for.sim,
                                            keep.dimensions = names(private$i.denominator.required.dimnames),
                                            dimension.values = private$i.denominator.dimension.values)
@@ -527,11 +522,98 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                                         year_metalocation_n_multiplier_sd = n.multiplier.sd,
                                                         ...)
             
+        },
+        
+        # find all locations that we will check for data
+        get.all.locations = function(location,
+                                     location.types)
+        {
+            unique(unlist(lapply(location.types), function(type)
+            {
+                union(locations::get.super.locations(location, super.type = type, limit.to.completely.enclosing = F),
+                      locations::get.sub.locations(location, sub.type = type, limit.to.completely.enclosing = T))
+            }))
+        },
+        
+        get.metalocations = function(location,
+                                     all.locations.with.data,
+                                     minimum.geographic.resolution.type)
+        {
+            
+            # make a list with each location's minimum components
+            minimum.components.list = lapply(all.locations.with.data, function(location) {
+                locations::get.sub.locations(locations = location, sub.type = minimum.geographic.resolution.type, limit.to.completely.enclosing = F)
+            })
+            names(minimum.components.list) = all.locations.with.data
+            
+            minimum.components = unique(unlist(minimum.components.list))
+            
+            # we want to make groups -- that may sometimes be smaller than the minimum.geographic.resolution.type -- such that each group lies completely inside or outside every obs location
+            
+            # check if msa only partially encloses any minimum components
+            msa.minimum.component.partially.enclosing = locations::get.sub.locations(locations = location, sub.type = minimum.geographic.resolution.type, limit.to.completely.enclosing = F)
+            msa.minimum.component.fully.enclosing = locations::get.sub.locations(locations = location, sub.type = minimum.geographic.resolution.type, limit.to.completely.enclosing = T)
+            
+            partially.enclosed.mask = minimum.components %in% setdiff(msa.minimum.component.partially.enclosing, msa.minimum.component.fully.enclosing)
+            is.obs.mask = minimum.components %in% all.locations.with.data
+            partially.enclosed.obs.mask = partially.enclosed.mask & is.obs.mask
+            partially.enclosed.not.obs.mask = partially.enclosed.mask & !is.obs.mask
+            fully.enclosed.obs.mask = !partially.enclosed.mask & is.obs.mask
+            fully.enclosed.not.obs.mask = !partially.enclosed.mask & !is.obs.mask
+            
+            # split any minimum components that are partially enclosed into two -- an MSA part and a non-MSA part
+            
+            # create 1 msa slice for each minimum component that is also an observation location and 1 msa slice for all the rest.
+            
+            # create a mapping matrix from expanded components (cols) to expanded obs locations (rows). For 
+            
+            # matrix1 = matrix(1, nrow=length(all.locations.with.data), ncol=length(minimum.components)))
+            
+            # I'D LIKE ALL.LOCATIONS.WITH.DATA TO EXCLUDE MSA
+            mapping1 =matrix(ncol = length(minimum.components), nrow = length(minimum.components.list))
+            for (obs.components in minimum.components.list) {
+                mapping1 = rbind(mapping1, sapply(minimum.components %in% obs.components))
+            }
+            
+            # 1. add an MSA row with TRUE for each component that is fully enclosed and which is not an obs location
+            mapping1 = rbind(mapping1, fully.enclosed.not.obs.mask)
+            
+            # 2. add a row representing a fraction of the MSA for each component that is fully enclosed and which is an obs location
+            for (component in which(fully.enclosed.obs.mask)) {
+                mapping1 = rbind(mapping1, 1:ncol(mapping1) == component)
+            }
+            
+            # 3a. add a row representing the part of the MSA that is in various partially enclosed, non-obs components.
+            if (any(partially.enclosed.obs.mask))
+                mapping1 = rbind(mapping1, rep(F, ncol(mapping1)))
+            
+            # 3b. add a column for each partially enclosed, non-obs component. Its original column will become the part external to the MSA, and the new column will become the part covered by the MSA.
+            # The new column will be the same as the old one (same membership to states and other groups) but with T for the last row (for partially enclosed, non-obs component part of MSA)
+            for (component in which(partially.enclosed.not.obs.mask)) {
+                new.col = mapping1[component,]
+                new.col[length(new.col)] = T
+                mapping1 = cbind(mapping1, new.col)
+            }
+            
+            # 4. add a row AND column for each partially enclosed, obs component. This again represents dividing the component in parts external and internal to the MSA.
+            for (component in which(partially.enclosed.obs.mask)) {
+                mapping1 = cbind(mapping1, mapping1[component,])
+                mapping1 = rbind(mapping1, 1:ncol(mapping1) == ncol(mapping1))
+            }
+            
+            
+            # Metalocations correspond to sets of unique columns
+            
+            
+            
+            
+            
+            
+            
         }
         
     )
 )
-
 
 ##-- For the Hand-Off to the CPP Function --##
 ##   get_nested_proportion_likelihood_components()
@@ -626,5 +708,4 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
 # NumericVector obs_p - the vector of observed proportions
 # 
 # NumericMatrix obs_error - the observation measurement error covariance matrix # assumes 0 correlation between locations
-
 

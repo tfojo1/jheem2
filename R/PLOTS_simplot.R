@@ -38,6 +38,7 @@ simplot <- function(...,
     # - eventually we're going to want to pull this from info about the likelihood if the sim notes which likelihood was used on it
     # - what we'll do now will be the back-up to above
     #   sim$outcome.metadata[[outcome]]$corresponding.observed.outcome
+    # sims do not all have each outcome because of sub-versions
     sim.one = simset.list[[1]] #if a list of sims
     sim.outcome.metadata = sim.one$outcome.metadata
     outcomes.for.data = sapply(outcomes, function(outcome) {
