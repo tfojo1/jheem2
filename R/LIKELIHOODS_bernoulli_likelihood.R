@@ -165,12 +165,12 @@ JHEEM.BERNOULLI.LIKELIHOOD = R6::R6Class(
     ),
     
     private = list(
-        
+
         i.years = NULL,
         i.probability.decreasing = NULL,
         
         do.compute = function(sim, log=T, check.consistency=T) {
-            
+
             likelihoods.by.stratification = sapply(private$i.stratifications, function(strat) {
                 strat.keep.dimensions = 'year'
                 if (strat != "")
@@ -181,7 +181,7 @@ JHEEM.BERNOULLI.LIKELIHOOD = R6::R6Class(
                 
                 # data will arrive with years sorted by value. *IF* year is the first dimension, this will work. Hopefully it is!
                 differences = diff(sim.data)
-                
+
                 if (private$i.years[[1]] < private$i.years[[2]]) decreasing = differences < 0
                 else decreasing = differences > 0
                 
