@@ -25,29 +25,47 @@ simplot <- function(...,
 {
     #-- STEP 1: PRE-PROCESSING --#
     # Get a list out of ... where each element is one simset (or sim for now)
-    
-    simset.list = list(...)
+    browser()
+    sim.list = list(...) # will later be SIMSETS
     # @Andrew - fill in
     # - make sure they are all the same version and the location
     
     # Check outcomes
     # - make sure it's a non-empty character vector, no NAs
     # - make sure each outcome is present in sim$outcomes for at least one sim/simset
+    if (!is.character(outcomes) || is.null(outcomes) || any(sapply(outcomes, function(outcome) {
+        if (is.na(outcome)) T
+        else
+            !any(sapply(sim.list, function(sim) {
+                outcome %in% sim$outcomes
+            }))
+    })))
+        stop(paste0("There weren't any simulations for one or more outcomes. Should this be an error?"))
     
     # Get the real-world outcome names
     # - eventually we're going to want to pull this from info about the likelihood if the sim notes which likelihood was used on it
     # - what we'll do now will be the back-up to above
     #   sim$outcome.metadata[[outcome]]$corresponding.observed.outcome
     # sims do not all have each outcome because of sub-versions
-    sim.one = simset.list[[1]] #if a list of sims
-    sim.outcome.metadata = sim.one$outcome.metadata
+
     outcomes.for.data = sapply(outcomes, function(outcome) {
-        sim.outcome.metadata[[outcome]]$corresponding.observed.outcome
+        corresponding.observed.outcome = NULL
+        i = 1
+        while (i <= length(sim.list)) {
+            if (outcome %in% sim.list[[i]]) {
+                corresponding.observed.outcome = sim.list[[i]]$outcome.metadata[[outcome]]$corresponding.observed.outcome
+                break
+            } else i = i + 1
+        }
+        corresponding.observed.outcome
     })
+    if (any(is.null(outcomes.for.data)))
+        stop("No corresponding observed outcomes for one or more simulation outcomes in 'outcomes'") # Shouldn't happen
     outcome.mapping = setNames(outcomes, outcomes.for.data)
     
     # Get the locations to pull data for for each outcome
     # - for now, just use the sim$location
+    location = sim.list[[1]]$location # might be wrong
     
     #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
     # columns:
@@ -57,6 +75,8 @@ simplot <- function(...,
     # $split
     # $sim.name - name for this simulation
     # <a column for each element of facet.by>
+    
+    
     
     df.truth = NULL
     # I probably want to make sure this data frame is still indexed by simulation outcome
