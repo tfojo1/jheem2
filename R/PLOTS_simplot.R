@@ -52,20 +52,23 @@ simplot <- function(...,
         corresponding.observed.outcome = NULL
         i = 1
         while (i <= length(sim.list)) {
-            if (outcome %in% sim.list[[i]]) {
+            if (outcome %in% names(sim.list[[i]]$outcome.metadata)) {
                 corresponding.observed.outcome = sim.list[[i]]$outcome.metadata[[outcome]]$corresponding.observed.outcome
                 break
             } else i = i + 1
         }
         corresponding.observed.outcome
     })
-    if (any(is.null(outcomes.for.data)))
+    ## HARDCODE BECAUSE CORRESPONDING.OBSERVED.OUTCOME INFORMATION IS MISSING
+    outcomes.for.data = c('diagnoses')
+    
+    if (any(sapply(outcomes.for.data, is.null)))
         stop("No corresponding observed outcomes for one or more simulation outcomes in 'outcomes'") # Shouldn't happen
-    outcome.mapping = setNames(outcomes, outcomes.for.data)
+    outcomes.for.data = setNames(outcomes.for.data, outcomes)
     
     # Get the locations to pull data for for each outcome
     # - for now, just use the sim$location
-    location = sim.list[[1]]$location # might be wrong
+    location = sim.list[[1]]$location
     
     #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
     # columns:
@@ -82,7 +85,7 @@ simplot <- function(...,
     # I probably want to make sure this data frame is still indexed by simulation outcome
     for (outcome in outcomes.for.data)
     {
-        outcome.data = data.manager$pull(outcome = outcome,
+        outcome.data = data.manager$pull(outcome = outcomes.for.data[[outcome]],
                                          dimension.values = dimension.values,
                                          keep.dimensions = union('year', facet.by))
         one.df.outcome = reshape2::melt(outcome.data) # I need to add an outcome column, don't I?
