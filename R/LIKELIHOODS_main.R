@@ -5,6 +5,12 @@
 
 
 #@Andrew need to document more
+#'@param instructions.code A valid code containing only letters, numbers, dashes, and periods.
+#'@param version The name of a ....?
+#'@param location A single character vector specifying a location. Must be a valid location.
+#'@param data.manager A jheem.data.manager object. May be NULL for Bernoulli likelihood instructions.
+#'@param error.prefix (Optional) A message to include in error messages.
+#'
 #'@export
 instantiate.likelihood <- function(instructions.code,
                                    version,
@@ -13,6 +19,10 @@ instantiate.likelihood <- function(instructions.code,
                                    error.prefix = "Error instantiating likelihood from instructions: ")
 {
     instr = get.likelihood.instructions(code=instructions.code, error.prefix=error.prefix)
+    
+    if (is.null(instr))
+        stop(paste0(error.prefix, "no instructions were found for code ", code))
+    
     instr$instantiate.likelihood(version = version,
                                  location = location,
                                  data.manager = data.manager,
@@ -35,6 +45,11 @@ JHEEM.LIKELIHOOD.CODE.ITERATION = '2.0'
 
 LIKELIHOOD.INSTRUCTIONS.MANAGER = new.env()
 
+#'@param instructions A previously unregistered jheem.likelihood.instructions.object.
+#'@param code A valid code containing only letters, numbers, dashes, and periods.
+#'@param description A description of the likelihood for user reference.
+#'@param error.prefix (Optional) A message to include in error messages.
+#'
 #'@export
 register.likelihood.instructions = function(instructions,
                                             code,
@@ -51,8 +66,19 @@ register.likelihood.instructions = function(instructions,
     
 }
 
-get.likelihood.instructions = function(code, error.prefix)
+#' @param code A valid code containing only letters, numbers, dashes, and periods.
+#' @param error.prefix A message to include in error messages.
+#' 
+get.likelihood.instructions = function(code, error.prefix = "Error getting likelihood instructions")
 {
+    # *error.prefix* is a single non-NA, non-empty character vector
+    if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix))
+        stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
+    
+    # *code* is no more than 5 characters and contains only numbers, letters, periods, and dashes
+    if (!is.character(code) || length(code) > 1 || is.null(code) || is.na(code) || nchar(code) > 5 || string.contains.invalid.characters(code, NUMBERS.LETTERS.DASH.PERIOD))
+        stop(paste0(error.prefix, "code must be no more than 5 characters and contain only numbers, letters, periods, and dashes"))
+
     LIKELIHOOD.INSTRUCTIONS.MANAGER[[code]]
 }
 
@@ -75,87 +101,84 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
     
     public = list(
         
-        initialize = function(outcome.for.data,
-                              outcome.for.sim,
-                              denominator.outcome.for.sim,
-                              from.year,
-                              to.year,
-                              omit.years,
+        initialize = function(outcome.for.sim,
                               dimensions,
-                              denominator.dimensions,
                               levels.of.stratification,
                               weights,
-                              equalize.weight.by.year,
                               likelihood.class.generator,
-                              error.prefix='')
+                              error.prefix="Error initializing 'jheem.likelihood.instructions': ")
         {
-            # Validate code: 1-5 characters, must be number, letter, . or -
-            # Validate descriptions (single, non-NA, non-empty character values)
-            # Validate outcomes (character vector with length >=1, no NAs or empty character values)
-            # Validate years (numeric values)
-            # Validate likelihood.class.generator
-            # - Needs to be an R6ClassGenerator object
-            # - Recurse up the inheritance tree of the classes using $get_inherit(). Something up that chain must have $classname=='jheem.likelihood'
-            # Validate weights: must be a jheem.likelihood.weights object     
-            # - All dimensions named in weights must be named in the dimensions of this likelihood
+            # *error.prefix* is a single non-NA, non-empty character vector
+            if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix))
+                stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
             
-            # Store values - @Andrew finish this off
-            # private$i.description = description
-            
-            private$i.outcome.for.data = outcome.for.data
+            # *outcome.for.sim* is a single character vector
+            if (!is.character(outcome.for.sim) || length(outcome.for.sim) > 1 || is.null(outcome.for.sim) || is.na(outcome.for.sim))
+                stop(paste0(error.prefix, "'outcome.for.sim' must be a character vector of length 1"))
             private$i.outcome.for.sim = outcome.for.sim
-            private$i.denominator.outcome.for.sim = denominator.outcome.for.sim
             
-            # years cannot be calculated until the likelihood is instantiated because it requires checking the data manager's upper and lower bounds
-            private$i.from.year = from.year
-            private$i.to.year = to.year
-            private$i.omit.years = omit.years
+            # *dimensions* is a character vector with no NAs or duplicates
+            if (!is.character(dimensions) || is.null(dimensions) || any(is.na(dimensions)) || any(duplicated(dimensions)))
+                stop(paste0(error.prefix, "'dimensions' must be a character vector containing no NAs or duplicates"))
             private$i.dimensions = dimensions
-            private$i.denominator.dimensions = denominator.dimensions
             
-            # Create the stratifications list
-            private$i.stratifications = list()
-            for (level in levels.of.stratification) {
-                if (level == 0)
-                    private$i.stratifications = c(private$i.stratifications, "") # where '' will have to be replaced with NULL during the pull. There is no other way to append something blank to the list.
-                else
-                    private$i.stratifications = c(private$i.stratifications, combn(dimensions, level, simplify = F))
+            # *levels.of.stratification* is NULL or a numeric vector with no NAs or duplicates
+            if (!is.numeric(levels.of.stratification) || any(is.na(levels.of.stratification)) || any(duplicated(levels.of.stratification)) || any(sapply(levels.of.stratification, function(x) {x<0})))
+                stop(paste0(error.prefix, "'levels.of.stratification' must be NULL or an integer vector containing no NAs, duplicates, or nonnegative numbers"))
+            private$i.stratifications = private$generate.stratifications(dimensions = dimensions,
+                                                                         levels.of.stratification = levels.of.stratification)
+            
+            # *weights* is a list containing only 1. jheem.likelihood.weights' objects whose dimensions, if any, are named in 'dimensions' and 2. numeric vectors with nonnegative, non-NA values
+            if (!is.list(weights) || (any(sapply(weights, function(x) {!(is(x, 'jheem.likelihood.weights') && all(names(x$dimension.values) %in% dimensions)) && (!is.numeric(x) || any(is.na(x)) || any(sapply(x, function(value) {value < 0})))}))))
+                stop(paste0(error.prefix, "'weights' must be NULL or a list containing only 1. jheem.likelihood.weights' objects whose dimensions, if any, are named in 'dimensions' and 2. numeric vectors with nonnegative, non-NA values"))
+            private$i.weights = private$generate.weights.from.weights.list(weights)
+            
+            # *likelihood.class.generator* is an R6ClassGenerator object.
+            if (!R6::is.R6Class(likelihood.class.generator))
+                stop(paste0(error.prefix, "'likelihood.class.generator' must be an R6ClassGenerator object"))
+            
+            # *likelihood.class.generator* must have class with classname 'jheem.likelihood' somewhere in its chain of inheritance
+            current.class = likelihood.class.generator
+            while (is.null(current.class) || current.class$classname != 'jheem.likelihood') {
+                if (is.null(current.class))
+                    stop(paste0(error.prefix, "'likelihood.class.generator' must have class 'jheem.likelihood' in its chain of inheritance"))
+                current.class = current.class$get_inherit()
             }
-            
-            # Validate and process weights list
-            private$i.weights = list()
-            total.weight = 1
-            for (w in weights) {
-                if (is.numeric(w)) {
-                    total.weight = total.weight * prod(w)
-                }
-                else if (is(w, 'jheem.likelihood.weights')) {
-                    if (length(w$dimension.values) == 0)
-                        total.weight = total.weight * w$total.weight
-                    else
-                        private$i.weights[[length(private$i.weights) + 1]] = w
-                } else
-                    stop(paste0(error.prefix, "'weights' must be a list containing only numeric vectors and jheem.likelihood.weights objects"))
-            }
-            private$i.weights[[length(private$i.weights) + 1]] = create.likelihood.weights(total.weight = total.weight)
-            
-            private$i.equalize.weight.by.year = equalize.weight.by.year
             private$i.likelihood.class.generator = likelihood.class.generator
-            # browser()
-            
-            # # Register
-            # register.likelihood.instructions(self, error.prefix=error.prefix)
+
         },
         
-        # only need to overwrite here
-        instantiate.likelihood = function(version, location, data.manager, throw.error.if.no.data = F, error.prefix = '')
+        instantiate.likelihood = function(version,
+                                          location,
+                                          data.manager = NULL, #Bernoulli's don't need this or the next argument
+                                          throw.error.if.no.data = F,
+                                          error.prefix = 'Error instantiating likelihood: ')
         {
-            # Validate location
+            # *error.prefix* is a single non-NA, non-empty character vector
+            if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix))
+                stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
             
-            # Check that likelihood instructions are registered?
+            # *version* and *location* -- validated by 'jheem.likelihood' parent class 'jheem.entity'
+            
+            # *data.manager*  -- validated at the sub-class level if needed (maybe I'll REQUIRE NULL for Bernoulli at some point)
+            
+            # *throw.error.if.no.data* is a single boolean
+            if (!is.logical(throw.error.if.no.data) || length(throw.error.if.no.data) > 1 || is.null(throw.error.if.no.data) || is.na(throw.error.if.no.data))
+                stop(paste0(error.prefix, "'throw.error.if.no.data' must be a single logical value"))
+
+            # # Check that likelihood instructions are registered
+            # if (is.null(private$i.code))
+            #     stop(paste0(error.prefix, "likelihood instructions must be registered before instanting a likelihood with them"))
             
             # Make sure that all outcomes for the instructions are registered
             #  to the specification for the version
+            # ASK TODD
+            # browser()
+            
+            # specification.metadata = get.specification.metadata(version = version,
+            #                                                     location = location)
+            # simulation.metadata has the outcomes!
+            
             private$i.likelihood.class.generator$new(instructions=self,
                                                      version=version,
                                                      location=location,
@@ -168,23 +191,29 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                             description,
                             error.prefix = "Error registering likelihood instructions: ")
         {
-            # Add arguments: code (no more than 5 characters (numbers, letters, periods, dashes) no underscores!)
+            # *error.prefix* is a single non-NA, non-empty character vector
+            if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix))
+                stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
             
-            if (string.contains.invalid.characters(code, NUMBERS.LETTERS.DASH.PERIOD))
-                stop(paste0(error.prefix, "code must contain only numbers, letters, periods, and dashes"))
+            # *code* is no more than 5 characters and contains only numbers, letters, periods, and dashes
+            if (!is.character(code) || length(code) > 1 || is.null(code) || is.na(code) || nchar(code) > 5 || string.contains.invalid.characters(code, NUMBERS.LETTERS.DASH.PERIOD))
+                stop(paste0(error.prefix, "code must be no more than 5 characters and contain only numbers, letters, periods, and dashes"))
+            
+            # *description* is a single, non-NA character vector
+            if (!is.character(description) || length(description) > 1 || is.null(description) || is.na(description))
+                stop(paste0(error.prefix, "'description' must be a single non-NA, non-empty character vector"))
+            private$i.description = description
             
             for (registered.code.name in names(LIKELIHOOD.INSTRUCTIONS.MANAGER)) {
                 if (code == registered.code.name) {
-                    if (!self$equals(get.likelihood.instructions(code)))
+                    if (!self$equals(get.likelihood.instructions(code, error.prefix)))
                         stop(paste0(error.prefix, "other instructions are already registered with the code '", code, "'"))
                 }
                 else {
-                    if (self$equals(get.likelihood.instructions(registered.code.name)))
+                    if (self$equals(get.likelihood.instructions(registered.code.name, error.prefix)))
                         stop(paste0(error.prefix, "identical instructions are already registered under the code '", registered.code.name, "'"))
                 }
             }
-
-            private$i.description = description
             private$i.code = code
             LIKELIHOOD.INSTRUCTIONS.MANAGER[[private$i.code]] = self
         },
@@ -192,11 +221,12 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         equals = function(other)
         {
             stop("The 'equals' method must be implemented at the sub-class level")
-        }
+        },
+        check = function() browser()
     ),
     
     active = list(
-        
+
         code = function(value)
         {
             if (missing(value))
@@ -206,7 +236,6 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'code' - it is read-only")
         },
-        
         description = function(value)
         {
             if (missing(value))
@@ -215,16 +244,6 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             }
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'description' - they are read-only")
-        },
-        
-        outcome.for.data = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.outcome.for.data
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'outcome.for.data' - it is read-only")
         },
         outcome.for.sim = function(value)
         {
@@ -244,44 +263,6 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'outcomes' - it is read-only")
         },
-        denominator.outcome.for.sim = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.denominator.outcome.for.sim
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'denominator.outcome.for.sim' - it is read-only")
-        },
-        
-        from.year = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.from.year
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'from.year' - it is read-only")
-        },
-        to.year = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.to.year
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'to.year' - it is read-only")
-        },
-        omit.years = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.omit.years
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'omit.years' - they are read-only")
-        },
-        
         dimensions = function(value)
         {
             if (missing(value))
@@ -291,16 +272,6 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'dimensions' - they are read-only")
         },
-        denominator.dimensions = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.denominator.dimensions
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'denominator.dimensions' - they are read-only")
-        },
-
         stratifications = function(value)
         {
             if (missing(value))
@@ -318,51 +289,77 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             }
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'weights' - they are read-only")
-        },
-        
-        equalize.weight.by.year = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.equalize.weight.by.year
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'equalize.weight.by.year' - it is read-only")
-        },
-
-        details = function(value)
-        {
-            if (missing(value))
-            {
-                data.frame(
-                    outcome.for.data = private$i.outcome.for.data,
-                    outcome.for.sim = private$i.outcome.for.sim,
-                    from.year = private$i.from.year,
-                    to.year = private$i.to.year,
-                    omit.years = private$i.omit.years
-                )
-                
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'details' - they are read-only")
         }
+        # details = function(value)
+        # {
+        #     stop("'details' is not currently implemented")
+        #     if (missing(value))
+        #     {
+        #         data.frame(
+        #             outcome.for.data = private$i.outcome.for.data,
+        #             outcome.for.sim = private$i.outcome.for.sim,
+        #             from.year = private$i.from.year,
+        #             to.year = private$i.to.year,
+        #             omit.years = private$i.omit.years
+        #         )
+        #     }
+        #     else
+        #         stop("Cannot modify a jheem.likelihood.instruction's 'details' - they are read-only")
+        # }
+
     ),
     
     private = list(
         i.description = NULL,
         i.code = NULL,
-        i.outcome.for.data = NULL,
         i.outcome.for.sim = NULL,
-        i.denominator.outcome.for.sim = NULL,
-        i.from.year = NULL,
-        i.to.year = NULL,
-        i.omit.years = NULL,
         i.dimensions = NULL,
-        i.denominator.dimensions = NULL,
         i.stratifications = NULL,
         i.weights = NULL,
-        i.equalize.weight.by.year = NULL,
-        i.likelihood.class.generator = NULL
+        i.likelihood.class.generator = NULL,
+        
+        generate.stratifications = function(dimensions, levels.of.stratification)
+        {
+            levels.of.stratification = as.integer(levels.of.stratification)
+            output.stratifications = list()
+            if (is.null(levels.of.stratification)) levels.of.stratification = 0
+            for (level in sort(levels.of.stratification)) {
+                if (level == 0)
+                    output.stratifications = c(output.stratifications, "") # where '' will have to be replaced with NULL during the pull. There is no other way that I've found to append something blank to the list.
+                else
+                    output.stratifications = c(output.stratifications, combn(dimensions, level, simplify = F))
+            }
+            output.stratifications
+        },
+        
+        generate.weights.from.weights.list = function(weights)
+        {
+            output.weights = list()
+            total.weight = 1
+            for (w in weights) {
+                if (is.numeric(w)) {
+                    total.weight = total.weight * prod(w)
+                }
+                else if (is(w, 'jheem.likelihood.weights')) {
+                    if (length(w$dimension.values) == 0)
+                        total.weight = total.weight * w$total.weight
+                    else
+                        output.weights = c(output.weights, list(w))
+                }
+            }
+            output.weights = c(output.weights, list(create.likelihood.weights(total.weight = total.weight)))
+        },
+        
+        stratification.lists.equal = function(strat.list.1, strat.list.2)
+        {
+            if (length(strat.list.1) != length(strat.list.2))
+                F
+            else {
+                all(sapply(1:length(strat.list.1), function(i) {
+                    setequal(strat.list.1[[i]], strat.list.2[[i]])
+                }))
+            }
+        }
     )
 )
 
@@ -394,19 +391,24 @@ JHEEM.LIKELIHOOD.WEIGHTS = R6::R6Class(
         initialize = function(total.weight,
                               dimension.values)
         {
-            # Validate 
+            error.prefix = "Error creating likelihood weights: "
             
-            # Total weight is a single numeric value that is not NA and >0
-            
-            # dimension.values is either (a) an empty list or (b) a named list...
-            # we want to reorder the list to be in alphabetical order by dimension
-            
+            # *total.weight* is a single numeric value that is not NA and > 0
+            if (!is.numeric(total.weight) || length(total.weight) > 1 || is.null(total.weight) || is.na(total.weight) || !(total.weight > 0))
+                stop(paste0(error.prefix, "'total.weight' must be a single non-NA, positive numeric value"))
             private$i.total.weight = total.weight
+            
+            # *dimension.values* is either (a) an empty list or (b) a named list with no duplicate names
+            # we want to reorder the list to be in alphabetical order by dimension
+            if (!is.list(dimension.values) || (length(dimension.values) > 0 && is.null(names(dimension.values))) || any(duplicated(names(dimension.values))))
+                stop(paste0(error.prefix, "'dimension.values' must be an empty list or a named list with no duplicate names"))
             private$i.dimension.values = dimension.values[sort(names(dimension.values))]
             
         },
         equals = function(other)
         {
+            if (!is(other, 'jheem.likelihood.weights'))
+                stop(paste0(error.prefix, "'other' must be a 'jheem.likelihood.weights' object"))
             if (self$total.weight == other$total.weight) {
                 if (setequal(names(self$dimension.values), names(other$dimension.values))) {
                     all(sapply(names(self$dimension.values), function(d) {
@@ -424,7 +426,6 @@ JHEEM.LIKELIHOOD.WEIGHTS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.weights' 'total.weight' - it is read-only")
         },
-        
         dimension.values = function(value) {
             if (missing(value)) {
                 private$i.dimension.values
@@ -457,12 +458,18 @@ JHEEM.LIKELIHOOD = R6::R6Class(
         initialize = function(instructions,
                               version,
                               location,
-                              data.manager,
                               error.prefix)
         {
             #@Andrew implement
             # Validate instructions
             # (the superclass constructor will validate version and location)
+            
+            # *error.prefix* is a single non-NA, non-empty character vector
+            if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix))
+                stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
+            
+            if (!is(instructions, 'jheem.likelihood.instructions'))
+                stop(error.prefix, "'instructions' must be a 'jheem.likelihood.instructions'")
             
             # Call the superclass (jheem.entity) constructor
             super$initialize(version = version,
@@ -470,16 +477,30 @@ JHEEM.LIKELIHOOD = R6::R6Class(
                              type = 'likelihood',
                              error.prefix = error.prefix)
             
+            private$i.outcome.for.sim = instructions$outcome.for.sim
+            private$i.stratifications = instructions$stratifications
+            private$i.weights = instructions$weights
+            
         },
         
+        #'@param sim A 'jheem.simulation' object
+        #'@param log Whether to use log likelihood
         #'@param check.consistency - Whether to spend time checking to make sure everything is internally consistent. Setting to F is faster, but may generate weird error messages if there are bugs
         compute = function(sim, log=T, check.consistency)
         {
             #@Andrew implement
+            error.prefix = "Error computing likelihood: "
+            
+            # VALIDATION PURPOSELY SKIPPED FOR TIME SAVING. ENSURE SIM IS A SIMULATION!
+            
+            # if (!is(sim, 'jheem.simulation'))
+            #     stop(paste0(error.prefix, "'sim' must be a 'jheem.simulation' object"))
             
             if (check.consistency)
             {
                 # Make sure that the sim has the years needed for the likelihood
+                if (!all(private$i.years %in% sim$from.year:sim$to.year))
+                    stop(paste0(error.prefix, "simulation does not have all needed years"))
             }
             
             # Call the subclass function
@@ -496,18 +517,11 @@ JHEEM.LIKELIHOOD = R6::R6Class(
         }
     ),
     
-    active = list(
-        
-        instructions = function(value)
-        {
-            
-        }
-        
-    ),
-    
     private = list(
-        
-        
+        i.years = NULL,
+        i.outcome.for.sim = NULL,
+        i.stratifications = NULL,
+        i.weights = NULL,
         
         do.compute = function(sim, log, check.consistency)
         {
