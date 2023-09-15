@@ -170,14 +170,11 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             # if (is.null(private$i.code))
             #     stop(paste0(error.prefix, "likelihood instructions must be registered before instanting a likelihood with them"))
             
-            # Make sure that all outcomes for the instructions are registered
-            #  to the specification for the version
-            # ASK TODD
-            # browser()
-            
-            # specification.metadata = get.specification.metadata(version = version,
-            #                                                     location = location)
-            # simulation.metadata has the outcomes!
+            # All outcomes must be registered for the specification. *denominator.outcome.for.sim* will be checked at the subclass level when relevant
+            simulation.metadata = get.simulation.metadata(version = version,
+                                                          location = location)
+            if (!(self$outcome.for.sim %in% simulation.metadata$outcomes))
+                stop(paste0(error.prefix, "likelihood instructions' 'outcome.for.sim' must be a registered outcome in the specification"))
             
             private$i.likelihood.class.generator$new(instructions=self,
                                                      version=version,

@@ -355,8 +355,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                    from.year = years[[1]],
                                                    to.year = years[[length(years)]])
             
-            if(!(private$i.outcome.for.sim %in% sim.metadata$outcomes))
-                stop(paste0(error.prefix, private$i.outcome.for.sim, " is not a simulation outcome in this specification"))
+            if(!(private$i.denominator.outcome.for.sim %in% sim.metadata$outcomes))
+                stop(paste0(error.prefix, private$i.denominator.for.sim, " is not a simulation outcome in this specification"))
             
             private$i.sim.ontology = sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
             private$i.sim.ontology[['year']] = as.character(years)
