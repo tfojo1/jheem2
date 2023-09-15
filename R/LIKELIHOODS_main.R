@@ -177,6 +177,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             
             # specification.metadata = get.specification.metadata(version = version,
             #                                                     location = location)
+            # simulation.metadata has the outcomes!
             
             private$i.likelihood.class.generator$new(instructions=self,
                                                      version=version,
