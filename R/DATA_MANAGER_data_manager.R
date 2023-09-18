@@ -1040,7 +1040,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         ...)
         {
             #-- Validate arguments --#
-
+            # browser()
             error.prefix = paste0("Cannot pull '", outcome, "' data from the data manager: ")
 
             # *outcome* is a single, non-NA character value
@@ -1088,15 +1088,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (!is.null(target.ontology) && !is.ontology(target.ontology))
                 stop(paste0(error.prefix, "'target.ontology' must be either NULL or an ontology object"))
 
-            # If there is a target ontology, it needs to contain the dimension.values if any
-            resolved.dimension.values = NULL
-            if (!is.null(target.ontology) && !is.null(dimension.values)) {
-                resolved.dimension.values = resolve.ontology.dimension.values(target.ontology, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = FALSE)
-                if (is.null(resolved.dimension.values))
-                    stop(paste0(error.prefix, "'dimension.values' must be contained in 'target.ontology'"))
-            }
-
             # The target ontology also needs to contain the keep dimensions if any
+            # @AZ IS THIS STILL TRUE???
             if (!is.null(target.ontology) && !is.null(keep.dimensions)) {
                 if (!any(keep.dimensions %in% names(target.ontology)))
                     stop(paste0(error.prefix, "'keep.dimensions' must be contained in 'target.ontology'"))
@@ -1136,6 +1129,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #
             # In an lapply for source
 
+
+
             # These must be saved if applicable
             target.to.common.mapping = NULL
             common.ontology = NULL
@@ -1172,32 +1167,23 @@ JHEEM.DATA.MANAGER = R6::R6Class(
 
                     ont = private$i.ontologies[[y]]
 
-                    # Resolving dimension values gives us character vector version even though input could be logical or numeric
-                    # check if any dimensions in dimension.values but not in keep.dimensions include all possible values for that dimension (complete)
-                    # if so, drop them from dimension.values
-                    # We only need to check this now for the current ontology since we checked it at the beginning for the case with target ontology
-                    # If we lacked a target.ontology but had a successful stratification set to be a 'target.ontology', we'll need to do this each time
-                    if (is.null(target.ontology) || target.represents.successful.stratification.flag)
-                        resolved.dimension.values = resolve.ontology.dimension.values(ont, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = FALSE)
 
-                    if (is.null(resolved.dimension.values) && !is.null(dimension.values)) {
-                        next
-                    }
 
                     stratification.names = names(private$i.data[[outcome]][[x]][[y]])
 
                     for (strat in stratification.names) {
 
+                        # -- GET STRAT DATA -- #
+
                         strat.data = private$i.data[[outcome]][[x]][[y]][[strat]]
                         strat.dimensions = names(dim(strat.data))
                         strat.dimnames = as.ontology(dimnames(strat.data),incomplete.dimensions = intersect(incomplete.dimensions(ont), strat.dimensions))
 
-                        # Check that there are data (not all NA) before any mapping is applied
-                        if (all(is.na(strat.data))) next
+                        # # Check that there are data (not all NA) before any mapping is applied ?????
+                        # if (all(is.na(strat.data))) next
 
-                        strat.to.target.mapping = NULL
-                        strat.to.common.mapping = NULL
-                        target.to.common.mapping.placeholder = NULL
+
+                        # -- GET KEEP.DIMENSIONS IF APPLICABLE -- #
 
                         # Only for when there is no target.ontology or the need.to.set.keep.dimensions flag is on.
                         # Determine keep.dimensions if keep.dimensions is NULL. Will be all incomplete dimensions and dimension.values dimensions that are greater than length 1
@@ -1207,75 +1193,99 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             keep.dimensions = setdiff(incomplete.dimensions(strat.dimnames), dimension.values.dimensions.longer.than.one)
                         }
 
-                        if (!is.null(target.ontology)) {
-                            if (allow.mapping.from.target.ontology) {
-                                if (!is.null(common.ontology)) {
 
-                                    # we already have a common ontology to use
-                                    strat.to.common.mapping = get.ontology.mapping(strat.dimnames, common.ontology)
-                                } else {
+                        # -- GET MAPPINGS -- #
+
+                        target.to.common.mapping.placeholder = NULL
+                        common.ontology.placeholder = NULL
+                        mapping.to.apply = NULL
+
+                        if (is.null(target.ontology))
+                            mapping.to.apply = get.identity.ontology.mapping()
+                        else {
+                            if (allow.mapping.from.target.ontology) {
+                                if (!is.null(common.ontology))
+                                    mapping.to.apply = get.ontology.mapping(strat.dimnames, common.ontology)
+
+                                else {
 
                                     # get an aligning mapping
                                     aligning.mappings.list = get.mappings.to.align.ontologies(strat.dimnames, target.ontology)
                                     if (!is.null(aligning.mappings.list)) {
-                                        strat.to.common.mapping = aligning.mappings.list[[1]]
+                                        mapping.to.apply = aligning.mappings.list[[1]]
                                         target.to.common.mapping.placeholder = aligning.mappings.list[[2]]
+                                        common.ontology.placeholder = mapping.to.apply$apply.to.ontology(strat.dimnames)
                                     }
                                 }
-                            } else {
-                                strat.to.target.mapping = get.ontology.mapping(strat.dimnames, target.ontology)
-                            }
+                            } else
+                                mapping.to.apply = get.ontology.mapping(strat.dimnames, target.ontology)
                         }
 
                         # Skip this stratification if mappings were needed and couldn't be found
-                        if (!is.null(target.ontology) &&
-                            (is.null(strat.to.target.mapping) && is.null(strat.to.common.mapping)))
-                            next
+                        if (is.null(mapping.to.apply)) next
+
+
+                        # -- MAP THE STRAT DIMNAMES -- #
 
                         # Figure out the to.dimnames for when we apply a mapping/subset
-                        # This will also help us check whether the dimensions for this stratification are correct post-mapping
-                        dimnames.for.apply = NULL
+                        dimnames.for.apply = mapping.to.apply$apply.to.dim.names(strat.dimnames)
 
-                        if (is.null(target.ontology)) {
+                        # Check that the mapped stratification has exactly keep.dimensions + dimension.values dimensions
+                        if (!setequal(names(dimnames.for.apply), union(keep.dimensions, names(dimension.values))))
+                            next
 
-                            # In this case, check that the stratification has exactly keep.dimensions + dimension.values dimensions
-                            if (!setequal(strat.dimensions, union(keep.dimensions, names(dimension.values))))
-                                next
-
-                            dimnames.for.apply = strat.dimnames
-                            dimnames.for.apply[names(dimension.values)] = dimension.values
-
-                        } else {
-
-                            dimnames.for.apply = target.ontology
-                            dimnames.for.apply[names(dimension.values)] = dimension.values
-
-                            # For cases with target ontologies, cut out unneeded dimensions
-                            dimnames.for.apply = dimnames.for.apply[names(dimnames.for.apply) %in% union(keep.dimensions, names(dimension.values))]
-
-                            if (allow.mapping.from.target.ontology)
-
-                                if (is.null(target.to.common.mapping)) {
-                                    # Skip this stratification if the mapping cannot be applied to the dimnames.for.apply
-                                    if (!target.to.common.mapping.placeholder$can.apply.to.dim.names(dimnames.for.apply))
-                                        next
-                                    else
-                                        dimnames.for.apply = target.to.common.mapping.placeholder$apply.to.dim.names(dimnames.for.apply)
+                        # Check that the mapped stratification won't aggregate illegally due to missing some values in an incomplete dimension that will be aggregated (since it is in dimension.values but not keep.dimensions)
+                        missing.dimension.values.for.aggregated.dimension = F
+                        aggregated.dimensions = setdiff(incomplete.dimensions(dimnames.for.apply), keep.dimensions)
+                        for (d in aggregated.dimensions) {
+                            if (d %in% names(dimension.values)) {
+                                if (length(setdiff(dimension.values[[d]], dimnames.for.apply[[d]])) > 0) {
+                                    missing.dimension.values.for.aggregated.dimension = T
+                                    break
                                 }
+                            }
+                        }
+                        if (missing.dimension.values.for.aggregated.dimension) next
 
+
+                        # -- MAP THE TARGET ONTOLOGY DIMNAMES TO LIMIT THE DIMNAMES.FOR.APPLY INCOMPLETE DIMENSION VALUES -- #
+
+                        if (!is.null(target.ontology)) {
+                            mapped.target.dimnames = NULL
+                            if (allow.mapping.from.target.ontology) {
+                                if (!is.null(target.to.common.mapping))
+                                    mapped.target.dimnames = target.to.common.mapping$apply.to.dim.names(target.ontology)
+                                else
+                                    mapped.target.dimnames = target.to.common.mapping.placeholder$apply.to.dim.names(target.ontology)
+                            }
                             else
-                                # Skip this stratification if the mapping cannot be applied to the dimnames.for.apply
-                                if (!target.to.common.mapping$can.apply.to.dim.names(dimnames.for.apply))
-                                    next
-                            else
-                                dimnames.for.apply = target.to.common.mapping$apply.to.dim.names(dimnames.for.apply)
+                                mapped.target.dimnames = target.ontology
 
-                            # In this case, check that the stratification has exactly the dimnames.for.apply dimensions
-                            if (!setequal(strat.dimensions, names(dimnames.for.apply)))
-                                next
-
+                            mapped.target.incomplete.dimensions = incomplete.dimensions(mapped.target.dimnames)
+                            dimnames.for.apply.incomplete.dimensions = incomplete.dimensions(dimnames.for.apply)
+                            for (d in intersect(mapped.target.incomplete.dimensions, dimnames.for.apply.incomplete.dimensions)) {
+                                dimnames.for.apply[[d]] = intersect(mapped.target.dimnames[[d]], dimnames.for.apply[[d]])
+                            }
                         }
 
+
+                        # -- INSERT DIMENSION.VALUES -- #
+
+                        ontology.to.resolve.against = NULL
+                        if (is.null(target.ontology))
+                            ontology.to.resolve.against = ont
+                        else {
+                            if (allow.mapping.from.target.ontology)
+                                ontology.to.resolve.against = common.ontology.placeholder
+                            else
+                                ontology.to.resolve.against = target.ontology
+                        }
+                        resolved.dimension.values = resolve.ontology.dimension.values(ontology.to.resolve.against, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = FALSE)
+                        if (is.null(resolved.dimension.values) && !is.null(dimension.values)) next
+                        dimnames.for.apply[names(dimension.values)] = resolved.dimension.values # there can be an issue where something in dimension.values does not exist in what the target ontology can produce from mapping
+
+
+                        # -- MAP THE STRAT DATA -- #
 
                         data.elements.accessors = 'data'
                         if ('url' %in% append.attributes)
@@ -1283,7 +1293,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         if ('details' %in% append.attributes)
                             data.elements.accessors = append(data.elements.accessors, 'details')
 
-                        # We'll check whether all the needed incomplete dimension values are present once we can map the strat
                         incompatible.mapped.strat = FALSE
 
                         # Apply mapping to data and subset in one step
@@ -1300,7 +1309,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 if (is.null(target.ontology)) {
 
                                     data.to.process = private[[paste0('i.', a)]][[outcome]][[x]][[y]][[strat]]
-                                    mapping.to.apply = get.identity.ontology.mapping()
 
                                 } else {
 
@@ -1314,43 +1322,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         function.to.apply = function(b) {list(unique(unlist(b)))}
 
                                     }
-
-                                    if (allow.mapping.from.target.ontology) {
-
-                                        mapping.to.apply = strat.to.common.mapping
-
-                                    } else {
-
-                                        mapping.to.apply = strat.to.target.mapping
-
-                                    }
                                 }
 
-                                # The mapped strat dimnames must be compatible with the dimnames.for.apply. We will allow a mapped strat with location=c("MD", "NY") to map with dimnames.for.apply c("MD", "NC") by changing dimnames.for.apply's location to c("MD"), the intersect.
-                                mapped.dimnames = mapping.to.apply$apply.to.dim.names(strat.dimnames)
-
-                                for (d in incomplete.dimensions(dimnames.for.apply)) {
-                                    if (!(d %in% incomplete.dimensions(mapped.dimnames))) {
-                                        incompatible.mapped.strat <<- TRUE
-                                        break
-                                    }
-                                    dimnames.for.apply[[d]] = intersect(dimnames.for.apply[[d]], mapped.dimnames[[d]])
-                                    if (length(dimnames.for.apply[[d]]) == 0) {
-                                        incompatible.mapped.strat <<- TRUE
-                                        break
-                                    }
-                                }
-
-
-                                # An overall check that we can apply. It's possible to fail because of not having the right dimensions or because the intersect() above left dimnames.for.apply with an empty dimension.
-                                # NOTE TO CONSIDER: what happens when dimnames.for.apply has a dimension like location=c() ? This is different from being NULL. --> yes, check.dim.names.valid will fail. It is called by initial.check.can.apply. But... it always throws errors if it fails.
                                 if (!mapping.to.apply$can.apply.to.dim.names(from.dim.names = strat.dimnames,
                                                                              to.dim.names = dimnames.for.apply,
                                                                              throw.errors = F)) {
                                     incompatible.mapped.strat <<- TRUE
                                 }
 
-                                # if this strat doesn't have the needed incomplete dimension values, return NULL
                                 if (incompatible.mapped.strat) {
                                     NULL
                                 }
@@ -1381,6 +1360,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         }
 
                         names(data.to.return) = data.elements.accessors
+
+                        # browser()
+                        # -- AGGREGATE IF NEEDED -- #
 
                         # Dims and dimnames before the following transformations
                         initial.dim = sapply(dimnames.for.apply, length)
@@ -1517,18 +1499,18 @@ JHEEM.DATA.MANAGER = R6::R6Class(
 
                         } # end of loop for data types
 
-                        # If we end up with only NA, erase data.to.return and try the next stratification
-                        if (all(is.na(data.to.return[['data']]))) {
-                            data.to.return = NULL
-                            next
-                        }
+                        # # If we end up with only NA, erase data.to.return and try the next stratification
+                        # if (all(is.na(data.to.return[['data']]))) {
+                        #     data.to.return = NULL
+                        #     next
+                        # }
 
                         ### SUCCESS FOR THIS ONTOLOGY ### -- only now that we still have data after mapping and aggregation can we save what we found
 
                         # Save the target.to.common.mapping if we discovered one, and the mapped ontology as the common ontology
                         if (!is.null(target.to.common.mapping.placeholder)) {
                             target.to.common.mapping <<- target.to.common.mapping.placeholder
-                            common.ontology <<- strat.to.common.mapping$apply.to.ontology(strat.dimnames)
+                            common.ontology <<- common.ontology.placeholder
                         }
 
                         # If we don't have a target.ontology, save this stratification's dimnames (as an ontology) as target.ontology so that subsequent sources must conform to it
@@ -1606,6 +1588,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 attr(final.return, 'mapping') = target.to.common.mapping
 
             #-- Return --#
+            # if (is.null(final.return)) {stop("I failed to pull!!")}
             final.return
         },
 
