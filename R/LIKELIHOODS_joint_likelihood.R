@@ -132,7 +132,6 @@ JHEEM.JOINT.LIKELIHOOD = R6::R6Class(
             super$initialize(instructions=instructions,
                              version=version,
                              location=location,
-                             data.manager=data.manager,
                              error.prefix=error.prefix)
             
             private$i.sub.likelihoods = lapply(instructions$sub.instructions, function(instr){
@@ -154,7 +153,7 @@ JHEEM.JOINT.LIKELIHOOD = R6::R6Class(
             sub.values = sapply(private$i.sub.likelihoods, function(like){
                 like$compute(sim, log=log, check.consistency=check.consistency)
             })
-            print(sub.values)
+            # print(sub.values)
             if (log)
                 sum(sub.values)
             else
