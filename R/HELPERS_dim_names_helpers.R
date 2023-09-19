@@ -184,6 +184,27 @@ union.shared.dim.names <- function(dim.names.1, dim.names.2)
     }
 }
 
+# - Any dimension that appears in either of the dim.names above is kept
+# - For any dimension that does appear in EITHER of the dim.names above, the value is the union of the values for that dimension in each of the dim.names above
+union.joined.dim.names <- function(dim.names.1, dim.names.2)
+{
+    if (is.null(dim.names.1))
+        dim.names.2
+    else if (is.null(dim.names.2))
+        dim.names.1
+    else
+    {
+        all.dimensions = union(names(dim.names.1), names(dim.names.2))
+        
+        rv = lapply(all.dimensions, function(d){
+            union(dim.names.1[[d]], dim.names.2[[d]])
+        })
+        names(rv) = all.dimensions
+        rv
+    }
+}
+
+
 # - Any dimension that does not appear in ALL the dim.names above is dropped
 # - For any dimension that does appear in ALL the dim.names above, the value is the intersect of the values for that dimension in each of the dim.names above
 intersect.shared.dim.names <- function(dim.names.1, dim.names.2)
@@ -194,7 +215,7 @@ intersect.shared.dim.names <- function(dim.names.1, dim.names.2)
         dim.names.1
     else
     {
-        all.dimensions = union(names(dim.names.1), names(dim.names.2))
+        all.dimensions = intersect(names(dim.names.1), names(dim.names.2))
         
         rv = lapply(all.dimensions, function(d){
             if (is.null(dim.names.1[[d]]))
@@ -219,16 +240,129 @@ intersect.joined.dim.names <- function(dim.names.1, dim.names.2)
         dim.names.1
     else
     {
-        overlapping.dimensions = intersect(names(dim.names.1), names(dim.names.2))
+        overlapping.dimensions = union(names(dim.names.1), names(dim.names.2))
         
         rv = lapply(overlapping.dimensions, function(d){
-            intersect(dim.names.1[[d]], dim.names.2[[d]])
+            if (is.null(dim.names.1[[d]]))
+                dim.names.2[[d]]
+            else if (is.null(dim.names.2[[d]]))
+                dim.names.1[[d]]
+            else
+                intersect(dim.names.1[[d]], dim.names.2[[d]])
         })
         names(rv) = overlapping.dimensions
         rv
     }
 }
 
+
+union.shared.dim.names.and.dimensions.with.aliases <- function(dim.names.and.aliases.1,
+                                                               dim.names.2,
+                                                               aliases.2,
+                                                               dimensions.2)
+{
+    if (is.null(dim.names.and.aliases.1$dim.names) &&
+        is.null(dim.names.and.aliases.1$dimensions))
+    {
+        list(dim.names = dim.names.2,
+             dimensions = dimensions.2,
+             aliases = aliases.2)
+    }
+    else if (is.null(dim.names.2) && is.null(dimensions.2))
+    {
+        dim.names.and.aliases.1
+    }
+    else
+    {
+        if (!is.null(dim.names.and.aliases.1$dim.names))
+        {
+            if (!is.null(dim.names.2))
+            {
+                dim.names.and.aliases = union.shared.dim.names.with.aliases(
+                    dim.names.1 = dim.names.and.aliases.1$dim.names,
+                    aliases.1 = dim.names.and.aliases.1$aliases,
+                    dim.names.2 = dim.names.2,
+                    aliases.2 = aliases.2)
+                
+                dim.names.and.aliases$dimensions = NULL
+            }
+            else
+            {
+                faux.dim.names.2 = lapply(dimensions.2, function(x){NULL})
+                names(faux.dim.names.2) = dimensions.2
+                
+                merged = union.shared.dim.names.with.aliases(
+                    dim.names.1 = dim.names.and.aliases.1$dim.names,
+                    aliases.1 = dim.names.and.aliases.1$aliases,
+                    dim.names.2 = faux.dim.names.2,
+                    aliases.2 = aliases.2)
+                
+                dim.names.and.aliases = list(
+                    dim.names = merged$dim.names[sapply(merged$dim.names, length)>0],
+                    aliases = merged$aliases,
+                    dimensions = NULL
+                )
+                
+                dim.names.and.aliases$aliases = dim.names.and.aliases$aliases[
+                    intersect(names(dim.names.and.aliases$aliases),
+                              names(dim.names.and.aliases$dim.names))
+                ]
+            }
+        }
+        else #dimensions.1 is not NULL
+        {
+            if (!is.null(dim.names.2))
+            {
+                faux.dim.names.1 = lapply(dim.names.and.aliases.1$dimensions, function(x){NULL})
+                names(faux.dim.names.1) = dim.names.and.aliases.1$dimensions
+                
+                merged = union.shared.dim.names.with.aliases(
+                    dim.names.1 = faux.dim.names.1,
+                    aliases.1 = dim.names.and.aliases.1$aliases,
+                    dim.names.2 = dim.names.2,
+                    aliases.2 = aliases.2)
+                
+                dim.names.and.aliases = list(
+                    dim.names = merged$dim.names[sapply(merged$dim.names, length)>0],
+                    aliases = merged$aliases,
+                    dimensions = NULL
+                )
+                
+                dim.names.and.aliases$aliases = dim.names.and.aliases$aliases[
+                    intersect(names(dim.names.and.aliases$aliases),
+                              names(dim.names.and.aliases$dim.names))
+                ]
+            }
+            else # union dimensions
+            {
+                faux.dim.names.1 = lapply(dim.names.and.aliases.1$dimensions, function(x){NULL})
+                names(faux.dim.names.1) = dim.names.and.aliases.1$dimensions
+                
+                faux.dim.names.2 = lapply(dimensions.2, function(x){NULL})
+                names(faux.dim.names.2) = dimensions.2
+                
+                merged = union.shared.dim.names.with.aliases(
+                    dim.names.1 = faux.dim.names.1,
+                    aliases.1 = dim.names.and.aliases.1$aliases,
+                    dim.names.2 = faux.dim.names.2,
+                    aliases.2 = aliases.2)
+                
+                dim.names.and.aliases = list(
+                    dim.names = NULL,
+                    aliases = merged$aliases,
+                    dimensions = names(merged)
+                )
+                
+                dim.names.and.aliases$aliases = dim.names.and.aliases$aliases[
+                    intersect(names(dim.names.and.aliases$aliases),
+                              names(dim.names.and.aliases$dim.names))
+                ]
+            }
+        }
+        
+        dim.names.and.aliases
+    }
+}
 
 # Returns a list with two elements
 # $dim.names
@@ -277,6 +411,167 @@ union.shared.dim.names.with.aliases <- function(dim.names.1, aliases.1,
         list(dim.names = dim.names, aliases = viable.aliases)
     }
 }
+
+intersect.with.aliases <- function(values.1, aliases.1,
+                                   values.2, aliases.2)
+{
+    if (is.null(values.1))
+        list(values=values.2, aliases=aliases.2)
+    else if (is.null(values.2))
+        list(values=values.1, aliases=aliases.1)
+    else
+    {
+        # Figure out which aliases we need to use
+        aliases.1.in.values.2.mask = as.logical(sapply(aliases.1, function(name){
+            any(name == values.2)
+        }))
+        aliases.2.in.values.1.mask = as.logical(sapply(aliases.2, function(name){
+            any(name == values.1)
+        }))
+        
+        aliases.1.in.values.2 = aliases.1[aliases.1.in.values.2.mask]
+        aliases.2.in.values.1 = aliases.2[aliases.2.in.values.1.mask]
+        
+        # Rename the dimensions in 1 and 2 using the aliases we are going to use
+        names(values.1) = replace.with.aliases(names(values.1), aliases=aliases.1.in.values.2)
+        names(values.2) = replace.with.aliases(names(values.2), aliases=aliases.2.in.values.1)
+        
+        # Intersect the (renamed to aliases) values
+        values = intersect(values.1, values.2)
+        
+        # Figure out which aliases are still 'viable'
+        # An alias is viable if the original (un-aliased) name is in the union-ed dim.names
+        #   AND the alias is present in both 1 and 2
+        viable.aliases.mask = as.logical(sapply(names(aliases.1), function(alias.name){
+            any(alias.name==values) &&
+                any(alias.name==names(aliases.2)) &&
+                all(aliases.1[alias.name]==aliases.2[alias.name])
+        }))
+        viable.aliases = aliases.1[viable.aliases.mask]
+        
+        
+        # Return
+        list(values = values, aliases = viable.aliases)
+    }
+}
+
+# Returns a list with two elements
+# $dim.names
+# $aliases
+# 
+# aliases - a named character vector. The names of the vector correspond to current names of dimensions. The values correspond to the names they could be swapped for
+intersect.joined.dim.names.with.reverse.aliases <- function(dim.names.1, aliases.1,
+                                                        dim.names.2, aliases.2)
+{
+    if (is.null(dim.names.1))
+        list(dim.names=dim.names.2, aliases=aliases.2)
+    else if (is.null(dim.names.2))
+        list(dim.names=dim.names.1, aliases=aliases.1)
+    else
+    {
+        reverse.aliases.1 = names(aliases.1)
+        if (!is.null(reverse.aliases.1))
+            names(reverse.aliases.1) = aliases.1
+        
+        reverse.aliases.2 = names(aliases.2)
+        if (!is.null(reverse.aliases.2))
+            names(reverse.aliases.2) = aliases.2
+        
+        # Figure out which aliases we need to use
+        aliases.1.in.dim.names.2.mask = as.logical(sapply(reverse.aliases.1, function(name){
+            any(name == names(dim.names.2))
+        }))
+        aliases.2.in.dim.names.1.mask = as.logical(sapply(reverse.aliases.2, function(name){
+            any(name == names(dim.names.1))
+        }))
+        
+        aliases.1.in.dim.names.2 = reverse.aliases.1[aliases.1.in.dim.names.2.mask]
+        aliases.2.in.dim.names.1 = reverse.aliases.2[aliases.2.in.dim.names.1.mask]
+        
+        # Rename the dimensions in 1 and 2 using the aliases we are going to use
+        names(dim.names.1) = replace.with.aliases(names(dim.names.1), aliases=aliases.1.in.dim.names.2)
+        names(dim.names.2) = replace.with.aliases(names(dim.names.2), aliases=aliases.2.in.dim.names.1)
+        
+        # Union the (renamed to aliases) dim.names
+        dim.names = intersect.joined.dim.names(dim.names.1, dim.names.2)
+        
+        # Figure out which aliases are still 'viable'
+        # An alias is viable if the original (un-aliased) name is in the union-ed dim.names
+        #   AND the alias is present in both 1 and 2
+        viable.aliases.mask = as.logical(sapply(names(reverse.aliases.1), function(alias.name){
+            any(alias.name==names(dim.names)) &&
+                any(alias.name==names(aliases.2)) &&
+                all(reverse.aliases.1[alias.name]==reverse.aliases.2[alias.name])
+        }))
+        reverse.viable.aliases = reverse.aliases.1[viable.aliases.mask]
+        
+        viable.aliases = names(reverse.viable.aliases)
+        names(viable.aliases) = reverse.viable.aliases
+        
+        
+        # Return
+        list(dim.names = dim.names, aliases = viable.aliases)
+    }
+}
+# Returns a list with two elements
+# $dim.names
+# $aliases
+# 
+# aliases - a named character vector. The names of the vector correspond to current names of dimensions. The values correspond to the names they could be swapped for
+union.joined.dim.names.with.reverse.aliases <- function(dim.names.1, aliases.1,
+                                                        dim.names.2, aliases.2)
+{
+    if (is.null(dim.names.1))
+        list(dim.names=dim.names.2, aliases=aliases.2)
+    else if (is.null(dim.names.2))
+        list(dim.names=dim.names.1, aliases=aliases.1)
+    else
+    {
+        reverse.aliases.1 = names(aliases.1)
+        if (!is.null(reverse.aliases.1))
+            names(reverse.aliases.1) = aliases.1
+        
+        reverse.aliases.2 = names(aliases.2)
+        if (!is.null(reverse.aliases.2))
+            names(reverse.aliases.2) = aliases.2
+        
+        # Figure out which aliases we need to use
+        aliases.1.in.dim.names.2.mask = as.logical(sapply(reverse.aliases.1, function(name){
+            any(name == names(dim.names.2))
+        }))
+        aliases.2.in.dim.names.1.mask = as.logical(sapply(reverse.aliases.2, function(name){
+            any(name == names(dim.names.1))
+        }))
+        
+        aliases.1.in.dim.names.2 = reverse.aliases.1[aliases.1.in.dim.names.2.mask]
+        aliases.2.in.dim.names.1 = reverse.aliases.2[aliases.2.in.dim.names.1.mask]
+        
+        # Rename the dimensions in 1 and 2 using the aliases we are going to use
+        names(dim.names.1) = replace.with.aliases(names(dim.names.1), aliases=aliases.1.in.dim.names.2)
+        names(dim.names.2) = replace.with.aliases(names(dim.names.2), aliases=aliases.2.in.dim.names.1)
+        
+        # Union the (renamed to aliases) dim.names
+        dim.names = union.joined.dim.names(dim.names.1, dim.names.2)
+        
+        # Figure out which aliases are still 'viable'
+        # An alias is viable if the original (un-aliased) name is in the union-ed dim.names
+        #   AND the alias is present in both 1 and 2
+        viable.aliases.mask = as.logical(sapply(names(reverse.aliases.1), function(alias.name){
+            any(alias.name==names(dim.names)) &&
+                any(alias.name==names(aliases.2)) &&
+                all(reverse.aliases.1[alias.name]==reverse.aliases.2[alias.name])
+        }))
+        reverse.viable.aliases = reverse.aliases.1[viable.aliases.mask]
+        
+        viable.aliases = names(reverse.viable.aliases)
+        names(viable.aliases) = reverse.viable.aliases
+        
+        
+        # Return
+        list(dim.names = dim.names, aliases = viable.aliases)
+    }
+}
+
 
 replace.with.aliases <- function(values, aliases)
 {

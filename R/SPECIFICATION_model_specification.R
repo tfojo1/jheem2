@@ -671,7 +671,7 @@ register.initial.population <- function(specification,
 #'
 #'@param dimensions Optional parameter to specify which dimensions the model.element is expected to take
 #'@param dimension.values Optional parameter to specify which dimension.values the model.element will use in its dimension names
-#'@param apply.aliases.to.dimension.values A logical indicating whether, if dimension.values are supplied, they should have the compartment.value.aliases for the model specification applied to them
+#'@param resolve.dimension.values.against.model.ontologies A logical indicating whether, if dimension.values are supplied, they should be resolved against model ontologies and have compartment.value.aliases for the model specification applied to them
 #'
 #'@param value A numeric value that serves as the value for this element if it is not otherwise specified. If NULL, then a value must be specified either by a get.value.function (a function which returns a value), or by a functional.form
 #'@param get.value.function An alternative to passing value directly, if the value needs to be different by location. This should be a function that takes arguments location, specification, and ... 
@@ -699,7 +699,7 @@ register.model.element <- function(specification,
                                    
                                    dimensions=NULL,
                                    dimension.values=NULL,
-                                   apply.aliases.to.dimension.values=F,
+                                   resolve.dimension.values.against.model=T,
                                    
                                    value=NULL,
                                    get.value.function=NULL,
@@ -749,7 +749,7 @@ register.model.element <- function(specification,
         
         dimensions=dimensions,
         dimension.values=dimension.values,
-        apply.aliases.to.dimension.values = apply.aliases.to.dimension.values,
+        resolve.dimension.values.against.model = resolve.dimension.values.against.model,
         
         value=value,
         get.value.function=get.value.function,
@@ -848,7 +848,7 @@ register.model.quantity <- function(specification,
                                     scale=NULL,
                                     dimensions=names(dimension.values),
                                     dimension.values=NULL,
-                                    apply.aliases.to.dimension.values=F,
+                                    resolve.dimension.values.against.model=T,
                                     ...,
                                     na.replacement = as.numeric(NA))
 {
@@ -864,7 +864,7 @@ register.model.quantity <- function(specification,
                                     scale = scale,
                                     dimensions = dimensions,
                                     dimension.values = dimension.values,
-                                    apply.aliases.to.dimension.values = apply.aliases.to.dimension.values,
+                                    resolve.dimension.values.against.model = resolve.dimension.values.against.model,
                                     ...,
                                     na.replacement = na.replacement)
 }
@@ -1942,7 +1942,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                     
                                     dimensions=NULL,
                                     dimension.values=NULL,
-                                    apply.aliases.to.dimension.values=F,
+                                    resolve.dimension.values.against.model=T,
                                     
                                     value=NULL,
                                     get.value.function=NULL,
@@ -1996,7 +1996,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                         
                                         dimensions = dimensions,
                                         dimension.values = dimension.values,
-                                        apply.aliases.to.dimension.values = apply.aliases.to.dimension.values,
+                                        resolve.dimension.values.against.model = resolve.dimension.values.against.model,
                                         
                                         value = value,
                                         get.value.function = get.value.function,
@@ -2034,7 +2034,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                      scale=NULL,
                                      dimensions=names(dimension.values),
                                      dimension.values=NULL,
-                                     apply.aliases.to.dimension.values=F,
+                                     resolve.dimension.values.against.model=T,
                                      na.replacement=as.numeric(NA),
                                      ...,
                                      error.prefix=NULL)
@@ -2049,7 +2049,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                      scale = scale,
                                      dimensions = dimensions,
                                      dimension.values = dimension.values,
-                                     apply.aliases.to.dimension.values = apply.aliases.to.dimension.values,
+                                     resolve.dimension.values.against.model = resolve.dimension.values.against.model,
                                      na.replacement = na.replacement,
                                      ...,
                                      error.prefix = error.prefix)
@@ -3003,7 +3003,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                         scale=NULL,
                                         dimensions=names(dimension.values),
                                         dimension.values=NULL,
-                                        apply.aliases.to.dimension.values=F,
+                                        resolve.dimension.values.against.model=T,
                                         na.replacement=as.numeric(NA),
                                         ...,
                                         error.prefix=NULL)
@@ -3029,7 +3029,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                        scale = scale,
                                                        dimensions = dimensions,
                                                        dimension.values = dimension.values,
-                                                       apply.aliases.to.dimension.values = apply.aliases.to.dimension.values,
+                                                       resolve.dimension.values.against.model = resolve.dimension.values.against.model,
                                                        na.replacement = na.replacement,
                                                        ...,
                                                        error.prefix = error.prefix)
@@ -3045,7 +3045,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                   scale=NULL,
                                                   dimensions=names(dimension.values),
                                                   dimension.values=NULL,
-                                                  apply.aliases.to.dimension.values=F,
+                                                  resolve.dimension.values.against.model=T,
                                                   na.replacement=as.numeric(NA),
                                                   ...,
                                                   error.prefix=NULL)
@@ -3068,7 +3068,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                              scale = scale,
                                              dimensions = names(dimension.values),
                                              dimension.values = NULL,
-                                             apply.aliases.to.dimension.values = F,
+                                             resolve.dimension.values.against.model = resolve.dimension.values.against.model,
                                              na.replacement = na.replacement,
                                              ...,
                                              error.prefix = error.prefix)
@@ -3318,7 +3318,7 @@ MODEL.QUANTITY = R6::R6Class(
                               allow.scale.missing,
                               dimensions,
                               dimension.values,
-                              apply.aliases.to.dimension.values,
+                              resolve.dimension.values.against.model,
                               error.prefix)
         {
             #**Note: We don't validate.quantity.name here because transition names
@@ -3337,14 +3337,33 @@ MODEL.QUANTITY = R6::R6Class(
             if (!allow.scale.missing || !is.null(scale))
                 check.model.scale(scale, 'scale', error.prefix = error.prefix)
             
+            #-- Validate resolve.dimension.values.against.model --#
+            if (!is.logical(resolve.dimension.values.against.model) || length(resolve.dimension.values.against.model) != 1 ||
+                is.na(resolve.dimension.values.against.model))
+                stop(paste0(error.prefix, "'resolve.dimension.values.against.model' must be a single, non-NA logical value (T or F)"))
+            
             #-- Validate dimensions and dimension.values --#
-            if (is.null(dimensions))
+
+            if (!is.null(dimension.values))
             {
-                if (!is.null(dimension.values))
-                    stop(paste0(error.prefix,
-                                "if 'dimensions' is NULL, 'dimension.values' must also be NULL"))
+                check.dimension.values.valid(dimension.values = dimension.values,
+                                             variable.name.for.error = 'dimension.values',
+                                             refer.to.dimensions.as = 'dimension',
+                                             allow.empty = F,
+                                             allow.duplicate.values.within.dimensions = F,
+                                             error.prefix = error.prefix)
+                
+                if (!resolve.dimension.values.against.model)
+                {
+                    if (any(!sapply(dimension.values, is.character)))
+                        stop(paste0(error.prefix, "If resolve.dimension.values.against.model==F, then 'dimension.values' can only contain character vectors"))
+                }
+
+                if (is.null(dimensions))
+                    dimensions = names(dimension.values)
             }
-            else
+            
+            if (!is.null(dimensions))
             {
                 if (!is.character(dimensions) || length(dimensions)==0 || any(is.na(dimensions)) || any(dimensions==''))
                     stop(paste0(error.prefix, "'dimensions' must be a non-NA character vector with at least one element"))
@@ -3353,14 +3372,6 @@ MODEL.QUANTITY = R6::R6Class(
                 
                 if (!is.null(dimension.values))
                 {
-                    check.dim.names.valid(dim.names = dimension.values,
-                                          variable.name.for.error = 'dimension.values',
-                                          refer.to.dimensions.as = 'dimension',
-                                          allow.empty = F,
-                                          allow.duplicate.values.within.dimensions = F,
-                                          allow.duplicate.values.across.dimensions = F,
-                                          error.prefix = error.prefix)
-                    
                     missing.from.dimensions = setdiff(names(dimension.values), dimensions)
                     if (length(missing.from.dimensions)>0)
                         stop(paste0(error.prefix,
@@ -3373,11 +3384,6 @@ MODEL.QUANTITY = R6::R6Class(
                 }
             }
             
-            #-- Validate apply.aliases.to.dimension.values --#
-            if (!is.logical(apply.aliases.to.dimension.values) || length(apply.aliases.to.dimension.values) != 1 ||
-                is.na(apply.aliases.to.dimension.values))
-                stop(paste0(error.prefix, "'apply.aliases.to.dimension.values' must be a single, non-NA logical value (T or F)"))
-
             #-- Store values --#
             private$i.name = private$i.original.name = name
             private$i.version = version
@@ -3386,7 +3392,7 @@ MODEL.QUANTITY = R6::R6Class(
             
             private$i.fixed.dimensions = dimensions
             private$i.fixed.dimension.values = dimension.values
-            private$i.apply.aliases.to.dimension.values = apply.aliases.to.dimension.values
+            private$i.resolve.dimension.values.against.model = resolve.dimension.values.against.model
             
             
             #-- Set some empty values --#
@@ -3402,6 +3408,7 @@ MODEL.QUANTITY = R6::R6Class(
         
         set.dim.names.and.dimension.aliases = function(max.dim.names, 
                                                        required.dim.names,
+                                                       max.dimensions = NULL,
                                                        dimension.aliases, 
                                                        error.prefix)
         {
@@ -3410,6 +3417,10 @@ MODEL.QUANTITY = R6::R6Class(
             
             # Set the required.dim.names
             private$i.required.dim.names = required.dim.names
+            
+            # Set the max.dimensions
+            if (is.null(max.dim.names))
+                private$i.max.dimensions = max.dimensions
             
             # Check dimension.aliases
             if (length(dimension.aliases)==0)
@@ -3500,7 +3511,7 @@ MODEL.QUANTITY = R6::R6Class(
                                               error.prefix,
                                               wrt.specification)
         {   
-            if (private$i.apply.aliases.to.dimension.values)
+            if (private$i.resolve.dimension.values.against.model)
             {
                 private$i.fixed.dimension.values = do.resolve.dimension.values(dimension.values = private$i.fixed.dimension.values,
                                                                                aliases = aliases,
@@ -3510,22 +3521,6 @@ MODEL.QUANTITY = R6::R6Class(
                                                                                                                 self$get.original.name(wrt.specification$version)),
                                                                                ontology.name.for.error = ontology.name.for.error,
                                                                                error.prefix = error.prefix)
-            }
-            else
-            {
-                is.char.mask = sapply(private$i.fixed.dimension.values, is.character)
-                if (any(!is.char.mask))
-                {
-                    private$i.fixed.dimension.values[!is.char.mask] = 
-                        do.resolve.dimension.values(dimension.values = private$i.fixed.dimension.values[!is.char.mask],
-                                                    aliases = aliases,
-                                                    ontology = ontology,
-                                                    unresolved.alias.names = unresolved.alias.names,
-                                                    variable.name.for.error = paste0("'dimension.values' for model.element ", 
-                                                                                     self$get.original.name(wrt.specification$version)),
-                                                    ontology.name.for.error = ontology.name.for.error,
-                                                    error.prefix = error.prefix)
-                }
             }
         },
         
@@ -3655,6 +3650,14 @@ MODEL.QUANTITY = R6::R6Class(
                 stop(paste0("Cannot modify a ", self$descriptor, "'s 'max.dim.names' value - they are read-only"))
         },
         
+        max.dimensions = function(value)
+        {
+            if (missing(value))
+                private$i.max.dimensions
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'max.dimensions' value - they are read-only"))
+        },
+        
         required.dim.names = function(value)
         {
             if (missing(value))
@@ -3737,10 +3740,11 @@ MODEL.QUANTITY = R6::R6Class(
         
         i.maximum.dim.names = NULL,
         i.required.dim.names = NULL,
+        i.max.dimensions = NULL,
         
         i.fixed.dimensions = NULL,
         i.fixed.dimension.values = NULL,
-        i.apply.aliases.to.dimension.values = NULL,
+        i.resolve.dimension.values.against.model = NULL,
         i.fixed.dim.names = NULL,
         
         i.must.be.static = NULL
@@ -3760,7 +3764,7 @@ MODEL.ELEMENT = R6::R6Class(
                               
                               dimensions = names(dimensions),
                               dimension.values = NULL,
-                              apply.aliases.to.dimension.values = F,
+                              resolve.dimension.values.against.model = T,
                               
                               value=NULL,
                               get.value.function=NULL,
@@ -3796,7 +3800,7 @@ MODEL.ELEMENT = R6::R6Class(
                              scale = scale,
                              dimensions = dimensions,
                              dimension.values = dimension.values,
-                             apply.aliases.to.dimension.values = apply.aliases.to.dimension.values,
+                             resolve.dimension.values.against.model = resolve.dimension.values.against.model,
                              allow.scale.missing = F,
                              error.prefix = error.prefix)
 
@@ -4580,7 +4584,7 @@ NON.TERMINAL.MODEL.QUANTITY = R6::R6Class(
                               scale=NULL,
                               dimensions=names(dimension.values),
                               dimension.values=NULL,
-                              apply.aliases.to.dimension.values=F,
+                              resolve.dimension.values.against.model=T,
                               na.replacement=as.numeric(NA),
                               ...,
                               error.prefix)
@@ -4602,7 +4606,7 @@ NON.TERMINAL.MODEL.QUANTITY = R6::R6Class(
                              allow.scale.missing = T,
                              dimensions = dimensions,
                              dimension.values = dimension.values,
-                             apply.aliases.to.dimension.values = apply.aliases.to.dimension.values,
+                             resolve.dimension.values.against.model = resolve.dimension.values.against.model,
                              error.prefix = error.prefix)
             
             #-- Make the first component and add it --#
@@ -5038,12 +5042,25 @@ MODEL.QUANTITY.COMPONENT = R6::R6Class(
         {
             if (missing(value))
             {
-                rv = private$i.parent.quantity$max.dim.names
-                rv[names(private$i.applies.to)] = private$i.applies.to
-                rv
+                if (is.null(private$i.parent.quantity$max.dim.names))
+                    NULL
+                else
+                {
+                    rv = private$i.parent.quantity$max.dim.names
+                    rv[names(private$i.applies.to)] = private$i.applies.to
+                    rv
+                }
             }
             else
                 stop("Cannot modify a model.quantity.component's 'max.dim.names' - it is read-only")
+        },
+        
+        max.dimensions = function(value)
+        {
+            if (missing(value))
+                private$i.parent.quantity$max.dimensions
+            else
+                stop("Cannot modify a model.quantity.component's 'max.dimensions' - it is read-only")
         },
         
         # The name of the alias in the name of the dimension IN THIS QUANTITY
@@ -6759,38 +6776,93 @@ MODEL.OUTCOME = R6::R6Class(
         
         derive.dim.names = function(specification, all.outcomes, error.prefix, set=F)
         {
-            dim.names = derive.max.dim.names(specification = specification, 
-                                                 all.outcomes = all.outcomes,
-                                                 error.prefix = error.prefix)
+            error.prefix = paste0(error.prefix, "Cannot derive dim.names for outcome ",
+                                  self$get.original.name(specification$version), " - ")
             
-            if (!is.null(private$i.keep.dimensions))
+            dim.names = max.dim.names = 
+                private$derive.max.dim.names(specification = specification, 
+                                             all.outcomes = all.outcomes,
+                                             include.denominator.outcome = F,
+                                             error.prefix = error.prefix)
+            
+            if (set || !is.null(dim.names))
             {
-                missing.dimensions = setdiff(private$i.keep.dimensions, names(dim.names))
-                if (length(missing.dimensions)>0)
-                    stop(paste0(error.prefix,
-                                "Outcome ", self$get.original.name(wrt.version=specification$version),
-                                " has ",
-                                ifelse(length(missing.dimensions)==1, "keep.dimension ", "keep.dimensions "),
-                                collapse.with.and("'", missing.dimensions, "'"),
-                                " but ",
-                                ifelse(length(dim.names)==0,
-                                       "the outcome must be dimensionless",
-                                       paste0(ifelse(length(missing.dimensions)==1, " it is ", " they are "),
-                                              "not present in the derived set of possible for the dimensions for the outcome (",
-                                              collapse.with.and("'", names(dim.names), "'"), ")"))
-                                ))
+                if (!is.null(private$i.keep.dimensions))
+                {
+                    missing.dimensions = setdiff(private$i.keep.dimensions, names(dim.names))
+                    if (length(missing.dimensions)>0)
+                    {
+                        stop(paste0(error.prefix,
+                                    "Outcome ", self$get.original.name(wrt.version=specification$version),
+                                    " has ",
+                                    ifelse(length(missing.dimensions)==1, "keep.dimension ", "keep.dimensions "),
+                                    collapse.with.and("'", missing.dimensions, "'"),
+                                    " but ",
+                                    ifelse(length(dim.names)==0,
+                                           "the outcome must be dimensionless",
+                                           paste0(ifelse(length(missing.dimensions)==1, " it is ", " they are "),
+                                                  "not present in the derived set of possible for the dimensions for the outcome (",
+                                                  collapse.with.and("'", names(dim.names), "'"), ")"))
+                                    ))
+                    }
+                    
+                    dim.names = dim.names[private$i.keep.dimensions]
+                }
                 
-                dim.names = dim.names[private$i.keep.dimensions]
-            }
-            
-            if (!is.null(private$i.exclude.dimensions))
-            {
-                dim.names = dim.names[setdiff(names(dim.names), private$i.exclude.dimen)]
+                if (!is.null(private$i.exclude.dimensions))
+                {
+                    dim.names = dim.names[setdiff(names(dim.names), private$i.exclude.dimen)]
+                }
             }
             
             if (set)
+            {
+                # Check that the denominator can accommodate (are supsersets of) max.dim.names or dim.names
+                if (!is.null(private$i.denominator.outcome))
+                {
+                    denominator.outcome = all.outcomes[[private$i.denominator.outcome]]
+                    denominator.dim.names = denominator.outcome$derive.dim.names(specification,
+                                                                                 all.outcomes = all.outcomes,
+                                                                                 error.prefix = error.prefix,
+                                                                                 set = F)
+                    if (private$i.scale=='number' || private$i.scale=='non.negative.number')
+                    {
+                        if (!dim.names.are.subset(sub.dim.names=dim.names, super.dim.names=denominator.dim.names))
+                            stop(paste0(error.prefix,
+                                        "The denominator outcome (",
+                                        denominator.outcome$get.original.name(specification$version),
+                                        ") cannot accomodate the dimensions for the outcome."))
+                    }
+                    else
+                    {
+                        if (!dim.names.are.subset(sub.dim.names=max.dim.names, super.dim.names=denominator.dim.names))
+                        {
+                            stop(paste0(error.prefix,
+                                        "The denominator outcome (",
+                                        denominator.outcome$get.original.name(specification$version),
+                                        ") cannot accomodate the dimensions for the outcome prior to aggregating."))
+                        }
+                    }
+                }
+                
+                # Check that all quantities can accommodate (are subsets of) max.dim.names
+                # (and confirm that quantities do not have NULL max.dim.names)
+                for (quant in private$get.all.depends.on.quantities(specification, all.outcomes=all.outcomes, error.prefix=error.prefix))
+                {
+                    if (is.null(quant$max.dim.names))
+                        stop(paste0(error.prefix,
+                                    "The max.dim.names of quantity ", quant$get.original.name(specification$version),
+                                    ", on which the outcome depends, cannot be inferred from the model specification"))
+                    
+                    if (!dim.names.are.subset(sub.dim.names=quant$max.dim.names, super.dim.names=max.dim.names))
+                        stop(paste0(error.prefix,
+                                    "The max.dim.names of quantity ", quant$get.original.name(specification$version),
+                                    ", on which the outcome depends, are broader than the inferred max.dim.names for the outcome"))
+                }
+            
                 private$i.ontology = as.ontology(dim.names, incomplete.dimensions = intersect(names(dim.names),
                                                                                               incomplete.dimensions(specification$ontologies$all)))
+            }
             
             dim.names
         },
@@ -6800,11 +6872,24 @@ MODEL.OUTCOME = R6::R6Class(
             dep.on.quantity.names = setdiff(union(self$depends.on.quantities,
                                                   self$depends.on.quantities.or.outcomes),
                                             names(private$get.all.depends.on.outcomes(all.outcomes = all.outcomes,
+                                                                                      include.denominator.outcome = T,
                                                                                       error.prefix = error.prefix)))
             
-            dim.names = derive.max.dim.names(specification = specification, 
-                                             all.outcomes = all.outcomes,
-                                             error.prefix = error.prefix)
+            dim.names = private$derive.max.dim.names(specification = specification, 
+                                                     all.outcomes = all.outcomes,
+                                                     include.denominator.outcome = F,
+                                                     error.prefix = error.prefix)
+            
+            if (is.null(private$i.denominator.outcome))
+                max.dimensions = NULL
+            else
+            {
+                denominator.outcome = all.outcomes[[private$i.denominator.outcome]]
+                max.dimensions = names(denominator.outcome$derive.dim.names(specification,
+                                                                            all.outcomes = all.outcomes,
+                                                                            error.prefix = error.prefix,
+                                                                            set = F))
+            }
             
             lapply(dep.on.quantity.names, function(dep.on.name){
                 
@@ -6818,7 +6903,8 @@ MODEL.OUTCOME = R6::R6Class(
                                         required.sub.ontology.name=NULL,
                                         exclude.ontology.dimensions=character(),
                                         alias.suffix = NULL,
-                                        error.prefix = error.prefix)
+                                        error.prefix = error.prefix,
+                                        max.dimensions = max.dimensions)
             })
         }
     ),
@@ -6912,14 +6998,19 @@ MODEL.OUTCOME = R6::R6Class(
                 stop(paste0("Cannot modify a model outcome's 'depends.on.quantities' - it is read-only"))
         },
         
+        depends.on.outcomes.except.denominator = function(value)
+        {
+            if (missing(value))
+                character()
+            else
+                stop(paste0("Cannot modify a model outcome's 'depends.on.outcomes.except.denominator' - it is read-only"))
+        },
+        
         depends.on.outcomes = function(value)
         {
             if (missing(value))
             {
-                if (is.null(private$i.denominator.outcome))
-                    character()
-                else
-                    private$i.denominator.outcome
+                union(self$depends.on.outcomes.except.denominator, private$i.denominator.outcome)
             }
             else
                 stop(paste0("Cannot modify a model outcome's 'depends.on.outcomes' - it is read-only"))
@@ -7058,11 +7149,14 @@ MODEL.OUTCOME = R6::R6Class(
         i.to.year = NULL,
         
         # will check the max possible dim.names to make sure they are compatible with subset.dimension.values
-        derive.max.dim.names = function(specification, all.outcomes, error.prefix)
+        derive.max.dim.names = function(specification, all.outcomes, 
+                                        include.denominator.outcome,
+                                        error.prefix)
         {
-            dim.names = derive.max.possible.dim.names(specification = specification,
-                                                      all.outcomes = all.outcomes,
-                                                      error.prefix = error.prefix)
+            dim.names = private$derive.max.possible.dim.names(specification = specification,
+                                                              include.denominator.outcome = include.denominator.outcome,
+                                                              all.outcomes = all.outcomes,
+                                                              error.prefix = error.prefix)
             
             if (!is.null(private$i.subset.dimension.values))
             {
@@ -7103,35 +7197,43 @@ MODEL.OUTCOME = R6::R6Class(
         },
         
         # max dim.names before taking into account subset.dimension.values
-        derive.max.possible.dim.names = function(specification, all.outcomes, error.prefix)
+        derive.max.possible.dim.names = function(specification, all.outcomes, 
+                                                 include.denominator.outcome,
+                                                 error.prefix)
         {
             dep.on.outcomes = private$get.all.depends.on.outcomes(all.outcomes = all.outcomes,
+                                                                  include.denominator.outcome = include.denominator.outcome,
                                                                   error.prefix = error.prefix)
             
             rv = NULL
+            
             for (dep.on in dep.on.outcomes)
                 rv = intersect.shared.dim.names(rv, dep.on$derive.dim.names(specification = specification,
                                                                             all.outcomes = all.outcomes,
                                                                             error.prefix = error.prefix))
             
-            if (is.null(rv))
+            dep.on.quantities = get.all.depends.on.quantities(specification = specification,
+                                                              all.outcomes = all.outcomes,
+                                                              error.prefix = error.prefix)
+
+            for (quant in dep.on.quantities)
             {
-                dep.on.quantities = get.all.depends.on.quantities(specification = specification,
-                                                                  all.outcomes = all.outcomes,
-                                                                  error.prefix = error.prefix)
-                
-                for (quant in dep.on.quantities)
-                {
+                if (!is.null(quant$max.dim.names))
                     rv = intersect.joined.dim.names(rv, quant$max.dim.names)
-                }
             }
-            
+
             rv
         },
         
-        get.all.depends.on.outcomes = function(all.outcomes, error.prefix)
+        get.all.depends.on.outcomes = function(all.outcomes,
+                                               include.denominator.outcome,
+                                               error.prefix)
         {
-            rv = all.outcomes[self$depends.on.outcomes]
+            if (include.denominator.outcome)
+                rv = all.outcomes[self$depends.on.outcomes]
+            else
+                rv = all.outcomes[self$depends.on.outcomes.except.denominator]
+            
             missing.outcomes = sapply(rv, is.null)
             if (any(missing.outcomes))
                 stop(paste0(error.prefix, "Outcome '",
@@ -7143,7 +7245,7 @@ MODEL.OUTCOME = R6::R6Class(
                             " not present in the outcomes for the specification"))
             
             rv = c(rv, all.outcomes[setdiff(self$depends.on.quantities.or.outcomes, c(self$name, self$depends.on.outcomes))])
-            rv = rv[!sapply(rv, is.null)]
+            rv = rv[!sapply(rv, is.null) & names(rv)!=private$i.name]
             
             rv
         },
@@ -7152,6 +7254,7 @@ MODEL.OUTCOME = R6::R6Class(
         {
             quantity.names = setdiff(self$depends.on,
                                      names(private$get.all.depends.on.outcomes(all.outcomes = all.outcomes,
+                                                                               include.denominator.outcome = T,
                                                                                error.prefix = error.prefix)))
             
             quantities = lapply(quantity.names, specification$get.quantity)
@@ -7266,7 +7369,9 @@ INTRINSIC.MODEL.OUTCOME = R6::R6Class(
         i.groups = NULL,
         i.ontology.name = NULL,
         
-        derive.max.possible.dim.names = function(specification, all.outcomes, error.prefix)
+        derive.max.possible.dim.names = function(specification, all.outcomes,  
+                                                 include.denominator.outcome,
+                                                 error.prefix)
         {
             specification$ontologies[[private$i.ontology.name]]
         }
@@ -7498,7 +7603,9 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
         i.tags = NULL,
         i.groups = NULL,
         
-        derive.max.possible.dim.names = function(specification, all.outcomes, error.prefix)
+        derive.max.possible.dim.names = function(specification, all.outcomes,  
+                                                 include.denominator.outcome,
+                                                 error.prefix)
         {
             # identify the relevant core components
             relevant.components = specification$core.components[sapply(specification$core.components, function(comp){

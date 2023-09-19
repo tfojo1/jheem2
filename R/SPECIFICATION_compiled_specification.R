@@ -151,6 +151,11 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             private$i.dependee.element.names[[quantity.name]]
         },
         
+        get.dependee.quantity.names = function(quantity.name)
+        {
+            private$i.dependee.quantity.names[[quantity.name]]
+        },
+        
         get.dependent.top.level.quantity.names = function(quantity.name)
         {
             private$i.dependent.top.level.quantity.names[[quantity.name]]
@@ -400,12 +405,13 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         i.dependent.top.level.quantity.names = NULL,
         i.co.dependee.element.names = NULL,
         i.dependee.element.names = NULL,
+        i.dependee.quantity.names = NULL,
         
         #----------------------------------#
         #-- COMPILE FUNCTION and HELPERS --#
         #----------------------------------#
         
-        do.compile = function(verbose=F) #the verbose flag is for debugging only
+        do.compile = function(verbose=T) #the verbose flag is for debugging only
         {
             private$i.verbose = verbose
             error.prefix = paste0("Error compiling model specification for '", private$i.version, "': ")
@@ -582,9 +588,17 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             #-- 1) Map out max dim.names for each quantity --#
             #-- Check that applies.to dimensions are a subset of the calculated dim.names --#
-            do.cat("Calculating preliminary dim.names for quantities...")
+            
+            do.cat("Calculating dim.names for quantities...")
             for (quantity in private$i.quantities)
                 private$calculate.quantity.dim.names(quantity, error.prefix=error.prefix)
+            
+            null.dim.names.mask = sapply(private$i.quantities, function(quant){
+                is.null(quant$max.dim.names)
+            })
+            for (quantity in private$i.quantities)
+                private$calculate.quantity.dim.names.bottom.up(quantity, error.prefix=error.prefix)
+            
             do.cat("done\n")
             
             #-- 2) Derive the outcome dim.names --#
@@ -611,10 +625,10 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             #-- 3) Recalculate max dim.names for each quantity --#
             #-- Check that applies.to dimensions are a subset of the calculated dim.names --#
-            do.cat("Calculating final dim.names for quantities...")
-            for (quantity in private$i.quantities)
-                private$calculate.quantity.dim.names(quantity, error.prefix=error.prefix)
-            do.cat("done\n")
+#            do.cat("Calculating final dim.names for quantities...")
+#            for (quantity in private$i.quantities)
+#                private$calculate.quantity.dim.names(quantity, error.prefix=error.prefix)
+#            do.cat("done\n")
             
             
             #-- Check that numeric values of model quantity components have appropriate dimensions --#
@@ -1188,20 +1202,22 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             #-- Set up --#
             max.dim.names.and.aliases = list(
                 dim.names = NULL,
-                aliases = NULL
+                aliases = NULL,
+                dimensions = NULL
             )
             
             required.dim.names = list()
             ref.sources = character()
             
+            
             #-- Pull from top-level references --#
             for (ref in private$get.references.that.refer.to(quantity$name))
             {
-                max.dim.names.and.aliases = union.shared.dim.names.with.aliases(dim.names.1 = max.dim.names.and.aliases$dim.names, 
-                                                                                aliases.1 = max.dim.names.and.aliases$aliases,
-                                                                                dim.names.2 = ref$get.max.dim.names(self, error.prefix=error.prefix),
-                                                                                aliases.2 = ref$get.dimension.aliases(self, error.prefix=error.prefix))
-                
+                max.dim.names.and.aliases = union.shared.dim.names.and.dimensions.with.aliases(dim.names.and.aliases.1 = max.dim.names.and.aliases,
+                                                                                               dim.names.2 = ref$get.max.dim.names(self, error.prefix=error.prefix),
+                                                                                               aliases.2 = ref$get.dimension.aliases(self, error.prefix=error.prefix),
+                                                                                               dimensions.2 = ref$max.dimensions)
+
                 new.required.dim.names = ref$get.required.dim.names(self, error.prefix=error.prefix)
                 overlapping.required.dimensions = intersect(names(required.dim.names), names(new.required.dim.names))
                 for (d in overlapping.required.dimensions)
@@ -1232,25 +1248,300 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 if (comp$value.type != 'function')
                 {   
                     bk = max.dim.names.and.aliases
-                    max.dim.names.and.aliases = union.shared.dim.names.with.aliases(dim.names.1 = max.dim.names.and.aliases$dim.names, 
-                                                                                    aliases.1 = max.dim.names.and.aliases$aliases,
-                                                                                    dim.names.2 = comp$max.dim.names,
-                                                                                    aliases.2 = comp$dimension.aliases)
+                    
+                    if (is.null(comp$max.dim.names))
+                        to.merge.dim.names = comp$fixed.dim.names
+                    else
+                        to.merge.dim.names = comp$max.dim.names
+                    
+                    max.dim.names.and.aliases = union.shared.dim.names.and.dimensions.with.aliases(dim.names.and.aliases.1 = max.dim.names.and.aliases,
+                                                                                                   dim.names.2 = to.merge.dim.names,
+                                                                                                   aliases.2 = comp$dimension.aliases,
+                                                                                                   dimensions.2 = comp$max.dimensions)
                 }
             }
             
             max.dim.names = max.dim.names.and.aliases$dim.names
             dimension.aliases = max.dim.names.and.aliases$aliases
+            max.dimensions = max.dim.names.and.aliases$dimensions
             
             #-- Reconcile fixed.dim.names --#
+            max.dim.names.and.aliases = private$incorporate.quantity.fixed.dimensions(quantity = quantity,
+                                                                                      max.dim.names = max.dim.names,
+                                                                                      max.dimensions = max.dimensions,
+                                                                                      dimension.aliases = dimension.aliases,
+                                                                                      apply.even.if.max.dim.names.null = F,
+                                                                                      error.prefix = error.prefix)
+            
+            max.dim.names = max.dim.names.and.aliases$dim.names
+            dimension.aliases = max.dim.names.and.aliases$aliases
+            
+            
+            #-- Make sure required.dim.names are compatible with these dimensions --#
+            for (d in names(required.dim.names))
+            {
+                
+            }
+            
+            #-- Make sure applies.to for components are compatible with these dimensions --#
+            if (!is.null(max.dim.names))
+            {
+                sapply((1:length(quantity$components))[-1], function(i){
+                    comp = quantity$components[[i]]
+                    if (!is.null(comp$applies.to))
+                    {
+                        invalid.dimensions = setdiff(names(comp$applies.to), names(max.dim.names))
+                        if (length(invalid.dimensions)>0)
+                        {
+                            browser()
+                            stop(paste0(error.prefix,
+                                        "Cannot calculate dimnames for quantity ", 
+                                        quantity$get.original.name(private$i.version),
+                                        ". The ", get.ordinal(i-1), " subset references ",
+                                        ifelse(length(invalid.dimensions)==1, "dimension ", "dimensions "),
+                                        collapse.with.and("'", invalid.dimensions, "'"), 
+                                        " in it's applies.to, but ",
+                                        ifelse(length(invalid.dimensions)==1, "that dimension is", "those dimensions are"),
+                                        " not present in the dimnames inferred from ancestor quantities and references"))
+                        }
+                        
+                        sapply(names(comp$applies.to), function(d){
+                            invalid.values = setdiff(comp$applies.to[[d]], max.dim.names[[d]])
+                            if (length(invalid.values)>0)
+                                stop(paste0(error.prefix,
+                                            "Cannot calculate dimnames for quantity ", 
+                                            quantity$get.original.name(private$i.version),
+                                            ". The ", get.ordinal(i-1), " subset applies.to for dimension '",
+                                            d, "' references ",
+                                            ifelse(length(invalid.values)==1, "value ", "values "),
+                                            collapse.with.and("'", invalid.values, "'"),
+                                            ", but ",
+                                            ifelse(length(invalid.values)==1, "that value is", "those values are"),
+                                            " not present in the dimnames for '", d, 
+                                            "' inferred from ancestor quantities and references"))
+                        })
+                    }
+                })
+            }
+            
+            
+            #-- Set it and return --#
+            quantity$set.dim.names.and.dimension.aliases(max.dim.names = max.dim.names,
+                                                         required.dim.names = required.dim.names,
+                                                         max.dimensions = max.dimensions,
+                                                         dimension.aliases = dimension.aliases,
+                                                         error.prefix = paste0(error.prefix, "Cannot set aliases when calculating dimnames for quantity ", quantity$get.original.name(private$i.version), " - "))
+
+            invisible(self)
+        },
+
+        calculate.quantity.dim.names.bottom.up = function(quantity, error.prefix)
+        {
+            if (length(quantity$depends.on)==0)
+                return()
+           
+            #-- Step 1: Process the quantities this quantity depends on --#
+            #   - make sure that each has max.dim.names set. if not, give up
+            
+            for (dep.on in quantity$depends.on)
+            {
+                dep.on.quant = self$get.quantity(dep.on)
+                if (is.null(dep.on.quant$max.dim.names))
+                    private$calculate.quantity.dim.names.bottom.up(quantity = dep.on.quant, error.prefix = error.prefix)
+                if (is.null(dep.on.quant$max.dim.names))
+                    return() # we can't unless every depends on has dim.names set
+            }
+            
+            #-- Step 2: Process each component and its applies.to --#
+            #   - If any component has value.type=='function', give up
+            #   - Make sure that each quantity for each component can fit into its applies.to
+            #   - Make sure that the dimnames of the quantities each component depends on overlap (ie, have a non-empty intersection)
+            #   - Merge (union.joined) the applies.to for each component
+
+            applies.to.dim.names.and.aliases = list(
+                dim.names = NULL,
+                aliases = NULL
+            )
+            
+            comp.max.dim.names.and.aliases = list()
+            
+            
+            for (i in 1:quantity$n.components)
+            {
+                # Pull the component and check it's not a 'function' value.type
+                comp = quantity$components[[i]]
+                if (comp$value.type=='function')
+                    return() # we cannot infer anything from a function type
+                
+                # Set up the comp.max.dim.names
+                comp.dn.and.aliases = list(
+                    dim.names = NULL,
+                    aliases = NULL
+                )
+                
+                # For each quantity that goes into the component, make sure it fits into the applies.to for the component
+                for (dep.on in comp$depends.on)
+                {
+                    dep.on.quant = self$get.quantity(dep.on)
+                    merged.with.applies.to.dn = intersect.joined.dim.names.with.reverse.aliases(dim.names.1 = dep.on.quant$max.dim.names, 
+                                                                                                aliases.1 = dep.on.quant$dimension.aliases,
+                                                                                                dim.names.2 = comp$applies.to,
+                                                                                                aliases.2 = character())
+                    
+                    # Make sure it fits into the applies.to for the component
+                    for (d in names(comp$applies.to))
+                    {
+                        if (length(setdiff(comp$applies.to[[d]], merged.with.applies.to.dn$dim.names[[d]]))>0)
+                        {
+                            stop(paste0("Cannot infer dim.names, bottom-up, for quantity ",
+                                        quantity$get.original.name(wrt.version=self$version),
+                                        " - the dim.names of ",
+                                        dep.on.quant$get.original.name(wrt.version=self$version),
+                                        ", on which ",
+                                        quantity$get.original.name(wrt.version=self$version),
+                                        " depends, do not align with the applies.to setting for the ",
+                                        get.ordinal(i-1), " subset"))
+                        } 
+                    }
+                    
+                    bk = comp.dn.and.aliases
+                    # Merge into the comp.dn
+                    comp.dn.and.aliases = 
+                        intersect.joined.dim.names.with.reverse.aliases(dim.names.1 = comp.dn.and.aliases$dim.names, 
+                                                                        aliases.1 = comp.dn.and.aliases$aliases,
+                                                                        dim.names.2 = merged.with.applies.to.dn$dim.names,
+                                                                        aliases.2 = merged.with.applies.to.dn$aliases)
+                    if (any(sapply(comp.dn.and.aliases$dim.names, length)==0))
+                        browser()
+                }
+                
+                if (any(sapply(comp.dn.and.aliases$dim.names, length)==0))
+                {
+                    stop(paste0("Cannot infer dim.names, bottom-up, for quantity ",
+                                quantity$get.original.name(wrt.version=self$version),
+                                " - the dim.names of the quantities it depends on (",
+                                collapse.with.and("'", comp$depends.on, "'"),
+                                ") do not overlap (their intersection is empty)"))
+                }
+                
+                # Save the component's max dim.names and aliases
+                comp.max.dim.names.and.aliases[[i]] = comp.dn.and.aliases
+                
+                # Merge the applies.to with all the others
+                applies.to.dim.names.and.aliases = 
+                    union.joined.dim.names.with.reverse.aliases(dim.names.1 = applies.to.dim.names.and.aliases$dim.names, 
+                                                                aliases.1 = applies.to.dim.names.and.aliases$aliases,
+                                                                dim.names.2 = comp$applies.to,
+                                                                aliases.2 = character())
+            }
+            
+            #-- Step 3: Combine the dim.names for different components --#
+            #   - Make sure that the dim.names for each component can accomodate the applies.to for all other components 
+            #   - Merge the dim.names for different components (intersect.joined)
+            
+            merged.dim.names.and.aliases = list(
+                dim.names = NULL,
+                aliases = NULL
+            )
+            
+            for (i in 1:quantity$n.components)
+            {
+                comp = quantity$components[[i]]
+                comp.dn.and.aliases = comp.max.dim.names.and.aliases[[i]]
+                
+                for (j in (1:quantity$n.components)[-i])
+                {
+                    comp2 = quantity$components[[j]]
+                    comp2.dn.and.aliases = comp.max.dim.names.and.aliases[[j]]
+                    
+                    dims.to.check = setdiff(intersect(names(comp$applies.to), names(comp.dn.and.aliases$dim.names)),
+                                            names(comp2.dn.and.aliases$dim.names))
+                    for (d in dims.to.check)
+                    {
+                        if (!is.null(comp2.dn.and.aliases$dim.names[[d]]))
+                        {
+                            missing.values = setdiff(comp.dn.and.aliases$dim.names[[d]],
+                                                     comp2.dn.and.aliases$dim.names[[d]])
+                         
+                            if (length(missing.values)>0)
+                            {
+                                stop(paste0("Cannot infer dim.names, bottom-up, for quantity ",
+                                            quantity$get.original.name(wrt.version=self$version),
+                                            " - the dim.names of ",
+                                            ifelse(j==1, "the base value of the quantity", paste0("the ", get.ordinal(j-1), " subset of the quantity")),
+                                            " cannot accomodate the applies.to of the ",
+                                            get.ordinal(i-1), " subset"))
+                            }
+                        }
+                    } 
+                }
+                
+                comp.dims.to.merge = setdiff(names(comp.dn.and.aliases$dim.names), names(comp$applies.to))
+                
+                merged.dim.names.and.aliases = 
+                    intersect.joined.dim.names.with.reverse.aliases(dim.names.1 = merged.dim.names.and.aliases$dim.names, 
+                                                                    aliases.1 = merged.dim.names.and.aliases$aliases,
+                                                                    dim.names.2 = comp.dn.and.aliases$dim.names[comp.dims.to.merge],
+                                                                    aliases.2 = comp.dn.and.aliases$aliases)
+                
+            }
+            
+            #-- Step 4: Fold back in the merged.applies to --#
+            #   - Union.joined the merged applies.to with the merged.dim.names
+            
+            final.dim.names.and.aliases = 
+                union.joined.dim.names.with.reverse.aliases(dim.names.1 = merged.dim.names.and.aliases$dim.names, 
+                                                            aliases.1 = merged.dim.names.and.aliases$aliases,
+                                                            dim.names.2 = applies.to.dim.names.and.aliases$dim.names,
+                                                            aliases.2 = applies.to.dim.names.and.aliases$aliases)
+            
+            
+            
+            #-- Reconcile fixed.dim.names --#
+            final.dim.names.and.aliases = 
+                private$incorporate.quantity.fixed.dimensions(quantity = quantity,
+                                                              max.dim.names = final.dim.names.and.aliases$dim.names,
+                                                              dimension.aliases = final.dim.names.and.aliases$aliases,
+                                                              apply.even.if.max.dim.names.null = T,
+                                                              error.prefix = error.prefix)
+            
+            #-- Set it and return --#
+            quantity$set.dim.names.and.dimension.aliases(max.dim.names = final.dim.names.and.aliases$dim.names,
+                                                         required.dim.names = NULL,
+                                                         dimension.aliases = final.dim.names.and.aliases$aliases,
+                                                         error.prefix = paste0(error.prefix, "Cannot set aliases when calculating dimnames for quantity ", quantity$get.original.name(private$i.version), " - "))
+            
+            invisible(self)
+        },
+
+        incorporate.quantity.fixed.dimensions = function(quantity,
+                                                         max.dim.names,
+                                                         max.dimensions = NULL,
+                                                         dimension.aliases,
+                                                         apply.even.if.max.dim.names.null,
+                                                         error.prefix)
+        {
             if (!is.null(quantity$fixed.dimensions))
             {
+                if (!is.null(max.dimensions))
+                {
+                    missing.dimensions = setdiff(quantity$fixed.dimensions, max.dimensions)
+                    if (length(missing.dimensions)>0)
+                        stop(paste0(error.prefix, "The max.dimensions for quantity ",
+                                    quantity$get.original.name(private$i.version),
+                                    "(", paste0(quantity$fixed.dimensions, collapse=', '), ")",
+                                    " are not a subset of the inferred max dimensions (",
+                                    ifelse(length(max.dimensions)==0, "dimensionless",
+                                           paste0(max.dimensions, collapse=', ')),
+                                    ")"))
+                }
+                
                 # NB - NULL max.dim.names here means we have no information from which to calculate dim.names
                 #      (because it is a descendant of a function)
                 #      It does NOT mean that this is a scalar - that would be denoted by max.dim.name == empty list
                 if (!is.null(max.dim.names))
                 {
-                    # need to reconcile with aliases
+                    # make sure we are not missing any dimensions (after reconciling with aliases)
                     missing.from.max = setdiff(quantity$fixed.dimensions, names(max.dim.names))
                     if (length(missing.from.max)>0)
                     {
@@ -1273,82 +1564,36 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                         }
                     }
                 }
-                            
-                fixed.dim.names = max.dim.names[quantity$fixed.dimensions]
-                fixed.dim.names[names(quantity$fixed.dimension.values)] = quantity$fixed.dimension.values
                 
-                if (!is.null(max.dim.names))
+                if (apply.even.if.max.dim.names.null || !is.null(max.dim.names))
                 {
-                    sapply(names(fixed.dim.names), function(d){
-                        if (!setequal(fixed.dim.names[[d]], max.dim.names[[d]]))
-                        {
-                            stop(paste0(error.prefix,
-                                        "Cannot calculate dimnames for quantity ", 
-                                        quantity$get.original.name(private$i.version),
-                                        " - the values for dimension '", d, "' inferred from ancestor quantities (",
-                                        collapse.with.and("'", max.dim.names[[d]], "'"),
-                                        " do not match the values set by the 'dimension.values' used in constructing the quantity (",
-                                        collapse.with.and("'", fixed.dim.names[[d]], "'")))
-                        }
-                    })
-                }
-                
-                quantity$set.fixed.dim.names(fixed.dim.names)
-                max.dim.names = fixed.dim.names
-                dimension.aliases = dimension.aliases[intersect(names(dimension.aliases), names(fixed.dim.names))]
-            }
-            
-            #-- Make sure required.dim.names are compatible with these dimensions --#
-            for (d in names(required.dim.names))
-            {
-                
-            }
-            
-            #-- Make sure applies.to for components are compatible with these dimensions --#
-            sapply((1:length(quantity$components))[-1], function(i){
-                comp = quantity$components[[i]]
-                if (!is.null(comp$applies.to))
-                {
-                    invalid.dimensions = setdiff(names(comp$applies.to), names(max.dim.names))
-                    if (length(invalid.dimensions)>0)
+                    fixed.dim.names = max.dim.names[quantity$fixed.dimensions]
+                    fixed.dim.names[names(quantity$fixed.dimension.values)] = quantity$fixed.dimension.values
+                    
+                    if (!is.null(max.dim.names))
                     {
-                        stop(paste0(error.prefix,
-                                    "Cannot calculate dimnames for quantity ", 
-                                    quantity$get.original.name(private$i.version),
-                                    ". The ", get.ordinal(i-1), " subset references ",
-                                    ifelse(length(invalid.dimensions)==1, "dimension ", "dimensions "),
-                                    collapse.with.and("'", invalid.dimensions, "'"), 
-                                    " in it's applies.to, but ",
-                                    ifelse(length(invalid.dimensions)==1, "that dimension is", "those dimensions are"),
-                                    " not present in the dimnames inferred from ancestor quantities and references"))
+                        sapply(names(fixed.dim.names), function(d){
+                            if (!setequal(fixed.dim.names[[d]], max.dim.names[[d]]))
+                            {
+                                stop(paste0(error.prefix,
+                                            "Cannot calculate dimnames for quantity ", 
+                                            quantity$get.original.name(private$i.version),
+                                            " - the values for dimension '", d, "' inferred from ancestor quantities (",
+                                            collapse.with.and("'", max.dim.names[[d]], "'"),
+                                            " do not match the values set by the 'dimension.values' used in constructing the quantity (",
+                                            collapse.with.and("'", fixed.dim.names[[d]], "'")))
+                            }
+                        })
                     }
                     
-                    sapply(names(comp$applies.to), function(d){
-                        invalid.values = setdiff(comp$applies.to[[d]], max.dim.names[[d]])
-                        if (length(invalid.values)>0)
-                            stop(paste0(error.prefix,
-                                        "Cannot calculate dimnames for quantity ", 
-                                        quantity$get.original.name(private$i.version),
-                                        ". The ", get.ordinal(i-1), " subset applies.to for dimension '",
-                                        d, "' references ",
-                                        ifelse(length(invalid.values)==1, "value ", "values "),
-                                        collapse.with.and("'", invalid.values, "'"),
-                                        ", but ",
-                                        ifelse(length(invalid.values)==1, "that value is", "those values are"),
-                                        " not present in the dimnames for '", d, 
-                                        "' inferred from ancestor quantities and references"))
-                    })
+                    quantity$set.fixed.dim.names(fixed.dim.names)
+                    max.dim.names[names(fixed.dim.names)] = fixed.dim.names
+                    dimension.aliases = dimension.aliases[intersect(names(dimension.aliases), names(fixed.dim.names))]
                 }
-            })
+            }
             
-            
-            #-- Set it and return --#
-            quantity$set.dim.names.and.dimension.aliases(max.dim.names = max.dim.names,
-                                                         required.dim.names = required.dim.names,
-                                                         dimension.aliases = dimension.aliases,
-                                                         error.prefix = paste0(error.prefix, "Cannot set aliases when calculating dimnames for quantity ", quantity$get.original.name(private$i.version), " - "))
-            
-            invisible(self)
+            list(dim.names = max.dim.names,
+                 aliases = dimension.aliases)
         },
         
         calculate.dependencies = function()
@@ -1398,6 +1643,11 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 private$i.element.names[private$i.dependencies[private$i.element.names, quant.name]]
             })
             names(private$i.dependee.element.names) = names(private$i.quantities)
+            
+            private$i.dependee.quantity.names = lapply(names(private$i.quantities), function(quant.name){
+                names(private$i.quantities)[private$i.dependencies[ names(private$i.quantities), quant.name]]
+            })
+            names(private$i.dependee.quantity.names) = names(private$i.quantities)
             
             #-- Done --#
             invisible(self)
@@ -1608,28 +1858,32 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                               applies.to,
                               required.sub.ontology.name=NULL,
                               exclude.ontology.dimensions=character(),
+                              max.dimensions = NULL,
                               alias.suffix,
                               error.prefix)
         {
             # Validate dim.names or ontology.name
             if (is.null(dim.names))
             {
-                # Validate ontology.name
-                if (!is.character(ontology.name) || length(ontology.name)!=1 || is.na(ontology.name) || nchar(ontology.name)==0)
-                    stop(paste0(error.prefix, "'ontology.name' for a ", self$descriptor, " must be a single, non-NA, non-empty character value"))
-                
-                
-                if (is.null(names(ontology.name)) || is.na(names(ontology.name)) || nchar(names(ontology.name))==0)
-                    names(ontology.name) = ontology.name
-                
-                if (all(names(ontology.name)!=names(specification$ontologies)))
-                    stop(paste0(error.prefix, 
-                                "In creating a ", self$descriptor, " names(ontology.name) must be one of ",
-                                collapse.with.or("'", names(specification$ontologies), "'"),
-                                ". ", names(ontology.name), 
-                                " is not a valid name"))
+                if (!is.null(ontology.name))
+                {
+                    # Validate ontology.name
+                    if (!is.character(ontology.name) || length(ontology.name)!=1 || is.na(ontology.name) || nchar(ontology.name)==0)
+                        stop(paste0(error.prefix, "'ontology.name' for a ", self$descriptor, " must be a single, non-NA, non-empty character value"))
+                    
+                    
+                    if (is.null(names(ontology.name)) || is.na(names(ontology.name)) || nchar(names(ontology.name))==0)
+                        names(ontology.name) = ontology.name
+                    
+                    if (all(names(ontology.name)!=names(specification$ontologies)))
+                        stop(paste0(error.prefix, 
+                                    "In creating a ", self$descriptor, " names(ontology.name) must be one of ",
+                                    collapse.with.or("'", names(specification$ontologies), "'"),
+                                    ". ", names(ontology.name), 
+                                    " is not a valid name"))
+                }
             }
-            else
+            else 
             {
                 if (!is.null(ontology.name))
                     stop(paste0(error.prefix, "In creating a top-level reference, either 'ontology.name' or 'dim.names' but NOT both can be set. One or the other must be NULL"))
@@ -1641,6 +1895,12 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                                       error.prefix = error.prefix)
             }
             
+            # Validate max.dimensions
+            if (!is.null(max.dimensions))
+            {
+                if (!is.character(max.dimensions) || any(is.na(max.dimensions)))
+                    stop(paste0(error.prefix, "'max.dimensions' for a ", self$descriptor, " must be a character vector with no NA values"))
+            }
             
             # Validate version
             if (!is.character(version) || length(version)!=1 || is.na(version))
@@ -1696,6 +1956,7 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
             private$i.applies.to = applies.to
             private$i.required.sub.ontology.name = required.sub.ontology.name
             private$i.exclude.ontology.dimensions = exclude.ontology.dimensions
+            private$i.max.dimensions = max.dimensions
         },
         
         
@@ -1758,7 +2019,12 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
         get.max.dim.names = function(specification, error.prefix)
         {
             if (is.null(private$i.dim.names))
+            {
+                if (is.null(private$i.ontology.name))
+                    return (NULL)
+                
                 rv = specification$ontologies[[private$i.ontology.name]]
+            }
             else
                 rv = private$i.dim.names
             
@@ -1776,7 +2042,10 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
             
             # Overwrite applies to values
             rv[names(private$applies.to)] = private$i.applies.to
-            
+         
+            if (!is.null(private$i.max.dimensions))
+                rv = rv[intersect(private$i.max.dimensions, names(rv))]
+               
             rv
         },
 
@@ -1866,6 +2135,14 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                 private$i.value.quantity.name
             else
                 stop(paste0("Cannot modify a ", self$descriptor, "'s 'value.quantity.name' - it is read-only"))
+        },
+        
+        max.dimensions = function(value)
+        {
+            if (missing(value))
+                private$i.max.dimensions
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'max.dimensions' - it is read-only"))
         }
     ),
     
@@ -1880,7 +2157,8 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
         i.alias.suffix = NULL,
         i.applies.to = NULL,
         i.required.sub.ontology.name = NULL,
-        i.exclude.ontology.dimensions = NULL
+        i.exclude.ontology.dimensions = NULL,
+        i.max.dimensions = NULL
     )
 )
 
