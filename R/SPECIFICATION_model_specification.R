@@ -6724,6 +6724,7 @@ MODEL.OUTCOME = R6::R6Class(
             private$i.keep.dimensions = unique(keep.dimensions)
             private$i.exclude.dimensions = unique(exclude.dimensions)
             private$i.subset.dimension.values = subset.dimension.values
+            private$i.corresponding.data.outcome = corresponding.data.outcome
             private$i.save = save
             private$i.from.year = from.year
             private$i.to.year = to.year
@@ -6880,7 +6881,7 @@ MODEL.OUTCOME = R6::R6Class(
                                                      include.denominator.outcome = F,
                                                      error.prefix = error.prefix)
             
-            if (is.null(private$i.denominator.outcome))
+            if (is.null(private$i.denominator.outcome) || private$i.scale=='number' || private$i.scale=='non.negative.number')
                 max.dimensions = NULL
             else
             {
@@ -8347,6 +8348,7 @@ RESERVED.QUANTITY.NAME.PREFIXES = c(
     'this',
     'location',
     'specification',
+    'outcome',
     'quant',
     'quantity' # this is redundant (already covered by) 'quant' above - but we also use this, so want to
                 # document here in case we remove 'quant' in the future

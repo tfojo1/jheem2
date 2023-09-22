@@ -401,7 +401,7 @@ incomplete.dimensions <- function(x)
     
     #-- Validate dimension names --#
     
-    if (length(names(rv))==0)
+    if (length(names(rv))==0 && length(ont)>0)
         stop("The names of an ontology cannot be set to empty")
     
     if (any(is.na(names(rv))))

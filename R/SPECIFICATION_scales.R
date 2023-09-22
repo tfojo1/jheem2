@@ -45,6 +45,22 @@ scale.needs.denominator <- function(scales)
     })
 }
 
+can.convert.scale <- function(convert.from.scale,
+                              convert.to.scale,
+                              denominator.values=NULL)
+{
+    tryCatch({
+        do.convert.model.scale(values = 0.5,
+                               convert.from.scale = convert.from.scale,
+                               convert.to.scale = convert.to.scale,
+                               denominator.values = denominator.values,
+                               error.prefix = '')
+        T
+    }, error = function(e){
+        F
+    })
+}
+
 ##-------------------------------##
 ##-- CONVERTING between SCALES --##
 ##-------------------------------##
@@ -53,35 +69,98 @@ scale.needs.denominator <- function(scales)
 convert.model.scale <- function(values,
                                 convert.from.scale,
                                 convert.to.scale,
+                                denominator.values=NULL,
                                 error.prefix='')
 {
-    if (convert.from.scale==convert.to.scale)
+    if (convert.from.scale==convert.to.scale ||
+        (convert.from.scale=='proportion' && convert.to.scale=='proportion.leaving') ||
+        (convert.from.scale=='proportion.leaving' && convert.to.scale=='proportion') ||
+        (convert.from.scale=='odds' && convert.to.scale=='odds.leaving') ||
+        (convert.from.scale=='odds.leaving' && convert.to.scale=='odds') ||
+        (convert.from.scale=='non.negative.number' && convert.to.scale=='number'))
+    {
         values
+    }
     else if (is.list(values))
-        lapply(values, do.convert.model.scale,
-               convert.from.scale=convert.from.scale, convert.to.scale=convert.to.scale,
-               error.prefix=error.prefix)
+    {
+        lapply(1:length(values), function(i){
+            do.convert.model.scale(values = values[[i]],
+                                   convert.from.scale = convert.from.scale,
+                                   convert.to.scale = convert.to.scale,
+                                   denominator.values = denominator.values[[1]],
+                                   error.prefix = error.prefix)
+        })
+    }
     else
+    {
         do.convert.model.scale(values=values, convert.from.scale = convert.from.scale,
                                convert.to.scale = convert.to.scale, error.prefix=error.prefix)
+    }
 }
 
-
+## !!NOTE!!
+## There is a C++ version of this function in engine_helpers.cpp
+## Any updates we make here need to be reflected in that function as well
 do.convert.model.scale <- function(values,
                                    convert.from.scale,
                                    convert.to.scale,
+                                   denominator.values = NULL,
                                    error.prefix='')
 { 
     if (convert.from.scale==convert.to.scale ||
         (convert.from.scale=='proportion' && convert.to.scale=='proportion.leaving') ||
         (convert.from.scale=='proportion.leaving' && convert.to.scale=='proportion') ||
         (convert.from.scale=='odds' && convert.to.scale=='odds.leaving') ||
-        (convert.from.scale=='odds.leaving' && convert.to.scale=='odds'))
+        (convert.from.scale=='odds.leaving' && convert.to.scale=='odds') ||
+        (convert.from.scale=='non.negative.number' && convert.to.scale=='number'))
         values
-    else if (convert.from.scale=='ratio' || convert.from.scale=='number' || convert.from.scale=='non.negative.number')
+    else if (convert.from.scale=='ratio' || convert.to.scale=='ratio')
         stop(paste0(error.prefix, "Cannot convert from scale '", convert.from.scale,"' (to '", convert.to.scale, "')"))
-    else if (convert.to.scale=='ratio'|| convert.to.scale=='number' || convert.to.scale=='non.negative.number')
-        stop(paste0(error.prefix, "Cannot convert to scale '", convert.to.scale, "' (from '", convert.from.scale, "')"))
+    else if (convert.from.scale=='number' || convert.from.scale=='non.negative.number')
+    {
+        if (convert.to.scale=='number')
+            values
+        else if (convert.to.scale=='non.negative.number' && convert.from.scale=='number')
+        {
+            if (any(values<0))
+                stop(paste0(error.prefix, "Cannot convert from scale '", 
+                            convert.from.scale,"' to '", convert.to.scale, "'",
+                            " - some values are less than zero"))
+            else
+                values
+        }
+        else
+        {
+            if (is.null(denominator.values))
+                stop(paste0(error.prefix, "In order to convert from scale '", 
+                            convert.from.scale,"' to '", convert.to.scale, "'",
+                            ", denominator.values must be specified"))
+            
+            if (any(values<0))
+                stop(paste0(error.prefix, "Cannot convert from scale '", 
+                            convert.from.scale,"' to '", convert.to.scale, "'",
+                            " - some values are less than zero"))
+            
+            p = values / denominator.values
+            do.convert.model.scale(values = p,
+                                   convert.from.scale = 'proportion',
+                                   convert.to.scale = convert.to.scale,
+                                   denominator.values = NULL,
+                                   error.prefix='')
+        }
+    }
+    else if (convert.to.scale=='number' || convert.to.scale=='non.negative.number')
+    {
+        # if convert.from.scale was number or non.negative.number, it would have been caught by the condition above
+
+        p = do.convert.model.scale(values = p,
+                                   convert.from.scale = convert.from.scale,
+                                   convert.to.scale = 'proportion',
+                                   denominator.values = NULL,
+                                   error.prefix='')
+        
+        p * denominator.values
+    }
     else if (convert.from.scale=='rate')
     {
         if (convert.to.scale=='proportion' || convert.to.scale=='proportion.leaving')
@@ -168,7 +247,7 @@ do.convert.model.scale <- function(values,
             values / (1+values)
         else if (convert.to.scale=='time')
             1 / (log(1/values+1))
-        else if (scale=='odds' || scale=='odds.leaving')
+        else if (convert.to.scale=='odds' || convert.to.scale=='odds.leaving')
             1 / values
         else
             stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))

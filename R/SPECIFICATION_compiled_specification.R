@@ -138,27 +138,27 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         
         get.dependent.quantity.names = function(quantity.name)
         {
-            private$i.dependent.quantity.names[[quantity.name]]
+            unlist(private$i.dependent.quantity.names[quantity.name])
         },
         
         get.co.dependee.element.names = function(element.name)
         {
-            private$i.co.dependee.element.names[[element.name]]
+            unlist(private$i.co.dependee.element.names[element.name])
         },
         
         get.dependee.element.names = function(quantity.name)
         {
-            private$i.dependee.element.names[[quantity.name]]
+            unlist(private$i.dependee.element.names[quantity.name])
         },
         
         get.dependee.quantity.names = function(quantity.name)
         {
-            private$i.dependee.quantity.names[[quantity.name]]
+            unlist(private$i.dependee.quantity.names[quantity.name])
         },
         
         get.dependent.top.level.quantity.names = function(quantity.name)
         {
-            private$i.dependent.top.level.quantity.names[[quantity.name]]
+            unlist(private$i.dependent.top.level.quantity.names[quantity.name])
         },
 
         ##---------------------------------------------------------------##
@@ -411,7 +411,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         #-- COMPILE FUNCTION and HELPERS --#
         #----------------------------------#
         
-        do.compile = function(verbose=T) #the verbose flag is for debugging only
+        do.compile = function(verbose=F) #the verbose flag is for debugging only
         {
             private$i.verbose = verbose
             error.prefix = paste0("Error compiling model specification for '", private$i.version, "': ")
@@ -1664,6 +1664,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 for (depends.on.name in direct.depends.on)
                     rv = rv | private$get.dependency.row(depends.on.name)
             }
+            rv[quantity.name] = T #define things to depend on themselves
             rv
         },
         

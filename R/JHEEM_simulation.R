@@ -442,6 +442,8 @@ JHEEM.SIMULATION = R6::R6Class(
                        ...,
                        check.consistency = T,
                        drop.single.outcome.dimension = T,
+                       scale = NULL,
+                       get.denominator = F,
                        error.prefix = "Error getting simulation results: ")
         {
             dim.names = self$get.dim.names(outcomes = outcomes,

@@ -241,7 +241,7 @@ SPECIFICATION.METADATA = R6::R6Class(
         
         get.current.code.iteration = function()
         {
-            JHEEM.ENGINE.CODE.ITERATION
+            JHEEM.CODE.ITERATION
         }
         
     )
