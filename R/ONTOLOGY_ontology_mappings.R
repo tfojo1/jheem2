@@ -1159,6 +1159,24 @@ ONTOLOGY.MAPPING = R6::R6Class(
                                            error.prefix=error.prefix)
         },
         
+        get.reverse.mapping.indices = function(from.dim.names, to.dim.names, error.prefix='Cannot get mapping indices from ontology.mapping: ')
+        {   
+            forward.indices = self$get.mapping.indices(from.dim.names = from.dim.names,
+                                                       to.dim.names = to.dim.names,
+                                                       error.prefix = error.prefix)
+            
+            n.from = prod(sapply(from.dim.names, length))
+            n.to = prod(sapply(to.dim.names, length))
+            
+            sapply(1:n.from, function(to.index){
+                mask = sapply(forward.indices, function(indices){
+                    any(indices==to.index)
+                })
+                
+                (1:n.to)[mask][1]
+            })
+        },
+        
         get.required.from.dim.names = function(to.dim.names)
         {
             if (is.list(to.dim.names) && length(to.dim.names)==0)
@@ -1386,7 +1404,7 @@ IDENTITY.ONTOLOGY.MAPPING = R6::R6Class(
                                           to.dim.names,
                                           error.prefix)
         {
-            get.array.access.indices(from.dim.names, dimension.values=to.dim.names)
+            as.list(get.array.access.indices(from.dim.names, dimension.values=to.dim.names))
         },
         
         do.apply.to.dim.names.or.ontology = function(from.dim.names,
