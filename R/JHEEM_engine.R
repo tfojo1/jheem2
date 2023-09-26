@@ -6,31 +6,28 @@
 ##----------------------##
 
 
-##-----------------------------------------------##
-##-- FUNCTIONS to MODIFY the ENGINE'S SETTINGS --##
-##-----------------------------------------------##
+##----------------------------------------------##
+##-- FUNCTIONS to MODIFY the JHEEM'S SETTINGS --##
+##----------------------------------------------##
 
 #'@title Set the Value of a Model Element
 #'
 #'@param model.settings An object of class 'jheem.model.settings'
 #'@param element.name The name of the model element to update a value for
 #'@param value The new value for the model element
-#'@param check.consistency A logical indicator whether to sanitize arguments and check for consistency during calculations. Setting to F increases performance
 #'
 #'@family Functions to modify model settings
 #'
 #'@export
 set.element.value <- function(model.settings,
                               element.name,
-                              value,
-                              check.consistency = !jheem.engine$has.been.crunched())
+                              value)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.value(element.name = element.name,
-                                     value = value,
-                                     check.consistency = check.consistency)
+                                     value = value)
 }
 
 #'@title Set Main Effect Alpha Values for a Functional Form for a Model Element
@@ -44,7 +41,7 @@ set.element.value <- function(model.settings,
 #'@param applies.to.dimension.values Either a vector (character or integer) or a list where each element is either a single character value or single integer value. Must have the same length as values, indicating the compartment to which each value in values applies
 #'@param dimensions The dimensions to which values in applies.to.dimension.values apply. Can be either (1) a character vector with the same length as applies.to.dimension.values with the corresponding dimension for each value, (2) a single character value - a dimension that applies to all values, or (3) NULL, in which case the dimensions are inferred for applies.to.dimension.values (this is computationally slower)
 #'
-#'@family Functions to create and modify a jheem.engine
+#'@family Functions to create and modify model settings
 #'
 #'@export
 set.element.functional.form.main.effect.alphas <- function(model.settings,
@@ -52,18 +49,16 @@ set.element.functional.form.main.effect.alphas <- function(model.settings,
                                                            alpha.name,
                                                            values,
                                                            applies.to.dimension.values=names(values),
-                                                           dimensions=names(applies.to.dimension.values),
-                                                           check.consistency = !jheem.engine$has.been.crunched())
+                                                           dimensions=names(applies.to.dimension.values))
 {
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
+        stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.main.effect.alphas(element.name = element.name,
                                                                 alpha.name = alpha.name,
                                                                 values = values,
                                                                 applies.to.dimension.values = applies.to.dimension.values,
-                                                                dimensions = dimensions,
-                                                                check.consistency = check.consistency)
+                                                                dimensions = dimensions)
 }
 
 #'@title Set Interaction Alpha Values for a Functional Form for a Model Element
@@ -74,7 +69,7 @@ set.element.functional.form.main.effect.alphas <- function(model.settings,
 #'@param value A single numeric value, which will apply to every combination of applies.to.dimension.values which are from different dimensions
 #'@param applies.to.dimension.values Either a vector (character or integer) or a list where each element is either a single character value or single integer value, indicating the compartments to which value applies
 #'
-#'@family Functions to create and modify a jheem.engine
+#'@family Functions to create and modify a model settings
 #'
 #'@export
 set.element.functional.form.interaction.alphas <- function(model.settings,
@@ -82,18 +77,16 @@ set.element.functional.form.interaction.alphas <- function(model.settings,
                                                            alpha.name,
                                                            value,
                                                            applies.to.dimension.values=names(values),
-                                                           dimensions=names(applies.to.dimension.values),
-                                                           check.consistency = !jheem.engine$has.been.crunched())
+                                                           dimensions=names(applies.to.dimension.values))
 {
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
+        stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.interaction.alphas(element.name = element.name,
                                                                 alpha.name = alpha.name,
                                                                 value = value,
                                                                 applies.to.dimension.values = applies.to.dimension.values,
-                                                                dimensions = dimensions,
-                                                                check.consistency = check.consistency)
+                                                                dimensions = dimensions)
 }
 
 #'@title Set the Times From and To Which the Functional Form Determines a Model Element's Value
@@ -102,20 +95,18 @@ set.element.functional.form.interaction.alphas <- function(model.settings,
 #'@param element.name The name of the model element to set functional.form times for
 #'@param from.time,to.time The time from or to which the functional form is active
 #'
-#'@family Functions to create and modify a jheem.engine
+#'@family Functions to create and modify a model settings
 #'
 #'@export
 set.element.functional.form.from.time <- function(model.settings,
                                                   element.name,
-                                                  from.time,
-                                                  check.consistency = !jheem.engine$has.been.crunched())
+                                                  from.time)
 {
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
+        stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.from.time(element.name = element.name,
-                                                       from.time = from.time,
-                                                       check.consistency = check.consistency)
+                                                       from.time = from.time)
 }
 
 
@@ -124,15 +115,13 @@ set.element.functional.form.from.time <- function(model.settings,
 #'@export
 set.element.functional.form.to.time <- function(model.settings,
                                                 element.name,
-                                                to.time,
-                                                check.consistency = !jheem.engine$has.been.crunched())
+                                                to.time)
 {
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
+        stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.to.time(element.name = element.name,
-                                                     to.time = to.time,
-                                                     check.consistency = check.consistency)
+                                                     to.time = to.time)
 }
 
 
@@ -145,22 +134,20 @@ set.element.functional.form.to.time <- function(model.settings,
 #'@param times,values The times or values to set for the ramp/taper
 #'@param indices The indices of the ramp/taper to set times or values for. Can be either numeric indices, character indices (if the ramp/taper was named when setting up the specification), or logical indices
 #'
-#'@family Functions to create and modify a jheem.engine
+#'@family Functions to create and modify a model settings
 #'
 #'@export
 set.element.ramp.times <- function(model.settings,
                                    element.name,
                                    times,
-                                   indices=1:length(times),
-                                   check.consistency = !jheem.engine$has.been.crunched())
+                                   indices=1:length(times))
 {
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
+        stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.ramp.times(element.name = element.name,
                                         times = times,
-                                        indices = indices,
-                                        check.consistency = check.consistency)
+                                        indices = indices)
 }
 
 #'@describeIn set.element.ramp.times
@@ -169,16 +156,14 @@ set.element.ramp.times <- function(model.settings,
 set.element.ramp.values <- function(model.settings,
                                     element.name,
                                     values,
-                                    indices=1:length(values),
-                                    check.consistency = !jheem.engine$has.been.crunched())
+                                    indices=1:length(values))
 {
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
+        stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.ramp.values(element.name = element.name,
                                          values = values,
-                                         indices = indices,
-                                         check.consistency = check.consistency)
+                                         indices = indices)
 }
 
 #'@describeIn set.element.ramp.times
@@ -187,16 +172,14 @@ set.element.ramp.values <- function(model.settings,
 set.element.taper.times <- function(model.settings,
                                     element.name,
                                     times,
-                                    indices=1:length(times),
-                                    check.consistency = !jheem.engine$has.been.crunched())
+                                    indices=1:length(times))
 {
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
+        stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.taper.times(element.name = element.name,
                                          times = times,
-                                         indices = indices,
-                                         check.consistency = check.consistency)
+                                         indices = indices)
 }
 
 #'@describeIn set.element.ramp.times
@@ -205,16 +188,14 @@ set.element.taper.times <- function(model.settings,
 set.element.taper.values <- function(model.settings,
                                      element.name,
                                      values,
-                                     indices=1:length(values),
-                                     check.consistency = !jheem.engine$has.been.crunched())
+                                     indices=1:length(values))
 {
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
+        stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.taper.values(element.name = element.name,
                                           values = values,
-                                          indices = indices,
-                                          check.consistency = check.consistency)
+                                          indices = indices)
 }
 
 #'@title Set a "Future Slope" and the time after which it applies, for a model element
@@ -226,20 +207,18 @@ set.element.taper.values <- function(model.settings,
 #'@param slope A single numeric value representing the slope
 #'@param after.year The year after which the additional slope takes effect
 #'
-#'@family Functions to create and modify a jheem.engine
+#'@family Functions to create and modify a model settings
 #'
 #'@export
 set.element.functional.form.future.slope <- function(model.settings,
                                                      element.names,
-                                                     slope,
-                                                     check.consistency = !jheem.engine$has.been.crunched())
+                                                     slope)
 {
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
+        stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.future.slope(element.names = element.names,
-                                                          slope = slope,
-                                                          check.consistency = check.consistency)
+                                                          slope = slope)
 }
 
 
@@ -248,71 +227,19 @@ set.element.functional.form.future.slope <- function(model.settings,
 #'@export
 set.element.functional.form.future.slope.after.time <- function(model.settings,
                                                                 element.names,
-                                                                after.year,
-                                                                check.consistency = !jheem.engine$has.been.crunched())
+                                                                after.year)
 {
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
+        stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.future.slope.after.time(element.names = element.names,
-                                                                     after.year = after.year,
-                                                                     check.consistency = check.consistency)
+                                                                     after.year = after.year)
 }
 
 
 ##-------------------------------------------------------------------------##
 ##-- SOME STREAMLINED, CONVENIENCE FUNCTIONS FOR SETTING MULTIPLE VALUES --##
 ##-------------------------------------------------------------------------##
-
-#'@title Set Values for Multiple Model Elements
-#'
-#'@inheritParams set.element.value
-#'@param element.names A character vector containing the names of the elements to set values for
-#'@param parameters A named numeric vector with values for each of the elements of 'element.names'
-#'
-#'@return The names of the elements that had values set
-#'
-#'@family Functions to create and modify a jheem.engine
-#'
-#'@export
-set.element.values.from.parameters <- function(model.settings,
-                                               element.names,
-                                               parameters,
-                                               check.consistency = !jheem.engine$has.been.crunched())
-{
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
-    
-    if (is.null(element.names))
-        element.names = intersect(names(parameters), jheem.engine$element.names)
-    
-    if (check.consistency)
-    {
-        if (!is.numeric(parameters))
-            stop("Cannot set element values from parameters: 'parameters' must be a named NUMERIC vector")
-        
-        if (is.null(names(parameters)))
-            stop("Cannot set element values from parameters: 'parameters' must be a NAMED numeric vector")
-        
-        if (any(is.na(names(parameters))))
-            stop("Cannot set element values from parameters: the names of 'parameters' cannot be NA")
-            
-        
-        missing.elements = setdiff(element.names, names(parameters))
-        if (length(missing.elements)>0)
-            stop(paste0("Cannot set element values from parameters: 'parameters' is missing ",
-                        ifelse(length(missing.elements)==1, 'the value for element', 'values for elements'),
-                        " ", collapse.with.and("'", missing.elements, "'")))
-    }
-    
-    for (elem.name in element.names)
-        model.settings$set.element.value(element.name = elem.name,
-                                       value = parameters[elem.name],
-                                       check.consistency = check.consistency)
-    
-    # Return
-    element.names
-}
 
 #'@title Set multiple functional form main effect alphas from parameters
 #'
@@ -340,45 +267,41 @@ set.element.functional.form.alphas.from.parameters <- function(model.settings,
                                                                parameter.name.suffix,
                                                                dimensions.with.values.referred.to.by.name = character(),
                                                                dimensions.with.values.referred.to.by.index = character(),
-                                                               throw.error.if.no.parameters = T,
-                                                               check.consistency = !jheem.engine$has.been.crunched())
+                                                               throw.error.if.no.parameters = T)
 {
-    if (!is(jheem.engine, "R6") || !is(jheem.engine, "jheem.engine"))
-        stop("jheem.engine must be an R6 object of class 'jheem.engine'")
+    if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
+        stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     specification.metadata = model.settings$specification.metadata
     
     #-- Check Arguments --#
-    if (check.consistency)
-    {
-        if (!is.numeric(parameters))
-            stop("Cannot set functional.form alphas from parameters: 'parameters' must be a named NUMERIC vector")
-        
-        if (is.null(names(parameters)))
-            stop("Cannot set functional.form alphas from parameters: 'parameters' must be a NAMED numeric vector")
-        
-        if (any(is.na(names(parameters))))
-            stop("Cannot set functional.form alphas from parameters: the names of 'parameters' cannot be NA")
-        
-        invalid.dimensions.by.name = setdiff(dimensions.with.values.referred.to.by.name, 
-                                             specification.metadata$dimensions)
-        if (length(invalid.dimensions.by.name)>1)
-            stop(paste0("Cannot set functional.form alphas from parameters: ",
-                        collapse.with.and("'", invalid.dimensions.by.name, "'"),
-                        " passed to 'dimensions.with.values.referred.to.by.name' ",
-                        ifelse(length(invalid.dimensions.by.name)==1, "is not a valid dimension", "are not valid dimensions"),
-                        " in the specification for version '", model.settings$version, "'"))
-        
-        invalid.dimensions.by.index = setdiff(dimensions.with.values.referred.to.by.index, 
-                                             specification.metadata$dimensions)
-        if (length(invalid.dimensions.by.index)>1)
-            stop(paste0("Cannot set functional.form alphas from parameters: ",
-                        collapse.with.and("'", invalid.dimensions.by.index, "'"),
-                        " passed to 'dimensions.with.values.referred.to.by.index' ",
-                        ifelse(length(invalid.dimensions.by.name)==1, "is not a valid dimension", "are not valid dimensions"),
-                        " in the specification for version '", model.settings$version, "'"))
-    }
+    if (!is.numeric(parameters))
+        stop("Cannot set functional.form alphas from parameters: 'parameters' must be a named NUMERIC vector")
     
+    if (is.null(names(parameters)))
+        stop("Cannot set functional.form alphas from parameters: 'parameters' must be a NAMED numeric vector")
+    
+    if (any(is.na(names(parameters))))
+        stop("Cannot set functional.form alphas from parameters: the names of 'parameters' cannot be NA")
+    
+    invalid.dimensions.by.name = setdiff(dimensions.with.values.referred.to.by.name, 
+                                         specification.metadata$dimensions)
+    if (length(invalid.dimensions.by.name)>1)
+        stop(paste0("Cannot set functional.form alphas from parameters: ",
+                    collapse.with.and("'", invalid.dimensions.by.name, "'"),
+                    " passed to 'dimensions.with.values.referred.to.by.name' ",
+                    ifelse(length(invalid.dimensions.by.name)==1, "is not a valid dimension", "are not valid dimensions"),
+                    " in the specification for version '", model.settings$version, "'"))
+    
+    invalid.dimensions.by.index = setdiff(dimensions.with.values.referred.to.by.index, 
+                                         specification.metadata$dimensions)
+    if (length(invalid.dimensions.by.index)>1)
+        stop(paste0("Cannot set functional.form alphas from parameters: ",
+                    collapse.with.and("'", invalid.dimensions.by.index, "'"),
+                    " passed to 'dimensions.with.values.referred.to.by.index' ",
+                    ifelse(length(invalid.dimensions.by.name)==1, "is not a valid dimension", "are not valid dimensions"),
+                    " in the specification for version '", model.settings$version, "'"))
+
     #-- Values for main effects --#
     
     # Values referred to by name
@@ -432,13 +355,12 @@ set.element.functional.form.alphas.from.parameters <- function(model.settings,
     }
     else
     {
-        # Push the main effect values to the engine
+        # Push the main effect values to the settings
         model.settings$set.element.functional.form.main.effect.alphas(element.name = element.name,
                                                                     alpha.name = alpha.name,
                                                                     values = parameter.values,
                                                                     applies.to.dimension.values = parameter.dim.values,
-                                                                    dimensions = parameter.dimensions, 
-                                                                    check.consistency = check.consistency)
+                                                                    dimensions = parameter.dimensions)
     }
     
     
@@ -458,41 +380,46 @@ set.element.functional.form.alphas.from.parameters <- function(model.settings,
 ##-- CONSTANTS --##
 ##---------------##
 
-JHEEM.ENGINE.CODE.ITERATION = '2.0'
+JHEEM.CODE.ITERATION = '2.0'
 
 
 ##------------------------------------##
 ##-- THE JHEEM MODEL SETTINGS CLASS --##
 ##                                    ##
 ##   This class is a pass-through     ##
-##   wrapper to the jheem.engine      ##
+##   wrapper to the jheem             ##
 ##   class, so that we can expose     ##
-##   some of the engine's methods     ##
+##   some of the jheem's methods      ##
 ##   while protecting others          ##
 ##------------------------------------##
 
 JHEEM.MODEL.SETTINGS = R6::R6Class(
     'jheem.model.settings',
+    inherit = JHEEM.ENTITY,
     portable = F,
     
     public = list(
         
-        initialize = function(jheem.engine, check.consistency)
+        initialize = function(jheem, check.consistency)
         {
-            if (!is(jheem.engine, 'jheem.engine'))
-                stop("Cannot create JHEEM Model Settings: jheem.engine must be an object of class 'jheem.engine'")
+            if (!is(jheem, "R6") || !is(jheem, "jheem"))
+                stop("jheem must be an R6 object of class 'jheem'")
+            
+            super$initialize(version = jheem$version,
+                             location = jheem$location,
+                             type = 'model.settings')
             
             if (!is.logical(check.consistency) || length(check.consistency)!=1 || is.na(check.consistency))
                 stop("Cannot create JHEEM Model Settings: 'check.consistency' must be a single, non-NA logical value")
             
-            private$i.engine = jheem.engine
+            private$i.jheem = jheem
             private$i.check.consistency = check.consistency
         },
         
         set.element.value = function(element.name,
                                      value)
         {
-            private$i.engine$set.element.value(element.name = element.name,
+            private$i.jheem$set.element.value(element.name = element.name,
                                                value = value,
                                                check.consistency = private$i.check.consistency)
         },
@@ -503,7 +430,7 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                                                   applies.to.dimension.values=names(values),
                                                                   dimensions=names(applies.to.dimension.values))
         {
-            private$i.engine$set.element.functional.form.main.effect.alphas(element.name = element.name,
+            private$i.jheem$set.element.functional.form.main.effect.alphas(element.name = element.name,
                                                                             alpha.name = alpha.name,
                                                                             values = values,
                                                                             applies.to.dimension.values = applies.to.dimension.values,
@@ -517,7 +444,7 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                                                   applies.to.dimension.values=names(values),
                                                                   dimensions=names(applies.to.dimension.values))
         {
-            private$i.engine$set.element.functional.form.interaction.alphas(element.name = element.name,
+            private$i.jheem$set.element.functional.form.interaction.alphas(element.name = element.name,
                                                                             alpha.name = alpha.name,
                                                                             value = value,
                                                                             applies.to.dimension.values = applies.to.dimension.values,
@@ -528,7 +455,7 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
         set.element.functional.form.from.time = function(element.name,
                                                          from.time)
         {
-            private$i.engine$set.element.functional.form.from.time(element.name = element.name,
+            private$i.jheem$set.element.functional.form.from.time(element.name = element.name,
                                                                    from.time = from.time,
                                                                    check.consistency = private$i.check.consistency)
         },
@@ -536,7 +463,7 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
         set.element.functional.form.to.time = function(element.name,
                                                        to.time)
         {
-            private$i.engine$set.element.functional.form.to.time(element.name = element.name,
+            private$i.jheem$set.element.functional.form.to.time(element.name = element.name,
                                                                  to.time = to.time,
                                                                  check.consistency = private$i.check.consistency)
         },
@@ -545,7 +472,7 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                           times,
                                           indices=1:length(times))
         {
-            private$i.engine$set.element.ramp.times(element.name = element.name,
+            private$i.jheem$set.element.ramp.times(element.name = element.name,
                                                     times = times,
                                                     indices = indices,
                                                     check.consistency = private$i.check.consistency)
@@ -555,7 +482,7 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                            values,
                                            indices=1:length(values))
         {
-            private$i.engine$set.element.ramp.values(element.name = element.name,
+            private$i.jheem$set.element.ramp.values(element.name = element.name,
                                                      values = values,
                                                      indices = indices,
                                                      check.consistency = private$i.check.consistency)
@@ -565,7 +492,7 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                            times,
                                            indices=1:length(times))
         {
-            private$i.engine$set.element.taper.times(element.name = element.name,
+            private$i.jheem$set.element.taper.times(element.name = element.name,
                                                      times = times,
                                                      indices = indices,
                                                      check.consistency = private$i.check.consistency)
@@ -575,7 +502,7 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                             values,
                                             indices=1:length(values))
         {
-            private$i.engine$set.element.taper.values(element.name = element.name,
+            private$i.jheem$set.element.taper.values(element.name = element.name,
                                                       values = values,
                                                       indices = indices,
                                                       check.consistency = private$i.check.consistency)
@@ -584,7 +511,7 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
         set.element.functional.form.future.slope = function(element.names,
                                                             slope)
         {
-            private$i.engine$set.element.functional.form.future.slope(element.names,
+            private$i.jheem$set.element.functional.form.future.slope(element.names,
                                                                       slope,
                                                                       check.consistency = private$i.check.consistency)
         },
@@ -592,7 +519,7 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
         set.element.functional.form.future.slope.after.time = function(element.names,
                                                                        after.time)
         {
-            private$i.engine$set.element.functional.form.future.slope.after.time(element.names = element.names,
+            private$i.jheem$set.element.functional.form.future.slope.after.time(element.names = element.names,
                                                                                  after.time = after.time,
                                                                                  check.consistency = private$i.check.consistency)
         }
@@ -605,22 +532,171 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
     
     private = list(
         
-        i.engine = NULL,
+        i.jheem = NULL,
         i.check.consistency = NULL,
         
         get.current.code.iteration = function()
         {
-            JHEEM.ENGINE.CODE.ITERATION
+            JHEEM.CODE.ITERATION
         }
     )
 )
+
 
 ##----------------------------##
 ##-- THE JHEEM ENGINE CLASS --##
 ##----------------------------##
 
+create.jheem.engine <- function(version,
+                                location,
+                                start.year,
+                                end.year,
+                                max.run.time.seconds=Inf,
+                                prior.sim=NULL,
+                                keep.years=start.year:end.year,
+                                atol=1e-04, rtol=1e-04)
+{
+    jheem = JHEEM$new(version = version,
+                      location = location,
+                      error.prefix = "Cannot create JHEEM Engine: ")
+    
+    JHEEM.ENGINE$new(jheem = jheem,
+                     start.year = start.year,
+                     end.year = end.year,
+                     max.run.time.seconds = max.run.time.seconds,
+                     keep.years = keep.years,
+                     atol = atol,
+                     rtol = rtol)
+}
+
 JHEEM.ENGINE = R6::R6Class(
     'jheem.engine',
+    inherit = JHEEM.ENTITY,
+    portable = F,
+    
+    public = list(
+        
+        initialize = function(jheem,
+                              start.year,
+                              end.year,
+                              max.run.time.seconds=Inf,
+                              keep.years=start.year:end.year,
+                              atol=1e-04, rtol=1e-04,
+                              error.prefix = "Cannot create JHEEM Engine: ")
+        {
+            #-- Check Arguments --#
+            
+            if (!is(jheem, 'jheem'))
+                stop(paste0(error.prefix, "jheem must be an object of class 'jheem'"))
+         
+            super$initialize(version = jheem$version,
+                             location = jheem$location,
+                             type = 'engine')
+               
+            if (!is.numeric(start.year) || length(start.year)!=1 || is.na(start.year))
+                stop(paste0(error.prefix, "'start.year' must be a single, non-NA numeric value"))
+            
+            if (!is.numeric(end.year) || length(end.year)!=1 || is.na(end.year))
+                stop(paste0(error.prefix, "'end.year' must be a single, non-NA numeric value"))
+            
+            if (start.year >= end.year)
+                stop(paste0(error.prefix, "'start.year' (", start.year,
+                            ") must be PRIOR to 'end.year' (", end.year, ")"))
+            
+            if (!is.numeric(max.run.time.seconds) || length(max.run.time.seconds)!=1 || is.na(max.run.time.seconds))
+                stop(paste0(error.prefix, "'max.run.time.seconds' must be a single, non-NA numeric value"))
+            
+            if (!is.numeric(keep.years) || length(keep.years)==0 || any(is.na(keep.years)))
+                stop(paste0(error.prefix, "'end.year' must be a non-empty numeric vector with no NA values"))
+            
+            if (any(keep.years<start.year) || any(keep.years>end.year))
+                stop(paste0(error.prefix, "'keep.years' (which span from ",
+                            min(keep.years), " to ", max(keep.years), 
+                            ") must all fall between 'start.year' (",
+                            start.year, ") and 'end.year' (",
+                            end.year, ")"))
+            
+            if (!is.numeric(atol) || length(atol)!=1 || is.na(atol))
+                stop(paste0(error.prefix, "'atol' must be a single, non-NA numeric value"))
+            
+            if (!is.numeric(rtol) || length(rtol)!=1 || is.na(rtol))
+                stop(paste0(error.prefix, "'rtol' must be a single, non-NA numeric value"))
+            
+            #-- Store Values --#
+            private$i.jheem = jheem
+            private$i.start.year = start.year
+            private$i.end.year = end.year
+            private$i.max.run.time.seconds = max.run.time.seconds
+            private$i.keep.years = keep.years
+            private$i.atol = atol
+            private$i.rtol = rtol
+        },
+        
+        run = function(parameters=NULL)
+        {
+            private$set.parameters(parameters, error.prefix='Cannot run JHEEM Engine: ')
+            private$i.jheem$run(start.year = private$i.start.year,
+                                end.year = private$i.end.year,
+                                check.consistency = private$i.check.consistency,
+                                max.run.time.seconds = private$max.run.time.seconds,
+                                prior.sim = NULL,
+                                keep.years = private$i.keep.years,
+                                atol = private$i.atol,
+                                rtol = private$i.rtol)
+        },
+        
+        crunch = function(parameters=NULL)
+        {
+            private$set.parameters(parameters, error.prefix='Cannot crunch JHEEM Engine: ')
+            private$i.jheem$crunch(start.year = private$i.start.year,
+                                   end.year = private$i.end.year,
+                                   check.consistency = private$i.check.consistency)
+        }
+    ),
+    
+    private = list(
+        
+        i.jheem = NULL,
+        i.start.year = NULL,
+        i.end.year = NULL,
+        i.max.run.time.seconds = NULL,
+        i.keep.years = NULL,
+        i.atol = NULL,
+        i.rtol = NULL,
+        
+        i.check.consistency = T,
+        
+        set.parameters = function(parameters, error.prefix)
+        {
+            
+            if (!missing(parameters) && !is.null(parameters))
+            {
+                if (!is.numeric(parameters) || any(is.na(parameters)))
+                    stop(paste0(error.prefix, "'parameters' must be a named numeric vector with no NA values"))
+                
+                if (is.null(names(parameters)))
+                    stop(paste0(error.prefix, "'parameters' must be a NAMED numeric vector"))
+                
+                parameters.to.set = private$i.jheem$parameters
+                parameters.to.set[names(parameters)] = parameters
+                
+                private$i.jheem$set.parameters(parameters.to.set, check.consistency = private$i.check.consistency)
+            }
+        },
+        
+        get.current.code.iteration = function()
+        {
+            JHEEM.CODE.ITERATION
+        }
+    )
+)
+
+##---------------------##
+##-- THE JHEEM CLASS --##
+##---------------------##
+
+JHEEM = R6::R6Class(
+    'jheem',
     inherit = JHEEM.ENTITY,
     portable = F,
     
@@ -635,13 +711,13 @@ JHEEM.ENGINE = R6::R6Class(
         ##-- CONSTRUCTOR --##
         ##-----------------##
         
-        initialize = function(version, location)
+        initialize = function(version, location, error.prefix = "Cannot create JHEEM Instance: ")
         {
             # Call the superclass constructor
             super$initialize(version = version,
                              location = location,
-                             type = 'engine',
-                             error.prefix = "Cannot create JHEEM Engine: ")
+                             type = 'jheem',
+                             error.prefix = error.prefix)
             
             private$set.up()
         },
@@ -662,8 +738,8 @@ JHEEM.ENGINE = R6::R6Class(
             
             # Set the times
             set.run.years(start.year = start.year,
-                             end.year = end.year,
-                             error.prefix = paste0("Error preparing JHEEM Engine to run: "))
+                          end.year = end.year,
+                          error.prefix = paste0("Error preparing JHEEM to run: "))
 
             # Do the work
             specification = private$get.specification()
@@ -673,7 +749,7 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.diffeq.settings = prepare.diffeq.settings(settings = private$i.diffeq.settings,
                                                                 quantity.dim.names = private$i.quantity.dim.names,
                                                                 quantity.values = private$i.quantity.values,
-                                                                error.prefix = paste0("Error preparing JHEEM Engine to run (while setting up the diffeq interface): "))
+                                                                error.prefix = paste0("Error preparing JHEEM to run (while setting up the diffeq interface): "))
             
             # Set the i.has.been.crunched flag
             private$i.has.been.crunched = T
@@ -772,26 +848,19 @@ JHEEM.ENGINE = R6::R6Class(
             
             #-- Clear Dependencies --#
             # Clear all values
-            clear.dependent.values(element.name)
+            private$clear.dependent.values(element.name)
             
             # Clear dim.names (only if value's dim.names have changed)
             if (!dim.names.equal(dimnames(value),
                                  dimnames(private$i.element.backgrounds[[element.name]]$value),
                                  match.order.of.dimensions = T, match.order.within.dimensions = T))
-                clear.dim.names(element.name)
+                private$clear.dim.names(element.name)
             
             # No need to clear times
             
             
             #-- Set it --#
             private$i.element.backgrounds[[element.name]]$value = value
-            
-            
-            #-- Log Instruction --#
-            log.instruction(fn.name='set.element.value', 
-                            element.name=element.name,
-                            value=value,
-                            check.consistency=check.consistency)
             
             
             #-- Done --#
@@ -837,10 +906,10 @@ JHEEM.ENGINE = R6::R6Class(
             #-- Clear Dependencies --#
             
             # Clear all values
-            clear.dependent.values(element.name)
+            private$clear.dependent.values(element.name)
             
             # Clear dim.names
-            clear.dim.names(element.name)
+            private$clear.dim.names(element.name)
             
             # No need to clear times
             
@@ -852,15 +921,6 @@ JHEEM.ENGINE = R6::R6Class(
                                              values = values,
                                              check.consistency = check.consistency,
                                              error.prefix = error.prefix)
-            
-            #-- Log Instruction --#
-            log.instruction(fn.name='set.element.functional.form.main.effect.alphas', 
-                            element.name=element.name,
-                            alpha.name=alpha.name,
-                            values=values,
-                            applies.to.dimension.values=applies.to.dimension.values,
-                            dimensions=dimensions,
-                            check.consistency=check.consistency)
             
             #-- Done --#
             invisible(self)
@@ -909,10 +969,10 @@ JHEEM.ENGINE = R6::R6Class(
             #-- Clear Dependencies --#
             
             # Clear all values
-            clear.dependent.values(element.name)
+            private$clear.dependent.values(element.name)
             
             # Clear dim.names
-            clear.dim.names(element.name)
+            private$clear.dim.names(element.name)
             
             # No need to clear times
 
@@ -926,16 +986,6 @@ JHEEM.ENGINE = R6::R6Class(
                                             check.consistency = check.consistency,
                                             error.prefix = error.prefix)
                     
-                        
-            #-- Log Instruction --#
-            log.instruction(fn.name='set.element.functional.form.interaction.alphas', 
-                            element.name=element.name,
-                            alpha.name=alpha.name,
-                            value=value,
-                            applies.to.dimension.values=applies.to.dimension.values,
-                            dimensions=dimensions,
-                            check.consistency=check.consistency)
-            
             #-- Done --#
             invisible(self)
         },
@@ -948,7 +998,7 @@ JHEEM.ENGINE = R6::R6Class(
             
             # Make sure this is a foreground object
             if (!is(foreground, 'jheem.model.foreground'))
-                stop("Cannot set.quantity.foreground() for engine: 'foreground' must be an object of class 'jheem.model.foreground'")
+                stop("Cannot set.quantity.foreground() for JHEEM: 'foreground' must be an object of class 'jheem.model.foreground'")
             quantity.name = foreground$quantity.name
             error.prefix = paste0("Cannot set foreground for quantity '", quantity.name, "': ")
             
@@ -982,6 +1032,17 @@ JHEEM.ENGINE = R6::R6Class(
                             "' is not intervenable. Since its max.dim.names cannot be inferred, you must explicitly set the dimension.values argument when registered the quantity to the '",
                             self$version, "' specification"))
             
+            # Check that all scales of foreground is convertible to/from scale of quantity
+            scale.convertible = sapply(foreground$scales, can.convert.scale, convert.to.scale=quantity$scale)
+            if (any(!scale.convertible))
+                stop(paste0(error.prefix,
+                            "Cannot apply foreground to quantity '", quantity.name, "'. The quantity has scale '",
+                            quantity$scale, "' which is not convertible to/from ",
+                            ifelse(sum(!scale.convertible)==1, "scale ", "scales "),
+                            collapse.with.or("'", foreground$scales[!scale.convertible], "'"),
+                            ifelse(sum(!scale.convertible)==1, " which is a scale", " which are scales"),
+                            " at which the foreground applies"))
+            
             #-- Resolve Target Populations --#
             if (!foreground$target.populations.are.resolved)
                 foreground = foreground$resolve.target.populations(self$specification.metadata, error.prefix = error.prefix)
@@ -1001,7 +1062,7 @@ JHEEM.ENGINE = R6::R6Class(
                                 collapse.with.and("'", missing.parameters, "'"),
                                 " - upon which foreground '", foreground$name, "' depends - ",
                                 ifelse(length(missing.parameters)==1, "has", "have"),
-                                " not been set to the JHEEM Engine"))
+                                " not been set to the JHEEM"))
             }
             
             # Set up to track dependencies
@@ -1021,60 +1082,11 @@ JHEEM.ENGINE = R6::R6Class(
             #-- Resolve it --#
             private$resolve.foreground(foreground.id)
         },
-        
-        # This function will only be called
-        # (a) when this foreground is first set or
-        # (b) when a parameter this foreground depends on changes
-        resolve.foreground = function(id)
-        {
-            unresolved.foreground = private$i.unresolved.foregrounds[[id]]
-            
-            # Store the old start and end times
-            previously.resolved.foreground = private$i.resolved.foregrounds[[unresolved.foreground$quantity.name]][[id]]
-            if (is.null())
-            {
-                previous.start.time = Inf
-                previous.end.time = -Inf
-                previous.times = NULL
-            }
-            else
-            {
-                previous.start.time = previously.resolved.foreground$min.start.time
-                previous.end.time = previously.resolved.foreground$max.end.time
-                previous.times = previously.resolved.foreground$all.effect.times
-            }
-            
-            # Store the resolved foreground
-            resolved.foreground = unresolved.foreground$resolve.effects(private$i.parameters)
-            private$i.resolved.foregrounds[[unresolved.foreground$quantity.name]][[id]] = resolved.foreground
-            
-            
-            #-- Clear Dependent Values --#
-            quantity.name = resolved.foreground$quantity.name
-            
-            # Clear all values after start of intervention (or previous start time, whichever comes first)
-            clear.after.time = min(resolved.foreground$min.start.time,
-                                   previous.start.time)
-            clear.before.time = max(resolved.foregrounds$max.end.time,
-                                    previous.end.time)
-            times.to.clear.values.for.mask = private$i.quantity.value.times[[quantity.name]] > clear.after.time &
-                private$i.quantity.value.times[[quantity.name]] < clear.before.time
-            clear.dependent.values(quantity.name, times = private$i.quantity.value.times[[quantity.anme]][times.to.clear.values.for.mask])
-            
-            
-            # Clear times
-            if (is.null(previous.times) || !setequal(previous.times, resolved.foreground$all.effect.times))
-                clear.dependent.times(quantity.name)
-        },
-        
-        i.unresolved.foregrounds = NULL, #list, indexed by foreground.id
-        i.resolved.foregrounds = NULL, #list of lists, indexed [[quantity.name]][[foreground.id]]
-        i.parameters = NULL,
-        i.dependent.foreground.ids.for.parameters = NULL, # A list of character vectors; names are parameters names, elements are vectors of foreground ids
+
         
         set.parameters = function(parameters, check.consistency)
         {
-            error.prefix = paste0("Error setting parameters for engine for '", self$version, "' model in '", self$location, "': ")
+            error.prefix = paste0("Error setting parameters for JHEEM for '", self$version, "' model in '", self$location, "': ")
             if (!is.numeric(parameters))
                 stop(paste0(error.prefix, "'parameters' must be a numeric vector"))
             if (any(is.na(parameters)))
@@ -1086,15 +1098,63 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.parameters[names(parameters)] = parameters
             
             # Set the values for any elements with matching names
-            element.values = intersect(names(parameters), jheem.engine$element.names)
+            element.names.in.parameters = intersect(names(parameters), private$get.specification()$element.names)
+            element.names.in.parameters = element.names.in.parameters[sapply(private$i.element.backgrounds[element.names.in.parameters], function(bkgd){
+                is.null(bkgd$functional.form)
+            })]
             
-            for (elem.name in element.names)
+            for (elem.name in element.names.in.parameters)
                 self$set.element.value(element.name = elem.name,
                                        value = parameters[elem.name],
                                        check.consistency = check.consistency)
             
             # Call the registered parameter setting function if there is one
-stop("need to implement")
+            if (check.consistency)
+                model.settings = private$i.checked.model.settings
+            else
+                model.settings = private$i.unchecked.model.settings
+            
+            used.parameter.names = element.names.in.parameters
+            
+            # For calibrated parameters
+            calibrated.parameters.distribution = get.parameters.distribution.for.version(self$version, type='calibrated')
+            if (!is.null(calibrated.parameters.distribution) && any(calibrated.parameters.distribution@var.names[1]==names(parameters)))
+            {
+                calibrated.parameters.apply.fn = get.parameters.apply.function.for.version(self$version, type='calibrated')
+                used.from.calibrated = calibrated.parameters.apply.fn(model.settings = model.settings,
+                                                                      parameters = parameters,
+                                                                      track.used.parameters = check.consistency)
+                if (check.consistency)
+                    used.parameter.names = union(used.parameter.names, used.from.calibrated)
+            }
+
+            # For sampled parameters
+            sampled.parameters.distribution = get.parameters.distribution.for.version(self$version, type='sampled')
+            if (!is.null(sampled.parameters.distribution) && any(sampled.parameters.distribution@var.names[1]==names(parameters)))
+            {
+                sampled.parameters.apply.fn = get.parameters.apply.function.for.version(self$version, type='sampled')
+                used.from.sampled = sampled.parameters.apply.fn(model.settings = model.settings,
+                                                                parameters = parameters,
+                                                                track.used.parameters = check.consistency)
+                
+                if (check.consistency)
+                    used.parameter.names = union(used.parameter.names, used.from.sampled)
+            }
+            
+            # Check that we used all the parameters
+            if (check.consistency)
+            {
+                unused.parameters = setdiff(names(parameters), used.parameter.names)
+                if (length(unused.parameters)>0)
+                    stop(paste0(error.prefix,
+                                length(unused.parameters),
+                                ifelse(length(unused.parameters)==1, " is", " are"),
+                                " present in 'parameters' but ",
+                                ifelse(length(unused.parameters)==1, "was", "were"),
+                                " not used by the model specification: ",
+                                collapse.with.and("'", unused.parameters, "'")
+                                ))
+            }        
             
             # Re-resolve any dependent foregrounds
             if (length(private$i.unresolved.foregrounds)>0)
@@ -1168,12 +1228,12 @@ stop("need to implement")
             #-- Clear Dependencies --#
             
             # Clear values for all times prior to max(old from time, new from time)
-            times.to.clear.values.for.mask = i.quantity.value.times[[element.name]] < max(i.element.backgrounds[[element.name]]$functional.form.from.time,
-                                                                                          previous.from.time)
-            clear.dependent.values(element.name, times = i.quantity.value.times[[element.name]][times.to.clear.values.for.mask])
-            
+            private$clear.dependent.values(element.name, 
+                                           clear.before.time = max(i.element.backgrounds[[element.name]]$functional.form.from.time,
+                                                                   previous.from.time))
+
             # Clear times
-            clear.dependent.times(element.name)
+            private$clear.element.background.self.times(element.name)
             
             # No need to clear dim.names
             
@@ -1181,12 +1241,6 @@ stop("need to implement")
             #-- Set It --#
             private$i.element.backgrounds[[element.name]]$functional.form.from.time = from.time
                         
-            #-- Log Instruction --#
-            log.instruction(fn.name='set.element.functional.form.from.time', 
-                            element.name=element.name,
-                            from.time=from.time,
-                            check.consistency=check.consistency)
-            
             #-- Done --#
             invisible(self)
         },
@@ -1242,25 +1296,19 @@ stop("need to implement")
             #-- Clear Dependencies --#
             
             # Clear values for all times after min(old to time, new to time)
-            times.to.clear.values.for.mask = private$i.quantity.value.times[[element.name]] > min(i.element.backgrounds[[element.name]]$functional.form.to.time,
-                                                                                          previous.to.time)
-            clear.dependent.values(element.name, times = private$i.quantity.value.times[[element.name]][times.to.clear.values.for.mask])
+            times.to.clear.values.for.mask = private$i.quantity.value.times[[element.name]] > 
+            private$clear.dependent.values(element.name,
+                                           clear.after.time = min(i.element.backgrounds[[element.name]]$functional.form.to.time,
+                                                                  previous.to.time))
             
             # Clear times
-            clear.dependent.times(element.name)
+            private$clear.element.background.self.times(element.name)
             
             # No need to clear dim.names
             
             
             #-- Set It --#
             private$i.element.backgrounds[[element.name]]$functional.form.to.time = to.time
-            
-            
-            #-- Log Instruction --#
-            log.instruction(fn.name='set.element.functional.form.to.time', 
-                            element.name=element.name,
-                            to.time=to.time,
-                            check.consistency=check.consistency)
             
             #-- Done --#
             invisible(self)
@@ -1317,11 +1365,11 @@ stop("need to implement")
             #-- Clear Dependencies --#
             
             # Clear values for all times prior to functional.form.from.time
-            times.to.clear.values.for.mask = i.quantity.value.times[[element.name]] < i.element.backgrounds[[element.name]]$functional.form.from.time
-            clear.dependent.values(element.name, times = i.quantity.value.times[[element.name]][times.to.clear.values.for.mask])
-            
+            private$clear.dependent.values(element.name, 
+                                           clear.before.time = i.element.backgrounds[[element.name]]$functional.form.from.time)
+
             # Clear times
-            clear.dependent.times(element.name)
+            private$clear.element.background.self.times(element.name)
             
             # No need to clear dim.names
             
@@ -1329,12 +1377,6 @@ stop("need to implement")
             #-- Set the Value --#
             private$i.element.backgrounds[[element.name]]$ramp.times = new.times
             
-            
-            #-- Log Instruction --#
-            log.instruction(fn.name='set.element.ramp.times', 
-                            times=times,
-                            indices=indices,
-                            check.consistency=check.consistency)
             
             #-- Done --#
             invisible(self)
@@ -1377,8 +1419,8 @@ stop("need to implement")
             #-- Clear Dependencies --#
             
             # Clear values for all times prior to functional.form.from.time
-            times.to.clear.values.for.mask = i.quantity.value.times[[element.name]] < i.element.backgrounds[[element.name]]$functional.form.from.time
-            clear.dependent.values(element.name, times = i.quantity.value.times[[element.name]][times.to.clear.values.for.mask])
+            private$clear.dependent.values(element.name, 
+                                           clear.before.time = i.element.backgrounds[[element.name]]$functional.form.from.time)
             
             # No need to clear times
             # No need to clear dim.names
@@ -1387,12 +1429,6 @@ stop("need to implement")
             #-- Set the Values --#
             private$i.element.backgrounds[[element.name]]$ramp.values[indices] = values
             
-            
-            #-- Log Instruction --#
-            log.instruction(fn.name='set.element.ramp.values', 
-                            values=values,
-                            indices=indices,
-                            check.consistency=check.consistency)
             
             #-- Done --#
             invisible(self)
@@ -1451,24 +1487,17 @@ stop("need to implement")
             #-- Clear Dependencies --#
             
             # Clear values for all times after functional.form.to.time
-            times.to.clear.values.for.mask = i.quantity.value.times[[element.name]] > i.element.backgrounds[[element.name]]$functional.form.to.time
-            clear.dependent.values(element.name, times = i.quantity.value.times[[element.name]][times.to.clear.values.for.mask])
+            private$clear.dependent.values(element.name,
+                                           clear.after.time = i.element.backgrounds[[element.name]]$functional.form.to.time)
             
             # Clear times
-            clear.dependent.times(element.name)
+            private$clear.element.background.self.times(element.name)
             
             # No need to clear dim.names
             
             
             #-- Set the Value --#
             private$i.element.backgrounds[[element.name]]$taper.times = new.times
-            
-            
-            #-- Log Instruction --#
-            log.instruction(fn.name='set.element.taper.times', 
-                            times=times,
-                            indices=indices,
-                            check.consistency=check.consistency)
             
             
             #-- Done --#
@@ -1511,8 +1540,8 @@ stop("need to implement")
             #-- Clear Dependencies --#
             
             # Clear values for all times after functional.form.to.time
-            times.to.clear.values.for.mask = i.quantity.value.times[[element.name]] > i.element.backgrounds[[element.name]]$functional.form.to.time
-            clear.dependent.values(element.name, times = i.quantity.value.times[[element.name]][times.to.clear.values.for.mask])
+            private$clear.dependent.values(element.name, 
+                                           clear.after.time = i.element.backgrounds[[element.name]]$functional.form.to.time)
             
             # No need to clear times
             # No need to clear dim.names
@@ -1521,12 +1550,6 @@ stop("need to implement")
             #-- Set the Value --#
             private$i.element.backgrounds[[element.name]]$taper.values[indices] = values
             
-            
-            #-- Log Instruction --#
-            log.instruction(fn.name='set.element.taper.values', 
-                            values=values,
-                            indices=indices,
-                            check.consistency=check.consistency)
             
             #-- Done --#
             invisible(self)
@@ -1582,8 +1605,8 @@ stop("need to implement")
             #-- Clear Dependencies --#
             
             # Clear values for all times after functional.form.future.slope.after.time
-            times.to.clear.values.for.mask = i.quantity.value.times[[element.name]] > i.element.backgrounds[[element.name]]$future.slope.after.time
-            clear.dependent.values(element.name, times = i.quantity.value.times[[element.name]][times.to.clear.values.for.mask])
+            private$clear.dependent.values(element.name,
+                                           clear.after.time = i.element.backgrounds[[element.name]]$future.slope.after.time)
             
             # No need to clear times
             # No need to clear dim.names
@@ -1593,12 +1616,6 @@ stop("need to implement")
             for (element.name in element.names)
                 private$i.element.backgrounds[[element.name]][['future.slope']] = slope
             
-            
-            #-- Log Instruction --#
-            log.instruction(fn.name='set.element.functional.form.future.slope', 
-                            element.names=element.names,
-                            slope=slope,
-                            check.consistency=check.consistency)
             
             #-- Done --#
             invisible(self)
@@ -1657,10 +1674,10 @@ stop("need to implement")
             #-- Clear Dependencies --#
             
             # Clear values for all times after min(old, new functional.form.future.slope.after.time)
-            times.to.clear.values.for.mask = i.quantity.value.times[[element.name]] > min(i.element.backgrounds[[element.name]]$future.slope.after.time,
-                                                                                          previous.future.slope.after.time)
-            clear.dependent.values(element.name, times = i.quantity.value.times[[element.name]][times.to.clear.values.for.mask])
-            
+            private$clear.dependent.values(element.name, 
+                                           clear.after.time = min(i.element.backgrounds[[element.name]]$future.slope.after.time,
+                                                                  previous.future.slope.after.time))
+
             # No need to clear times
             # No need to clear dim.names
             
@@ -1669,42 +1686,29 @@ stop("need to implement")
                 private$i.element.backgrounds[[element.name]]$future.slope.after.year = after.year
             
             
-            #-- Log Instruction --#
-            log.instruction(fn.name='set.element.functional.form.future.slope.after.time', 
-                            element.names=element.names,
-                            after.time=after.time,
-                            check.consistency=check.consistency)
-            
             #-- Done --#
             invisible(self)
         },
     
-
-        has.been.crunched = function()
-        {
-            private$i.has.been.crunched
-        },
-        
-        test.crunch = function()
-        {
-            private$do.test.crunch()
-            private$jheem
-        },
-        
         # Does NOT actually do anything with the intervention
-        # Just records it to the engine
+        # Just records it to the jheem
         set.intervention = function(intervention)
         {
             if (!is.null(private$i.intervention) || !is.null(private$i.intervention.code))
-                stop(paste0("Cannot set an intervention for JHEEM engine: an intervention has already been set for this engine"))
+                stop(paste0("Cannot set an intervention for JHEEM: an intervention has already been set for this instance"))
                      
             if (!is(intervention, "jheem.intervention"))
-                stop("Cannot set intervention for JHEEM engine: 'intervention' must be an object of class 'jheem.intervention'")
+                stop("Cannot set intervention for JHEEM: 'intervention' must be an object of class 'jheem.intervention'")
             
             if (is.null(intervention$code))
                 private$i.intervention = intervention
             else
                 private$i.intervention.code = intervention$code
+        },
+
+        has.been.crunched = function()
+        {
+            private$i.has.been.crunched
         }
     ),
     
@@ -1715,7 +1719,7 @@ stop("need to implement")
             if (missing(value))
                 names(private$i.element.backgrounds)
             else
-                stop("Cannot modify a JHEEM Engine's 'element.names' - they are read-only")
+                stop("Cannot modify a JHEEM's 'element.names' - they are read-only")
         },
         
         # FOR DEBUGGING
@@ -1724,7 +1728,7 @@ stop("need to implement")
             if (missing(value))
                 private$i.quantity.values
             else
-                stop("Cannot modify a JHEEM Engine's 'calculated.values' - they are read-only")
+                stop("Cannot modify a JHEEM's 'calculated.values' - they are read-only")
         },
         
         value.times = function(value)
@@ -1732,15 +1736,7 @@ stop("need to implement")
             if (missing(value))
                 private$i.quantity.value.times
             else
-                stop("Cannot modify a JHEEM Engine's 'value.times' - they are read-only")
-        },
-        
-        self.times = function(value)
-        {
-            if (missing(value))
-                private$i.quantity.self.times
-            else
-                stop("Cannot modify a JHEEM Engine's 'self.times' - they are read-only")
+                stop("Cannot modify a JHEEM's 'value.times' - they are read-only")
         },
         
         element.backgrounds = function(value)
@@ -1748,7 +1744,7 @@ stop("need to implement")
             if (missing(value))
                 private$i.element.backgrounds
             else
-                stop("Cannot modify a JHEEM Engine's 'element.backgrounds' - they are read-only")
+                stop("Cannot modify a JHEEM's 'element.backgrounds' - they are read-only")
         }
         
     ),
@@ -1761,38 +1757,71 @@ stop("need to implement")
         ##----------------------##
         ##----------------------##
         
+        #-- Element names/backgrounds --#
         i.element.names = NULL,
         i.element.backgrounds = NULL,
-        i.instructions = NULL,
-        
-        i.quantity.max.dim.names = NULL,
-        i.quantity.required.dim.names = NULL,
-        i.quantity.component.max.dim.names = NULL,
-        i.quantity.component.applies.to = NULL,
-        
-        i.quantity.self.times = NULL,
+
+        #-- Times for quantities --#
         i.quantity.value.times = NULL,
-        i.quantity.values = NULL,
+        i.top.level.self.times = NULL,
         
+        i.element.background.self.times = NULL,
+        i.quantity.foreground.self.times = NULL,
+        
+        i.quantity.value.all.apply.times = NULL,
+        i.top.level.value.may.not.apply.times = NULL,
+        
+        #-- Values for quantities --#
+        i.quantity.values = NULL,
+        i.quantity.after.values = NULL,
+        
+        #-- Dim Names (and related) for quantities --#
         i.quantity.dim.names = NULL,
         i.crunched.quantity.dim.names = NULL,
         i.quantity.component.dim.names = NULL,
         i.crunched.quantity.component.dim.names = NULL,
         
+        i.quantity.max.dim.names = NULL,
+        i.quantity.required.dim.names = NULL,
+        
+        i.quantity.component.max.dim.names = NULL,
+        i.quantity.component.applies.to = NULL,
+        
+        #-- Masks for whether values apply --#
+        i.quantity.value.applies.mask = NULL,
+        
+        #-- Indices for quantities --#
         i.quantity.component.depends.on.mapping.indices = NULL,
         i.quantity.mapping.indices = NULL,
+        i.quantity.foreground.effect.indices = NULL,
 
+        #-- Whether quantities are static --#
         i.quantity.is.static = NULL,
         
+        #-- Parameters --#
+        i.parameters = NULL,
+        i.dependent.foreground.ids.for.parameters = NULL, # A list of character vectors; names are parameters names, elements are vectors of foreground ids
+        
+        #-- Foregrounds --#
+        i.unresolved.foregrounds = NULL, #list, indexed by foreground.id
+        i.resolved.foregrounds = NULL, #list of lists, indexed [[quantity.name]][[foreground.id]]
+        
+        #-- On Crunched state (and the times to run from/to))
         i.run.from.time = NULL,
         i.run.to.time = NULL,
         
         i.has.been.crunched = NULL,
         
+        #-- Diffeq Settings --#
         i.diffeq.settings = NULL,
         
+        #-- Intervention Settings --#
         i.intervention = NULL,
         i.intervention.code = NULL,
+        
+        #-- The Model Settings to Pass Along --#
+        i.checked.model.settings = NULL,
+        i.unchecked.model.settings = NULL,
         
         ##---------------------##
         ##---------------------##
@@ -1802,7 +1831,7 @@ stop("need to implement")
         
         get.current.code.iteration = function()
         {
-            JHEEM.ENGINE.CODE.ITERATION
+            JHEEM.CODE.ITERATION
         },
         
         ##------------##
@@ -1811,6 +1840,9 @@ stop("need to implement")
         
         set.up = function()
         {
+            private$i.checked.model.settings = JHEEM.MODEL.SETTINGS$new(self, check.consistency = T)
+            private$i.unchecked.model.settings = JHEEM.MODEL.SETTINGS$new(self, check.consistency = F)
+            
             specification = get.compiled.specification.for.version(private$i.version)
             
             # Finalize max.dim.names and applies.to for quantities and components
@@ -1850,7 +1882,7 @@ stop("need to implement")
             private$i.element.backgrounds = lapply(specification$element.names, function(elem.name){
                 elem = specification$get.quantity(elem.name)
                 bkgd = elem$get.element.background(specification.metadata = self$specification.metadata,
-                                                   error.prefix = paste0("Error creating JHEEM Engine for version '", private$i.version, "' and location '", private$i.location, "': "))
+                                                   error.prefix = paste0("Error creating JHEEM for version '", private$i.version, "' and location '", private$i.location, "': "))
                 
                 if (!is.null(bkgd$functional.form))
                 {
@@ -1888,13 +1920,23 @@ stop("need to implement")
             
             # Set up values and times lists
             private$i.quantity.values = list()
-            private$i.quantity.self.times = list()
+            private$i.quantity.after.values = list()
+            
             private$i.quantity.value.times = list()
+            private$i.top.level.self.times = list()
+            
+            private$i.element.background.self.times = list()
+            private$i.quantity.foreground.self.times = list()
+            
+            private$i.quantity.value.all.apply.times = list()
+            private$i.top.level.value.may.not.apply.times = list()
+            
+            private$i.quantity.value.applies.mask = list()
             
             # Import the default parameters
-            self$set.parameters(parameters = specification$default.parameter.values,
-                                check.consistency = T)
-            
+            private$i.parameters = numeric()
+            private$i.parameters[names(specification$default.parameter.values)] = specification$default.parameter.values
+
             # Import the foregrounds
             for (frgd in specification$foregrounds)
             {
@@ -1903,8 +1945,8 @@ stop("need to implement")
             }
             
             # Set up the diffeq settings
-            private$i.diffeq.settings = create.diffeq.settings(engine = self,
-                                                               error.prefix = paste0("Error creating diffeq settings for JHEEM Engine for version '", private$i.version, "' and location '", private$i.location, "': "))
+            private$i.diffeq.settings = create.diffeq.settings(jheem = self,
+                                                               error.prefix = paste0("Error creating diffeq settings for JHEEM for version '", private$i.version, "' and location '", private$i.location, "': "))
             
             # Clear the i.has.been.crunched flag
             private$i.has.been.crunched = F
@@ -1954,8 +1996,11 @@ stop("need to implement")
                 private$i.run.from.time = start.year
                 private$i.run.to.time = end.year
             
-                #-- Clear times (for all elements) --#
-                clear.dependent.times(names(i.element.backgrounds))
+                #-- Clear times (for all elements/quantities) --#
+                specification = private$get.specification()
+                
+                private$clear.element.background.self.times(specification$element.names)
+                private$clear.quantity.foreground.self.times(specification$quantity.names)
             }
             
             #-- Done --#
@@ -1968,66 +2013,127 @@ stop("need to implement")
         ##----------------------------------------##
         
         # Broadly speaking, "self" times are the times for which a quantity needs to produce values
-        #   to capture it's time-varying changes
-        # For an element, self times are:
-        # - NULL if this is a static value
-        # - If not static, the union of:  ramp and taper times, functional form times (within the bounds of the engine run time)
-        # For a non-element quantity, self times are:
-        # - NULL if all the quantities components have value.type=='numeric'
-        # - The union of self times for all dependee elements
-
-    
-        calculate.quantity.self.times = function(quantity.name)
+        #   to capture it's time-varying changes. There are background and potentially foreground self times
+        #
+        # We manage 6 main time vectors:
+        # 1) We need *quantity.value.times* for each quantity actually calculating values
+        #    The value.times for a quantity is the union of all the *top.level.self.times* for any
+        #       top.level.quantity that depends on this quantity
+        # 
+        # 2) The *top.level.self.times* for a top.level.quantity is the union of:
+        #    - All *element.background.self.times* for any element that the quantity depends on
+        #    - All *quantity.foreground.self.times* for any quantity that the top.level.quantity depends on
+        #   
+        # 3) The *element.background.self.times* for each element is calculated from the element's internal info. The times are:
+        #    - 'all' if this is a static value with no foreground set
+        #    - The first foreground start time if this is a static value with a foreground set
+        #    - If not static, the union of:  ramp and taper times, functional form times (within the bounds of the run time)
+        # 
+        # 4) The *quantity.foreground.self.times* for each quantity is calculate from the quantity's set foregrounds
+        # 
+        # 5) We need *quantity.value.all.apply.times* for each quantity for efficiently calculating
+        #    quantity.value.applies.mask
+        #    The quantity.value.all.apply.times for a quantity is the setdiff of
+        #    - The quantity's *value.times* minus
+        #    - The union of *top.level.value.may.not.apply.times* for every top.level.quantity that depends on this quantity
+        #       
+        # 6) The *top.level.value.may.not.apply.times* for a top.level.quantity is the setdiff of
+        #    - The top.level.quantity's *value.times* minus
+        #    - The union of *element.background.self.times* for all elements that the quantity depends on
+        #   
+        #   
+        # NB: (For all this to work, we define a quantity as depending on itself)
+        
+        
+        
+        #-- Quantity Value Times --#
+        # Broadly speaking, "value" times are the times for which a quantity needs to produce values
+        #   EITHER for it's own time-varying changes OR to merge with other quantities in a higher-level
+        #   quantity that depends on it and other quantities
+        
+        # The value.times for a quantity is the union of all the *top.level.self.times* for any
+        # top.level.quantity that depends on this quantity
+        calculate.quantity.value.times = function(quantity.name)
         {
-            if (i.quantity.is.static[quantity.name])
-                i.quantity.self.times[[quantity.name]] = 'all'
+            if (private$i.quantity.is.static[quantity.name])
+                private$i.quantity.value.times[[quantity.name]] = 'all'
+            else
+            {
+                specification = private$get.specification()
+                
+                # Pull the top-level quantities that depend on this, and make sure their self-times are calculated
+                top.level.quantities = specification$get.dependent.top.level.quantity.names(quantity.name)
+                dynamic.top.level.quantities = top.level.quantities[ !private$i.quantity.is.static[top.level.quantities] ]
+                null.top.level.times.mask = as.logical(sapply(private$i.top.level.self.times[dynamic.top.level.quantities], is.null))
+                sapply(dynamic.top.level.quantities[null.top.level.times.mask], private$calculate.top.level.self.times)
+                
+                # Value times is the union of these times
+                private$i.quantity.value.times[[quantity.name]] = union_sorted_vectors(private$i.top.level.self.times[dynamic.top.level.quantities])
+            }
+            
+            invisible(self)
+        },
+        
+        clear.quantity.value.times = function(quantity.names)
+        {
+            # Clear the times
+            private$i.quantity.value.times[quantity.names] = NULL
+            
+            # Clear the value-all-apply times
+            private$clear.quantity.value.all.apply.times(quantity.names)
+            
+            # Done
+            invisible(self)
+        },
+        
+        
+        #-- Element Background Self-Times --#
+        
+        calculate.element.background.self.times = function(element.name)
+        {
+            if (private$i.quantity.is.static[element.name])
+                private$i.element.background.self.times[[element.name]] = 'all'
             else
             {
                 specification = get.specification()
-                quantity = specification$get.quantity(quantity.name)
+                element = specification$get.quantity(element.name)
                 
-                if (quantity$is.element)
-                {
-                    stop('what am i going to do now about value elements that were static, but now have a foreground. What is their baseline value time?')
-                    
-                    if (is.null(private$i.element.backgrounds[[quantity.name]]$ramp.interpolated.times))
-                        private$i.element.backgrounds[[quantity.name]] = calculate.ramp.interpolated.times(private$i.element.backgrounds[[quantity.name]])
-                    if (is.null(private$i.element.backgrounds[[quantity.name]]$functional.form.times))
-                        private$i.element.backgrounds[[quantity.name]] = calculate.functional.form.times(private$i.element.backgrounds[[quantity.name]])
-                    if (is.null(private$i.element.backgrounds[[quantity.name]]$taper.interpolated.times))
-                        private$i.element.backgrounds[[quantity.name]] = calculate.taper.interpolated.times(private$i.element.backgrounds[[quantity.name]])
-                    
-                    bkgd = private$i.element.backgrounds[[quantity.name]]
-                    private$i.quantity.self.times[[quantity.name]] = c(bkgd$ramp.interpolated.times,
-                                                                       bkgd$functional.form.times,
-                                                                       bkgd$taper.interpolated.times)
-                }
+                if (private$i.element.backgrounds[[element.name]]$is.static)
+                    private$i.element.background.self.times[[element.name]] = 
+                        private$i.element.self.background.times[[element.name]] = numeric() #we'll let the foreground overwrite things
                 else
                 {
-                    # Figure out which elements go into this quantity and contribute to the time
-                    dependee.element.names = specification$get.dependee.element.names(quantity.name)
-                    dynamic.dependee.element.names = dependee.element.names[!i.quantity.is.static[dependee.element.names]]
+                    if (is.null(private$i.element.backgrounds[[element.name]]$ramp.interpolated.times))
+                        private$i.element.backgrounds[[element.name]] = calculate.ramp.interpolated.times(private$i.element.backgrounds[[element.name]])
+                    if (is.null(private$i.element.backgrounds[[element.name]]$functional.form.times))
+                        private$i.element.backgrounds[[element.name]] = calculate.functional.form.times(private$i.element.backgrounds[[element.name]])
+                    if (is.null(private$i.element.backgrounds[[element.name]]$taper.interpolated.times))
+                        private$i.element.backgrounds[[element.name]] = calculate.taper.interpolated.times(private$i.element.backgrounds[[element.name]])
                     
-                    # Make sure there are self times for each dependee element
-                    null.dependee.element.names = dynamic.dependee.element.names[as.logical(sapply(i.quantity.self.times[dynamic.dependee.element.names], is.null))]
-                    sapply(null.dependee.element.names, calculate.quantity.self.times)
-                    
-                    # The self times is the union of all the dependee self times
-                    private$i.quantity.self.times[[quantity.name]] = union_sorted_vectors(i.quantity.self.times[dynamic.dependee.element.names])
+                    bkgd = private$i.element.backgrounds[[element.name]]
+                    private$i.element.background.self.times[[element.name]] = 
+                        c(bkgd$ramp.interpolated.times,
+                          bkgd$functional.form.times,
+                          bkgd$taper.interpolated.times)
                 }
             }
             
+            # Done
+            invisible(self)
+        },
+        
+        clear.element.background.self.times = function(element.names)
+        {
+            # Clear the times
+            private$i.element.background.self.times[element.names] = NULL
             
-            # A debugging check
-            if (length(i.quantity.self.times[[quantity.name]])==0)
-                browser()
-            
-            # Add in the foreground times
-            private$calculate.quantity.self.foreground.times(quantity.name)
-            if (length(private$i.quantity.self.foreground.times[[quantity.name]])>0)
-                private$i.quantity.self.times[[quantity.name]] = 
-                    union_sorted_vectors(list(private$i.quantity.self.times[[quantity.nae]],
-                                              private$i.quantity.self.foreground.times[[quantity.name]]))
+            # Clear top-level self-times for top-level quantities that depend on this element
+            # Clear top-level value-may-not-apply times for top-level quantities that depend on this element
+            specification = get.specification()
+            top.level.quantities = specification$get.dependent.top.level.quantity.names(element.names)
+            dynamic.top.level.quantities = top.level.quantities[ !private$i.quantity.is.static[top.level.quantities] ]
+            private$clear.top.level.self.times(dynamic.top.level.quantities)
+            private$clear.top.level.value.may.not.apply.times(dynamic.top.level.quantities)
             
             # Done
             invisible(self)
@@ -2053,7 +2159,7 @@ stop("need to implement")
                 element = private$get.specification()$get.quantity(bkgd$name)
                 if (bkgd$functional.form$type == 'linear spline' && bkgd$functional.form$link$type=='identity' &&
                     element$functional.form.scale == element$scale) 
-                            #If these conditions are true, we can just let the native interpolation take care of the in-between points
+                    #If these conditions are true, we can just let the native interpolation take care of the in-between points
                     functional.form.times = bkgd$functional.form$knot.times[bkgd$functional.form$knot.times>=from.time & bkgd$functional.form$knot.times<=to.time]
                 else
                     functional.form.times = ceiling(from.time):floor(to.time)
@@ -2079,9 +2185,9 @@ stop("need to implement")
             {
                 element = get.specification()$get.quantity(bkgd$name)
                 bkgd$ramp.interpolated.times = element$calculate.ramp.interpolated.times(ramp.times = bkgd$ramp.times,
-                                                                                        functional.form.from.time = bkgd$functional.form.from.time)
+                                                                                         functional.form.from.time = bkgd$functional.form.from.time)
                 bkgd$ramp.interpolated.times = bkgd$ramp.interpolated.times[bkgd$ramp.interpolated.times >= i.run.from.time &
-                                                                              bkgd$ramp.interpolated.times <= i.run.to.time]
+                                                                                bkgd$ramp.interpolated.times <= i.run.to.time]
             }
             
             bkgd
@@ -2096,18 +2202,21 @@ stop("need to implement")
             {
                 element = get.specification()$get.quantity(bkgd$name)
                 bkgd$taper.interpolated.times = element$calculate.taper.interpolated.times(taper.times = bkgd$taper.times,
-                                                                                          functional.form.to.time = bkgd$functional.form.to.time)
+                                                                                           functional.form.to.time = bkgd$functional.form.to.time)
                 bkgd$taper.interpolated.times = bkgd$taper.interpolated.times[bkgd$taper.interpolated.times >= i.run.from.time &
-                                                                                bkgd$taper.interpolated.times <= i.run.to.time]
+                                                                                  bkgd$taper.interpolated.times <= i.run.to.time]
             }
             
             bkgd
         },
         
-        calculate.quantity.self.foreground.times = function(quantity.name)
+        
+        #-- Quantity Foreground Self Times --#
+        
+        calculate.quantity.foreground.self.times = function(quantity.name)
         {
             if (is.null(private$i.resolved.foregrounds[[quantity.name]]))
-                private$i.quantity.self.foreground.times[[quantity.name]] = numeric()
+                private$i.quantity.foreground.self.times[[quantity.name]] = numeric()
             else
             {
                 times.from.foregrounds = lapply(private$i.resolved.foregrounds[[quantity.name]], function(frgd){
@@ -2115,8 +2224,8 @@ stop("need to implement")
                     
                     # Make sure we have a start time to interpolate from if start to first spans the start time for a 'value' effect type
                     required.start.times = frgd$start.time.by.effect[frgd$scale.by.effect=='value' & 
-                                                                          frgd$min.effect.time.by.effect > private$i.run.from.time &
-                                                                          frgd$start.time.by.effect < private$i.run.from.time] # if == on this line, would already be in frgd.times above
+                                                                         frgd$min.effect.time.by.effect > private$i.run.from.time &
+                                                                         frgd$start.time.by.effect < private$i.run.from.time] # if == on this line, would already be in frgd.times above
                     required.start.times[is.infinite(required.start.times)] = private$i.run.from.time
                     
                     
@@ -2135,69 +2244,199 @@ stop("need to implement")
                 })
                 
                 if (length(times.from.foregrounds)==1)
-                    private$i.quantity.self.foreground.times[[quantity.name]] = times.from.foregrounds[[1]]
+                    private$i.quantity.foreground.self.times[[quantity.name]] = times.from.foregrounds[[1]]
                 else
-                    private$i.quantity.self.foreground.times[[quantity.name]] = union_sorted_vectors(times.from.foregrounds)
+                    private$i.quantity.foreground.self.times[[quantity.name]] = union_sorted_vectors(times.from.foregrounds)
             }
             
             invisible(self)
         },
         
-        calculate.value.may.not.apply.times = function(quantity.name)
+        clear.quantity.foreground.self.times = function(quantity.names)
         {
-            stop('need to implement')
-        },
-        
-        i.quantity.self.foreground.times = NULL,
-        
-        # Broadly speaking, "value" times are the times for which a quantity needs to produce values
-        #   EITHER for it's own time-varying changes OR to merge with other quantities in a higher-level
-        #   quantity that depends on it and other quantities
-        # For a non-element quantity, value times are:
-        # - 'all' if all the quantity is static
-        # - The union of this quantity's self-times and the self-times of any quantities that depend on it
-        #   (functionally, we use only the top-level quantities that depend on it, since that is equivalent but with fewer quantities)
-        calculate.quantity.value.times = function(quantity.name)
-        {
-            if (i.quantity.is.static[quantity.name])
-            {
-                private$i.quantity.value.times[[quantity.name]] = 'all'
-            }
-            else
-            {
-                specification = get.specification()
-                quantity = specification$get.quantity(quantity.name)
-                
-                # Pull the top-level quantities that depend on this quantity
-                top.level.dependent.names = specification$get.dependent.top.level.quantity.names(quantity.name)
-                dynamic.top.level.dependent.names = top.level.dependent.names[!i.quantity.is.static[top.level.dependent.names]]
-                
-                # If this is a top-level quantity, we need to include the self times for the quantity itself
-                if (any(specification$top.level.quantity.names==quantity.name))
-                    dynamic.top.level.dependent.names = c(quantity.name, dynamic.top.level.dependent.names)
-                
-                # Make sure self times are calculated for each of these
-                null.top.level.dependent.names = dynamic.top.level.dependent.names[as.logical(sapply(i.quantity.self.times[dynamic.top.level.dependent.names], is.null))]
-                sapply(null.top.level.dependent.names, calculate.quantity.self.times)
-
-                # Union the self times for each dependent top-level quantity
-                # (and the self-time for this quantity if it is top-level)
-                private$i.quantity.value.times[[quantity.name]] = union_sorted_vectors(i.quantity.self.times[dynamic.top.level.dependent.names])
-            }
+            # Clear the times
+            private$i.quantity.foreground.self.times[quantity.names] = NULL
             
-            # Notify diffeq settings
-            private$i.diffeq.settings = notify.diffeq.settings.of.quantity.values.change(private$i.diffeq.settings,
-                                                                                         quantity.name = quantity.name)
-            
-            # A debugging check
-            if (length(i.quantity.value.times[[quantity.name]])==0)
-                 browser()
+            # Clear the top-level-quantity self-times for top-level quantities that depend on this one
+            specification = get.specification()
+            top.level.quantities = specification$get.dependent.top.level.quantity.names(quantity.names)
+            dynamic.top.level.quantities = top.level.quantities[ !private$i.quantity.is.static[top.level.quantities] ]
+            private$clear.top.level.self.times(dynamic.top.level.quantities)
             
             # Done
             invisible(self)
         },
         
         
+        #-- Top-Level Self Times --#
+        
+        # The *top.level.self.times* for a top.level.quantity is the union of:
+        #   All *element.background.self.times* for any element that the quantity depends on
+        #   All *quantity.foreground.self.times* for any quantity that the top.level.quantity depends on
+        calculate.top.level.self.times = function(top.level.name)
+        {
+            if (private$i.quantity.is.static[top.level.name])
+                private$i.top.level.self.times[[top.level.name]] = 'all'
+            else
+            {
+                specification = private$get.specification()
+                
+                # Pull the elements this depends on, and make sure their background self times are calculated
+                dependee.elements = specification$get.dependee.element.names(top.level.name)
+                dynamic.dependee.elements = dependee.elements[ !private$i.quantity.is.static[dependee.elements] ]
+                null.dependee.element.times.mask = as.logical(sapply(private$i.element.background.self.times[dynamic.dependee.elements], is.null))
+                sapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
+                
+                # Pull the quantities this depends on, and make sure their foreground self times are calculated
+                dependee.quantities = specification$get.dependee.quantity.names(top.level.name)
+                dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
+                null.dependee.quantity.times.mask = as.logical(sapply(private$i.quantity.foreground.self.times[dynamic.dependee.quantities], is.null))
+                sapply(dynamic.dependee.quantities[null.dependee.quantity.times.mask], private$calculate.quantity.foreground.self.times)
+                
+                # top.level.self.times is the union of these times
+                private$i.top.level.self.times[[top.level.name]] = union_sorted_vectors(c(private$i.element.background.self.times[dynamic.dependee.elements],
+                                                                                          private$i.quantity.foreground.self.times[dynamic.dependee.quantities]))
+            }
+            
+            invisible(self)
+        },
+        
+        clear.top.level.self.times = function(top.level.names)
+        {
+            # Clear the times
+            private$i.quantity.value.all.apply.times[top.level.names] = NULL
+            
+            # Clear value.times for dependee.quantities
+            specification = get.specification()
+            dependee.quantities = specification$get.dependee.quantity.names(top.level.names)
+            dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
+            private$clear.quantity.value.times(dynamic.dependee.quantities)
+            
+            # Done
+            invisible(self)
+        },
+        
+        
+        #-- Quantity Value All Apply Times --#
+        
+        # When a quantity has a foreground set, it may have more value.times than it otherwise would
+        # (ie, it has the foreground times in addition to the background times)
+        # However, the foreground may not apply to every value in the quantity, which would mean that
+        #   the values for the quantity unaffected by the foreground are DIFFERENT than they would be
+        #   without that foreground set (ie, there are additional times for which background values are
+        #   calculated, which, with the way we interpolate, means they may result in different behavior
+        #   for top-level quantities)
+        # To avoid this, we also calculate a mask that indicates whether the values in each cell of an
+        #   element of i.quantity.values should apply at a given time
+        # We build this mask by calculating from the bottom (elements), up, and propagating the mask
+        #   (the mask gets overwritten with T anytime a foreground is applied).
+        # This is potentially expensive, so we only want to bother to do it when we need to - times,
+        #   when it would make a difference, which is only in top-level quantities
+        # For a top-level quantity, the times at which all values may not apply are times when no
+        #   dependee has a background set - so we only have to bother calculating a mask at these times
+        #   (we can simplify further by saying times when no dependee ELEMENT has a background set)
+        # Since the 'value.applies.mask' mask only matters for top-level quantities, we can save ourselves some work 
+        #   and say that, for quantities which are not top-level quantities, the times at which values
+        #   may not apply is the union of times-that-may-not-apply for all top-level quantities that depend on
+        #   this quantity
+        # And, in general, the times at which all values definitely apply is the setdiff of
+        #   value times and times where not all values necessarily apply
+        
+        # The quantity.value.all.apply.times for a quantity is the setdiff of
+        #   The quantity's *value.times* minus
+        #   The union of *top.level.value.may.not.apply.times* for every top.level.quantity that depends on this quantity
+        calculate.quantity.value.all.apply.times = function(quantity.name)
+        {
+            if (private$i.quantity.is.static[quantity.name])
+                private$i.quantity.value.all.apply.times[[quantity.name]] = 'all'
+            else
+            {
+                specification = private$get.specification()
+                
+                # Make sure the value times for this quantity are calculated
+                if (is.null(private$i.quantity.value.times[[quantity.name]]))
+                    private$calculate.quantity.value.times(quantity.name)
+                
+                # Pull the top-level quantities that depend on this, and make sure their value-may-not-apply times are calculated
+                top.level.quantities = specification$get.dependent.top.level.quantity.names(quantity.name)
+                dynamic.top.level.quantities = top.level.quantities[ !private$i.quantity.is.static[top.level.quantities] ]
+                null.top.level.times.mask = as.logical(sapply(private$i.top.level.value.may.not.apply.times[dynamic.top.level.quantities], is.null))
+                sapply(dynamic.top.level.quantities[null.top.level.times.mask], private$calculate.top.level.value.may.not.apply.times)
+                
+                # union the top-level value-may-not-apply times
+                all.may.not.apply.times = union_sorted_vectors(private$i.top.level.value.may.not.apply.times[dynamic.top.level.quantities])
+                
+                # value.may.not.apply.times is the setdiff of value times and the may-not-apply times
+                private$i.quantity.value.all.apply.times[[quantity.name]] = setdiff_sorted_vectors(private$i.quantity.value.times[[quantity.name]],
+                                                                                                   all.may.not.apply.times)
+            }
+            
+            invisible(self)
+        },
+        
+        clear.quantity.value.all.apply.times = function(quantity.names)
+        {
+            # Clear the times
+            private$i.quantity.value.all.apply.times[quantity.names] = NULL
+            
+            # Done
+            invisible(self)
+        },
+        
+        
+        #-- Top-Level Value May Not Apply Times --#
+        
+        # The *top.level.value.may.not.apply.times* for a top.level.quantity is the setdiff of
+        #   The top.level.quantity's *value.times* minus
+        #   The union of *element.background.self.times* for all elements that the quantity depends on
+        calculate.top.level.value.may.not.apply.times = function(top.level.name)
+        {
+            
+            if (private$i.quantity.is.static[top.level.name])
+                private$i.top.level.value.may.not.apply.times[[top.level.name]] = numeric()
+            else
+            {
+                specification = private$get.specification()
+                
+                # Make sure the value times for this quantity are calculated
+                if (is.null(private$i.quantity.value.times[[top.level.name]]))
+                    private$calculate.quantity.value.times(top.level.name)
+                
+                # Pull the elements this depends on, and make sure their background self times are calculated
+                dependee.elements = specification$get.dependee.element.names(top.level.name)
+                dynamic.dependee.elements = dependee.elements[ !private$i.quantity.is.static[dependee.elements] ]
+                null.dependee.element.times.mask = as.logical(sapply(private$i.element.background.self.times[dynamic.dependee.elements], is.null))
+                sapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
+                
+                # union the background.self.times
+                all.background.times = union_sorted_vectors(private$i.element.background.self.times[dynamic.dependee.elements])
+                
+                # value.may.not.apply.times is the setdiff of value times and the background times
+                private$i.top.level.value.may.not.apply.times[[top.level.name]] = setdiff_sorted_vectors(private$i.quantity.value.times[[top.level.name]],
+                                                                                                         all.background.times)
+                
+            }
+            
+            invisible(self)
+        },
+        
+        clear.top.level.value.may.not.apply.times = function(top.level.names)
+        {
+            # Clear the times
+            private$i.top.level.value.may.not.apply.times[top.level.names] = NULL
+            
+            # Clear quantity.value.all.apply.times for all quantities that these top-level quantities depend on
+            specification = get.specification()
+            dependee.quantities = specification$get.dependee.quantity.names(top.level.names)
+            dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
+            private$clear.quantity.value.all.apply.times(dynamic.dependee.quantities)
+            
+            # Done
+            invisible(self)
+        },
+        
+        
+    
         
         ##-----------------------------------------##
         ##-- CALCULATING QUANTITY/ELEMENT VALUES --##
@@ -2215,246 +2454,306 @@ stop("need to implement")
         calculate.quantity.value = function(quantity.name, check.consistency,
                                             depth=0) #depth is for debugging
         {
-            # For debugging
-            if (is.element.name(quantity.name))
-                print(paste0(paste0(rep(" ", depth), collapse=''),
-                             "-Calculate element '", quantity.name, "'"))
-            else
-                print(paste0(paste0(rep(" ", depth), collapse=''),
-                             "-Calculate quantity '", quantity.name, "'"))
+            # Figure out what times values are missing for
+            if (is.null(private$i.quantity.value.times[[quantity.name]]))
+                private$calculate.quantity.value.times(quantity.name)
+            required.times = as.character(private$i.quantity.value.times[[quantity.name]])
             
-            if (is.element.name(quantity.name))
-                calculate.element.value(quantity.name, check.consistency=check.consistency)
-            else
+            if (private$i.quantity.is.static[quantity.name])
             {
-                #-- Set-up Times --#
-                if (is.null(private$i.quantity.value.times[[quantity.name]]))
-                    calculate.quantity.value.times(quantity.name)
-                required.times = as.character(private$i.quantity.value.times[[quantity.name]])
-                missing.times = setdiff(required.times, names(private$i.quantity.values[[quantity.name]]))
- 
-                #-- Fill in missing values --#
-                if (length(missing.times)>0)
+                if (is.null(private$i.quantity.values[['all']]))
+                    missing.times = 'all'
+                else
+                    missing.times = numeric()
+            }
+            else
+                missing.times = setdiff_sorted_vectors(private$i.quantity.value.times[[quantity.name]], 
+                                                       as.numeric(names(private$i.quantity.values[[quantity.name]])))
+
+            # If missing values, calculate them
+            if (length(missing.times)>0)
+            {
+                quantity = private$get.specification()$get.quantity(quantity.name)
+                
+                #-- For debugging --#
+#                if (is.element.name(quantity.name))
+#                    print(paste0(paste0(rep(" ", depth), collapse=''),
+#                                 "-Calculate element '", quantity.name, "'"))
+#                else
+#                    print(paste0(paste0(rep(" ", depth), collapse=''),
+#                                 "-Calculate quantity '", quantity.name, "'"))
+                
+                #-- Set up the value.all.apply.times --#
+                if (is.null(private$i.quantity.value.all.apply.times[[quantity.name]]))
+                    private$calculate.quantity.value.all.apply.times(quantity.name)
+                
+                if (is.null(private$i.quantity.value.applies.mask[[quantity.name]]))
+                    private$i.quantity.value.applies.mask[[quantity.name]] = list()
+                
+                if (length(quantity$depends.on)==0)
+                    private$i.quantity.value.applies.mask[[quantity.name]][as.character(private$i.quantity.value.times)] = F
+                
+                private$i.quantity.value.applies.mask[[quantity.name]][as.character(private$i.quantity.value.all.apply.times)] = T
+                private$i.quantity.value.applies.mask[[quantity.name]] = private$i.quantity.value.applies.mask[[quantity.name]][as.character(required.times)]
+                
+                
+                #-- Fill in the background --#
+                if (is.element.name(quantity.name))
+                    private$calculate.element.background.value(quantity.name, 
+                                                               missing.times = missing.times, 
+                                                               check.consistency = check.consistency)
+                else
+                    private$calculate.quantity.background.value(quantity.name, 
+                                                                missing.times = missing.times, 
+                                                                depth = depth,
+                                                                check.consistency = check.consistency)
+                
+                
+                #-- Fold in foreground if there is any --#
+                foregrounds = private$i.resolved.foregrounds[[quantity.name]]
+                if (length(foregrounds)>0)
                 {
-                    quantity = get.specification()$get.quantity(quantity.name)
+                    if (length(private$i.quantity.foreground.effect.indices[[quantity.name]]) < length(foregrounds))
+                        private$calculate.foreground.effect.indices(quantity.name)
+                  
+                    # The cpp function does all the work - hooray!
+                    values.and.after.values = apply_foregrounds(values = private$i.quantity.values[[quantity.name]],
+                                                                value_times = private$i.quantity.value.times[[quantity.name]],
+                                                                after_values = private$i.quantity.after.values[[quantity.name]],
+                                                                times_to_apply_to = missing.times,
+                                                                foregrounds = foregrounds,
+                                                                indices_per_effect_per_foreground = private$i.quantity.foreground.effect.indices[[quantity.name]],
+                                                                scale = quantity$scale)
                     
-                    #-- Make sure the dependee quantities are all calculated --#
-                    sapply(quantity$depends.on, calculate.quantity.value, check.consistency=check.consistency, depth=depth+1)
+                    # Save the results
+                    private$i.quantity.values[[quantity.name]] = values.and.after.values$values
+                    private$i.quantity.after.values[[quantity.name]] = values.and.after.values$after.values
                     
-                    #-- Loop through missing times --#
-                    private$i.quantity.values[[quantity.name]][missing.times] = lapply(missing.times, function(time){
+                    # Update the value.applies.mask
+                    update.value.applies.times = setdiff_sorted_vectors(missing.times, private$i.quantity.value.all.apply.times[[quantity.name]])
+                    private$i.quantity.value.applies.mask[as.character(update.value.applies.times)] = lapply(update.value.applies.times, function(time){
+                        mask = private$i.quantity.value.applies.mask[[quantity.name]][[as.character(time)]]
                         
-                        #-- Calculate the values for each component --#
-                        component.values = lapply(1:quantity$n.components, function(i){
-                            
-                            #-- Pull the component and set up the error prefix --#
-                            comp = quantity$components[[i]]
-                            
-                            if (i==1)
-                                error.prefix = paste0("Error evaluating value for quantity '", quantity.name, " at time ", time, ": ")
-                            else
-                                error.prefix = paste0("Error evaluating value for the ", get.ordinal(i-1), " subset of quantity '", quantity.name, " at time ", time, ": ")
-                            
-                            #-- Calculate dim.names (if we need to and we can) --#
-                            if ((length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
-                                 is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) &&
-                                comp$value.type!='function')
-                                calculate.quantity.component.dim.names(quantity, component.index=i)
-                   
-                            #-- Bind the depends-on quantities --#
-                            bindings = lapply(comp$depends.on, function(dep.on){
-                                
-                                if (i.quantity.is.static[dep.on])
-                                    values = private$i.quantity.values[[dep.on]][['all']]
-                                else
-                                    values = private$i.quantity.values[[dep.on]][[time]]
-                                
-                                if (comp$value.type == 'expression')
-                                {
-                                    if (length(private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on) < i ||
-                                        is.null(private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on[[i]][[dep.on]]))
-                                    {
-                                        private$calculate.quantity.component.depends.on.indices(quantity, 
-                                                                                                component.index = i,
-                                                                                                depends.on = dep.on)
-                                    } 
-                                    dep.on.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on[[i]][[dep.on]]
-                                    
-                                    values[dep.on.indices]
-                                }
-                                else
-                                    values
-                            })
-                            names(bindings) = comp$depends.on
-                            
-                            #-- Calculate the value --#
-                            bindings$specification.metadata = self$specification.metadata
-                            bindings$location = private$i.location
-                            
-                            value = comp$evaluate(bindings = bindings,
-                                                  error.prefix = error.prefix)
-                            
-                            #-- If a function value.type, check the returned value and set its dim.names if needed --#
-                            if (comp$value.type=='function')
+                        if (length(mask)==1)
+                            mask = array(mask,
+                                         dim = sapply(private$i.quantity.dim.names[[quantity.name]], length),
+                                         dimnames = private$i.quantity.dim.names[[quantity.name]])
+                        
+                        for (frgd in foregrounds)
+                        {
+                            for (i in 1:length(frgd$effects))
                             {
-                                if (check.consistency)
-                                    check.function.quantity.component.value(value, quantity=quantity, component.index=i,
-                                                                            time=time, error.prefix=error.prefix)
-                                
-                                if ((length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
-                                     is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) ||
-                                    (check.consistency && time == missing.times[1]))
-                                    calculate.quantity.component.dim.names(quantity, 
-                                                                           component.index = i,
-                                                                           value.for.function = value)
-                                
-                                if (check.consistency && !dim.names.equal(dim.names.1 = private$i.quantity.component.dim.names[[quantity.name]][[i]],
-                                                                        dim.names.2 = dimnames(value),
-                                                                        match.order.of.dimensions = T,
-                                                                        match.order.within.dimensions = T))
-                                    stop(paste0(error.prefix,
-                                                "The dimnames for the value calculated at time ", time,
-                                                " do not match the dimnames of values for previous times"))
-                                    
-                            }
-                            
-                            #-- A check --#
-                            if (length(value)==0)
-                                browser()
-                            
-                            #-- Return --#
-                            value
-                        })
-                        
-                        #-- Recalculate the dim.names if needed --#
-                        if (is.null(i.quantity.dim.names[[quantity.name]]))
-                            calculate.quantity.dim.names(quantity)
-                            
-                        rv = NULL                   
-                        #-- Incorporate each component into the quantity value --#
-                        for (i in 1:quantity$n.components)
-                        {
-                            comp = quantity$components[[i]]
-                            value = component.values[[i]]
-                            
-                            #-- Recalculate the indices if we need to --#
-                            if (length(private$i.quantity.mapping.indices[[quantity.name]]$components.expand)<i || 
-                                is.null(private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]))
-                                private$calculate.quantity.component.expand.access.indices(quantity, component.index=i)
-                            
-                            #-- Pull the access/expand indices --#
-                            expand.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]
-                            access.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.access[[i]]
-                            
-               #     if (quantity.name == 'sexual.contact.by.race')        
-                #        browser()
-                            # Fold it in to the rv
-                            if (is.null(access.indices))
-                                rv = value[expand.indices]
-                            else if (comp$apply.function=='overwrite')
-                                #rv = do_access_overwrite(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                                 rv[access.indices] = value[expand.indices]
-                            else if (comp$apply.function=='add')
-                                #rv = do_access_add(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                                 rv[access.indices] = rv[access.indices] + value[expand.indices]
-                            else if (comp$apply.function=='subtract')
-                                #rv = do_access_subtract(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                                 rv[access.indices] = rv[access.indices] - value[expand.indices]
-                            else if (comp$apply.function=='multiply')
-                                #rv = do_access_multiply(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                                 rv[access.indices] = rv[access.indices] * value[expand.indices]
-                            else if (comp$apply.function=='divide')
-                                #rv = do_access_divide(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                                 rv[access.indices] = rv[access.indices] / value[expand.indices]
-                            else
-                                stop(paste0("Invalid apply.function '", comp$apply.function, "' for model quantity '", quantity.name,
-                                            "'. Must be one of 'overwrite', 'add', 'subtract', 'multiply', or 'divide'"))
+                                effect = frgd$effects[i]
+                                if (effect$start.time <= time && effect$end.time >= time)
+                                {
+                                    indices = private$i.quantity.foreground.effect.indices[[quantity.name]][[i]]
+                                    mask[indices] = T
+                                }
+                            }   
                         }
                         
-                        #-- Check for NA --#
-                        if (any(is.na(rv)))
-                            browser()
-#                            stop(paste0(paste0("Error calculating values for model quantity '", quantity.name, "': NA values were generated")))
-                        
-                        if (length(rv)==0)
-                            browser()
-                        
-                        #-- Set the dimnames and return --#
-                        if (length(private$i.quantity.dim.names[[quantity.name]]) > 0)
-                        {
-                            dim(rv) = sapply(private$i.quantity.dim.names[[quantity.name]], length)
-                            dimnames(rv) = private$i.quantity.dim.names[[quantity.name]]
-                        }
-                        rv
+                        mask
                     })
-                    
-                    #-- Order the values by time --#
-                    private$i.quantity.values[[quantity.name]] = private$i.quantity.values[[quantity.name]][required.times]
                 }
+                
+                
+                #-- Check scale --#
+                if (check.consistency && !is.null(quantity$scale))
+                    check.values.for.model.scale(values = private$i.quantity.values[[quantity.name]][as.character(missing.times)], 
+                                                 scale = quantity$scale, 
+                                                 variable.name.for.error = "the calculated values",
+                                                 error.prefix =  paste0("Error calculating values for model quantity '", quantity.name, "': "))
             }
-            
-            
-            #-- Fold in foreground if there is any --#
-            if (length(private$i.resolved.foregrounds[[quantity.name]])>0)
-            {
-                for (foreground.id in names(private$i.resolved.foregrounds))
-                {
-                    foreground = private$i.resolved.foregrounds[[foreground.id]]
-                    if (is.null(private$i.quantity.foreground.effect.indices[[quantity.name]][[foreground.id]]))
-                        private$calculate.foreground.effect.indices(quantity.name, foreground.id)
-                    
-                    # Overwrite into the values
-                    for (scale in foreground$distinct.scales)
-                    {
-                        foreground.times = as.character(foreground$get.all.times.for.scale(scale))
-                stop('this is not right')
-                        
-                        # Convert to the scale
-                        private$i.quantity.values[[quantity.name]][[foreground.times]] =
-                            convert.model.scale(private$i.quantity.values[[quantity.name]][[foreground.times]],
-                                                convert.from.scale = quantity$scale,
-                                                convert.to.scale = scale)
-                        
-                        # Fold in the foreground
-                        private$i.quantity.values[[quantity.name]][[foreground.times]] = 
-                            apply_foreground_values(values = private$i.quantity.values[[quantity.name]][[foreground.times]],
-                                                    effects = foreground$get.effects.for.scale(scale),
-                                                    indices_per_effect = private$i.quantity.foreground.effect.indices[[quantity.name]][[foreground.id]][foreground$get.effect.indices.for.scale])
-                        
-                        # Convert the scale back
-                        private$i.quantity.values[[quantity.name]][[foreground.times]] =
-                            convert.model.scale(private$i.quantity.values[[quantity.name]][[foreground.times]],
-                                                convert.from.scale = scale,
-                                                convert.to.scale = quantity$scale)
-                    }
-                    
-                    # Set the use.value matrix
-                }
-            }
-            
-            
-            #-- Check scale --#
-            if (check.consistency && !is.null(quantity$scale))
-                check.values.for.model.scale(values = rv, 
-                                             scale = quantity$scale, 
-                                             variable.name.for.error = paste0("the calculated values at time ", time),
-                                             error.prefix =  paste0("Error calculating values for model quantity '", quantity.name, "': "))
             
             #-- Done --#
             invisible(self)
         },
 
+        calculate.quantity.background.value = function(quantity.name, missing.times,
+                                                       depth, check.consistency)
+        {
+            missing.times = as.character(missing.times)
+            
+            #-- Fill in missing values --#
+            quantity = private$get.specification()$get.quantity(quantity.name)
+            
+            #-- Make sure the dependee quantities are all calculated --#
+            sapply(quantity$depends.on, calculate.quantity.value, check.consistency=check.consistency, depth=depth+1)
+            
+            #-- Loop through missing times --#
+            for (time in missing.times)
+            {
+                for (is.after.time in c(F,T)[c(T, all(private$i.quantity.value.all.apply.times != time))])
+                {
+                    
+                    
+                    if (is.after.time)
+                        private$i.quantity.after.values[[as.character(time)]] = value
+                    else
+                        private$i.quantity.values[[as.character(time)]] = value
+                }
+            }
+            
+            private$i.quantity.values[[quantity.name]][missing.times] = lapply(missing.times, function(time){
+                
+                #-- Calculate the values for each component --#
+                component.values = lapply(1:quantity$n.components, function(i){
+                    
+                    #-- Pull the component and set up the error prefix --#
+                    comp = quantity$components[[i]]
+                    
+                    if (i==1)
+                        error.prefix = paste0("Error evaluating value for quantity '", quantity.name, " at time ", time, ": ")
+                    else
+                        error.prefix = paste0("Error evaluating value for the ", get.ordinal(i-1), " subset of quantity '", quantity.name, " at time ", time, ": ")
+                    
+                    #-- Calculate dim.names (if we need to and we can) --#
+                    if ((length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
+                         is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) &&
+                        comp$value.type!='function')
+                        calculate.quantity.component.dim.names(quantity, component.index=i)
+                    
+                    #-- Bind the depends-on quantities --#
+                    bindings = lapply(comp$depends.on, function(dep.on){
+                        
+                        if (i.quantity.is.static[dep.on])
+                            values = private$i.quantity.values[[dep.on]][['all']]
+                        else
+                            values = private$i.quantity.values[[dep.on]][[time]]
+                        
+                        if (comp$value.type == 'expression')
+                        {
+                            if (length(private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on) < i ||
+                                is.null(private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on[[i]][[dep.on]]))
+                            {
+                                private$calculate.quantity.component.depends.on.indices(quantity, 
+                                                                                        component.index = i,
+                                                                                        depends.on = dep.on)
+                            } 
+                            dep.on.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on[[i]][[dep.on]]
+                            
+                            values[dep.on.indices]
+                        }
+                        else
+                            values
+                    })
+                    names(bindings) = comp$depends.on
+                    
+                    #-- Calculate the value --#
+                    bindings$specification.metadata = self$specification.metadata
+                    bindings$location = private$i.location
+                    
+                    value = comp$evaluate(bindings = bindings,
+                                          error.prefix = error.prefix)
+                    
+                    #-- If a function value.type, check the returned value and set its dim.names if needed --#
+                    if (comp$value.type=='function')
+                    {
+                        if (check.consistency)
+                            check.function.quantity.component.value(value, quantity=quantity, component.index=i,
+                                                                    time=time, error.prefix=error.prefix)
+                        
+                        if ((length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
+                             is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) ||
+                            (check.consistency && time == missing.times[1]))
+                            calculate.quantity.component.dim.names(quantity, 
+                                                                   component.index = i,
+                                                                   value.for.function = value)
+                        
+                        if (check.consistency && !dim.names.equal(dim.names.1 = private$i.quantity.component.dim.names[[quantity.name]][[i]],
+                                                                  dim.names.2 = dimnames(value),
+                                                                  match.order.of.dimensions = T,
+                                                                  match.order.within.dimensions = T))
+                            stop(paste0(error.prefix,
+                                        "The dimnames for the value calculated at time ", time,
+                                        " do not match the dimnames of values for previous times"))
+                        
+                    }
+                    
+                    #-- A check --#
+                    if (length(value)==0)
+                        browser()
+                    
+                    #-- Return --#
+                    value
+                })
+                
+                #-- Recalculate the dim.names if needed --#
+                if (is.null(i.quantity.dim.names[[quantity.name]]))
+                    calculate.quantity.dim.names(quantity)
+                
+                rv = NULL                   
+                #-- Incorporate each component into the quantity value --#
+                for (i in 1:quantity$n.components)
+                {
+                    comp = quantity$components[[i]]
+                    value = component.values[[i]]
+                    
+                    #-- Recalculate the indices if we need to --#
+                    if (length(private$i.quantity.mapping.indices[[quantity.name]]$components.expand)<i || 
+                        is.null(private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]))
+                        private$calculate.quantity.component.expand.access.indices(quantity, component.index=i)
+                    
+                    #-- Pull the access/expand indices --#
+                    expand.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]
+                    access.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.access[[i]]
+                    
+                    #     if (quantity.name == 'sexual.contact.by.race')        
+                    #        browser()
+                    # Fold it in to the rv
+                    if (is.null(access.indices))
+                        rv = value[expand.indices]
+                    else if (comp$apply.function=='overwrite')
+                        #rv = do_access_overwrite(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
+                        rv[access.indices] = value[expand.indices]
+                    else if (comp$apply.function=='add')
+                        #rv = do_access_add(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
+                        rv[access.indices] = rv[access.indices] + value[expand.indices]
+                    else if (comp$apply.function=='subtract')
+                        #rv = do_access_subtract(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
+                        rv[access.indices] = rv[access.indices] - value[expand.indices]
+                    else if (comp$apply.function=='multiply')
+                        #rv = do_access_multiply(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
+                        rv[access.indices] = rv[access.indices] * value[expand.indices]
+                    else if (comp$apply.function=='divide')
+                        #rv = do_access_divide(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
+                        rv[access.indices] = rv[access.indices] / value[expand.indices]
+                    else
+                        stop(paste0("Invalid apply.function '", comp$apply.function, "' for model quantity '", quantity.name,
+                                    "'. Must be one of 'overwrite', 'add', 'subtract', 'multiply', or 'divide'"))
+                }
+                
+                #-- Check for NA --#
+                if (any(is.na(rv)))
+                    browser()
+                #                            stop(paste0(paste0("Error calculating values for model quantity '", quantity.name, "': NA values were generated")))
+                
+                if (length(rv)==0)
+                    browser()
+                
+                #-- Set the dimnames and return --#
+                if (length(private$i.quantity.dim.names[[quantity.name]]) > 0)
+                {
+                    dim(rv) = sapply(private$i.quantity.dim.names[[quantity.name]], length)
+                    dimnames(rv) = private$i.quantity.dim.names[[quantity.name]]
+                }
+                rv
+            })
+            
+            #-- Order the values by time --#
+            private$i.quantity.values[[quantity.name]] = private$i.quantity.values[[quantity.name]][as.character(private$i.quantity.value.times[[quantity.name]])]
 
-        i.quantity.foreground.effect.indices = NULL,
+            # Done
+            invisible(self)
+        },
+        
 
         # interpolates ramp on the model scale
-        calculate.element.value = function(element.name, check.consistency)
+        calculate.element.background.value = function(element.name, missing.times, check.consistency)
         {
             element = private$get.specification()$get.quantity(element.name)
-            if (is.null(private$i.quantity.value.times[[element.name]]))
-                calculate.quantity.value.times(element.name)
             if (is.null(private$i.quantity.dim.names[[element.name]]))
-                calculate.quantity.dim.names(element)
+                private$calculate.quantity.dim.names(element)
             
             #-- First, if there is a functional form, make sure the alphas are crunched --#
             if (!is.null(private$i.element.backgrounds[[element.name]]$functional.form))
@@ -2474,19 +2773,9 @@ stop("need to implement")
             bkgd = private$i.element.backgrounds[[element.name]]
             
             #-- Now actually calculate --#
-            if (is.null(bkgd$functional.form) || bkgd$functional.form$is.static)
+            if (bkgd$is.static) #may no longer be static if we have a foreground
             {
-                missing.times = numeric()
-                if (private$i.quantity.is.static[element.name])
-                    need.to.calculate = is.null(i.quantity.values[['all']])
-                else
-                {
-                    missing.times = setdiff_sorted_vectors(private$i.quantity.value.times[[element.name]], 
-                                                           as.numeric(names(private$i.quantity.values[[element.name]])))
-                    need.to.calculate = length(missing.times)>0
-                }
-                
-                if (need.to.calculate)
+                if (length(missing.times)>0)
                 {
                     if (is.null(bkgd$functional.form))
                         value = bkgd$value
@@ -2515,8 +2804,6 @@ stop("need to implement")
             }
             else # The values are determined by functional form
             {
-                missing.times = setdiff_sorted_vectors(private$i.quantity.value.times[[element.name]], 
-                                                       as.numeric(names(private$i.quantity.values[[element.name]])))
                 if (length(missing.times)>0)
                 {
                     #-- Calculate functional form values --#
@@ -2935,15 +3222,29 @@ stop("need to implement")
             invisible(self)
         },
 
-        calculate.foreground.effect.indices = function(quantity.name, foreground.id)
+        calculate.foreground.effect.indices = function(quantity.name)
         {
-            indices.into.quantity = 1:prod(sapply(private$i.quantity.dim.names, length))
-            foreground = private$i.resolved.foregrounds[[quantity.name]][[foreground.id]]
-            private$i.foreground.effect.indices[[quantity.name]][[foreground.id]] = lapply(foreground$target.population.masks, function(tpop.mask){
-                
-                expand.tpop.mask.indices = get.expand.array.indices(to.expand.dim.names = dimnames(tpop.mask))
-                indices.into.quantity[ tpop.mask[expand.tpop.mask.indices] ]
-            })
+            foreground.ids = names(private$i.resolved.foregrounds[[quantity.name]])
+            
+            # Calculate the ones we're missing
+            for (foreground.id in foreground.ids)
+            {
+                if (is.null(private$i.quantity.foreground.effect.indices[[quantity.name]][[foreground.id]]))
+                {
+                    indices.into.quantity = 1:prod(sapply(private$i.quantity.dim.names, length))
+                    foreground = private$i.resolved.foregrounds[[quantity.name]][[foreground.id]]
+                    
+                    private$i.quantity.foreground.effect.indices[[quantity.name]][[foreground.id]] =
+                        lapply(foreground$target.population.masks, function(tpop.mask){
+                            expand.tpop.mask.indices = get.expand.array.indices(to.expand.dim.names = dimnames(tpop.mask))
+                            indices.into.quantity[ tpop.mask[expand.tpop.mask.indices] ]
+                        })
+                }
+            }
+            
+            # make sure we're in the right order
+            private$i.quantity.foreground.effect.indices[[quantity.name]] = 
+                private$i.quantity.foreground.effect.indices[[quantity.name]][foreground.ids]
             
             # Done
             invisible(self)
@@ -2992,38 +3293,34 @@ stop("need to implement")
         #      are calculated)
 
         # times == NULL --> clear all values
-        clear.dependent.values = function(element.name, times=NULL)
+        clear.dependent.values = function(quantity.name, clear.after.time=-Inf, clear.before.time=Inf)
         {
             specification = get.specification()
-            to.clear = c(element.name, specification$get.dependent.quantity.names(element.name))
+            to.clear = c(quantity.name, specification$get.dependent.quantity.names(element.name))
             
-            if (is.null(times))
+            if (clear.after.time == -Inf && clear.before.time == Inf)
             {
                 for (one.to.clear in to.clear)
+                {
                     private$i.quantity.values[[one.to.clear]] = list()
+                    private$i.quantity.after.values[[one.to.clear]] = list()
+                }
             }
             else
             {
-                time.indices = as.character(times)
                 for (one.to.clear in to.clear)
-                    private$i.quantity.values[[one.to.clears]][time.indices] = NULL
+                {
+                    value.times = as.numeric(names(private$i.quantity.values[[one.to.clear]]))
+                    to.clear.mask = value.times > clear.after.time & value.times < clear.before.time
+                    # doing this for every quantity to clear is a defensive move
+                    # theoretically, we could just calculate the times to clear from the declared quantity to clear
+                    # this presumes that the times to clear in all dependents are present in the original quantity,
+                    #   which *should* be true, but we won't assume that
+                    
+                    private$i.quantity.values[[one.to.clear]][to.clear.mask] = NULL
+                    private$i.quantity.after.values[[one.to.clear]][to.clear.mask] = NULL
+                }
             }
-            
-            invisible(self)
-        },
-        
-        clear.dependent.times = function(element.names)
-        {
-            specification = get.specification()
-            to.clear.self = c(element.names, 
-                              unlist(sapply(element.names, specification$get.dependent.quantity.names)))
-            to.clear.value = c(to.clear.self, 
-                               unlist(sapply(element.names,specification$get.co.dependee.element.names)))
-            
-            for (one.to.clear in to.clear.self)
-                private$i.quantity.self.times[[one.to.clear]] = NULL
-            for (one.to.clear in to.clear.value)
-                private$i.quantity.value.times[[one.to.clear]] = NULL
             
             invisible(self)
         },
@@ -3084,21 +3381,54 @@ stop("need to implement")
             invisible(self)
         },
         
-        ##--------------------------##
-        ##-- Logging Instructions --##
-        ##--------------------------##
+        ##---------------------------##
+        ##-- Resolving Foregrounds --##
+        ##---------------------------##
         
-        log.instruction = function(fn.name, ...)
+        
+        # This function will only be called
+        # (a) when this foreground is first set or
+        # (b) when a parameter this foreground depends on changes
+        resolve.foreground = function(id)
         {
-            instr = list(fn.name = fn.name,
-                         args = list(...))
+            unresolved.foreground = private$i.unresolved.foregrounds[[id]]
             
-            private$i.instructions = c(i.instructions, list(instr))
-        },
-        
-        execute.instruction = function(instr)
-        {
-            do.call(what=instr$fn.name, args=instr$args)
+            # Store the old start and end times
+            previously.resolved.foreground = private$i.resolved.foregrounds[[unresolved.foreground$quantity.name]][[id]]
+            if (is.null(previously.resolved.foreground))
+            {
+                previous.start.time = Inf
+                previous.end.time = -Inf
+            }
+            else
+            {
+                previous.start.time = previously.resolved.foreground$min.start.time
+                previous.end.time = previously.resolved.foreground$max.end.time
+            }
+            
+            # Store the resolved foreground
+            resolved.foreground = unresolved.foreground$resolve.effects(private$i.parameters)
+            private$i.resolved.foregrounds[[unresolved.foreground$quantity.name]][[id]] = resolved.foreground
+            
+            
+            #-- Clear Dependent Values --#
+            quantity.name = resolved.foreground$quantity.name
+            
+            # Clear all values after start of intervention (or previous start time, whichever comes first)
+            clear.after.time = min(resolved.foreground$min.start.time,
+                                   previous.start.time)
+            clear.before.time = max(resolved.foregrounds$max.end.time,
+                                    previous.end.time)
+            
+            private$clear.dependent.values(quantity.name, 
+                                           clear.after.time = clear.after.time,
+                                           clear.before.time = clear.before.time)
+            
+            
+            # Clear times
+            if (is.null(previously.resolved.foreground) || 
+                (!unresolved.foreground$effect.times.are.resolved && !resolved.foreground$effect.times.equal(previously.resolved.foreground) ))
+                private$clear.foreground.self.times(quantity.name)
         },
         
         
