@@ -495,42 +495,47 @@ do.get.ontology.mapping <- function(from.ontology,
     excess.from.dimensions = setdiff(names(from.ontology), required.dimensions)
     excess.from.dimensions.are.complete = all(from.dimensions.are.complete[excess.from.dimensions])
     
+    success.so.far = to.has.only.required && from.has.all.required && excess.from.dimensions.are.complete
     
-    # below satisfies 
-    from.out.of.alignment.mask = !sapply(required.dimensions, function(d){
-        
-        if (to.dimensions.are.complete[d])
-        {
-            if (from.dimensions.are.complete[d])
+    if (success.so.far)
+    {
+        # below satisfies 
+        from.out.of.alignment.mask = !sapply(required.dimensions, function(d){
+            
+            if (to.dimensions.are.complete[d])
             {
-                !is.null(from.ontology[[d]]) && # satisfies part of condition (1)
-                    !is.null(to.ontology[[d]]) && # satisfies condition (2)
-                    setequal(from.ontology[[d]], to.ontology[[d]]) # satisfies condition (4)
+                if (from.dimensions.are.complete[d])
+                {
+                    !is.null(from.ontology[[d]]) && # satisfies part of condition (1)
+                        !is.null(to.ontology[[d]]) && # satisfies condition (2)
+                        setequal(from.ontology[[d]], to.ontology[[d]]) # satisfies condition (4)
+                }
+                else
+                {
+                    !is.null(from.ontology[[d]]) && # satisfies part of condition (1)
+                        !is.null(to.ontology[[d]]) && # satisfies condition (2)
+                        length(setdiff(to.ontology[[d]], from.ontology[[d]]))==0 # satisfies condition (4)
+                }
+            }
+            else if (from.dimensions.are.complete[d])
+            {
+                is.null(to.ontology[[d]]) || # if it's NULL, we'll take anything
+                    (!is.null(from.ontology[[d]]) && 
+                         length(intersect(from.ontology[[d]], to.ontology[[d]]))>0)
+                #         length(setdiff(to.ontology[[d]], from.ontology[[d]]))==0)
             }
             else
             {
-                !is.null(from.ontology[[d]]) && # satisfies part of condition (1)
-                    !is.null(to.ontology[[d]]) && # satisfies condition (2)
-                    length(setdiff(to.ontology[[d]], from.ontology[[d]]))==0 # satisfies condition (4)
+                is.null(to.ontology[[d]]) || # if it's NULL, we'll take anything
+                    (!is.null(from.ontology[[d]]) && 
+                         length(intersect(from.ontology[[d]], to.ontology[[d]]))>0)
             }
-        }
-        else if (from.dimensions.are.complete[d])
-        {
-            is.null(to.ontology[[d]]) || # if it's NULL, we'll take anything
-                (!is.null(from.ontology[[d]]) && 
-                     length(intersect(from.ontology[[d]], to.ontology[[d]]))>0)
-            #         length(setdiff(to.ontology[[d]], from.ontology[[d]]))==0)
-        }
-        else
-        {
-            is.null(to.ontology[[d]]) || # if it's NULL, we'll take anything
-                (!is.null(from.ontology[[d]]) && 
-                     length(intersect(from.ontology[[d]], to.ontology[[d]]))>0)
-        }
-    })
-    
-    success = to.has.only.required && from.has.all.required && excess.from.dimensions.are.complete &&
-        !any(from.out.of.alignment.mask)
+        })
+        
+        success = !any(from.out.of.alignment.mask)
+    }
+    else 
+        success = F
 
     if (success)
     {
