@@ -830,7 +830,7 @@ check.dim.names.valid <- function(dim.names,
                     ifelse(sum(not.character.mask)==1,
                            paste0(toupper.first(refer.to.dimensions.as), " '",
                                   names(dim.names)[not.character.mask], "' is not"),
-                           paste0(toupper.first(refer.to.dimensions.plural.as), " ", 
+                           paste0(toupper.first(refer.to.dimension.plural.as), " ", 
                                   collapse.with.conjunction("'", names(dim.names)[not.character.mask], "'"),
                                   " are not"))
         ))
