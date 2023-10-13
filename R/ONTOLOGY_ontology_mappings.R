@@ -1642,7 +1642,7 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
             resulting.to.values = unique(private$i.mapped.to.values[resulting.to.indices,,drop=F])
             
             resulting.to.dim.names = lapply(self$to.dimensions, function(d){
-                if (is.ontology(from.dim.names) && is_complete(from.dim.names)[d])
+                if (is.ontology(from.dim.names) && !is.null(from.dim.names[[d]]) && is_complete(from.dim.names)[d])
                     self$to.dim.names[[d]]
                 else
                     unique(resulting.to.values[,d])
