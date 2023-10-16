@@ -133,13 +133,15 @@ register.data.ontology <- function(data.manager,
 #'@param metadata An object of class 'outcome.metadata', as created by \code{\link{create.outcome.metadata}} that contains information about how to display the outcome
 #'@param denominator.outcome The denominator outcome type that should be used when aggregating data (taking a weighted average) for this outcome type. Must be a previously registered outcome with scale='non.negative.number'. Only applies if scale is 'rate', 'proportion', or 'time'
 #'@param overwrite A logical indicating whether the information on this outcome should overwrite previously-registered information about this outcome. However, this registration must include the same metadata$scale and denominator.outcome (ie, can't change the structure of the outcome, only the display 'trappings')
+#'@param allow.missing.denominator.outcome A logical allowing the user to register an outcome of scale 'rate', 'proportion' or 'time' without supplying a denominator outcome
 #'
 #'@export
 register.data.outcome <- function(data.manager,
                                   outcome,
                                   metadata,
                                   denominator.outcome=NULL,
-                                  overwrite = F)
+                                  overwrite = F,
+                                  allow.missing.denominator.outcome = F)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -147,7 +149,8 @@ register.data.outcome <- function(data.manager,
     data.manager$register.outcome(outcome = outcome,
                                   metadata = metadata,
                                   denominator.outcome = denominator.outcome,
-                                  overwrite = overwrite)
+                                  overwrite = overwrite,
+                                  allow.missing.denominator.outcome = allow.missing.denominator.outcome)
 }
 
 #'@title Register a data source to a data manager before putting data from that source
@@ -554,7 +557,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         register.outcome = function(outcome,
                                     metadata,
                                     denominator.outcome=NULL,
-                                    overwrite=F)
+                                    overwrite=F,
+                                    allow.missing.denominator.outcome = F)
         {
             #-- Validate arguments --#
             error.prefix = paste0("Unable to register outcome for data.manager '", private$i.name, "': ")
@@ -569,6 +573,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # - metadata is a 'outcome.metadata' object
             if (!is(metadata, "outcome.metadata"))
                 stop(paste0(error.prefix, "'metadata' must be an object of class 'outcome.metadata' as returned by create.outcome.metadata()"))
+
+            if (!is.logical(overwrite) || length(overwrite)!=1 || is.na(overwrite))
+                stop(paste0(error.prefix, "'overwrite' must be a single, non-empty, non-NA logical value"))
+            if (!is.logical(allow.missing.denominator.outcome) || length(allow.missing.denominator.outcome)!=1 || is.na(allow.missing.denominator.outcome))
+                stop(paste0(error.prefix, "'allow.missing.denominator.outcome' must be a single, non-empty, non-NA logical value"))
 
             # - If metadata$scale is 'rate', 'proportion', or 'time',
             #   denominator outcome is non-NULL.
@@ -596,6 +605,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                      denominator.outcome != previous.outcome.info$denominator.outcome))
                     stop(paste0(error.prefix, "The outcome '", outcome, "' was previously registered with a different scale and/or denominator outcome"))
             }
+
+            if (metadata$scale %in% c('rate', 'proportion', 'time') && is.null(denominator.outcome) && !allow.missing.denominator.outcome)
+                stop(paste0(error.prefix, "'denominator.outcome' must be supplied for scale ", metadata$scale))
 
 
             # Store it
