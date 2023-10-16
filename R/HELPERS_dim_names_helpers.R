@@ -47,7 +47,7 @@ outer.join.dim.names <- function(..., error.prefix='')
             }
             else
                 dim.names.list = c(dim.names.list,
-                                    list(elem))
+                                   list(elem))
         }
     }
     
@@ -123,7 +123,7 @@ union.dimension.values <- function(..., error.prefix='')
     # merging one at a time
     rv = dim.values.list[[1]]
     dim.values.list = dim.values.list[-1]
-stop("NEED TO IMPLEMENT CHECKS HERE!")    
+    stop("NEED TO IMPLEMENT CHECKS HERE!")    
     while(length(dim.values.list)>0)
     {
         to.merge = dim.values.list[[1]]
@@ -198,6 +198,63 @@ union.joined.dim.names <- function(dim.names.1, dim.names.2)
         
         rv = lapply(all.dimensions, function(d){
             union(dim.names.1[[d]], dim.names.2[[d]])
+        })
+        names(rv) = all.dimensions
+        rv
+    }
+}
+
+union.joined.dimension.values <- function(dimension.values.1, dimension.values.2)
+{
+    if (is.null(dimension.values.1))
+        dimension.values.2
+    else if (is.null(dimension.values.2))
+        dimension.values.1
+    else
+    {
+        all.dimensions = union(names(dimension.values.1), names(dimension.values.2))
+        
+        rv = lapply(all.dimensions, function(d){
+            
+            values1 = dimension.values.1[[d]]
+            values2 = dimension.values.2[[d]]
+            
+            if (is.null(values1))
+                values2
+            else if (is.null(values2))
+                values1
+            else if (is.character(values1))
+            {
+                if (is.character(values2))
+                    union(values1, values2)
+                else
+                    return (NULL) # we cannot do it
+            }
+            else if (is.numeric(values1))
+            {
+                if (is.numeric(values2))
+                    union(values1, values2)
+                else if (is.logical(values2))
+                    union(values1, (1:length(values2))[values2])
+                else
+                    return (NULL) # we cannot do it
+            }
+            else if (is.numeric(values2))
+            {
+                if (is.logical(values1))
+                    union((1:length(values1))[values1], values2)
+                else # we know values1 is not numeric because if failed the previous else if condition
+                    return (NULL) # we cannot do it
+            }
+            else if (is.logical(values1) && is.logical(values2))
+            {
+                if (length(values1) == length(values2))
+                    values1 | values2
+                else
+                    return (NULL) # we cannot do it
+            }
+            else
+                return (NULL) # we cannot do it
         })
         names(rv) = all.dimensions
         rv
@@ -370,7 +427,7 @@ union.shared.dim.names.and.dimensions.with.aliases <- function(dim.names.and.ali
 # 
 # aliases - a named character vector. The names of the vector correspond to current names of dimensions. The values correspond to the names they could be swapped for
 union.shared.dim.names.with.aliases <- function(dim.names.1, aliases.1,
-                                               dim.names.2, aliases.2)
+                                                dim.names.2, aliases.2)
 {
     if (is.null(dim.names.1))
         list(dim.names=dim.names.2, aliases=aliases.2)
@@ -461,7 +518,7 @@ intersect.with.aliases <- function(values.1, aliases.1,
 # 
 # aliases - a named character vector. The names of the vector correspond to current names of dimensions. The values correspond to the names they could be swapped for
 intersect.joined.dim.names.with.reverse.aliases <- function(dim.names.1, aliases.1,
-                                                        dim.names.2, aliases.2)
+                                                            dim.names.2, aliases.2)
 {
     if (is.null(dim.names.1))
         list(dim.names=dim.names.2, aliases=aliases.2)
@@ -632,7 +689,7 @@ dimension.values.equal <- function(dv1,
                 val1 = (1:length(val1))[val1]
             if (is.logical(val2))
                 val2 = (1:length(val2))[val2]
-
+            
             if (match.order)
                 length(val1)==length(val2) && all(val1==val2)
             else
@@ -673,10 +730,10 @@ dimension.values.are.subset <- function(sub.dimension.values, super.dimension.va
         is.list(super.dimension.values) &&
         (length(sub.dimension.values) == 0 ||
              (!is.null(names(sub.dimension.values)) && !is.null(names(super.dimension.values)) &&
-            length(setdiff(names(sub.dimension.values), names(super.dimension.values))) == 0 &&
-            all(sapply(names(sub.dimension.values), function(d){
-                length(setdiff(sub.dimension.values[[d]], super.dimension.values[[d]])) == 0
-            }))
+                  length(setdiff(names(sub.dimension.values), names(super.dimension.values))) == 0 &&
+                  all(sapply(names(sub.dimension.values), function(d){
+                      length(setdiff(sub.dimension.values[[d]], super.dimension.values[[d]])) == 0
+                  }))
              ))
 }
 
@@ -693,7 +750,7 @@ subset.of.dimension.values.are.equal <- function(sub.dimension.values, super.dim
 
 
 subset.of.dim.names.are.equal <- function(sub.dim.names, super.dim.names,
-                                                 match.order.within.dimensions = T)
+                                          match.order.within.dimensions = T)
 {
     subset.of.dimension.values.are.equal(sub.dim.names, super.dim.names,
                                          match.order.within.dimensions = match.order.within.dimensions)
@@ -714,7 +771,7 @@ are.dim.names.compatible <- function(dim.names.1, dim.names.2,
             all(sapply(overlapping.dimensions, function(d){
                 if (match.order)
                     length(dim.names.1[[d]])==length(dim.names.2[[d]]) &&
-                        all(dim.names.1[[d]] == dim.names.2[[d]])
+                    all(dim.names.1[[d]] == dim.names.2[[d]])
                 else
                     setequal(dim.names.1[[d]], dim.names.2[[d]])
             }))
@@ -830,7 +887,7 @@ check.dim.names.valid <- function(dim.names,
                     ifelse(sum(not.character.mask)==1,
                            paste0(toupper.first(refer.to.dimensions.as), " '",
                                   names(dim.names)[not.character.mask], "' is not"),
-                           paste0(toupper.first(refer.to.dimension.plural.as), " ", 
+                           paste0(toupper.first(refer.to.dimensions.plural.as), " ", 
                                   collapse.with.conjunction("'", names(dim.names)[not.character.mask], "'"),
                                   " are not"))
         ))
@@ -938,7 +995,7 @@ check.dimension.values.valid <- function(dimension.values,
     if (any(is.na(names(dimension.values)) | nchar(names(dimension.values))==0))
         stop(paste0(error.prefix, "The names of '", variable.name.for.error, "' cannot be NA or empty strings"))
     
-   
+    
     length.zero.mask = sapply(dimension.values, length)==0
     if (any(length.zero.mask))
         stop(paste0(error.prefix,
