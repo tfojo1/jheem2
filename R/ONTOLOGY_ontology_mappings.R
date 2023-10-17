@@ -314,11 +314,13 @@ register.ontology.mapping <- function(name,
 #'
 #'@param from.ontology The ontology to which the data to be transformed conform. Must be an 'ontology' object as created by \code{\link{ontology}}
 #'@param to.ontology The ontology to which the transformed data should conform. Must be an 'ontology' object as created by \code{\link{ontology}}
+#'@param allow.non.overlapping.incomplete.dimensions Logical indicating whether, when we map to an incomplete dimension, there can be no overlap in the from and to values for that dimension
 #'
 #'@return Either an object of class 'ontology.mapping' or NULL if no mapping that would bridge the differences is found
 #'@export
 get.ontology.mapping <- function(from.ontology,
-                                 to.ontology)
+                                 to.ontology,
+                                 allow.non.overlapping.incomplete.dimensions = F)
 {
     #-- Validate Arguments --#
     from.ontology = derive.ontology(from.ontology, var.name.for.error = "'from.ontology'", error.prefix = "Error in get.ontology.mapping(): ")
@@ -329,7 +331,8 @@ get.ontology.mapping <- function(from.ontology,
                                        to.ontology = to.ontology,
                                        required.dimensions = names(to.ontology),
                                        required.dim.names = NULL,
-                                       get.two.way.alignment = F)
+                                       get.two.way.alignment = F,
+                                       allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions)
     
     #-- Package up and return --#
     combine.ontology.mappings(mappings[[1]])
@@ -340,6 +343,7 @@ get.ontology.mapping <- function(from.ontology,
 #'@param ontology.1,ontology.2 The ontologies of two data elements to be transformed
 #'@param align.on.dimensions The dimensions which should match in the transformed data
 #'@param include.dim.names Optional argument, specifying specific dimension values that must be present in the transformed data
+#'@param allow.non.overlapping.incomplete.dimensions Logical indicating whether, when we map to an incomplete dimension, there can be no overlap in the from and to values for that dimension
 #'
 #'@return Either a (1) NULL - if no mappings could align the ontologies or (2) a list with two elements, each an ontology.mapping object, such that applying the first to data conforming to ontology.1 and applying the second to data conforming to ontology.2 yields two data objects with the same dim.names
 #'
@@ -347,6 +351,7 @@ get.ontology.mapping <- function(from.ontology,
 get.mappings.to.align.ontologies <- function(ontology.1,
                                              ontology.2,
                                              align.on.dimensions = intersect(names(ontology.1), names(ontology.2)),
+                                             allow.non.overlapping.incomplete.dimensions = F,
                                              include.dim.names = NULL)
 {
     #-- Validate Arguments --#
@@ -358,7 +363,8 @@ get.mappings.to.align.ontologies <- function(ontology.1,
                                        to.ontology = ontology.2,
                                        required.dimensions = align.on.dimensions,
                                        required.dim.names = include.dim.names,
-                                       get.two.way.alignment = T)
+                                       get.two.way.alignment = T,
+                                       allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions)
     
     #-- Package up and return --#
     if (is.null(mappings))
@@ -452,6 +458,7 @@ get.identity.ontology.mapping <- function()
 #'@param required.dimensions The dimensions that should be present in the aligned product
 #'@param required.dim.names Any specific dimension values that should be present in the aligned product
 #'@param get.two.way.alignment Logical indicating whether we need one mapping, that maps from.dim.names such that
+#'@param allow.non.overlapping.incomplete.dimensions Logical indicating whether, when we map to an incomplete dimension, there can be no overlap in the from and to values for that dimension
 #'
 #'@return If get.two.way.alignment is false, returns a list of one or more ontology.mapping objects,
 #'          such that applying these mappings to an array with from.dim.names ('from.arr')
@@ -468,6 +475,7 @@ do.get.ontology.mapping <- function(from.ontology,
                                     required.dimensions,
                                     required.dim.names,
                                     get.two.way.alignment,
+                                    allow.non.overlapping.incomplete.dimensions,
                                     mappings = c(ONTOLOGY.MAPPING.MANAGER$mappings,
                                                  list('age','other')))
 {
@@ -514,6 +522,8 @@ do.get.ontology.mapping <- function(from.ontology,
                     length(setdiff(to.ontology[[d]], from.ontology[[d]]))==0 # satisfies condition (4)
             }
         }
+        else if (!is.null(to.ontology[d]) && !to.dimensions.are.complete[d] && allow.non.overlapping.incomplete.dimensions)
+            !is.null(from.ontology[[d]])
         else if (!is.null(from.ontology[[d]]) && from.dimensions.are.complete[d])
         {
             is.null(to.ontology[[d]]) || # if it's NULL, we'll take anything
