@@ -621,6 +621,7 @@ do.get.ontology.mapping <- function(from.ontology,
                                                           required.dimensions=required.dimensions,
                                                           required.dim.names=required.dim.names,
                                                           get.two.way.alignment=get.two.way.alignment,
+                                                          allow.non.overlapping.incomplete.dimensions=allow.non.overlapping.incomplete.dimensions,
                                                           mappings = mappings.to.try.next)
             
             if (!is.null(additional.mappings)) # we succeeded and we're done! Append and go home
@@ -640,8 +641,9 @@ do.get.ontology.mapping <- function(from.ontology,
         reverse.mappings = do.get.ontology.mapping(from.ontology=to.ontology,
                                                    to.ontology=from.ontology,
                                                    required.dimensions=required.dimensions,
-#                                                   required.dim.names=required.dim.names,
+                                                   # required.dim.names=required.dim.names,
                                                    required.dim.names=required.dim.names[from.out.of.alignment.mask],
+                                                   allow.non.overlapping.incomplete.dimensions=allow.non.overlapping.incomplete.dimensions,
                                                    get.two.way.alignment=F) #leave off mappings to reset to the default
         
         if (is.null(reverse.mappings)) # We couldn't make it work
