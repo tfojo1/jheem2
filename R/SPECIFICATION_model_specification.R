@@ -2162,12 +2162,11 @@ JHEEM.SPECIFICATION = R6::R6Class(
             if (any(is.na(names(parameter.values))) || any(nchar(names(parameter.values))==0))
                 stop("Cannot register model default parameter values: the names of 'parameter.values' must be non-empty and non-NA")
             
-            if (max(table(names(parameter.values))))
+            if (max(table(names(parameter.values)))>1)
                 stop("Cannot register model default parameter values: the names of 'parameter.values' must be unique")
             
             
             private$i.default.parameter.values[names(parameter.values)] = parameter.values
-            
             invisible(self)
         },
         
@@ -2922,7 +2921,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         default.parameter.values = function(value)
         {
             if (missing(value))
-                names(private$i.default.parameter.values)
+                private$i.default.parameter.values
             else
                 stop("Cannot modify a specification's 'default.parameter.values' - they are read-only")
         }
@@ -4072,7 +4071,7 @@ MODEL.ELEMENT = R6::R6Class(
                 if (!is.null(functional.form) && functional.form$is.static && 
                     is.null(ramp.times) && is.null(taper.times) &&
                     !suppress.warnings)
-                    print(paste0(gsub('error', 'WARNING', error.prefix, ignore.case = T),
+                    base::print(paste0(gsub('error', 'WARNING', error.prefix, ignore.case = T),
                                  "You are using a static functional.form without a ramp or taper. 'functional.form.from.time' and 'functional.form.to.time' will be ignored"))
                 
                 if (!is.numeric(functional.form.from.time) || length(functional.form.from.time)!=1 || is.na(functional.form.from.time))

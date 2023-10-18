@@ -42,7 +42,7 @@ join.interventions <- function(..., code=NULL, name=NULL, sequential=F)
                 sub.elem = elem[[j]]
                 if (is(sub.elem, 'jheem.intervention'))
                 {
-                    if (!sub.elem$is.combinable
+                    if (!sub.elem$is.combinable)
                         stop(paste0("Interventions passed to join.interventions must be *combinable*. The ",
                                     get.ordinal(j), " element of the ",
                                     get.ordinal(i), " element of ... is not combinable"))

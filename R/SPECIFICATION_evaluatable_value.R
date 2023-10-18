@@ -211,7 +211,7 @@ EVALUATABLE.VALUE = R6::R6Class(
                             "Invalid value.type for an 'evaluatable.value': '", 
                             private$i.value.type, "'"))
             
-            if (!is.na(na.replacement))
+            if (!is.na(private$i.na.replacement))
                 rv[is.na(rv)] = private$i.na.replacement
             
             rv
@@ -382,7 +382,10 @@ FUNCTION.WRAPPER = R6::R6Class(
             #-- Figure out what arguments are missing --#
             fn.args = formals(args(fn))
             arg.names = names(fn.args)
-            arg.names.without.default.value = arg.names[sapply(fn.args, function(val){val==''})]
+
+            arg.names.without.default.value = arg.names[sapply(fn.args, function(val){
+                length(val)==1 && !is.list(val) && val==''
+                })]
             
             
             #-- Validate arguments supplied in ... --#

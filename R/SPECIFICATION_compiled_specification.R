@@ -381,7 +381,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         foregrounds = function(value)
         {
             if (missing(value))
-                names(private$i.foregrounds)
+                private$i.foregrounds
             else
                 stop("Cannot modify a specification's 'foregrounds' - they are read-only")
         }
@@ -448,7 +448,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             self$process.core.components(error.prefix)
             private$process.mechanisms(error.prefix)
             do.cat("done\n")
-            
+     
             #-- Process Foregrounds --#
             do.cat("Processing foregrounds...")
             private$process.foregrounds(error.prefix)
@@ -640,6 +640,11 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                                           wrt.specification = self)
             do.cat("done\n")
             
+            #-- Check that the dimensions of target populations within each foreground fit within the corresponding quantity's max.dim.names --#
+            do.cat("Validating foregrounds")
+            private$validate.foregrounds(error.prefix=error.prefix)
+            do.cat("done\n")
+            
             #-- Finalize Dependencies --#
             do.cat("Finalizing dependencies...")
             private$calculate.dependencies()
@@ -676,13 +681,12 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 
                 if (length(missing.parameters)>0)
                     stop(paste0(error.prefix, "Foreground '", frgd.name, "' depends on ",
-                                ifelse(length(paramaters)==1, "parameter ", "parameters "),
+                                ifelse(length(missing.parameters)==1, "parameter ", "parameters "),
                                 collapse.with.and("'", missing.parameters, "'"),
-                                ifelse(length(paramaters)==1, " but it has", " but they have"),
+                                ifelse(length(missing.parameters)==1, " but it has", " but they have"),
                                 " not had default values set. Use register.default.parameter.values() to do so"
                                 ))
             }
-            
             
             self
         },
@@ -1595,6 +1599,17 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             list(dim.names = max.dim.names,
                  aliases = dimension.aliases)
         },
+
+        validate.foregrounds = function(error.prefix)
+        {
+            #"do I need to resolve foreground$quantity.name against the version?")
+            for (frgd in private$i.foregrounds)
+            {
+                check.foreground.can.apply.to.quantity(foreground = frgd,
+                                                       specification = self,
+                                                       error.prefix = error.prefix)
+            }
+        },
         
         calculate.dependencies = function()
         {
@@ -2163,4 +2178,60 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
     )
 )
 
+check.foreground.can.apply.to.quantity <- function(foreground,
+                                                   specification,
+                                                   error.prefix)
+{
+    # Pull the quantity
+    quantity.name = foreground$quantity.name
+    quantity = specification$get.quantity(quantity.name)
+    
+    # Check that quantity is registered
+    if (is.null(quantity))
+        stop(paste0(error.prefix, "Quantity '", quantity.name, "' is not registered in the '", specification$version, "' specification"))
 
+    # Check if quantity must be static
+    if (quantity$must.be.static)
+        stop(paste0(error.prefix, "Quantity '", quantity.name, 
+                    "' must be static (due to its appearance or the appearance of a descendant quantity in model outcome values) and CANNOT have a foreground set. Consider revising the '", 
+                    specification$version, "' specification"))
+    
+    # Check if quantity has scale set
+    if (is.null(quantity$scale))
+        stop(paste0(error.prefix, "Quantity '", quantity.name, 
+                    "' is not intervenable. You must set a scale when defining the model specification for it to be intervenable"))
+    
+    # Check if max.dim.names are set
+    if (is.null(quantity$max.dim.names))
+        stop(paste0(error.prefix, "Quantity '", quantity.name, 
+                    "' is not intervenable. Since its max.dim.names cannot be inferred, you must explicitly set the dimension.values argument when registered the quantity to the '",
+                    self$version, "' specification"))
+    
+    # Check that all scales of foreground is convertible to/from scale of quantity
+    scale.convertible = sapply(foreground$scales, can.convert.scale, convert.to.scale=quantity$scale)
+    if (any(!scale.convertible))
+        stop(paste0(error.prefix,
+                    "Cannot apply foreground to quantity '", quantity.name, "'. The quantity has scale '",
+                    quantity$scale, "' which is not convertible to/from ",
+                    ifelse(sum(!scale.convertible)==1, "scale ", "scales "),
+                    collapse.with.or("'", foreground$scales[!scale.convertible], "'"),
+                    ifelse(sum(!scale.convertible)==1, " which is a scale", " which are scales"),
+                    " at which the foreground applies"))
+    
+    # Check that all dimensions in the foreground's target populations are
+    #   contained in the quantity's max.dim.names
+    extra.dimensions = setdiff(foreground$target.population.dimensions,
+                               names(quantity$max.dim.names))
+    if (length(extra.dimensions)>0)
+        stop(paste0(error.prefix,
+                    "Cannot apply foreground to quantity '", quantity.name, 
+                    "'. The foreground's target.populations reference ",
+                    ifelse(length(extra.dimensions)==1, "dimension", "dimensions"),
+                    " ", collapse.with.and("'", extra.dimensions, "'"),
+                    ", but the quantity ",
+                    ifelse(length(quantity$max.dim.names)==0, " is dimensionless.",
+                           paste0(ifelse(length(quantity$max.dim.names)==1,
+                                         "only has dimension ", "can accomodate dimensions "),
+                                  collapse.with.and("'", names(quantity$max.dim.names), "'")))))
+    
+}
