@@ -66,7 +66,7 @@ do.convert.model.scale <- function(values,
                                    convert.from.scale,
                                    convert.to.scale,
                                    error.prefix='')
-{ 
+{
     if (convert.from.scale==convert.to.scale)
         values
     else if (convert.from.scale=='ratio' || convert.from.scale=='number' || convert.from.scale=='non.negative.number')
@@ -131,23 +131,23 @@ check.model.scale <- function(scale,
 {
     if (!is.character(scale) || length(scale)!=1 || is.na(scale))
         stop(paste0(error.prefix, "'", varname.for.error, "' must be a non-NA character scalar"))
-    
+
     if (all(scale != MODEL.SCALES))
         stop(paste0(error.prefix, "'", varname.for.error, "' must be one of the following: ",
                     collapse.with.or("'", MODEL.SCALES, "'")))
 }
 
 
-check.values.for.model.scale <- function(values, scale, 
+check.values.for.model.scale <- function(values, scale,
                                          variable.name.for.error=NULL,
                                          error.prefix='')
 {
     if (is.list(values))
-        sapply(values, do.check.values.for.model.scale, scale=scale, 
+        sapply(values, do.check.values.for.model.scale, scale=scale,
                variable.name.for.error=variable.name.for.error,
                error.prefix=error.prefix)
     else
-        do.check.values.for.model.scale(values=values, scale=scale, 
+        do.check.values.for.model.scale(values=values, scale=scale,
                                         variable.name.for.error=variable.name.for.error,
                                         error.prefix=error.prefix)
 }
@@ -161,18 +161,18 @@ do.check.values.for.model.scale <- function(values, scale,
         variable.name.for.error = 0
     else
         variable.name.for.error = paste0("in '", variable.name.for.error, "' ")
-    
+
     if (scale=='rate' || scale=='ratio' || scale=='time' || scale=='non.negative.number')
     {
         if (any(!is.na(values) & values < 0))
-            stop(paste0(error.prefix, 
+            stop(paste0(error.prefix,
                         "Invalid value(s) ", variable.name.for.error,
                         "for scale '", scale, "': values must be non-negative"))
     }
     else if (scale=='proportion' || scale=='proportion.leaving' || scale=='proportion.staying')
     {
-        if (any(!is.na(values) & (values<0) | any(values>1)))
-            stop(paste0(error.prefix, 
+        if (any(!is.na(values) & (values<0) | (values>1)))
+            stop(paste0(error.prefix,
                         "Invalid value(s) ", variable.name.for.error,
                         "for scale '", scale, ": values must be between 0 and 1"))
     }
@@ -208,7 +208,7 @@ infer.two.arg.expr.scale <- function(transition.mapping,
         # 1 - proportion.staying -> proportion
         # number - number -> number
         # any combo of number and non-negative.number -> number
-        
+
         if (scale1=='rate' && scale2=='rate')
             'rate'
         else if ((is.numeric(val1) && length(val1)==1 && val1==1))
@@ -229,7 +229,7 @@ infer.two.arg.expr.scale <- function(transition.mapping,
         # rate * anything is a rate
         # time * anything is a time
         # <scale> * ratio is <scale>
-        
+
         if (scale1=='rate')
         {
             if (scale2=='time')
@@ -266,7 +266,7 @@ infer.two.arg.expr.scale <- function(transition.mapping,
         # rate / anything -> rate
         # two non.negative.numbers --> non.negative.number
         # otherwise, any combo of numbers and non.negative.numbers -> number
-        
+
         if (is.numeric(val1) && scale2=='rate')
             'time'
         else if (is.numeric(val1) && scale2=='time')
@@ -323,7 +323,7 @@ join.scales <- function(scale1, scale2)
 {
     scale1[scale1=='proportion.leaving'] = 'proportion'
     scale2[scale2=='proportion.leaving'] = 'proportion'
-    
+
     rv = intersect(scale1, scale2)
     if (length(rv)>1)
         rv = rv[rv!='unknown']
