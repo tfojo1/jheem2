@@ -19,7 +19,7 @@ create.target.population <- function(...,
                                      name,
                                      invert=F)
 {
-    SIMPLE.TARGET.POPULATION$new(...,
+    SIMPLE.TARGET.POPULATION$new(list(...),
                                  name = name,
                                  invert = invert)
 }
@@ -127,7 +127,7 @@ do.union.or.intersect.target.populations <- function(..., combine.function, name
 ##-----------------------##
 ##-----------------------##
 
-MAX.NCHAR.TARGET.POPULATION.NAME = 20
+MAX.NCHAR.TARGET.POPULATION.NAME = 30
 
 TARGET.POPULATION = R6::R6Class(
     'target.population',
@@ -156,15 +156,15 @@ TARGET.POPULATION = R6::R6Class(
                                 "') cannot be longer than ", 
                                 MAX.NCHAR.TARGET.POPULATION.NAME, " characters"))
                 
-                if (string.contains.invalid.characters(name, valid.characters = NUMBERS.LETTERS.DASH.PERIOD.SPACE))
+                if (string.contains.invalid.characters(name, valid.characters = NUMBERS.LETTERS.DASH.PERIOD.COMMA.SPACE))
                 {
                     invalid.characters = setdiff(unlist(strsplit(name, split='')),
-                                                 strsplit(NUMBERS.LETTERS.DASH.PERIOD.SPACE, split='')[[1]])
+                                                 strsplit(NUMBERS.LETTERS.DASH.PERIOD.COMMA.SPACE, split='')[[1]])
                     
                     stop(paste0("Cannot create ", self$descriptor, 
                                 ": the name ('", name, "') cannot contain ", 
                                 collapse.with.or("'", invalid.characters, "'"), 
-                                " - it can only contain numbers, letters, periods, dashes, and spaces"))
+                                " - it can only contain numbers, letters, periods, commas, dashes, and spaces"))
                 }
             }
             
@@ -187,28 +187,34 @@ TARGET.POPULATION = R6::R6Class(
                                       allow.duplicate.values.across.dimensions = T,
                                       error.prefix = error.prefix)
 
+            bk = dim.names
             if (!is.null(specification.metadata))
                 dim.names = specification.metadata$apply.aliases(dim.names, error.prefix=error.prefix)
             
             # Check dimensions
             invalid.dims = setdiff(self$dimensions, names(dim.names))
             if (length(invalid.dims)>0)
-                stop(paste0("The following dimension",
+                stop(paste0(error.prefix,
+                            "The following dimension",
                             ifelse(length(invalid.dims)==1, " is", "s are"),
                             " specified in the target.population, but are NOT present in the given dim.names: ",
-                            paste0("'", invalid.dims, "'", collapse=', ')))
+                            paste0("'", invalid.dims, "'", collapse=', '),
+                            " (allowed dimensions include ", collapse.with.and("'", names(dim.names), "'"), ")"))
   
             # Check dimension values
-            dimension.values = specification.metadata$apply.aliases(self$dimension.values)
-            resolve.dimension.values.against.dim.names(dimension.values = dimension.values,
-                                                       dim.names = dim.names,
-                                                       error.prefix = error.prefix)
             
+            if (!is.null(specification.metadata))
+            {
+                dimension.values = specification.metadata$apply.aliases(self$dimension.values)
+                resolve.dimension.values.against.dim.names(dimension.values = dimension.values,
+                                                           dim.names = dim.names,
+                                                           error.prefix = error.prefix)
+            }
             
             # Make the array
             if (render.only.relevant.dimensions)
                 dim.names = dim.names[intersect(names(dim.names), self$dimensions)]
-
+            
             private$do.render.population.mask(specification.metadata,
                                               dim.names = dim.names,
                                               error.prefix = error.prefix)
@@ -229,20 +235,19 @@ TARGET.POPULATION = R6::R6Class(
             if (!is(other, 'target.population') && !is.ontology(other))
             {
                 if (is.list(other))
+                {
                     check.dimension.values.valid(other,
                                                  variable.name.for.error = 'other',
                                                  allow.empty = T,
                                                  error.prefix = "To calculate the overlap with a target.populations, if 'other' is a list, ")
+                    
+                    other = as.ontology(other)
+                }
                 else
                     stop("To calculate the overlap between target.populations, 'other' must be an object of class 'target.population' or a valid dimension.values list")
             }
             
-            !is.null(self$get.overlapping.dimension.values(other))
-        },
-        
-        get.overlapping.dimension.values = function(other)
-        {
-            stop("get.overlapping.dimension.values() for a target.population must be implemented at the subclass level")
+            any(private$get.overlap.mask(other))
         },
         
         print = function(...)
@@ -283,6 +288,52 @@ TARGET.POPULATION = R6::R6Class(
         i.dimension.values = NULL,
         i.name=NULL,
         
+        get.overlap.mask = function(other)
+        {
+            if (is(other, 'target.population'))
+                other.dimension.values = other$dimension.values
+            else if (is.ontology(other))
+                other.dimension.values = other
+            else
+                return (NULL)
+            
+        
+            dim.values = union.joined.dimension.values(self$dimension.values, other.dimension.values)
+            if (is.null(dim.values))
+                return (NULL) #we couldn't join the dimension values
+            
+            dim.names = lapply(dim.values, function(values){
+                if (is.numeric(values))
+                    as.character(1:max(values))
+                else if (is.logical(values))
+                    as.character((1:length(values)))
+                else
+                    values
+            })
+            
+            mask.self = self$render.population.mask(specification.metadata = NULL,
+                                                    dim.names = dim.names, 
+                                                    render.only.relevant.dimensions = F,
+                                                    error.prefix = paste0("Cannot calculate overlap between target populations '", 
+                                                                          self$get.name(), "' and '", other$get.name(), "'"))
+            
+            if (is.ontology(other))
+            {
+                mask.other = array(F, dim=sapply(dim.names, length), dimnames=dim.names)
+                array.access(mask.other, other) = T
+            }
+            else
+            {
+                mask.other = other$render.population.mask(specification.metadata = NULL,
+                                                          dim.names = dim.names, 
+                                                          render.only.relevant.dimensions = F,
+                                                          error.prefix = paste0("Cannot calculate overlap between target populations '", 
+                                                                                self$get.name(), "' and '", other$get.name(), "'"))
+            }
+            
+            mask.self & mask.other
+        },
+        
         do.render.population.mask = function(dim.names, render.only.relevant.dimensions, error.prefix)
         {
             stop("This needs to be implemented in a sub-class")
@@ -295,11 +346,10 @@ SIMPLE.TARGET.POPULATION = R6::R6Class(
     inherit = TARGET.POPULATION,
     
     public = list(
-        initialize = function(...,
+        initialize = function(dimension.values,
                               name,
                               invert)
         {
-            dimension.values = list(...)
             super$initialize(dimension.values = dimension.values,
                              name = name,
                              allow.null.name = F)
@@ -308,7 +358,7 @@ SIMPLE.TARGET.POPULATION = R6::R6Class(
             
             if (length(dimension.values)>0)
                 check.dimension.values.valid(dimension.values = dimension.values,
-                                             variable.name.for.error = "the elements of ...",
+                                             variable.name.for.error = "the dimension.values (in ...)",
                                              allow.empty = F,
                                              allow.duplicate.values.within.dimensions = F,
                                              error.prefix = error.prefix)
@@ -384,16 +434,27 @@ SIMPLE.TARGET.POPULATION = R6::R6Class(
         
         do.render.population.mask = function(specification.metadata, dim.names, error.prefix)
         {   
-            rv = array(private$i.invert,
-                       dim = sapply(dim.names, length),
-                       dimnames = dim.names)
-            
-            # Access and set
-            dimension.values = specification.metadata$apply.aliases(self$dimension.values)
-            array.access(rv, dimension.values) = !private$i.invert
-            
-            # Return
-            rv
+            if (length(dim.names)==0)
+            {
+                !private$i.invert
+            }
+            else
+            {
+                rv = array(private$i.invert,
+                           dim = sapply(dim.names, length),
+                           dimnames = dim.names)
+                
+                # Access and set
+                if (is.null(specification.metadata))
+                    dimension.values = self$dimension.values
+                else
+                    dimension.values = specification.metadata$apply.aliases(self$dimension.values)
+                
+                array.access(rv, dimension.values) = !private$i.invert
+                
+                # Return
+                rv
+            }
         }
     )
 )
@@ -541,6 +602,8 @@ COMBINATION.TARGET.POPULATION = R6::R6Class(
         
         get.overlapping.dimension.values = function(other)
         {
+            dim.names
+            
             if (is(other, 'target.population'))
                 other.dimension.values = other$dimension.values
             else if (is.ontology(other))
@@ -554,7 +617,6 @@ COMBINATION.TARGET.POPULATION = R6::R6Class(
             }
             else
                 stop("To calculate the overlap between target.populations, 'other' must be an object of class 'target.population' or a valid dimension.values list")
-            
             
             other.dimensions = names(other.dimension.values)
             if (length(intersect(self$dimensions, other.dimensions)) == 0)

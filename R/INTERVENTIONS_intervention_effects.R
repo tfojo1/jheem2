@@ -6,9 +6,11 @@
 #'@param effect.values The values to apply to the quantity at times. Must be either (1) a numeric vector, (2) a character vector, (3) an expression or call, or (4) a list containing only numeric vectors, character vectors, expressions, or calls
 #'@param times The times as which values apply to the quantity. 
 #'@param end.time The time at which the intervention stops taking effect (ie, returns to what the value of the quantity otherwise would have been)
-#'@param apply.values.as A character vector indicating how values should be applied to the quantity. Choices are (1) 'value' - the quantity takes the given value, (2) 'multiplier' - the value is multiplied by the value the quantity would otherwise have taken, or (3) 'addend' - the value is added to the value the quantity would otherwise have taken. Must either be a single character value (in which case, it is applied to all the times) or have the same length as times and values
+#'@param apply.effects.as A single character value indicating how values should be applied to the quantity. Choices are (1) 'value' - the quantity takes the given value, (2) 'multiplier' - the value is multiplied by the value the quantity would otherwise have taken, or (3) 'addend' - the value is added to the value the quantity would otherwise have taken. 
 #'@param scale The scale at which values are applied to the quantity
 #'@param allow.values.less.than.otherwise,allow.values.greater.than.otherwise Logical indicators of whether the intervention may cause the value of the quantity to be less/greater than it otherwise would have been
+#'@param bindings A named list. The names must correspond to variables on which the intervention effect applies, if it is a variable. The elements of the list must be either (1) numeric values or (2) functions must take only "location" and "specification.metadata" as arguments and return numeric vectors with no NA values
+#'@param ... Additional arguments to be passed to any bindings which are functions
 #'
 #'@export
 create.intervention.effect <- function(quantity.name,
@@ -16,11 +18,12 @@ create.intervention.effect <- function(quantity.name,
                                        effect.values,
                                        times,
                                        end.time=Inf,
-                                       apply.effects.as = c('value','multiplier','addend')[1],
+                                       apply.effects.as,
                                        scale,
                                        allow.values.less.than.otherwise,
                                        allow.values.greater.than.otherwise,
-                                       bindings=NULL)
+                                       bindings=NULL,
+                                       ...)
 {
     # Validate target quantity name
     error.prefix = "Cannot create intervention effect: "
@@ -49,7 +52,6 @@ create.intervention.effect <- function(quantity.name,
                                             return.as.list = T,
                                             error.prefix = error.prefix)
     
-    
     # Process values
     effect.values = create.effect.evaluatable.value(value = effect.values, 
                                                     value.name = 'effect.values', 
@@ -71,19 +73,17 @@ create.intervention.effect <- function(quantity.name,
         is.na(allow.values.greater.than.otherwise))
         stop(paste0(error.prefix, "'allow.values.greater.than.otherwise', must be a single, non-NA logical value"))
     
-    if (allow.values.less.than.otherwise && allow.values.greater.than.otherwise)
-        stop(paste0(error.prefix, "'allow.values.less.than.otherwise' and 'allow.values.greater.than.otherwise' cannot BOTH be TRUE"))
+    if (!allow.values.less.than.otherwise && !allow.values.greater.than.otherwise)
+        stop(paste0(error.prefix, "'allow.values.less.than.otherwise' and 'allow.values.greater.than.otherwise' cannot BOTH be FALSE"))
     
     # Validate apply.effects.as
-    if (!is.character(apply.effects.as) || length(apply.effects.as)==0 || any(is.na(apply.effects.as)))
-        stop(paste0(error.prefix, "'apply.effects.as' must be a non-empty character vector with no NA values"))
+    if (!is.character(apply.effects.as) || length(apply.effects.as)!=1 || is.na(apply.effects.as))
+        stop(paste0(error.prefix, "'apply.effects.as' must be a single, non-NA character value"))
     valid.apply.effects.as = c('value','multiplier','addend')
-    invalid.apply.effects.as = setdiff(apply.effects.as, valid.apply.effects.as)
-    if (length(invalid.apply.effects.as)>0)
+    if (all(apply.effects.as != valid.apply.effects.as))
         stop(paste0(error.prefix,
-                    collapse.with.and("'", invalid.apply.effects.as, "'"),
-                    ifelse(length(invalid.apply.effects.as)==1, " is not a valid value", " are not valid values"),
-                    " for 'apply.effects.as'. Must be either ",
+                    "'", apply.effects.as, 
+                    "' is not a valid value for 'apply.effects.as'. Must be either ",
                     collapse.with.or("'", valid.apply.effects.as, "'")))
     
     
@@ -98,10 +98,23 @@ create.intervention.effect <- function(quantity.name,
             if (is.null(names(bindings)))
                 stop(paste0(error.prefix, "'bindings' must be a NAMED list"))
             
-            if (any(!sapply(bindings, is.numeric)))
-                stop(paste0(error.prefix, "The elements of 'bindings' must be numeric vectors"))
+            binding.is.function = sapply(bindings, is.function)
+            if (any(!sapply(bindings, is.numeric) & !binding.is.function))
+                stop(paste0(error.prefix, "The elements of 'bindings' must be either numeric vectors or functions"))
             
-            if (any(sapply(bindings, function(val){
+            bindings[binding.is.function] = lapply(names(bindings)[binding.is.function], function(name){
+                fn = bindings[[name]]
+                
+                FUNCTION.WRAPPER$new(fn=fn,
+                                     ...,
+                                     fn.name = paste0("the binding function for '", name, "'"),
+                                     require.all.arguments.up.front = T,
+                                     throw.error.if.missing.arguments.at.execute = T,
+                                     arguments.to.be.supplied.later = c('specification.metadata','location'),
+                                     error.prefix=error.prefix)
+            })
+            
+            if (any(sapply(bindings[!binding.is.function], function(val){
                 any(is.na(val))
             })))
                 stop(paste0(error.prefix, "The elements of 'bindings' cannot contain NA values"))
@@ -160,13 +173,13 @@ create.effect.evaluatable.value <- function(value,
             else
             {
                 one.rv = EVALUATABLE.VALUE$new(na.replacement = as.numeric(NA),
-                                           allow.numeric.value = T,
-                                           allow.character.value = T,
-                                           allow.expression.value = T,
-                                           allow.function.value = F,
-                                           allowed.expression.functions = allowed.expression.functions,
-                                           function.arguments.to.be.supplied.later = character(), 
-                                           error.prefix = error.prefix)
+                                               allow.numeric.value = T,
+                                               allow.character.value = T,
+                                               allow.expression.value = T,
+                                               allow.function.value = F,
+                                               allowed.expression.functions = allowed.expression.functions,
+                                               function.arguments.to.be.supplied.later = character(), 
+                                               error.prefix = error.prefix)
                 
                 one.rv$set.value(value = one.val, 
                              value.name = ifelse(was.list, paste0("the ", get.ordinal(i), " element of ", value.name), value.name),
@@ -204,16 +217,23 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                               allow.values.less.than.otherwise,
                               allow.values.greater.than.otherwise,
                               bindings,
+                              all.times = NULL, #here to save time if we have already calculated
+                              location = NULL,
+                              version = NULL,
                               error.prefix)
         {
             # This constructor is partly 'dumb' - some error checking is done by other functions that call it
             
             if (is.numeric(times))
                 n = length(times)
-            else if (is.numric(effect.values))
+            else if (is.numeric(effect.values))
                 n = length(effect.values)
             else
                 n = NA
+            
+            # Check for NULL
+            if (is.null(times))
+                stop(paste0(error.prefix, "'times' cannot be NULL"))
             
             # Check that times, effect.values, and apply.effects.as are all the same length
             if (is.numeric(times) || is.numeric(effect.values))
@@ -225,13 +245,6 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                                     ") and 'effect.values' (length ", length(effect.values),
                                     ") must be the same length"))
                 }
-                
-                if (length(apply.effects.as)==1)
-                    apply.effects.as = rep(apply.effects.as, n)
-                else if (length(apply.effects.as) != n)
-                    stop(paste0(error.prefix, "'apply.effects.as' (length ", length(apply.effects.as),
-                                ") must either have length 1 or have the same length as 'effect.values' and 'times' (length ", 
-                                n, ")"))
             }
             
             # Check start.time
@@ -267,24 +280,37 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                 if (any(is.na(times)))
                     stop(paste0(error.prefix, "'times' cannot contain NA values"))
                 
-                if (any(times[-1]<=times[-length(times)]))
+                # times must be ascending
+                if (any(times[-1]<times[-length(times)]))
                     stop(paste0(error.prefix, "'times' must be in ascending order"))
+
+                # times can be repeated at most once
+                if (length(times)>2)
+                {
+                    times.minus.last.two = times[-(length(times)-1:0)]
+                    times.minus.first.two = times[-(1:2)]
+                    times.minus.first.last = times[-c(1, length(times))]
+                    
+                    if (any(times.minus.last.two==times.minus.first.last &
+                            times.minus.first.two==times.minus.first.last))
+                        stop(paste0(error.prefix, "the values of 'times' can be repeated at most once - you can't have the same time three times in a row"))
+                }
                 
-                if (is.numeric(start.time) && start.time >= times[1])
+                # times cannot be infinite
+                if (any(is.infinite(times)))
+                    stop(paste0(error.prefix, "'times' cannot contain any infinite values"))
+                    
+                # the first time must be >= the start time
+                if (is.numeric(start.time) && start.time > times[1])
                     stop(paste0(error.prefix, "'start.time' (",
-                                start.time, ") must be BEFORE the first element of 'times' (",
+                                start.time, ") must be LESS THAN OR EQUAL TO the first element of 'times' (",
                                 times[1], ")"))
                 
-                if (is.numeric(end.time) && end.time <= times[length(times)])
+                # the last time must be <= the end time
+                if (is.numeric(end.time) && end.time < times[length(times)])
                     stop(paste0(error.prefix, "'end.time' (",
-                                start.time, ") must be AFTER the last element of 'times' (",
+                                end.time, ") must be GREATER THAN OR EQUAL TO the last element of 'times' (",
                                 times[length(times)], ")"))
-                
-                
-                stop("need to change this")
-                # end time can be = last time
-                # times can be repeated at most once (ie, two times the same, no more)
-                # times cannot be infinite
             }
             else
             {
@@ -300,7 +326,7 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                 if (any(is.na(effect.values)))
                     stop(paste0(error.prefix, "'effect.values' cannot contain NA values"))
                 
-                if (any(apply.effects.as=='multiplier' & effect.values<0))
+                if (apply.effects.as=='multiplier' & any(effect.values<0))
                     stop(paste0(error.prefix, "When 'apply.effects.as' is 'multiplier', corresponding 'effect.values' must be non-negative"))
                 
                 if (any(sapply(effect.values, function(one.effect){
@@ -321,19 +347,26 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
             private$i.allow.values.less.than.otherwise = allow.values.less.than.otherwise
             private$i.allow.values.greater.than.otherwise = allow.values.greater.than.otherwise
             private$i.bindings = bindings
-            private$i.is.resolved = is.numeric(effect.values) && is.numeric(times) && is.numeric(start.time) && is.numeric(end.time)
+            private$i.times.are.resolved = is.numeric(times) && is.numeric(start.time) && is.numeric(end.time)
+            private$i.is.resolved = is.numeric(effect.values) && private$i.times.are.resolved
             
             private$i.depends.on = character()
+            private$i.effect.values.depend.on = character()
+            private$i.all.times.depend.on = character()
+            
+            private$i.location = location
+            private$i.version = version
+            
             if (!private$i.is.resolved)
             {
                 if (!is.numeric(start.time))
-                    private$i.depends.on = c(private$i.depends.on, start.time$depends.on)
+                    private$i.all.times.depend.on = c(private$i.all.times.depend.on, start.time$depends.on)
                 
                 if (!is.numeric(end.time))
-                    private$i.depends.on = c(private$i.depends.on, end.time$depends.on)
+                    private$i.all.times.depend.on = c(private$i.all.times.depend.on, end.time$depends.on)
                 
                 if (!is.numeric(times))
-                    private$i.depends.on = c(private$i.depends.on, 
+                    private$i.all.times.depend.on = c(private$i.all.times.depend.on, 
                                              unlist(sapply(times, function(one.time){
                                                  if (is.numeric(one.time))
                                                      character()
@@ -342,16 +375,90 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                                              })))
                 
                 if (!is.numeric(effect.values))
-                    private$i.depends.on = c(private$i.depends.on, 
-                                             unlist(sapply(effect.values, function(one.effect){
-                                                 if (is.numeric(one.effect))
-                                                     character()
-                                                 else
-                                                     one.effect$depends.on
-                                             })))
+                    private$i.effect.values.depend.on = unlist(sapply(effect.values, function(one.effect){
+                        if (is.numeric(one.effect))
+                            character()
+                        else
+                            one.effect$depends.on
+                    }))
                 
-                private$i.depends.on = setdiff(private$i.depends.on, names(bindings))
+                private$i.effect.values.depend.on = setdiff(private$i.effect.values.depend.on, names(bindings))
+                private$i.all.times.depend.on = setdiff(private$i.all.times.depend.on, names(bindings))
+                
+                private$i.depends.on = union(private$i.effect.values.depend.on, private$i.all.times.depend.on)
             }
+            
+            if (is.null(all.times))
+            {
+                if (private$i.times.are.resolved)
+                    private$i.all.times = union_sorted_vectors(list(private$i.start.time,
+                                                                    private$i.times,
+                                                                    private$i.end.time))
+                else
+                    private$i.all.times = NULL
+            }
+            else
+                private$i.all.times = all.times
+        },
+        
+        anchor.location.and.version = function(location, specification.metadata, error.prefix='')
+        {
+            # Check location and specification.metadata
+            if (!is.character(location) || length(location)!=1 || is.na(location))
+                stop(paste0(error.prefix, "'location' must be a single, non-NA character value"))
+            
+            if (!is(specification.metadata, 'specification.metadata'))
+                stop(paste0(error.prefix, "'specification.metadata' must be an object of class 'specification.metadata'"))
+            
+            
+            if (!is.null(private$i.location) || !is.null(private$i.version))
+            {
+                if (private$i.location != location || private$i.version != specification.metadata$version)
+                    stop(paste0(error.prefix, "Cannot anchor the intervention.effect's location and version. It has already been anchored to location '",
+                                private$i.location, "' and version '", private$i.version, "'"))
+                
+                rv = self
+            }
+            else
+            {
+                # Resolve function bindings
+                binding.is.function = !sapply(private$i.bindings, is.numeric)
+                bindings = private$i.bindings
+                bindings[binding.is.function] = 
+                    lapply(names(bindings)[binding.is.function], function(name){
+                        wrapper = bindings[[name]]
+                        val = wrapper$execute(bindings=list(location=location,
+                                                            specification.metadata=specification.metadata),
+                                              error.prefix='')
+                        
+                        if (!is.numeric(val) || length(val)==0 || any(is.na(val)))
+                            stop(paste0(error.prefix,
+                                        "When evaluated, the stored binding for '",
+                                        name, "', must be a non-empty, numeric vector with no NA values"))
+                        
+                        val
+                    })
+                
+                # Make resolved version
+                rv = JHEEM.INTERVENTION.EFFECT$new(quantity.name = private$i.quantity.name,
+                                                   start.time = private$i.start.time,
+                                                   effect.values = private$i.effect.values,
+                                                   times = private$i.times,
+                                                   end.time = private$i.end.time,
+                                                   apply.effects.as = private$i.apply.effects.as,
+                                                   scale = private$i.scale,
+                                                   allow.values.less.than.otherwise = private$i.allow.values.less.than.otherwise,
+                                                   allow.values.greater.than.otherwise = private$i.allow.values.greater.than.otherwise,
+                                                   bindings = bindings,
+                                                   location = location,
+                                                   version = specification.metadata$version,
+                                                   error.prefix = error.prefix)
+            }
+            
+            if (length(rv$depends.on)==0 && !rv$is.resolved)
+                rv$resolve(error.prefix)
+            else
+                rv
         },
         
         resolve = function(bindings, error.prefix='')
@@ -360,8 +467,22 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                 self
             else
             {
+                if (!self$is.anchored)
+                    stop(paste0(error.prefix, "Cannot resolve intervention.effects until they have been anchored to a location and version using $anchor.location.and.version()"))
+                    
                 # Check for missing bindings
+                missing.bindings = setdiff(private$i.depends.on, names(bindings))
+                if (length(missing.bindings)>0)
+                    stop(paste0(error.prefix, "Cannot resolve the intervention effect with the following ",
+                                ifelse(length(missing.bindings)==1, "binding", "bindings"),
+                                "missing: ",
+                                collapse.with.and("'", missing.bindings, "'")))
                 
+                # Make sure bindings are all numeric - if not, we have not anchored to location/version
+                if (any(!sapply(bindings, is.numeric)))
+                    stop(paste0(error.prefix, "Cannot resolve intervention.effect - it has not been anchored to a location or version"))
+                
+                # Overwrite with stored bindings
                 bindings[names(private$i.bindings)] = private$i.bindings
                 
                 if (is.numeric(private$i.start.time))
@@ -404,12 +525,31 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                                               allow.values.less.than.otherwise = private$i.allow.values.less.than.otherwise,
                                               allow.values.greater.than.otherwise = private$i.allow.values.greater.than.otherwise,
                                               bindings = NULL,
+                                              location = private$i.location,
+                                              version = private$i.version,
                                               error.prefix = error.prefix)
             }
         }
     ),
     
     active = list(
+        
+        bindings = function(value)
+        {
+            if (missing(value))
+                private$i.bindings
+            else
+                stop("Cannot set a jheem.intervention.effect's 'bindings' - they are read only")
+        },
+        
+        
+        is.anchored = function(value)
+        {
+            if (missing(value))
+                !is.null(private$i.location)
+            else
+                stop("Cannot set a jheem.intervention.effect's 'is.anchored' - it is read only")
+        },
         
         quantity.name = function(value)
         {
@@ -469,6 +609,16 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
             }
             else
                 stop("Cannot set a jheem.intervention.effect's 'end.time' - it is read only")
+        },
+        
+        all.times = function(value)
+        {
+            if (missing(value))
+            {
+                private$i.all.times
+            }
+            else
+                stop("Cannot set a jheem.intervention.effect's 'all.times' - they are read only")
         },
         
         apply.effects.as = function(value)
@@ -536,6 +686,14 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                 stop("Cannot set a jheem.intervention.effect's 'is.resolved' - it is read only")
         },
         
+        times.are.resolved = function(value)
+        {
+            if (missing(value))
+                private$i.times.are.resolved
+            else
+                stop("Cannot set a jheem.intervention.effect's 'times.are.resolved' - it is read only")
+        },
+        
         depends.on = function(value)
         {
             if (missing(value))
@@ -546,12 +704,34 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
         
         effect.values.depend.on = function(value)
         {
-            
+            if (missing(value))
+                private$i.effect.values.depend.on
+            else
+                stop("Cannot set a jheem.intervention.effect's 'effect.values.depend.on' - it is read only")
         },
         
         all.times.depend.on = function(value)
         {
-            
+            if (missing(value))
+                private$i.all.times.depend.on
+            else
+                stop("Cannot set a jheem.intervention.effect's 'all.times.depend.on' - it is read only")
+        },
+        
+        location = function(value)
+        {
+            if (missing(value))
+                private$i.location
+            else
+                stop("Cannot set a jheem.intervention.effect's 'location' - it is read only")
+        },
+        
+        version = function(value)
+        {
+            if (missing(value))
+                private$i.version
+            else
+                stop("Cannot set a jheem.intervention.effect's 'version' - it is read only")
         }
     ),
     
@@ -562,12 +742,18 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
         i.effect.values = NULL,
         i.times = NULL,
         i.end.time = NULL,
+        i.all.times = NULL,
         i.apply.effects.as = NULL,
         i.scale = NULL,
         i.allow.values.less.than.otherwise = NULL,
         i.allow.values.greater.than.otherwise = NULL,
         i.bindings = NULL,
         i.depends.on = NULL,
-        i.is.resolved = NULL
+        i.effect.values.depend.on = NULL,
+        i.all.times.depend.on = NULL,
+        i.is.resolved = NULL,
+        i.times.are.resolved = NULL,
+        i.location = NULL,
+        i.version = NULL
     )
 )
