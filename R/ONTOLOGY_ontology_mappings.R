@@ -601,7 +601,12 @@ do.get.ontology.mapping <- function(from.ontology,
         else
         {
             try.mapping = mapping$can.apply.to.ontology(from.ontology,
-                                                         error.prefix=error.prefix)
+                                                         error.prefix=error.prefix) &&
+                length(intersect(mapping$from.dimensions, dimensions.out.of.alignment)) == length(mapping$from.dimensions)
+            # not sure the second condition above is totally correct
+            # should it be > 0 ?
+            # ie, do we apply the mapping only if it only involves dimensions out of alignment (what we have now)
+            # or do we apply the mapping if it involves at least one dimension out of alignment (what >0 would give us)
             
             mappings.to.try.next = mappings[-i]
         }
