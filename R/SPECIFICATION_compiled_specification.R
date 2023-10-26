@@ -592,12 +592,15 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             do.cat("Calculating dim.names for quantities...")
             for (quantity in private$i.quantities)
                 private$calculate.quantity.dim.names(quantity, error.prefix=error.prefix)
-            
+       
             null.dim.names.mask = sapply(private$i.quantities, function(quant){
                 is.null(quant$max.dim.names)
             })
             for (quantity in private$i.quantities)
-                private$calculate.quantity.dim.names.bottom.up(quantity, error.prefix=error.prefix)
+            {
+                if (is.null(quantity$max.dim.names))
+                    private$calculate.quantity.dim.names.bottom.up(quantity, error.prefix=error.prefix)
+            }
             
             do.cat("done\n")
             
@@ -1213,7 +1216,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             required.dim.names = list()
             ref.sources = character()
             
-            
             #-- Pull from top-level references --#
             for (ref in private$get.references.that.refer.to(quantity$name))
             {
@@ -1297,7 +1299,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                         invalid.dimensions = setdiff(names(comp$applies.to), names(max.dim.names))
                         if (length(invalid.dimensions)>0)
                         {
-                            browser()
                             stop(paste0(error.prefix,
                                         "Cannot calculate dimnames for quantity ", 
                                         quantity$get.original.name(private$i.version),
@@ -1595,6 +1596,60 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                     dimension.aliases = dimension.aliases[intersect(names(dimension.aliases), names(fixed.dim.names))]
                 }
             }
+            else if (!is.null(quantity$fixed.dimension.values)) # this echoes the logic above, but with some different error messages
+            {
+                if (!is.null(max.dim.names))
+                {
+                    # make sure we are not missing any dimensions (after reconciling with aliases)
+                    missing.from.max = setdiff(names(quantity$fixed.dimension.values), names(max.dim.names))
+                    if (length(missing.from.max)>0)
+                    {
+                        aliases.for.missing.mask = sapply(names(dimension.aliases), function(alias){
+                            any(alias==missing.from.max)
+                        })
+                        names(max.dim.names) = replace.with.aliases(names(max.dim.names), dimension.aliases[aliases.for.missing.mask])
+                        dimension.aliases = dimension.aliases[!aliases.for.missing.mask]
+                        
+                        missing.from.max = setdiff(names(quantity$fixed.dimension.values), names(max.dim.names))
+                        if (length(missing.from.max)>0)
+                        {
+                            stop(paste0(error.prefix,
+                                        "Cannot calculate dimnames for quantity ", 
+                                        quantity$get.original.name(private$i.version),
+                                        " - the dimensions inferred from ancestor quantities and references do not include ",
+                                        collapse.with.and("'", missing.from.max, "'"), ", which ",
+                                        ifelse(length(missing.from.max)==1, "was a dimension", "were dimensions"),
+                                        " included in the 'dimension.values' argument used in constructing this quantity"))
+                        }
+                    }
+                }
+                
+                # make sure the dimension.values are compatible
+                if (apply.even.if.max.dim.names.null || !is.null(max.dim.names))
+                {
+                    fixed.dim.names = quantity$fixed.dimension.values
+                    
+                    if (!is.null(max.dim.names))
+                    {
+                        sapply(names(fixed.dim.names), function(d){
+                            if (!setequal(fixed.dim.names[[d]], max.dim.names[[d]]))
+                            {
+                                stop(paste0(error.prefix,
+                                            "Cannot calculate dimnames for quantity ", 
+                                            quantity$get.original.name(private$i.version),
+                                            " - the values for dimension '", d, "' inferred from ancestor quantities (",
+                                            collapse.with.and("'", max.dim.names[[d]], "'"),
+                                            " do not match the values set by the 'dimension.values' used in constructing the quantity (",
+                                            collapse.with.and("'", fixed.dim.names[[d]], "'")))
+                            }
+                        })
+                    }
+                    
+                    quantity$set.fixed.dim.names(fixed.dim.names)
+                    max.dim.names[names(fixed.dim.names)] = fixed.dim.names
+                    dimension.aliases = dimension.aliases[intersect(names(dimension.aliases), names(fixed.dim.names))]
+                }
+            }
             
             list(dim.names = max.dim.names,
                  aliases = dimension.aliases)
@@ -1794,23 +1849,20 @@ compile.and.sort.core.components.for.location <- function(specification,
                                                           error.prefix)
 {
     #-- Compile the components --#
-    compiled.components = lapply(specification$sorted.core.components, function(comps){
-        
-        rv = list()
-        for (comp in comps)
-        {
-            rv = c(rv, 
-                   comp$schema$compile.component(comp,
-                                                 specification = specification,
-                                                 ontologies = ontologies,
-                                                 aliases = specification.metadata$compartment.aliases,
-                                                 unresolved.alias.names = character(),
-                                                 unpack = T,
-                                                 error.prefix = error.prefix))
-        }
-        
-        rv
-    })
+    compiled.components = list()
+    
+    for (comp in specification$core.components)
+    {
+        compiled.components = c(compiled.components,
+                                comp$schema$compile.component(comp,
+                                                              specification = specification,
+                                                              ontologies = ontologies,
+                                                              aliases = specification.metadata$compartment.aliases,
+                                                              unresolved.alias.names = character(),
+                                                              unpack = T,
+                                                              error.prefix = error.prefix)
+        )   
+    }
     
     #-- Check for Clashes --#
     
@@ -1821,7 +1873,7 @@ compile.and.sort.core.components.for.location <- function(specification,
     i = 1
     while (i <= length(compiled.components))
     {
-        comp = compiled.components[[j]]
+        comp = compiled.components[[i]]
         j = i + 1
         while (j <= length(compiled.components))
         {
@@ -1840,7 +1892,6 @@ compile.and.sort.core.components.for.location <- function(specification,
         i = i+1
     }
     
-
     #-- Sort --#
     sorted.components = lapply(CORE.COMPONENT.SCHEMATA, function(sch){
         compiled.components[sapply(compiled.components, function(comp){comp$type}) == sch$type]
