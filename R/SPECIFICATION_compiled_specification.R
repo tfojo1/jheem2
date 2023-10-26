@@ -1003,7 +1003,9 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                             ifelse(length(invalid.outcomes.cumulative)==1, "but it is", "but they are"),
                             " NON-cumulative"))
             
-            
+     
+            # Do we want to take this out?
+            # and just automatically integrate any non-cumulative outcomes?
             invalid.outcomes.non.cumulative = depends.on.outcomes.non.cumulative[as.logical(sapply(depends.on.outcomes.non.cumulative, function(dep.on){
                 self$get.outcome(dep.on)$is.cumulative
             }))]
@@ -1216,6 +1218,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             required.dim.names = list()
             ref.sources = character()
             
+            
             #-- Pull from top-level references --#
             for (ref in private$get.references.that.refer.to(quantity$name))
             {
@@ -1299,6 +1302,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                         invalid.dimensions = setdiff(names(comp$applies.to), names(max.dim.names))
                         if (length(invalid.dimensions)>0)
                         {
+                            browser()
                             stop(paste0(error.prefix,
                                         "Cannot calculate dimnames for quantity ", 
                                         quantity$get.original.name(private$i.version),

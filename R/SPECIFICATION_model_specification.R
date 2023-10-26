@@ -6761,7 +6761,16 @@ MODEL.OUTCOME = R6::R6Class(
         
         compile = function(specification, error.prefix)
         {
-            self$clone(deep=T)
+            rv = self$clone(deep=T)
+            rv$resolve.compartment.aliases(specification$resolved.aliases)
+            rv
+        },
+        
+        resolve.compartment.aliases = function(aliases)
+        {
+            private$i.subset.dimension.values = apply.aliases(private$i.subset.dimension.values, aliases)
+            
+            self
         },
         
         validate.arguments = function()
@@ -6918,10 +6927,39 @@ MODEL.OUTCOME = R6::R6Class(
                                     "The max.dim.names of quantity ", quant$get.original.name(specification$version),
                                     ", on which the outcome depends, cannot be inferred from the model specification"))
                     
-                    if (!dim.names.are.subset(sub.dim.names=quant$max.dim.names, super.dim.names=max.dim.names))
+                    extra.dimensions.in.quantity = setdiff(names(quant$max.dim.names), names(max.dim.names))
+                    if (length(extra.dimensions.in.quantity)>0)
                         stop(paste0(error.prefix,
-                                    "The max.dim.names of quantity ", quant$get.original.name(specification$version),
-                                    ", on which the outcome depends, are broader than the inferred max.dim.names for the outcome"))
+                                    "The calculated possible dimensions which quantity ", quant$get.original.name(specification$version),
+                                    ", on which the outcome depends, can have, are broader than the inferred dimensions for the outcome. ",
+                                    ifelse(length(extra.dimensions.in.quantity)==1, "Dimension ", "Dimensions "),
+                                    collapse.with.and("'", extra.dimensions.in.quantity, "'"),
+                                    " present in the quantity ('", quant$get.original.name(specification$version),
+                                    "') but not in the outcome ('",
+                                    self$get.original.name(specification$version),"')"))
+                    
+                    
+                    missing.values.per.dimension = sapply(names(quant$max.dim.names), function(d){
+                        setdiff(max.dim.names[[d]], quant$max.dim.names[[d]])
+                    })
+                    dimensions.with.missing.mask = sapply(missing.values.per.dimension, length)>0
+                    
+                    if (any(dimensions.with.missing.mask))
+                    {
+                        dimensions.with.missing = dimensions[dimensions.with.missing.mask]
+                        missing.values.text = sapply(missing.values.per.dimension[dimensions.with.missing.mask], function(val){
+                            if (length(val)==1)
+                                paste0("value '", val, "'")
+                            else
+                                paste0("values ", collapse.with.and("'", val, "'"))
+                        })
+                        
+                        error.details = paste0("Dimension values which are present in the calculated dim.names of quantity ", quant$get.original.name(specification$version),
+                                               ", on which the outcome depends, are missing from the outcome's dim.names: ",
+                                               paste0("Dimension '", dimensions.with.missing, "' is missing ", missing.values.text,
+                                                      collapse='. '),
+                                               ".")
+                    }
                 }
             
                 private$i.ontology = as.ontology(dim.names, incomplete.dimensions = intersect(names(dim.names),
@@ -7796,15 +7834,10 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
             private$i.to.compartments = to.compartments
         },
         
-        compile = function(specification, error.prefix)
-        {
-            rv = super$compile(specification, error.prefix)
-            rv$resolve.compartment.aliases(specification$resolved.aliases)
-            rv
-        },
-        
         resolve.compartment.aliases = function(aliases)
         {
+            super$resolve.compartment.aliases(aliases)
+            
             private$i.from.compartments = substitute.aliases.into.vector(private$i.from.compartments, aliases)
             private$i.to.compartments = substitute.aliases.into.vector(private$i.to.compartments, aliases)
         }
