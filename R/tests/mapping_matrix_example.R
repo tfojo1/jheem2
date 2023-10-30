@@ -1,3 +1,12 @@
+
+source('R/HELPERS_misc_helpers.R')
+source('R/HELPERS_dim_names_helpers.R')
+source('R/ONTOLOGY_ontology.R')
+Rcpp::sourceCpp('src/ontology_mappings.cpp')
+
+source('R/ONTOLOGY_ontology_mappings.R')
+
+
 # mapping matrices are not as I expect them
 
 register.ontology.mapping('jheem.to.cdc.sex.risk',
@@ -20,9 +29,13 @@ mp = get.ontology.mapping(jheem.sex.risk, cdc.sex.risk)
 
 cdc.only.sex = list(sex = c('male', 'female'))
 
+arr.jheem.sex.risk = array(1, dim=sapply(jheem.sex.risk, length), dimnames=jheem.sex.risk)
+
 mat1 = mp$get.matrix(jheem.sex.risk, cdc.sex.risk)
 mat2 = mp$get.matrix(jheem.sex.risk, cdc.only.sex) # all zeroes
 
+mp$apply(arr.jheem.sex.risk)
+mp$apply(arr.jheem.sex.risk, to.dim.names = cdc.only.sex)
 
 # mat 1 looks like:
 #      [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9]

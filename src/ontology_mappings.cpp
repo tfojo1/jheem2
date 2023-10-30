@@ -132,7 +132,7 @@ RObject do_execute_ontology_mapping(List src_dim_names,
             }
         }
     }
-    
+
     if (n_to_dims==0)
         return (R_NilValue);
     
@@ -184,7 +184,7 @@ RObject do_execute_ontology_mapping(List src_dim_names,
     //-- SET UP THE DIMENSION INDICES --//
     //----------------------------------//
     //----------------------------------//
-    
+
     int n_dst = 1;
     for (int i=0; i<n_dst_dims; i++)
         n_dst *= dst_dims[i];
@@ -225,22 +225,24 @@ RObject do_execute_ontology_mapping(List src_dim_names,
             n_mapped_from++;
         }
     }
-    
+
     
     int to_dim_values[n_mapped_from][n_to_dims];
     int n_mapped = 0;
     int mapped_to_values_indices[n_mapped_from];
+    int j_in_values;
     
     for (int i=0; i<n_mapped_from; i++)
     {
         all_dims_mapped = true;
         for (int j=0; j<n_to_dims && all_dims_mapped; j++)
         {
+            j_in_values = which_to_dimensions_to_use[j];
             dim_values = dst_dim_names[to_dim_indices[j]];
             to_dim_values[i][j] = -1;
             for (int k=0; k<dim_values.length(); k++)
             {
-                if (to_values[ j*n_values + mapped_from_values_indices[i] ] == dim_values[k])
+                if (to_values[ j_in_values*n_values + mapped_from_values_indices[i] ] == dim_values[k])
                 {
                     to_dim_values[n_mapped][j] = k;
                     break;
@@ -386,6 +388,7 @@ RObject do_execute_ontology_mapping(List src_dim_names,
     
     int base_src_index, src_index, base_dst_index, dst_index;
     
+
     // iterate
     for (int i=0; i<n_included_non_from; i++)
     {
