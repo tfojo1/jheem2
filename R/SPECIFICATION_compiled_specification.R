@@ -136,29 +136,59 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             }
         },
         
-        get.dependent.quantity.names = function(quantity.name)
+        get.dependent.quantity.names = function(quantity.names)
         {
-            unlist(private$i.dependent.quantity.names[quantity.name])
+            unlist(private$i.dependent.quantity.names[quantity.names])
         },
         
-        get.co.dependee.element.names = function(element.name)
+        get.dependee.element.names = function(quantity.names)
         {
-            unlist(private$i.co.dependee.element.names[element.name])
+            unlist(private$i.dependee.element.names[quantity.names])
         },
         
-        get.dependee.element.names = function(quantity.name)
+        get.dependee.quantity.names = function(quantity.names)
         {
-            unlist(private$i.dependee.element.names[quantity.name])
+            unlist(private$i.dependee.quantity.names[quantity.names])
         },
         
-        get.dependee.quantity.names = function(quantity.name)
+        get.dependent.top.level.quantity.names = function(quantity.names)
         {
-            unlist(private$i.dependee.quantity.names[quantity.name])
+            unlist(private$i.dependent.top.level.quantity.names[quantity.names])
         },
         
-        get.dependent.top.level.quantity.names = function(quantity.name)
+        get.non.cumulative.dependent.outcome.names = function(quantity.names)
         {
-            unlist(private$i.dependent.top.level.quantity.names[quantity.name])
+            unlist(private$i.non.cumulative.dependent.outcome.names[quantity.names])
+        },
+        
+        get.outcome.dependee.element.names = function(outcome.names)
+        {
+            unlist(private$i.outcome.dependee.element.names[outcome.names])
+        },
+        
+        get.outcome.dependee.quantity.names = function(outcome.names)
+        {
+            unlist(private$i.outcome.dependee.quantity.names[outcome.names])
+        },
+        
+        get.outcome.non.cumulative.dependendee.outcome.names = function(outcome.names)
+        {
+            unlist(private$i.outcome.non.cumulative.dependendee.outcome.names[outcome.names])
+        },
+        
+        get.outcome.direct.dependee.outcome.names = function(outcome.names)
+        {
+            unlist(private$i.outcome.direct.dependee.outcome.names[outcome.names])
+        },
+        
+        get.outcome.numerator.direct.dependee.outcome.names = function(outcome.names)
+        {
+            unlist(private$i.outcome.numerator.direct.dependee.outcome.names[outcome.names])
+        },
+        
+        get.outcome.direct.dependee.quantity.names = function(outcome.names)
+        {
+            unlist(private$i.outcome.direct.dependee.quantity.names[outcome.names])
         },
 
         ##---------------------------------------------------------------##
@@ -403,9 +433,21 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         
         i.dependent.quantity.names = NULL,
         i.dependent.top.level.quantity.names = NULL,
-        i.co.dependee.element.names = NULL,
         i.dependee.element.names = NULL,
         i.dependee.quantity.names = NULL,
+        
+        i.direct.outcome.on.quantity.dependencies = NULL,
+        i.direct.outcome.on.outcome.non.cumulative.dependencies = NULL,
+        i.outcome.on.quantity.dependencies = NULL,
+        i.outcome.on.outcome.non.cumulative.dependencies = NULL,
+        
+        i.non.cumulative.dependent.outcome.names = NULL,
+        i.outcome.dependee.element.names = NULL,
+        i.outcome.dependee.quantity.names = NULL,
+        i.outcome.non.cumulative.dependendee.outcome.names = NULL,
+        i.outcome.direct.dependee.outcome.names = NULL,
+        i.outcome.numerator.direct.dependee.outcome.names = NULL,
+        i.outcome.direct.dependee.quantity.names = NULL,
         
         #----------------------------------#
         #-- COMPILE FUNCTION and HELPERS --#
@@ -1691,7 +1733,10 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             #-- Make Dependency Matrix --#
             # i.dependencies[i,j] is true if quantity j ultimately depends on quantity i
-            private$i.dependencies = t(sapply(names(private$i.quantities), private$get.dependency.row))
+            private$i.dependencies = t(sapply(names(private$i.quantities), 
+                                              private$get.dependency.row,
+                                              direct.dependencies = private$i.direct.dependencies,
+                                              possible.dependents = private$i.quantities))
             dimnames(private$i.dependencies) = list(
                 dependee = names(private$i.quantities),
                 dependent = names(private$i.quantities)
@@ -1707,12 +1752,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 intersect(quant.names, private$i.top.level.quantity.names)
             })
             
-            private$i.co.dependee.element.names = lapply(private$i.element.names, function(elem.name){
-                mask = apply(private$i.dependencies[private$i.element.names, private$i.dependend.quantity.names[[elem.name]], drop=F], 1, any)
-                setdiff(private$i.element.names[mask], elem.name)
-            })
-            names(private$i.co.dependee.element.names) = private$i.element.names
-            
             private$i.dependee.element.names = lapply(names(private$i.quantities), function(quant.name){
                 private$i.element.names[private$i.dependencies[private$i.element.names, quant.name]]
             })
@@ -1723,22 +1762,133 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             })
             names(private$i.dependee.quantity.names) = names(private$i.quantities)
             
+            # Now do this for outcomes-quantities and outcomes-outcomes
+
+            # Figure out which quantities and outcomes each outcome depends on
+            # (for it's non-cumulative aspects -
+            #  we don't care about cumulative, because we need this for calculating times,
+            #  and anything that is integrated - ie cumulative - will just have
+            #  one time for each year the model runs)
+            outcome.depends.on.quantities = lapply(private$i.outcomes, function(outcome){
+                c(outcome$depends.on.quantities,
+                  intersect(outcome$depends.on.quantities.or.outcomes, outcome$name),
+                  setdiff(outcome$depends.on.quantities.or.outcomes, self$outcome.names))
+            })
+            names(outcome.depends.on.quantities) = names(private$i.outcomes)
+            
+            private$i.outcome.direct.dependee.quantity.names = outcome.depends.on.quantities
+            
+            private$i.outcome.direct.dependee.outcome.names = lapply(private$i.outcomes, function(outcome){
+                setdiff(outcome$depends.on, outcome.depends.on.quantities[outcome$name])
+            })
+            
+            private$i.outcome.numerator.direct.dependee.outcome.names = lapply(private$i.outcomes, function(outcome){
+                union(outcome$depends.on.outcomes.except.numerator,
+                      setdiff(outcome$depends.on.quantities.or.outcomes,
+                              c(outcome$name, self$outcome.names)))
+            })
+            
+            outcome.depends.on.outcomes.non.cumulative = lapply(private$i.outcomes, function(outcome){
+                
+                depends.on.outcome.names = c(outcome$depends.on.outcomes.except.denominator,
+                                             setdiff(outcome$depends.on.quantities.or.outcomes,
+                                                     outcome.depends.on.quantities[outcome$name]))
+                
+                if (!outcome$is.cumulative &&
+                    !is.null(outcome$denominator.outcome))
+                    depends.on.outcome.names = c(depends.on.outcome.names,
+                                                 outcome$denominator.outcome)
+                
+                depends.on.outcome.names
+            })
+            names(outcome.depends.on.outcomes.non.cumulative) = names(private$i.outcomes)
+            
+            #-- Make Direct Dependency Matrices --#
+            # i.direct.outcome.on.quantity.dependencies[i,j] is true if outcome j's depends.on value includes quantity i
+            private$i.direct.outcome.on.quantity.dependencies = sapply(private$i.outcomes, function(dependent){
+                sapply(private$i.quantities, function(dependee){
+                    any(outcome.depends.on.quantities[[dependent$name]] == dependee$name)
+                })
+            })
+            
+            # i.direct.outcome.on.outcome.non.cumulative.dependencies[i,j] is true if
+            #   outcome j's depends.on value includes outcome i for non-cumulative aspects
+            private$i.direct.outcome.on.outcome.non.cumulative.dependencies = sapply(private$i.outcomes, function(dependent){
+                sapply(private$i.outcomes, function(dependee){
+                    any(outcome.depends.on.outcomes.non.cumulative[[dependent$name]] == dependee$name)
+                })
+            })
+            
+            #-- Make Dependency Matrices --#
+            
+            # i.outcome.on.quantity.dependencies[i,j] is true if outcome j ultimately depends on quantity i
+            private$i.outcome.on.quantity.dependencies = t(sapply(names(private$i.quantities), 
+                                                                  private$get.dependency.row,
+                                                                  direct.dependencies = private$i.direct.outcome.on.quantity.dependencies,
+                                                                  possible.dependents = private$i.outcomes))
+            dimnames(private$i.outcome.on.quantity.dependencies) = list(
+                dependee = names(private$i.quantities),
+                dependent = names(private$i.outcomes)
+            )
+            
+            # i.outcome.on.outcome.non.cumulative.dependencies[i,j] is true if 
+            # outcome j ultimately depends on outcome i for its non-cumulative aspects
+            private$i.outcome.on.outcome.non.cumulative.dependencies = 
+                t(sapply(names(private$i.outcomes), 
+                         private$get.dependency.row,
+                         direct.dependencies = private$i.direct.outcome.on.outcome.non.cumulative.dependencies,
+                         possible.dependents = private$i.outcomes))
+            dimnames(private$i.outcome.on.outcome.non.cumulative.dependencies) = list(
+                dependee = names(private$i.outcomes),
+                dependent = names(private$i.outcomes)
+            )
+            
+            #-- Set up dependency vectors related to outcomes --#
+            
+            private$i.non.cumulative.dependent.outcome.names = lapply(names(private$i.quantities), function(quant.name){
+                names(private$i.outcomes)[private$i.outcome.on.quantity.dependencies[quant.name,]]
+            })
+            names(private$i.non.cumulative.dependent.outcome.names) = names(private$i.quantities)
+            
+            private$i.outcome.dependee.element.names = lapply(names(private$i.outcomes), function(outcome.name){
+                private$i.element.names[private$i.outcome.on.quantity.dependencies[private$i.element.names, outcome.name]]
+            })
+            names(private$i.outcome.dependee.element.names) = names(private$i.outcomes)
+            
+            private$i.outcome.dependee.quantity.names = lapply(names(private$i.outcomes), function(outcome.name){
+                names(private$i.quantities)[private$i.outcome.on.quantity.dependencies[ names(private$i.quantities), outcome.name]]
+            })
+            names(private$i.outcome.dependee.quantity.names) = names(private$i.outcomes)
+            
+            private$i.outcome.non.cumulative.dependendee.outcome.names = lapply(names(private$i.outcomes), function(outcome.name){
+                names(private$i.outcomes)[private$i.outcome.on.outcome.non.cumulative.dependencies[ names(private$i.outcomes), outcome.name]]
+            })
+            names(private$i.outcome.non.cumulative.dependendee.outcome.names) = names(private$i.outcomes)
+            
             #-- Done --#
             invisible(self)
         },
-        
-        # a logical vector with one element corresponding to each quantity name
-        # rv[i] is true if this quantity or a descendant quantity depends on quantity i
-        get.dependency.row = function(quantity.name)
+
+        # a logical vector with one element corresponding to each possible.dependee name
+        # rv[i] is true if this dependent or a descendant dependent depends on dependee i
+        get.dependency.row = function(dependee.name,
+                                      direct.dependencies,
+                                      possible.dependents)
         {
-            rv = private$i.direct.dependencies[quantity.name,]
+            rv = direct.dependencies[dependee.name,]
             if (any(rv))
             {
-                direct.depends.on = names(private$i.quantities[rv])
+                direct.depends.on = setdiff(names(possible.dependents[rv]),
+                                            dependee.name)
                 for (depends.on.name in direct.depends.on)
-                    rv = rv | private$get.dependency.row(depends.on.name)
+                    rv = rv | private$get.dependency.row(depends.on.name,
+                                                         direct.dependencies = direct.dependencies,
+                                                         possible.dependents = possible.dependents)
             }
-            rv[quantity.name] = T #define things to depend on themselves
+            
+            if (any(names(rv)==dependee.name))
+                rv[dependee.name] = T #define things to depend on themselves
+            
             rv
         },
         

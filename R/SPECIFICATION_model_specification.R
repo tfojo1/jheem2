@@ -7007,6 +7007,36 @@ MODEL.OUTCOME = R6::R6Class(
                                         alias.suffix = NULL,
                                         error.prefix = error.prefix)
             })
+        },
+        
+        calculate.value.and.denominator = function(outcome.values.and.denominators,
+                                                   dynamic.and.intrinsic.numerators,
+                                                   quantity.values,
+                                                   quantity.after.values,
+                                                   quantity.times)
+        {
+            value = private$calculate.value(outcome.values.and.denominators,
+                                    dynamic.and.intrinsic.numerators,
+                                    quantity.values,
+                                    quantity.after.values,
+                                    quantity.times)
+            
+            if (is.null(private$i.denominator.outcome))
+                denominator.value = NULL
+            else
+                private$calculate.denominator.value(outcome.values.and.denominators,
+                                                    dynamic.and.intrinsic.numerators,
+                                                    quantity.values,
+                                                    quantity.after.values,
+                                                    quantity.times)
+            
+            # Expand years if we need to
+            # Expand 
+        },
+        
+        calculate.value <- function(times, bindings, error.prefix='')
+        {
+            stop(paste0(error.prefix, "calculate.value() is not implemented for this ", self$descriptor))
         }
     ),
     
@@ -7956,7 +7986,136 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
         {
             if (any(names(mapping)==private$i.value.to.integratee))
                 private$i.value.to.integrate = mapping[private$i.value.to.integrate]
+        },
+        
+        calculate.values = function(desired.times,
+                                    bindings,
+                                    binding.times,
+                                    cumulative.interval = 1,
+                                    error.prefix)
+        {
+            # Process Times
+            first.desired.time = desired.times[0]
+            last.desired.time = desired.times[length(desired.times)]
+            
+            n.binding.times = length(binding.times)
+            mask = binding.times[-1] > first.desired.time & 
+                binding.times[-n.binding.times] < last.desired.time &
+                binding.times[-1] != binding.times[-n.binding.times]
+            
+            n.intervals = sum(mask)
+            
+            t0.all = binding.times[-n.binding.times][mask]
+            t1.all = binding.times[-1][mask]
+            
+            # Process integrand into slopes
+            integrand = bindings[[private$i.value.to.integrate]]
+            n.integrand = length(integrand)
+            
+            if (n.integrand>1)
+            {
+                v0.all = integrand[-n.binding.times][mask]
+                v1.all = integrand[-1][mask]
+                
+                # indexed [time, stratum]
+                m.all = t(sapply(1:n.intervals, function(i){
+                    (v1.all[[i]] - v0.all[[i]]) / (t1.all[i] - t0.all[i])
+                }))
+                dim(m.all) = c(length(m.all)/n.intervals, n.intervals)
+            }
+            
+            if (is.null(private$i.multiply.by))
+                n.multiplier = NULL
+            else
+            {
+                multiplier = bindings[[private$i.multiply.by]]
+                n.multiplier = length(multiplier)
+                
+                if (n.multiplier>1)
+                {
+                    mult0.all = multiplier[-n.binding.times][mask]
+                    mult1.all = multiplier[-1][mask]
+                    
+                    # indexed [time, stratum]
+                    m2.all = t(sapply(1:n.intervals, function(i){
+                        (mult1.all[[i]] - mult0.all[[i]]) / (t1.all[i] - t0.all[i])
+                    }))
+                    dim(m2.all) = c(length(m2.all)/n.intervals, n.intervals)
+                }
+            }
+            
+            if (n.multiplier==0 && n.integrand==1)
+            {
+                val = integrand[[1]] * cumulative.interval
+                rv = lapply(desired.times, function(time){val})
+            }
+            else if (n.multiplier==1 && n.integrand==1)
+            {
+                val = integrand[[1]] * multplier[[1]] * cumulative.interval
+                rv = lapply(desired.times, function(time){val})
+            }
+            else if (n.multiplier<=1)
+            {
+                if (n.multiplier==0)
+                    mult = 1
+                else
+                    mult = multiplier[[1]]
+                
+                rv = lapply(desired.times, function(last.integrate.to.time){
+                    
+                    first.integrate.from.time = last.integrate.to.time - cumulative.interval
+                    
+                    sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
+                    
+                    b = v0.all[sub.mask]
+                    m = m.all[, sub.mask, drop=F]
+                    
+                    t0 = pmax(first.integrate.from.time, t0[sub.mask])
+                    t1 = pmin(t1[sub.mask], last.integrate.to.time)
+                    
+                    mult * colSums(m/2*t1^2 + b*t1 - m/2*t0^2 - b*t0)
+                })
+            }
+            else if (n.integrand==1)
+            {
+                rv = lapply(desired.times, function(last.integrate.to.time){
+                    
+                    first.integrate.from.time = last.integrate.to.time - cumulative.interval
+                    
+                    sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
+                    
+                    b2 = mult0.all[sub.mask]
+                    m2 = m2.all[, sub.mask, drop=F]
+                    
+                    t0 = pmax(first.integrate.from.time, t0[sub.mask])
+                    t1 = pmin(t1[sub.mask], last.integrate.to.time)
+                    
+                    integrand[[1]] * colSums(m2/2*t1^2 + b2*t1 - m2/2*t0^2 - b2*t0)
+                })
+            }
+            else # both n.multiplier and n.integrand are >1
+            {
+                rv = lapply(desired.times, function(last.integrate.to.time){
+                    
+                    first.integrate.from.time = last.integrate.to.time - cumulative.interval
+                    
+                    sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
+                    
+                    b = v0.all[sub.mask]
+                    m = m.all[, sub.mask, drop=F]
+                    
+                    b2 = mult0.all[sub.mask]
+                    m2 = m2.all[, sub.mask, drop=F]
+                    
+                    t0 = pmax(first.integrate.from.time, t0[sub.mask])
+                    t1 = pmin(t1[sub.mask], last.integrate.to.time)
+                    
+                    colSums(m*m2/3*t1^3 + (b*m2+b2*m)/2*t1^2 + b*b2*t1 -
+                                m*m2/3*t0^3 - (b*m2+b2*m)/2*t0^2 - b*b2*t0)
+                })
+            }
         }
+        
     ),
     
     active = list(
@@ -8119,6 +8278,32 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
         compile.value = function()
         {
             private$i.value = private$i.value$clone(deep=T)
+        },
+        
+        calculate.values = function(desired.times,
+                                    bindings,
+                                    binding.times,
+                                    cumulative.interval = 1,
+                                    error.prefix)
+        {
+            rv = lapply(1:length(desired.times), function(i){
+                bindings.for.time = lapply(bindings, function(b){
+                    if (length(b)==1)
+                        b[[1]]
+                    else
+                        b[[i]]
+                })
+                names(bindings.for.time) = names(bindings)
+                
+                private$i.value$evaluate(bindings = bindings.for.time,
+                                         error.prefix = paste0(error.prefix, 
+                                                               "Error calculating value for time ", 
+                                                               desired.times[i], " for outcome '",
+                                                               outcome$name, "' - "))
+            })
+            
+            names(rv) = as.character(desired.times)
+            rv
         }
     ),
     
@@ -8262,6 +8447,81 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
             }
             
             super$compile(specification, error.prefix)
+        },
+        
+        calculate.values = function(desired.times,
+                                    bindings,
+                                    binding.times,
+                                    cumulative.interval = 1,
+                                    error.prefix)
+        {
+            rates = super$calculate.values(desired.times = binding.times,
+                                           bindings = bindings,
+                                           binding.times = binding.times,
+                                           cumulative.interval = cumulative.interval,
+                                           error.prefix = error.prefix)
+            
+            n.binding.times = length(binding.times)
+            
+            if (n.binding.times==1)
+            {
+                r = rates[[1]]
+                
+                if (private$i.calculate.proportion.leaving)
+                    val = 1 - exp(-r * t)
+                else
+                    val = exp(-r * t)
+                
+                rv = lapply(desired.times, function(time){val})
+            }
+            else
+            {
+                first.desired.time = desired.times[0]
+                last.desired.time = desired.times[length(desired.times)]
+                
+                mask = binding.times[-1] > first.desired.time & 
+                    binding.times[-n.binding.times] < last.desired.time &
+                    binding.times[-1] != binding.times[-n.binding.times]
+                
+                n.intervals = sum(mask)
+                r0.all = rates[-n.binding.times][mask]
+                r1.all = rates[-1][mask]
+                
+                t0.all = binding.times[-n.binding.times][mask]
+                t1.all = binding.times[-1][mask]
+                
+                # indexed [time, stratum]
+                m.all = t(sapply(1:n.intervals, function(i){
+                    (r1.all[[i]] - r0.all[[i]]) / (t1.all[i] - t0.all[i])
+                }))
+                dim(m.all) = c(length(m.all)/n.intervals, n.intervals)
+                
+                rv = lapply(desired.times, function(last.integrate.to.time){
+                    
+                    first.integrate.from.time = last.integrate.to.time - cumulative.interval
+                    
+                    sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
+                    
+                    b = r0.all[sub.mask]
+                    m = m.all[, sub.mask, drop=F]
+                    
+                    t0 = pmax(first.integrate.from.time, t0[sub.mask])
+                    t1 = pmin(t1[sub.mask], last.integrate.to.time)
+                    
+                    p.remaining.by.interval = (m * t1 * exp(-m*t1^2/2) + exp(-b*t1)) /
+                        (m * t0 * exp(-m*t0^2/2) + exp(-b*t0))
+                    
+                    p.remaining = apply(p.remaining.by.interval, 2, prod)
+                    
+                    if (private$i.calculate.proportion.leaving)
+                        1 - p.remaining
+                    else
+                        p.remaining
+                })
+            }
+            
+            names(rv) = as.character(desired.times)
+            rv
         }
     ),
     
