@@ -1383,7 +1383,7 @@ track.point.outcome <- function(specification,
                                 name,
                                 outcome.metadata,
                                 value,
-                                value.is.numerator,
+                                value.is.numerator = F,
                                 sub.versions = NULL,
                                 
                                 denominator.outcome = NULL,
