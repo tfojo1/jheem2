@@ -7034,7 +7034,7 @@ MODEL.OUTCOME = R6::R6Class(
             # Expand 
         },
         
-        calculate.value <- function(times, bindings, error.prefix='')
+        calculate.value = function(times, bindings, error.prefix='')
         {
             stop(paste0(error.prefix, "calculate.value() is not implemented for this ", self$descriptor))
         }
@@ -7258,8 +7258,8 @@ MODEL.OUTCOME = R6::R6Class(
         
         value.is.numerator = function(value)
         {
-            if (missing(value.is.numerator))
-                private$i.to.year
+            if (missing(value))
+                private$i.value.is.numerator
             else
                 stop(paste0("Cannot modify a model outcome's 'value.is.numerator' - it is read-only"))
         }
