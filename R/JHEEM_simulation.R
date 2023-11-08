@@ -64,6 +64,20 @@ get.simulation.metadata <- function(version, location,
 }
 
 
+##-----------------------------------------------------------##
+##-----------------------------------------------------------##
+##-- INTERNAL (to the package) WRAPPERS OF THE CONSTRUCTOR --##
+##-----------------------------------------------------------##
+##-----------------------------------------------------------##
+
+create.single.simulation <- function(version,
+                                     location,
+                                     outcome.numerators,
+                                     outcome.denominators)
+{
+    
+}
+
 ##-----------------------##
 ##-----------------------##
 ##-- CLASS DEFINITIONS --##
@@ -402,12 +416,15 @@ SIMULATION.METADATA = R6::R6Class(
 JHEEM.SIMULATION = R6::R6Class(
     'jheem.simulation',
     inherit = SIMULATION.METADATA,
+    lock_object = F,
     portable = F,
     
     public = list(
         initialize = function(version,
                               location,
-                              outcome.data,
+                              outcome.numerators,
+                              outcome.denominators,
+                              parameters,
                               from.year,
                               to.year,
                               error.prefix = "Error constructing simulation")
@@ -426,26 +443,57 @@ JHEEM.SIMULATION = R6::R6Class(
             #-- Validate outcome data --#
             
             # Make sure all expected outcomes are present
+            # - Numerators for all
+            # - Denominators unless the type is number or non.negative.number
             # Make sure they are numeric arrays with dimensions that match the ontology
 
             #-- Update the outcome metadata's years for each of the non-cumulative outcomes --#
             
             
             #-- Store data --#
-            private$i.data = outcome.data
+            private$i.outcome.numerators = outcome.numerators
+            private$i.outcome.denominators = outcome.denominators
+            private$i.parameters = parameters
             
+            #-- Make Active Bindings with the Names of Outcomes --#
+            outcomes.to.bind = setdiff(self$outcomes, names(self))
+            lapply(outcomes.to.bind, function(outcome.name){
+                
+                makeActiveBinding(sym=outcome.name,
+                                  fun = function(value){
+                                      
+                                      if (missing(value))
+                                      {
+                                          if (is.null(private$i.outcome.denominators[[outcome.name]]))
+                                              private$i.outcome.numerators[[outcome.name]]
+                                          else
+                                          {
+                                              rv = private$i.outcome.numerators[[outcome.name]] /
+                                                private$i.outcome.denominators[[outcome.name]]
+                                              rv[private$i.outcome.denominators[[outcome.name]]==0] = 0
+                                              rv
+                                          }
+                                      }
+                                      else
+                                          stop("Cannot modify a simulation's 'parameters' - they are read-only")
+                                      
+                                  },
+                                  env = self)
+            })
+            
+            lockEnvironment(self)
         },
         
         get = function(outcomes,
                        keep.dimensions=NULL,
                        dimension.values = list(),
                        ...,
-                       check.consistency = T,
                        drop.single.outcome.dimension = T,
                        scale = NULL,
-                       get.denominator = F,
                        error.prefix = "Error getting simulation results: ")
         {
+            # If keep.dimensions is NULL, figure out keep.dimensions like we do for data.manager$pull
+            
             dim.names = self$get.dim.names(outcomes = outcomes,
                                            keep.dimensions = keep.dimensions,
                                            dimension.values = dimension.values,
@@ -467,12 +515,14 @@ JHEEM.SIMULATION = R6::R6Class(
             # - we should probably also optimize if there is just one outcome?
             rv = sapply(outcomes, function(outcome){
                 
-                outcome.data = array.access(private$i.data[[outcome]], dimension.values)
-                
-                if (length(keep.dimensions)==0)
-                    sum(outcome.data)
-                else
-                    apply(outcome.data, keep.dimensions, sum)
+                # pull the numerator
+                # if it applies, pull the denominator
+                # aggregate if we need to according to keep.dimensions
+                # if a denominator applies, 
+                #   divide aggregated numerator by aggregated denominator.
+                #   anywhere aggregated denominator == 0, set the value to be 0 rather than NaN
+                # if scale is not NULL and is not the same as the native scale of the outcome
+                #   convert values using convert.model.scale
             })
             
             dim(rv) = sapply(dim.names, length)
@@ -493,16 +543,28 @@ JHEEM.SIMULATION = R6::R6Class(
     
     active = list(
         
+        descriptor = function(value)
+        {
+            if (missing(value))
+                'simulation'
+            else
+                stop("Cannot modify a simulation's 'descriptor' - it is read-only")
+        },
+        
         parameters = function(value)
         {
-            
+            if (missing(value))
+                names(private$i.parameters)
+            else
+                stop("Cannot modify a simulation's 'parameters' - they are read-only")
         }
         
     ),
     
     private = list(
         
-        i.data = NULL,
+        i.numerators = NULL,
+        i.denominators = NULL,
         i.parameters = NULL,
         
         i.intervention = NULL,

@@ -18,6 +18,119 @@ const int UNINFECTED_GROUP = 1;
 //-------------//
 //-------------//
 
+double* do_interpolate_quantity_elementwise(List quant,
+                                            double time,
+                                            double *scratch,
+                                            int i_before,
+                                            int i_after)
+{
+    NumericVector times = quant["times"];
+    int n_times = times.length();
+    List values = quant["values"];
+    List after_values = quant["after.values"];
+    List value_applies = quant["value.applies"];
+    List after_value_applies = quant["after.value.applies"];
+    
+    NumericVector one_val = values[0];
+    LogicalVector one_val_applies;
+    int len = one_val.length();
+    
+    one_val_applies = after_value_applies[i_before];
+    bool before_all_applies = one_val_applies.length()==1 && one_val_applies[0];
+    
+    one_val_applies = value_applies[i_after];
+    bool after_all_applies = one_val_applies.length()==1 && one_val_applies[0];
+    
+    int i_before_for_k, i_after_for_k;
+    double val_before, val_after;
+    
+    for (int k=0; k<len; k++)
+    {
+        // find the before value and index
+        i_before_for_k = i_before;
+        if (before_all_applies)
+        {
+            one_val = after_values[i_before];
+            val_before = one_val[k];
+        }
+        else
+        {
+            while (i_before_for_k >= 0)
+            {
+                one_val_applies = after_value_applies[i_before_for_k];
+                if (one_val_applies[k])
+                {
+                    one_val = after_values[i_before_for_k];
+                    val_before = one_val[k];
+                    break;
+                }
+                else
+                {
+                    one_val_applies = value_applies[i_before_for_k];
+                    if (one_val_applies[k])
+                    {
+                        one_val = values[i_before_for_k];
+                        val_before = one_val[k];
+                        break;
+                    }
+                }
+                
+                i_before_for_k--;
+            }
+        }
+        
+        // find the after value and index
+        i_after_for_k = i_after;
+        if (after_all_applies)
+        {
+            one_val = values[i_after];
+            val_after = one_val[k];
+        }
+        else
+        {
+            while (i_after < n_times)
+            {
+                one_val_applies = value_applies[i_after_for_k];
+                if (one_val_applies[k])
+                {
+                    one_val = values[i_after_for_k];
+                    val_after = one_val[k];
+                    break;
+                }
+                else
+                {
+                    one_val_applies = after_value_applies[i_after_for_k];
+                    if (one_val_applies[k])
+                    {
+                        one_val = after_values[i_after_for_k];
+                        val_after = one_val[k];
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Put them together
+        if (i_before_for_k == -1)
+            scratch[k] = val_after;
+        else if (time == times[i_before_for_k] || times[i_before_for_k] == R_NegInf ||
+                 i_after_for_k == n_times)
+            scratch[k] = val_before;
+        else if (time == times[i_after_for_k] || times[i_after_for_k] == R_PosInf)
+            scratch[k] = val_after;
+        else
+        {
+            // Need to interpolate the value between before and after
+            
+            double before_weight = (times[i_after] - time) / (times[i_after] - times[i_before]);
+            double after_weight = (time - times[i_before]) / (times[i_after] - times[i_before]);
+            
+            scratch[k] = before_weight * val_before + after_weight * val_after;
+        }
+    }
+}
+
+
 // quant is a List with the following 
 //  $times - A NumericVectors
 //  $values - a List of NumericVectors, corresponding to the array value at each time
@@ -27,80 +140,195 @@ double *get_quantity_value_for_time(List quant,
                                     double *quantity_scratch_vector,
                                     double time)
 {
-    NumericVector times = quant["times"];
-    int n_times = times.length();
-    List values = quant["values"];
-    
-    if (n_times==1)
+    bool is_single_value = quant["is.single.value"];
+    if (is_single_value)
     {
-        // Don't need to do any calculations, just return the pointer to the val array
-        NumericVector val = (NumericVector) values[0];
-        return (val.begin());
+        List values = quant["values"];
+        NumericVector one_val = (NumericVector) values[0];
+        return (one_val.begin());
     }
     else
     {
-        double first_time = times[0];
-        double last_time = times[n_times-1];
-    
-        if (time <= first_time)
+        NumericVector times = quant["times"];
+        int n_times = times.length();
+        List values = quant["values"];
+        List after_values = quant["after.values"];
+        List value_applies = quant["value.applies"];
+        List after_value_applies = quant["after.value.applies"];
+        
+        NumericVector one_val = values[0];
+        LogicalVector one_val_applies;
+        int len = one_val.length();
+        
+        int scratch_offset = quant["scratch_offset"];
+        double *scratch = quantity_scratch_vector + scratch_offset;
+        
+        if (n_times==1)
         {
-            // Don't need to do any calculations, just return the pointer to the first val array
-            NumericVector val = (NumericVector) values[0];
-            return (val.begin());
-        }
-        else if (time >= last_time)
-        {
-            // Don't need to do any calculations, just return the pointer to the last val array
-            NumericVector val = (NumericVector) values[n_times-1];
-            return (val.begin());
-        }
-        else
-        {
-            // Figure out which two indices we are interpolating between
-            int i_after = 1;
-            
-            while (times[i_after] <= time) //this will terminate, otherwise, would have been caught by the time >= last_time condition above
-                i_after++;
-            int i_before = i_after - 1;
-            
-            if (time == times[i_before] || times[i_before] == R_NegInf)
+            // Don't need to do any calculations, just return the pointer to the val or after_val array
+            if (time <= times[0])
             {
-                // Don't need to do any calculations, just return the pointer to the array at before time
-                NumericVector val = (NumericVector) values[i_before];
-                return (val.begin());
-            }
-            else if (time == times[i_after] || times[i_after] == R_PosInf)
-            {
-                // Don't need to do any calculations, just return the pointer to the array at after time
-                NumericVector val = (NumericVector) values[i_after];
-                return (val.begin());
+                one_val = (NumericVector) values[0];
+                return (one_val.begin());
             }
             else
             {
-                // Need to interpolate the value between before and after
-                // Store that in quantity_scratch_vector
-                // And return a pointer to its place in quantity_scratch_vector
+                NumericVector one_val = (NumericVector) after_values[0];
+                return (one_val.begin());
+            }
+        }
+        else
+        {
+            double first_time = times[0];
+            double last_time = times[n_times-1];
+            
+            if (time <= first_time)
+            {
+                one_val_applies = value_applies[0];
                 
-                NumericVector val_before = (NumericVector) values[i_before];
-                NumericVector val_after = (NumericVector) values[i_after];
-                
-                double before_weight = (times[i_after] - time) / (times[i_after] - times[i_before]);
-                double after_weight = (time - times[i_before]) / (times[i_after] - times[i_before]);
-                
-                int scratch_offset = quant["scratch_offset"];
-                double *scratch = quantity_scratch_vector + scratch_offset;
-                
-                int len = val_before.length();
-                for (int i=0; i<len; i++)
+                if (one_val_applies.length()==1 && one_val_applies[0])
                 {
-                    scratch[i] = before_weight * val_before[i] + after_weight * val_after[i];
+                    // Don't need to do any calculations, just return the pointer to the first val array
+                    one_val = (NumericVector) values[0];
+                    return (one_val.begin());
                 }
+                else //we're going to have to iterate forward
+                {
+                    for (int k=0; k<len; k++)
+                    {
+                        for (int i=0; i<n_times; i++)
+                        {
+                            one_val_applies = value_applies[i];
+                            if (one_val_applies[k])
+                            {
+                                one_val = values[i];
+                                scratch[k] = one_val[k];
+                                break;
+                            }
+                            else
+                            {
+                                one_val_applies = after_value_applies[i];
+                                if (one_val_applies[k])
+                                {
+                                    one_val = after_values[i];
+                                    scratch[k] = one_val[k];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    return (scratch);
+                }
+            }
+            else if (time >= last_time)
+            {
+                one_val_applies = after_value_applies[n_times-1];
                 
-                return (scratch);
+                if (one_val_applies.length()==1 && one_val_applies[0])
+                {
+                    // Don't need to do any calculations, just return the pointer to the last after_val array
+                    one_val = (NumericVector) after_values[n_times-1];
+                    return (one_val.begin());
+                }
+                else //we're going to have to iterate backward
+                {
+                    for (int k=0; k<len; k++)
+                    {
+                        for (int i=(n_times-1); i>=0; i--)
+                        {
+                            one_val_applies = after_value_applies[i];
+                            if (one_val_applies[k])
+                            {
+                                one_val = after_values[i];
+                                scratch[k] = one_val[k];
+                                break;
+                            }
+                            else
+                            {
+                                one_val_applies = value_applies[i];
+                                if (one_val_applies[k])
+                                {
+                                    one_val = values[i];
+                                    scratch[k] = one_val[k];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    return (scratch);
+                }
+            }
+            else // we have to interpolate between two times
+            {
+                // Figure out which two indices we are interpolating between
+                int i_after = 1;
+                
+                while (times[i_after] <= time) //this will terminate, otherwise, would have been caught by the time >= last_time condition above
+                    i_after++;
+                int i_before = i_after - 1;
+                
+                LogicalVector val_before_applies = after_value_applies[i_before];
+                LogicalVector val_after_applies = after_value_applies[i_after];
+                
+                if ((time == times[i_before] || times[i_before] == R_NegInf) &&
+                    (val_before_applies.length()==1 && val_before_applies[0]))
+                {
+                    // Don't need to do any calculations, just return the pointer to the array at before time
+                    one_val = (NumericVector) values[i_before];
+                    return (one_val.begin());
+                }
+                else if ((time == times[i_after] || times[i_after] == R_PosInf) &&
+                         (val_after_applies.length()==1 && val_after_applies[0]))
+                {
+                    // Don't need to do any calculations, just return the pointer to the array at after time
+                    one_val = (NumericVector) values[i_after];
+                    return (one_val.begin());
+                }
+                else
+                {
+                    // Need to interpolate the value between before and after
+                    // Store that in quantity_scratch_vector
+                    // And return a pointer to its place in quantity_scratch_vector
+                    
+                    if (val_before_applies.length()==1 && val_before_applies[0] &&
+                        val_after_applies.length()==1 && val_after_applies[0])
+                    {
+                        // We know before and after indices up front
+                        NumericVector val_before = (NumericVector) after_values[i_before];
+                        NumericVector val_after = (NumericVector) values[i_after];
+                        
+//Rcout << "i_before = " << i_before<< ", i_after = " << i_after << "\n";    
+//Rcout << "val_before.length() = " << val_before.length() << ", val_after.length() = " << val_after.length() << ", len = " << len << "\n";                        
+
+                        double before_weight = (times[i_after] - time) / (times[i_after] - times[i_before]);
+                        double after_weight = (time - times[i_before]) / (times[i_after] - times[i_before]);
+                        
+//Rcout << "before_weight = " << before_weight << ", after_weight = " << after_weight << "\n";
+//Rcout << "scratch_offset = " << scratch_offset << ", scratch_offset + len = " << scratch_offset + len << "\n";
+//return (one_val.begin()); 
+                        for (int k=0; k<len; k++)
+                            scratch[k] = before_weight * val_before[k] + after_weight * val_after[k];
+                    }
+                    else
+                    {
+                        // We have to find before or after index (or both) for each element
+                        do_interpolate_quantity_elementwise(quant,
+                                                            time,
+                                                            scratch,
+                                                            i_before,
+                                                            i_after);
+                    }
+                    
+                    return (scratch);
+                }
             }
         }
     }
 }
+
+
 
 void do_tracking(List trackers,
                  double *values,
@@ -157,8 +385,12 @@ void do_tracking(List trackers,
 //  
 // quantities_info - a list with one element per quantity we use in computing the dx
 //  Each element is a list with elements
+//      $is.single.value - A single logical value, indicating whether there is just a single value for all times
 //      $times - a numeric vector
 //      $values - A list of numeric vectors
+//      $after.values - A list of numeric vectors
+//      $value.applies - A list of logical vectors
+//      $after.value.applies - A list of logical vectors
 //      $scratch_offset - an integer (length-1 integer vector) index into quantity_scratch where interpolated values for the quantity should go. Indexed from 0
 //
 //    
@@ -244,7 +476,7 @@ void do_tracking(List trackers,
 //                    
 //  *trackers (the elements of transitions[[x]]$trackers, incidence_trackers, population_trackers, mortality_trackers)
 //          Each element is a list with elements:
-//          $offset_into_tracked - an integer offset into either dx_tracked_transitions or dx_tracked_quantities
+//          $offset_into_tracked - an integer offset into dx
 //          $n - an integer representing the number of elements in the state array
 //          $group - An integer indicating the group/population to which the tracking applies. Either INFECTED_GROUP (0) or UNINFECTED_GROUP (1)
 //          $multiply_by_quantity_index - an integer index into quantities_info denoting which quantity to multiply by before storing in tracked.
@@ -263,7 +495,7 @@ void do_tracking(List trackers,
 // scratch2 must have length to accomodate:
 // - the infected state (for tracking new infections "to")
 // - the larger of the uninfected or infected states (for tracking births "to") - although since scratch3 and scratch4 are not used for births, we will be fine
-// - THe uninfected state (for tracking remissions "to")
+// - The uninfected state (for tracking remissions "to")
 // scratch3 must have length to accomodate:
 // - the uninfected state (for tracking new infections "from")
 // scratch4 must have length to accomodate:
@@ -286,6 +518,9 @@ NumericVector compute_dx(NumericVector state,
                          List fixed_strata_info,
                          List population_trackers)
 {
+bool debug = false;
+if (debug)
+    Rcout << "Starting compute_dx()\n";
     //--------------------//
     //-- INITIAL SET-UP --//
     //--------------------//
@@ -318,22 +553,41 @@ NumericVector compute_dx(NumericVector state,
     
     double *dx_infected = dx.begin() + indices_into_state_and_dx["infected"];
     double *dx_uninfected = dx.begin() + indices_into_state_and_dx["uninfected"];
-    double *dx_tracked_transitions = dx.begin() + indices_into_state_and_dx["tracked_transitions"];
-    double *dx_tracked_births = dx.begin() + indices_into_state_and_dx["tracked_births"];
-    double *dx_tracked_mortality = dx.begin() + indices_into_state_and_dx["tracked_mortality"];
-    double *dx_tracked_incidence = dx.begin() + indices_into_state_and_dx["tracked_incidence"];
-    double *dx_tracked_remission = dx.begin() + indices_into_state_and_dx["tracked_remission"];
-    double *dx_tracked_population = dx.begin() + indices_into_state_and_dx["tracked_population"];
+//    double *dx_tracked_transitions = dx.begin() + indices_into_state_and_dx["tracked_transitions"];
+//    double *dx_tracked_births = dx.begin() + indices_into_state_and_dx["tracked_births"];
+//    double *dx_tracked_mortality = dx.begin() + indices_into_state_and_dx["tracked_mortality"];
+//    double *dx_tracked_incidence = dx.begin() + indices_into_state_and_dx["tracked_incidence"];
+//    double *dx_tracked_remission = dx.begin() + indices_into_state_and_dx["tracked_remission"];
+//    double *dx_tracked_population = dx.begin() + indices_into_state_and_dx["tracked_population"];
     
     double *dx_for_group[N_GROUPS];
     dx_for_group[INFECTED_GROUP] = dx_infected;
     dx_for_group[UNINFECTED_GROUP] = dx_uninfected;
     
+    
+if (debug)
+    Rcout << "Done with initial set up\n";
+
+
+
+if (debug)
+    Rcout << "Setting up quantity values for time...\n";
     //-- Get the Values for Each Quantity for this time --//
     double *quantities[quantities_info.length()];
-    for (int i_quant=0; i_quant<quantities_info.length(); i_quant++)
-        quantities[i_quant] = get_quantity_value_for_time((List) quantities_info[i_quant], quantity_scratch_vector.begin(), time);
+    
+//test 
+//int i_test = 77;
+//quantities[i_test] = get_quantity_value_for_time((List) quantities_info[i_test], quantity_scratch_vector.begin(), time);
 
+    for (int i_quant=0; i_quant<quantities_info.length(); i_quant++)
+    {
+//        Rcout << "- quantity " << i_quant << "\n";
+        quantities[i_quant] = get_quantity_value_for_time((List) quantities_info[i_quant], quantity_scratch_vector.begin(), time);
+    }
+if (debug)
+    Rcout << "  Done.\n";
+    return (dx);
+    
     //-- Alias the scratch vector --//
     double *scratch = scratch_vector.begin();
     double *scratch1 = scratch;
@@ -346,6 +600,8 @@ NumericVector compute_dx(NumericVector state,
     //-- BIRTHS --//
     //------------//
 
+if (debug)
+    Rcout << "Doing natality...";
     int n_natalities = natality_info.length();
     for (int i_natality=0; i_natality<n_natalities; i_natality++)
     {
@@ -436,30 +692,38 @@ NumericVector compute_dx(NumericVector state,
         do_tracking(from_birth_trackers,
                     scratch1, //values
                     quantities,
-                    dx_tracked_births);
+                    dx.begin());
+//                    dx_tracked_births);
         
         do_tracking(by_incidence_trackers,
                     scratch1, //values
                     quantities,
-                    dx_tracked_incidence);
+                    dx.begin());
+        //dx_tracked_incidence);
         
         do_tracking(to_birth_trackers,
                     scratch2, //values
                     quantities,
-                    dx_tracked_births);
+                    dx.begin());
+        //dx_tracked_births);
         
         do_tracking(to_incidence_trackers,
                     scratch2, //values
                     quantities,
-                    dx_tracked_incidence);
+                    dx.begin());
+        //dx_tracked_incidence);
         
     }
+if (debug)
+    Rcout << "Done.\n";
 
 
     //---------------//
     //-- MORTALITY --//
     //---------------//
 
+if (debug)
+    Rcout << "Doing Mortality...";
     int n_mortalities = mortality_info.length();
     for (int i_mort=0; i_mort<n_mortalities; i_mort++)
     {
@@ -467,6 +731,7 @@ NumericVector compute_dx(NumericVector state,
         
         // Set up indices into state and dx
         int group = one_mort_info["group"];
+
         int n = n_for_group[group];
         double *dx_for_mort = dx_for_group[group];
         double *sub_state = sub_states_for_group[group];
@@ -480,7 +745,7 @@ NumericVector compute_dx(NumericVector state,
         // Set up for tracking
         List trackers = one_mort_info["trackers"];
         bool need_to_track = trackers.length() > 0;
-        
+
         double deaths;
         for (int i=0; i<n; i++)
         {
@@ -489,22 +754,27 @@ NumericVector compute_dx(NumericVector state,
             if (need_to_track)
                 scratch[i] = deaths;
         }
-        
+
         // Track the mortality if needed
         if (need_to_track)
         {
             do_tracking(trackers,
                         scratch, //values
                         quantities,
-                        dx_tracked_mortality);
+                        dx.begin());
+            //dx_tracked_mortality);
         }
+        
     }
-    
+if (debug)
+    Rcout << "Done.\n"; 
     
     //-----------------//
     //-- TRANSITIONS --//
     //-----------------//
     
+if (debug)
+    Rcout << "Doing Transitions...";    
     int n_transitions = transitions_info.length();
     
     for (int i_trans=0; i_trans<n_transitions; i_trans++)
@@ -556,14 +826,20 @@ NumericVector compute_dx(NumericVector state,
             do_tracking(trackers,
                         scratch, //values
                         quantities,
-                        dx_tracked_transitions);
+                        dx.begin());
+            //dx_tracked_transitions);
         }
     }
+    
+if (debug)
+    Rcout << "Done.\n";
     
     //----------------//
     //-- INFECTIONS --//
     //----------------//
 
+if (debug)
+    Rcout << "Doing infections...";
     double *aggregate_from_transmissibility = scratch1;
     double *to_infection_tracking = scratch2;
     double *from_infection_tracking = scratch3;
@@ -712,7 +988,8 @@ NumericVector compute_dx(NumericVector state,
             do_tracking(from_trackers,
                         from_infection_tracking, //values
                         quantities,
-                        dx_tracked_incidence);
+                        dx.begin());
+            //dx_tracked_incidence);
         }
         
         if (need_to_track_to)
@@ -720,7 +997,8 @@ NumericVector compute_dx(NumericVector state,
             do_tracking(to_trackers,
                         to_infection_tracking, //values
                         quantities,
-                        dx_tracked_incidence);
+                        dx.begin());
+            //dx_tracked_incidence);
         }
         
         if (need_to_track_by) // we are not optimizing for this since it is not usual to do it
@@ -762,15 +1040,20 @@ NumericVector compute_dx(NumericVector state,
             do_tracking(by_trackers,
                         by_infection_tracking, //values
                         quantities,
-                        dx_tracked_incidence);
+                        dx.begin());
+            //dx_tracked_incidence);
         }
     }
     
+if (debug)
+    Rcout << "Done.\n";
     
     //---------------//
     //-- REMISSION --//
     //---------------//
 
+if (debug)
+    Rcout << "Doing remission...";
     int n_remissions = remission_info.length();
     for (int i_remission=0; i_remission<n_remissions; i_remission++)
     {
@@ -835,7 +1118,8 @@ NumericVector compute_dx(NumericVector state,
             do_tracking(from_trackers,
                         scratch1, //values
                         quantities,
-                        dx_tracked_remission);
+                        dx.begin());
+            //dx_tracked_remission);
         }
         
         if (need_to_track_to)
@@ -843,10 +1127,13 @@ NumericVector compute_dx(NumericVector state,
             do_tracking(to_trackers,
                         scratch2, //values
                         quantities,
-                        dx_tracked_remission);
+                        dx.begin());
+            //dx_tracked_remission);
         }
     }
     
+if (debug)
+    Rcout << "Done.\n"; 
     //------------------------//
     //-- FIXED STRATA SIZES --//
     //------------------------//
@@ -867,7 +1154,8 @@ NumericVector compute_dx(NumericVector state,
     
     // Decide if we need to keep strata sizes constant
     // And, if so, what strata we need to keep constant
-    
+if (debug)
+    Rcout << "Doing fixed strata...";    
     int apply_fixed_strata_index = -1;
     for (int i=0; i<fixed_strata_info.length() && apply_fixed_strata_index!=-1; i++)
     {
@@ -940,12 +1228,15 @@ NumericVector compute_dx(NumericVector state,
             }
         }
     }
-    
+if (debug)
+    Rcout << "Done.\n";    
     
     //-------------------------//
     //-- TRACKED POPULATIONS --//
     //-------------------------//
-    
+
+if (debug)
+    Rcout << "Doing population trackers...";    
     for (int group=0; group<N_GROUPS; group++)
     {
         List trackers_for_group = population_trackers[group];
@@ -954,10 +1245,12 @@ NumericVector compute_dx(NumericVector state,
             do_tracking(trackers_for_group,
                         sub_states_for_group[group], //values
                         quantities,
-                        dx_tracked_population);
+                        dx.begin());
+            //dx_tracked_population);
         }
     }    
-    
+if (debug)
+    Rcout << "Done.\n";   
     //------------//
     //-- RETURN --//
     //------------//

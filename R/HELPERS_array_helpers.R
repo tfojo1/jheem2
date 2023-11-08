@@ -382,7 +382,79 @@ get.expand.array.indices <- function(to.expand.dim.names, target.dim.names)
     }
 }
 
+#'@name Get a Set of Indices to Align Two Arrays
+#'
+#'@value A list with four elements: $large.indices, $small.indices, $large.n, $small.n
+#'  large.indices and small.indices are integer vectors of equal length, such that the value at large.indices[i] goes into the value at small.indices[i] if collapsing
+#'
+#'@export
+get.align.array.indices <- function(large.arr.dim.names, small.arr.dim.names)
+{
+    intersected.dim.names = intersect.joined.dim.names(large.arr.dim.names, small.arr.dim.names)
+    
+    list(
+        small.indices = get.expand.array.indices(to.expand.dim.names = small.arr.dim.names,
+                                                 target.dim.names = intersected.dim.names),
+        large.indices = get.array.access.indices(arr.dim.names = large.arr.dim.names,
+                                                 dimension.values = intersected.dim.names),
+        small.n = prod(sapply(small.arr.dim.names, length)),
+        large.n = prod(sapply(large.arr.dim.names, length))
+    )
+}
 
+#'@export
+collapse.array.according.to.indices <- function(arr,
+                                                small.indices,
+                                                large.indices,
+                                                small.n)
+{
+    if (length(small.indices) != length(large.indices))
+        stop("Cannot collapse array; small.indices and large.indices must have the same length")
+    
+    if (any(small.indices>small.n) || any(small.indices<1))
+        stop(paste0("Cannot collapse array; small.indices must be between 1 and small.n (", small.n, ")"))
+    
+    if (any(large.indices>length(arr)) || any(large.indices<1))
+        stop(paste0("Cannot collapse array; large.indices must be between 1 and length(arr) (", length(arr), ")"))
+    
+    do_collapse_according_to_indices(arr = arr,
+                                     small_indices = small.indices,
+                                     large_indices = large.indices,
+                                     small_n = small.n)
+}
+
+check.dim.names.can.expand <- function(to.expand.dim.names,
+                                       target.dim.names,
+                                       to.expand.name,
+                                       target.name,
+                                       error.prefix = '')
+{
+    #-- All dimensions of to.expand.dim.names are present in target.dim.names --#
+    
+    dims.missing.from.target = setdiff(names(to.expand.dim.names), names(target.dim.names))
+    if (length(dims.missing.from.target)==1)
+        stop(paste0(error.prefix, "The dimension '", dims.missing.from.target,
+                    "' is present in ", to.expand.name, " but missing from ", target.name))
+    else if (length(dims.missing.from.target)>1)
+        stop(paste0(error.prefix, "The dimensions ",
+                    paste0("'", dims.missing.from.target, "'", collapse=', '),
+                    " are present in ", to.expand.name, " but missing from ", target.name))
+    
+    # Check that each element of target.dim.names is either
+    # (1) Missing entirely from to.expand.dim.names OR
+    # (2) A subset of the corresponding value in to.expand.dim.names
+    overlapping.dimensions = intersect(names(target.dim.names), names(to.expand.dim.names))
+    sapply(overlapping.dimensions, function(d){
+        missing.from.src = setdiff(target.dim.names[[d]], to.expand.dim.names[[d]])
+        if (length(missing.from.src)==1)
+            stop(paste0(error.prefix, "'", missing.from.src, "' is given as a value for dimension '",
+                        d, "' of ", target.name, ", but is not present in ", to.expand.name))
+        else if (length(missing.from.src)>1)
+            stop(paste0(error.prefix, collapse.with.and("'", missing.from.src, "'"),
+                        " are given as values for dimension '",
+                        d, "' of ", target.name, ", but are not present in ", to.expand.name))
+    })
+}
 
 check.expand.arguments <- function(to.expand=NULL,
                                    to.expand.dim.names=NULL,
@@ -476,6 +548,7 @@ check.expand.arguments <- function(to.expand=NULL,
         }
     }
     
+    
     #-- Check that all dimensions of to.expand.dim.names are present in target.dim.names --#
     
     if (is.null(to.expand))
@@ -485,27 +558,10 @@ check.expand.arguments <- function(to.expand=NULL,
     else
         src.text = "the names of 'to.expand'"
     
-    dims.missing.from.target = setdiff(names(to.expand.dim.names), names(target.dim.names))
-    if (length(dims.missing.from.target)==1)
-        stop(paste0("The dimension '", dims.missing.from.target,
-                    "' is present in ", src.text, " but missing from 'target.dim.names"))
-    else if (length(dims.missing.from.target)>1)
-        stop(paste0("The dimensions ",
-                    paste0("'", dims.missing.from.target, "'", collapse=', '),
-                    " are present in ", src.text, " but missing from 'target.dim.names"))
     
-    # Check that each element of target.dim.names is either
-    # (1) Missing entirely from to.expand.dim.names OR
-    # (2) A subset of the corresponding value in to.expand.dim.names
-    overlapping.dimensions = intersect(names(target.dim.names), names(to.expand.dim.names))
-    sapply(overlapping.dimensions, function(d){
-        missing.from.src = setdiff(target.dim.names[[d]], to.expand.dim.names[[d]])
-        if (length(missing.from.src)==1)
-            stop(paste0("'", missing.from.src, "' is given as a value in target.dim.names[['",
-                        d, "']], but is not present in dimension '", d, "' of ", src.text))
-        else if (length(missing.from.src)>1)
-            stop(paste0(paste0("'", missing.from.src, "'", collapse=', '),
-                        " are given as values in target.dim.names[['",
-                        d, "']], but is not present in dimension '", d, "' of ", src.text))
-    })
+    check.dim.names.can.expand(to.expand.dim.names = to.expand.dim.names,
+                               target.dim.names = target.dim.names,
+                               to.expand.name = src.text,
+                               target.name = "'target.dim.names'",
+                               error.prefix = '')
 }

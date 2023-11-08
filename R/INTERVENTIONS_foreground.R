@@ -126,6 +126,7 @@ JHEEM.MODEL.FOREGROUND = R6::R6Class(
                               min.start.time = NULL,
                               max.end.time = NULL,
                               all.effect.times = NULL,
+                              all.effect.step.change.times = NULL,
                               distinct.scales = NULL,
                               target.population.dimensions = NULL,
                               error.prefix)
@@ -213,6 +214,20 @@ JHEEM.MODEL.FOREGROUND = R6::R6Class(
             else
                 private$i.all.effect.times = all.effect.times
             
+            if (is.null(all.effect.step.change.times))
+            {
+                if (private$i.effect.times.are.resolved)
+                {
+                    private$i.all.effect.times = union_sorted_vectors(
+                        sapply(private$i.intervention.effects, function(eff){
+                            eff$step.change.times
+                        }))
+                }
+                else
+                    private$i.all.effect.step.change.times = NULL
+            }
+            else
+                private$i.all.effect.step.change.times = all.effect.step.changetimes
             
             if (private$i.effect.times.are.resolved)
                 private$i.min.effect.time.by.effect = sapply(private$i.intervention.effects, function(eff){
@@ -309,6 +324,7 @@ JHEEM.MODEL.FOREGROUND = R6::R6Class(
                                        min.start.time = private$i.min.start.time,
                                        max.end.time = private$i.max.end.time,
                                        all.effect.times = private$i.all.effect.times,
+                                       all.effect.step.change.times = private$i.all.effect.step.change.times,
                                        distinct.scales = private$i.distinct.scales,
                                        target.population.dimensions = private$i.target.population.dimensions,
                                        error.prefix = error.prefix)
@@ -340,6 +356,7 @@ JHEEM.MODEL.FOREGROUND = R6::R6Class(
                                        min.start.time = private$i.min.start.time,
                                        max.end.time = private$i.max.end.time,
                                        all.effect.times = private$i.all.effect.times,
+                                       all.effect.step.change.times = private$i.all.effect.step.change.times,
                                        distinct.scales = private$i.distinct.scales,
                                        target.population.dimensions = private$i.target.population.dimensions,
                                        error.prefix = error.prefix)
@@ -496,6 +513,14 @@ JHEEM.MODEL.FOREGROUND = R6::R6Class(
                 stop("Cannot modify 'all.effect.times' for a jheem.model.foreground - it is read-only")
         },
         
+        all.effect.step.change.times = function(value)
+        {
+            if (missing(value))
+                private$i.all.effect.step.change.times
+            else
+                stop("Cannot modify 'all.effect.step.change.times' for a jheem.model.foreground - it is read-only")
+        },
+        
         distinct.scales = function(value)
         {
             if (missing(value))
@@ -580,6 +605,7 @@ JHEEM.MODEL.FOREGROUND = R6::R6Class(
         i.min.start.time = NULL,
         i.max.end.time = NULL,
         i.all.effect.times = NULL,
+        i.all.effect.step.change.times = NULL,
         i.min.effect.time.by.effect = NULL,
         i.max.effect.time.by.effect = NULL,
         

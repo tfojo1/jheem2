@@ -749,6 +749,11 @@ JHEEM = R6::R6Class(
             private$i.diffeq.settings = prepare.diffeq.settings(settings = private$i.diffeq.settings,
                                                                 quantity.dim.names = private$i.quantity.dim.names,
                                                                 quantity.values = private$i.quantity.values,
+                                                                quantity.after.values = private$i.quantity.after.values,
+                                                                quantity.times = private$i.quantity.value.times,
+                                                                quantity.value.applies.mask = private$i.quantity.value.applies.mask,
+                                                                quantity.after.value.applies.mask = private$i.quantity.after.value.applies.mask,
+                                                                check.consistency = check.consistency,
                                                                 error.prefix = paste0("Error preparing JHEEM to run (while setting up the diffeq interface): "))
             
             # Set the i.has.been.crunched flag
@@ -771,38 +776,70 @@ JHEEM = R6::R6Class(
                         end.year = end.year,
                         check.consistency = check.consistency)
             
-            # Handoff to the Rcpp
+
             
-            initial.state = numeric(private$i.diffeq.settings$state_length)
+            # Handoff to the Rcpp
             compute.fn = function(x, t){
+                if (1==2)
+                {
+                    args = list(state = x,
+                                time = t,
+                                settings = private$i.diffeq.settings,
+                                quantities_info = private$i.diffeq.settings$quantities.info,
+                                quantity_scratch_vector = private$i.diffeq.settings$quantity_scratch_vector,
+                                scratch_vector = private$i.diffeq.settings$scratch.vector,
+                                natality_info = private$i.diffeq.settings$natality.info,
+                                mortality_info = private$i.diffeq.settings$mortality.info,
+                                transitions_info = private$i.diffeq.settings$transitions.info,
+                                infections_info = private$i.diffeq.settings$infections.info,
+                                remission_info = private$i.diffeq.settings$remission.info,
+                                fixed_strata_info = private$i.diffeq.settings$fixed.strata_info,
+                                population_trackers = private$i.diffeq.settings$population_trackers)
+                    
+                    save(args, file='R/local_testing/diffeq_test_args.Rdata')
+                }
+                
                 compute_dx(state = x,
                            time = t,
                            settings = private$i.diffeq.settings,
+                           quantities_info = private$i.diffeq.settings$quantities.info,
                            quantity_scratch_vector = private$i.diffeq.settings$quantity_scratch_vector,
-                           scratch_vector = private$i.diffeq.settings$scratch_vector,
-                           quantity_values = private$i.quantity.values,
-                           quantity_times = private$i.quantity.value.times,
-                           quantity_scratch_offsets = private$i.diffeq.settings$quantity_scratch_offsets,
-                           natality_info = private$i.diffeq.settings$natality_info,
-                           mortality_info = private$i.diffeq.settings$mortality_info,
-                           transitions_info = private$i.diffeq.settings$transitions_info,
-                           infections_info = private$i.diffeq.settings$infections_info,
-                           remission_info = private$i.diffeq.settings$remission_info,
-                           fixed_strata_info = private$i.diffeq.settings$fixed_strata_info,
+                           scratch_vector = private$i.diffeq.settings$scratch.vector,
+                           natality_info = private$i.diffeq.settings$natality.info,
+                           mortality_info = private$i.diffeq.settings$mortality.info,
+                           transitions_info = private$i.diffeq.settings$transitions.info,
+                           infections_info = private$i.diffeq.settings$infections.info,
+                           remission_info = private$i.diffeq.settings$remission.info,
+                           fixed_strata_info = private$i.diffeq.settings$fixed.strata_info,
                            population_trackers = private$i.diffeq.settings$population_trackers)
             }
             
+            base::print("Running the ODE Solver...")
             ode.results = odeintr::integrate_sys(sys = compute.fn,
                                                  init = private$i.diffeq.settings$initial_state,
-                                                 duration = x, 
-                                                 start = x,
+                                                 duration = private$i.run.to.time - private$i.run.from.time + 1, 
+                                                 start = private$i.run.from.time,
                                                  atol = atol,
                                                  rtol = rtol)
             
             # Process the Results
+            base::print("Processing the Outcomes")
+            outcome.numerators.and.denominators = private$prepare.outcomes.for.sim(ode.results)
             
-            # for now, just return
-            ode.results
+            # Make the Simulation Object
+            sim = JHEEM.SIMULATION$new(version = private$i.version,
+                                       location = private$i.location,
+                                       from.year = private$i.run.from.time,
+                                       to.year = private$i.run.to.time-1,
+                                       outcome.numerators = outcome.numerators.and.denominators$numerators,
+                                       outcome.denominators = outcome.numerators.and.denominators$denominators,
+                                       parameters = private$i.parameters)
+            
+            
+            # Join to prior sim?
+            
+            # Return
+            sim
         },
         
         ##------------------------------##
@@ -1002,50 +1039,29 @@ JHEEM = R6::R6Class(
             quantity.name = foreground$quantity.name
             error.prefix = paste0("Cannot set foreground for quantity '", quantity.name, "': ")
             
-            # Check quantity valid
-            specification = get.specification()
-            quantity = specification$get.quantity(quantity.name)
+            specification = private$get.specification()
             
-            not.intervenable.message = paste0(error.prefix, "Quantity '", quantity.name, 
-                                              "' is not intervenable. You must set a scale when defining the model specification for it to be intervenable")
-            if (is.null(quantity))
+            #-- Make sure we can apply --#
+            check.foreground.can.apply.to.quantity(foreground = foreground,
+                                                   specification = specification,
+                                                   error.prefix = error.prefix)
+                # FYI, this function is defined in compiled_specification.R
+            
+            #-- Anchor to location/version --#
+            if (!foreground$is.anchored)
             {
-                uncompiled.specification = get.specification.for.version(self$version)
-                if (all(uncompiled.specification$quantity.names!=quantity.name))
-                    stop(paste0(error.prefix, "Quantity '", quantity.name, "' is not registered in the '", self$version, "' specification"))
-                else
-                    stop(not.intervenable.message)
+                foreground = foreground$anchor(location = self$location,
+                                               specification.metadata = self$specification.metadata, 
+                                               quantity.dim.names = private$i.quantity.max.dim.names[[quantity.name]],
+                                               error.prefix = error.prefix)
             }
-            
-            # Check if quantity must be static
-            if (quantity$must.be.static)
-                stop(paste0(error.prefix, "Quantity '", quantity.name, 
-                            "' must be static (due to its appearance or the appearance of a descendant quantity in model outcome values) and CANNOT have a foreground set. Consider revising the '", 
-                            self$version, "' specification"))
-            
-            # Check if quantity is intervenable
-            if (is.null(quantity$scale))
-                stop(not.intervenable.message)
-            
-            if (is.null(quantity$max.dim.names))
-                stop(paste0(error.prefix, "Quantity '", quantity.name, 
-                            "' is not intervenable. Since its max.dim.names cannot be inferred, you must explicitly set the dimension.values argument when registered the quantity to the '",
-                            self$version, "' specification"))
-            
-            # Check that all scales of foreground is convertible to/from scale of quantity
-            scale.convertible = sapply(foreground$scales, can.convert.scale, convert.to.scale=quantity$scale)
-            if (any(!scale.convertible))
-                stop(paste0(error.prefix,
-                            "Cannot apply foreground to quantity '", quantity.name, "'. The quantity has scale '",
-                            quantity$scale, "' which is not convertible to/from ",
-                            ifelse(sum(!scale.convertible)==1, "scale ", "scales "),
-                            collapse.with.or("'", foreground$scales[!scale.convertible], "'"),
-                            ifelse(sum(!scale.convertible)==1, " which is a scale", " which are scales"),
-                            " at which the foreground applies"))
-            
-            #-- Resolve Target Populations --#
-            if (!foreground$target.populations.are.resolved)
-                foreground = foreground$resolve.target.populations(self$specification.metadata, error.prefix = error.prefix)
+            else
+            {
+                if (foreground$location != self$location || foreground$version != self$version)
+                    stop(paste0(error.prefix, "Cannot set foreground for quantity '", 
+                                quantity.name, "' - the foreground has already been anchored to a (different) location/version: ",
+                                "'", foreground$location, "' and version '", foreground$version, "'"))
+            }
             
             #-- Generate an ID and store --#
             foreground.id = paste0('frgd', length(private$i.unresolved.foregrounds)+1)
@@ -1060,7 +1076,7 @@ JHEEM = R6::R6Class(
                     stop(paste0(error.prefix, 
                                 ifelse(length(missing.parameters)==1, "A value for parameter ", "Values for parameters "),
                                 collapse.with.and("'", missing.parameters, "'"),
-                                " - upon which foreground '", foreground$name, "' depends - ",
+                                " - upon which foreground for '", quantity.name, "' depends - ",
                                 ifelse(length(missing.parameters)==1, "has", "have"),
                                 " not been set to the JHEEM"))
             }
@@ -1072,9 +1088,10 @@ JHEEM = R6::R6Class(
                 })
             private$i.dependent.foreground.ids.for.parameters[depends.on] = updated.dependencies
             
-            #-- Set static to false on this quantity and its dependent quantities --#
-            private$i.quantity.is.static[[quantity.name]] = F
-            private$i.quantity.is.static[[specification$get.dependent.quantity.names(quantity.name)]] = F
+            #-- Set static to false on this quantity and its dependent quantities and outcomes --#
+            private$i.quantity.is.static[quantity.name] = F
+            private$i.quantity.is.static[specification$get.dependent.quantity.names(quantity.name)] = F
+            private$i.outcome.non.cumulative.is.static[specification$get.non.cumulative.dependent.outcome.names(quantity.name)] = F
             
             #-- Clear dim.names --#
             private$clear.dim.names(quantity.name)
@@ -1767,9 +1784,21 @@ JHEEM = R6::R6Class(
         
         i.element.background.self.times = NULL,
         i.quantity.foreground.self.times = NULL,
+        i.quantity.self.after.times = NULL,
         
-        i.quantity.value.all.apply.times = NULL,
+        i.quantity.value.all.applies.for.time = NULL,
         i.top.level.value.may.not.apply.times = NULL,
+        
+        #-- Times for Outcomes --#
+        i.outcome.non.cumulative.value.times = NULL,
+        i.outcome.non.cumulative.value.time.is.after.time = NULL,
+        i.outcome.value.may.not.apply.non.cumulative.times = NULL,
+        
+        i.outcome.non.cumulative.self.times = NULL,
+        i.outcome.non.cumulative.self.after.times = NULL,
+        
+        i.outcome.value.times = NULL,
+        i.outcome.value.time.is.after.time = NULL,
         
         #-- Values for quantities --#
         i.quantity.values = NULL,
@@ -1787,8 +1816,15 @@ JHEEM = R6::R6Class(
         i.quantity.component.max.dim.names = NULL,
         i.quantity.component.applies.to = NULL,
         
+        #-- Dim Names for Outcomes --#
+        i.outcome.dim.names.sans.time = NULL,
+        i.outcome.numerator.dim.names.sans.time = NULL,
+        
+        i.outcome.indices = NULL,
+        
         #-- Masks for whether values apply --#
         i.quantity.value.applies.mask = NULL,
+        i.quantity.after.value.applies.mask = NULL,
         
         #-- Indices for quantities --#
         i.quantity.component.depends.on.mapping.indices = NULL,
@@ -1797,6 +1833,7 @@ JHEEM = R6::R6Class(
 
         #-- Whether quantities are static --#
         i.quantity.is.static = NULL,
+        i.outcome.non.cumulative.is.static = NULL,
         
         #-- Parameters --#
         i.parameters = NULL,
@@ -1805,6 +1842,10 @@ JHEEM = R6::R6Class(
         #-- Foregrounds --#
         i.unresolved.foregrounds = NULL, #list, indexed by foreground.id
         i.resolved.foregrounds = NULL, #list of lists, indexed [[quantity.name]][[foreground.id]]
+        
+        #-- Outcome Values/Denominators --#
+        i.outcome.numerators = NULL,
+        i.outcome.denominators = NULL,
         
         #-- On Crunched state (and the times to run from/to))
         i.run.from.time = NULL,
@@ -1912,6 +1953,19 @@ JHEEM = R6::R6Class(
                 all(private$i.quantity.is.static[specification$get.dependee.element.names(quantity.name)])
             })
             
+            # Figure out if outcomes' non-cumulative parts are static
+            private$i.outcome.non.cumulative.is.static = logical()
+            sapply(specification$outcome.names, 
+                   private$calculate.outcome.non.cumulative.is.static,
+                   specification = specification)
+            
+            # Set up outcome dim.names
+            private$i.outcome.dim.names.sans.time = lapply(specification$outcome.names, function(outcome.name){
+                outcome = specification$get.outcome(outcome.name)
+                specification.metadata$apply.aliases(outcome$dim.names, error.prefix=paste0("Error setting up dim.names for outcome '", outcome$name, "': "))
+            })
+            names(private$i.outcome.dim.names.sans.time) = specification$outcome.names
+            
             # Set up dim.names list holders
             private$i.quantity.dim.names = list()
             private$i.crunched.quantity.dim.names = list()
@@ -1928,10 +1982,25 @@ JHEEM = R6::R6Class(
             private$i.element.background.self.times = list()
             private$i.quantity.foreground.self.times = list()
             
-            private$i.quantity.value.all.apply.times = list()
+            
+            private$i.outcome.non.cumulative.value.times = list()
+            private$i.outcome.non.cumulative.value.time.is.after.time = list()
+            private$i.outcome.value.may.not.apply.non.cumulative.times = list()
+            
+            private$i.outcome.non.cumulative.self.times = list()
+            private$i.outcome.non.cumulative.self.after.times = list()
+            
+            private$i.outcome.value.times = list()
+            private$i.outcome.value.time.is.after.time = list()
+            
+            
+            private$i.quantity.value.all.applies.for.time = list()
             private$i.top.level.value.may.not.apply.times = list()
             
             private$i.quantity.value.applies.mask = list()
+            private$i.quantity.after.value.applies.mask = list()
+            
+            
             
             # Import the default parameters
             private$i.parameters = numeric()
@@ -1956,6 +2025,30 @@ JHEEM = R6::R6Class(
                 private$execute.instruction(instr)
             
             # Going to need to do something about foregrounds here
+        },
+        
+        calculate.outcome.non.cumulative.is.static = function(outcome.name,
+                                                              specification)
+        {
+            if (is.na(private$i.outcome.non.cumulative.is.static[outcome.name]))
+            {
+                outcome = specification$get.outcome(outcome.name)
+                
+                if (is(outcome, 'intrinsic.model.outcome') || !all(private$i.quantity.is.static[specification$get.outcome.dependee.element.names(outcome.name)]))
+                    private$i.outcome.non.cumulative.is.static[outcome.name] = F
+                else
+                {
+                    depends.on.outcome.names = setdiff(specification$get.outcome.non.cumulative.dependendee.outcome.names(outcome.name),
+                                                       outcome.name)
+                    
+                    sapply(depends.on.outcome.names, 
+                           private$calculate.outcome.non.cumulative.is.static,
+                           specification = specification)
+                    
+                    private$i.outcome.non.cumulative.is.static[outcome.name] =
+                        all(private$i.outcome.non.cumulative.is.static[depends.on.outcome.names])
+                }
+            }
         },
         
         
@@ -1991,22 +2084,22 @@ JHEEM = R6::R6Class(
             
             #-- Set it --#
             if (is.null(private$i.run.from.time) || is.null(private$i.run.to.time) ||
-                private$i.run.from.time != start.year || private$i.run.to.time != end.year)
+                private$i.run.from.time != start.year || private$i.run.to.time != (end.year+1))
             {
                 private$i.run.from.time = start.year
-                private$i.run.to.time = end.year
+                private$i.run.to.time = end.year+1
             
                 #-- Clear times (for all elements/quantities) --#
                 specification = private$get.specification()
                 
                 private$clear.element.background.self.times(specification$element.names)
                 private$clear.quantity.foreground.self.times(specification$quantity.names)
+                private$clear.outcome.value.times(specification$outcome.nam)
             }
             
             #-- Done --#
             invisible(self)
         },
-        
         
         ##----------------------------------------##
         ##-- CALCULATING QUANTITY/ELEMENT TIMES --##
@@ -2015,33 +2108,62 @@ JHEEM = R6::R6Class(
         # Broadly speaking, "self" times are the times for which a quantity needs to produce values
         #   to capture it's time-varying changes. There are background and potentially foreground self times
         #
-        # We manage 6 main time vectors:
+        # We manage a number of main time vectors:
+        #
         # 1) We need *quantity.value.times* for each quantity actually calculating values
         #    The value.times for a quantity is the union of all the *top.level.self.times* for any
-        #       top.level.quantity that depends on this quantity
+        #       top.level.quantity that depends on this quantity (including itself),
+        #       and *outcome.non.cumulative.self.times* for any outcome that depends on this quantity
         # 
         # 2) The *top.level.self.times* for a top.level.quantity is the union of:
         #    - All *element.background.self.times* for any element that the quantity depends on
         #    - All *quantity.foreground.self.times* for any quantity that the top.level.quantity depends on
-        #   
-        # 3) The *element.background.self.times* for each element is calculated from the element's internal info. The times are:
+        #
+        # 3) The *outcome.non.cumulative.self.times* for an outcome is the union of
+        #    - All *element.background.self.times* for any element that this outcome has a non-cumulative dependency on
+        #    - All *quantity.foreground.self.times* for any quantity that this outcome has a non-cumulative dependency on
+        #    - All model run times for any intrinsic outcomes that this outcome has a non-cumulative dependency on
+        #
+        # 4) The *element.background.self.times* for each element is calculated from the element's internal info. The times are:
         #    - 'all' if this is a static value with no foreground set
         #    - The first foreground start time if this is a static value with a foreground set
         #    - If not static, the union of:  ramp and taper times, functional form times (within the bounds of the run time)
         # 
-        # 4) The *quantity.foreground.self.times* for each quantity is calculate from the quantity's set foregrounds
-        # 
-        # 5) We need *quantity.value.all.apply.times* for each quantity for efficiently calculating
+        # 5) The *quantity.foreground.self.times* for each quantity is calculate from the quantity's set foregrounds
+        # 5b) The *quantity.self.after.times* vector
+        #          The set of times for which this quantity's foreground implies there is a separate value and after.value
+        #
+        # 6) We need *quantity.value.all.apply.times* for each quantity for efficiently calculating
         #    quantity.value.applies.mask
         #    The quantity.value.all.apply.times for a quantity is the setdiff of
         #    - The quantity's *value.times* minus
         #    - The union of *top.level.value.may.not.apply.times* for every top.level.quantity that depends on this quantity
+        #       plus the union of *outcome.value.may.not.apply.non.cumulative.times* for every outcome that has a non-cumulative dependency on this quantity
+        #    * (for speed, we don't actually store the set of times, we store a mask that is T for all value.all.apply)
         #       
-        # 6) The *top.level.value.may.not.apply.times* for a top.level.quantity is the setdiff of
+        # 7) The *top.level.value.may.not.apply.times* for a top.level.quantity is the setdiff of
         #    - The top.level.quantity's *value.times* minus
         #    - The union of *element.background.self.times* for all elements that the quantity depends on
-        #   
-        #   
+        #
+        # 8) The *outcome.value.may.not.apply.non.cumulative.times* is the setdiff of
+        #    - The outcomes *non.cumulative.value.times* minus
+        #    - The union of *element.background.self.times* for all elements that the outcome has a non-cumulative dependency on
+        #  
+        # 9) The *outcome.non.cumulative.value.times* for each outcome is the union of all
+        #       *outcome.non.cumulative.self.times* for any outcome that depends on this outcome (including itself)
+        #
+        # 10) The *outcome.value.times* is a vector of times for which this value is calculated
+        #       For a cumulative outcome, it is just every year between max(run.from.time, and the outcome's from.time) and min(run.to.time, and the outcome's to.time)
+        #       For a non-cumulative outcome, it is the *outcome.non.cumulative.value.times*
+        #           Any times for which there is both a value and an after.value will appear in twice in the vector of times
+        #
+        # 11) The *outcome.value.time.is.after* is a logical indicator corresponding to the *outcome.value.times* for an outcome
+        #       We store this as a logical vector for computational purposes, but
+        #       the set of after.times for an outcome is the union of all *quantity.self.after.times* for any quantity that this value depends on
+        #
+        # 
+        #
+        #
         # NB: (For all this to work, we define a quantity as depending on itself)
         
         
@@ -2051,8 +2173,9 @@ JHEEM = R6::R6Class(
         #   EITHER for it's own time-varying changes OR to merge with other quantities in a higher-level
         #   quantity that depends on it and other quantities
         
-        # The value.times for a quantity is the union of all the *top.level.self.times* for any
-        # top.level.quantity that depends on this quantity
+        #    The value.times for a quantity is the union of all the *top.level.self.times* for any
+        #       top.level.quantity that depends on this quantity (including itself),
+        #       and *outcome.non.cumulative.self.times* for any outcome that depends on this quantity
         calculate.quantity.value.times = function(quantity.name)
         {
             if (private$i.quantity.is.static[quantity.name])
@@ -2067,20 +2190,27 @@ JHEEM = R6::R6Class(
                 null.top.level.times.mask = as.logical(sapply(private$i.top.level.self.times[dynamic.top.level.quantities], is.null))
                 sapply(dynamic.top.level.quantities[null.top.level.times.mask], private$calculate.top.level.self.times)
                 
+                # Pull the outcomes that have a non-cumulative dependency on this, and make sure their self-times are calculated
+                outcomes = specification$get.non.cumulative.dependent.outcome.names(quantity.name)
+                dynamic.outcomes = outcomes[ !private$i.outcome.non.cumulative.is.static[outcomes] ]
+                null.outcome.times.mask = as.logical(sapply(private$i.outcome.non.cumulative.self.times[dynamic.outcomes], is.null))
+                sapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
+                
                 # Value times is the union of these times
-                private$i.quantity.value.times[[quantity.name]] = union_sorted_vectors(private$i.top.level.self.times[dynamic.top.level.quantities])
+                private$i.quantity.value.times[[quantity.name]] = union_sorted_vectors(c(private$i.top.level.self.times[dynamic.top.level.quantities],
+                                                                                         private$i.outcome.non.cumulative.self.times[dynamic.outcomes]))
             }
             
             invisible(self)
         },
-        
+
         clear.quantity.value.times = function(quantity.names)
         {
             # Clear the times
             private$i.quantity.value.times[quantity.names] = NULL
             
-            # Clear the value-all-apply times
-            private$clear.quantity.value.all.apply.times(quantity.names)
+            # Clear the value-all-applies times
+            private$clear.quantity.value.all.applies.times(quantity.names)
             
             # Done
             invisible(self)
@@ -2130,10 +2260,18 @@ JHEEM = R6::R6Class(
             # Clear top-level self-times for top-level quantities that depend on this element
             # Clear top-level value-may-not-apply times for top-level quantities that depend on this element
             specification = get.specification()
+            
             top.level.quantities = specification$get.dependent.top.level.quantity.names(element.names)
             dynamic.top.level.quantities = top.level.quantities[ !private$i.quantity.is.static[top.level.quantities] ]
             private$clear.top.level.self.times(dynamic.top.level.quantities)
             private$clear.top.level.value.may.not.apply.times(dynamic.top.level.quantities)
+            
+            # Clear outcome non-cumulative self-times for outcomes that have a non-cumulative dependency on this element
+            # Clear outcome non-cumulative value-may-not-apply times for outcomes that have a non-cumulative dependency on this element
+            outcomes = specification$get.non.cumulative.dependent.outcome.names(element.names)
+            dynamic.outcomes = outcomes[ !private$i.outcome.non.cumulative.is.static[outcomes] ]
+            private$clear.outcome.non.cumulative.self.times(dynamic.outcomes)
+            private$clear.outcome.value.may.not.apply.non.cumulative.times(dynamic.outcomes)
             
             # Done
             invisible(self)
@@ -2216,7 +2354,10 @@ JHEEM = R6::R6Class(
         calculate.quantity.foreground.self.times = function(quantity.name)
         {
             if (is.null(private$i.resolved.foregrounds[[quantity.name]]))
+            {
                 private$i.quantity.foreground.self.times[[quantity.name]] = numeric()
+                private$i.quantity.self.after.times[[quantity.name]] = numeric()
+            }
             else
             {
                 times.from.foregrounds = lapply(private$i.resolved.foregrounds[[quantity.name]], function(frgd){
@@ -2247,6 +2388,15 @@ JHEEM = R6::R6Class(
                     private$i.quantity.foreground.self.times[[quantity.name]] = times.from.foregrounds[[1]]
                 else
                     private$i.quantity.foreground.self.times[[quantity.name]] = union_sorted_vectors(times.from.foregrounds)
+                
+                step.change.times = lapply(private$i.resolved.foregrounds[[quantity.name]], function(frgd){
+                    frgd$all.effect.step.change.times
+                })
+                
+                step.change.times = union_sorted_vectors(step.change.times);
+                private$i.quantity.self.after.times[[quantity.name]] =
+                    intersect_sorted_vectors(list(step.change.times,
+                                                  private$i.quantity.foreground.self.times[[quantity.name]]))
             }
             
             invisible(self)
@@ -2256,12 +2406,22 @@ JHEEM = R6::R6Class(
         {
             # Clear the times
             private$i.quantity.foreground.self.times[quantity.names] = NULL
-            
+            private$i.quantity.self.after.times[[quantity.names]] = NULL
+                
             # Clear the top-level-quantity self-times for top-level quantities that depend on this one
             specification = get.specification()
+            
             top.level.quantities = specification$get.dependent.top.level.quantity.names(quantity.names)
             dynamic.top.level.quantities = top.level.quantities[ !private$i.quantity.is.static[top.level.quantities] ]
             private$clear.top.level.self.times(dynamic.top.level.quantities)
+            private$clear.top.level.value.may.not.apply.times(dynamic.top.level.quantities)
+            
+            # Clear outcome non-cumulative self-times for outcomes that have a non-cumulative dependency on this quantity
+            # Clear outcome non-cumulative value-may-not-apply times for outcomes that have a non-cumulative dependency on this quantity
+            outcomes = specification$get.non.cumulative.dependent.outcome.names(quantity.names)
+            dynamic.outcomes = outcomes[ !private$i.outcome.non.cumulative.is.static[outcomes] ]
+            private$clear.outcome.non.cumulative.self.times(dynamic.outcomes)
+            private$clear.outcome.value.may.not.apply.non.cumulative.times(dynamic.outcomes)
             
             # Done
             invisible(self)
@@ -2304,7 +2464,7 @@ JHEEM = R6::R6Class(
         clear.top.level.self.times = function(top.level.names)
         {
             # Clear the times
-            private$i.quantity.value.all.apply.times[top.level.names] = NULL
+            private$i.top.level.self.times[top.level.names] = NULL
             
             # Clear value.times for dependee.quantities
             specification = get.specification()
@@ -2316,6 +2476,74 @@ JHEEM = R6::R6Class(
             invisible(self)
         },
         
+        #-- Outcome Non-Cumulative Self Times --# 
+        # The *outcome.non.cumulative.self.times* for an outcome is the union of
+        #    - All *element.background.self.times* for any element that this outcome has a non-cumulative dependency on
+        #    - All *quantity.foreground.self.times* for any quantity that this outcome has a non-cumulative dependency on
+        #    - All model run times for any intrinsic outcomes that this outcome has a non-cumulative dependency on
+        
+        calculate.outcome.non.cumulative.self.times = function(outcome.name)
+        {
+            if (private$i.outcome.non.cumulative.is.static[outcome.name])
+            {
+                private$i.outcome.non.cumulative.self.times[[outcome.name]] = 'all'
+                private$i.outcome.non.cumulative.self.after.times[[outcome.name]] = numeric()
+            }
+            else
+            {
+                specification = private$get.specification()
+                
+                # Pull the elements this depends on, and make sure their background self times are calculated
+                dependee.elements = specification$get.outcome.dependee.element.names(outcome.name)
+                dynamic.dependee.elements = dependee.elements[ !private$i.quantity.is.static[dependee.elements] ]
+                null.dependee.element.times.mask = as.logical(sapply(private$i.element.background.self.times[dynamic.dependee.elements], is.null))
+                sapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
+                
+                # Pull the quantities this depends on, and make sure their foreground self times are calculated
+                dependee.quantities = specification$get.outcome.dependee.quantity.names(outcome.name)
+                dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
+                null.dependee.quantity.times.mask = as.logical(sapply(private$i.quantity.foreground.self.times[dynamic.dependee.quantities], is.null))
+                sapply(dynamic.dependee.quantities[null.dependee.quantity.times.mask], private$calculate.quantity.foreground.self.times)
+                
+                # If this has a non-cumulative dependency on any intrinsic outcome, include all the run times
+                dependee.outcomes = specification$get.outcome.non.cumulative.dependendee.outcome.names(outcome.name)
+                dependee.outcomes.are.intrinsic = sapply(dependee.outcomes, function(dep.on.outcome.name){
+                    is(specification$get.outcome(dep.on.outcome.name), 'intrinsic.model.outcome')
+                })
+                if (any(dependee.outcomes.are.intrinsic))
+                    intrinsic.times = private$i.run.from.time:private$i.run.to.time
+                else
+                    intrinsic.times = NULL
+                
+                # outcome.non.cumulative.self.times is the union of these times
+                private$i.outcome.non.cumulative.self.times[[outcome.name]] = union_sorted_vectors(c(private$i.element.background.self.times[dynamic.dependee.elements],
+                                                                                                     private$i.quantity.foreground.self.times[dynamic.dependee.quantities],
+                                                                                                     intrinsic.times))
+                private$i.outcome.non.cumulative.self.after.times[[outcome.name]] = union_sorted_vectors(private$i.quantity.self.after.times[dynamic.dependee.quantities])
+                
+                if (length(private$i.outcome.non.cumulative.self.times[[outcome.name]])==0)
+                    private$i.outcome.non.cumulative.self.times[[outcome.name]] = numeric()
+                
+                if (length(private$i.outcome.non.cumulative.self.after.times[[outcome.name]])==0)
+                    private$i.outcome.non.cumulative.self.after.times[[outcome.name]] = numeric()
+            }
+        },
+        
+        clear.outcome.non.cumulative.self.times = function(outcome.names)
+        {
+            # Clear the times
+            private$i.outcome.non.cumulative.self.times[outcome.names] = NULL
+            private$i.outcome.non.cumulative.self.after.times[outcome.names] = NULL
+            
+            # Clear value.times for dependee.quantities
+            specification = get.specification()
+            dependee.quantities = specification$get.outcome.dependee.quantity.names(outcome.names)
+            dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
+            private$clear.quantity.value.times(dynamic.dependee.quantities)
+            
+            # Done
+            invisible(self)
+        },
         
         #-- Quantity Value All Apply Times --#
         
@@ -2342,14 +2570,18 @@ JHEEM = R6::R6Class(
         # And, in general, the times at which all values definitely apply is the setdiff of
         #   value times and times where not all values necessarily apply
         
-        # The quantity.value.all.apply.times for a quantity is the setdiff of
-        #   The quantity's *value.times* minus
-        #   The union of *top.level.value.may.not.apply.times* for every top.level.quantity that depends on this quantity
-        calculate.quantity.value.all.apply.times = function(quantity.name)
+        
+        #    The quantity.value.all.apply.times for a quantity is the setdiff of
+        #    - The quantity's *value.times* minus
+        #    - The union of *top.level.value.may.not.apply.times* for every top.level.quantity that depends on this quantity
+        #       plus the union of *outcome.value.may.not.apply.non.cumulative.times* for every outcome that has a non-cumulative dependency on this quantity
+        #    * (for speed, we don't actually store the set of times, we store a mask that is T for all value.all.apply)
+        calculate.quantity.value.all.applies.times = function(quantity.name)
         {
-            if (private$i.quantity.is.static[quantity.name])
-                private$i.quantity.value.all.apply.times[[quantity.name]] = 'all'
-            else
+            private$i.quantity.value.all.applies.for.time[[quantity.name]] = rep(T, length(private$i.quantity.value.times[[quantity.name]]))
+            names(private$i.quantity.value.all.applies.for.time[[quantity.name]]) = as.character(private$i.quantity.value.times[[quantity.name]])
+            
+            if (!private$i.quantity.is.static[quantity.name])
             {
                 specification = private$get.specification()
                 
@@ -2363,21 +2595,27 @@ JHEEM = R6::R6Class(
                 null.top.level.times.mask = as.logical(sapply(private$i.top.level.value.may.not.apply.times[dynamic.top.level.quantities], is.null))
                 sapply(dynamic.top.level.quantities[null.top.level.times.mask], private$calculate.top.level.value.may.not.apply.times)
                 
-                # union the top-level value-may-not-apply times
-                all.may.not.apply.times = union_sorted_vectors(private$i.top.level.value.may.not.apply.times[dynamic.top.level.quantities])
+                # Pull the outcomes that depend on this, and make sure their value-may-not-apply times are calculated
+                outcomes = specification$get.non.cumulative.dependent.outcome.names(quantity.name)
+                dynamic.outcomes = outcomes[ !private$i.outcome.non.cumulative.is.static[outcomes] ]
+                null.outcome.times.mask = as.logical(sapply(private$i.outcome.value.may.not.apply.non.cumulative.times[dynamic.outcomes], is.null))
+                sapply(outcomes[null.outcome.times.mask], private$calculate.outcome.value.may.not.apply.non.cumulative.times)
                 
-                # value.may.not.apply.times is the setdiff of value times and the may-not-apply times
-                private$i.quantity.value.all.apply.times[[quantity.name]] = setdiff_sorted_vectors(private$i.quantity.value.times[[quantity.name]],
-                                                                                                   all.may.not.apply.times)
+                # union the top-level value-may-not-apply times
+                all.may.not.apply.times = union_sorted_vectors(c(private$i.top.level.value.may.not.apply.times[dynamic.top.level.quantities],
+                                                                 private$i.outcome.value.may.not.apply.non.cumulative.times[dynamic.outcomes]))
+                
+                # value.all.applies.times is the setdiff of value times and the may-not-apply times
+                private$i.quantity.value.all.applies.for.time[[quantity.name]][as.character(all.may.not.apply.times)] = F
             }
             
             invisible(self)
         },
         
-        clear.quantity.value.all.apply.times = function(quantity.names)
+        clear.quantity.value.all.applies.times = function(quantity.names)
         {
             # Clear the times
-            private$i.quantity.value.all.apply.times[quantity.names] = NULL
+            private$i.quantity.value.all.applies.for.time[quantity.names] = NULL
             
             # Done
             invisible(self)
@@ -2391,7 +2629,6 @@ JHEEM = R6::R6Class(
         #   The union of *element.background.self.times* for all elements that the quantity depends on
         calculate.top.level.value.may.not.apply.times = function(top.level.name)
         {
-            
             if (private$i.quantity.is.static[top.level.name])
                 private$i.top.level.value.may.not.apply.times[[top.level.name]] = numeric()
             else
@@ -2414,7 +2651,6 @@ JHEEM = R6::R6Class(
                 # value.may.not.apply.times is the setdiff of value times and the background times
                 private$i.top.level.value.may.not.apply.times[[top.level.name]] = setdiff_sorted_vectors(private$i.quantity.value.times[[top.level.name]],
                                                                                                          all.background.times)
-                
             }
             
             invisible(self)
@@ -2425,18 +2661,169 @@ JHEEM = R6::R6Class(
             # Clear the times
             private$i.top.level.value.may.not.apply.times[top.level.names] = NULL
             
-            # Clear quantity.value.all.apply.times for all quantities that these top-level quantities depend on
+            # Clear quantity.value.all.applies.times for all quantities that these top-level quantities depend on
             specification = get.specification()
             dependee.quantities = specification$get.dependee.quantity.names(top.level.names)
             dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
-            private$clear.quantity.value.all.apply.times(dynamic.dependee.quantities)
+            private$clear.quantity.value.all.applies.times(dynamic.dependee.quantities)
             
             # Done
             invisible(self)
         },
         
+        #-- Outcome Value-May-Non-Apply-Non-Cumulative Times --#
+        # The *outcome.value.may.not.apply.non.cumulative.times* is the setdiff of
+        #    - The outcomes *outcome.non.cumulative.value.times* minus
+        #    - The union of *element.background.self.times* for all elements that the outcome has a non-cumulative dependency on
         
+        calculate.outcome.value.may.not.apply.non.cumulative.times = function(outcome.name)
+        {
+            if (private$i.outcome.non.cumulative.is.static[outcome.name])
+                private$i.outcome.value.may.not.apply.non.cumulative.times[[outcome.name]] = numeric()
+            else
+            {
+                specification = private$get.specification()
+                
+                # Make sure the value times for this quantity are calculated
+                if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
+                    private$calculate.outcome.non.cumulative.value.times(outcome.name)
+                
+                # Pull the elements this depends on, and make sure their background self times are calculated
+                dependee.elements = specification$get.outcome.dependee.element.names(outcome.name)
+                dynamic.dependee.elements = dependee.elements[ !private$i.quantity.is.static[dependee.elements] ]
+                null.dependee.element.times.mask = as.logical(sapply(private$i.element.background.self.times[dynamic.dependee.elements], is.null))
+                sapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
+                
+                # union the background.self.times
+                all.background.times = union_sorted_vectors(private$i.element.background.self.times[dynamic.dependee.elements])
+                
+                # value.may.not.apply.times is the setdiff of value times and the background times
+                private$i.outcome.value.may.not.apply.non.cumulative.times[[outcome.name]] = 
+                    setdiff_sorted_vectors(private$i.outcome.non.cumulative.value.times[[outcome.name]],
+                                           all.background.times)
+            }
+            
+            invisible(self)
+        },
     
+        clear.outcome.value.may.not.apply.non.cumulative.times = function(outcome.names)
+        {
+            # Clear the times
+            private$i.outcome.value.may.not.apply.non.cumulative.times[outcome.names] = NULL
+            
+            # Clear quantity.value.all.applies.times for all quantities that these top-level quantities depend on
+            specification = get.specification()
+            dependee.quantities = specification$get.outcome.dependee.quantity.names(outcome.names)
+            dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
+            private$clear.quantity.value.all.applies.times(dynamic.dependee.quantities)
+            
+            # Done
+            invisible(self)
+        },
+        
+        #-- Outcome Non-Cumulative Self-Times --#
+        # The *outome.non.cumulative.value.times* for each outcome is the union of all
+        #       *outcome.non.cumulative.self.times* for any outcome that depends on this outcome (including itself)
+        
+        calculate.outcome.non.cumulative.value.times = function(outcome.name)
+        {
+            if (private$i.outcome.non.cumulative.is.static[outcome.name])
+            {
+                private$i.outcome.non.cumulative.value.times[[outcome.name]] = 'all'
+                private$i.outcome.non.cumulative.value.time.is.after.time[[outcome.name]] = F
+            }
+            else
+            {
+                specification = private$get.specification()
+             
+                # Pull the outcomes that have a non-cumulative dependency on this, and make sure their self-times are calculated
+                outcomes = specification$get.outcome.non.cumulative.dependent.outcome.names(outcome.name)
+                dynamic.outcomes = outcomes[ !private$i.outcome.non.cumulative.is.static[outcomes] ]
+                null.outcome.times.mask = as.logical(sapply(private$i.outcome.non.cumulative.self.times[dynamic.outcomes], is.null))
+                sapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
+                
+                # The value times and after value times are the union of these times
+                
+                self.times = union_sorted_vectors(private$i.outcome.non.cumulative.self.times[dynamic.outcomes])
+                self.after.times = union_sorted_vectors(private$i.outcome.non.cumulative.self.after.times[dynamic.outcomes])
+                
+                if (length(self.after.times)==0)
+                {
+                    private$i.outcome.non.cumulative.value.times[[outcome.name]] = self.times
+                    private$i.outcome.non.cumulative.value.time.is.after.time[[outcome.name]] = rep(F, length(self.times))
+                }
+                else
+                {
+                    times.and.indicators = 
+                        interpolate_sorted_vectors(v1 = self.times,
+                                                   v2 = self.after.times,
+                                                   F,T)
+                    
+                    private$i.outcome.non.cumulative.value.times[[outcome.name]] = times.and.indictors$interpolated
+                    private$i.outcome.non.cumulative.value.time.is.after.time[[outcome.name]] = times.and.indicators$indicators
+                }
+            }
+            
+            invisible(self)
+        },
+        
+        clear.outcome.non.cumulative.value.times = function(outcome.names)
+        {
+            # Clear the times
+            private$i.outcome.non.cumulative.value.times[outcome.names] = NULL
+            private$i.outcome.non.cumulative.value.after.times[outcome.names] = NULL
+            
+            # Clear the value-all-applies times
+            private$clear.outcome.non.cumulative.value.all.applies.times(outcome.names)
+            
+            # Done
+            invisible(self)
+        },
+        
+        #-- Outcome Value Times --#
+        #   The times for which the final outcome will have a value
+        
+        # The *outcome.value.times* is a vector of times for which this value is calculated
+        #       For a cumulative outcome, it is just every year between max(run.from.time, and the outcome's from.time) and min(run.to.time, and the outcome's to.time)
+        #       For a non-cumulative outcome, it is the *outcome.non.cumulative.value.times*
+        #           Any times for which there is both a value and an after.value will appear in twice in the vector of times
+        # The *outcome.non.cumulative.value.time.is.after.time* is a logical indicator corresponding to the *outcome.value.times* for an outcome
+        #       We store this as a logical vector for computational purposes, but
+        #       the set of after.times for an outcome is the union of all *quantity.self.after.times* for any quantity that this value depends on
+        calculate.outcome.value.times = function(outcome.name, specification)
+        {
+            outcome = specification$get.outcome(outcome.name)
+            if (outcome$is.cumulative || is(outcome, 'intrinsic.model.outcome'))
+            {
+                if (outcome$is.cumulative)
+                {
+                    private$i.outcome.value.times[[outcome.name]] =
+                        max(outcome$from.year, private$i.run.from.time) : min(outcome$to.year, private$i.run.to.time-1)
+                }
+                else
+                {
+                    private$i.outcome.value.times[[outcome.name]] =
+                        max(outcome$from.year, private$i.run.from.time) : min(outcome$to.year, private$i.run.to.time)
+                }
+                
+                private$i.outcome.value.time.is.after.time[[outcome.name]] = rep(F, length(private$i.outcome.value.times[[outcome.name]]))
+            }
+            else
+            {
+                if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
+                    private$calculate.outcome.non.cumulative.value.times(outcome.name)
+                
+                private$i.outcome.value.times[[outcome.name]] = private$i.outcome.non.cumulative.value.times[[outcome.name]]
+                private$i.outcome.value.time.is.after.time[[outcome.name]] = private$i.outcome.non.cumulative.value.time.is.after.time[[outcome.name]]
+            }
+        },
+        
+        clear.outcome.value.times = function(outcome.names)
+        {
+            private$i.outcome.value.times[outcome.names] = NULL
+            private$i.outcome.value.time.is.after.time[outcome.names] = NULL
+        },
+        
         
         ##-----------------------------------------##
         ##-- CALCULATING QUANTITY/ELEMENT VALUES --##
@@ -2476,29 +2863,16 @@ JHEEM = R6::R6Class(
                 quantity = private$get.specification()$get.quantity(quantity.name)
                 
                 #-- For debugging --#
-#                if (is.element.name(quantity.name))
-#                    print(paste0(paste0(rep(" ", depth), collapse=''),
-#                                 "-Calculate element '", quantity.name, "'"))
-#                else
-#                    print(paste0(paste0(rep(" ", depth), collapse=''),
-#                                 "-Calculate quantity '", quantity.name, "'"))
-                
-                #-- Set up the value.all.apply.times --#
-                if (is.null(private$i.quantity.value.all.apply.times[[quantity.name]]))
-                    private$calculate.quantity.value.all.apply.times(quantity.name)
-                
-                if (is.null(private$i.quantity.value.applies.mask[[quantity.name]]))
-                    private$i.quantity.value.applies.mask[[quantity.name]] = list()
-                
-                if (length(quantity$depends.on)==0)
-                    private$i.quantity.value.applies.mask[[quantity.name]][as.character(private$i.quantity.value.times)] = F
-                
-                private$i.quantity.value.applies.mask[[quantity.name]][as.character(private$i.quantity.value.all.apply.times)] = T
-                private$i.quantity.value.applies.mask[[quantity.name]] = private$i.quantity.value.applies.mask[[quantity.name]][as.character(required.times)]
-                
+      #          if (is.element.name(quantity.name))
+      #              print(paste0(paste0(rep(" ", depth), collapse=''),
+      #                           "-Calculate element '", quantity.name, "'"))
+      #          else
+      #              print(paste0(paste0(rep(" ", depth), collapse=''),
+      #                           "-Calculate quantity '", quantity.name, "'"))
+
                 
                 #-- Fill in the background --#
-                if (is.element.name(quantity.name))
+                if (private$is.element.name(quantity.name))
                     private$calculate.element.background.value(quantity.name, 
                                                                missing.times = missing.times, 
                                                                check.consistency = check.consistency)
@@ -2509,6 +2883,14 @@ JHEEM = R6::R6Class(
                                                                 check.consistency = check.consistency)
                 
                 
+                #-- Sort the background --#
+                char.all.times = as.character(private$i.quantity.value.times[[quantity.name]])
+                private$i.quantity.values[[quantity.name]] = private$i.quantity.values[[quantity.name]][ char.all.times ]
+                private$i.quantity.after.values[[quantity.name]] = private$i.quantity.after.values[[quantity.name]][ char.all.times ]
+                
+                
+                if (any(!sapply(private$i.quantity.after.values[[quantity.name]], is.null)))
+                    browser()
                 #-- Fold in foreground if there is any --#
                 foregrounds = private$i.resolved.foregrounds[[quantity.name]]
                 if (length(foregrounds)>0)
@@ -2524,38 +2906,15 @@ JHEEM = R6::R6Class(
                                                                 foregrounds = foregrounds,
                                                                 indices_per_effect_per_foreground = private$i.quantity.foreground.effect.indices[[quantity.name]],
                                                                 scale = quantity$scale)
-                    
                     # Save the results
                     private$i.quantity.values[[quantity.name]] = values.and.after.values$values
                     private$i.quantity.after.values[[quantity.name]] = values.and.after.values$after.values
-                    
-                    # Update the value.applies.mask
-                    update.value.applies.times = setdiff_sorted_vectors(missing.times, private$i.quantity.value.all.apply.times[[quantity.name]])
-                    private$i.quantity.value.applies.mask[as.character(update.value.applies.times)] = lapply(update.value.applies.times, function(time){
-                        mask = private$i.quantity.value.applies.mask[[quantity.name]][[as.character(time)]]
-                        
-                        if (length(mask)==1)
-                            mask = array(mask,
-                                         dim = sapply(private$i.quantity.dim.names[[quantity.name]], length),
-                                         dimnames = private$i.quantity.dim.names[[quantity.name]])
-                        
-                        for (frgd in foregrounds)
-                        {
-                            for (i in 1:length(frgd$effects))
-                            {
-                                effect = frgd$effects[i]
-                                if (effect$start.time <= time && effect$end.time >= time)
-                                {
-                                    indices = private$i.quantity.foreground.effect.indices[[quantity.name]][[i]]
-                                    mask[indices] = T
-                                }
-                            }   
-                        }
-                        
-                        mask
-                    })
                 }
                 
+                #-- Order the Values by Time --#
+                char.times = as.character(private$i.quantity.value.times[[quantity.name]])
+                private$i.quantity.values[[quantity.name]] = private$i.quantity.values[[quantity.name]][char.times]
+                private$i.quantity.after.values[[quantity.name]] = private$i.quantity.after.values[[quantity.name]][char.times]
                 
                 #-- Check scale --#
                 if (check.consistency && !is.null(quantity$scale))
@@ -2564,6 +2923,12 @@ JHEEM = R6::R6Class(
                                                  variable.name.for.error = "the calculated values",
                                                  error.prefix =  paste0("Error calculating values for model quantity '", quantity.name, "': "))
             }
+            
+            if (any(!sapply(private$i.quantity.after.values[[quantity.name]], is.null)))
+                browser()
+            
+            #-- Calculate the value.applies.mask (if needed) --#
+            private$calculate.quantity.value.applies.mask(quantity.name)
             
             #-- Done --#
             invisible(self)
@@ -2578,171 +2943,189 @@ JHEEM = R6::R6Class(
             quantity = private$get.specification()$get.quantity(quantity.name)
             
             #-- Make sure the dependee quantities are all calculated --#
-            sapply(quantity$depends.on, calculate.quantity.value, check.consistency=check.consistency, depth=depth+1)
+            sapply(quantity$depends.on, private$calculate.quantity.value, check.consistency=check.consistency, depth=depth+1)
             
             #-- Loop through missing times --#
             for (time in missing.times)
             {
-                for (is.after.time in c(F,T)[c(T, all(private$i.quantity.value.all.apply.times != time))])
-                {
-                    
-                    
-                    if (is.after.time)
-                        private$i.quantity.after.values[[as.character(time)]] = value
-                    else
-                        private$i.quantity.values[[as.character(time)]] = value
-                }
-            }
-            
-            private$i.quantity.values[[quantity.name]][missing.times] = lapply(missing.times, function(time){
+                char.time = as.character(time)
+                depends.on.has.after = sapply(private$i.quantity.after.values[quantity$depends.on], function(values){
+                    !is.null(values[[char.time]])
+                })
+                names(depends.on.has.after) = quantity$depends.on
                 
-                #-- Calculate the values for each component --#
-                component.values = lapply(1:quantity$n.components, function(i){
-                    
-                    #-- Pull the component and set up the error prefix --#
-                    comp = quantity$components[[i]]
-                    
-                    if (i==1)
-                        error.prefix = paste0("Error evaluating value for quantity '", quantity.name, " at time ", time, ": ")
+                bindings = list(specification.metadata = self$specification.metadata,
+                                location = private$i.location)
+                
+                for (is.after.time in c(F,T))
+                {
+                    if (is.after.time && !any(depends.on.has.after))
+                        quant.value = NULL
                     else
-                        error.prefix = paste0("Error evaluating value for the ", get.ordinal(i-1), " subset of quantity '", quantity.name, " at time ", time, ": ")
-                    
-                    #-- Calculate dim.names (if we need to and we can) --#
-                    if ((length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
-                         is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) &&
-                        comp$value.type!='function')
-                        calculate.quantity.component.dim.names(quantity, component.index=i)
-                    
-                    #-- Bind the depends-on quantities --#
-                    bindings = lapply(comp$depends.on, function(dep.on){
-                        
-                        if (i.quantity.is.static[dep.on])
-                            values = private$i.quantity.values[[dep.on]][['all']]
-                        else
-                            values = private$i.quantity.values[[dep.on]][[time]]
-                        
-                        if (comp$value.type == 'expression')
-                        {
-                            if (length(private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on) < i ||
-                                is.null(private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on[[i]][[dep.on]]))
-                            {
-                                private$calculate.quantity.component.depends.on.indices(quantity, 
-                                                                                        component.index = i,
-                                                                                        depends.on = dep.on)
-                            } 
-                            dep.on.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on[[i]][[dep.on]]
-                            
-                            values[dep.on.indices]
-                        }
-                        else
-                            values
-                    })
-                    names(bindings) = comp$depends.on
-                    
-                    #-- Calculate the value --#
-                    bindings$specification.metadata = self$specification.metadata
-                    bindings$location = private$i.location
-                    
-                    value = comp$evaluate(bindings = bindings,
-                                          error.prefix = error.prefix)
-                    
-                    #-- If a function value.type, check the returned value and set its dim.names if needed --#
-                    if (comp$value.type=='function')
                     {
-                        if (check.consistency)
-                            check.function.quantity.component.value(value, quantity=quantity, component.index=i,
-                                                                    time=time, error.prefix=error.prefix)
+                        #-- Calculate the values for each component --#
+                        component.values = lapply(1:quantity$n.components, function(i){
+                            
+                            #-- Pull the component and set up the error prefix --#
+                            comp = quantity$components[[i]]
+                            
+                            if (i==1)
+                                error.prefix = paste0("Error evaluating value for quantity '", quantity.name, " at time ", time, ": ")
+                            else
+                                error.prefix = paste0("Error evaluating value for the ", get.ordinal(i-1), " subset of quantity '", quantity.name, " at time ", time, ": ")
+                            
+                            #-- Calculate dim.names (if we need to and we can) --#
+                            if ((length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
+                                 is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) &&
+                                comp$value.type!='function')
+                                calculate.quantity.component.dim.names(quantity, component.index=i)
+                            
+                            #-- Bind the depends-on quantities --#
+                            if (is.after.time)
+                                update.bindings.for = comp$depends.on[ depends.on.has.after[comp$depends.on] ]
+                            else
+                                update.bindings.for = comp$depends.on
+                            
+                            bindings[update.bindings.for] <<- lapply(update.bindings.for, function(dep.on){
+                                
+                                if (private$i.quantity.is.static[dep.on])
+                                    values = private$i.quantity.values[[dep.on]][['all']]
+                                else if (is.after.time)
+                                    values = private$i.quantity.after.values[[dep.on]][[char.time]]
+                                else
+                                    values = private$i.quantity.values[[dep.on]][[char.time]]
+                                
+                                if (comp$value.type == 'expression')
+                                {
+                                    if (length(private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on) < i ||
+                                        is.null(private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on[[i]][[dep.on]]))
+                                    {
+                                        private$calculate.quantity.component.depends.on.indices(quantity, 
+                                                                                                component.index = i,
+                                                                                                depends.on = dep.on)
+                                    } 
+                                    dep.on.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on[[i]][[dep.on]]
+                                    
+                                    values[dep.on.indices]
+                                }
+                                else
+                                    values
+                            })
+                            
+                            #-- Calculate the value --#
+                            value = comp$evaluate(bindings = bindings,
+                                                  error.prefix = error.prefix)
+                            
+                            #-- If a function value.type, check the returned value and set its dim.names if needed --#
+                            if (comp$value.type=='function')
+                            {
+                                if (check.consistency)
+                                    check.function.quantity.component.value(value, quantity=quantity, component.index=i,
+                                                                            time=time, error.prefix=error.prefix)
+                                
+                                if ((length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
+                                     is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) ||
+                                    (check.consistency && time == missing.times[1]))
+                                    calculate.quantity.component.dim.names(quantity, 
+                                                                           component.index = i,
+                                                                           value.for.function = value)
+                                
+                                if (check.consistency && !dim.names.equal(dim.names.1 = private$i.quantity.component.dim.names[[quantity.name]][[i]],
+                                                                          dim.names.2 = dimnames(value),
+                                                                          match.order.of.dimensions = T,
+                                                                          match.order.within.dimensions = T))
+                                    stop(paste0(error.prefix,
+                                                "The dimnames for the value calculated at time ", time,
+                                                " do not match the dimnames of values for previous times"))
+                                
+                            }
+                            
+                            #-- A check --#
+                            if (length(value)==0)
+                                browser()
+                            
+                            #-- Return --#
+                            value
+                        })
                         
-                        if ((length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
-                             is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) ||
-                            (check.consistency && time == missing.times[1]))
-                            calculate.quantity.component.dim.names(quantity, 
-                                                                   component.index = i,
-                                                                   value.for.function = value)
                         
-                        if (check.consistency && !dim.names.equal(dim.names.1 = private$i.quantity.component.dim.names[[quantity.name]][[i]],
-                                                                  dim.names.2 = dimnames(value),
-                                                                  match.order.of.dimensions = T,
-                                                                  match.order.within.dimensions = T))
-                            stop(paste0(error.prefix,
-                                        "The dimnames for the value calculated at time ", time,
-                                        " do not match the dimnames of values for previous times"))
+                        #-- Recalculate the dim.names if needed --#
+                        if (is.null(i.quantity.dim.names[[quantity.name]]))
+                            calculate.quantity.dim.names(quantity)
+                        
+                        
+                        #-- Incorporate each component into the quantity value --#
+                        quant.value = NULL
+                        
+                        for (i in 1:quantity$n.components)
+                        {
+                            comp = quantity$components[[i]]
+                            comp.value = component.values[[i]]
+                            
+                            #-- Recalculate the indices if we need to --#
+                            if (length(private$i.quantity.mapping.indices[[quantity.name]]$components.expand)<i || 
+                                is.null(private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]))
+                                private$calculate.quantity.component.expand.access.indices(quantity, component.index=i)
+                            
+                            #-- Pull the access/expand indices --#
+                            expand.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]
+                            access.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.access[[i]]
+                            
+                            # Fold it in to the comp.value
+                            if (is.null(access.indices))
+                                quant.value = comp.value[expand.indices]
+                            else if (comp$apply.function=='overwrite')
+                                #quant.value = do_access_overwrite(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
+                                quant.value[access.indices] = comp.value[expand.indices]
+                            else if (comp$apply.function=='add')
+                                #quant.value = do_access_add(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
+                                quant.value[access.indices] = quant.value[access.indices] + comp.value[expand.indices]
+                            else if (comp$apply.function=='subtract')
+                                #quant.value = do_access_subtract(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
+                                quant.value[access.indices] = quant.value[access.indices] - comp.value[expand.indices]
+                            else if (comp$apply.function=='multiply')
+                                #quant.value = do_access_multiply(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
+                                quant.value[access.indices] = quant.value[access.indices] * comp.value[expand.indices]
+                            else if (comp$apply.function=='divide')
+                                #quant.value = do_access_divide(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
+                                quant.value[access.indices] = quant.value[access.indices] / comp.value[expand.indices]
+                            else
+                                stop(paste0("Invalid apply.function '", comp$apply.function, "' for model quantity '", quantity.name,
+                                            "'. Must be one of 'overwrite', 'add', 'subtract', 'multiply', or 'divide'"))
+                            
+                            
+                            if (any(is.na(quant.value)))
+                                browser()
+                        }
+                        
+                        
+    
+                        
+                        #-- Check for NA --#
+                        if (any(is.na(quant.value)))
+                            browser()
+                        #                            stop(paste0(paste0("Error calculating values for model quantity '", quantity.name, "': NA values were generated")))
+                        
+                        if (length(quant.value)==0)
+                            browser()
+                        
+                        #-- Set the dimnames --#
+                        if (length(private$i.quantity.dim.names[[quantity.name]]) > 0)
+                        {
+                            dim(quant.value) = sapply(private$i.quantity.dim.names[[quantity.name]], length)
+                            dimnames(quant.value) = private$i.quantity.dim.names[[quantity.name]]
+                        }
                         
                     }
                     
-                    #-- A check --#
-                    if (length(value)==0)
-                        browser()
-                    
-                    #-- Return --#
-                    value
-                })
-                
-                #-- Recalculate the dim.names if needed --#
-                if (is.null(i.quantity.dim.names[[quantity.name]]))
-                    calculate.quantity.dim.names(quantity)
-                
-                rv = NULL                   
-                #-- Incorporate each component into the quantity value --#
-                for (i in 1:quantity$n.components)
-                {
-                    comp = quantity$components[[i]]
-                    value = component.values[[i]]
-                    
-                    #-- Recalculate the indices if we need to --#
-                    if (length(private$i.quantity.mapping.indices[[quantity.name]]$components.expand)<i || 
-                        is.null(private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]))
-                        private$calculate.quantity.component.expand.access.indices(quantity, component.index=i)
-                    
-                    #-- Pull the access/expand indices --#
-                    expand.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]
-                    access.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.access[[i]]
-                    
-                    #     if (quantity.name == 'sexual.contact.by.race')        
-                    #        browser()
-                    # Fold it in to the rv
-                    if (is.null(access.indices))
-                        rv = value[expand.indices]
-                    else if (comp$apply.function=='overwrite')
-                        #rv = do_access_overwrite(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                        rv[access.indices] = value[expand.indices]
-                    else if (comp$apply.function=='add')
-                        #rv = do_access_add(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                        rv[access.indices] = rv[access.indices] + value[expand.indices]
-                    else if (comp$apply.function=='subtract')
-                        #rv = do_access_subtract(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                        rv[access.indices] = rv[access.indices] - value[expand.indices]
-                    else if (comp$apply.function=='multiply')
-                        #rv = do_access_multiply(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                        rv[access.indices] = rv[access.indices] * value[expand.indices]
-                    else if (comp$apply.function=='divide')
-                        #rv = do_access_divide(dst=rv, src=value, dst_indices=access.indices, src_indices=expand.indices)
-                        rv[access.indices] = rv[access.indices] / value[expand.indices]
+                    #-- Store the Value --#
+                    if (is.after.time)
+                        private$i.quantity.after.values[[quantity.name]][char.time] = list(quant.value) #wrapping in a list here lets us enter in NULL values
                     else
-                        stop(paste0("Invalid apply.function '", comp$apply.function, "' for model quantity '", quantity.name,
-                                    "'. Must be one of 'overwrite', 'add', 'subtract', 'multiply', or 'divide'"))
+                        private$i.quantity.values[[quantity.name]][[char.time]] = quant.value
                 }
-                
-                #-- Check for NA --#
-                if (any(is.na(rv)))
-                    browser()
-                #                            stop(paste0(paste0("Error calculating values for model quantity '", quantity.name, "': NA values were generated")))
-                
-                if (length(rv)==0)
-                    browser()
-                
-                #-- Set the dimnames and return --#
-                if (length(private$i.quantity.dim.names[[quantity.name]]) > 0)
-                {
-                    dim(rv) = sapply(private$i.quantity.dim.names[[quantity.name]], length)
-                    dimnames(rv) = private$i.quantity.dim.names[[quantity.name]]
-                }
-                rv
-            })
+            }
             
-            #-- Order the values by time --#
-            private$i.quantity.values[[quantity.name]] = private$i.quantity.values[[quantity.name]][as.character(private$i.quantity.value.times[[quantity.name]])]
-
             # Done
             invisible(self)
         },
@@ -2751,7 +3134,9 @@ JHEEM = R6::R6Class(
         # interpolates ramp on the model scale
         calculate.element.background.value = function(element.name, missing.times, check.consistency)
         {
+            char.times = as.character(missing.times)
             element = private$get.specification()$get.quantity(element.name)
+            
             if (is.null(private$i.quantity.dim.names[[element.name]]))
                 private$calculate.quantity.dim.names(element)
             
@@ -2793,7 +3178,7 @@ JHEEM = R6::R6Class(
                     }
                     else # This is a static value at baseline, but has a foreground overlaid
                     {
-                        private$i.quantity.values[[element.name]][as.character(missing.times)] = lapply(1:length(missing.times), function(i){
+                        private$i.quantity.values[[element.name]][char.times] = lapply(1:length(missing.times), function(i){
                             value + 0 
                                 # The +0 here forces a DEEP copy of value. 
                                 # This is important, because applying foregrounds will overwrite in place,
@@ -2875,11 +3260,11 @@ JHEEM = R6::R6Class(
                                         value.times = interpolate.from.times,
                                         desired.times = missing.interpolated.times)
                     }                    
-                    
-                    #-- Sort the result --#
-                    private$i.quantity.values[[element.name]] = private$i.quantity.values[[element.name]][ as.character(private$i.quantity.value.times[[element.name]]) ]
                 }
             }
+            
+            # Fill in after.values
+            private$i.quantity.after.values[[element.name]][char.times] = lapply(missing.times, function(time){NULL})
             
             # A debug check
             if (any(sapply(private$i.quantity.values[[element.name]], length)==0))
@@ -2938,6 +3323,224 @@ JHEEM = R6::R6Class(
             }
         },
         
+
+        ##--------------------------------------------------##
+        ##-- CALCULATING THE QUANTITY VALUE APPLIES MASKS --##
+        ##--------------------------------------------------##
+        
+        calculate.quantity.value.applies.mask = function(quantity.name)
+        {
+            if (is.null(private$i.quantity.value.times[[quantity.name]]))
+                private$calculate.quantity.value.times(quantity.name)
+            if (private$i.quantity.is.static[quantity.name])
+            
+            required.times = as.character(private$i.quantity.value.times[[quantity.name]])
+            
+            if (private$i.quantity.is.static[quantity.name])
+            {
+                if (is.null(private$i.quantity.values[['all']]))
+                    missing.times = 'all'
+                else
+                    missing.times = numeric()
+            }
+            else
+                missing.times = setdiff_sorted_vectors(private$i.quantity.value.times[[quantity.name]], 
+                                                       as.numeric(names(private$i.quantity.value.applies.mask[[quantity.name]])))
+            
+            if (length(missing.times)>0)
+            {
+                #-- Calculate the value.applies.mask for background --#
+                private$calculate.quantity.background.value.applies.masks(quantity.name, missing.times = missing.times)
+                
+                foregrounds = private$i.resolved.foregrounds[[quantity.name]]
+                if (length(foregrounds)>0)
+                {
+                    # Update the value.applies.mask
+                    update.value.applies.times = setdiff_sorted_vectors(missing.times, private$i.quantity.value.all.applies.for.time[[quantity.name]])
+                    char.update.value.applies.times = as.character(update.value.applies.times)
+                    
+                    private$i.quantity.value.applies.mask[char.update.value.applies.times] = 
+                        private$incorporate.foreground.into.value.applies.masks(quantity.name, times = update.value.applies.times, is.after = F)
+                    
+                    after.mask = !sapply(private$i.quantity.after.values[[quantity.name]][char.update.value.applies.times], is.null)
+                    private$i.quantity.after.value.applies.mask[ char.update.value.applies.times[after.mask] ] = 
+                        private$incorporate.foreground.into.value.applies.masks(quantity.name, times = update.value.applies.times[after.mask], is.after = T)
+                }
+            }
+        },
+        
+        calculate.quantity.background.value.applies.masks = function(quantity.name, missing.times)
+        {
+            # Pull the quantity
+            quantity = private$get.specification()$get.quantity(quantity.name)
+            
+            char.times = as.character(missing.times)
+            
+            #-- Set up the value.all.applies.times --#
+            if (is.null(private$i.quantity.value.all.applies.for.time[[quantity.name]]))
+                private$calculate.quantity.value.all.applies.times(quantity.name)
+            
+            if (is.null(private$i.quantity.value.applies.mask[[quantity.name]]))
+                private$i.quantity.value.applies.mask[[quantity.name]] = list()
+            
+            private$i.quantity.after.value.applies.mask[[quantity.name]][char.times] = lapply(char.times, function(t){NULL})
+            
+            if (length(quantity$depends.on)==0)
+            {
+                private$i.quantity.value.applies.mask[[quantity.name]][char.times] = T
+            }
+            else
+            {
+                private$i.quantity.value.applies.mask[[quantity.name]][char.times] =
+                    private$i.quantity.value.all.applies.for.time[[quantity.name]][char.times]
+                
+                for (time in missing.times)
+                {
+                    char.time = as.character(time)
+                    
+                    has.after.value = !is.null(private$quantity.after.values[[quantity.name]][char.time])
+                    
+                    for (is.after.time in c(F,T)[c(!private$i.quantity.value.all.applies.for.time[[quantity.name]][char.time], has.after.value)])
+                    {
+                        #-- Calculate the value.applies masks for each component --#
+                        component.masks = lapply(1:quantity$n.components, function(i){
+                            
+                            comp = quantity$components[[i]]
+                            
+                            if (comp$value.type == 'numeric' || length(comp$depends.on)==0)
+                                T
+                            else 
+                            {
+                                dep.on.masks = lapply(comp$depends.on, function(dep.on){
+                                    
+                                    if (private$i.quantity.is.static[dep.on])
+                                        dep.on.mask = private$i.quantity.value.applies.mask[[dep.on]][[1]]
+                                    else 
+                                    {
+                                        dep.on.mask = NULL
+                                        if (is.after.time)
+                                            dep.on.mask = private$i.quantity.after.value.applies.mask[[dep.on]][[char.time]]
+                                        if (is.null(dep.on.mask))
+                                            dep.on.mask = private$i.quantity.value.applies.mask[[dep.on]][[char.time]]
+                                    }
+                                    
+                                    if (length(dep.on.mask)==1)
+                                        dep.on.mask
+                                    else
+                                    {
+                                        dep.on.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on[[i]][[dep.on]]
+                                        dep.on.mask[dep.on.indices]
+                                    }
+                                })
+                                
+                                if (comp$value.type == 'expression' || comp$value.type == 'character')
+                                {
+                                    combined.mask = dep.on.masks[[1]]
+                                    for (add.mask in dep.on.masks[-1])
+                                        combined.mask = combined.mask | add.mask
+                                    
+                                    combined.mask
+                                }
+                                else # comp$value == 'function'
+                                {
+                                    any(sapply(dep.on.masks, any))
+                                }
+                            }
+                        })
+                        
+                        #-- Fold the masks from all the components together --#
+                        quant.value.applies = NULL
+                        
+                        for (i in 1:quantity$n.components)
+                        {
+                            comp = quantity$components[[i]]
+                            comp.value.applies = component.masks[[i]]
+                            
+                            #-- Pull the access/expand indices --#
+                            expand.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]
+                            access.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.access[[i]]
+                            
+                            if (length(comp.value.applies)==1)
+                            {
+                                if (is.null(access.indices))
+                                    quant.value.applies = comp.value.applies
+                                else if (comp$apply.function=='overwrite')
+                                    quant.value.applies[access.indices] = comp.value.applies
+                                else if (comp.value.applies)
+                                    quant.value.applies[access.indices] = T
+                            }
+                            else
+                            {
+                                if (is.null(access.indices))
+                                    quant.value.applies = comp.value.applies[expand.indices]
+                                else if (comp$apply.function=='overwrite')
+                                    quant.value.applies[access.indices] = comp.value.applies[expand.indices]
+                                else
+                                    quant.value.applies[access.indices] = quant.value.applies[access.indices] | comp.value.applies[expand.indices]
+                            }
+                        }
+                        
+                        if (is.null(quant.value.applies) || any(is.na(quant.value.applies)) || !any(quant.value.applies))
+                            browser()
+                        
+                        if (all(quant.value.applies))
+                            quant.value.applies = T
+                        
+                        if (is.after.time)
+                            private$i.quantity.after.value.applies.mask[[quantity.name]][[char.time]] = quant.value.applies
+                        else
+                            private$i.quantity.value.applies.mask[[quantity.name]][[char.time]] = quant.value.applies
+                    }
+                }
+            }
+            
+            #-- Order it and return --#
+            char.all.times = as.character(private$i.quantity.value.times[[quantity.name]])
+            private$i.quantity.value.applies.mask[[quantity.name]] = private$i.quantity.value.applies.mask[[quantity.name]][char.all.times]
+            private$i.quantity.after.value.applies.mask[[quantity.name]] = private$i.quantity.after.value.applies.mask[[quantity.name]][char.all.times]
+            
+            invisible(self)
+        },
+        
+        incorporate.foreground.into.value.applies.masks = function(quantity.name, times, is.after)
+        {
+            foregrounds = private$i.resolved.foregrounds[[quantity.name]]
+            
+            lapply(times, function(time){
+                
+                char.time = as.character(time)
+                mask = NULL
+                if (is.after)
+                    mask = private$i.quantity.after.value.applies.mask[[quantity.name]][[char.time]]
+                if (is.null(mask))
+                    mask = private$i.quantity.value.applies.mask[[quantity.name]][[char.time]]
+                
+                if (length(mask)==1)
+                    mask = array(mask,
+                                 dim = sapply(private$i.quantity.dim.names[[quantity.name]], length),
+                                 dimnames = private$i.quantity.dim.names[[quantity.name]])
+                
+                if (!mask[1])
+                {
+                    for (frgd.name in names(foregrounds))
+                    {
+                        frgd = foregrounds[[frgd.name]]
+                        for (i in 1:length(frgd$effects))
+                        {
+                            effect = frgd$effects[[i]]
+                            if (effect$start.time <= time && effect$end.time >= time)
+                            {
+                                indices = private$i.quantity.foreground.effect.indices[[quantity.name]][[frgd.name]][[i]]
+                                mask[indices] = T
+                            }
+                        }   
+                    }
+                }
+                
+                mask
+            })
+        },
+          
         ##----------------------------------------------------------------##
         ##-- CALCULATING QUANTITY/ELEMENT DIM.NAMES and MAPPING INDICES --##
         ##----------------------------------------------------------------##
@@ -2953,7 +3556,7 @@ JHEEM = R6::R6Class(
                 # - If no functional.form is present, the dim.names of the value
                 # - dim.names from the foreground (still not implemented)
                 
-                bkgd = i.element.backgrounds[[quantity.name]]
+                bkgd = private$i.element.backgrounds[[quantity.name]]
                 if (is.null(bkgd$functional.form))
                 {
                     if (is.null(dimnames(bkgd$value)))
@@ -2961,7 +3564,7 @@ JHEEM = R6::R6Class(
                     else
                         private$i.quantity.dim.names[[quantity.name]] = dimnames(bkgd$value)
                 }
-                else if (is.null(i.quantity.max.dim.names[[quantity.name]]))
+                else if (is.null(private$i.quantity.max.dim.names[[quantity.name]]))
                 {
                     private$i.quantity.dim.names[[quantity.name]] = outer.join.dim.names(bkgd$functional.form$minimum.dim.names,
                                                                                          lapply(bkgd$functional.form.alphas, get.alphas.minimum.dim.names))
@@ -2972,8 +3575,6 @@ JHEEM = R6::R6Class(
                                            unlist(sapply(bkgd$functional.form.alphas, get.alphas.minimum.dimensions)))
                     private$i.quantity.dim.names[[quantity.name]] = i.quantity.max.dim.names[[quantity.name]][new.dimensions]
                 }
-                
-                # need to fold in foreground dimensions here
             }
             else
             {
@@ -2984,7 +3585,7 @@ JHEEM = R6::R6Class(
                 # - The dimnames of the all components plus
                 # - The applies.to from each component (after the first, which has no applies to)
                 
-                if (is.null(i.quantity.max.dim.names[[quantity.name]]))
+                if (is.null(private$i.quantity.max.dim.names[[quantity.name]]))
                 {
                     # If there is just one component, then the dimnames of the quantity are just the dimnames of the component
                     if (length(private$i.quantity.component.dim.names[[quantity.name]]) == 1)
@@ -2995,7 +3596,7 @@ JHEEM = R6::R6Class(
                     else
                     {
                         dim.names = outer.join.dim.names(private$i.quantity.component.dim.names[[quantity.name]],
-                                                         i.quantity.component.applies.to[[quantity.name]])
+                                                         private$i.quantity.component.applies.to[[quantity.name]])
                         private$i.quantity.dim.names[[quantity.name]] = dim.names
                         
                         # Check to make sure that dimension values from each component align
@@ -3038,6 +3639,47 @@ JHEEM = R6::R6Class(
                 }
             }
             
+            foregrounds = private$i.resolved.foregrounds[quantity.name]
+            if (length(foregrounds)>0)
+            {
+                if (is.null(private$i.quantity.max.dim.names[[quantity.name]])) 
+                    # this condition should never evaluate to TRUE
+                    # we require that max.dim.names be non-NULL if we're going to apply a foreground
+                    # but we'll leave this chunk of code in here to protect ourselves in case we ever
+                    #  (for what reason I cannot fathom) change that requirement
+                {
+                    for (frgd in foregrounds)
+                    {
+                        for (tpop.mask in frgd$target.population.masks)
+                        {
+                            tpop.dim.names = dimnames(tpop.mask)
+                            
+                            # make sure we are not introducing new values to a dimension
+                            # do I actually need to do this check? I think not - we'll just make the function handle them at their own risk
+                            # and it's moot anyway at this time since this code should never actually execute
+                            
+                            # join them
+                            private$i.quantity.component.dim.names[[quantity.name]] = 
+                                outer.join.dim.names(private$i.quantity.component.dim.names[[quantity.name]],
+                                                     tpop.dim.names)
+                        }
+                    }
+                }
+                else 
+                {
+                    dimensions = names(private$i.quantity.dim.names[[quantity.name]])
+                    for (frgd in foregrounds)
+                    {
+                        for (tpop.mask in frgd$target.population.masks)
+                        {
+                            dimensions = union(dimensions, names(tpop.mask))
+                        }
+                    }
+                    
+                    private$i.quantity.dim.names[[quantity.name]] = private$i.quantity.max.dim.names[[quantity.name]][dimensions]
+                }
+            }
+            
             #-- Make sure dim.names are a superset of required.dim.names --#
             required.dim.names = private$i.quantity.required.dim.names[[quantity.name]]
             if (length(required.dim.names)>0)
@@ -3068,14 +3710,14 @@ JHEEM = R6::R6Class(
             
             #--  If the dim.names have changed from previous, clear dependencies --#
             #    (and set these dimnames to be the reference - ie crunched - dimnames)
-            if (!is.null(i.crunched.quantity.dim.names[[quantity.name]]) &&
-                !dim.names.equal(i.crunched.quantity.dim.names[[quantity.name]],
-                                 i.quantity.dim.names[[quantity.name]]))
+            if (!is.null(private$i.crunched.quantity.dim.names[[quantity.name]]) &&
+                !dim.names.equal(private$i.crunched.quantity.dim.names[[quantity.name]],
+                                 private$i.quantity.dim.names[[quantity.name]]))
             {
-                clear.dependent.on.quantity.dim.names(quantity.name)
+                private$clear.dependent.on.quantity.dim.names(quantity.name)
                 private$i.diffeq.settings = notify.diffeq.settings.of.quantity.dim.names.change(private$i.diffeq.settings,
                                                                                                 quantity.name = quantity.name)
-                i.crunched.quantity.dim.names[[quantity.name]] = i.quantity.dim.names[[quantity.name]]
+                private$i.crunched.quantity.dim.names[[quantity.name]] = private$i.quantity.dim.names[[quantity.name]]
             }
             
             #-- A debugging check --#
@@ -3231,12 +3873,14 @@ JHEEM = R6::R6Class(
             {
                 if (is.null(private$i.quantity.foreground.effect.indices[[quantity.name]][[foreground.id]]))
                 {
-                    indices.into.quantity = 1:prod(sapply(private$i.quantity.dim.names, length))
+                    # these indices should be for C++, ie indexed from zero
+                    indices.into.quantity = 0:(prod(sapply(private$i.quantity.dim.names[[quantity.name]], length))-1)
                     foreground = private$i.resolved.foregrounds[[quantity.name]][[foreground.id]]
                     
                     private$i.quantity.foreground.effect.indices[[quantity.name]][[foreground.id]] =
                         lapply(foreground$target.population.masks, function(tpop.mask){
-                            expand.tpop.mask.indices = get.expand.array.indices(to.expand.dim.names = dimnames(tpop.mask))
+                            expand.tpop.mask.indices = get.expand.array.indices(to.expand.dim.names = dimnames(tpop.mask), 
+                                                                                target.dim.names = private$i.quantity.dim.names[[quantity.name]])
                             indices.into.quantity[ tpop.mask[expand.tpop.mask.indices] ]
                         })
                 }
@@ -3319,6 +3963,38 @@ JHEEM = R6::R6Class(
                     
                     private$i.quantity.values[[one.to.clear]][to.clear.mask] = NULL
                     private$i.quantity.after.values[[one.to.clear]][to.clear.mask] = NULL
+                }
+            }
+            
+            invisible(self)
+        },
+
+        clear.dependent.value.applies.masks = function(quantity.name, clear.after.time=-Inf, clear.before.time=Inf)
+        {
+            specification = get.specification()
+            to.clear = c(quantity.name, specification$get.dependent.quantity.names(element.name))
+            
+            if (clear.after.time == -Inf && clear.before.time == Inf)
+            {
+                for (one.to.clear in to.clear)
+                {
+                    private$i.quantity.value.applies.mask[[one.to.clear]] = list()
+                    private$i.quantity.after.value.applies.mask[[one.to.clear]] = list()
+                }
+            }
+            else
+            {
+                for (one.to.clear in to.clear)
+                {
+                    value.times = as.numeric(names(private$i.quantity.value.applies.mask[[one.to.clear]]))
+                    to.clear.mask = value.times > clear.after.time & value.times < clear.before.time
+                    # doing this for every quantity to clear is a defensive move
+                    # theoretically, we could just calculate the times to clear from the declared quantity to clear
+                    # this presumes that the times to clear in all dependents are present in the original quantity,
+                    #   which *should* be true, but we won't assume that
+                    
+                    private$i.quantity.value.applies.mask[[one.to.clear]][to.clear.mask] = NULL
+                    private$i.quantity.after.value.applies.mask[[one.to.clear]][to.clear.mask] = NULL
                 }
             }
             
@@ -3407,7 +4083,8 @@ JHEEM = R6::R6Class(
             }
             
             # Store the resolved foreground
-            resolved.foreground = unresolved.foreground$resolve.effects(private$i.parameters)
+            resolved.foreground = unresolved.foreground$resolve.effects(private$i.parameters,
+                                                                        error.prefix = paste0("Error resolving foreground effects for '", unresolved.foreground$quantity.name, "': "))
             private$i.resolved.foregrounds[[unresolved.foreground$quantity.name]][[id]] = resolved.foreground
             
             
@@ -3417,21 +4094,386 @@ JHEEM = R6::R6Class(
             # Clear all values after start of intervention (or previous start time, whichever comes first)
             clear.after.time = min(resolved.foreground$min.start.time,
                                    previous.start.time)
-            clear.before.time = max(resolved.foregrounds$max.end.time,
+            clear.before.time = max(resolved.foreground$max.end.time,
                                     previous.end.time)
             
             private$clear.dependent.values(quantity.name, 
                                            clear.after.time = clear.after.time,
                                            clear.before.time = clear.before.time)
             
-            
-            # Clear times
+            # Clear times and value applies masks
             if (is.null(previously.resolved.foreground) || 
                 (!unresolved.foreground$effect.times.are.resolved && !resolved.foreground$effect.times.equal(previously.resolved.foreground) ))
-                private$clear.foreground.self.times(quantity.name)
+            {
+                private$clear.quantity.foreground.self.times(quantity.name)
+                
+                # We only need to clear these if the times have changed
+                private$clear.dependent.value.applies.masks(quantity.name, 
+                                                            clear.after.time = clear.after.time,
+                                                            clear.before.time = clear.before.time)
+            }
         },
         
+
+        ##----------------------------------##
+        ##--  Calculating Outcome Values  --##
+        ##--  (after the ODE solver runs) --##
+        ##----------------------------------##
+
+        prepare.outcomes.for.sim = function(ode.results)
+        {
+            specification = private$get.specification()
+            sapply(specification$outcome.names, function(outcome.name){
+                private$calculate.outcome.numerator.and.denominator(outcome.name = outcome.name,
+                                                                    ode.results = ode.results,
+                                                                    specification = specification,
+                                                                    error.prefix = paste0("Error calculating the value for outcome '", outcome.name, "': "))  
+            })
+            
+            outcome.numerators = lapply(specification$outcome.names, function(outcome.name){
+
+                val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
+                    private$i.outcome.numerators[[outcome.name]][[y]]
+                }))
+                
+                outcome = specification$get.outcome(outcome.name)
+                outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
+                                      private$i.outcome.dim.names.sans.time[[outcome.name]])
+                
+                dim(val) = sapply(outcome.dim.names, length)
+                dimnames(val) = outcome.dim.names
+                
+                val
+            })
+            
+            outcome.denominators = lapply(specification$outcome.names, function(outcome.name){
+                
+                if (is.null(private$i.outcome.denominators[[outcome.name]]))
+                    NULL
+                else
+                {
+                    val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
+                        private$i.outcome.denominators[[outcome.name]][[y]]
+                    }))
+                    
+                    outcome = specification$get.outcome(outcome.name)
+                    outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
+                                          private$i.outcome.dim.names.sans.time[[outcome.name]])
+                    
+                    dim(val) = sapply(outcome.dim.names, length)
+                    dimnames(val) = outcome.dim.names
+                    
+                    val
+                }
+            })
+            
+            names(outcome.numerators) = names(outcome.denominators) = specification$outcome.names
+            
+            list(numerators = outcome.numerators,
+                 denominators = outcome.denominators)
+        },
+
+        derive.outcome.numerator.dim.names.sans.time = function(outcome.name,
+                                                                specification)
+        {
+            outcome = specification$get.outcome(outcome.name)
+            if (is(outcome, 'intrinsic.model.outcome') || is(outcome, 'dynamic.model.outcome'))
+                dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]]
+            else
+            {
+                numerator.depends.on.outcome.names = specification$get.outcome.numerator.direct.dependee.outcome.names(outcome.name)
+                numerator.depends.on.quantity.names = specification$get.outcome.direct.dependee.quantity.names(outcome.name)
+                
+                dim.names.from.outcomes = NULL
+                
+                for (dep.on.outcome.name in numerator.depends.on.outcome.names)
+                {
+                    dim.names.from.outcomes = intersect.shared.dim.names(dim.names.from.outcomes,
+                                                                         private$i.outcome.dim.names.sans.time[[dep.on.outcome.name]])
+                }
+                
+                dim.names = intersect.joined.dim.names(private$i.outcome.dim.names.sans.time[[outcome.name]], dim.names.from.outcomes)
+                for (dep.on.quantity.name in numerator.depends.on.quantity.names)
+                {
+                    quantity.dim.names = private$i.quantity.dim.names[[dep.on.quantity.name]]
+                    
+                    # Make the dimensions for the quantity are a subset of the dimensions we got from outcomes
+                    if (!is.null(dim.names.from.outcomes))
+                    {
+                        excess.dimensions = setdiff(names(quantity.dim.names),
+                                                    names(dim.names.from.outcomes))
+                        
+                        if (length(excess.dimensions)>0)
+                            stop(paste0("Cannot calculate dim.names for the numerator of outcome '",
+                                        outcome.name, ": dimension(s) ",
+                                        collapse.with.and("'", excess.dimensions, "'"),
+                                        " are present in quantity '", dep.on.quantity.name, 
+                                        "', on which the outcome depends, but are not present in the derived dim.names of the outcome's numerator based on the outcome(s) on which it depends (",
+                                        collapse.with.and("'", numerator.depends.on.outcome.names, "'"), ")"))
+                    }
+                    
+                    # Join it to the rest
+                    dim.names = intersect.joined.dim.names(dim.names, quantity.dim.names)
+                }
+                
+                # Apply the subset.dimension.values
+                dimensions.to.subset = intersect(names(outcome$subset.dimension.values),
+                                                 names(dim.names))
+                dim.names[dimensions.to.subset] = lapply(dimensions.to.subset, function(d){
+                    intersect(dim.names[[d]], outcome$subset.dimension.values[[d]])
+                })
+            }
+            
+            # Set it
+            private$i.outcome.numerator.dim.names.sans.time[[outcome.name]] = dim.names
+        },
+
+        calculate.outcome.numerator.and.denominator = function(outcome.name,
+                                                               ode.results,
+                                                               specification,
+                                                               error.prefix = '')
+        {
+            error.prefix = paste0(error.prefix, "Error calculating the outcome values for '", outcome.name, "': ")
+            
+            if (is.null(private$i.outcome.numerators[[outcome.name]]))
+            {
+                #-- Initial Set-Up --#
+                outcome = specification$get.outcome(outcome.name)
+                outcome.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]]
+                
+                #-- Calculate the times --#
+                if (is.null(private$i.outcome.value.times[[outcome.name]]))
+                    private$calculate.outcome.value.times(outcome.name, specification=specification)
+                
+                #-- Calculate the values for all dependent outcomes --#
+                depends.on.outcomes = specification$get.outcome.direct.dependee.outcome.names(outcome.name)
+                sapply(depends.on.outcomes, 
+                       private$calculate.outcome.numerator.and.denominator,
+                       ode.results = ode.results,
+                       specification = specification)
+                
+                #-- Calculate the dim.names --#
+                if (is.null(private$i.outcome.numerator.dim.names.sans.time[[outcome.name]]))
+                    private$derive.outcome.numerator.dim.names.sans.time(outcome.name=outcome.name, specification=specification)
+                
+                #-- Calculate the raw "value" of the outcome --#
+                
+                # If this is a dynamic or intrinsic outcome, pull the values from the ode results
+                if (can.get.outcome.value.from.ode.output(outcome.name,
+                                                          settings = private$i.diffeq.settings))
+                {
+                    raw.value = get.outcome.value.from.ode.output(outcome.name,
+                                                                  settings = private$i.diffeq.settings,
+                                                                  ode.results = ode.results,
+                                                                  outcome.years = private$i.outcome.value.times[[outcome.name]])
+                }
+                else # calculate the value from the values of other outcomes/quantities
+                {
+                    #-- Figure out what times we need to pull from --#
+                    if (length(private$i.outcome.non.cumulative.value.times[[outcome.name]])==0)
+                    {   
+                        times.to.pull = private$i.outcome.value.times[[outcome.name]]
+                        is.after.time = rep(F, length(times.to.pull))
+                    }
+                    else
+                    {
+                        if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
+                            private$calculate.outcome.non.cumulative.value.times(outcome.name)
+                        
+                        times.to.pull = private$i.outcome.non.cumulative.value.times[[outcome.name]]
+                        is.after.time = private$i.outcome.non.cumulative.value.time.is.after.time[[outcome.name]]
+                    }
+                    char.times.to.pull = as.character(times.to.pull)
+                    
+                    #-- Map the bindings for dependee OUTCOMES to a list --#
+                    bindings.of.outcomes = lapply(specification$get.outcome.numerator.direct.dependee.outcome.names(outcome.name), function(dep.on.outcome.name){
+                        dep.on.outcome = specification$get.outcome(dep.on.outcome.name)
+                        
+                        if (is.null(private$i.outcome.non.cumulative.value.times[[dep.on.outcome.name]]))
+                            private$calculate.outcome.non.cumulative.value.times(dep.on.outcome.name)
+                        
+                        if (is.null(private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]))
+                            private$calculate.outcome.indices.from.outcome(outcome.name = outcome.name, dep.on.outcome.name = dep.on.outcome.name)
+                        
+                        binding = lapply(1:length(char.times.to.pull), function(i){
+                            
+                            time = char.times.to.pull[i]
+                            after.or.not.mask = private$i.outcome.non.cumulative.value.time.is.after.time[[dep.on.outcome.name]]
+                            
+                            
+                            if (!is.after.time[i])
+                                after.or.not.mask = !after.or.not.mask
+                            
+                            if (is.null(dep.on.outcome$denominator.outcome))
+                            {
+                                collapse.array.according.to.indices(arr = private$i.outcome.numerators[[dep.on.outcome.name]][after.or.not.mask][[time]],
+                                                                 small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
+                                                                 large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
+                                                                 small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n)
+                            }
+                            else
+                            {
+                                collapsed.denominator = collapse.array.according.to.indices(arr = private$i.outcome.denominators[[dep.on.outcome.name]][after.or.not.mask][[time]],
+                                                                                        small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
+                                                                                        large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
+                                                                                        small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n)
+                                
+                                rv = collapse.array.according.to.indices(arr = private$i.outcome.numerators[[dep.on.outcome.name]][after.or.not.mask][[time]],
+                                                                      small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
+                                                                      large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
+                                                                      small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n) /
+                                    collapsed.denominator
+                                    
+                                
+                                rv[collapsed.denominator==0] = 0
+                                    
+                            }
+                        })
+                        
+                        names(binding) = char.times.to.pull
+                        binding
+                        
+                        
+                    })
+                    names(bindings.of.outcomes) = specification$get.outcome.numerator.direct.dependee.outcome.names(outcome.name)
+                    
+                    
+                    #-- Map the bindings for dependee QUANTITIES to a list --#
+                    bindings.of.quantities = lapply(specification$get.outcome.direct.dependee.quantity.names(outcome.name), function(dep.on.quantity.name){
+                        
+                        if (is.null(private$i.outcome.indices[[outcome.name]]$value.from.quantity[[dep.on.quantity.name]]))
+                            private$calculate.outcome.indices.from.quantity(outcome.name = outcome.name, dep.on.quantity.name = dep.on.quantity.name)
+                        
+                        binding = lapply(1:length(char.times.to.pull), function(i){
+                            
+                            time = as.character(char.times.to.pull[i])
+                            val = NULL
+                            if (private$i.quantity.is.static[dep.on.quantity.name])
+                                val = private$i.quantity.values[[1]]
+                            else if (is.after.time[i])
+                                val = private$i.quantity.after.values[[dep.on.quantity.name]][[time]]
+                            if (is.null(val))
+                                val = private$i.quantity.values[[dep.on.quantity.name]][[time]]
+                            
+                            val[ private$i.outcome.indices[[outcome.name]]$value.from.quantity[[dep.on.quantity.name]] ]
+                        })
+                        
+                        names(binding) = char.times.to.pull
+                        binding
+                    })
+                    
+                    bindings = c(bindings.of.outcomes, bindings.of.quantities)
+                    base::print(outcome.name)
+                    
+                    raw.value = outcome$calculate.values(desired.times = private$i.outcome.value.times[[outcome.name]],
+                                                         bindings = bindings,
+                                                         binding.times = times.to.pull,
+                                                         cumulative.interval = 1,
+                                                         error.prefix = '')
+                }
+                
+                #-- Incorporate the denominator --#
+                if (is.null(private$i.outcome.indices[[outcome.name]]$collapse.numerator))
+                    private$calculate.outcome.collapse.value.indices(outcome.name, specification=specification)
+                
+                if (is.null(outcome$denominator.outcome))
+                    denominator = NULL
+                else
+                {
+                    if (is.null(private$i.outcome.denominators[[outcome$denominator.outcome]]))
+                        denominator = private$i.outcome.numerators[[outcome$denominator.outcome]][as.character(private$i.outcome.value.times[[outcome.name]])]
+                    else
+                    {
+                        denominator = lapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(time){
+                            
+                            private$i.outcome.numerators[[outcome$denominator.outcome]][[time]] /
+                                private$i.outcome.denominators[[outcome$denominator.outcome]]
+                        })
+                        names(denominator) = as.character(private$i.outcome.value.times[[outcome.name]])
+                    }
+                }
+
+                if (!is.null(outcome$denominator.outcome) && !outcome$value.is.numerator)
+                {
+                    raw.value = lapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(time){
+                               
+                        collapsed.denominator = collapse.array.according.to.indices(arr = denominator[[time]],
+                                                                                 small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.indices,
+                                                                                 large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$large.indices,
+                                                                                 small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.n)           
+                        raw.value[[time]] * collapsed.denominator
+                            
+                    })
+                    names(raw.value) = as.character(private$i.outcome.value.times[[outcome.name]])
+                }
+    
+                numerator = lapply(raw.value,
+                                   collapse.array.according.to.indices,
+                                   small.indices = private$i.outcome.indices[[outcome.name]]$collapse.numerator$small.indices,
+                                   large.indices = private$i.outcome.indices[[outcome.name]]$collapse.numerator$large.indices,
+                                   small.n = private$i.outcome.indices[[outcome.name]]$collapse.numerator$small.n)
+                
+                if (!is.null(denominator))
+                {
+                    denominator = lapply(private$i.outcome.numerators[[outcome$denominator.outcome]],
+                                         collapse.array.according.to.indices,
+                                         small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.indices,
+                                         large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$large.indices,
+                                         small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n)
+                }
+                
+                # Store it
+                private$i.outcome.numerators[[outcome.name]] = numerator
+                private$i.outcome.denominators[[outcome.name]] = denominator
+                
+                names(private$i.outcome.numerators[[outcome.name]]) = as.character(private$i.outcome.value.times[[outcome.name]])
+                if (!is.null(private$i.outcome.denominators[[outcome.name]]))
+                    names(private$i.outcome.denominators[[outcome.name]]) =
+                        as.character(private$i.outcome.value.times[[outcome.name]])
+            }
+        },
         
+        # need to build in dependencies here
+        
+        # Depends on outcome.numerator.dim.names.sans.time
+        calculate.outcome.indices.from.outcome = function(outcome.name, dep.on.outcome.name)
+        {
+            private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]] =
+                get.align.array.indices(small.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]],
+                                           large.arr.dim.names = private$i.outcome.dim.names.sans.time[[dep.on.outcome.name]])
+        },
+
+        # Depends on outcome.numerator.dim.names.sans.time, quantity.dim.names
+        calculate.outcome.indices.from.quantity = function(outcome.name, dep.on.quantity.name)
+        {
+            private$i.outcome.indices[[outcome.name]]$value.from.quantity[[dep.on.quantity.name]] =
+                get.expand.array.indices(to.expand.dim.names = private$i.quantity.dim.names[[dep.on.quantity.name]],
+                                         target.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]])
+        },
+
+        # Depends on outcome.numerator.dim.names.sans.time
+        calculate.outcome.collapse.value.indices = function(outcome.name, specification)
+        {
+            private$i.outcome.indices[[outcome.name]]$collapse.numerator = 
+                get.align.array.indices(small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
+                                           large.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]])
+            
+            outcome = specification$get.outcome(outcome.name)
+            if (!is.null(outcome$denominator.outcome))
+            {
+                private$i.outcome.indices[[outcome.name]]$collapse.denominator =
+                    get.align.array.indices(small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
+                                            large.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]])
+                
+                if (!outcome$value.is.numerator)
+                {
+                    private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator =
+                        get.align.array.indices(small.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]],
+                                                large.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]])
+                }
+            }
+        },
+
         ##--------------------------------##
         ##-- Low-Level Internal Helpers --##
         ##--------------------------------##

@@ -7995,18 +7995,18 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                                     error.prefix)
         {
             # Process Times
-            first.desired.time = desired.times[0]
+            first.desired.time = desired.times[1]
             last.desired.time = desired.times[length(desired.times)]
             
             n.binding.times = length(binding.times)
             mask = binding.times[-1] > first.desired.time & 
-                binding.times[-n.binding.times] < last.desired.time &
-                binding.times[-1] != binding.times[-n.binding.times]
+                binding.times[-n.binding.times] < last.desired.time 
+#                binding.times[-1] != binding.times[-n.binding.times] - can't have this condition - we will ignore step changes if we do
             
             n.intervals = sum(mask)
             
-            t0.all = binding.times[-n.binding.times][mask]
-            t1.all = binding.times[-1][mask]
+            t0.all = binding.times[-n.binding.times][mask] - cumulative.interval
+            t1.all = binding.times[-1][mask] - cumulative.interval
             
             # Process integrand into slopes
             integrand = bindings[[private$i.value.to.integrate]]
@@ -8021,11 +8021,16 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                 m.all = t(sapply(1:n.intervals, function(i){
                     (v1.all[[i]] - v0.all[[i]]) / (t1.all[i] - t0.all[i])
                 }))
-                dim(m.all) = c(length(m.all)/n.intervals, n.intervals)
+                dim(m.all) = c(n.intervals, length(m.all)/n.intervals)
+                
+                b.all = t(sapply(1:n.intervals, function(i){
+                    v0.all[[i]]
+                }))
+                dim(b.all) = c(n.intervals, length(b.all)/n.intervals)
             }
             
             if (is.null(private$i.multiply.by))
-                n.multiplier = NULL
+                n.multiplier = 0
             else
             {
                 multiplier = bindings[[private$i.multiply.by]]
@@ -8040,7 +8045,12 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                     m2.all = t(sapply(1:n.intervals, function(i){
                         (mult1.all[[i]] - mult0.all[[i]]) / (t1.all[i] - t0.all[i])
                     }))
-                    dim(m2.all) = c(length(m2.all)/n.intervals, n.intervals)
+                    dim(m2.all) = c(n.intervals, length(m2.all)/n.intervals)
+                    
+                    b2.all = t(sapply(1:n.intervals, function(i){
+                        mult0.all[[i]]
+                    }))
+                    dim(b2.all) = c(n.intervals, length(b2.all)/n.intervals)
                 }
             }
             
@@ -8067,11 +8077,11 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                     
                     sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
                     
-                    b = v0.all[sub.mask]
-                    m = m.all[, sub.mask, drop=F]
+                    b = b.all[sub.mask,,drop=F]
+                    m = m.all[sub.mask,,drop=F]
                     
-                    t0 = pmax(first.integrate.from.time, t0[sub.mask])
-                    t1 = pmin(t1[sub.mask], last.integrate.to.time)
+                    t0 = pmax(first.integrate.from.time, t0.all[sub.mask])
+                    t1 = pmin(t1.all[sub.mask], last.integrate.to.time)
                     
                     mult * colSums(m/2*t1^2 + b*t1 - m/2*t0^2 - b*t0)
                 })
@@ -8084,11 +8094,11 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                     
                     sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
                     
-                    b2 = mult0.all[sub.mask]
-                    m2 = m2.all[, sub.mask, drop=F]
+                    b2 = b2.all[sub.mask,,drop=F]
+                    m2 = m2.all[sub.mask,,drop=F]
                     
-                    t0 = pmax(first.integrate.from.time, t0[sub.mask])
-                    t1 = pmin(t1[sub.mask], last.integrate.to.time)
+                    t0 = pmax(first.integrate.from.time, t0.all[sub.mask])
+                    t1 = pmin(t1.all[sub.mask], last.integrate.to.time)
                     
                     integrand[[1]] * colSums(m2/2*t1^2 + b2*t1 - m2/2*t0^2 - b2*t0)
                 })
@@ -8101,14 +8111,14 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                     
                     sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
                     
-                    b = v0.all[sub.mask]
-                    m = m.all[, sub.mask, drop=F]
+                    b = b.all[sub.mask,,drop=F]
+                    m = m.all[sub.mask,,drop=F]
                     
-                    b2 = mult0.all[sub.mask]
-                    m2 = m2.all[, sub.mask, drop=F]
+                    b2 = b2.all[sub.mask,,drop=F]
+                    m2 = m2.all[sub.mask,,drop=F]
                     
-                    t0 = pmax(first.integrate.from.time, t0[sub.mask])
-                    t1 = pmin(t1[sub.mask], last.integrate.to.time)
+                    t0 = pmax(first.integrate.from.time, t0.all[sub.mask])
+                    t1 = pmin(t1.all[sub.mask], last.integrate.to.time)
                     
                     colSums(m*m2/3*t1^3 + (b*m2+b2*m)/2*t1^2 + b*b2*t1 -
                                 m*m2/3*t0^3 - (b*m2+b2*m)/2*t0^2 - b*b2*t0)
@@ -8476,25 +8486,29 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
             }
             else
             {
-                first.desired.time = desired.times[0]
+                first.desired.time = desired.times[1]
                 last.desired.time = desired.times[length(desired.times)]
                 
                 mask = binding.times[-1] > first.desired.time & 
-                    binding.times[-n.binding.times] < last.desired.time &
-                    binding.times[-1] != binding.times[-n.binding.times]
-                
+                    binding.times[-n.binding.times] < last.desired.time 
+
                 n.intervals = sum(mask)
                 r0.all = rates[-n.binding.times][mask]
                 r1.all = rates[-1][mask]
                 
-                t0.all = binding.times[-n.binding.times][mask]
-                t1.all = binding.times[-1][mask]
+                t0.all = binding.times[-n.binding.times][mask] - cumulative.interval
+                t1.all = binding.times[-1][mask] - cumulative.interval
                 
                 # indexed [time, stratum]
                 m.all = t(sapply(1:n.intervals, function(i){
                     (r1.all[[i]] - r0.all[[i]]) / (t1.all[i] - t0.all[i])
                 }))
-                dim(m.all) = c(length(m.all)/n.intervals, n.intervals)
+                dim(m.all) = c(n.intervals, length(m.all)/n.intervals)
+                
+                b.all = t(sapply(1:n.intervals, function(i){
+                    r0.all[[i]]
+                }))
+                dim(b.all) = c(n.intervals, length(b.all)/n.intervals)
                 
                 rv = lapply(desired.times, function(last.integrate.to.time){
                     
@@ -8502,11 +8516,11 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                     
                     sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
                     
-                    b = r0.all[sub.mask]
-                    m = m.all[, sub.mask, drop=F]
+                    b = b.all[sub.mask,,drop=F]
+                    m = m.all[sub.mask,,drop=F]
                     
-                    t0 = pmax(first.integrate.from.time, t0[sub.mask])
-                    t1 = pmin(t1[sub.mask], last.integrate.to.time)
+                    t0 = pmax(first.integrate.from.time, t0.all[sub.mask])
+                    t1 = pmin(t1.all[sub.mask], last.integrate.to.time)
                     
                     p.remaining.by.interval = (m * t1 * exp(-m*t1^2/2) + exp(-b*t1)) /
                         (m * t0 * exp(-m*t0^2/2) + exp(-b*t0))

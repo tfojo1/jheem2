@@ -621,6 +621,17 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                 stop("Cannot set a jheem.intervention.effect's 'all.times' - they are read only")
         },
         
+        step.change.times = function(value)
+        {
+            if (missing(value))
+            {
+                mask = private$i.all.times[-1] == private$i.all.times[-length(private$i.all.times)]
+                private$i.all.times[-1][mask]
+            }
+            else
+                stop("Cannot set a jheem.intervention.effect's 'step.change.times' - they are read only")
+        },
+        
         apply.effects.as = function(value)
         {
             if (missing(value))
