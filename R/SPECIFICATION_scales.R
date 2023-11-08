@@ -87,14 +87,15 @@ convert.model.scale <- function(values,
             do.convert.model.scale(values = values[[i]],
                                    convert.from.scale = convert.from.scale,
                                    convert.to.scale = convert.to.scale,
-                                   denominator.values = denominator.values[[1]],
+                                   denominator.values = denominator.values[[i]],
                                    error.prefix = error.prefix)
         })
     }
     else
     {
         do.convert.model.scale(values=values, convert.from.scale = convert.from.scale,
-                               convert.to.scale = convert.to.scale, error.prefix=error.prefix)
+                               convert.to.scale = convert.to.scale, error.prefix=error.prefix,
+                               denominator.values = denominator.values)
     }
 }
 
@@ -153,7 +154,7 @@ do.convert.model.scale <- function(values,
     {
         # if convert.from.scale was number or non.negative.number, it would have been caught by the condition above
 
-        p = do.convert.model.scale(values = p,
+        p = do.convert.model.scale(values = values,
                                    convert.from.scale = convert.from.scale,
                                    convert.to.scale = 'proportion',
                                    denominator.values = NULL,
