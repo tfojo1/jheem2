@@ -307,7 +307,7 @@ do.check.values.for.model.scale <- function(values, scale,
     }
     else if (scale=='proportion' || scale=='proportion.leaving' || scale=='proportion.staying')
     {
-        if (any(!is.na(values) & (values<0) | any(values>1)))
+        if (any(!is.na(values) & (values<0 | values>1)))
             stop(paste0(error.prefix, 
                         "Invalid value(s) ", variable.name.for.error,
                         "for scale '", scale, ": values must be between 0 and 1"))
