@@ -420,7 +420,7 @@ JHEEM.SIMULATION = R6::R6Class(
     portable = F,
     
     public = list(
-        initialize = function(version,
+        initialize = function(version, # needs a subversion
                               location,
                               outcome.numerators,
                               outcome.denominators,
@@ -488,11 +488,18 @@ JHEEM.SIMULATION = R6::R6Class(
                        keep.dimensions=NULL,
                        dimension.values = list(),
                        ...,
+                       check.consistency = check.consistency,
                        drop.single.outcome.dimension = T,
                        scale = NULL,
                        error.prefix = "Error getting simulation results: ")
         {
+
             # If keep.dimensions is NULL, figure out keep.dimensions like we do for data.manager$pull
+            # keep.dimensions will be the union of the incomplete dimensions in the outcome ontology and any dimension value dimensions
+            if (is.null(keep.dimensions)) {
+                incomplete.dimensions = intersect(unlist(lapply(outcomes, function(outcome) {incomplete.dimensions(self$outcome.ontologies[[outcome]])}))) # unshared incompletes will catch error below
+                keep.dimensions = union(incomplete.dimensions, names(dimension.values))
+            }
             
             dim.names = self$get.dim.names(outcomes = outcomes,
                                            keep.dimensions = keep.dimensions,
@@ -507,22 +514,73 @@ JHEEM.SIMULATION = R6::R6Class(
                 keep.dimensions = names(dim.names)
             else
                 keep.dimensions = names(dim.names)[-length(dim.names)]
-            
-            # The below implementation is not correct
-            # - need to access to make sure dimension values are in the right order
-            # - will probably make sense to write a custom cpp call for this
-            # - we need to aggregate with denominators
-            # - we should probably also optimize if there is just one outcome?
+
             rv = sapply(outcomes, function(outcome){
+
+                numerator.data = private$i.outcome.numerators[[outcome]]
                 
-                # pull the numerator
-                # if it applies, pull the denominator
-                # aggregate if we need to according to keep.dimensions
-                # if a denominator applies, 
-                #   divide aggregated numerator by aggregated denominator.
-                #   anywhere aggregated denominator == 0, set the value to be 0 rather than NaN
-                # if scale is not NULL and is not the same as the native scale of the outcome
-                #   convert values using convert.model.scale
+                # subset numerator by dimension values
+                numerator.data = array.access(numerator.data, dimension.values)
+                
+                if (check.consistency) {
+                    incomplete.dimensions = incomplete.dimensions(self$outcome.ontologies[[outcome]])
+                    if (length(setdiff(union(keep.dimensions, names(dimension.values)), incomplete.dimensions)) > 0)
+                        stop(paste0(error.prefix, "any incomplete dimensions must be contained in 'keep.dimensions' or 'dimension.values'"))
+                }
+                
+                # Aggregation
+                pre.agg.dimnames = dimnames(numerator.data)
+                dimensions.to.drop = intersect(which(length(pre.agg.dimnames) == 1), which(!(names(pre.agg.dimnames) %in% keep.dimensions)))
+                if (length(dimensions.to.drop) > 0) {
+                    pre.agg.dimnames = pre.agg.dimnames[-dimensions.to.drop]
+                    numerator.data = array(numerator.data, dim = sapply(pre.agg.dimnames, length), dimnames = pre.agg.dimnames)
+                }
+                if (length(pre.agg.dimnames) > length(keep.dimensions)) {
+                    post.agg.dimnames = pre.agg.dimnames[names(pre.agg.dimnames) %in% keep.dimensions]
+                    native.scale = self$outcome.metadata[[outcome]]$scale
+                    denominator.zero.indices = NULL
+                    
+                    # Get denominator data if we need it either for aggregation or converting scale
+                    if (scale.needs.denominator(native.scale) || (!is.null(scale) && scale.needs.denominator(scale))) {
+                        denominator.data = private$i.outcome.denominators[[outcome]] ## check if it's null
+                        if (is.null(denominator.data))
+                            stop(paste0(error.prefix, "missing denominator data"))
+                        denominator.data = array.access(denominator.data, dimension.values)
+                        if (length(dimensions.to.drop) > 0) {
+                            dim(denominator.data) = dim(numerator.data)
+                            dimnames(denominator.data) = dimnames(numerator.data)
+                        }
+                    }
+                    
+                    if (native.scale %in% c('non.negative.number', 'number')) {
+                        numerator.data = apply(numerator.data, keep.dimensions, FUN = sum)
+                        if (!is.null(scale) && scale != native.scale) {
+                            numerator.data = convert.model.scale(numerator.data, convert.from.scale = native.scale, convert.to.scale = scale, denominator.data)
+                            denominator.zero.indices = which(denominator.data == 0)
+                        }
+                    }
+                    
+                    else if (native.scale %in% c('rate', 'time', 'proportion')) {
+                        
+                        # aggregated value equals sum of prod(numerator, denominator) divided by sum of denominator
+                        denominator.totals.array = apply(denominator.data, keep.dimensions, FUN = sum)
+                        weighted.value.array = numerator.data * denominator.data
+                        sum.of.weighted.value.array = apply(weighted.value.array, keep.dimensions, FUN = sum)
+                        numerator.data = sum.of.weighted.value.array / denominator.totals.array
+                        denominator.zero.indices = which(denominator.totals.array == 0)
+                        
+                        if (!is.null(scale) && scale != native.scale)
+                            numerator.data = convert.model.scale(numerator.data, convert.from.scale = native.scale, convert.to.scale = scale, denominator.totals.array)
+                    }
+                    
+                    if(!is.null(denominator.zero.indices)) numerator.data[denominator.zero.indices] = 0
+                    dim(numerator.data) = sapply(post.agg.dimnames, length)
+                    dimnames(numerator.data) = post.agg.dimnames
+                }
+
+                if (!is.null(scale) && native.scale != scale)
+                    convert.model.scale(numerator.data, convert.from.scale = native.scale, convert.to.scale = scale, )
+                numerator.data
             })
             
             dim(rv) = sapply(dim.names, length)
