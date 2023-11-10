@@ -15,7 +15,7 @@ MODEL.SCALE.INFO = list(
                 aggregate.on.scale = 'time'),
     number = list(needs.denominator = F,
                   aggregate.on.scale = 'number'),
-    non.negative.number = list(needs.denominator = T,
+    non.negative.number = list(needs.denominator = F,
                                aggregate.on.scale = 'non.negative.number'),
     odds = list(needs.denominator = T,
                 aggregate.on.scale = 'proportion'),
