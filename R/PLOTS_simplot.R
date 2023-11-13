@@ -21,11 +21,14 @@ simplot <- function(...,
                     facet.by = NULL,
                     dimension.values = list(),
                     data.manager,
-                    style.manager)
+                    style.manager) # will be an R6 object. will be mine!
 {
     ### --- FEATURES TO ADD --- ###
     # - change y-axis from 'value' to the name of the outcome? Maybe not, since "value" is shared by all plots
     # - allow changing color scheme for lines and points
+    # - replace outcome names on plot with the names from outcome metadata
+    # - y labels, scale may be percentage or number with commas
+    # - for color schemes look at ggsci package palettes
     
     # -- VALIDATION -- #
     
@@ -65,6 +68,8 @@ simplot <- function(...,
     # - what we'll do now will be the back-up to above
     #   sim$outcome.metadata[[outcome]]$corresponding.observed.outcome
     # sims do not all have each outcome because of sub-versions
+    
+    # likelihoods need to share their outcome for sim and data, and think about what joint likelihoods. One simulation has one (usually joint) likelihood (instructions)
 
     outcomes.for.data = sapply(outcomes, function(outcome) {
         corresponding.observed.outcome = NULL
@@ -79,9 +84,9 @@ simplot <- function(...,
         #     stop(paste0("No corresponding observed outcome found for outcome '", outcome, "'")) # Shouldn't happen
         corresponding.observed.outcome
     })
-    
+    # browser()
     ## HARDCODE BECAUSE CORRESPONDING.OBSERVED.OUTCOME INFORMATION IS MISSING
-    outcomes.for.data = setNames(c('diagnoses', 'prevalence'), outcomes)
+    outcomes.for.data = setNames(c('diagnoses'), outcomes)
     
     outcome.ontologies = lapply(outcomes, function(outcome) {
         outcome.ontology = NULL

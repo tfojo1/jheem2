@@ -354,7 +354,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
             if(!(private$i.denominator.outcome.for.sim %in% sim.metadata$outcomes))
                 stop(paste0(error.prefix, private$i.denominator.for.sim, " is not a simulation outcome in this specification"))
-            # browser()
+
             private$i.sim.ontology = sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
             private$i.sim.ontology$year = as.character(years)
             private$i.sim.ontology = do.call(ontology, c(private$i.sim.ontology, list(incomplete.dimensions = c('year', 'location'))))
@@ -408,7 +408,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 one.metadata = one.metadata[!one.remove.mask,]
                 
                 # Recover required dimnames from one.metadata
-                # if (identical(strat, "age")) browser()
                 one.sim.required.dimnames = one.mapping$get.required.from.dim.names(lapply(one.metadata[!(colnames(one.metadata) %in% c('source', 'value'))],
                                                                                        function(x) {as.character(unique(x))}))
                 
@@ -416,7 +415,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 one.metadata['stratum'] = do.call(paste, c(subset.data.frame(one.metadata, select=-c(year, source, value)), sep="__"))
                 one.metadata[is.na(one.metadata$stratum), 'stratum'] = ".TOTAL."
                 one.metadata = subset.data.frame(one.metadata, select = c(year, stratum, source))
-
                 
                 # Find the required.dimnames
                 for (d in names(one.sim.required.dimnames)) {
@@ -584,7 +582,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         
         generate.transformation.matrix = function(mappings.list, dimnames.list, remove.mask.list, n.strats, matrix.dimnames)
         {
-            # browser()
             transformation.matrix = NULL
             for (i in 1:n.strats) {
                 
@@ -600,7 +597,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 # Remove rows for years not in this stratification
                 years.in.matrix.but.not.stratification = setdiff(matrix.dimnames$year, one.dimnames$year)
                 if (length(years.in.matrix.but.not.stratification) > 0) {
-                    indices.for.years.not.present = get.array.access.indices(matrix.dimnames, list(year=years.in.matrix.but.not.stratification))
+                    indices.for.years.not.present = get.array.access.indices(year.limited.dimnames[names(year.limited.dimnames) != 'source'],
+                                                                             list(year=years.in.matrix.but.not.stratification))
                     one.source.transformation.matrix = one.source.transformation.matrix[-indices.for.years.not.present,]
                 }
                 

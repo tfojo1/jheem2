@@ -189,7 +189,6 @@ SIMULATION.METADATA = R6::R6Class(
                                  drop.single.outcome.dimension = T,
                                  error.prefix = "Error getting dimnames of simulation results: ")
         {
-            
             dimension.values = private$process.dimension.values(dimension.values, ..., error.prefix=error.prefix)
             
             # Validate outcomes
@@ -488,12 +487,11 @@ JHEEM.SIMULATION = R6::R6Class(
                        keep.dimensions=NULL,
                        dimension.values = list(),
                        ...,
-                       check.consistency = check.consistency,
+                       check.consistency = T,
                        drop.single.outcome.dimension = T,
                        scale = NULL,
                        error.prefix = "Error getting simulation results: ")
         {
-
             # If keep.dimensions is NULL, figure out keep.dimensions like we do for data.manager$pull
             # keep.dimensions will be the union of the incomplete dimensions in the outcome ontology and any dimension value dimensions
             if (is.null(keep.dimensions)) {
@@ -524,7 +522,7 @@ JHEEM.SIMULATION = R6::R6Class(
                 
                 if (check.consistency) {
                     incomplete.dimensions = incomplete.dimensions(self$outcome.ontologies[[outcome]])
-                    if (length(setdiff(union(keep.dimensions, names(dimension.values)), incomplete.dimensions)) > 0)
+                    if (length(setdiff(incomplete.dimensions, union(keep.dimensions, names(dimension.values)))) > 0)
                         stop(paste0(error.prefix, "any incomplete dimensions must be contained in 'keep.dimensions' or 'dimension.values'"))
                 }
                 

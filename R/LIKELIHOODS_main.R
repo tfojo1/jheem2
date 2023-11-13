@@ -483,7 +483,7 @@ JHEEM.LIKELIHOOD = R6::R6Class(
         #'@param sim A 'jheem.simulation' object
         #'@param log Whether to use log likelihood
         #'@param check.consistency - Whether to spend time checking to make sure everything is internally consistent. Setting to F is faster, but may generate weird error messages if there are bugs
-        compute = function(sim, log=T, check.consistency)
+        compute = function(sim, log=T, check.consistency, debug=F)
         {
             #@Andrew implement
             error.prefix = "Error computing likelihood: "
@@ -501,15 +501,15 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             }
             
             # Call the subclass function
-            private$do.compute(sim, log=log, check.consistency=check.consistency)
+            private$do.compute(sim, log=log, check.consistency=check.consistency, debug=debug)
         },
         
         # A function-factory
-        get.compute.function = function(default.log=T, check.consistency=T)
+        get.compute.function = function(default.log=T, check.consistency=T, debug=F)
         {
             function(sim, log=default.log)
             {
-                self$compute(sim, log=log, check.consistency=check.consistency)
+                self$compute(sim, log=log, check.consistency=check.consistency, debug=debug)
             }
         }
     ),
@@ -520,7 +520,7 @@ JHEEM.LIKELIHOOD = R6::R6Class(
         i.stratifications = NULL,
         i.weights = NULL,
         
-        do.compute = function(sim, log, check.consistency)
+        do.compute = function(sim, log, check.consistency, debug)
         {
             stop("The 'do.compute' function must be overridden at the subclass-level for a jheem.likelihood")  
         },
@@ -528,6 +528,22 @@ JHEEM.LIKELIHOOD = R6::R6Class(
         get.current.code.iteration = function()
         {
             JHEEM.LIKELIHOOD.CODE.ITERATION
+        },
+        
+        get.likelihood.years = function(from.year,
+                                        to.year,
+                                        omit.years,
+                                        data.manager,
+                                        outcome.for.data)
+        {
+            if (from.year == -Inf || to.year == Inf) {
+                data.manager.bounds = data.manager$get.year.bounds.for.outcome(outcome.for.data)
+                if (from.year == -Inf)
+                    from.year = data.manager.bounds[['earliest.year']]
+                if (to.year == Inf)
+                    to.year = data.manager.bounds[['latest.year']]
+            }
+            setdiff(from.year:to.year, omit.years)
         }
     )
     
