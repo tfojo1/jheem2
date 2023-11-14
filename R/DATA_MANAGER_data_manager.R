@@ -1522,6 +1522,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         incomplete.dimension.values = lapply(incomplete.dimensions(target.ontology), function(d) {
                             unique(unlist(lapply(data.by.source, function(src) {dimnames(src)[[d]]})))
                         })
+                        incomplete.dimension.values = incomplete.dimension.values[!sapply(incomplete.dimension.values, is.null)]
                         overall.dim.names[names(overall.dim.names) %in% incomplete.dimensions(target.ontology)] = incomplete.dimension.values
                         if (data.type == 'data')
                             return.for.this.data.type = array(NA, sapply(overall.dim.names, length), overall.dim.names)
