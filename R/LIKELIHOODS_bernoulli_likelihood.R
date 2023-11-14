@@ -143,21 +143,6 @@ JHEEM.BERNOULLI.LIKELIHOOD = R6::R6Class(
             
             private$i.years = instructions$years
             private$i.probability.decreasing = instructions$probability.decreasing
-            
-            # sim.metadata = get.simulation.metadata(version=version,
-            #                                        location=location,
-            #                                        from.year = years[[1]],
-            #                                        to.year = years[[2]])
-            # if(!(private$i.outcome.for.sim %in% sim.metadata$outcomes))
-            #     stop(paste0(error.prefix, private$i.outcome.for.sim, " is not a simulation outcome in this specification"))
-            # 
-            # sim.ontology = sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
-            # sim.ontology[['year']] = as.character(private$i.years)
-            # 
-            # private$i.weights.exponents = generate.weights.exponents(stratifications = private$i.stratifications,
-            #                                                          weights = private$i.weights,
-            #                                                          sim.ontology = sim.ontology)
-            
         },
         check = function() {
             browser()
@@ -169,7 +154,7 @@ JHEEM.BERNOULLI.LIKELIHOOD = R6::R6Class(
         i.years = NULL,
         i.probability.decreasing = NULL,
         
-        do.compute = function(sim, log=T, check.consistency=T) {
+        do.compute = function(sim, log=T, check.consistency=T, debug=F) {
 
             likelihoods.by.stratification = sapply(private$i.stratifications, function(strat) {
                 strat.keep.dimensions = 'year'
@@ -177,7 +162,14 @@ JHEEM.BERNOULLI.LIKELIHOOD = R6::R6Class(
                     strat.keep.dimensions = c(strat.keep.dimensions, strat)
                 sim.data = sim$get(outcome = private$i.outcome.for.sim,
                                    keep.dimensions = strat.keep.dimensions,
-                                   dimension.values = list(year = private$i.years)) # will this always pull the years in chronological order, or will it be in the order they appear in the supplied vector?
+                                   dimension.values = list(year = private$i.years))
+                
+                if (check.consistency) {
+                    if (!is.null(dim(sim.data)) && names(dim(sim.data))[[1]] != 'year')
+                        stop(paste0(error.prefix, "'year' was expected to be first dimension in simulation data but wasn't"))
+                    if (!is.null(dim(sim.data)) && !identical(dimnames(sim.data)$year, sort(dimnames(sim.data)$year)))
+                        stop(paste0(error.prefix, "'year' dimension in simulation data was expected to be in sorted order but wasn't"))
+                }
                 
                 # data will arrive with years sorted by value. *IF* year is the first dimension, this will work. Hopefully it is!
                 differences = diff(sim.data)
@@ -197,7 +189,7 @@ JHEEM.BERNOULLI.LIKELIHOOD = R6::R6Class(
             
             # weights involve raising likelihoods to a power. Figuring out how to map weights to the correct likelihoods is difficult so not implementing at this time.
             # likelihoods.by.stratification = likelihoods.by.stratification ^ private$i.weights.exponents
-            
+            if (debug) browser()
             ifelse(log, sum(likelihoods.by.stratification), prod(likelihoods.by.stratification))
             
         }
