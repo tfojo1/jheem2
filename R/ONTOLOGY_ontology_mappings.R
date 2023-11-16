@@ -1408,7 +1408,7 @@ IDENTITY.ONTOLOGY.MAPPING = R6::R6Class(
             n.from = length(expand.indices)
             n.to = prod(sapply(to.dim.names, length))
             
-            nonzero.indices = (1:n.from-1)*n.to + expand.indices
+            nonzero.indices = as.integer((1:n.from-1)*n.to + expand.indices)
             
             rv = matrix(0, nrow=n.to, ncol=n.from)
             rv[nonzero.indices] = 1
