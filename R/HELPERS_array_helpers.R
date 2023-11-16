@@ -102,9 +102,10 @@ fast.array.access <- function(arr,
 }
 
 get.array.access.indices <- function(arr.dim.names,
-                                     dimension.values)
+                                     dimension.values,
+                                     index.from = 1)
 {
-    arr = array(1:prod(sapply(arr.dim.names, length)),
+    arr = array(index.from:(prod(sapply(arr.dim.names, length))-1+index.from),
                 dim=sapply(arr.dim.names, length),
                 dimnames=arr.dim.names)
     
@@ -348,14 +349,16 @@ expand.array <- function(to.expand, target.dim.names)
 }
 
 #'@export
-get.expand.array.indices <- function(to.expand.dim.names, target.dim.names)
+get.expand.array.indices <- function(to.expand.dim.names, 
+                                     target.dim.names,
+                                     index.from = 1)
 {
     if (length(to.expand.dim.names)==0)
     {
         if (length(target.dim.names)==0)
-            1
+            index.from
         else
-            array(1, 
+            array(index.from, 
                   dim=sapply(target.dim.names, length),
                   dimnames = target.dim.names)
     }
@@ -366,12 +369,14 @@ get.expand.array.indices <- function(to.expand.dim.names, target.dim.names)
             if (length(to.expand.dim.names)>0 && prod(sapply(to.expand.dim.names, length))>1)
                 stop("Cannot create expand indices - 'to.expand.dim.names' are non-empty but 'target.dim.names' are empty")
             else
-                1
+                index.from
         }
         else
         {
             rv = array(0, dim=sapply(target.dim.names, length), dimnames=target.dim.names)
-            rv = do_get_expand_indices(dst_array=rv, src_dim_names = to.expand.dim.names)
+            rv = do_get_expand_indices(dst_array=rv, 
+                                       src_dim_names = to.expand.dim.names,
+                                       index_from = index.from)
             if (is.null(rv))
             {
                 check.expand.arguments(to.expand.dim.names=to.expand.dim.names, target.dim.names=target.dim.names)
@@ -382,13 +387,13 @@ get.expand.array.indices <- function(to.expand.dim.names, target.dim.names)
     }
 }
 
-#'@name Get a Set of Indices to Align Two Arrays
+#'@name Get a Set of Indices to Collapse One Array into Another
 #'
 #'@value A list with four elements: $large.indices, $small.indices, $large.n, $small.n
 #'  large.indices and small.indices are integer vectors of equal length, such that the value at large.indices[i] goes into the value at small.indices[i] if collapsing
 #'
 #'@export
-get.align.array.indices <- function(large.arr.dim.names, small.arr.dim.names)
+get.collapse.array.indices <- function(large.arr.dim.names, small.arr.dim.names)
 {
     intersected.dim.names = intersect.joined.dim.names(large.arr.dim.names, small.arr.dim.names)
     

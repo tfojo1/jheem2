@@ -209,7 +209,7 @@ get.every.combination <- function(values)
     
     matrix(sapply(1:n, function(i){
         rep(rep(values[[i]], n.after[i]), each=n.before[i])
-    }), ncol=n)
+    }), ncol=n, dimnames = list(NULL, names(values)))
 }
 
 # x and y must be matrices with the same number of columns
