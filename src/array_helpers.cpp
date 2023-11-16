@@ -76,7 +76,7 @@ NumericVector do_collapse_according_to_indices(NumericVector arr,
     
     for (int i=0; i<large_indices.length(); i++)
     {
-        dst[ small_indices[i]-1 ] = arr[ large_indices[i]-1 ];
+        dst[ small_indices[i]-1 ] += arr[ large_indices[i]-1 ];
     }
     
     return (dst);
@@ -714,7 +714,8 @@ RObject do_expand_array(NumericVector dst_array,
 //   Will modify dst_array in place if possible
 // [[Rcpp::export]]
 RObject do_get_expand_indices(IntegerVector dst_array,
-                              List src_dim_names)
+                              List src_dim_names,
+                              int index_from)
 {
     // Pull down the attributes
     if (dst_array.attr("dimnames")==R_NilValue)
@@ -816,7 +817,7 @@ RObject do_get_expand_indices(IntegerVector dst_array,
     for (int k=0; k<n_dst; k++)
     {
         // Calculate what the index is into the src array
-        dst_array[k] = 1;
+        dst_array[k] = index_from;
         for (int i=0; i<n_src_dims; i++)
             dst_array[k] += n_before_src[i] * 
                 dst_to_src_dim_values[i][dst_dim_values[src_to_dst_dims[i]] ];
