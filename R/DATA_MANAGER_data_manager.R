@@ -31,10 +31,11 @@ create.data.manager <- function(name,
 #'@export
 load.data.manager <- function(file,
                               name=NULL,
-                              description=NULL)
+                              description=NULL,
+                              set.as.default=F)
 {
     error.prefix = "Error loading cached data manager: "
-    imported.object.names = load(file)
+    imported.object.names = suppressWarnings(load(file))
     if (length(imported.object.names) != 1) {
         stop(paste0(error.prefix, "'file' must store exactly one cached R object"))
     }
@@ -50,9 +51,9 @@ load.data.manager <- function(file,
     copy.description = ifelse(is.null(description),
                               loaded.data.manager$description,
                               description)
-    copy.data.manager(loaded.data.manager,
-                      name=copy.name,
-                      description=copy.description)
+    invisible(copy.data.manager(loaded.data.manager,
+                                name=copy.name,
+                                description=copy.description))
             
 }
 
