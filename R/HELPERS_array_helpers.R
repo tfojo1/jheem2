@@ -356,11 +356,9 @@ get.expand.array.indices <- function(to.expand.dim.names,
     if (length(to.expand.dim.names)==0)
     {
         if (length(target.dim.names)==0)
-            index.from
+            as.integer(index.from)
         else
-            array(index.from, 
-                  dim=sapply(target.dim.names, length),
-                  dimnames = target.dim.names)
+            as.integer(rep(index.from, length=prod(sapply(target.dim.names, length))))
     }
     else
     {
@@ -369,7 +367,7 @@ get.expand.array.indices <- function(to.expand.dim.names,
             if (length(to.expand.dim.names)>0 && prod(sapply(to.expand.dim.names, length))>1)
                 stop("Cannot create expand indices - 'to.expand.dim.names' are non-empty but 'target.dim.names' are empty")
             else
-                index.from
+                as.integer(index.from)
         }
         else
         {
@@ -382,7 +380,8 @@ get.expand.array.indices <- function(to.expand.dim.names,
                 check.expand.arguments(to.expand.dim.names=to.expand.dim.names, target.dim.names=target.dim.names)
                 stop("There was an error creating the expand indices")
             }
-            rv
+            
+            as.integer(rv)
         }
     }
 }

@@ -218,7 +218,7 @@ JHEEM.MODEL.FOREGROUND = R6::R6Class(
             {
                 if (private$i.effect.times.are.resolved)
                 {
-                    private$i.all.effect.times = union_sorted_vectors(
+                    private$i.all.effect.step.change.times = union_sorted_vectors(
                         sapply(private$i.intervention.effects, function(eff){
                             eff$step.change.times
                         }))
@@ -227,7 +227,7 @@ JHEEM.MODEL.FOREGROUND = R6::R6Class(
                     private$i.all.effect.step.change.times = NULL
             }
             else
-                private$i.all.effect.step.change.times = all.effect.step.changetimes
+                private$i.all.effect.step.change.times = all.effect.step.change.times
             
             if (private$i.effect.times.are.resolved)
                 private$i.min.effect.time.by.effect = sapply(private$i.intervention.effects, function(eff){

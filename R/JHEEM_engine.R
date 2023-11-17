@@ -793,10 +793,12 @@ JHEEM = R6::R6Class(
                                 transitions_info = private$i.diffeq.settings$transitions.info,
                                 infections_info = private$i.diffeq.settings$infections.info,
                                 remission_info = private$i.diffeq.settings$remission.info,
-                                fixed_strata_info = private$i.diffeq.settings$fixed.strata_info,
+                                fixed_strata_info = private$i.diffeq.settings$fixed.strata.info,
                                 population_trackers = private$i.diffeq.settings$population_trackers)
                     
                     save(args, file='R/local_testing/diffeq_test_args.Rdata')
+                    
+                    stop("saved - quitting for now")
                 }
                 
                 compute_dx(state = x,
@@ -810,7 +812,7 @@ JHEEM = R6::R6Class(
                            transitions_info = private$i.diffeq.settings$transitions.info,
                            infections_info = private$i.diffeq.settings$infections.info,
                            remission_info = private$i.diffeq.settings$remission.info,
-                           fixed_strata_info = private$i.diffeq.settings$fixed.strata_info,
+                           fixed_strata_info = private$i.diffeq.settings$fixed.strata.info,
                            population_trackers = private$i.diffeq.settings$population_trackers)
             }
             
@@ -835,6 +837,7 @@ JHEEM = R6::R6Class(
                                        outcome.denominators = outcome.numerators.and.denominators$denominators,
                                        parameters = private$i.parameters)
             
+        #    browser()
             
             # Join to prior sim?
             
@@ -4035,6 +4038,9 @@ JHEEM = R6::R6Class(
             # Clear foreground indices
             private$i.foreground.effect.indices[[quantity.name]] = NULL
             
+            # Clear outcome dependencies
+            privaet$clear.outcome.dependencies.on.quantity.dim.names(quantity.name, specification=specification)
+            
             # Done
             invisible(self)
         },
@@ -4173,6 +4179,7 @@ JHEEM = R6::R6Class(
                  denominators = outcome.denominators)
         },
 
+        # Depends on quantity.dim.names for quantities which this outcome has a direct, non.cumulative dependency on
         derive.outcome.numerator.dim.names.sans.time = function(outcome.name,
                                                                 specification)
         {
@@ -4228,6 +4235,18 @@ JHEEM = R6::R6Class(
             private$i.outcome.numerator.dim.names.sans.time[[outcome.name]] = dim.names
         },
 
+        clear.outcome.dependencies.on.quantity.dim.names = function(quantity.names, specification)
+        {
+            dependent.outcome.names = specification$get.direct.dependent.outcome.numerator.names(quantity.names)
+                
+            # clear the indices
+            private$i.outcome.indices[[dependent.outcome.names]] = list()
+            
+            # We could try to be smarter, and only clear the indices if the numerator.dim.names change
+            #  (we'd need to clear the outcome.indices[[outcome.name]]$value.from.quantity[[quantity.name]] regardless)
+            #  but in practice, we are not going to change these dim.names very much so it doesn't seem worth it
+        },
+
         calculate.outcome.numerator.and.denominator = function(outcome.name,
                                                                ode.results,
                                                                specification,
@@ -4270,6 +4289,9 @@ JHEEM = R6::R6Class(
                 else # calculate the value from the values of other outcomes/quantities
                 {
                     #-- Figure out what times we need to pull from --#
+                    if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
+                        private$calculate.outcome.non.cumulative.value.times(outcome.name)
+                    
                     if (length(private$i.outcome.non.cumulative.value.times[[outcome.name]])==0)
                     {   
                         times.to.pull = private$i.outcome.value.times[[outcome.name]]
@@ -4277,9 +4299,6 @@ JHEEM = R6::R6Class(
                     }
                     else
                     {
-                        if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
-                            private$calculate.outcome.non.cumulative.value.times(outcome.name)
-                        
                         times.to.pull = private$i.outcome.non.cumulative.value.times[[outcome.name]]
                         is.after.time = private$i.outcome.non.cumulative.value.time.is.after.time[[outcome.name]]
                     }
@@ -4306,13 +4325,22 @@ JHEEM = R6::R6Class(
                             
                             if (is.null(dep.on.outcome$denominator.outcome))
                             {
-                                collapse.array.according.to.indices(arr = private$i.outcome.numerators[[dep.on.outcome.name]][after.or.not.mask][[time]],
-                                                                 small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
-                                                                 large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
-                                                                 small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n)
+                                if (is(dep.on.outcome, 'intrinsic.model.outcome'))
+                                    dep.on.numerator = interpolate(private$i.outcome.numerators[[dep.on.outcome.name]], 
+                                                                   value.times = private$i.outcome.value.times[[dep.on.outcome.name]],
+                                                                   desired.time = times.to.pull[i])[[1]]
+                                else
+                                    dep.on.numerator = private$i.outcome.numerators[[dep.on.outcome.name]][after.or.not.mask][[time]]
+                                
+                                collapse.array.according.to.indices(arr = dep.on.numerator,
+                                                                    small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
+                                                                    large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
+                                                                    small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n)
                             }
                             else
                             {
+                                # NB - the intrinsic model outcomes ('infected' and 'uninfected' NEVER have a denominator set, so will never be used in this if statement)
+                                
                                 collapsed.denominator = collapse.array.according.to.indices(arr = private$i.outcome.denominators[[dep.on.outcome.name]][after.or.not.mask][[time]],
                                                                                         small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
                                                                                         large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
@@ -4363,7 +4391,6 @@ JHEEM = R6::R6Class(
                     })
                     
                     bindings = c(bindings.of.outcomes, bindings.of.quantities)
-                    base::print(outcome.name)
                     
                     raw.value = outcome$calculate.values(desired.times = private$i.outcome.value.times[[outcome.name]],
                                                          bindings = bindings,
@@ -4439,7 +4466,7 @@ JHEEM = R6::R6Class(
         calculate.outcome.indices.from.outcome = function(outcome.name, dep.on.outcome.name)
         {
             private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]] =
-                get.align.array.indices(small.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]],
+                get.collapse.array.indices(small.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]],
                                            large.arr.dim.names = private$i.outcome.dim.names.sans.time[[dep.on.outcome.name]])
         },
 
@@ -4455,20 +4482,20 @@ JHEEM = R6::R6Class(
         calculate.outcome.collapse.value.indices = function(outcome.name, specification)
         {
             private$i.outcome.indices[[outcome.name]]$collapse.numerator = 
-                get.align.array.indices(small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
+                get.collapse.array.indices(small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
                                            large.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]])
             
             outcome = specification$get.outcome(outcome.name)
             if (!is.null(outcome$denominator.outcome))
             {
                 private$i.outcome.indices[[outcome.name]]$collapse.denominator =
-                    get.align.array.indices(small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
+                    get.collapse.array.indices(small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
                                             large.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]])
                 
                 if (!outcome$value.is.numerator)
                 {
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator =
-                        get.align.array.indices(small.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]],
+                        get.collapse.array.indices(small.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]],
                                                 large.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]])
                 }
             }

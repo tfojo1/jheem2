@@ -191,6 +191,11 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             unlist(private$i.outcome.numerator.direct.dependee.outcome.names[outcome.names])
         },
         
+        get.direct.dependent.outcome.numerator.names = function(quantity.names)
+        {
+            unlist(private$i.direct.dependent.outcome.numerator.names[quantity.names])
+        },
+        
         get.outcome.direct.dependee.quantity.names = function(outcome.names)
         {
             unlist(private$i.outcome.direct.dependee.quantity.names[outcome.names])
@@ -254,7 +259,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 compiled.components = c(compiled.components, 
                                         uncompiled.comp$schema$compile.component(uncompiled.comp,
                                                                                  specification = self,
-                                                                                 unpack = T,
                                                                                  error.prefix = error.prefix))
             }
             
@@ -352,7 +356,15 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         top.level.quantity.names = function(value)
         {
             if (missing(value))
-                i.top.level.quantity.names
+                private$i.top.level.quantity.names
+            else
+                stop("Cannot modify a specification's 'top.level.quantity.names' - they are read-only")
+        },
+        
+        dynamic.top.level.quantity.names = function(value)
+        {
+            if (missing(value))
+                private$i.dynamic.top.level.quantity.names
             else
                 stop("Cannot modify a specification's 'top.level.quantity.names' - they are read-only")
         },
@@ -419,6 +431,14 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 private$i.foregrounds
             else
                 stop("Cannot modify a specification's 'foregrounds' - they are read-only")
+        },
+        
+        fixed.strata.info = function(value)
+        {
+            if (missing(value))
+                private$i.fixed.strata.info
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'fixed.strata.info' - it is read-only"))
         }
     ),
     
@@ -430,6 +450,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         
         i.top.level.references = NULL,
         i.top.level.quantity.names = NULL,
+        i.dynamic.top.level.quantity.names = NULL,
         i.element.names = NULL,
         
         # indexed dependee, dependent
@@ -453,6 +474,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         i.outcome.non.cumulative.dependent.outcome.names = NULL,
         i.outcome.direct.dependee.outcome.names = NULL,
         i.outcome.numerator.direct.dependee.outcome.names = NULL,
+        i.direct.dependent.outcome.numerator.names = NULL,
         i.outcome.direct.dependee.quantity.names = NULL,
         
         #----------------------------------#
@@ -488,7 +510,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             outcomes.to.use = private$parse.outcome.tree(top.level.outcomes)
             do.cat("done\n")
 
-            
             #-- Process Core Components and Mechanisms --#
             #-- Make sure required are present --#
             #-- Check for clashes --#
@@ -513,10 +534,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                                                                      error.prefix = error.prefix)
                 
                 references.from.core.components = c(references.from.core.components, references)
-                private$i.core.components[[i]] = comp$schema$set.component.top.level.references(comp, 
-                                                                                                references=references,
-                                                                                                specification = self,
-                                                                                                error.prefix = error.prefix)
             }
             
             #-- (First of twice) Pull top-level references FROM OUTCOMES --#
@@ -574,6 +591,23 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             private$i.top.level.quantity.names = unique(sapply(private$i.top.level.references, function(ref){
                 ref$value.quantity.name
             }))
+            
+            quantity.names.for.core.components = unlist(sapply(private$i.top.level.references, function(ref){
+                if (ref$is.for.core.component)
+                    ref$value.quantity.name
+                else
+                    NULL
+            }))
+            
+            multiply.by.quantity.names = unlist(sapply(private$i.outcomes, function(outcome){
+                if (is(outcome, 'dynamic.model.outcome'))
+                    outcome$multiply.by
+                else
+                    NULL
+            }))
+            
+            private$i.dynamic.top.level.quantity.names = unique(c(quantity.names.for.core.components, multiply.by.quantity.names))
+            
             do.cat("done\n")
 
 
@@ -1825,6 +1859,18 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 })
             })
             
+            private$i.direct.dependent.outcome.numerator.names = sapply(private$i.quantities, function(dependee){
+                outcome.names = names(private$i.outcomes)[private$i.direct.outcome.on.quantity.dependences[dependee,]]
+                if (length(outcome.names)>0)
+                    outcome.names[sapply(outcome.names, function(name){
+                        outcome = self$get.outcome(name)
+                        !is(outcome, 'dynamic.model.outcome') && !is(outcome, 'intrinsic.model.outcome')
+                    })]
+                else
+                    outcome.names
+            })
+            names(private$i.direct.dependent.outcome.numerator.names) = names(private$i.quantities)
+            
             #-- Make Dependency Matrices --#
 
             # i.outcome.on.outcome.non.cumulative.dependencies[i,j] is true if 
@@ -2022,6 +2068,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
 compile.and.sort.core.components.for.location <- function(specification,
                                                           specification.metadata,
                                                           ontologies,
+                                                          final = T,
                                                           error.prefix)
 {
     #-- Compile the components --#
@@ -2035,7 +2082,6 @@ compile.and.sort.core.components.for.location <- function(specification,
                                                               ontologies = ontologies,
                                                               aliases = specification.metadata$compartment.aliases,
                                                               unresolved.alias.names = character(),
-                                                              unpack = T,
                                                               error.prefix = error.prefix)
         )   
     }
@@ -2102,6 +2148,7 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                               required.sub.ontology.name=NULL,
                               exclude.ontology.dimensions=character(),
                               max.dimensions = NULL,
+                              is.for.core.component,
                               alias.suffix,
                               error.prefix)
         {
@@ -2200,6 +2247,7 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
             private$i.required.sub.ontology.name = required.sub.ontology.name
             private$i.exclude.ontology.dimensions = exclude.ontology.dimensions
             private$i.max.dimensions = max.dimensions
+            private$i.is.for.core.component = is.for.core.component
         },
         
         
@@ -2284,7 +2332,7 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
             rv = rv[setdiff(names(rv), private$i.exclude.ontology.dimensions)]
             
             # Overwrite applies to values
-            rv[names(private$applies.to)] = private$i.applies.to
+            rv[names(private$i.applies.to)] = private$i.applies.to
          
             if (!is.null(private$i.max.dimensions))
                 rv = rv[intersect(private$i.max.dimensions, names(rv))]
@@ -2372,6 +2420,14 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                 stop(paste0("Cannot modify a ", self$descriptor, "'s 'source' - it is read-only"))
         },
         
+        is.for.core.component = function(value)
+        {
+            if (missing(value))
+                private$i.is.for.core.component
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'is.for.core.component' - it is read-only"))
+        },
+        
         value.quantity.name = function(value)
         {
             if (missing(value))
@@ -2401,7 +2457,8 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
         i.applies.to = NULL,
         i.required.sub.ontology.name = NULL,
         i.exclude.ontology.dimensions = NULL,
-        i.max.dimensions = NULL
+        i.max.dimensions = NULL,
+        i.is.for.core.component = NULL
     )
 )
 
