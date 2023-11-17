@@ -1,5 +1,4 @@
 
-sim = make.dummy.sim()
 
 #'@param ... One or more of either (1) jheem.simulation objects or (2) jheem.simset objects or (3) lists containing only jheem.simulation or jheem.simset objects
 #'@param outcomes A character vector of which simulation outcomes to plot
