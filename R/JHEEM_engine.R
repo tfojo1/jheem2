@@ -630,6 +630,8 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.keep.years = keep.years
             private$i.atol = atol
             private$i.rtol = rtol
+            
+            private$i.check.consistency = T
         },
         
         run = function(parameters=NULL)
@@ -651,6 +653,8 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.jheem$crunch(start.year = private$i.start.year,
                                    end.year = private$i.end.year,
                                    check.consistency = private$i.check.consistency)
+            
+            private$i.check.consistency = F
         }
     ),
     
@@ -664,7 +668,7 @@ JHEEM.ENGINE = R6::R6Class(
         i.atol = NULL,
         i.rtol = NULL,
         
-        i.check.consistency = T,
+        i.check.consistency = NULL,
         
         set.parameters = function(parameters, error.prefix)
         {
@@ -816,7 +820,6 @@ JHEEM = R6::R6Class(
                            population_trackers = private$i.diffeq.settings$population_trackers)
             }
             
-            base::print("Running the ODE Solver...")
             ode.results = odeintr::integrate_sys(sys = compute.fn,
                                                  init = private$i.diffeq.settings$initial_state,
                                                  duration = private$i.run.to.time - private$i.run.from.time + 1, 
@@ -825,7 +828,6 @@ JHEEM = R6::R6Class(
                                                  rtol = rtol)
             
             # Process the Results
-            base::print("Processing the Outcomes")
             outcome.numerators.and.denominators = private$prepare.outcomes.for.sim(ode.results)
             
             # Make the Simulation Object
@@ -2967,8 +2969,9 @@ JHEEM = R6::R6Class(
                     else
                     {
                         #-- Calculate the values for each component --#
-                        component.values = lapply(1:quantity$n.components, function(i){
-                            
+                        component.values = list()
+                        for (i in 1:quantity$n.components) # From Todd in Nov 2023: I truly have no idea why, but doing this as a for loop was 30x faster than doing it as an sapply
+                        {
                             #-- Pull the component and set up the error prefix --#
                             comp = quantity$components[[i]]
                             
@@ -2988,8 +2991,10 @@ JHEEM = R6::R6Class(
                                 update.bindings.for = comp$depends.on[ depends.on.has.after[comp$depends.on] ]
                             else
                                 update.bindings.for = comp$depends.on
-                            
-                            bindings[update.bindings.for] <<- lapply(update.bindings.for, function(dep.on){
+
+                            for (dep.on in update.bindings.for)
+                            {
+#                            bindings[update.bindings.for] = lapply(update.bindings.for, function(dep.on){
                                 
                                 if (private$i.quantity.is.static[dep.on])
                                     values = private$i.quantity.values[[dep.on]][['all']]
@@ -3009,12 +3014,15 @@ JHEEM = R6::R6Class(
                                     } 
                                     dep.on.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.depends.on[[i]][[dep.on]]
                                     
-                                    values[dep.on.indices]
+                                    values = values[dep.on.indices]
                                 }
-                                else
-                                    values
-                            })
-                            
+#                                else
+ #                                   values
+                                
+                                bindings[[dep.on]] = values
+                            }
+                           # })
+
                             #-- Calculate the value --#
                             value = comp$evaluate(bindings = bindings,
                                                   error.prefix = error.prefix)
@@ -3023,35 +3031,37 @@ JHEEM = R6::R6Class(
                             if (comp$value.type=='function')
                             {
                                 if (check.consistency)
-                                    check.function.quantity.component.value(value, quantity=quantity, component.index=i,
+                                    private$check.function.quantity.component.value(value, quantity=quantity, component.index=i,
                                                                             time=time, error.prefix=error.prefix)
                                 
                                 if ((length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
                                      is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) ||
                                     (check.consistency && time == missing.times[1]))
-                                    calculate.quantity.component.dim.names(quantity, 
+                                {
+                                    private$calculate.quantity.component.dim.names(quantity, 
                                                                            component.index = i,
                                                                            value.for.function = value)
+                                }
                                 
                                 if (check.consistency && !dim.names.equal(dim.names.1 = private$i.quantity.component.dim.names[[quantity.name]][[i]],
                                                                           dim.names.2 = dimnames(value),
                                                                           match.order.of.dimensions = T,
                                                                           match.order.within.dimensions = T))
+                                {
                                     stop(paste0(error.prefix,
                                                 "The dimnames for the value calculated at time ", time,
                                                 " do not match the dimnames of values for previous times"))
-                                
+                                }
                             }
                             
                             #-- A check --#
                             if (length(value)==0)
                                 browser()
                             
-                            #-- Return --#
-                            value
-                        })
-                        
-                        
+                            #-- Package up the value --#
+                            component.values[[i]] = value
+                        }
+
                         #-- Recalculate the dim.names if needed --#
                         if (is.null(i.quantity.dim.names[[quantity.name]]))
                             calculate.quantity.dim.names(quantity)
