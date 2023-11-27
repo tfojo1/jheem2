@@ -99,11 +99,11 @@ ontology <- function(..., incomplete.dimensions=NULL)
         if (any(is.na(incomplete.dimensions)))
             stop("'incomplete.dimensions' cannot contain NA values")
         
-        extraneous.dimensions = setdiff(incomplete.dimensions, names(rv))
-        if (length(extraneous.dimensions)>0)
-            stop(paste0("'incomplete.dimensions' passed to ontology() must contain a subset of the names of the other arguments to ontology(). ",
-                        paste0("'", extraneous.dimensions, "'", collapse=', '),
-                        " were specified as incomplete.dimensions but are not names of dimensions"))
+     #   extraneous.dimensions = setdiff(incomplete.dimensions, names(rv))
+     #   if (length(extraneous.dimensions)>0)
+     #       stop(paste0("'incomplete.dimensions' passed to ontology() must contain a subset of the names of the other arguments to ontology(). ",
+     #                   paste0("'", extraneous.dimensions, "'", collapse=', '),
+     #                   " were specified as incomplete.dimensions but are not names of dimensions"))
         
         is.complete = sapply(names(rv), function(d){all(d!=incomplete.dimensions)})
     }

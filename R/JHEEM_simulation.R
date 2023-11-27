@@ -532,9 +532,9 @@ JHEEM.SIMULATION = R6::R6Class(
                 }
                 
                 if (check.consistency) {
-                    incomplete.dimensions = incomplete.dimensions(self$outcome.ontologies[[outcome]])
-                    if (length(setdiff(incomplete.dimensions, union(keep.dimensions, names(dimension.values)))) > 0)
-                        stop(paste0(error.prefix, "any incomplete dimensions must be contained in 'keep.dimensions' or 'dimension.values'"))
+            #        incomplete.dimensions = incomplete.dimensions(self$outcome.ontologies[[outcome]])
+            #        if (length(setdiff(incomplete.dimensions, union(keep.dimensions, names(dimension.values)))) > 0)
+            #            stop(paste0(error.prefix, "any incomplete dimensions must be contained in 'keep.dimensions' or 'dimension.values'"))
                     if (output == 'denominator' && scale.needs.denominator(scale))
                         stop(paste0(error.prefix, "outcome '", outcome, "' does not use a denominator"))
                 }

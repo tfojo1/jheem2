@@ -84,8 +84,6 @@ simplot <- function(...,
         corresponding.observed.outcome
     })
     # browser()
-    ## HARDCODE BECAUSE CORRESPONDING.OBSERVED.OUTCOME INFORMATION IS MISSING
-    outcomes.for.data = setNames(c('diagnoses'), outcomes)
     
     outcome.ontologies = lapply(outcomes, function(outcome) {
         outcome.ontology = NULL
@@ -112,16 +110,20 @@ simplot <- function(...,
     df.truth = NULL
     for (i in seq_along(outcomes.for.data))
     {
-        outcome.data = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                         dimension.values = c(dimension.values, list(location = location)),
-                                         keep.dimensions = c('year', facet.by, split.by), #'year' can never be in facet.by
-                                         target.ontology = outcome.ontologies[[i]],
-                                         allow.mapping.from.target.ontology = T)
-        outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
-        one.df.outcome = reshape2::melt(outcome.data, na.rm = T)
-        corresponding.outcome = names(outcomes.for.data)[[i]]
-        one.df.outcome['outcome'] = corresponding.outcome
-        df.truth = rbind(df.truth, one.df.outcome)
+        if (!is.null(outcomes.for.data[[i]]))
+        {
+            outcome.data = data.manager$pull(outcome = outcomes.for.data[[i]],
+                                             dimension.values = c(dimension.values, list(location = location)),
+                                             keep.dimensions = c('year', facet.by, split.by), #'year' can never be in facet.by
+                                             target.ontology = outcome.ontologies[[i]],
+                                             allow.mapping.from.target.ontology = T)
+            outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
+    
+            one.df.outcome = reshape2::melt(outcome.data, na.rm = T)
+            corresponding.outcome = names(outcomes.for.data)[[i]]
+            one.df.outcome['outcome'] = corresponding.outcome
+            df.truth = rbind(df.truth, one.df.outcome)
+        }
     }
     names(outcome.mappings) = outcomes
 
@@ -155,14 +157,14 @@ simplot <- function(...,
     
     #- STEP 4: MAKE THE PLOT --#
     
-    facet.formula = as.formula(paste0("~outcome",
-                                      paste0(" + ", facet.by, collapse='')))
-    
+    facet.formula = as.formula(paste0("~",
+                                      paste0(c('outcome', facet.by), collapse='+')))
+
     if (is.null(split.by)) {
         if (is.null(facet.by)) {
             ggplot() +
                 geom_line(data=df.sim, aes(x=year, y=value, color=sim.name)) +
-                geom_point(data=df.tuth, aes(x=year, y=value))
+                geom_point(data=df.truth, aes(x=year, y=value))
         } else {
             ggplot() +
                 geom_line(data=df.sim, aes(x=year, y=value, color=sim.name)) +

@@ -1899,7 +1899,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
             }
             
             # Convert all ontologies to ontology objects
-            private$i.ontologies = lapply(private$i.ontologies, as.ontology)
+            private$i.ontologies = lapply(private$i.ontologies, as.ontology, incomplete.dimensions='location')
             
             # Some default settings
             private$i.locked = F

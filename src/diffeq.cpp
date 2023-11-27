@@ -18,19 +18,23 @@ const int UNINFECTED_GROUP = 1;
 //-------------//
 //-------------//
 
-double* do_interpolate_quantity_elementwise(List quant,
-                                            double time,
-                                            double *scratch,
-                                            int i_before,
-                                            int i_after)
+//double* do_interpolate_quantity_elementwise(List quant,
+  //                                          double time,
+    //                                        double *scratch,
+      //                                      int i_before,
+        //                                    int i_after)
+void do_interpolate_quantity_elementwise(double *dst,
+                                         List values,
+                                         List after_values,
+                                         NumericVector times,
+                                         List value_applies,
+                                         List after_value_applies,
+                                         double time,
+                                         int i_before,
+                                         int i_after)
 {
-    NumericVector times = quant["times"];
     int n_times = times.length();
-    List values = quant["values"];
-    List after_values = quant["after.values"];
-    List value_applies = quant["value.applies"];
-    List after_value_applies = quant["after.value.applies"];
-    
+
     NumericVector one_val = values[0];
     LogicalVector one_val_applies;
     int len = one_val.length();
@@ -112,12 +116,12 @@ double* do_interpolate_quantity_elementwise(List quant,
         
         // Put them together
         if (i_before_for_k == -1)
-            scratch[k] = val_after;
+            dst[k] = val_after;
         else if (time == times[i_before_for_k] || times[i_before_for_k] == R_NegInf ||
                  i_after_for_k == n_times)
-            scratch[k] = val_before;
+            dst[k] = val_before;
         else if (time == times[i_after_for_k] || times[i_after_for_k] == R_PosInf)
-            scratch[k] = val_after;
+            dst[k] = val_after;
         else
         {
             // Need to interpolate the value between before and after
@@ -125,10 +129,11 @@ double* do_interpolate_quantity_elementwise(List quant,
             double before_weight = (times[i_after] - time) / (times[i_after] - times[i_before]);
             double after_weight = (time - times[i_before]) / (times[i_after] - times[i_before]);
             
-            scratch[k] = before_weight * val_before + after_weight * val_after;
+            dst[k] = before_weight * val_before + after_weight * val_after;
         }
     }
 }
+
 
 
 // quant is a List with the following 
@@ -314,9 +319,13 @@ double *get_quantity_value_for_time(List quant,
                     else
                     {
                         // We have to find before or after index (or both) for each element
-                        do_interpolate_quantity_elementwise(quant,
+                        do_interpolate_quantity_elementwise(scratch, //double *dst,
+                                                            values, //List values,
+                                                            after_values, //List after_values,
+                                                            times, //NumericVector times,
+                                                            value_applies, //List value_applies,
+                                                            after_value_applies, //List after_value_applies,
                                                             time,
-                                                            scratch,
                                                             i_before,
                                                             i_after);
                     }
@@ -327,6 +336,7 @@ double *get_quantity_value_for_time(List quant,
         }
     }
 }
+
 
 
 

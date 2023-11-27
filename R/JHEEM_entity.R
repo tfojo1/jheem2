@@ -49,7 +49,7 @@ JHEEM.ENTITY = R6::R6Class(
             
             #-- Store Variables --#
             private$i.version = version
-            private$i.location = location
+            private$i.location = toupper(location)
             private$i.code.iteration = private$get.current.code.iteration()
             private$i.type = type
         },
