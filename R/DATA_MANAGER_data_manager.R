@@ -1177,28 +1177,47 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (!is.logical(na.rm) || length(na.rm)!=1 || is.na(na.rm))
                     stop(paste0(error.prefix, "na.rm must be a single, non-NA, logical value"))
             }
-            # browser()
+            
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
             # if (debug) browser()
             if (is.null(target.ontology) || allow.mapping.from.target.ontology) {
-                target.ontology = private$get.universal.ontology(outcome, sources, from.ontology.names, target.ontology, return.target.to.universal.mapping = allow.mapping.from.target.ontology, debug=F)
+                target.ontology = private$get.universal.ontology(outcome = outcome,
+                                                                 sources = sources,
+                                                                 from.ontology.names = from.ontology.names,
+                                                                 target.ontology = target.ontology,
+                                                                 keep.dimensions = keep.dimensions,
+                                                                 dimension.values = dimension.values,
+                                                                 return.target.to.universal.mapping = allow.mapping.from.target.ontology,
+                                                                 debug=F)
                 target.to.universal.mapping = attr(target.ontology, 'target.to.universal.mapping')
                 if (!any(keep.dimensions %in% target.to.universal.mapping$to.dimensions))
                     target.to.universal.mapping = get.identity.ontology.mapping()
             }
             
-            need.to.set.keep.dimensions.flag = is.null(keep.dimensions)
-            if (!need.to.set.keep.dimensions.flag) target.ontology = target.ontology[names(target.ontology) %in% union(keep.dimensions, names(dimension.values))]
+            resolved.dimension.values = resolve.ontology.dimension.values(target.ontology, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = F)
+            if (is.null(resolved.dimension.values) && !is.null(dimension.values))
+                stop(paste0(error.prefix, "'dimension.values' cannot be resolved"))
+            dv.names = names(dimension.values)
+            
+            
+            # need.to.set.keep.dimensions.flag = is.null(keep.dimensions)
+            if (is.null(keep.dimensions)) {
+                if (is.null(resolved.dimension.values)) {
+                    dimension.values.dimensions.longer.than.one = dv.names[sapply(resolved.dimension.values, length)>1]
+                    keep.dimensions = setdiff(incomplete.dimensions(target.ontology), dimension.values.dimensions.longer.than.one)
+                }
+                else {
+                    keep.dimensions = incomplete.dimensions(target.ontology)
+                }
+            }
+            if (!is.null(keep.dimensions)) target.ontology = target.ontology[names(target.ontology) %in% union(keep.dimensions, names(dimension.values))]
             # If sources is NULL, use all the sources from the outcome
             if (is.null(sources))
                 sources.used.names = names(private$i.data[[outcome]])
             else
                 sources.used.names = sources
             sources.successful.names = c()
-            
-            dv.names = names(dimension.values)
-            
             
             ## FOR THE FUTURE: DO A PRETEND PULL TO SEE WHAT ONTOLOGIES WE NEED, THEN POTENTIALLY REMAKE THE UNIVERSAL WITH ONLY THOSE
             # if (debug) browser()
@@ -1211,9 +1230,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     ontologies.used.names = intersect(source.ontology.name, from.ontology.names)
                 pulled.source.data = NULL
                 source.lacks.denominator.data.flag = FALSE
-                # if (debug) browser()
+                
                 for (ont.name in ontologies.used.names) {
-                    
                     pulled.ont.data = NULL
                     ont = private$i.ontologies[[ont.name]]
                     stratification.names = names(private$i.data[[outcome]][[source.name]][[ont.name]])
@@ -1227,14 +1245,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         if (all(is.na(strat.data))) next
                         
                         # IF WE DON'T HAVE KEEP DIMENSIONS YET, SET IT TEMPORARILY TO WHAT WE FIND HERE. ALL INCOMPLETE DIMENSIONS AND DIMENSION.VALUES DIMENSIONS OF LENGTH > 1
-                        if (is.null(keep.dimensions) || need.to.set.keep.dimensions.flag) {
-                            dimension.values.dimensions.longer.than.one = dv.names[sapply(dimension.values, length)>1]
-                            keep.dimensions = setdiff(incomplete.dimensions(strat.dimnames), dimension.values.dimensions.longer.than.one)
-                        }
+                        # if (is.null(keep.dimensions) || need.to.set.keep.dimensions.flag) {
+                        #     dimension.values.dimensions.longer.than.one = dv.names[sapply(dimension.values, length)>1]
+                        #     keep.dimensions = setdiff(incomplete.dimensions(strat.dimnames), dimension.values.dimensions.longer.than.one)
+                        # }
+                        
+                        # OUR TARGET ONTOLOGY MAY HAVE MORE DIMENSIONS THAN WE NEED AND BE IMPOSSIBLE TO MAP TO FROM OUR STRAT DIMNAMES
+                        # WE HAVE NO CHOICE BUT TO TRY EVERY SUBSET OF THE TARGET ONTOLOGY DIMENSIONS UNTIL ONE IS CORRECT (ONLY ONE COMBINATION WILL YILED EXACTLY OUR INTENDED DIMENSIONS)
                         
                         mapping.to.apply = get.ontology.mapping(strat.dimnames, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
                         if (is.null(mapping.to.apply)) next
-                        
                         dimnames.for.apply = mapping.to.apply$apply.to.dim.names(strat.dimnames)
                         if (!setequal(names(dimnames.for.apply), union(keep.dimensions, dv.names))) next
                         
@@ -1253,8 +1273,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         
                         # Insert dimension.values
                         
-                        resolved.dimension.values = resolve.ontology.dimension.values(target.ontology, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = F)
-                        if (is.null(resolved.dimension.values) && !is.null(dimension.values)) next
                         dimension.has.no.intersection = F
                         for (d in dv.names) {
                             replacement = intersect(dimnames.for.apply[[d]], resolved.dimension.values[[d]])
@@ -1286,7 +1304,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 data.to.process = private[[paste0('i.', data.type)]][[outcome]][[source.name]][[ont.name]][[strat]]
                                 function.to.apply = function(x) {list(unique(unlist(x)))}
                             }
-                            
                             if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion')) {
                                 denominator.outcome = outcome.info[['denominator.outcome']]
                                 
@@ -1311,6 +1328,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     source.lacks.denominator.data.flag <<- TRUE
                                     return (NULL)
                                 }
+                                
                                 # Since the denominator.array came from only one source, we can remove the source so that it will match size of data
                                 denominator.array = array(denominator.array,
                                                           dim = dim(denominator.array)[names(dim(denominator.array)) != 'source'],
@@ -1460,8 +1478,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         # SUCCESS FOR THIS ONTOLOGY - save info if this is the first ontology we've succeeded on for this source
                         if (is.null(pulled.source.data)) {
                             sources.successful.names <<- c(sources.successful.names, source.name)
-                            keep.dimensions <<- keep.dimensions
-                            need.to.set.keep.dimensions.flag <<- FALSE
+                            # keep.dimensions <<- keep.dimensions
+                            # need.to.set.keep.dimensions.flag <<- FALSE
                         }
                         break
                         
@@ -1469,7 +1487,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     if (source.lacks.denominator.data.flag) break
                     
                     if (all(is.na(pulled.ont.data))) next
-                    # browser()
+                    
                     # Integrate ontology's pulled data into the source's pulled data -- they should all be in the same (universal) ontology and therefore compatible
                     new.source.data.dimnames = dimnames(pulled.ont.data[[1]])
                     if (!is.null(pulled.source.data)) {
@@ -1479,9 +1497,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         
                         if (!is.null(pulled.source.data)) {
                             # if (data.type == 'details') browser()
+                            if (debug) browser()
                             new.pulled.source.data.this.type = array(NA, sapply(new.source.data.dimnames, length), new.source.data.dimnames)
                             new.pulled.source.data.this.type[get.array.access.indices(new.source.data.dimnames, dimnames(pulled.source.data[[data.type]]))] = pulled.source.data[[data.type]]
-                            new.pulled.source.data.this.type[get.array.access.indices(new.source.data.dimnames, dimnames(pulled.ont.data[[data.type]]))] = pulled.ont.data[[data.type]]
+                            pulled.data.na.mask = !is.na(pulled.ont.data[[data.type]])
+                            new.pulled.source.data.this.type[get.array.access.indices(new.source.data.dimnames, dimnames(pulled.ont.data[[data.type]]))[pulled.data.na.mask]]= pulled.ont.data[[data.type]][pulled.data.na.mask]
                             dim(new.pulled.source.data.this.type) = sapply(new.source.data.dimnames, length)
                             dimnames(new.pulled.source.data.this.type) = new.source.data.dimnames
                         }
@@ -1500,10 +1520,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # we have a list (one element per source) of lists (one element per data type, i.e. 'data', 'url', or 'details')
             # repackage this to be a data array with 'url', 'details' and possibly a mapping as attributes
             post.processed.data = NULL
-            # browser()
+            
             # Some sources may have returned NULL above and should be removed.
-            # browser()
-            if (debug) browser()
             pre.processed.data = pre.processed.data[!unlist(lapply(pre.processed.data, is.null))]
             
             # Extract data for data, url, and details out of what lapply returned above
@@ -1698,7 +1716,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             onts
         },
         
-        get.universal.ontology.for.outcome = function(outcome) {
+        get.universal.ontology.for.outcome = function(outcome)
+        {
             # VALIDATE ARGUMENTS
             error.prefix = "Error getting universal ontology for outcome: "
             if (is.null(outcome) || !is.character(outcome) || length(outcome) > 1 || is.na(outcome))
@@ -1708,6 +1727,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (!(outcome %in% names(private$i.data))) return (NULL)
             private$get.universal.ontology(outcome, return.target.to.universal.mapping = F)
         }
+                
     ),
     
     active = list(
@@ -1854,11 +1874,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             rv
         },
         
-        get.universal.ontology = function(outcome, sources = NULL, ontologies = NULL, target = NULL, return.target.to.universal.mapping = T, debug = F)
+        get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, target.ontology = NULL, keep.dimensions = NULL, dimension.values = NULL, return.target.to.universal.mapping = T, debug = F)
         {
             if (debug) browser()
             onts = self$get.ontologies.for.outcome(outcome, sources)
-            if (!is.null(ontologies)) onts = onts[names(onts) %in% ontologies]
+            if (!is.null(from.ontology.names)) onts = onts[names(onts) %in% from.ontology.names]
             uni = onts[[1]]
             if (length(onts) > 1) {
                 for (i in 2:length(onts)) {
@@ -1868,8 +1888,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     
                 }
             }
-            if (!is.null(target)) {
-                mps = get.mappings.to.align.ontologies(target, uni, allow.non.overlapping.incomplete.dimensions = T)
+            if (!is.null(target.ontology)) {
+                mps = get.mappings.to.align.ontologies(target.ontology, uni, allow.non.overlapping.incomplete.dimensions = T)
                 if (is.null(mps)) stop("Error mapping ontologies: did you remember to register your mappings?")
                 uni = mps[[2]]$apply.to.ontology(uni)
                 if (return.target.to.universal.mapping) attr(uni, 'target.to.universal.mapping') = mps[[1]]
