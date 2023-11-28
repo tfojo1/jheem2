@@ -15,7 +15,7 @@
 #'
 #'@export
 simplot <- function(...,
-                    outcomes,
+                    outcomes = NULL,
                     split.by = NULL,
                     facet.by = NULL,
                     dimension.values = list(),
@@ -41,9 +41,56 @@ simplot <- function(...,
     if (!is.null(facet.by) && (!is.character(facet.by) || length(facet.by) < 1 || any(is.na(facet.by)) || any(duplicated(facet.by))))
         stop(paste0(error.prefix, "'facet.by' must be NULL or a character vector with at least one element and no NAs or duplicates"))
     
+    if (!is.null(split.by) && split.by %in% facet.by)
+        stop(paste0(error.prefix, "'facet.by' must not contain the dimension in 'split.by'"))
+    
+    if (!is.null(split.by) && split.by == 'year')
+        stop(paste0(error.prefix, "'split.by' cannot equal 'year'"))
+    
+    if (!is.null(facet.by) && 'year' %in% facet.by)
+        stop(patse0(error.prefix, "'facet.by' cannot contain 'year'"))
+    
     #-- STEP 1: PRE-PROCESSING --#
     # Get a list out of ... where each element is one simset (or sim for now)
-    sim.list = list(...) # will later be SIMSETS
+    sim.args = list(...) # will later be SIMSETS
+    
+    outcomes.found.in.sim.args = F
+    # each element of 'sim.list' should be either a sim or list containing only sims.
+    for (element in sim.args) {
+        if (!R6::is.R6(element) || !is(element, 'jheem.simulation')) {
+            if (is.list(element)) {
+                if (any(sapply(element, function(sub.element) {!R6::isR6(sub.element) || !is(sub.element, 'jheem.simulation')}))) {
+                    stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation objects or lists containing only jheem.simulation objects"))
+                }
+            } else if (is.null(outcomes) && is.character(element)) {
+                outcomes = element
+                outcomes.found.in.sim.args = T
+            }
+            else
+                stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation objects or lists containing only jheem.simulation objects"))
+        }
+    }
+    
+    if (!is.character(outcomes) || is.null(outcomes) || any(is.na(outcomes)) || any(duplicated(outcomes))) {
+        if (outcomes.found.in.sim.args)
+            stop(paste0(error.prefix, "'outcomes' found as unnamed argument in '...' must be a character vector with no NAs or duplicates"))
+        else
+            stop(paste0(error.prefix, "'outcomes' must be a character vector with no NAs or duplicates"))
+    }
+    
+    if (outcomes.found.in.sim.args) {
+        if (length(sim.args) < 2)
+            stop(paste0(error.prefix, "one or more jheem.simulation objects or lists containing only jheem.simulation objects must be supplied"))
+        else
+            sim.list = sim.args[1:(length(sim.args)-1)]
+    }
+    else {
+        if (length(sim.args) < 1)
+            stop(paste0(error.prefix, "one or more jheem.simulation objects or lists containing only jheem.simulation objects must be supplied"))
+        else
+            sim.list = sim.args
+    }
+    
     # - make sure they are all the same version and the location
     if (length(unique(sapply(sim.list, function(sim) {sim$version}))) > 1)
         stop(paste0(error.prefix, "all simulations must have the same version"))
@@ -51,15 +98,8 @@ simplot <- function(...,
         stop(paste0(error.prefix, "all simulations must have the same location"))
     
     # Check outcomes
-    # - make sure it's a non-empty character vector, no NAs
     # - make sure each outcome is present in sim$outcomes for at least one sim/simset
-    if (!is.character(outcomes) || is.null(outcomes) || any(sapply(outcomes, function(outcome) {
-        if (is.na(outcome)) T
-        else
-            !any(sapply(sim.list, function(sim) {
-                outcome %in% sim$outcomes
-            }))
-    })))
+    if (any(sapply(outcomes, function(outcome) {!any(sapply(sim.list, function(sim) {outcome %in% sim$outcomes}))})))
         stop(paste0("There weren't any simulations for one or more outcomes. Should this be an error?"))
     
     # Get the real-world outcome names
@@ -112,17 +152,20 @@ simplot <- function(...,
     {
         if (!is.null(outcomes.for.data[[i]]))
         {
+            # print(i)
             outcome.data = data.manager$pull(outcome = outcomes.for.data[[i]],
                                              dimension.values = c(dimension.values, list(location = location)),
                                              keep.dimensions = c('year', facet.by, split.by), #'year' can never be in facet.by
                                              target.ontology = outcome.ontologies[[i]],
-                                             allow.mapping.from.target.ontology = T)
+                                             allow.mapping.from.target.ontology = T,
+                                             debug=F)
             outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
     
             one.df.outcome = reshape2::melt(outcome.data, na.rm = T)
             corresponding.outcome = names(outcomes.for.data)[[i]]
             one.df.outcome['outcome'] = corresponding.outcome
             df.truth = rbind(df.truth, one.df.outcome)
+            # browser()
         }
     }
     names(outcome.mappings) = outcomes
