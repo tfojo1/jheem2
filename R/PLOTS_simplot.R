@@ -19,7 +19,7 @@ simplot <- function(...,
                     split.by = NULL,
                     facet.by = NULL,
                     dimension.values = list(),
-                    data.manager,
+                    data.manager = get.default.data.manager(),
                     style.manager) # will be an R6 object. will be mine!
 {
     ### --- FEATURES TO ADD --- ###
@@ -32,6 +32,9 @@ simplot <- function(...,
     # -- VALIDATION -- #
     
     error.prefix = "Cannot generate simplot: "
+    
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+    stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
     # *split.by* is NULL or a single, non-NA character vector
     if (!is.null(split.by) && (!is.character(split.by) || length(split.by) > 1 || is.na(split.by)))

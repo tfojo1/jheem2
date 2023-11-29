@@ -5,9 +5,21 @@
 # HELPERS_dim_name_helpers
 # HELPERS_array_helpers
 
+default.data.manager.holder = new.env()
+default.data.manager.holder$default.data.manager = NULL
+
+
 ##----------------------##
 ##-- PUBLIC INTERFACE --##
 ##----------------------##
+
+#'@title Get the default data manager
+#'
+#'@export
+get.default.data.manager <- function()
+{
+    default.data.manager.holder$default.data.manager
+}
 
 #'@title Create a JHEEM Data Manager
 #'
@@ -16,10 +28,13 @@
 #'
 #'@export
 create.data.manager <- function(name,
-                                description)
+                                description,
+                                set.as.default = F)
 {
-    JHEEM.DATA.MANAGER$new(name, 
-                           description=description)
+    new.data.manager = JHEEM.DATA.MANAGER$new(name, 
+                                              description=description)
+    if (set.as.default) default.data.manager.holder$default.data.manager = new.data.manager
+    invisible(new.data.manager)
 }
 
 #'@title Load a cached data manager
@@ -51,10 +66,11 @@ load.data.manager <- function(file,
     copy.description = ifelse(is.null(description),
                               loaded.data.manager$description,
                               description)
-    invisible(copy.data.manager(loaded.data.manager,
-                                name=copy.name,
-                                description=copy.description))
-            
+    new.data.manager = copy.data.manager(loaded.data.manager,
+                                         name=copy.name,
+                                         description=copy.description)
+    if (set.as.default) default.data.manager.holder$default.data.manager = new.data.manager
+    invisible(new.data.manager)
 }
 
 #'@title Create a copy of a JHEEM Data Manager
@@ -64,16 +80,17 @@ load.data.manager <- function(file,
 #'@param description A short description of the new data manager. If NULL, the description of the copied data manager.
 #'
 #'@export
-copy.data.manager <- function(data.manager,
+copy.data.manager <- function(data.manager = get.default.data.manager(),
                               name,
-                              description)
+                              description,
+                              set.as.default=F)
 {
 
     new.data.manager = JHEEM.DATA.MANAGER$new(name=name,
                                               description=description)
     new.data.manager$import.data(from.data.manager=data.manager)
-    new.data.manager
-    
+    if (set.as.default) default.data.manager.holder$default.data.manager = new.data.manager
+    invisible(new.data.manager)
 }
 
 #'@title Import data from another JHEEM Data Manager
@@ -82,7 +99,7 @@ copy.data.manager <- function(data.manager,
 #'@param from.data.manager A jheem.data.manager object
 #'
 #'@export
-import.data <- function(to.data.manager,
+import.data <- function(to.data.manager = get.default.data.manager(),
                         from.data.manager)
 {
     if (!R6::is.R6(to.data.manager) || !is(to.data.manager, 'jheem.data.manager'))
@@ -98,7 +115,7 @@ import.data <- function(to.data.manager,
 #'@param ontology.name The name of a registered ontology for which data should be subset. If NULL, data from all ontologies will be subset.
 #'
 #'@export
-subset.data <- function(data.manager,
+subset.data <- function(data.manager = get.default.data.manager(),
                         dimension.values,
                         ontology.name)
 {
@@ -116,7 +133,7 @@ subset.data <- function(data.manager,
 #'@param ont An ontology object as created by \code{\link{ontology()}}
 #'
 #'@export
-register.data.ontology <- function(data.manager,
+register.data.ontology <- function(data.manager = get.default.data.manager(),
                                    name,
                                    ont)
 {
@@ -137,7 +154,7 @@ register.data.ontology <- function(data.manager,
 #'@param allow.missing.denominator.outcome A logical allowing the user to register an outcome of scale 'rate', 'proportion' or 'time' without supplying a denominator outcome
 #'
 #'@export
-register.data.outcome <- function(data.manager,
+register.data.outcome <- function(data.manager = get.default.data.manager(),
                                   outcome,
                                   metadata,
                                   denominator.outcome=NULL,
@@ -164,7 +181,7 @@ register.data.outcome <- function(data.manager,
 #'@details Note: a source is conceived such that one source cannot contain two sets of data for the same set of dimension values
 #'
 #'@export
-register.data.source <- function(data.manager,
+register.data.source <- function(data.manager = get.default.data.manager(),
                                  source,
                                  full.name,
                                  short.name = full.name)
@@ -191,7 +208,7 @@ register.data.source <- function(data.manager,
 #'@param allow.na.to.overwrite A logical indicator for whether NA values in data should be allowed to overwrite previous values put to the data manager (if data have been put previously)
 #'
 #'@export
-put.data <- function(data.manager,
+put.data <- function(data.manager = get.default.data.manager(),
                      data,
                      outcome,
                      source,
@@ -220,7 +237,7 @@ put.data <- function(data.manager,
 #'@param data A data frame or other 2-dimensional data structure with named columns. Must contain a column named 'value' of numeric values. If the 'source' argument is NULL, then data must also have a column named 'source' that gives the source for each row. May contain additional columns with names matching the specified ontology, which have the dimension values for each row. Any other columns are ignored
 #'
 #'@export
-put.data.long.form <- function(data.manager,
+put.data.long.form <- function(data.manager = get.default.data.manager(),
                                data,
                                outcome,
                                source,
@@ -282,7 +299,7 @@ put.data.long.form <- function(data.manager,
 #' (3) If append.attributes includes "details", a list array (a list with dim and dimnames attributes set), with the same dimensions as the returned array, where each element is a character vector of strings giving the details about data collection
 #'
 #'@export
-pull.data <- function(data.manager,
+pull.data <- function(data.manager = get.default.data.manager(),
                       outcome,
                       keep.dimensions = NULL,
                       dimension.values = NULL,
@@ -325,7 +342,7 @@ pull.data <- function(data.manager,
 #'@return A character vector of pretty names, labels, or descriptions
 #'
 #'@export
-get.data.outcome.pretty.names <- function(data.manager, outcomes)
+get.data.outcome.pretty.names <- function(data.manager = get.default.data.manager(), outcomes)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -335,7 +352,7 @@ get.data.outcome.pretty.names <- function(data.manager, outcomes)
 
 #'@describeIn get.data.outcome.pretty.names Get the labels for outcomes
 #'@export
-get.data.outcome.labels <- function(data.manager, outcomes)
+get.data.outcome.labels <- function(data.manager = get.default.data.manager(), outcomes)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -345,7 +362,7 @@ get.data.outcome.labels <- function(data.manager, outcomes)
 
 #'@describeIn get.data.outcome.pretty.names Get descriptions for outcomes
 #'@export
-get.data.outcome.descriptions <- function(data.manager, outcomes)
+get.data.outcome.descriptions <- function(data.manager = get.default.data.manager(), outcomes)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -363,7 +380,7 @@ get.data.outcome.descriptions <- function(data.manager, outcomes)
 #'@return A character vector of full names or short names
 #'
 #'@export
-get.data.source.full.names <- function(data.manager, sources)
+get.data.source.full.names <- function(data.manager = get.default.data.manager(), sources)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -373,7 +390,7 @@ get.data.source.full.names <- function(data.manager, sources)
 
 #'@describeIn get.data.source.full.names Get short names for data sources
 #'@export
-get.data.source.short.names <- function(data.manager, sources)
+get.data.source.short.names <- function(data.manager = get.default.data.manager(), sources)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -382,7 +399,7 @@ get.data.source.short.names <- function(data.manager, sources)
 }
 
 #'@export
-get.registered.ontology <- function(data.manager, ontology.name)
+get.registered.ontology <- function(data.manager = get.default.data.manager(), ontology.name)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -391,7 +408,7 @@ get.registered.ontology <- function(data.manager, ontology.name)
 }
 
 #'@export
-get.year.bounds.for.outcome <- function(data.manager, outcome)
+get.year.bounds.for.outcome <- function(data.manager = get.default.data.manager(), outcome)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -399,7 +416,7 @@ get.year.bounds.for.outcome <- function(data.manager, outcome)
 }
 
 #'@export
-get.locations.with.data <- function(data.manager, outcome, years)
+get.locations.with.data <- function(data.manager = get.default.data.manager(), outcome, years)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -1180,7 +1197,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
-            # if (debug) browser()
+            if (debug) browser()
             if (is.null(target.ontology) || allow.mapping.from.target.ontology) {
                 target.ontology = private$get.universal.ontology(outcome = outcome,
                                                                  sources = sources,
@@ -1189,7 +1206,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                  keep.dimensions = keep.dimensions,
                                                                  dimension.values = dimension.values,
                                                                  return.target.to.universal.mapping = allow.mapping.from.target.ontology,
-                                                                 debug=F)
+                                                                 debug=debug)
                 target.to.universal.mapping = attr(target.ontology, 'target.to.universal.mapping')
                 if (!any(keep.dimensions %in% target.to.universal.mapping$to.dimensions))
                     target.to.universal.mapping = get.identity.ontology.mapping()
