@@ -476,6 +476,7 @@ do.get.ontology.mapping <- function(from.ontology,
                                     required.dim.names,
                                     get.two.way.alignment,
                                     allow.non.overlapping.incomplete.dimensions,
+                                    is.for.two.way = get.two.way.alignment,
                                     mappings = c(ONTOLOGY.MAPPING.MANAGER$mappings,
                                                  list('age','other')))
 {
@@ -488,7 +489,7 @@ do.get.ontology.mapping <- function(from.ontology,
     # 4) All required.dimensions which are complete have equal values in from.dim.names and to.dim.names
     # 5) All required.dimensions which are incomplete have at least one value present in both from.dim.names and to.dim.names
     # 6) All required.dim.names are present in to.dim.names (if this is not true, give up)
-  
+
     # check (6) - if not met, we will never succeed
     if (!dim.names.are.subset(sub.dim.names=required.dim.names, super.dim.names=to.ontology))
         return (NULL)
@@ -502,6 +503,9 @@ do.get.ontology.mapping <- function(from.ontology,
     # satisfies condition (3)
     excess.from.dimensions = setdiff(names(from.ontology), required.dimensions)
     excess.from.dimensions.are.complete = all(from.dimensions.are.complete[excess.from.dimensions])
+    
+    excess.to.dimensions = setdiff(names(to.ontology), required.dimensions)
+    excess.to.dimensions.are.complete = all(to.dimensions.are.complete[excess.to.dimensions])
     
     
     # below satisfies 
@@ -538,8 +542,9 @@ do.get.ontology.mapping <- function(from.ontology,
         }
     })
     
-    success = to.has.only.required && from.has.all.required && excess.from.dimensions.are.complete &&
-        !any(from.out.of.alignment.mask)
+    success = from.has.all.required && excess.from.dimensions.are.complete &&
+        !any(from.out.of.alignment.mask) &&
+        (to.has.only.required || (is.for.two.way && excess.to.dimensions.are.complete) )
 
     if (success)
     {
@@ -548,6 +553,7 @@ do.get.ontology.mapping <- function(from.ontology,
         else
             return (list(from=list(get.identity.ontology.mapping()), to=NULL))
     }
+#    browser()
     
     #we can only modify to.ontology by reversing when get.two.way.alignment==T
     if (!get.two.way.alignment && length(setdiff(required.dimensions, names(to.ontology)))>0) 
@@ -625,6 +631,7 @@ do.get.ontology.mapping <- function(from.ontology,
                                                           required.dimensions=required.dimensions,
                                                           required.dim.names=required.dim.names,
                                                           get.two.way.alignment=get.two.way.alignment,
+                                                          is.for.two.way=is.for.two.way,
                                                           allow.non.overlapping.incomplete.dimensions=allow.non.overlapping.incomplete.dimensions,
                                                           mappings = mappings.to.try.next)
             
@@ -648,7 +655,8 @@ do.get.ontology.mapping <- function(from.ontology,
                                                    # required.dim.names=required.dim.names,
                                                    required.dim.names=required.dim.names[from.out.of.alignment.mask],
                                                    allow.non.overlapping.incomplete.dimensions=allow.non.overlapping.incomplete.dimensions,
-                                                   get.two.way.alignment=F) #leave off mappings to reset to the default
+                                                   get.two.way.alignment=F,
+                                                   is.for.two.way = T) #leave off mappings to reset to the default
         
         if (is.null(reverse.mappings)) # We couldn't make it work
             NULL
