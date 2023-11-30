@@ -1244,7 +1244,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (is.null(from.ontology.names))
                     ontologies.used.names = source.ontology.names
                 else
-                    ontologies.used.names = intersect(source.ontology.name, from.ontology.names)
+                    ontologies.used.names = intersect(source.ontology.names, from.ontology.names)
                 pulled.source.data = NULL
                 source.lacks.denominator.data.flag = FALSE
                 
