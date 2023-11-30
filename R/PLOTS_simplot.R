@@ -208,26 +208,30 @@ simplot <- function(...,
 
     if (is.null(split.by)) {
         if (is.null(facet.by)) {
-            ggplot() +
+            rv = ggplot() +
                 geom_line(data=df.sim, aes(x=year, y=value, color=sim.name)) +
                 geom_point(data=df.truth, aes(x=year, y=value))
         } else {
-            ggplot() +
+            rv = ggplot() +
                 geom_line(data=df.sim, aes(x=year, y=value, color=sim.name)) +
                 geom_point(data=df.truth, aes(x=year, y=value)) +
                 facet_wrap(facet.formula, scales = 'free_y')
         }
     } else {
         if (is.null(facet.by)) {
-            ggplot() +
+            rv = ggplot() +
                 geom_line(data=df.sim, aes(x=year, y=value, color=!!sym(split.by))) +
                 geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
         } else {
-            ggplot() +
+            rv = ggplot() +
                 geom_line(data=df.sim, aes(x=year, y=value, color=!!sym(split.by))) +
                 geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by))) +
                 facet_wrap(facet.formula, scales = 'free_y')
         }
         
     }
+    
+    rv = rv + ylim(0,NA)
+    
+    rv
 }
