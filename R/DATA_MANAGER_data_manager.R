@@ -21,6 +21,16 @@ get.default.data.manager <- function()
     default.data.manager.holder$default.data.manager
 }
 
+#'@title Set the default data manager
+#'
+#'@export
+set.default.data.manager <- function(data.manager)
+{
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+    default.data.manager.holder$default.data.manager = data.manager
+}
+
 #'@title Create a JHEEM Data Manager
 #'
 #'@param name The name of the data manager
@@ -85,7 +95,8 @@ copy.data.manager <- function(data.manager = get.default.data.manager(),
                               description,
                               set.as.default=F)
 {
-
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     new.data.manager = JHEEM.DATA.MANAGER$new(name=name,
                                               description=description)
     new.data.manager$import.data(from.data.manager=data.manager)
@@ -1206,7 +1217,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                  keep.dimensions = keep.dimensions,
                                                                  dimension.values = dimension.values,
                                                                  return.target.to.universal.mapping = allow.mapping.from.target.ontology,
-                                                                 debug=debug)
+                                                                 debug=F)
                 target.to.universal.mapping = attr(target.ontology, 'target.to.universal.mapping')
                 if (!any(keep.dimensions %in% target.to.universal.mapping$to.dimensions))
                     target.to.universal.mapping = get.identity.ontology.mapping()
