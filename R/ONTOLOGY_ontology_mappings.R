@@ -287,7 +287,8 @@ register.ontology.mapping <- function(name,
                                                      from.dimensions=to.dimensions,
                                                      to.dimensions=from.dimensions,
                                                      from.values=to.values,
-                                                     to.values=from.values)
+                                                     to.values=from.values,
+                                                     reverse.of.name=name)
         
         
         equals.reverse.mapping = sapply(ONTOLOGY.MAPPING.MANAGER$mappings, function(other.mapping){
@@ -477,6 +478,7 @@ do.get.ontology.mapping <- function(from.ontology,
                                     get.two.way.alignment,
                                     allow.non.overlapping.incomplete.dimensions,
                                     is.for.two.way = get.two.way.alignment,
+                                    used.mappings=list(),
                                     mappings = c(ONTOLOGY.MAPPING.MANAGER$mappings,
                                                  list('age','other')))
 {
@@ -606,13 +608,18 @@ do.get.ontology.mapping <- function(from.ontology,
         }
         else
         {
+            is.reverse.of.used.mapping = as.logical(sapply(used.mappings, function(other.mapping){
+                mapping$is.reverse.of(other.mapping)
+            }))
+            
             try.mapping = mapping$can.apply.to.ontology(from.ontology,
                                                          error.prefix=error.prefix) &&
+                !any(is.reverse.of.used.mapping) &&
                 length(intersect(mapping$from.dimensions, dimensions.out.of.alignment)) > 0 #== length(dimensions.out.of.alignment)
             # not sure the second condition above is totally correct
             # ie, do we apply the mapping only if it only involves all dimensions out of alignment (what == length(dimensions.out.of.alignment)
             # or do we apply the mapping if it involves at least one dimension out of alignment (what >0 would give us)
-            
+
             mappings.to.try.next = mappings[-i]
         }
         
@@ -633,6 +640,7 @@ do.get.ontology.mapping <- function(from.ontology,
                                                           get.two.way.alignment=get.two.way.alignment,
                                                           is.for.two.way=is.for.two.way,
                                                           allow.non.overlapping.incomplete.dimensions=allow.non.overlapping.incomplete.dimensions,
+                                                          used.mappings=c(used.mappings, list(mapping)),
                                                           mappings = mappings.to.try.next)
             
             if (!is.null(additional.mappings)) # we succeeded and we're done! Append and go home
@@ -749,22 +757,22 @@ combine.ontology.mappings <- function(...)
             }
             mapped.dim.names[sub.mapping$to.dimensions] = sub.mapping$to.dim.names
         }
-        
-            
+          
         if (can.directly.combine)
         {
             combining.indices = get.every.combination(lapply(sub.mappings, function(sub.mapping){
                 1:sub.mapping$n.from.and.to.values
             }))
             
-            from.values = sapply(1:length(sub.mappings), function(i){
+            from.values = as.character(unlist(sapply(1:length(sub.mappings), function(i){
                 sub.mappings[[i]]$from.values[combining.indices[,i],]
-            })
-            to.values = sapply(1:length(sub.mappings), function(i){
+            })))
+            to.values = as.character(unlist(sapply(1:length(sub.mappings), function(i){
                 sub.mappings[[i]]$to.values[combining.indices[,i],]
-            })
-            
-            dim(from.values) = dim(to.values) = c(dim(combining.indices)[1], prod(dim(from.values))/dim(combining.indices)[1])
+            })))
+             
+            dim(from.values) = c(dim(combining.indices)[1], length(from.values)/dim(combining.indices)[1])
+            dim(to.values) = c(dim(combining.indices)[1], length(to.values)/dim(combining.indices)[1])
             
             from.dimension.chunks = lapply(sub.mappings, function(sub.mapping){
                 sub.mapping$from.dimensions
@@ -1372,6 +1380,11 @@ IDENTITY.ONTOLOGY.MAPPING = R6::R6Class(
         equals = function(other)
         {
             is(other, 'ontology.mapping') && other$is.identity.mapping
+        },
+        
+        is.reverse.of = function(other)
+        {
+            F
         }
     ),
     
@@ -1487,7 +1500,8 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                               to.values,
                               from.dimension.chunks = list(from.dimensions),
                               to.dimension.chunks = list(to.dimensions),
-                              component.names=name)
+                              component.names=name,
+                              reverse.of.name=NULL)
         {
             super$initialize(name, component.names = component.names)
             
@@ -1506,8 +1520,8 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
             from.order = order(from.dimensions)
             to.order = order(to.dimensions)
             
-            na.from.mask = apply(is.na(from.values), 1, all)[row.order]
-            na.to.mask = apply(is.na(to.values), 1, all)[row.order]
+            na.from.mask = apply(is.na(from.values), 1, any)[row.order]
+            na.to.mask = apply(is.na(to.values), 1, any)[row.order]
             
             private$i.from.dimensions = from.dimensions[from.order]
             private$i.to.dimensions = to.dimensions[to.order]
@@ -1531,6 +1545,8 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                 unique(private$i.to.values[!na.to.mask,d])
             })
             names(private$i.unique.to.values) = private$i.to.dimensions
+            
+            private$i.reverse.of.name = reverse.of.name
         },
 
         equals = function(other)
@@ -1541,6 +1557,13 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                 all(self$to.dimensions == other$to.dimensions) &&
                 identical(self$from.values, other$from.values) &&
                 identical(self$to.values, other$to.values)
+        },
+        
+        is.reverse.of = function(other)
+        {
+            is(other, 'basic.ontology.mapping') &&
+                ((!is.null(private$i.reverse.of.name) && other$name == private$i.reverse.of.name) ||
+                 (!is.null(other$reverse.of.name) && private$i.name == other$reverse.of.name))
         }
     ),
     
@@ -1584,6 +1607,14 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                 private$i.unique.to.values
             else
                 stop("Cannot set value for 'to.dim.names' in ontology.mapping - they are read-only")
+        },
+        
+        reverse.of.name = function(value)
+        {
+            if (missing(value))
+                private$i.reverse.of.name
+            else
+                stop("Cannot set value for 'reverse.of.name' in ontology.mapping - it is read-only")
         }
     ),
     
@@ -1604,6 +1635,8 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
         
         i.unique.from.values = NULL,
         i.unique.to.values = NULL,
+        
+        i.reverse.of.name = NULL,
         
         do.apply.sum = function(from.arr,
                                  to.dim.names,
@@ -2112,7 +2145,7 @@ initial.check.can.apply <- function(mapping,
                     missing.values = setdiff(mapping$from.dim.names[[d]], from.dim.names[[d]])
                     
                     if (length(extra.values)>0)
-                        extra.msg = paste0("contains",
+                        extra.msg = paste0("contains ",
                                            ifelse(length(extra.values)==1, 'an extraneous value', 'extraneous values'),
                                            " (", collapse.with.and("'", extra.values, "'"), ") that ",
                                            ifelse(length(extra.values)==1, 'is', 'are'),
