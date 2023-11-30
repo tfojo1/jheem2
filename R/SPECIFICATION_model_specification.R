@@ -4286,15 +4286,15 @@ MODEL.ELEMENT = R6::R6Class(
                 # make sure it is numeric, non-empty, non-NA
                 if (!is.numeric(value))
                     stop(paste0(error.prefix, "Evaluating ", get.value.function.name, " for model element ",
-                                private$get.original.name(wrt.version = specification.metadata$version),
+                                self$get.original.name(wrt.version = specification.metadata$version),
                                 " yields a non-numeric value"))
                 if (length(value)==0)
                     stop(paste0(error.prefix, "Evaluating ", get.value.function.name, " for model element ",
-                                private$get.original.name(wrt.version = specification.metadata$version),
+                                self$get.original.name(wrt.version = specification.metadata$version),
                                 " yields an empty (length-zero) value"))
                 if (any(is.na(value)))
                     stop(paste0(error.prefix, "Evaluating ", get.value.function.name, " for model element ",
-                                private$get.original.name(wrt.version = specification.metadata$version),
+                                self$get.original.name(wrt.version = specification.metadata$version),
                                 " yields NAs"))
                 
                 # make sure it accords with the expected max.dim.names
@@ -4331,7 +4331,7 @@ MODEL.ELEMENT = R6::R6Class(
                 # make sure it is a functional form object
                 if (!is(functional.form, 'functional.form'))
                     stop(paste0(error.prefix, "Evaluating ", get.functional.form.function.name, " for model element ",
-                                private$get.original.name(wrt.version = specification.metadata$version),
+                                self$get.original.name(wrt.version = specification.metadata$version),
                                 " yields a value that is NOT an object of class 'functional.form'"))
                     
                 # make sure it's minimum.dim.names accords with the expected max.dim.names
@@ -4345,7 +4345,7 @@ MODEL.ELEMENT = R6::R6Class(
                 if (private$i.must.be.static && !functional.form$is.static)
                 {
                     stop(paste0(error.prefix, "evaluating ", get.functional.form.function.name, " for model element ",
-                                private$get.original.name(wrt.version = specification.metadata$version),
+                                self$get.original.name(wrt.version = specification.metadata$version),
                                 " yields a functional.form that is NOT static but, according to the outcomes defined in the model specification, it MUST be static."))
                 }
                 
@@ -4354,7 +4354,7 @@ MODEL.ELEMENT = R6::R6Class(
                     (is.null(private$i.functional.form.from.time) || is.null(private$i.functional.form.to.time)))
                 {
                     stop(paste0(error.prefix, "evaluating ", get.functional.form.function.name, " for model element ",
-                                private$get.original.name(wrt.version = specification.metadata$version),
+                                self$get.original.name(wrt.version = specification.metadata$version),
                                 " yields a functional.form that is NOT static. However, no functional.form.from.time or functional.form.to.time were set for the element. These must either be set, or ",
                                 get.functional.form.function.name, " must return a static functional form"))
                 }
