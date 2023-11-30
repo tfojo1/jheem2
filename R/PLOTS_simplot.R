@@ -126,7 +126,6 @@ simplot <- function(...,
         #     stop(paste0("No corresponding observed outcome found for outcome '", outcome, "'")) # Shouldn't happen
         corresponding.observed.outcome
     })
-    # browser()
     
     outcome.ontologies = lapply(outcomes, function(outcome) {
         outcome.ontology = NULL
@@ -148,7 +147,7 @@ simplot <- function(...,
     
     #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
 
-    outcome.mappings = list()
+    outcome.mappings = list() # note: not all outcomes will have corresponding data outcomes
     
     df.truth = NULL
     for (i in seq_along(outcomes.for.data))
@@ -170,7 +169,12 @@ simplot <- function(...,
             df.truth = rbind(df.truth, one.df.outcome)
             # browser()
         }
+        else
+        {
+            outcome.mappings = c(outcome.mappings, list(NULL))
+        }
     }
+
     names(outcome.mappings) = outcomes
 
     #-- STEP 3: MAKE A DATA FRAME WITH ALL THE SIMULATIONS' DATA --#
@@ -190,7 +194,10 @@ simplot <- function(...,
                                                           dimension.values = list(outcome = outcome))],
                         dim = sapply(dim.names.without.outcome, length),
                         dimnames = dim.names.without.outcome)
-            outcome.mappings[[outcome]]$apply(arr)
+            if (!is.null(outcome.mappings[[outcome]]))
+                outcome.mappings[[outcome]]$apply(arr)
+            else
+                arr
         })
         mapped.dimnames = c(dimnames(outcome.arrays[[1]]), list(outcome = outcomes))
         mapped.sim.data = array(unlist(outcome.arrays), dim=sapply(mapped.dimnames, length), dimnames = mapped.dimnames)
@@ -202,36 +209,40 @@ simplot <- function(...,
     }
     
     #- STEP 4: MAKE THE PLOT --#
-    
+
     facet.formula = as.formula(paste0("~",
                                       paste0(c('outcome', facet.by), collapse='+')))
 
     if (is.null(split.by)) {
         if (is.null(facet.by)) {
             rv = ggplot() +
-                geom_line(data=df.sim, aes(x=year, y=value, color=sim.name)) +
-                geom_point(data=df.truth, aes(x=year, y=value))
+                geom_line(data=df.sim, aes(x=year, y=value, color=sim.name))
+            if (!is.null(df.truth))
+                rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
         } else {
             rv = ggplot() +
                 geom_line(data=df.sim, aes(x=year, y=value, color=sim.name)) +
-                geom_point(data=df.truth, aes(x=year, y=value)) +
                 facet_wrap(facet.formula, scales = 'free_y')
+            if (!is.null(df.truth))
+                rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
         }
     } else {
         if (is.null(facet.by)) {
             rv = ggplot() +
-                geom_line(data=df.sim, aes(x=year, y=value, color=!!sym(split.by))) +
-                geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
+                geom_line(data=df.sim, aes(x=year, y=value, color=!!sym(split.by)))
+            if (!is.null(df.truth))
+                rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
         } else {
             rv = ggplot() +
                 geom_line(data=df.sim, aes(x=year, y=value, color=!!sym(split.by))) +
-                geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by))) +
                 facet_wrap(facet.formula, scales = 'free_y')
+            if (!is.null(df.truth))
+                rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
         }
         
     }
     
     rv = rv + ylim(0,NA)
-    
+
     rv
 }
