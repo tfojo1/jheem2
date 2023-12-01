@@ -44,4 +44,10 @@ source('../jheem2/R/JHEEM_simulation.R')
 source('../jheem2/R/DATA_MANAGER_data_manager.R')
 source('../jheem2/R/PLOTS_simplot.R')
 
+source('../jheem2/R/LIKELIHOODS_basic_likelihood.R')
+source('../jheem2/R/LIKELIHOODS_main.R')
+source('../jheem2/R/LIKELIHOODS_joint_likelihood.R')
+source('../jheem2/R/LIKELIHOODS_nested_proportion_likelihood.R')
+source('../jheem2/R/LIKELIHOODS_bernoulli_likelihood.R')
+
 Rcpp::sourceCpp('../jheem2/src/misc_helpers.cpp')
