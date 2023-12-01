@@ -212,7 +212,7 @@ simplot <- function(...,
 
     facet.formula = as.formula(paste0("~",
                                       paste0(c('outcome', facet.by), collapse='+')))
-    rv = ggplot() + ylim(0,NA) + scale_y_continuous(labels = scales::comma)
+    rv = ggplot() + scale_y_continuous(limits=c(0, NA), labels = scales::comma)
     if (is.null(split.by)) {
         if (is.null(facet.by)) {
             rv = rv +
