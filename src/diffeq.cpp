@@ -994,7 +994,6 @@ if (debug)
         double distributed_infections;
         int uninfected_state_index;
         int infected_state_index;
-        double fraction_of_force_of_infection_per_from_contact;
         
         // Iterate through the to categories in the matrix (columns)
         for (int to=0; to<n_to_contacts; to++)
@@ -1125,7 +1124,7 @@ if (debug)
     int n_remissions = remission_info.length();
     for (int i_remission=0; i_remission<n_remissions; i_remission++)
     {
-        List one_remission_info = one_remission_info[i_remission];
+        List one_remission_info = remission_info[i_remission];
         
         // Pull remission rate and indices
         int remission_quantity_index = one_remission_info["remission_quantity_index"];
