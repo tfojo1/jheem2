@@ -692,6 +692,8 @@ if (debug)
         IntegerVector birth_proportion_indices;
         for (int from=0; from<n_parent_categories; from++)
         {
+            births_from  = 0;
+            
             // Calculate the Births
             IntegerVector parent_category_state_indices = state_indices_for_parent_categories[from];
             IntegerVector parent_category_fertility_rate_indices = fertility_rate_indices_for_parent_categories[from];
