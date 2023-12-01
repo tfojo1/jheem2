@@ -655,6 +655,11 @@ JHEEM.ENGINE = R6::R6Class(
                                    check.consistency = private$i.check.consistency)
             
             private$i.check.consistency = F
+        },
+        
+        test = function()
+        {
+            private$i.jheem$test()
         }
     ),
     
@@ -827,6 +832,9 @@ JHEEM = R6::R6Class(
                                                  atol = atol,
                                                  rtol = rtol)
             
+            private$i.outcome.numerators = list()
+            private$i.outcome.denominators = list()
+            
             # Process the Results
             outcome.numerators.and.denominators = private$prepare.outcomes.for.sim(ode.results)
             
@@ -845,6 +853,11 @@ JHEEM = R6::R6Class(
             
             # Return
             sim
+        },
+        
+        test = function()
+        {
+            browser()
         },
         
         ##------------------------------##

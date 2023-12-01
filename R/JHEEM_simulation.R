@@ -595,7 +595,7 @@ JHEEM.SIMULATION = R6::R6Class(
         parameters = function(value)
         {
             if (missing(value))
-                names(private$i.parameters)
+                private$i.parameters
             else
                 stop("Cannot modify a simulation's 'parameters' - they are read-only")
         }
