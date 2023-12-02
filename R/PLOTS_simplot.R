@@ -208,6 +208,8 @@ simplot <- function(...,
         df.sim = rbind(df.sim, one.df.sim)
     }
     
+    df.sim$sim.name = factor(df.sim$sim.name)
+    
     #- STEP 4: MAKE THE PLOT --#
 
     facet.formula = as.formula(paste0("~",
@@ -231,16 +233,20 @@ simplot <- function(...,
             rv = rv +
                 geom_line(data=df.sim, aes(x=year, y=value, color=!!sym(split.by)))
             if (!is.null(df.truth))
-                rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
+                rv = rv + geom_point(data=df.truth, aes(x=year, y=value, group=sim.name,
+                                                        color=!!sym(split.by)))
         } else {
             rv = rv +
                 geom_line(data=df.sim, aes(x=year, y=value, color=!!sym(split.by))) +
                 facet_wrap(facet.formula, scales = 'free_y')
             if (!is.null(df.truth))
-                rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
+                rv = rv + geom_point(data=df.truth, aes(x=year, y=value, group=sim.name,
+                                                        color=!!sym(split.by)))
         }
         
     }
+    
+    rv = rv + scale_color_discrete()
 
     rv
 }
