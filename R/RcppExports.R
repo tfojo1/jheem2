@@ -17,6 +17,10 @@ add_scalar_to_arr <- function(dst, to_add) {
     .Call(`_jheem2_add_scalar_to_arr`, dst, to_add)
 }
 
+do_collapse_according_to_indices <- function(arr, large_indices, small_indices, small_n) {
+    .Call(`_jheem2_do_collapse_according_to_indices`, arr, large_indices, small_indices, small_n)
+}
+
 do_array_overwrite <- function(dst_array, src_array, dimension_values) {
     .Call(`_jheem2_do_array_overwrite`, dst_array, src_array, dimension_values)
 }
@@ -25,8 +29,8 @@ do_expand_array <- function(dst_array, src_array) {
     .Call(`_jheem2_do_expand_array`, dst_array, src_array)
 }
 
-do_get_expand_indices <- function(dst_array, src_dim_names) {
-    .Call(`_jheem2_do_get_expand_indices`, dst_array, src_dim_names)
+do_get_expand_indices <- function(dst_array, src_dim_names, index_from) {
+    .Call(`_jheem2_do_get_expand_indices`, dst_array, src_dim_names, index_from)
 }
 
 do_access_overwrite <- function(dst, src, dst_indices, src_indices) {
@@ -85,6 +89,10 @@ do_add_or_set_four_way_interaction_alphas_to_arr <- function(arr, dims, dim1, di
     invisible(.Call(`_jheem2_do_add_or_set_four_way_interaction_alphas_to_arr`, arr, dims, dim1, dim1_values, dim2, dim2_values, dim3, dim3_values, dim4, dim4_values, values, add))
 }
 
+character_vectors_overlap <- function(x, y) {
+    .Call(`_jheem2_character_vectors_overlap`, x, y)
+}
+
 sorted_vectors_overlap <- function(x, y) {
     .Call(`_jheem2_sorted_vectors_overlap`, x, y)
 }
@@ -95,6 +103,14 @@ setdiff_sorted_vectors <- function(x, y) {
 
 union_sorted_vectors <- function(vectors) {
     .Call(`_jheem2_union_sorted_vectors`, vectors)
+}
+
+intersect_sorted_vectors <- function(vectors) {
+    .Call(`_jheem2_intersect_sorted_vectors`, vectors)
+}
+
+interpolate_sorted_vectors <- function(v1, v2, indicator1, indicator2) {
+    .Call(`_jheem2_interpolate_sorted_vectors`, v1, v2, indicator1, indicator2)
 }
 
 apply_ontology_mapping <- function(src, dst, from_values, to_values, na_rm) {

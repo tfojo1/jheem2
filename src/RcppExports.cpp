@@ -62,6 +62,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// do_collapse_according_to_indices
+NumericVector do_collapse_according_to_indices(NumericVector arr, IntegerVector large_indices, IntegerVector small_indices, int small_n);
+RcppExport SEXP _jheem2_do_collapse_according_to_indices(SEXP arrSEXP, SEXP large_indicesSEXP, SEXP small_indicesSEXP, SEXP small_nSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type arr(arrSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type large_indices(large_indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type small_indices(small_indicesSEXP);
+    Rcpp::traits::input_parameter< int >::type small_n(small_nSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_collapse_according_to_indices(arr, large_indices, small_indices, small_n));
+    return rcpp_result_gen;
+END_RCPP
+}
 // do_array_overwrite
 RObject do_array_overwrite(NumericVector dst_array, NumericVector src_array, List dimension_values);
 RcppExport SEXP _jheem2_do_array_overwrite(SEXP dst_arraySEXP, SEXP src_arraySEXP, SEXP dimension_valuesSEXP) {
@@ -88,14 +102,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // do_get_expand_indices
-RObject do_get_expand_indices(IntegerVector dst_array, List src_dim_names);
-RcppExport SEXP _jheem2_do_get_expand_indices(SEXP dst_arraySEXP, SEXP src_dim_namesSEXP) {
+RObject do_get_expand_indices(IntegerVector dst_array, List src_dim_names, int index_from);
+RcppExport SEXP _jheem2_do_get_expand_indices(SEXP dst_arraySEXP, SEXP src_dim_namesSEXP, SEXP index_fromSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< IntegerVector >::type dst_array(dst_arraySEXP);
     Rcpp::traits::input_parameter< List >::type src_dim_names(src_dim_namesSEXP);
-    rcpp_result_gen = Rcpp::wrap(do_get_expand_indices(dst_array, src_dim_names));
+    Rcpp::traits::input_parameter< int >::type index_from(index_fromSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_get_expand_indices(dst_array, src_dim_names, index_from));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -327,6 +342,18 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// character_vectors_overlap
+bool character_vectors_overlap(CharacterVector x, CharacterVector y);
+RcppExport SEXP _jheem2_character_vectors_overlap(SEXP xSEXP, SEXP ySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< CharacterVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type y(ySEXP);
+    rcpp_result_gen = Rcpp::wrap(character_vectors_overlap(x, y));
+    return rcpp_result_gen;
+END_RCPP
+}
 // sorted_vectors_overlap
 bool sorted_vectors_overlap(NumericVector x, NumericVector y);
 RcppExport SEXP _jheem2_sorted_vectors_overlap(SEXP xSEXP, SEXP ySEXP) {
@@ -359,6 +386,31 @@ BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< List >::type vectors(vectorsSEXP);
     rcpp_result_gen = Rcpp::wrap(union_sorted_vectors(vectors));
+    return rcpp_result_gen;
+END_RCPP
+}
+// intersect_sorted_vectors
+RObject intersect_sorted_vectors(List vectors);
+RcppExport SEXP _jheem2_intersect_sorted_vectors(SEXP vectorsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type vectors(vectorsSEXP);
+    rcpp_result_gen = Rcpp::wrap(intersect_sorted_vectors(vectors));
+    return rcpp_result_gen;
+END_RCPP
+}
+// interpolate_sorted_vectors
+List interpolate_sorted_vectors(NumericVector v1, NumericVector v2, bool indicator1, bool indicator2);
+RcppExport SEXP _jheem2_interpolate_sorted_vectors(SEXP v1SEXP, SEXP v2SEXP, SEXP indicator1SEXP, SEXP indicator2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type v1(v1SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type v2(v2SEXP);
+    Rcpp::traits::input_parameter< bool >::type indicator1(indicator1SEXP);
+    Rcpp::traits::input_parameter< bool >::type indicator2(indicator2SEXP);
+    rcpp_result_gen = Rcpp::wrap(interpolate_sorted_vectors(v1, v2, indicator1, indicator2));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -412,9 +464,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_jheem2_add_to_arr", (DL_FUNC) &_jheem2_add_to_arr, 4},
     {"_jheem2_overwrite_arr_with_scalar", (DL_FUNC) &_jheem2_overwrite_arr_with_scalar, 2},
     {"_jheem2_add_scalar_to_arr", (DL_FUNC) &_jheem2_add_scalar_to_arr, 2},
+    {"_jheem2_do_collapse_according_to_indices", (DL_FUNC) &_jheem2_do_collapse_according_to_indices, 4},
     {"_jheem2_do_array_overwrite", (DL_FUNC) &_jheem2_do_array_overwrite, 3},
     {"_jheem2_do_expand_array", (DL_FUNC) &_jheem2_do_expand_array, 2},
-    {"_jheem2_do_get_expand_indices", (DL_FUNC) &_jheem2_do_get_expand_indices, 2},
+    {"_jheem2_do_get_expand_indices", (DL_FUNC) &_jheem2_do_get_expand_indices, 3},
     {"_jheem2_do_access_overwrite", (DL_FUNC) &_jheem2_do_access_overwrite, 4},
     {"_jheem2_do_access_add", (DL_FUNC) &_jheem2_do_access_add, 4},
     {"_jheem2_do_access_subtract", (DL_FUNC) &_jheem2_do_access_subtract, 4},
@@ -429,9 +482,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_jheem2_do_add_or_set_two_way_interaction_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_or_set_two_way_interaction_alphas_to_arr, 8},
     {"_jheem2_do_add_or_set_three_way_interaction_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_or_set_three_way_interaction_alphas_to_arr, 10},
     {"_jheem2_do_add_or_set_four_way_interaction_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_or_set_four_way_interaction_alphas_to_arr, 12},
+    {"_jheem2_character_vectors_overlap", (DL_FUNC) &_jheem2_character_vectors_overlap, 2},
     {"_jheem2_sorted_vectors_overlap", (DL_FUNC) &_jheem2_sorted_vectors_overlap, 2},
     {"_jheem2_setdiff_sorted_vectors", (DL_FUNC) &_jheem2_setdiff_sorted_vectors, 2},
     {"_jheem2_union_sorted_vectors", (DL_FUNC) &_jheem2_union_sorted_vectors, 1},
+    {"_jheem2_intersect_sorted_vectors", (DL_FUNC) &_jheem2_intersect_sorted_vectors, 1},
+    {"_jheem2_interpolate_sorted_vectors", (DL_FUNC) &_jheem2_interpolate_sorted_vectors, 4},
     {"_jheem2_apply_ontology_mapping", (DL_FUNC) &_jheem2_apply_ontology_mapping, 5},
     {"_jheem2_get_ontology_mapping_matrix", (DL_FUNC) &_jheem2_get_ontology_mapping_matrix, 5},
     {"_jheem2_get_ontology_mapping_indices", (DL_FUNC) &_jheem2_get_ontology_mapping_indices, 4},
