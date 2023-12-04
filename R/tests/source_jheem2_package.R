@@ -49,5 +49,8 @@ source('../jheem2/R/LIKELIHOODS_main.R')
 source('../jheem2/R/LIKELIHOODS_joint_likelihood.R')
 source('../jheem2/R/LIKELIHOODS_nested_proportion_likelihood.R')
 source('../jheem2/R/LIKELIHOODS_bernoulli_likelihood.R')
+Rcpp::sourceCpp('../jheem2/src/correlation_matrix_helpers.cpp')
+Rcpp::sourceCpp('../jheem2/src/likelihood_helpers.cpp')
+Rcpp::sourceCpp('../jheem2/src/nested_proportion_likelihood.cpp')
 
 Rcpp::sourceCpp('../jheem2/src/misc_helpers.cpp')

@@ -291,7 +291,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              denominator.measurement.error.cv = 0.05,
                                                              n.multiplier.cv = 0.1,
                                                              weights,
-                                                             equalize.weight.by.year = F,
+                                                             equalize.weight.by.year = T,
                                                              
                                                              partitioning.function)
 {
@@ -647,7 +647,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                              location = location,
                              error.prefix = error.prefix)
             
-            
+            # Validate *data.manager*, a 'jheem.data.manager' object
+            if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+                stop(paste0(error.prefix, "'data.manager' must be an R6 object with class 'jheem.data.manager'"))
             
             # --- UNPACK INSTRUCTIONS --- #
 

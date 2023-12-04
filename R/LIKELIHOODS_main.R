@@ -66,18 +66,43 @@ register.likelihood.instructions = function(instructions,
     
 }
 
+#'@param codes One or more valid codes
+#'@param throw.error.if.code.not.registered Should an error be thrown listing any codes that are not already registered?
+#'
+#'@export
+remove.likelihood.instructions = function(codes,
+                                          throw.error.if.code.not.registered = F,
+                                          error.prefix = "Error removing likelihood instructions: ")
+{
+    # *code* is no more than 5 characters and contains only numbers, letters, periods, and dashes
+    if (!is.character(code) || any(is.na(code)) || any(duplicated(codes)))
+        stop(paste0(error.prefix, "'codes' must be a character vector containing no NAs or duplicates"))
+    
+    if (any(nchar(code) > 5) || any(sapply(codes, function(code) {string.contains.invalid.characters(code, NUMBERS.LETTERS.DASH.PERIOD)})))
+        stop(paste0(error.prefix, "all codes in 'codes' must be no more than 5 characters and contain only numbers, letters, periods, and dashes"))
+    
+    code.is.registered = sapply(codes, function(code) {code %in% names(LIKELIHOOD.INSTRUCTIONS.MANAGER)})
+    
+    if (throw.error.if.code.not.registered && any(!code.is.registered)) {
+            stop(paste0(error.prefix, "the following codes are not registered: ", paste0(names(code.is.registered)[!code.is.registered], collapse=', ')))
+    }
+    
+    rm(list=codes[code.is.registered], envir=LIKELIHOOD.INSTRUCTIONS.MANAGER)
+    
+}
+
 #' @param code A valid code containing only letters, numbers, dashes, and periods.
 #' @param error.prefix A message to include in error messages.
 #' 
 get.likelihood.instructions = function(code, error.prefix = "Error getting likelihood instructions")
 {
     # *error.prefix* is a single non-NA, non-empty character vector
-    if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix))
+    if (!is.character(error.prefix) || length(error.prefix) > 1 || is.na(error.prefix))
         stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
     
     # *code* is no more than 5 characters and contains only numbers, letters, periods, and dashes
-    if (!is.character(code) || length(code) > 1 || is.null(code) || is.na(code) || nchar(code) > 5 || string.contains.invalid.characters(code, NUMBERS.LETTERS.DASH.PERIOD))
-        stop(paste0(error.prefix, "code must be no more than 5 characters and contain only numbers, letters, periods, and dashes"))
+    if (!is.character(code) || length(code) > 1 || is.na(code) || nchar(code) > 5 || string.contains.invalid.characters(code, NUMBERS.LETTERS.DASH.PERIOD))
+        stop(paste0(error.prefix, "'code' must be no more than 5 characters and contain only numbers, letters, periods, and dashes"))
 
     LIKELIHOOD.INSTRUCTIONS.MANAGER[[code]]
 }
@@ -150,7 +175,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         
         instantiate.likelihood = function(version,
                                           location,
-                                          data.manager = NULL, #Bernoulli's don't need this or the next argument
+                                          data.manager = get.default.data.manager(), #Bernoulli's don't need this or the next argument
                                           throw.error.if.no.data = F,
                                           error.prefix = 'Error instantiating likelihood: ')
         {

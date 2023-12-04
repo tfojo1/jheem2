@@ -37,7 +37,7 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
                                                  measurement.error.coefficient.of.variance,
                                                  weights = list(),
-                                                 equalize.weight.by.year = F)
+                                                 equalize.weight.by.year = T)
 {
     
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
@@ -111,10 +111,10 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             # *levels.of.stratification* -- validated in the super$initialize
             
             # *from.year* and *to.year* are single integer vectors. *to.year* must be larger than *from.year*.
-            if (from.year != -Inf && (!is.integer(from.year) || length(from.year) > 1 || is.null(from.year) || is.na(from.year)))
-                stop(paste0(error.prefix, "'from.year' must be -Inf or an integer vector of length 1"))
-            if (to.year != Inf && (!is.integer(to.year) || length(to.year) > 1 || is.null(to.year) || is.na(to.year)))
-                stop(paste0(error.prefix, "'to.year' must be Inf or an integer vector of length 1"))
+            if (from.year != -Inf && (!is.numeric(from.year) || length(from.year) > 1 || is.null(from.year) || is.na(from.year)))
+                stop(paste0(error.prefix, "'from.year' must be -Inf or a numeric vector of length 1"))
+            if (to.year != Inf && (!is.numeric(to.year) || length(to.year) > 1 || is.null(to.year) || is.na(to.year)))
+                stop(paste0(error.prefix, "'to.year' must be Inf or a numeric vector of length 1"))
             if (from.year > to.year)
                 stop(paste0(error.prefix, "'from.year' must be less than 'to.year'"))
             
@@ -328,15 +328,14 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                              version = version,
                              location = location,
                              error.prefix = error.prefix)
-            
+
             # Validate *data.manager*, a 'jheem.data.manager' object
             if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
-                stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+                stop(paste0(error.prefix, "'data.manager' must be an R6 object with class 'jheem.data.manager'"))
             
             private$i.parameters = instructions$parameters
             private$i.outcome.for.data = instructions$outcome.for.data
             private$i.denominator.outcome.for.sim = instructions$denominator.outcome.for.sim
-            
             
             ## ---- DETERMINE YEARS FOR SIM METADATA ---- ##
             years = get.likelihood.years(from.year = instructions$from.year,
@@ -352,8 +351,19 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                    from.year = years[[1]],
                                                    to.year = years[[length(years)]])
             
-            if(!(private$i.denominator.outcome.for.sim %in% sim.metadata$outcomes))
+            if(!is.null(private$i.denominator.outcome.for.sim) && !(private$i.denominator.outcome.for.sim %in% sim.metadata$outcomes))
                 stop(paste0(error.prefix, private$i.denominator.for.sim, " is not a simulation outcome in this specification"))
+
+            scale = sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$scale
+            if (!(scale %in% c('non.negative.number', 'number', 'proportion')))
+                stop(paste0(error.prefix, "'outcome.for.sim' must be a non.negative.number, number, or proportion"))
+            private$i.outcome.is.proportion = scale == 'proportion'
+            
+            if (private$i.outcome.is.proportion && is.null(private$i.denominator.outcome.for.sim)) {
+                private$i.denominator.outcome.for.sim = sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$denominator.outcome
+                if (is.null(private$i.denominator.outcome.for.sim))
+                    stop(paste0(error.prefix, "denominator data expected for this outcome but not found"))
+            }
 
             private$i.sim.ontology = sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
             private$i.sim.ontology$year = as.character(years)
@@ -508,6 +518,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         
         i.outcome.for.data = NULL,
         i.denominator.outcome.for.sim = NULL,
+        i.outcome.is.proportion = NULL,
 
         i.obs.vector = NULL,
         i.details = NULL,
@@ -543,6 +554,14 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 expanded.sim.denominator.data = expand.array(sim.denominator.data, dimnames(sim.numerator.data))
             }
             
+            # Re-purpose likelihood mean code to find aggregated N matrix (diagonal, so treated as vector)
+            if (private$i.outcome.is.proportion) {
+                n.vector = get_basic_likelihood_mean(expanded.sim.denominator.data,
+                                                     private$i.transformation.matrix.row.oriented.indices,
+                                                     length(private$i.obs.vector),
+                                                     n.vector = numeric(length(private$i.obs.vector)))
+            }
+            
             # Warning! These don't throw an error when sim.numerator.data isn't long enough!
             mean = get_basic_likelihood_mean(sim.numerator.data,
                                              private$i.transformation.matrix.row.oriented.indices,
@@ -562,11 +581,18 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             # # --- #
             sigma = sigma * private$i.inverse.variance.weights.matrix
             
-            likelihood = mvtnorm::dmvnorm(private$i.obs.vector,
-                                          mean = mean,
-                                          sigma = matrix(sigma, nrow=length(private$i.obs.vector), ncol=length(private$i.obs.vector)),
-                                          log=T,
-                                          checkSymmetry = F)
+            if (private$i.outcome.is.proportion)
+                likelihood = mvtnorm::dmvnorm(private$i.obs.vector * n.vector,
+                                              mean = mean,
+                                              sigma = matrix(sigma, nrow=length(private$i.obs.vector), ncol=length(private$i.obs.vector)),
+                                              log=T,
+                                              checkSymmetry = F)
+            else
+                likelihood = mvtnorm::dmvnorm(private$i.obs.vector,
+                                              mean = mean,
+                                              sigma = matrix(sigma, nrow=length(private$i.obs.vector), ncol=length(private$i.obs.vector)),
+                                              log=T,
+                                              checkSymmetry = F)
             
             # verify.matrix.operation.correctness(sim.denominator.data,
             #                                     sim.numerator.data,
