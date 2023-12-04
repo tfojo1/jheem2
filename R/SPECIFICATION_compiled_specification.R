@@ -2324,10 +2324,13 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
             
             # Check that applies to is a subset of the rv
             if (!dim.names.are.subset(sub.dim.names = private$i.applies.to, super.dim.names = rv))
+    {
+        browser()
                 stop(paste0(error.prefix, "The applies.to for the top-level reference using '", private$i.value.quantity.name, 
                             "' is not a subset of the dim.names derived from the ontology ('", private$i.ontology.name, "')",
                             ifelse(length(private$i.exclude.ontology.dimensions)==1, '', 
                                    paste0(" less dimension(s) ", collapse.with.and("'", private$i.exclude.ontology.dimensions, "'")))))
+    }
             
             rv = rv[setdiff(names(rv), private$i.exclude.ontology.dimensions)]
             

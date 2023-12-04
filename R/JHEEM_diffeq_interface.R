@@ -538,6 +538,7 @@ prepare.infections.info <- function(settings, quantity.dim.names,
         infected.ontology = settings$ontologies$infected
         uninfected.ontology = settings$ontologies$uninfected
         
+
         # Parse contact matrix
         contact.quantity.dim.names = quantity.dim.names[[comp$contact]]
         
@@ -560,7 +561,7 @@ prepare.infections.info <- function(settings, quantity.dim.names,
         new.infection.proportions.quantity.dim.names = quantity.dim.names[[comp$new.infection.proportions]]
         
         # Parse outcomes
-        outcome.names = settings$outcome.names.by.core.component$transition[[i]]
+        outcome.names = settings$outcome.names.by.core.component$transmission[[i]]
         outcome.trackable.types = sapply(settings$outcomes[outcome.names], function(outcome){outcome$trackable.type})
         
         # Set up indices for from/infected/transmitting
@@ -668,6 +669,8 @@ prepare.infections.info <- function(settings, quantity.dim.names,
             })
         })
         
+        # Pull dim names into which new infections can go
+        new.infection.dim.names = new.infection.proportions.dim.names[infected.dimensions]
         
         # Package it up
         list(
@@ -705,7 +708,7 @@ prepare.infections.info <- function(settings, quantity.dim.names,
                                            prepare.tracker,
                                            settings = settings,
                                            quantity.dim.names = quantity.dim.names,
-                                           subset.dim.names = XX, #into proportions subset
+                                           subset.dim.names = new.infection.dim.names,
                                            group = 'infected',
                                            check.consistency = check.consistency,
                                            error.prefix = error.prefix),
@@ -1009,13 +1012,6 @@ prepare.tracker <- function(outcome.name,
                         "Cannot set up outcome tracking for '", outcome.name,
                         "' - the dim.names of interest for tracking to the outcome are not a subset of the dim.names for the '",
                         group, "' group"))
-        
-        if (!dim.names.are.subset(sub.dim.names = outcome.dim.names,
-                                  super.dim.names = subset.dim.names))
-            stop(paste0(error.prefix,
-                        "Cannot set up outcome tracking for '", outcome.name,
-                        "' - the dim.names for the outcome are not a subset of the dim.names for the '",
-                        group, "' group"))
     }
     
     subset.to.group.indices = get.array.access.indices(arr.dim.names = group.ontology,
@@ -1023,7 +1019,10 @@ prepare.tracker <- function(outcome.name,
                                                        index.from = 0)
 
     # the subset of subset.dim.names that is needed to map outcome.dim.names
-    intersected.dim.names = outcome.dim.names
+    relevant.outcome.dim.names = intersect.shared.dim.names(outcome.dim.names,
+                                                            subset.dim.names)
+    intersected.dim.names = relevant.outcome.dim.names
+    
     if (!is.null(outcome$subset.dimension.values))
         intersected.dim.names = intersect.joined.dim.names(intersected.dim.names, 
                                                            outcome$subset.dimension.values)
@@ -1037,9 +1036,8 @@ prepare.tracker <- function(outcome.name,
     
     intersected.indices.into.group = subset.to.group.indices[intersected.indices.into.subset]
     
-    
     outcome.indices.into.intersected = get.array.access.indices(arr.dim.names = intersected.dim.names,
-                                                                dimension.values = outcome.dim.names)
+                                                                dimension.values = relevant.outcome.dim.names)
     
     intersected.indices.into.outcome = get.expand.array.indices(to.expand.dim.names = outcome.dim.names,
                                                                 target.dim.names = intersected.dim.names,

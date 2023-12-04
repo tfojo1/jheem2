@@ -831,7 +831,7 @@ JHEEM = R6::R6Class(
                                                  start = private$i.run.from.time,
                                                  atol = atol,
                                                  rtol = rtol)
-            
+           
             private$i.outcome.numerators = list()
             private$i.outcome.denominators = list()
             

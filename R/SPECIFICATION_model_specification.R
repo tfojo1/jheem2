@@ -5176,6 +5176,7 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
                               trackable.types,
                               ontology.name.for.trackable=character(),
                               applies.to.name.for.trackable=character(),
+                              all.applies.to.names=unique(applies.to.name.for.mechanism),
                               into.compartments.name.for.trackable=character())
         {
             
@@ -5272,6 +5273,9 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
                             " in the names of 'required.sub.ontology.name.for.mechanism': ",
                             collapse.with.and("'", invalid.mechanism.names, "'")))
             
+            # Validate all.applies.to.names
+            if (!is.character(all.applies.to.names) || any(is.na(all.applies.to.names)))
+                stop(paste0(error.prefix, "'all.applies.to.names' must be a character vector with no NA values"))
             
             # Validate applies.to.name.for.mechanism
             if (!is.character(applies.to.name.for.mechanism))
@@ -5298,6 +5302,14 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
                             " in the names of 'applies.to.name.for.mechanism': ",
                             collapse.with.and("'", invalid.mechanism.names, "'")))
             
+            
+            invalid.applies.to.names = setdiff(applies.to.name.for.mechanism, all.applies.to.names)
+            if (length(invalid.applies.to.names)>0)
+                stop(paste0(error.prefix,
+                            "Invalid applies.to.",
+                            ifelse(length(invalid.mechanism.names)==1, "name", "names"),
+                            " in the names of 'applies.to.name.for.mechanism': ",
+                            collapse.with.and("'", invalid.mechanism.names, "'. All elements of 'applies.to.name.for.mechanism' must appear in 'all.applies.to.names'")))
             
             # Validate into.compartments.name.for.mechanism
             if (!is.character(into.compartments.name.for.mechanism))
@@ -5431,7 +5443,7 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
             private$i.mechanism.types = mechanism.types
             
             # Pull applies.to.names
-            private$i.applies.to.names = unique(applies.to.name.for.mechanism)
+            private$i.applies.to.names = unique(all.applies.to.names)
             
             # Pull into.compartments.names
             private$i.into.compartments.names = unique(into.compartments.name.for.mechanism)
@@ -5587,6 +5599,10 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
                                      error.prefix)
         {
             #-- Validate and Resolve applies.to --#
+            
+            # There is a potential flaw in this loop below:
+            #   If an applies.to name or an into.compartments name goes with more than one mechanism
+            #   and does not have the same properties in all of them
             for (mechanism.type in private$i.mechanism.types)
             {
                 if (mechanism.type != 'initial.population')
@@ -5642,6 +5658,18 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
                             comp[[ private$i.applies.to.name.for.mechanism[mechanism.type] ]] = resolved.applies.to
                     }
                 }
+            }
+            
+            for (applies.to.name in setdiff(private$i.applies.to.names, private$i.applies.to.name.for.mechanism))
+            {
+                resolved.applies.to = do.resolve.dimension.values(dimension.values = comp[[applies.to.name]],
+                                                                  aliases = aliases,
+                                                                  ontology = specification$ontologies$all,
+                                                                  unresolved.alias.names = unresolved.alias.names,
+                                                                  variable.name.for.error = paste0(applies.to.name, " of ", comp$name),
+                                                                  ontology.name.for.error = paste0("the ontology for all dimensions"),
+                                                                  error.prefix = error.prefix)
+                comp[[applies.to.name]] = resolved.applies.to
             }
             
             rv = private$do.compile.component(comp,
@@ -5747,18 +5775,21 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
                     value.quantity.name = 'dummy'
                 else
                     value.quantity.name = comp$mechanisms[[mechanism.type]]$quantity.name
-     
-                TOP.LEVEL.REFERENCE$new(specification = specification,
-                                        version = comp$version,
-                                        source = comp$name,
-                                        ontology.name = ontology.name,
-                                        required.sub.ontology.name = required.sub.ontology.name,
-                                        value.quantity.name = value.quantity.name,
-                                        applies.to = applies.to,
-                                        exclude.ontology.dimensions = exclude.ontology.dimensions,
-                                        alias.suffix = alias.suffix,
-                                        is.for.core.component = T,
-                                        error.prefix = error.prefix)
+                
+                x = TOP.LEVEL.REFERENCE$new(specification = specification,
+                                            version = comp$version,
+                                            source = comp$name,
+                                            ontology.name = ontology.name,
+                                            required.sub.ontology.name = required.sub.ontology.name,
+                                            value.quantity.name = value.quantity.name,
+                                            applies.to = applies.to,
+                                            exclude.ontology.dimensions = exclude.ontology.dimensions,
+                                            alias.suffix = alias.suffix,
+                                            is.for.core.component = T,
+                                            error.prefix = error.prefix)
+                x$get.max.dim.names(specification, 'test: ')
+                
+                x
             })
             
             names(rv) = private$i.mechanism.types
@@ -6347,6 +6378,10 @@ TRANSMISSION.CORE.COMPONENT.SCHEMA = R6::R6Class(
                                                              transmissibility='infected',
                                                              contact='contact',
                                                              new.infection.proportions='infected.plus.uninfected'),
+                             all.applies.to.names = c('to.applies.to',
+                                                      'transmission.applies.to',
+                                                      'new.infections.applies.to',
+                                                      'from.applies.to'),
                              applies.to.name.for.mechanism = c(susceptibility='to.applies.to',
                                                                transmissibility='transmission.applies.to',
                                                                new.infection.proportions='new.infections.applies.to'),
@@ -6361,49 +6396,6 @@ TRANSMISSION.CORE.COMPONENT.SCHEMA = R6::R6Class(
                                                                incidence.by='transmission.applies.to',
                                                                incidence.to='new.infections.applies.to'),
                              into.compartments.name.for.trackable = c(incidence.to='all.new.infections.into.compartments'))
-        },
-        
-        do.compile.component = function(comp,
-                                        specification,
-                                        ontologies = specification$ontologies,
-                                        aliases = specification$resolved.aliases,
-                                        unresolved.alias.names = specification$unresolved.alias.names,
-                                        error.prefix)
-        {
-            comp = super$create.component(args, specification=specification, error.prefix=error.prefix)
-            
-            # Make sure transmission applies to and from applies to line up
-            # transmission.applies.to cannot have any compartments not in from.applies.to
-            # and there is no point keeping any compartments in from.applies.to that do not transmit
-            overlapping.dimensions = intersect(names(comp$transmission.applies.to), names(comp$from.applies.to))
-            if (!dim.names.are.subset(sub.dim.names = comp$transmission.applies.to[overlapping.dimensions],
-                                      super.dim.names = comp$from.applies.to[overlappling.dimensions]))
-                stop(paste0(error.prefix,
-                            "If a dimension appears in both 'from.applies.to' and 'transmission.applies.to', every value that appears in that dimension in 'transmission.applies.to' must also appear in the dimension in 'from.applies.to' (otherwise, you are saying that a dimension value can transmit, but cannot be a partner, which doesn't make sense)"))
-
-            if (!dim.names.are.subset(sub.dim.names = comp$from.applies.to[overlappling.dimensions],
-                                      super.dim.names = comp$transmission.applies.to[overlapping.dimensions]))
-                stop(paste0(error.prefix,
-                            "If a dimension appears in both 'from.applies.to' and 'transmission.applies.to', every value that appears in that dimension in 'from.applies.to' should also appear in the dimension in 'transmission.applies.to' (otherwise, you are saying that a dimension value can be a partner, but cannot transmit, in which case there is no reason to model that partnership)"))
-            
-                        
-            # force transmission.applies.to to include all of from.applies.to
-            comp$transmission.applies.to = intersect.joined.dim.names(comp$transmission.applies.to, comp$from.applies.to)
-            
-            # Check new infections applies to
-            invalid.new.infections.dimensions = setdiff(names(comp$new.infections.applies.to), specification$compartments$infected)
-            if (length(invalid.new.infections.dimensions)>0)
-                stop(paste0(error.prefix, "'new.infections.applies.to' can only contain dimensions that are specific to the infected group (",
-                            collapse.with.and("'", names(sepcification$compartments$infected), "'"),
-                            ". ", collapse.with.and("'", invalid.new.infections.dimensions, "'"),
-                            ifelse(length(invalid.new.infections.dimensions)==1, " is not an infection-specific dimension", " are not infection-specific dimensions")))
-            
-            # Force new.infections.applies.to to contain everything relevant from to.applies.to
-            comp$new.infections.applies.to = c(comp$to.applies.to[intersect(names(comp$to.applies.to), names(specification$compartments$general))],
-                                               comp$new.infections.applies.to)
-            
-            # Package up and be done
-            list(comp)
         }
     ),
     
@@ -6431,6 +6423,62 @@ TRANSMISSION.CORE.COMPONENT.SCHEMA = R6::R6Class(
             }
             else
                 super$get.applies.to.for.mechanism(mechanism.type, comp=comp, specification=specification)
+        },
+        
+        do.compile.component = function(comp,
+                                        specification,
+                                        ontologies = specification$ontologies,
+                                        aliases = specification$resolved.aliases,
+                                        unresolved.alias.names = specification$unresolved.alias.names,
+                                        error.prefix)
+        {
+            # Make sure transmission applies to and from applies to line up
+            # transmission.applies.to cannot have any compartments not in from.applies.to
+            # and there is no point keeping any compartments in from.applies.to that do not transmit
+            overlapping.dimensions = intersect(names(comp$transmission.applies.to), names(comp$from.applies.to))
+            if (!dim.names.are.subset(sub.dim.names = comp$transmission.applies.to[overlapping.dimensions],
+                                      super.dim.names = comp$from.applies.to[overlapping.dimensions]))
+                stop(paste0(error.prefix,
+                            "If a dimension appears in both 'from.applies.to' and 'transmission.applies.to', every value that appears in that dimension in 'transmission.applies.to' must also appear in the dimension in 'from.applies.to' (otherwise, you are saying that a dimension value can transmit, but cannot be a partner, which doesn't make sense)"))
+            
+            if (!dim.names.are.subset(sub.dim.names = comp$from.applies.to[overlapping.dimensions],
+                                      super.dim.names = comp$transmission.applies.to[overlapping.dimensions]))
+                stop(paste0(error.prefix,
+                            "If a dimension appears in both 'from.applies.to' and 'transmission.applies.to', every value that appears in that dimension in 'from.applies.to' should also appear in the dimension in 'transmission.applies.to' (otherwise, you are saying that a dimension value can be a partner, but cannot transmit, in which case there is no reason to model that partnership)"))
+            
+
+            # force transmission.applies.to to include all of from.applies.to
+            comp$transmission.applies.to = intersect.joined.dim.names(comp$transmission.applies.to, comp$from.applies.to)
+            
+            # Check new infections applies to
+            relevant.dimensions.from.to.applies.to = intersect(names(comp$to.applies.to), names(specification$compartments$general))
+            valid.dimensions = c(names(specification$compartments$infected),
+                                 relevant.dimensions.from.to.applies.to)
+            invalid.new.infections.dimensions = setdiff(names(comp$new.infections.applies.to), valid.dimensions)
+            if (length(invalid.new.infections.dimensions)>0)
+                stop(paste0(error.prefix, "'new.infections.applies.to' can only contain dimensions that are specific to the infected group or present in infection-related dimensions of to.applies.to (",
+                            collapse.with.and("'", names(valid.dimensions), "'"),
+                            "). ", collapse.with.and("'", invalid.new.infections.dimensions, "'"),
+                            ifelse(length(invalid.new.infections.dimensions)==1, " is not an valid dimension", " are not valid dimensions")))
+            
+            
+            dimensions.present.in.to.and.new.infections = intersect(names(comp$new.infections.applies.to),
+                                                                    relevant.dimensions.from.to.applies.to)
+            for (d in dimensions.present.in.to.and.new.infections)
+            {
+                if (!setequal(comp$new.infections.applies.to[[d]],
+                              comp$to.applies.to[[d]]))
+                {
+                    stop(paste0(error.prefix,
+                                "When 'new.infetions.applies.to' shares a dimension with 'to.applies.to', the dimension values must be the same, but this is not true for the '", d, "' dimension"))
+                }
+            }
+            
+            # Force new.infections.applies.to to contain everything relevant from to.applies.to
+            comp$new.infections.applies.to[relevant.dimensions.from.to.applies.to] = comp$to.applies.to[relevant.dimensions.from.to.applies.to]
+           
+            # Package up and be done
+            list(comp)
         }
     )
     
