@@ -1,60 +1,83 @@
 #include <Rcpp.h>
-#include <vector>
 using namespace Rcpp;
 
-
 // [[Rcpp::export]]
-NumericVector generate_transformation_matrix_indices(
+IntegerVector generate_transformation_matrix_indices(
     NumericVector transformation_matrix,
     int m,
     int n) {
     
     // Create sparse representation of the transformation matrix 
-    std::vector<std::vector<int>> sparse_indices;
+    List sparse_indices (n);
     for (int i=0; i<n; i++) {
-        std::vector<int> sparse_column;
+        IntegerVector sparse_column;
         for (int j=0; j<m; j++) {
             if (transformation_matrix[i*m + j]) {
                 sparse_column.push_back(j);
             }
         }
-        sparse_indices.push_back(sparse_column);
+        sparse_indices[i] = sparse_column;
     }
     
     // Convert to a vector consisting of triples (i,j,k)
     // Note that for space reasons, (2,3,k) will be present but not (3,2,k)
-    // TODO change triples to IntegerVector
-    std::vector<int> triples;
+    IntegerVector triples;
     for (int k=0; k<n; k++) {
-        for (unsigned int a=0; a<sparse_indices[k].size(); a++) {
-            for (unsigned int b=a; b<sparse_indices[k].size(); b++) {
-                triples.push_back(sparse_indices[k][a]);
-                triples.push_back(sparse_indices[k][b]);
+        IntegerVector sparse_column = sparse_indices[k];
+        for (unsigned int a=0; a<sparse_column.length(); a++) {
+            for (unsigned int b=a; b<sparse_column.length(); b++) {
+                triples.push_back(sparse_column[a]);
+                triples.push_back(sparse_column[b]);
                 triples.push_back(k);
             }
         }
     }
     
-    // Return a NumericVector holding the triples
-    return wrap(triples);
+    // Return the IntegerVector triples
+    return triples;
 }
 
-/***
 // [[Rcpp::export]]
-void get_basic_likelihood_mean(
+RObject generate_transformation_matrix_row_oriented_indices(
+    NumericVector transformation_matrix,
+    int m,
+    int n) {
+    
+    // Create sparse representation of the transformation matrix
+    List sparse_indices (m);
+    for (int i=0; i<m; i++) {
+        IntegerVector sparse_row;
+        for (int j=0; j<n; j++) {
+            if (transformation_matrix[j*m + i]) {
+                sparse_row.push_back(j);
+            }
+        }
+        sparse_indices[i] = sparse_row;
+    }
+    
+    // Return the List
+    return sparse_indices;
+
+}
+
+
+// [[Rcpp::export]]
+NumericVector get_basic_likelihood_mean(
     const NumericVector sim_numerator,
     const List transformation_matrix_row_oriented_indices,
+    int m,
     NumericVector mean
 ) {
-    for (int i=0; i<transformation_matrix_row_oriented_indices.length(); i++) {
-        for (int j=0; j<transformation_matrix_row_oriented_indices[i].length(); j++) {
-            mean[i] += sim_numerator[j];
+    for (int i=0; i<m; i++) {
+        IntegerVector sparse_row = transformation_matrix_row_oriented_indices[i];
+        for (int j=0; j<sparse_row.length(); j++) {
+            mean[i] += sim_numerator[sparse_row[j]];
         }
     }
+    return mean;
 }
- ***/
 
-// [[Rcpp::export]]
+
 /*
  * This function computes the transformed covariance matrix using using only the
  * nonzero operations in A = MVM^T. First, the sparse, binary transformation
@@ -70,10 +93,10 @@ void get_basic_likelihood_mean(
  * i,j in A where i,j is every pairing of the rows *s*. Other columns may
  * contribute to that position i,j, but if we loop across columns of M and
  * merely add the contribution from each column as it comes, we will eventually
- * create the full sum of nonzero products comprising A[i,j]. The role of
+ * create the full sum of nonzero products comprising A[i,j]. The role of the
  * covariance matrix itself is simple since it is diagonal; each column *k* of M
  * will be multiplied by the kth diagonal element of the covariance matrix.
- * Therefore, each contribution to A[i,j] becomes 1 * V[k,k] = V[k,k]/ Creating
+ * Therefore, each contribution to A[i,j] becomes 1 * V[k,k] = V[k,k]. Creating
  * the sparse representation occurs during instantiate time. I believe the
  * transformation algorithm here has a big-O of O(k*s^2) where *k* is the number
  * of columns with nonzero elements and *s* is the number of rows with nonzero
@@ -84,20 +107,31 @@ void get_basic_likelihood_mean(
  * elements. Making sigma will take *m*-squared time, possibly making it the
  * more expensive operation.
  */
+
+// [[Rcpp::export]]
 NumericVector get_basic_likelihood_sigma(
     const NumericVector sim_numerator,
     const NumericVector sim_denominator,
     const NumericVector transformation_matrix_indices,
     const NumericVector measurement_error_cov_matrix,
     int m,
-    NumericVector sigma
+    NumericVector sigma,
+    const bool Poisson
 ) {
     // generate model imperfection covariance diagonal matrix
-    std::vector<double> V;
-    V.reserve(sim_numerator.length());
-    for (int i=0; i<sim_numerator.length(); i++) {
-        V.push_back(sim_numerator[i] * (1 - sim_numerator[i] / sim_denominator[i]));
-    }
+    /*
+    double* V;
+    double binomial_variance[sim_numerator.length() * !Poisson]; // no allocation of memory because it's on the stack, so no more expensive regardless of saying * !Poisson
+
+    if (Poisson) {
+        V = *sim_numerator;
+    } else {
+        for (int i=0; i<sim_numerator.length(); i++) {
+            binomial_variance[i] = sim_numerator[i] * (1 - sim_numerator[i] / sim_denominator[i]);
+        }
+        V = binomial_variance;
+    }*/
+    
     
     // copy measurement_error_cov_matrix into sigma
     for (int i=0; i<measurement_error_cov_matrix.length(); i++) {
@@ -105,42 +139,27 @@ NumericVector get_basic_likelihood_sigma(
     }
     
     // add to sigma MVM^T
+    int previous_k = -1;
+    double value_to_add;
     for (int h=0; h<transformation_matrix_indices.length(); h+=3) {
         int i = transformation_matrix_indices[h];
         int j = transformation_matrix_indices[h + 1];
         int k = transformation_matrix_indices[h + 2];
         
-        sigma[j*m + i] += V[k];
+        if (k != previous_k){
+            previous_k = k;
+            if (Poisson)
+                value_to_add = sim_numerator[k];
+            else
+                value_to_add = sim_numerator[k] * (1 - sim_numerator[k] / sim_denominator[k]);
+        }
+        
+        sigma[j*m + i] += value_to_add;
         
         if (i != j) {
-            sigma[i*m + j] += V[k];
+            sigma[i*m + j] += value_to_add;
         }
     }
     
     return sigma;
 }
-
-/*** 
-mat = rbind(c(1,1,0,0),
-            c(0,0,1,1),
-            c(0,1,0,1))
-smat = generate_transformation_matrix_indices(mat, 3,4)
-sim.numerator.d = rep(10,4)
-sim.denominator.d = rep(20,4)
-measure_error_matrix = matrix(0, nrow=3, ncol=3)
-sigma = matrix(0, nrow=3, ncol=3)
-
-sigma = get_basic_likelihood_sigma(
-    sim.numerator.d,
-    sim.denominator.d,
-    smat,
-    measure_error_matrix,
-    3,
-    sigma
-)
-
-model.imp.cov.matrix = diag(
-    sim.numerator.d * (1 - sim.numerator.d / sim.denominator.d),
-    nrow=4, ncol=4)
-mat %*% model.imp.cov.matrix %*% t(mat)
-*/

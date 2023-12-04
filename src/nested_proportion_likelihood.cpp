@@ -1055,11 +1055,21 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         // Calculate Gamma Matrix        
         NumericMatrix mat2 = year_metalocation_to_year_obs_n_mapping[d];
         M = mat2.begin(); //M is interpolated block diagonal - one block for each year
-        
+        int ttt = n_metalocations*n_metalocations;
+        NumericVector out_T(ttt);
+        for (int i=0; i<ttt; i++) {
+            out_T[i] = T[i];
+        }
         do_matrix_multiply_A_block_diagonal_B_transposed(T, M, T_Mt,
                                                          n_metalocations, n_years, n_stratum_obs_n);
         do_matrix_multiply_A_interpolated_block(M, T_Mt, scratch1,
                                                 n_years, n_stratum_obs_n/n_years, n_metalocations, n_stratum_obs_n);
+        int jj = n_stratum_obs_n*n_stratum_obs_n;
+        NumericVector scratch1_pre_invert(jj);
+        for (int i=0; i<jj; i++) {
+            scratch1_pre_invert[i] = scratch1[i];
+        }
+        
         do_invert_matrix(scratch1, scratch1, n_stratum_obs_n, scratch2);
         
         do_matrix_multiply(T_Mt, scratch1, gamma, 
@@ -1076,14 +1086,56 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
             }
         }
         
+        
+        
+        
         // Calculate Nu    
          
         do_matrix_multiply_A_interpolated_block(M, lambda, scratch1, n_years, n_stratum_obs_n/n_years, n_metalocations, 1);
         subtract_arrs(stratum_obs_n, scratch1, scratch1, n_stratum_obs_n);
         do_matrix_multiply(gamma, scratch1, nu,
                         n_year_metalocation, n_stratum_obs_n, 1);
+        
+        
+        //Rcout << "made it here\n";
+        //@AZ view inputs
+        NumericVector out_gamma(n_year_metalocation*n_stratum_obs_n);
+        int zz = n_year_metalocation*n_stratum_obs_n;
+        for (int i=0; i<zz; i++) {
+            out_gamma[i] = gamma[i];
+        }
+        NumericVector out_sc1(n_stratum_obs_n);
+        for (int i=0; i<n_stratum_obs_n; i++) {
+            out_sc1[i] = scratch1[i];
+        }
+        int how_long = n_year_metalocation;
+        NumericVector out_nu(how_long);
+        if (d==0) {
+            
+            for (int i=0; i<(how_long); i++) {
+                out_nu[i] = nu[i];
+            }
+            
+        }
+        
         add_arrs(nu, lambda, nu, n_year_metalocation);
         
+        NumericVector nu_next(how_long);
+        for (int i=0; i<how_long; i++) {
+            nu_next[i] = nu[i];
+        }
+        /*
+        return (List::create(Named("out_nu") = out_nu,
+                             _["nu"] = nu_next,
+                             _["n_year_metalocation"] = n_year_metalocation,
+                             _["n_years"] = n_years,
+                             _["n_stratum_obs_n"] = n_stratum_obs_n,
+                             _["scratch1"] = out_sc1,
+                             _["gamma"] = out_gamma,
+                             _["scratch1_pre_invert"] = scratch1_pre_invert,
+                             _["T"] = out_T,
+                             _["d"] = d));
+         */
         
         // Calculate Psi
         double *psi = T; // we are going to overwrite the T array with psi
@@ -1193,11 +1245,12 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         double *delta_Mt = scratch1;
         
        
-        do_matrix_multiply_A_col_masked_B_interpolated_block_transposed(delta, M, delta_Mt, 
+        do_matrix_multiply_A_col_masked_B_interpolated_block_transposed(delta, M, delta_Mt,
                                                                         n_year_metalocation,
                                                                         mask, n_year_metalocation,
                                                                         n_years,
                                                                         n_condition_on);
+        
 
         do_matrix_multiply_A_interpolated_block_B_row_masked_symmetric_result(M, delta_Mt, scratch2,
                                                                               n_years,
@@ -1215,7 +1268,9 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                                                              n_years * n_condition_on,
                                                              year_metalocation_to_year_obs_location_mask.begin(),
                                                              n_year_metalocation);
-           
+        
+        
+        
         // This is going to overwrite the prior gamma - it means something new in this context
         do_matrix_multiply(B_delta_Mt, scratch2, gamma,
                            n_years * n_obs_locations,
@@ -1233,6 +1288,8 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         multiply_arrs(p.begin() + d*n_years, n.begin() + d*n_years, o, n_years);
         
         
+        
+        
         //-- Step 2: gamma.by.stratum[[d]] %*% (o - M %*% alpha[mask])
         do_matrix_multiply_A_interpolated_block_B_row_masked(M, alpha, scratch1,
                                                              n_years,
@@ -1242,6 +1299,8 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                                                              n_year_metalocation);
         
         subtract_arrs(o, scratch1, scratch2, n_years*n_condition_on);
+        
+        
         
         do_matrix_multiply(gamma, scratch2, mean_year_obs_loc,
                            n_year_obs_location, n_condition_on * n_years, 1);
@@ -1376,7 +1435,9 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                                                                      n_years,
                                                                      obs_year_index_arr);
                                                                                       
-                                                                                              
+        
+        
+        
 
         //-- for testing --//
     }

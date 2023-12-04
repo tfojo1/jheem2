@@ -3,6 +3,9 @@
 #   library(jheem2)
 # For testing
 
+source('../jheem2/R/ONTOLOGY_ontology_mappings.R')
+Rcpp::sourceCpp('../jheem2/src/ontology_mappings.cpp')
+
 source('../jheem2/R/HELPERS_misc_helpers.R')
 source('../jheem2/R/HELPERS_dim_names_helpers.R')
 source('../jheem2/R/HELPERS_array_helpers.R')
@@ -24,8 +27,6 @@ source('../jheem2/R/SPECIFICATION_evaluatable_value.R')
 
 source('../jheem2/R/VERSIONS_version_manager.R')
 
-source('../jheem2/R/ONTOLOGY_ontology_mappings.R')
-Rcpp::sourceCpp('../jheem2/src/ontology_mappings.cpp')
 
 source('../jheem2/R/INTERVENTIONS_target_populations.R')
 source('../jheem2/R/INTERVENTIONS_intervention_effects.R')
