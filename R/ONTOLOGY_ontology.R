@@ -6,12 +6,12 @@
 ## We define it as a named list of character vectors, where the names of list elements represent dimensions
 ##      and the values of the character vectors which are the elements are the values for each dimensions
 ## PLUS a boolean indicator for whether each dimension is "complete" or not (stored in the attributes of the list)
-## Essentially, an ontology is a subset of the lists that can be assigned to the dimnames attribute for an array, 
+## Essentially, an ontology is a subset of the lists that can be assigned to the dimnames attribute for an array,
 ##      with a few additional constraints:
 ##      (1) The dimensions must be named. These names can be used only once
 ##      (2) Values for a dimension cannot repeat or be NA
 ##      (3) We store a boolean indicator for completeness
-## 
+##
 ## A "complete" dimension is one for which the values represent all possible values for that dimension.
 ## This has a few implications:
 ##      (1) For a complete dimension, we can marginalize it out by summing across it. If you sum the values from
@@ -20,7 +20,7 @@
 ##      (2) Complete dimensions cannot have additional values added to them. But incomplete dimensions can
 ##      (3) It is possible to have an empty (NULL) set of values for an incomplete dimension.
 ##          We are essentially saying, "We know there are values here, but we don't know what they are yet"
-##          
+##
 ## Ontologies are implemented as S3 objects, so that they can be used as a dimnames attribute
 
 
@@ -35,55 +35,55 @@
 ontology <- function(..., incomplete.dimensions=NULL)
 {
     rv = list(...)
-    
+
     #-- Validate arguments --#
     if (length(rv)==0)
         names(rv) = character()
-    
+
     #-- Validate dimension names --#
     if (is.null(names(rv)))
         stop("The arguments passed to ontology() must be named")
-    
+
     if (any(is.na(names(rv))))
         stop("The arguments passed to ontology() cannot have NA names")
-    
+
     if (any(nchar(names(rv))==0))
         stop("The arguments passed to ontology() cannot have empty names")
-    
+
     tabled.names = table(names(rv))
     if (any(tabled.names>1))
         stop(paste0("Names of arguments to ontology() cannot be repeated, (",
                     paste0("'", names(tabled.names)[tabled.names>1], "'", collapse=', '),
                     ")"))
-    
+
     dimensions = names(rv)
-    
+
     #-- Validate dimension values --#
     rv = lapply(names(rv), function(d){
         if (is.numeric(rv[[d]]))
             values = as.character(rv[[d]])
         else
             values = rv[[d]]
-        
+
         if (!is.null(values))
         {
             if (!is.character(values))
                 stop("The values passed to ontology() must be either NULL or character vectors")
-            
+
             if (any(is.na(values)))
                 stop("The values passed to ontology() cannot contain NA")
-            
+
             if (any(nchar(values)==0))
                 stop("The values passed to ontology() cannot be empty ('')")
-            
+
             tabled.values = table(values)
             if (any(tabled.values>1))
                 stop(paste0("The arguments to ontology() cannot contain repeated values. Dimension '",
                             d, "' contains multiple instances of ",
                             paste0("'", names(tabled.values)[tabled.valued>1], "'", collapse=', '),
-                            ))
+                ))
         }
-        
+
         values
     })
     names(rv) = dimensions
@@ -95,28 +95,31 @@ ontology <- function(..., incomplete.dimensions=NULL)
     {
         if (!is.character(incomplete.dimensions))
             stop("'incomplete.dimensions' passed to ontology() must be a character vector")
-        
+
         if (any(is.na(incomplete.dimensions)))
             stop("'incomplete.dimensions' cannot contain NA values")
-        
-        extraneous.dimensions = setdiff(incomplete.dimensions, names(rv))
-        if (length(extraneous.dimensions)>0)
-            stop(paste0("'incomplete.dimensions' passed to ontology() must contain a subset of the names of the other arguments to ontology(). ",
-                        paste0("'", extraneous.dimensions, "'", collapse=', '),
-                        " were specified as incomplete.dimensions but are not names of dimensions"))
-        
+
+        #   extraneous.dimensions = setdiff(incomplete.dimensions, names(rv))
+        #   if (length(extraneous.dimensions)>0)
+        #       stop(paste0("'incomplete.dimensions' passed to ontology() must contain a subset of the names of the other arguments to ontology(). ",
+        #                   paste0("'", extraneous.dimensions, "'", collapse=', '),
+        #                   " were specified as incomplete.dimensions but are not names of dimensions"))
+
         is.complete = sapply(names(rv), function(d){all(d!=incomplete.dimensions)})
     }
-    
-    null.complete.dimension.mask = sapply(rv, is.null) & is.complete
-    if (any(null.complete.dimension.mask))
-        stop(paste0("The values of a dimension in an ontology can only be NULL if the dimension is incomplete. NULL was passed for ",
-                    ifelse(sum(null.complete.dimension.mask)==1, "dimension ", "dimensions "),
-                    collapse.with.and("'", dimensions[null.complete.dimension.mask], "'"),
-                    ", ",
-                    ifelse(sum(null.complete.dimension.mask)==1, "which was", "which were"),
-                    " not specified as incomplete"))
-    
+
+    if (length(rv)>0)
+    {
+        null.complete.dimension.mask = sapply(rv, is.null) & is.complete
+        if (any(null.complete.dimension.mask))
+            stop(paste0("The values of a dimension in an ontology can only be NULL if the dimension is incomplete. NULL was passed for ",
+                        ifelse(sum(null.complete.dimension.mask)==1, "dimension ", "dimensions "),
+                        collapse.with.and("'", dimensions[null.complete.dimension.mask], "'"),
+                        ", ",
+                        ifelse(sum(null.complete.dimension.mask)==1, "which was", "which were"),
+                        " not specified as incomplete"))
+    }
+
     names(is.complete) = names(rv)
     attr(rv, 'is.complete') = is.complete
 
@@ -129,19 +132,26 @@ ontology <- function(..., incomplete.dimensions=NULL)
 #'@param ontology An ontology, as created by \code\link{ontology}}
 #'
 #'@export
-print.ontology <- function(ontology)
+print.ontology <- function(ont)
 {
-    to.print = lapply(ontology, function(val){val})
-    complete.text = rep('incomplete', length(ontology))
-    complete.text[attr(ontology, 'is.complete')] = 'complete'
-    names(to.print) = paste0(names(ontology), " (", complete.text, ")")
-    
-    print(to.print)
+    if (length(ont)==0)
+    {
+        print("An empty ontology")
+    }
+    else
+    {
+        to.print = lapply(ont, function(val){val})
+        complete.text = rep('incomplete', length(ont))
+        complete.text[attr(ont, 'is.complete')] = 'complete'
+        names(to.print) = paste0(names(ont), " (", complete.text, ")")
+
+        print(to.print)
+    }
 }
 
 #'@title Convert a named list to an ontology
 #'
-#'@param x A named list of character vectors
+#'@param x A named list of charactera vectors
 #'
 #'@export
 as.ontology <- function(x, incomplete.dimensions=NULL)
@@ -152,10 +162,10 @@ as.ontology <- function(x, incomplete.dimensions=NULL)
         stop("Can only convert named lists to ontologies with as.ontology()")
     if (length(x)>0 && is.null(names(x)))
         stop("Can only convert NAMED lists to ontologies with as.ontology()")
-    
+
     if (any(!sapply(x, is.character)))
         stop("Lists to be converted to ontologies using as.ontology() must contain only character vectors")
-    
+
     do.call(ontology, args = c(x, list(incomplete.dimensions=incomplete.dimensions)))
 }
 
@@ -166,13 +176,19 @@ as.ontology <- function(x, incomplete.dimensions=NULL)
 #'@export
 as.list.ontology <- function(ont)
 {
-    rv = lapply(1:length(ont), function(i){
-        ont[[i]]
-    })
-    names(rv) = names(ont)
-    
-    rv
+    if (length(ont)==0)
+        list()
+    else
+    {
+        rv = lapply(1:length(ont), function(i){
+            ont[[i]]
+        })
+        names(rv) = names(ont)
+
+        rv
+    }
 }
+
 
 #'@title Test if an object is of type 'ontology'
 #'
@@ -251,7 +267,7 @@ incomplete.dimensions <- function(x)
 '[.ontology' <- function(ont, i)
 {
     rv = NextMethod()
-    
+
     invalid.mask = is.na(names(rv))
     if (any(invalid.mask))
         stop(paste0("Error subsetting ontology: ",
@@ -259,10 +275,10 @@ incomplete.dimensions <- function(x)
                     ifelse(sum(invalid.mask)==1,
                            " does not reference a valid dimension",
                            " do not reference valid dimensions")))
-    
+
     attr(rv, 'is.complete') = attr(ont, 'is.complete')[names(rv)]
     class(rv) = c('ontology','list')
-    
+
     rv
 }
 
@@ -287,7 +303,7 @@ incomplete.dimensions <- function(x)
                 val
         })
     rv = NextMethod()
-    
+
     # Cannot add dimensions
     if (length(rv)>length(ont))
     {
@@ -296,7 +312,7 @@ incomplete.dimensions <- function(x)
         else
             stop(paste0("Cannot add dimensions to an existing ontology"))
     }
-    
+
     # New values must:
     # (1) be character vectors
     # (2) have at least one element
@@ -315,9 +331,9 @@ incomplete.dimensions <- function(x)
                         ifelse(sum(tabled.values)==1, "value ", "values "),
                         paste0("'", names(tabled.values[tabled.values>1]), "'", collapse=', '),
                         " more than once)"
-                        ))
+            ))
     })
-    
+
     # Cannot add to complete dimensions
     # Subsetted complete dimensions are incomplete
     # Incomplete dimensions stay incomplete
@@ -337,7 +353,7 @@ incomplete.dimensions <- function(x)
     })
 
     attr(rv, 'is.complete') = new.is.complete
-    
+
     class(rv) = c('ontology', 'list')
     rv
 }
@@ -353,8 +369,9 @@ incomplete.dimensions <- function(x)
 #'@export
 '[[<-.ontology' <- function(ont, i, value)
 {
-    ont[i] = list(value)
-    ont
+    NextMethod()
+    #    ont[i] = list(value)
+    #    ont
 }
 
 #'@title Modify an ontology
@@ -368,8 +385,68 @@ incomplete.dimensions <- function(x)
 #'@export
 '$<-.ontology' <- function(ont, i, value)
 {
-    ont[[i]] = value
-    ont
+    NextMethod()
+    #    ont[[i]] = value
+    #    ont
+}
+
+#'@title Modify an Ontology's Names
+#'
+#'@export
+'names<-.ontology' <- function(ont, value)
+{
+    if (length(value) != length(ont))
+        stop("In setting the names of the ontology, every dimension must have a name (the length of the names must be the same as the length of the ontology and cannot be NULL)")
+    rv = NextMethod()
+
+    #-- Validate dimension names --#
+
+    if (length(names(rv))==0 && length(ont)>0)
+        stop("The names of an ontology cannot be set to empty")
+
+    if (any(is.na(names(rv))))
+        stop("The names of an ontology cannot be NA")
+
+    if (any(nchar(names(rv))==0))
+        stop("The names of an ontology cannot be empty")
+
+    tabled.names = table(names(rv))
+    if (any(tabled.names>1))
+        stop(paste0("The names of an ontology cannot be repeated, (",
+                    paste0("'", names(tabled.names)[tabled.names>1], "'", collapse=', '),
+                    ")"))
+
+    names(attr(rv, 'is.complete')) = names(rv)
+
+    rv
+}
+
+c.ontology <- function(...)
+{
+    args = list(...)
+    if (all(sapply(args, is, 'ontology')))
+    {
+        list.args = as.list(args[[1]])
+        incomplete.dims = incomplete.dimensions(args[[1]])
+        for (to.add in args[-1])
+        {
+            overlapping.dimensions = intersect(names(to.add), names(list.args))
+            if (length(overlapping.dimensions)>0)
+                stop(paste0("Cannot concatenate ontologies: the ",
+                            ifelse(length(overlapping.dimensions)==1, 'dimension ', 'dimensions '),
+                            collapse.with.and("'", overlapping.dimensions, "'"),
+
+                            ifelse(length(overlapping.dimensions)==1, ' appears', ' appear'),
+                            " in more than one of the arguments to c()"))
+
+            list.args = c(list.args, to.add)
+            incomplete.dims = c(incomplete.dims, incomplete.dimensions(to.add))
+        }
+
+        do.call(ontology, args=c(list.args, list(incomplete.dimensions=incomplete.dims)))
+    }
+    else
+        NextMethod()
 }
 
 #'@title Resolve dimension.values into a set of dimnames for an ontology
@@ -386,7 +463,18 @@ resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefi
 {
     if (!is(ont, 'ontology'))
         stop(paste0(error.prefix, "'ont' must be an object of class 'ontology'"))
-    
+
+
+    resolve.dimension.values.against.dim.names(dimension.values = dimension.values,
+                                               dim.names = ont,
+                                               error.prefix = error.prefix,
+                                               throw.error.if.unresolvable = throw.error.if.unresolvable,
+                                               dim.names.name.for.error='ont')
+}
+
+resolve.dimension.values.against.dim.names <- function(dimension.values, dim.names, error.prefix, throw.error.if.unresolvable=T,
+                                                       dim.names.name.for.error='dim.names')
+{
     if (is.null(dimension.values))
         return (NULL)
     if (!is.list(dimension.values))
@@ -395,10 +483,37 @@ resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefi
         return (dimension.values)
     if (is.null(names(dimension.values)))
         stop(paste0(error.prefix, "'dimension.values' must be a NAMED list"))
-    
-    ontology.dimensions.complete = is_complete(ont)
-    
+
+    if (!is.ontology(dim.names))
+        check.dim.names.valid(dim.names,
+                              variable.name.for.error = 'dim.names',
+                              allow.duplicate.values.across.dimensions = T,
+                              error.prefix = error.prefix)
+
+    missing.dimensions = setdiff(names(dimension.values), names(dim.names))
+    if (length(missing.dimensions) > 0)
+    {
+        if (throw.error.if.unresolvable)
+            stop(paste0(error.prefix, "'", dim.names.name.for.error, "' is missing ",
+                        ifelse(length(missing.dimensions)==1, "dimension ", "dimensions "),
+                        collapse.with.and("'", missing.dimensions, "'"),
+                        ", which ",
+                        ifelse(length(missing.dimensions)==1, "is", 'are'),
+                        " present in 'dimension.values'"))
+        else
+            return (NULL)
+    }
+
+    if (is.ontology(dim.names))
+        ontology.dimensions.complete = is_complete(dim.names)
+    else
+    {
+        ontology.dimensions.complete = rep(T, length(dim.names))
+        names(ontology.dimensions.complete) = names(dim.names)
+    }
+
     rv = lapply(names(dimension.values), function(d){
+
         if (!ontology.dimensions.complete[d])
         {
             if (is.character(dimension.values[[d]]))
@@ -410,7 +525,7 @@ resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefi
         {
             if (is.character(dimension.values[[d]]))
             {
-                invalid.values = setdiff(dimension.values[[d]], ont[[d]])
+                invalid.values = setdiff(dimension.values[[d]], dim.names[[d]])
                 if (length(invalid.values)>0)
                 {
                     if (throw.error.if.unresolvable)
@@ -421,41 +536,41 @@ resolve.ontology.dimension.values <- function(ont, dimension.values, error.prefi
                     else
                         return (NULL)
                 }
-                
+
                 dimension.values[[d]]
             }
             else if (is.numeric(dimension.values[[d]]))
             {
-                if (any(dimension.values[[d]]<1) || any(dimension.values[[d]]>length(ont[[d]])))
+                if (any(dimension.values[[d]]<1) || any(dimension.values[[d]]>length(dim.names[[d]])))
                 {
                     if (throw.error.if.unresolvable)
-                        stop(paste0(error.prefix, "If it is a numeric vector, values for dimension '", d, "' must contain values between 1 and ", length(ont[[d]])))
+                        stop(paste0(error.prefix, "If it is a numeric vector, values for dimension '", d, "' must contain values between 1 and ", length(dim.names[[d]])))
                     else
                         return (NULL)
                 }
-                
-                ont[[d]][ dimension.values[[d]] ]
+
+                dim.names[[d]][ dimension.values[[d]] ]
             }
             else if (is.logical(dimension.values[[d]]))
             {
-                if (length(dimension.values[[d]]) != length(ont[[d]]))
+                if (length(dimension.values[[d]]) != length(dim.names[[d]]))
                 {
                     if (throw.error.if.unresolvable)
-                        stop(paste0(error.prefix, "If it is a logical vector, values for dimension '", d, "' must be of length ", length(ont[[d]])))
+                        stop(paste0(error.prefix, "If it is a logical vector, values for dimension '", d, "' must be of length ", length(dim.names[[d]])))
                     else
                         return (NULL)
                 }
-                
+
                 if (!any(dimension.values[[d]]))
                     stop(paste0(error.prefix, "If it is a logical vector, values for dimension '", d, "' must be contain at least one TRUE value"))
-                
-                ont[[d]][ dimension.values[[d]] ]
+
+                dim.names[[d]][ dimension.values[[d]] ]
             }
             else
                 stop(paste0(error.prefix, "values for dimension '", d, "', which is incomplete, must be either a character, numeric, or logical vector"))
         }
     })
-    
+
     names(rv) = names(dimension.values)
     rv
 }
