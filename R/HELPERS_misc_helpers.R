@@ -12,21 +12,21 @@ interpolate <- function(values,
 {
     if (length(values) != length(value.times))
         stop("To interpolate, 'values' must have the same length as 'value.times'")
-    
+
     if (is.list(values))
         fn = lapply
     else
     {
         fn = sapply
-        values = as.list(values)   
+        values = as.list(values)
     }
-    
+
     n.times = length(value.times)
     fn(desired.times, function(time){
         index.before = (1:n.times)[value.times<=time]
         index.before = index.before[length(index.before)]
         index.after = (1:n.times)[value.times > time][1]
-        
+
         if (length(index.before)==0)
             values[[index.after]]
         else if (is.na(index.after))
@@ -136,7 +136,7 @@ collapse.with.conjunction <- function(...,
                                       separator = ',')
 {
     to.collapse = paste0(...)
-    
+
     if (length(to.collapse)==1)
         to.collapse
     else if (length(to.collapse)==2)
@@ -167,7 +167,7 @@ get.ordinal <- function(nums)
                          'th', #7
                          'th', #8
                          'th') #9
-    
+
     last.digits = nums - (10 * floor(nums/10)) + 1
     paste0(nums, ORDINAL.SUFFIXES[last.digits])
 }
@@ -189,10 +189,10 @@ first.index.of <- function(haystack, needle)
 row.indices.of <- function(haystack, needle)
 {
     mask = apply(haystack, 1, function(val){
-        all( (is.na(val) & is.na(needle)) | 
+        all( (is.na(val) & is.na(needle)) |
                  (!is.na(val) & !is.na(needle) & val==needle))
     })
-    
+
     (1:length(mask))[mask]
 }
 
@@ -212,7 +212,7 @@ get.every.combination <- function(values)
     n.val = sapply(values, length)
     n.before = c(1, cumprod(n.val[-n]))
     n.after = c(rev(cumprod(rev(n.val[-1]))),1)
-    
+
     matrix(sapply(1:n, function(i){
         rep(rep(values[[i]], n.after[i]), each=n.before[i])
     }), ncol=n)
@@ -225,17 +225,17 @@ setdiff.rows <- function(x, y)
 {
     has.match = sapply(1:nrow(x), function(i){
         any(sapply(1:nrow(y), function(j){
-            
+
             all(is.na(x[i,]) & is.na(y[j,]) |
                     ( (!is.na(x[i,]) & !is.na(y[j,])) & (x[i,]==y[j,]) ))
-            
+
         }))
     })
-    
+
     x[!has.match,,drop=F]
 }
 
-# If needles is a vector, returns the index, i, 
+# If needles is a vector, returns the index, i,
 #   of the first row for which all(haystack[i,] == needles)
 # If needles is a matrix, returns a vector of row indices into haystack
 #   one for each row in needle
@@ -244,20 +244,20 @@ row.index.of <- function(haystack, needles)
 {
     if (is.null(dim(needles)))
         dim(needle) = c(1,length(needle))
-        
+
     apply(needles, 1, function(one.needle){
-        
+
         mask = apply(haystack, 1, function(val){
-            all( (is.na(val) & is.na(one.needle)) | 
-                 (!is.na(val) & !is.na(one.needle) & val==one.needle))
+            all( (is.na(val) & is.na(one.needle)) |
+                     (!is.na(val) & !is.na(one.needle) & val==one.needle))
         })
-        
+
         if (!any(mask))
             NA
         else
             (1:dim(haystack)[1])[mask][1]
     })
-    
+
 }
 
 is.subset <- function(sub, super)
