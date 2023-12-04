@@ -3963,8 +3963,8 @@ JHEEM = R6::R6Class(
         clear.dependent.values = function(quantity.name, clear.after.time=-Inf, clear.before.time=Inf)
         {
             specification = get.specification()
-            to.clear = c(quantity.name, specification$get.dependent.quantity.names(element.name))
-            
+            to.clear = specification$get.dependent.quantity.names(quantity.name) #a quantity is defined to always depend on itself
+
             if (clear.after.time == -Inf && clear.before.time == Inf)
             {
                 for (one.to.clear in to.clear)
