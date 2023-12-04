@@ -143,11 +143,18 @@ set.alpha.main.effect.values <- function(alphas,
                                                                   check.consistency=check.consistency,
                                                                   error.prefix=error.prefix,
                                                                   is.interaction=F)
+    
+    orig = list(alphas=alphas,
+                dimensions=dimensions,
+                dimension.values=dimension.values,
+                values=values)
+    
     dimensions = dimensions.and.values$dimensions
     dimension.values = dimensions.and.values$dimension.values
     values = dimensions.and.values$values
     
     unique.dimensions = unique(dimensions)
+
     if (check.consistency)
     {   
         if (!is.null(alphas$maximum.dim.names))
@@ -595,17 +602,16 @@ prep.dimensions.and.values.for.alphas <- function(alphas,
                 stop(paste0(error.prefix,
                             "For an interaction alpha, 'value' must be of length one"))
         }
+    }
+    
+    # this has to be outside the check.consistency if statement because we need to iterate values if length is < dimension.values length
+    if (!is.interaction && length(values) != length(dimension.values))
+    {
+        if (length(values)==1)
+            values = rep(values, length(dimension.values))
         else
-        {
-            if (length(values) != length(dimension.values))
-            {
-                if (length(values)==1)
-                    values = rep(values, length(dimension.values))
-                else
-                    stop(paste0(error.prefix,
-                                "'values' must be either a single numeric value or have the same length as 'dimension.values'"))
-            }
-        }
+            stop(paste0(error.prefix,
+                        "'values' must be either a single numeric value or have the same length as 'dimension.values'"))
     }
     
     #-- Make sure we can apply the link function --#
