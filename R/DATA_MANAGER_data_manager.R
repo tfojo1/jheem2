@@ -1137,6 +1137,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # *extra dimensions* are an alternative to 'dimension.values' and must pass the same checks if used
             extra.dimension.values = list(...)
             if (length(extra.dimension.values)>0) {
+                # check that either this or dimension.values is len(0)
+                if (length(extra.dimension.values)>0 && length(dimension.values)>0)
+                    stop(paste0(error.prefix, "'dimension.values' must be specified in either the 'dimension.values' argument or as additional arguments to the function"))
                 dimension.values = extra.dimension.values
                 check.dimension.values.valid.error.name = "pull function extra arguments"
             }
@@ -1161,11 +1164,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 
                 # make a variable name for error to pass to check.dimension.values.valid
                 check.dimension.values.valid.error.name = "dimension.values"
-                
-                # check that either this or dimension.values is len(0)
-                if (length(extra.dimension.values)>0 && length(dimension.values)>0)
-                    stop(paste0(error.prefix, "'dimension.values' must be specified in either the 'dimension.values' argument or as additional arguments to the function"))
-                
+
                 # *dimension.values* are valid
                 #   - check.dimension.values.valid() doesn't accept NULL because it wants a list
                 if (!is.null(dimension.values))
@@ -1210,7 +1209,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (!is.logical(na.rm) || length(na.rm)!=1 || is.na(na.rm))
                     stop(paste0(error.prefix, "na.rm must be a single, non-NA, logical value"))
             }
-            
+
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
             if (debug) browser()
@@ -1228,6 +1227,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     target.to.universal.mapping = get.identity.ontology.mapping()
             }
             
+            if ('year' %in% names(dimension.values)) dimension.values[['year']] = as.character(dimension.values[['year']])
             resolved.dimension.values = resolve.ontology.dimension.values(target.ontology, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = F)
             if (is.null(resolved.dimension.values) && !is.null(dimension.values))
                 stop(paste0(error.prefix, "'dimension.values' cannot be resolved"))
