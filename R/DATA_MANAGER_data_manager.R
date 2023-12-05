@@ -5,9 +5,11 @@
 # HELPERS_dim_name_helpers
 # HELPERS_array_helpers
 
-default.data.manager.holder = new.env()
-default.data.manager.holder$default.data.manager = NULL
-
+if (!exists('default.data.manager'))
+{
+    default.data.manager.holder = new.env()
+    default.data.manager.holder$default.data.manager = NULL
+}
 
 ##----------------------##
 ##-- PUBLIC INTERFACE --##
@@ -79,7 +81,10 @@ load.data.manager <- function(file,
     new.data.manager = copy.data.manager(loaded.data.manager,
                                          name=copy.name,
                                          description=copy.description)
-    if (set.as.default) default.data.manager.holder$default.data.manager = new.data.manager
+    if (set.as.default)
+        default.data.manager.holder$default.data.manager = new.data.manager
+    
+    
     invisible(new.data.manager)
 }
 

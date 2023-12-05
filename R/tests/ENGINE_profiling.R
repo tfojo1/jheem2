@@ -1,6 +1,6 @@
 
 N.ITER = 50
-DO.RPROF = T
+DO.RPROF = F
 
 print("COMPILING THE SPECIFICATION")
 source('../jheem_analyses/applications/EHE/ehe_specification.R')
@@ -12,14 +12,9 @@ params['global.trate'] = 0.1
 params2 = suppressWarnings(get.quantiles(EHE.PARAMETERS.PRIOR, 0.4))
 params2['global.trate'] = 0.1
 
-debug = F
-debug.prime = F
-
 print("CRUNCHING THE ENGINE")
 engine = create.jheem.engine('ehe', 'c.12580', start.year=1970, end.year=2025)
 engine$crunch(parameters = params)
-
-debug.prime=T
 
 n.loop = ceiling(N.ITER/2)
 
