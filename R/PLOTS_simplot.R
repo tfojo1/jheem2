@@ -231,17 +231,15 @@ simplot <- function(...,
     } else {
         if (is.null(facet.by)) {
             rv = rv +
-                geom_line(data=df.sim, aes(x=year, y=value, color=!!sym(split.by)))
+                geom_line(data=df.sim, aes(x=year, y=value, linetype=sim.name, color=!!sym(split.by)))
             if (!is.null(df.truth))
-                rv = rv + geom_point(data=df.truth, aes(x=year, y=value, group=sim.name,
-                                                        color=!!sym(split.by)))
+                rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
         } else {
             rv = rv +
-                geom_line(data=df.sim, aes(x=year, y=value, color=!!sym(split.by))) +
+                geom_line(data=df.sim, aes(x=year, y=value, linetype=sim.name, color=!!sym(split.by))) +
                 facet_wrap(facet.formula, scales = 'free_y')
             if (!is.null(df.truth))
-                rv = rv + geom_point(data=df.truth, aes(x=year, y=value, group=sim.name,
-                                                        color=!!sym(split.by)))
+                rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
         }
         
     }
