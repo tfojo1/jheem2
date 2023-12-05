@@ -5,7 +5,7 @@
 # HELPERS_dim_name_helpers
 # HELPERS_array_helpers
 
-if (!exists('default.data.manager'))
+if (!exists('default.data.manager.holder'))
 {
     default.data.manager.holder = new.env()
     default.data.manager.holder$default.data.manager = NULL
