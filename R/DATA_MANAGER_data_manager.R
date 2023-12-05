@@ -334,18 +334,18 @@ pull.data <- function(data.manager = get.default.data.manager(),
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
 
     data.manager$pull(outcome = outcome,
-                     keep.dimensions = keep.dimensions,
-                     dimension.values = dimension.values,
-                     sources = sources,
-                     from.ontology.names = from.ontology.names,
-                     target.ontology = target.ontology,
-                     allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
-                     append.attributes = append.attributes,
-                     allow.other.sources.for.denominator = allow.other.sources.for.denominator,
-                     na.rm = na.rm,
-                     check.arguments = check.arguments,
-                     debug = debug,
-                     ...)
+                      keep.dimensions = keep.dimensions,
+                      dimension.values = dimension.values,
+                      sources = sources,
+                      from.ontology.names = from.ontology.names,
+                      target.ontology = target.ontology,
+                      allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
+                      append.attributes = append.attributes,
+                      allow.other.sources.for.denominator = allow.other.sources.for.denominator,
+                      na.rm = na.rm,
+                      check.arguments = check.arguments,
+                      debug = debug,
+                      ...)
 }
 
 #'@title Get pretty names for outcomes
@@ -1227,11 +1227,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     target.to.universal.mapping = get.identity.ontology.mapping()
             }
             
-            if ('year' %in% names(dimension.values)) dimension.values[['year']] = as.character(dimension.values[['year']])
+            
+            dv.names = names(dimension.values)
+            dimension.values = lapply(seq_along(dimension.values), function(d) {
+                if (names(dimension.values)[[d]] %in% incomplete.dimensions(target.ontology)) as.character(dimension.values[[d]])
+                else dimension.values[[d]]
+            })
+            names(dimension.values) = dv.names
             resolved.dimension.values = resolve.ontology.dimension.values(target.ontology, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = F)
             if (is.null(resolved.dimension.values) && !is.null(dimension.values))
                 stop(paste0(error.prefix, "'dimension.values' cannot be resolved"))
-            dv.names = names(dimension.values)
             
             
             # need.to.set.keep.dimensions.flag = is.null(keep.dimensions)
