@@ -537,7 +537,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         subset.data = function(dimension.values,
                                ontology.name=NULL)
         {
-            
             # --- Validate arguments ---
             error.prefix = paste0("Unable to subset data.manager '", private$i.name, "': ")
             
@@ -587,13 +586,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         dimnames.for.subset = dimnames(stratification)
                                         
                                         for (d in names(dimensions.to.subset))
-                                            dimnames.for.subset[[d]] = dimensions.to.subset[[d]]
+                                            dimnames.for.subset[[d]] = dimensions.to.subset[[d]][dimensions.to.subset[[d]] %in% dimnames(stratification)[[d]]]
                                         
-                                        fast.array.access(stratification, dimnames.for.subset)
+                                        if (all(sapply(dimnames.for.subset, length) > 0))
+                                            fast.array.access(stratification, dimnames.for.subset)
+                                        else stratification
                                         
                                     }
-                                    else
-                                        stratification
+                                    else stratification
                                 })
                                 
                             }
