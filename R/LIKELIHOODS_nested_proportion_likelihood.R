@@ -785,7 +785,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             private$i.details = as.factor(private$i.details)
             # private$i.metadata$location = as.factor(private$i.metadata$location) # already factor somehow
-            private$i.metadata$year = as.factor(private$i.metadata$year)
+            if (private$i.parameters$observation.correlation.form == 'autoregressive.1') {
+                private$i.metadata$year = suppressWarnings(as.numeric(private$i.metadata$year))
+                if (any(is.na(private$i.metadata$year)))
+                    stop(paste0(error.prefix, "'observation.correlation.form' 'autoreggresive.1' can only be used with single-year data points"))
+            }
+            else private$i.metadata$year = as.factor(private$i.metadata$year)
             private$i.metadata$stratum = as.factor(private$i.metadata$stratum)
             # private$i.metadata$source = as.factor(private$i.metadata$source) # already factor somehow
             
@@ -847,7 +852,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                                                                     private$i.parameters$correlation.different.year,
                                                                                     private$i.parameters$correlation.different.strata,
                                                                                     private$i.parameters$correlation.different.source,
-                                                                                    private$i.parameters$correlation.same.source.different.details)
+                                                                                    private$i.parameters$correlation.same.source.different.details,
+                                                                                    private$i.parameters$observation.correlation.form == "autoregressive.1")
             private$i.obs.error = measurement.error.correlation.matrix * private$i.parameters$measurement.error.sd ^ 2 # this reflects our choice to make measurement error sd constant, not scaling with level of suppression (or other p)
             dim(private$i.obs.error) = c(n.obs, n.obs)
 

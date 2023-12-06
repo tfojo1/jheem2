@@ -450,7 +450,12 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             # NOTE: STRATUM MUST BE RESTORED TO CHARACTER LATER WHEN WE GENERATE THE WEIGHTS MATRIX SINCE WE HAVE TO STRING SPLIT IT
             private$i.details = as.factor(private$i.details)
             # private$i.metadata$location = as.factor(private$i.metadata$location) # already factor somehow
-            private$i.metadata$year = as.factor(private$i.metadata$year)
+            if (private$i.parameters$observation.correlation.form == 'autoregressive.1') {
+                private$i.metadata$year = suppressWarnings(as.numeric(private$i.metadata$year))
+                if (any(is.na(private$i.metadata$year)))
+                    stop(paste0(error.prefix, "'observation.correlation.form' 'autoreggresive.1' can only be used with single-year data points"))
+            }
+            else private$i.metadata$year = as.factor(private$i.metadata$year)
             private$i.metadata$stratum = as.factor(private$i.metadata$stratum)
             # private$i.metadata$source = as.factor(private$i.metadata$source) # already factor somehow
             n.obs = length(private$i.obs.vector)
@@ -493,7 +498,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                     private$i.parameters$correlation.different.year,
                                                                                     private$i.parameters$correlation.different.strata,
                                                                                     private$i.parameters$correlation.different.source,
-                                                                                    private$i.parameters$correlation.same.source.different.details)
+                                                                                    private$i.parameters$correlation.same.source.different.details,
+                                                                                    private$i.parameters$observation.correlation.form == "autoregressive.1")
 
             measurement.error.sd = private$i.obs.vector * private$i.parameters$measurement.error.coefficient.of.variance
             

@@ -1,4 +1,5 @@
 #include <Rcpp.h>
+#include <cmath>
 using namespace Rcpp;
 
 // This is a simple example of exporting a C++ function to R. You can
@@ -24,7 +25,8 @@ NumericVector get_obs_error_correlation_matrix(NumericVector cor_mat,
                                                double correlation_different_year,
                                                double correlation_different_strata,
                                                double correlation_different_source,
-                                               double correlation_same_source_different_details) {
+                                               double correlation_same_source_different_details,
+                                               bool is_autoregressive_one) {
     if (n_obs < 1) return cor_mat;
     
     for (int i = 0; i < n_obs - 1; i++) {
@@ -33,8 +35,12 @@ NumericVector get_obs_error_correlation_matrix(NumericVector cor_mat,
                 if (location[i] != location[j])
                     cor_mat[j * n_obs + i] *= correlation_different_location;
             }
-            if (year[i] != year[j])
-                cor_mat[j * n_obs + i] *= correlation_different_year;
+            if (year[i] != year[j]) {
+                if (is_autoregressive_one)
+                    cor_mat[j * n_obs + i] *= pow(correlation_different_year, abs(year[j] - year[i]));
+                else
+                    cor_mat[j * n_obs + i] *= correlation_different_year;
+            }
             if (stratum[i] != stratum[j])
                 cor_mat[j * n_obs + i] *= correlation_different_strata;
             if (source[i] != source[j])
