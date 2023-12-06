@@ -5,9 +5,11 @@
 # HELPERS_dim_name_helpers
 # HELPERS_array_helpers
 
-default.data.manager.holder = new.env()
-default.data.manager.holder$default.data.manager = NULL
-
+if (!exists('default.data.manager.holder'))
+{
+    default.data.manager.holder = new.env()
+    default.data.manager.holder$default.data.manager = NULL
+}
 
 ##----------------------##
 ##-- PUBLIC INTERFACE --##
@@ -79,7 +81,10 @@ load.data.manager <- function(file,
     new.data.manager = copy.data.manager(loaded.data.manager,
                                          name=copy.name,
                                          description=copy.description)
-    if (set.as.default) default.data.manager.holder$default.data.manager = new.data.manager
+    if (set.as.default)
+        default.data.manager.holder$default.data.manager = new.data.manager
+
+
     invisible(new.data.manager)
 }
 
@@ -532,7 +537,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         subset.data = function(dimension.values,
                                ontology.name=NULL)
         {
-
             # --- Validate arguments ---
             error.prefix = paste0("Unable to subset data.manager '", private$i.name, "': ")
 
@@ -582,13 +586,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         dimnames.for.subset = dimnames(stratification)
 
                                         for (d in names(dimensions.to.subset))
-                                            dimnames.for.subset[[d]] = dimensions.to.subset[[d]]
+                                            dimnames.for.subset[[d]] = dimensions.to.subset[[d]][dimensions.to.subset[[d]] %in% dimnames(stratification)[[d]]]
 
-                                        fast.array.access(stratification, dimnames.for.subset)
+                                        if (all(sapply(dimnames.for.subset, length) > 0))
+                                            fast.array.access(stratification, dimnames.for.subset)
+                                        else stratification
 
                                     }
-                                    else
-                                        stratification
+                                    else stratification
                                 })
 
                             }
@@ -1132,6 +1137,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # *extra dimensions* are an alternative to 'dimension.values' and must pass the same checks if used
             extra.dimension.values = list(...)
             if (length(extra.dimension.values)>0) {
+                # check that either this or dimension.values is len(0)
+                if (length(extra.dimension.values)>0 && length(dimension.values)>0)
+                    stop(paste0(error.prefix, "'dimension.values' must be specified in either the 'dimension.values' argument or as additional arguments to the function"))
                 dimension.values = extra.dimension.values
                 check.dimension.values.valid.error.name = "pull function extra arguments"
             }
@@ -1156,10 +1164,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
 
                 # make a variable name for error to pass to check.dimension.values.valid
                 check.dimension.values.valid.error.name = "dimension.values"
-
-                # check that either this or dimension.values is len(0)
-                if (length(extra.dimension.values)>0 && length(dimension.values)>0)
-                    stop(paste0(error.prefix, "'dimension.values' must be specified in either the 'dimension.values' argument or as additional arguments to the function"))
 
                 # *dimension.values* are valid
                 #   - check.dimension.values.valid() doesn't accept NULL because it wants a list
@@ -1223,10 +1227,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     target.to.universal.mapping = get.identity.ontology.mapping()
             }
 
+
+            dv.names = names(dimension.values)
+            dimension.values = lapply(seq_along(dimension.values), function(d) {
+                if (names(dimension.values)[[d]] %in% incomplete.dimensions(target.ontology)) as.character(dimension.values[[d]])
+                else dimension.values[[d]]
+            })
+            names(dimension.values) = dv.names
             resolved.dimension.values = resolve.ontology.dimension.values(target.ontology, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = F)
             if (is.null(resolved.dimension.values) && !is.null(dimension.values))
                 stop(paste0(error.prefix, "'dimension.values' cannot be resolved"))
-            dv.names = names(dimension.values)
 
 
             # need.to.set.keep.dimensions.flag = is.null(keep.dimensions)
