@@ -214,37 +214,22 @@ simplot <- function(...,
 
     facet.formula = as.formula(paste0("~",
                                       paste0(c('outcome', facet.by), collapse='+')))
-    rv = ggplot() + scale_y_continuous(limits=c(0, NA), labels = scales::comma)
-    if (is.null(split.by)) {
-        if (is.null(facet.by)) {
-            rv = rv +
-                geom_line(data=df.sim, aes(x=year, y=value, color=sim.name))
-            if (!is.null(df.truth))
-                rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
-        } else {
-            rv = rv +
-                geom_line(data=df.sim, aes(x=year, y=value, color=sim.name)) +
-                facet_wrap(facet.formula, scales = 'free_y')
-            if (!is.null(df.truth))
-                rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
-        }
+    
+    rv = ggplot() + scale_y_continuous(limits=c(0, NA), labels = scales::comma) + scale_color_discrete()
+    
+    # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
+    if (!is.null(split.by)) {
+        rv = rv + geom_line(data=df.sim, aes(x=year, y=value, linetype=sim.name, color=!!sym(split.by)))
+        if (!is.null(df.truth))
+            rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
     } else {
-        if (is.null(facet.by)) {
-            rv = rv +
-                geom_line(data=df.sim, aes(x=year, y=value, linetype=sim.name, color=!!sym(split.by)))
-            if (!is.null(df.truth))
-                rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
-        } else {
-            rv = rv +
-                geom_line(data=df.sim, aes(x=year, y=value, linetype=sim.name, color=!!sym(split.by))) +
-                facet_wrap(facet.formula, scales = 'free_y')
-            if (!is.null(df.truth))
-                rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
-        }
-        
+        rv = rv + geom_line(data=df.sim, aes(x=year, y=value, color=sim.name))
+        if (!is.null(df.truth))
+            rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
     }
     
-    rv = rv + scale_color_discrete()
+    if (!is.null(facet.by))
+        rv = rv + facet_wrap(facet.formula, scales = 'free_y')
 
     rv
 }
