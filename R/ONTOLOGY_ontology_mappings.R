@@ -306,6 +306,20 @@ register.ontology.mapping <- function(name,
         #else just ignore - it's already registered 
     }
     
+    #-- Sort the mappings by number of involved dimensions --#
+    #   (Since finding a mapping searches through this list from first to last, this will favor more parsimonious solutions)
+    
+    n.from.per.mapping = sapply(ONTOLOGY.MAPPING.MANAGER$mappings, function(mapping){
+        length(mapping$from.dimensions)
+    })
+    n.to.per.mapping = sapply(ONTOLOGY.MAPPING.MANAGER$mappings, function(mapping){
+        length(mapping$to.dimensions)
+    })
+    
+    o = order(n.from.per.mapping, n.to.per.mapping, decreasing = F)
+    ONTOLOGY.MAPPING.MANAGER$mappings = ONTOLOGY.MAPPING.MANAGER$mappings[o]
+    
+    
     #-- (Invisibly) Return the Mapping --#
     invisible(mapping)
 }
