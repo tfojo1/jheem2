@@ -410,7 +410,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 one.dimnames = dimnames(data)
                 one.obs.vector = as.numeric(data)
                 one.details = attr(data, 'details')
-                
+
                 one.remove.mask = is.na(one.obs.vector)
                 one.obs.vector = one.obs.vector[!one.remove.mask]
                 one.details = one.details[!one.remove.mask]
@@ -463,12 +463,14 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             n.obs = length(private$i.obs.vector)
             
             ## ---- FIND REQUIRED DIMENSION VALUES, ETC. ---- ##
+            private$i.years = private$i.sim.required.dimnames[['year']]
             private$i.sim.dimension.values = private$i.sim.required.dimnames[sapply(names(private$i.sim.required.dimnames), function(d) {!identical(private$i.sim.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
+            private$i.sim.dimension.values[['year']] = private$i.years
+            
             denominator.keep.dimensions = c(instructions$denominator.dimensions, 'year')[c(instructions$denominator.dimensions, 'year') %in% names(private$i.sim.required.dimnames)]
             private$i.denominator.required.dimnames = private$i.sim.required.dimnames[names(private$i.sim.required.dimnames) %in% denominator.keep.dimensions]
             private$i.denominator.dimension.values = private$i.denominator.required.dimnames[sapply(names(private$i.denominator.required.dimnames), function(d) {!identical(private$i.denominator.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
-            private$i.years = private$i.sim.required.dimnames[['year']]
-
+            
             ## ---- GENERATE TRANSFORMATION MATRIX ---- ##
 
             # WARNING: DOESN'T HANDLE YEAR RANGES, ONLY SINGLE YEARS
@@ -602,6 +604,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                               sigma = matrix(sigma, nrow=length(private$i.obs.vector), ncol=length(private$i.obs.vector)),
                                               log=T,
                                               checkSymmetry = F)
+            likelihood
             
             # verify.matrix.operation.correctness(sim.denominator.data,
             #                                     sim.numerator.data,
@@ -617,6 +620,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         
         generate.transformation.matrix = function(mappings.list, dimnames.list, remove.mask.list, n.strats, matrix.dimnames)
         {
+            # browser()
             transformation.matrix = NULL
             for (i in 1:n.strats) {
                 one.mapping = mappings.list[[i]]
@@ -639,13 +643,16 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 # Repeat the matrix for each source this stratification has
                 one.transformation.matrix = NULL
                 for (source in 1:length(one.dimnames$source)) one.transformation.matrix = rbind(one.transformation.matrix, one.source.transformation.matrix)
+                ncol.mat = ncol(one.transformation.matrix)
                 # Align the matrix rows with the one.remove.mask rows, which may have extra years, so that rows for sporadically missing data can be masked out
                 years.in.stratification.but.not.matrix = setdiff(one.dimnames$year, matrix.dimnames$year)
                 if (length(years.in.stratification.but.not.matrix) > 0) {
                     indices.to.omit.from.one.remove.mask = get.array.access.indices(one.dimnames, list(year=years.in.stratification.but.not.matrix))
                     new.one.remove.mask = one.remove.mask[-indices.to.omit.from.one.remove.mask]
                     one.transformation.matrix = one.transformation.matrix[!new.one.remove.mask,]
-                }
+                } else
+                    one.transformation.matrix = one.transformation.matrix[!one.remove.mask]
+                one.transformation.matrix = matrix(one.transformation.matrix, ncol=ncol.mat)
                 transformation.matrix = rbind(transformation.matrix, one.transformation.matrix)
             }
             transformation.matrix
