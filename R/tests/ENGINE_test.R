@@ -8,7 +8,7 @@ params['global.trate'] = 0.1
 
 
 print("ENGINE TEST: Setting up Engine")
-engine = create.jheem.engine('ehe', 'c.12580', start.year=1970, end.year=2025)
+engine = create.jheem.engine('ehe', 'c.12580', start.year=1970, end.year=2025, max.run.time.seconds = 10)
 
 print("ENGINE TEST: Running")
 sim = engine$run(parameters = params)
