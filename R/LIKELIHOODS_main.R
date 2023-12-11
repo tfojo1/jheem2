@@ -356,7 +356,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         
         generate.weights.from.weights.list = function(weights)
         {
-            if (is.numeric(weights)) return(list(weights))
+            if (is.numeric(weights)) return(list(create.likelihood.weights(weights)))
             output.weights = list()
             total.weight = 1
             for (w in weights) {

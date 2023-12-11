@@ -664,7 +664,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                             weights)
         {
             weights.vector = rep(1,length(obs.vector))
-            
+
             if (equalize.weight.by.year) {
                 obs.per.year = table(metadata$year)
                 number.years = length(obs.per.year)
