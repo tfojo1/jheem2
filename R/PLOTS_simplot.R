@@ -112,7 +112,7 @@ simplot <- function(...,
     # sims do not all have each outcome because of sub-versions
     
     # likelihoods need to share their outcome for sim and data, and think about what joint likelihoods. One simulation has one (usually joint) likelihood (instructions)
-
+    # browser()
     outcomes.for.data = sapply(outcomes, function(outcome) {
         corresponding.observed.outcome = NULL
         i = 1
@@ -162,12 +162,12 @@ simplot <- function(...,
                                              allow.mapping.from.target.ontology = T,
                                              debug=F)
             outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
-    
-            one.df.outcome = reshape2::melt(outcome.data, na.rm = T)
-            corresponding.outcome = names(outcomes.for.data)[[i]]
-            one.df.outcome['outcome'] = corresponding.outcome
-            df.truth = rbind(df.truth, one.df.outcome)
-            # browser()
+            if (!is.null(outcome.data)) {
+                one.df.outcome = reshape2::melt(outcome.data, na.rm = T)
+                corresponding.outcome = names(outcomes.for.data)[[i]]
+                one.df.outcome['outcome'] = corresponding.outcome
+                df.truth = rbind(df.truth, one.df.outcome)
+            }
         }
         else
         {
