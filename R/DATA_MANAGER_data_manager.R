@@ -1218,8 +1218,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                  sources = sources,
                                                                  from.ontology.names = from.ontology.names,
                                                                  target.ontology = target.ontology,
-                                                                 keep.dimensions = keep.dimensions,
-                                                                 dimension.values = dimension.values,
                                                                  return.target.to.universal.mapping = allow.mapping.from.target.ontology,
                                                                  debug=F)
                 target.to.universal.mapping = attr(target.ontology, 'target.to.universal.mapping')
@@ -1912,7 +1910,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             rv
         },
         
-        get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, target.ontology = NULL, keep.dimensions = NULL, dimension.values = NULL, return.target.to.universal.mapping = T, debug = F)
+        get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, target.ontology = NULL, return.target.to.universal.mapping = T, debug = F)
         {
             if (debug) browser()
             onts = self$get.ontologies.for.outcome(outcome, sources)
