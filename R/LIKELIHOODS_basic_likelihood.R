@@ -547,7 +547,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         
         do.compute = function(sim, log=T, check.consistency=T, debug=F)
         {
-            if (debug) browser()
+            
 
             sim.numerator.data = sim$get(outcome = private$i.outcome.for.sim,
                                          keep.dimensions = names(private$i.sim.required.dimnames),
@@ -604,6 +604,11 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                               sigma = matrix(sigma, nrow=length(private$i.obs.vector), ncol=length(private$i.obs.vector)),
                                               log=T,
                                               checkSymmetry = F)
+            
+            if (debug) {
+                lik.summary = cbind(private$i.metadata, private$i.obs.vector, mean, sqrt(diag(sigma)))
+                browser()
+            } 
             likelihood
             
             # verify.matrix.operation.correctness(sim.denominator.data,
