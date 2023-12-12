@@ -1415,7 +1415,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         
                         # Aggregate if needed
                         initial.dimnames = dimnames.for.apply
-                        dimensions.to.drop = intersect(which(length(initial.dimnames) == 1), which(!(names(initial.dimnames) %in% keep.dimensions)))
+                        dimensions.to.drop = intersect(which(sapply(initial.dimnames, length) == 1), which(!(names(initial.dimnames) %in% keep.dimensions)))
                         
                         pulled.ont.data = lapply(data.types, function(data.type) {
                             
