@@ -388,9 +388,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             for (strat in private$i.stratifications) {
                 keep.dimensions = 'year'
                 if (!identical(strat, "")) keep.dimensions = c(keep.dimensions, strat)
-                # print(strat)
-                # if (identical(strat, 'sex')) browser()
-
                 data = data.manager$pull(outcome = private$i.outcome.for.data,
                                          sources = private$i.sources.to.use,
                                          keep.dimensions = keep.dimensions,
@@ -430,7 +427,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 
                 # Find the required.dimnames
                 for (d in names(one.sim.required.dimnames)) {
-                    
                     if (!(d %in% names(private$i.sim.required.dimnames)))
                         private$i.sim.required.dimnames = c(private$i.sim.required.dimnames, setNames(list(one.sim.required.dimnames[[d]]), d))
                     else
@@ -470,6 +466,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             denominator.keep.dimensions = c(instructions$denominator.dimensions, 'year')[c(instructions$denominator.dimensions, 'year') %in% names(private$i.sim.required.dimnames)]
             private$i.denominator.required.dimnames = private$i.sim.required.dimnames[names(private$i.sim.required.dimnames) %in% denominator.keep.dimensions]
             private$i.denominator.dimension.values = private$i.denominator.required.dimnames[sapply(names(private$i.denominator.required.dimnames), function(d) {!identical(private$i.denominator.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
+            private$i.denominator.dimension.values[['year']] = private$i.years
             
             ## ---- GENERATE TRANSFORMATION MATRIX ---- ##
 

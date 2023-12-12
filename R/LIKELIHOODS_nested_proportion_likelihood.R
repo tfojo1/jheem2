@@ -796,8 +796,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             # might remove years
             private$i.sim.dimension.values = private$i.sim.required.dimnames[sapply(names(private$i.sim.required.dimnames), function(d) {!identical(private$i.sim.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
-            if (!('year' %in% names(private$i.sim.dimension.values))) private$i.sim.dimension.values$year = private$i.sim.required.dimnames$year
+            private$i.sim.dimension.values$year = private$i.sim.required.dimnames$year
             private$i.sim.dimension.values = as.list(private$i.sim.dimension.values)
+            
             private$i.sim.keep.dimensions = unique(unlist(lapply(mappings.list, function(mp) {
                 if (is.null(mp)) NULL
                 else mp$get.required.from.dimensions(data.keep.dimensions)
@@ -809,28 +810,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             model.stratification = private$i.sim.keep.dimensions[private$i.sim.keep.dimensions != 'year']
             
             private$i.transformation.matrix = generate.transformation.matrix.nested(mappings.list, dimnames.list, locations.list, remove.mask.list, n.stratifications.with.data, private$i.sim.required.dimnames)
-
-            # for (s in seq_along(mappings.list)) {
-            #     one.mapping = mappings.list[[s]]
-            #     if (is.null(one.mapping)) next
-            #     one.dimnames = dimnames.list[[s]]
-            #     one.locations = locations.list[[s]]
-            #     to.locations = union(one.locations, private$i.sim.required.dimnames$location)
-            #     one.locations.mask = to.locations %in% one.locations
-            #     to.dimnames = one.dimnames[names(one.dimnames) != 'source']
-            #     to.dimnames$location = to.locations
-            # 
-            #     ### NEED LOCATION IN SIM.REQUIRED.DIMNAMES HERE BUT NOT LATER
-            #     one.transformation.matrix = one.mapping$get.matrix(from.dim.names = private$i.sim.required.dimnames, to.dim.names = to.dimnames)
-            # 
-            #     for (source in 1:length(one.dimnames[['source']])) {
-            #         one.source.transformation.matrix = matrix(one.transformation.matrix[rep(one.locations.mask, each=length(years))],
-            #                                                   ncol = ncol(one.transformation.matrix)) # will this repeat to fill as many strata as we need?
-            #         private$i.transformation.matrix = rbind(private$i.transformation.matrix, one.source.transformation.matrix)
-            #     }
-            # }
-            # 
-            # private$i.transformation.matrix = private$i.transformation.matrix[!remove.mask,]
 
             n.obs = length(private$i.obs.p)
             years.with.data = as.character(sort(unique(private$i.metadata$year)))
