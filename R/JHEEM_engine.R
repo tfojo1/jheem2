@@ -700,43 +700,105 @@ JHEEM.ENGINE = R6::R6Class(
     )
 )
 
-
-
-
-create.protected.numeric.vector <- function(x)
-{
-    tracker = new.env()
-    tracker$has.been.accessed = sapply(x, function(val){F})
-    attr(x, 'tracker') = tracker
+PROTECTED.NUMERIC.VECTOR = R6::R6Class(
+    'protected.numeric.vector',
     
-    class(x) = c('protected.numeric.vector', 'numeric')
-    x
-}
-
-'[.protected.numeric.vector' <- function(x, indices)
-{
-    rv = NextMethod()
-    attr(x, 'tracker')$has.been.accessed[indices] = T
+    public = list(
+        
+        initialize = function(values)
+        {
+            private$i.values = values
+            private$i.has.been.accessed = sapply(values, function(val){F})
+        },
+        
+        '[' = function(indices)
+        {
+            rv = private$i.values[indices]
+            
+ #           na.mask = is.na(rv)
+ #           if (any(na.mask))
+ #           {
+ #               if (is.logical(indices))
+ #               {
+ #                   stop("The length (", length(indices), ") of the logical vector used to access the parameter values does not match the length of the parameter values vector (", length(private$i.values))
+ #               }
+ #               else
+ #               {
+ #                   invalid.indices = indices[na.mask]
+ #                   if (is.character(indices))
+ #                   {
+ #                       stop(paste0(collapse.with.and("'", invalid.indices, "'"),
+ #                                   ifelse(length(invalid.indices)==1, 
+ #                                          " is not a valid name for a parameter value",
+ #                                          " are not valid names for parameter values")))
+ #                   }
+ #                   else 
+ #                   {
+ #                       stop(paste0(ifelse(length(invalid.indices)==1, "Index ", "Indices "),
+ #                                   collapse.with.and(invalid.indices),
+ #                                   ifelse(length(invalid.indices)==1, " is", " are"),
+ #                                   " out of bounds for parameter value vector (length ", length(private$i.values), ")"))
+ #                   }
+ #               }
+ #           }
+            
+            private$i.has.been.accessed[indices] = T
+            rv
+        },
+        
+        '[<-' = function(indices, value)
+        {
+            stop("Cannot modify parameter values in this protected numeric vector")
+        },
+        
+        length = function()
+        {
+            length(private$i.values)
+        },
+        
+        names = function()
+        {
+            names(private$i.values)
+        },
+        
+        c = function(...)
+        {
+            stop("Cannot concatenate (ie call the c() function) parameter values in this protected numeric vector")
+        },
+        
+        print = function(...)
+        {
+            base::print(private$i.values)
+        }
+    ),
     
-    rv
-}
-
-'[<-.protected.numeric.vector' <- function(x, ...) 
-{
-    stop("Cannot modify parameter values in this protected numeric vector")
-}
-
-'c.protected.numeric.vector' <- function(x, ...)
-{
-    stop("Cannot concatenate (ie call the c() function) parameter values in this protected numeric vector")
-}
-
-protected.numeric.vector.accessed.elements <- function(x)
-{
-    tracker = attr(x, 'tracker')
+    active = list(
+        
+        values.have.been.accessed = function(value)
+        {
+            if (missing(value))
+                private$i.has.been.accessed
+            else
+                stop("Cannot modify a JHEEM's 'values.have.been.accessed' - they are read-only")
+        }
+        
+    ),
     
-    names(tracker$has.been.accessed)[tracker$has.been.accessed]
-}
+    private = list(
+        i.values = NULL,
+        i.has.been.accessed = NULL
+    )
+)
+
+'[.protected.numeric.vector' <- function(obj, ...) {obj$'['(...)}
+'[<-.protected.numeric.vector' <- function(obj, ...) {obj$'[<-'(...)}
+'length.protected.numeric.vector' <- function(obj) {obj$length()}
+'names.protected.numeric.vector' <- function(obj) {obj$names()}
+'c.protected.numeric.vector' <- function(obj, ...) {obj$c(...)}
+
+
+
+
 
 ##---------------------##
 ##-- THE JHEEM CLASS --##
@@ -1197,7 +1259,7 @@ JHEEM = R6::R6Class(
                 calibrated.parameters.apply.fn = get.parameters.apply.function.for.version(self$version, type='calibrated')
                 
                 if (check.consistency)
-                    parameters.to.pass = create.protected.numeric.vector(parameters)
+                    parameters.to.pass = PROTECTED.NUMERIC.VECTOR$new(parameters)
                 else
                     parameters.to.pass = parameters
                 
@@ -1205,8 +1267,7 @@ JHEEM = R6::R6Class(
                                                parameters = parameters.to.pass)
                 
                 if (check.consistency)
-                    used.parameter.names = union(used.parameter.names, 
-                                                 protected.numeric.vector.accessed.elements(parameters.to.pass))
+                    used.parameter.names = union(used.parameter.names, names(parameters)[parameters.to.pass$values.have.been.accessed])
             }
 
             # For sampled parameters
