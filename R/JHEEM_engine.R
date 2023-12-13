@@ -774,12 +774,12 @@ PROTECTED.NUMERIC.VECTOR = R6::R6Class(
     
     active = list(
         
-        values.have.been.accessed = function(value)
+        accessed.elements = function(value)
         {
             if (missing(value))
-                private$i.has.been.accessed
+                names(private$i.has.been.accessed)[private$i.has.been.accessed]
             else
-                stop("Cannot modify a JHEEM's 'values.have.been.accessed' - they are read-only")
+                stop("Cannot modify a JHEEM's 'private$i.has.been.accessed' - they are read-only")
         }
         
     ),
@@ -1267,7 +1267,7 @@ JHEEM = R6::R6Class(
                                                parameters = parameters.to.pass)
                 
                 if (check.consistency)
-                    used.parameter.names = union(used.parameter.names, names(parameters)[parameters.to.pass$values.have.been.accessed])
+                    used.parameter.names = union(used.parameter.names, parameters.to.pass$accessed.elements)
             }
 
             # For sampled parameters
