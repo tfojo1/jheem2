@@ -23,6 +23,22 @@ set.up.calibration <- function(version,
     # Set up the adaptive metropolis control
     # bayesian.simulations::create.adaptive.blockwise.metropolis.control()
     
+    # arguments are:
+    # var.names=prior@var.names,
+    # simulation.function=run.simulation,
+    # log.prior.distribution = get.density.function(prior),
+    # log.likelihood = likelihood,
+    # burn=burn, thin=thin,
+    # var.blocks = parameter.var.blocks,
+    # reset.adaptive.scaling.update.after = 0,
+    # transformations = transformations,
+    # 
+    # initial.covariance.mat = initial.cov.mat, -- set initial.cov.mat = diag((get.sds(prior)/20)^2)
+    # initial.scaling.parameters = initial.scaling.parameters, == set = starting.values / 20
+    # 
+    # target.acceptance.probability=target.acceptance.rate,
+    
+    
     # Set up the cache
     # bayesian.simulations::create.mcmc.cache()
 }
