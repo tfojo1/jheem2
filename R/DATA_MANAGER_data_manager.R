@@ -564,46 +564,36 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # --- Subset data
             for (data.type in c('i.data', 'i.url', 'i.details')) {
-                
                 private[[data.type]] = lapply(private[[data.type]], function(outcome) {
-                    
                     lapply(outcome, function(source) {
-                        
                         # To make sure we get a named list for the source
                         ontology.iterator = seq_along(source)
                         names(ontology.iterator) = names(source)
                         
                         lapply(ontology.iterator, function(i) {
-                            
                             if (names(source)[[i]] == ontology.name || is.null(ontology.name)) {
-                                
                                 lapply(source[[i]], function(stratification) {
-                                    
                                     dimensions.to.subset = dimension.values[names(dimension.values) %in% names(dim(stratification))]
-                                    
                                     if (length(dimensions.to.subset) > 0) {
-                                        
                                         dimnames.for.subset = dimnames(stratification)
-                                        
                                         for (d in names(dimensions.to.subset))
                                             dimnames.for.subset[[d]] = dimensions.to.subset[[d]][dimensions.to.subset[[d]] %in% dimnames(stratification)[[d]]]
-                                        
                                         if (all(sapply(dimnames.for.subset, length) > 0))
                                             fast.array.access(stratification, dimnames.for.subset)
                                         else stratification
-                                        
                                     }
                                     else stratification
                                 })
-                                
                             }
                             else source[[i]]
-                            
                         })
-                        
                     })
                 })
             }
+            
+            # Remove cached universal ontologies and target to universal mappings because they may no longer be valid (i.e., this outcome/source may not have a certain ontology anymore, even though the ontology is still registered)
+            private$i.cached.universal.ontologies = list()
+            private$i.cached.target.to.universal.mappings = list()
             
         },
         
@@ -1019,6 +1009,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             private$i.details[[outcome]][[source]][[ontology.name]][[stratification]][overwrite.indices] = 
                 lapply(1:length(overwrite.indices), function(i){ details })
             
+            # Clear cached universal ontologies and target to universal mappings
+            private$i.cached.universal.ontologies = list()
+            private$i.cached.target.to.universal.mappings = list()
             
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
@@ -1132,6 +1125,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         debug = F,
                         ...)
         {
+            # ptm = Sys.time()
             # if (debug) browser()
             error.prefix = paste0("Cannot pull '", outcome, "' data from the data manager: ")
             # *extra dimensions* are an alternative to 'dimension.values' and must pass the same checks if used
@@ -1209,22 +1203,25 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (!is.logical(na.rm) || length(na.rm)!=1 || is.na(na.rm))
                     stop(paste0(error.prefix, "na.rm must be a single, non-NA, logical value"))
             }
+            # print(paste0("block A took ", Sys.time()-ptm))
+            # ptm = Sys.time()
 
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
             if (debug) browser()
             if (is.null(target.ontology) || allow.mapping.from.target.ontology) {
                 target.ontology = private$get.universal.ontology(outcome = outcome,
-                                                                 sources = sources,
-                                                                 from.ontology.names = from.ontology.names,
-                                                                 target.ontology = target.ontology,
-                                                                 return.target.to.universal.mapping = allow.mapping.from.target.ontology,
-                                                                 debug=F)
+                                                                  sources = sources,
+                                                                  from.ontology.names = from.ontology.names,
+                                                                  target.ontology = target.ontology,
+                                                                  return.target.to.universal.mapping = allow.mapping.from.target.ontology,
+                                                                  debug=F)
                 target.to.universal.mapping = attr(target.ontology, 'target.to.universal.mapping')
                 if (!any(keep.dimensions %in% target.to.universal.mapping$to.dimensions))
                     target.to.universal.mapping = get.identity.ontology.mapping()
             }
-            
+            # print(paste0("block B took ", Sys.time()-ptm))
+            # ptm = Sys.time()
             
             dv.names = names(dimension.values)
             dimension.values = lapply(seq_along(dimension.values), function(d) {
@@ -1254,7 +1251,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else
                 sources.used.names = sources
             sources.successful.names = c()
-            
+            # print(paste0("block C took ", Sys.time()-ptm))
+            # ptm = Sys.time()
             ## FOR THE FUTURE: DO A PRETEND PULL TO SEE WHAT ONTOLOGIES WE NEED, THEN POTENTIALLY REMAKE THE UNIVERSAL WITH ONLY THOSE
             # if (debug) browser()
             pre.processed.data = lapply(sources.used.names, function(source.name) {
@@ -1559,7 +1557,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Some sources may have returned NULL above and should be removed.
             pre.processed.data = pre.processed.data[!unlist(lapply(pre.processed.data, is.null))]
-            
+            # print(paste0("block D took ", Sys.time()-ptm))
+            # ptm = Sys.time()
             # Extract data for data, url, and details out of what lapply returned above
             if (length(pre.processed.data) > 0) {
                 for (data.type in c('data', append.attributes)) {
@@ -1617,7 +1616,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 }
                 if (return.mapping.flag) attr(post.processed.data, 'mapping') = target.to.universal.mapping
             }
-            
+            # print(paste0("block E took ", Sys.time()-ptm))
+            # ptm = Sys.time()
             post.processed.data
         },
         
@@ -1870,6 +1870,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         i.source.info = NULL,
         i.ontologies = NULL,
         
+        i.cached.universal.ontologies = NULL,
+        i.cached.target.to.universal.mappings = NULL,
+        
         ##------------------------------##
         ##-- Private Member Functions --##
         ##------------------------------##
@@ -1911,6 +1914,56 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         },
         
         get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, target.ontology = NULL, return.target.to.universal.mapping = T, debug = F)
+        {
+            if (debug) browser()
+            # hash inputs
+            if (is.null(sources)) sources.for.cache = 'all' else sources.for.cache = paste0(sort(sources), collapse='__')
+            if (is.null(from.ontology.names)) ontologies.for.cache = 'all' else ontologies.for.cache = paste0(sort(from.ontology.names), collapse='__')
+            if (is.null(target.ontology)) target.ontology.for.cache = 'none'
+            else {
+                target.dimensions = sort(names(target.ontology))
+                collapsed.dimension.values = sapply(target.dimensions, function(d) {
+                    paste0(sort(target.ontology[[d]]), collapse='__')
+                })
+                target.ontology.for.cache = paste0(target.dimensions, "=<", collapsed.dimension.values, ">", collapse='__')
+            }
+            # check if exists already
+            already.exists = outcome %in% names(private$i.cached.universal.ontologies) &&
+                sources.for.cache %in% names(private$i.cached.universal.ontologies[[outcome]]) &&
+                ontologies.for.cache %in% names(private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]]) &&
+                target.ontology.for.cache %in% names(private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]][[ontologies.for.cache]])
+            # if not exists, create and store
+            if (!already.exists) {
+                new.universal.ontology = private$do.get.universal.ontology(outcome, sources, from.ontology.names, target.ontology, return.target.to.universal.mapping = T, debug)
+                if (!(outcome %in% names(private$i.cached.universal.ontologies))) {
+                    private$i.cached.universal.ontologies[[outcome]] =
+                        setNames(list(setNames(list(setNames(list(new.universal.ontology), target.ontology.for.cache)), ontologies.for.cache)), sources.for.cache)
+                    private$i.cached.target.to.universal.mappings[[outcome]] =
+                        setNames(list(setNames(list(setNames(list(attr(new.universal.ontology, 'target.to.universal.mapping')), target.ontology.for.cache)), ontologies.for.cache)), sources.for.cache)
+                }
+                else if (!(sources.for.cache %in% names(private$i.cached.universal.ontologies[[outcome]]))) {
+                    private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]] =
+                        setNames(list(setNames(list(new.universal.ontology), target.ontology.for.cache)), ontologies.for.cache)
+                    private$i.cached.target.to.universal.mappings[[outcome]][[sources.for.cache]] =
+                        setNames(list(setNames(list(attr(new.universal.ontology, 'target.to.universal.mapping')), target.ontology.for.cache)), ontologies.for.cache)
+                }
+                else if (!(ontologies.for.cache %in% names(private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]]))) {
+                    private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]][[ontologies.for.cache]] =
+                        setNames(list(new.universal.ontology), target.ontology.for.cache)
+                    private$i.cached.target.to.universal.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]] =
+                        setNames(list(attr(new.universal.ontology, 'target.to.universal.mapping')), target.ontology.for.cache)
+                }
+                private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[target.ontology.for.cache]] = new.universal.ontology
+                private$i.cached.target.to.universal.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[target.ontology.for.cache]] = attr(new.universal.ontology, 'target.to.universal.mapping')
+            }
+            # return
+            returned.ontology = private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[target.ontology.for.cache]]
+            if (return.target.to.universal.mapping)
+                attr(returned.ontology, 'target.to.universal.mapping') = private$i.cached.target.to.universal.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[target.ontology.for.cache]]
+            return(returned.ontology)
+        },
+        
+        do.get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, target.ontology = NULL, return.target.to.universal.mapping = T, debug = F)
         {
             if (debug) browser()
             onts = self$get.ontologies.for.outcome(outcome, sources)
