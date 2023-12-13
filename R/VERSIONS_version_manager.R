@@ -186,7 +186,7 @@ is.compiled.specification.registered.for.version <- function(version)
 #'@param version The name of an EHE version for which a specification has been registered with \code{\link{register.model.specification}}
 #'@param distribution An object of class 'distribution' that specifies the prior distribution for the parameters
 #'@param sampling.blocks A list (which may optionally be named) of character vectors. Each element (a character vector) denotes a subset of the parameters to be sampled as a single block during the calibration process. These elements must contain ONLY values present in distribution@var.names, and every value in distribution@var.names must be present in at least one of the blocks
-#'@param apply.function A function that knows how to apply parameter values to a jheem.model.settings object. The function should take three arguments: (1) 'model.settings', an object of class jheem.model.settings, (2) 'parameters', a named numeric vector, and (3) 'track.used.parameters', a logical indicating whether the function should track which parameters are used. If T, the function should return a character vector of parameter names that were used. If F, any return value from the function will be ignored
+#'@param apply.function A function that knows how to apply parameter values to a jheem.model.settings object. The function should take two arguments: (1) 'model.settings', an object of class jheem.model.settings, and (2) 'parameters', a named numeric vector
 #'@param join.with.previous.version Whether the distribution, apply.function, and sampling blocks should be merged with those of the previous version
 #'
 #'@export
@@ -329,18 +329,16 @@ do.register.parameters.distribution.and.apply.function <- function(version,
     arg.names = names(fn.args)
     arg.names.without.default.value = arg.names[sapply(fn.args, function(val){val==''})]
     
-    # Check that it takes 'model.settings', 'parameters', and 'track.used.parameters'
+    # Check that it takes 'model.settings' and 'parameters'
     error.prefix = paste0("Cannot register apply.parameters.to.engine.function: The function passed to 'apply.function' ",
                           ifelse(is.null(apply.function.name), "", paste0("(", apply.function.name, ") ")))
     if (all(arg.names != 'model.settings'))
         stop(paste0(error.prefix, "must take 'model.settings' as an argument"))
     if (all(arg.names != 'parameters'))
         stop(paste0(error.prefix, "must take 'parameters' as an argument"))
-    if (all(arg.names != 'track.used.parameters'))
-        stop(paste0(error.prefix, "must take 'track.used.parameters' as an argument"))
     
     # Check that there are no other required arguments
-    extraneous.arg.names = setdiff(arg.names.without.default.value, c('model.settings','parameters','track.used.parameters'))
+    extraneous.arg.names = setdiff(arg.names.without.default.value, c('model.settings','parameters'))
     if (length(extraneous.arg.names)>0)
         stop(paste0(error.prefix, " requires ",
                     ifelse(length(extraneous.arg.names)==1, 'argument ', 'arguments '),

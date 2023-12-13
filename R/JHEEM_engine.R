@@ -275,7 +275,7 @@ set.element.functional.form.alphas.from.parameters <- function(model.settings,
     specification.metadata = model.settings$specification.metadata
     
     #-- Check Arguments --#
-    if (!is.numeric(parameters))
+    if (!is.numeric(parameters) && !is(parameters, 'protected.numeric.vector'))
         stop("Cannot set functional.form alphas from parameters: 'parameters' must be a named NUMERIC vector")
     
     if (is.null(names(parameters)))
@@ -699,6 +699,103 @@ JHEEM.ENGINE = R6::R6Class(
         }
     )
 )
+
+PROTECTED.NUMERIC.VECTOR = R6::R6Class(
+    'protected.numeric.vector',
+    
+    public = list(
+        
+        initialize = function(values)
+        {
+            private$i.values = values
+            private$i.has.been.accessed = sapply(values, function(val){F})
+        },
+        
+        '[' = function(indices)
+        {
+            rv = private$i.values[indices]
+            
+ #           na.mask = is.na(rv)
+ #           if (any(na.mask))
+ #           {
+ #               if (is.logical(indices))
+ #               {
+ #                   stop("The length (", length(indices), ") of the logical vector used to access the parameter values does not match the length of the parameter values vector (", length(private$i.values))
+ #               }
+ #               else
+ #               {
+ #                   invalid.indices = indices[na.mask]
+ #                   if (is.character(indices))
+ #                   {
+ #                       stop(paste0(collapse.with.and("'", invalid.indices, "'"),
+ #                                   ifelse(length(invalid.indices)==1, 
+ #                                          " is not a valid name for a parameter value",
+ #                                          " are not valid names for parameter values")))
+ #                   }
+ #                   else 
+ #                   {
+ #                       stop(paste0(ifelse(length(invalid.indices)==1, "Index ", "Indices "),
+ #                                   collapse.with.and(invalid.indices),
+ #                                   ifelse(length(invalid.indices)==1, " is", " are"),
+ #                                   " out of bounds for parameter value vector (length ", length(private$i.values), ")"))
+ #                   }
+ #               }
+ #           }
+            
+            private$i.has.been.accessed[indices] = T
+            rv
+        },
+        
+        '[<-' = function(indices, value)
+        {
+            stop("Cannot modify parameter values in this protected numeric vector")
+        },
+        
+        length = function()
+        {
+            length(private$i.values)
+        },
+        
+        names = function()
+        {
+            names(private$i.values)
+        },
+        
+        c = function(...)
+        {
+            stop("Cannot concatenate (ie call the c() function) parameter values in this protected numeric vector")
+        },
+        
+        print = function(...)
+        {
+            base::print(private$i.values)
+        }
+    ),
+    
+    active = list(
+        
+        values.have.been.accessed = function(value)
+        {
+            if (missing(value))
+                private$i.has.been.accessed
+            else
+                stop("Cannot modify a JHEEM's 'values.have.been.accessed' - they are read-only")
+        }
+        
+    ),
+    
+    private = list(
+        i.values = NULL,
+        i.has.been.accessed = NULL
+    )
+)
+
+'[.protected.numeric.vector' <- function(obj, ...) {obj$'['(...)}
+'[<-.protected.numeric.vector' <- function(obj, ...) {obj$'[<-'(...)}
+'length.protected.numeric.vector' <- function(obj) {obj$length()}
+'names.protected.numeric.vector' <- function(obj) {obj$names()}
+'c.protected.numeric.vector' <- function(obj, ...) {obj$c(...)}
+
 
 ##---------------------##
 ##-- THE JHEEM CLASS --##
@@ -1157,11 +1254,17 @@ JHEEM = R6::R6Class(
             if (!is.null(calibrated.parameters.distribution) && any(calibrated.parameters.distribution@var.names[1]==names(parameters)))
             {
                 calibrated.parameters.apply.fn = get.parameters.apply.function.for.version(self$version, type='calibrated')
-                used.from.calibrated = calibrated.parameters.apply.fn(model.settings = model.settings,
-                                                                      parameters = parameters,
-                                                                      track.used.parameters = check.consistency)
+                
                 if (check.consistency)
-                    used.parameter.names = union(used.parameter.names, used.from.calibrated)
+                    parameters.to.pass = PROTECTED.NUMERIC.VECTOR$new(parameters)
+                else
+                    parameters.to.pass = parameters
+                
+                calibrated.parameters.apply.fn(model.settings = model.settings,
+                                               parameters = parameters.to.pass)
+                
+                if (check.consistency)
+                    used.parameter.names = union(used.parameter.names, names(parameters)[parameters.to.pass$values.have.been.accessed])
             }
 
             # For sampled parameters
