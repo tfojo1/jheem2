@@ -1,10 +1,13 @@
 
+
+
 #'@export
 set.up.calibration <- function(version,
                                location,
                                calibration.code,
-                               dir,
-                               cache.frequency = 500)
+                               root.dir,
+                               cache.frequency = 500,
+                               allow.overwrite.cache)
 {
     # Pull the calibration info object
     
@@ -44,7 +47,9 @@ set.up.calibration <- function(version,
     
     
     
-    
+    #-- Get the Prior --#
+    prior = get.parameters.distribution.for.version(version, type='calibrated')
+    relevant.prior = distributions::subset.distribution(prior, calibration.info$parameter.names) # from calibration info
     
     # Assume we have at this point
     # prior
@@ -107,9 +112,9 @@ set.up.calibration <- function(version,
     
     
     #-- Set MCMC parameters depending on whether this is prelim or not --#
-    if (preliminary)
+    if (preliminary) # get is.preliminary of calibration info object
     {
-        target.acceptance.rate=0.1,
+        target.acceptance.rate=0.1
         
         SCALING.BASE.UPDATE = 1
         SCALING.UPDATE.PRIOR=10
@@ -134,67 +139,104 @@ set.up.calibration <- function(version,
     }
     
     # NEED TO FILL IN STILL
-    run.simulation = "a function that takes parameters and returns a sim"
-    likelihood = "instantiate from the instructions code"
+    'make the engine'
+    engine = create.jheem.engine(version=version, location=location, start.year=calibration.info$start.year, end.year=calibration.info$start.year, max.run.time.seconds = calibration.info$max.run.time.seconds) # get some of these from the calibration info object
+    # 'parameters' is the subset of parameters that we will be modifying in the MCMC
+    run.simulation <- function(parameters) {
+        all.parameters = default.parameter.values
+        all.parameters[names(parameters)] = parameters
+        engine$run(all.parameters)
+    }
+    likelihood = calibration.info$likelihood.instructions$instantiate(version=version, location=location, data.manager=calibration.info$data.manager)
+    compute.likelihood <- function(sim) {
+        likelihood$compute(sim=sim, log=T, check.consistency=F)
+    }
     
     burn = "from the calibration info"
     thin = "from the calibration infoo"
     
     
     #-- Set up the MCMC Control --#
-    ctrl = create.adaptive.blockwise.metropolis.control(var.names=prior@var.names,
-                                                        simulation.function=run.simulation,
-                                                        log.prior.distribution = get.density.function(prior),
-                                                        log.likelihood = likelihood,
-                                                        burn=burn, thin=thin,
-                                                        var.blocks = parameter.blocks,
-                                                        reset.adaptive.scaling.update.after = 0,
-                                                        transformations = parameter.scales,
-                                                        
-                                                        initial.covariance.mat = initial.cov.mat,
-                                                        initial.scaling.parameters = initial.scaling.parameters,
-                                                        
-                                                        target.acceptance.probability=target.acceptance.rate,
-                                                        
-                                                        n.iter.before.use.adaptive.covariance = N.ITER.BEFORE.COV,
-                                                        adaptive.covariance.base.update = COV.BASE.UPDATE,
-                                                        adaptive.covariance.update.prior.iter = COV.UPDATE.PRIOR,
-                                                        adaptive.covariance.update.decay = COV.UPDATE.DECAY,
-                                                        adaptive.scaling = 'componentwise',
-                                                        adaptive.scaling.base.update = SCALING.BASE.UPDATE,
-                                                        adaptive.scaling.update.prior.iter= SCALING.UPDATE.PRIOR,
-                                                        adaptive.scaling.update.decay= SCALING.UPDATE.DECAY
+    ctrl = bayesian.simulations::create.adaptive.blockwise.metropolis.control(var.names=calibration.info$parameter.names,
+                                                                              simulation.function=run.simulation,
+                                                                              log.prior.distribution = distributions::get.density.function(relevant.prior),
+                                                                              log.likelihood = compute.likelihood, # saves the data manager in here!
+                                                                              burn=burn, thin=thin,
+                                                                              var.blocks = parameter.blocks,
+                                                                              reset.adaptive.scaling.update.after = 0,
+                                                                              transformations = parameter.scales,
+                                                                              
+                                                                              initial.covariance.mat = initial.cov.mat,
+                                                                              initial.scaling.parameters = initial.scaling.parameters,
+                                                                              
+                                                                              target.acceptance.probability=target.acceptance.rate,
+                                                                              
+                                                                              n.iter.before.use.adaptive.covariance = N.ITER.BEFORE.COV,
+                                                                              adaptive.covariance.base.update = COV.BASE.UPDATE,
+                                                                              adaptive.covariance.update.prior.iter = COV.UPDATE.PRIOR,
+                                                                              adaptive.covariance.update.decay = COV.UPDATE.DECAY,
+                                                                              adaptive.scaling = 'componentwise',
+                                                                              adaptive.scaling.base.update = SCALING.BASE.UPDATE,
+                                                                              adaptive.scaling.update.prior.iter= SCALING.UPDATE.PRIOR,
+                                                                              adaptive.scaling.update.decay= SCALING.UPDATE.DECAY
     )
+    
+    #-- Set up the cache --#
+    bayesian.simulations::create.mcmc.cache(dir = file.path(root.dir, MCMC.SUB.DIRECTORY, get.jheem.file.path(version, location, calibration.code)),
+                                            control = ctrl,
+                                            n.iter = 'calibration_objects_n.iter', # just get from calibration object info
+                                            starting.values = 'starting.values', # harder
+                                            prior.mcmc = NULL,
+                                            cache.frequency = cache.frequency,
+                                            allow.overwrite.cache = allow.overwrite.cache)
 }
 
 #'@export
 run.calibration <- function(version,
                             location,
                             calibration.code,
-                            dir)
+                            root.dir,
+                            chains,
+                            update.frequency = 500,
+                            update.detail = 'low')
 {
     # Pull the calibration info object
+    bayesian.simulations::run.mcmc.from.cache(dir = file.path(root.dir, MCMC.SUB.DIRECTORY, get.jheem.file.path(version, location, calibration.code)),
+                                              chains = chains,
+                                              update.frequency = update.frequency,
+                                              update.detail = update.detail,
+                                              remove.cache.when.done = F)
+                                              
 }
 
 #'@export
 assemble.from.calibration <- function(version,
                                       location,
                                       calibration.code,
-                                      dir,
-                                      allow.incomplete=F)
+                                      root.dir,
+                                      allow.incomplete=F,
+                                      chains = NULL)
 {
-    
+    mcmc = bayesian.simulations::assemble.mcmc.from.cache(dir = file.path(root.dir, MCMC.SUB.DIRECTORY, get.jheem.file.path(version, location, calibration.code)),
+                                                          allow.incomplete = allow.incomplete,
+                                                          chains = chains)
+    # could choose to delete cache now but will not, undecided
+    join.simulation.sets(mcmc@simulations[as.integer(mcmc@simulation.indices)])
 }
 
 #'@export
 register.calibration.info <- function(code,
                                       likelihood.instructions,
+                                      data.manager,
+                                      start.year,
+                                      end.year,
                                       parameter.names,
                                       n.chains,
                                       n.iter,
                                       n.burn,
                                       draw.initial.parameter.values.from,
                                       fixed.initial.parameter.values,
+                                      is.preliminary,
                                       description,
                                       error.prefix = "Error registering likelihood instructions: ")
 {
