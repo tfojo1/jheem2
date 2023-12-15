@@ -62,7 +62,7 @@ simplot <- function(...,
     for (element in sim.args) {
         if (!R6::is.R6(element) || !is(element, 'jheem.simulation')) {
             if (is.list(element)) {
-                if (any(sapply(element, function(sub.element) {!R6::isR6(sub.element) || !is(sub.element, 'jheem.simulation')}))) {
+                if (any(sapply(element, function(sub.element) {!R6::is.R6(sub.element) || !is(sub.element, 'jheem.simulation')}))) {
                     stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation objects or lists containing only jheem.simulation objects"))
                 }
             } else if (is.null(outcomes) && is.character(element)) {
