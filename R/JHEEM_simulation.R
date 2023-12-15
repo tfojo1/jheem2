@@ -422,6 +422,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                  ...,
                                  check.consistency = T,
                                  drop.single.outcome.dimension = T,
+                                 drop.single.sim.dimension = F,
                                  error.prefix = "Error getting dimnames of simulation results: ")
         {
             dimension.values = private$process.dimension.values(dimension.values, ..., error.prefix=error.prefix)
@@ -552,23 +553,33 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                     }
                 }
             }
-            
+            # if (debug) browser()
             # Fold together, with outcome and sim as the last dimensions
-            if (!drop.single.outcome.dimension || length(outcomes)>1)
-                c(ont1,
-                  ontology(outcome=outcomes, sim=1:self$n.sim, incomplete.dimensions = c('outcome', 'sim')))
-            else
-                c(ont1,
-                  ontology(sim=1:self$n.sim, incomplete.dimensions = 'sim'))
+            if (!drop.single.outcome.dimension || length(outcomes)>1) {
+                if (!drop.single.sim.dimension || self$n.sim > 1)
+                    c(ont1,
+                      ontology(outcome=outcomes, sim=1:self$n.sim, incomplete.dimensions = c('outcome', 'sim')))
+                else
+                    c(ont1,
+                      ontology(outcome=outcomes, incomplete.dimensions = 'outcome'))
+            }
+            else {
+                if (!drop.single.sim.dimension || self$n.sim > 1)
+                    c(ont1,
+                      ontology(sim=1:self$n.sim, incomplete.dimensions = 'sim'))
+                else
+                    ont1
+            }
         },
         
         get = function(outcomes,
                        output = c('value', 'numerator', 'denominator')[[1]],
-                       keep.dimensions=NULL, # will always include sim
+                       keep.dimensions=NULL,
                        dimension.values = list(),
                        ...,
                        check.consistency = T,
                        drop.single.outcome.dimension = T,
+                       drop.single.sim.dimension = F,
                        replace.inf.values.with.zero = T,
                        error.prefix = "Error getting simulation results: ",
                        debug=F)
@@ -589,16 +600,17 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                            ...,
                                            check.consistency = check.consistency,
                                            drop.single.outcome.dimension = drop.single.outcome.dimension,
+                                           drop.single.sim.dimension = drop.single.sim.dimension,
                                            error.prefix = error.prefix)
             
             dimension.values = private$process.dimension.values(dimension.values, ..., error.prefix=error.prefix)
-            if (drop.single.outcome.dimension && length(outcomes)==1)
-                keep.dimensions = names(dim.names)
-            else
-                keep.dimensions = names(dim.names)[-length(dim.names)]
-
-            keep.dimensions = union(keep.dimensions, 'sim') # "sim" must always be a keep dimension
-            # dim.names[['sim']] = 1:private$i.n.sim
+            # if (drop.single.sim.dimension && self$n.sim==1)
+            #     keep.dimensions = names(dim.names)
+            # else
+            #     keep.dimensions = names(dim.names)[-length(dim.names)]
+            # 
+            # if (!drop.single.sim.dimension || self$n.sim > 1)
+            #     keep.dimensions = union(keep.dimensions, 'sim')
 
             rv = sapply(outcomes, function(outcome){
                 scale = self$outcome.metadata[[outcome]]$scale
@@ -634,8 +646,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 }
 
                 if (length(pre.agg.dimnames) > length(keep.dimensions)) {
-                    if (numerator.needed) numerator.data = apply(numerator.data, keep.dimensions, sum)
-                    if (denominator.needed) denominator.data = apply(denominator.data, keep.dimensions, sum)
+                    if (numerator.needed) numerator.data = apply(numerator.data, c(keep.dimensions, 'sim'), sum)
+                    if (denominator.needed) denominator.data = apply(denominator.data, c(keep.dimensions, 'sim'), sum)
                 }
                 
                 if (output == 'numerator' || output == 'value' && !denominator.needed) output.array = numerator.data
