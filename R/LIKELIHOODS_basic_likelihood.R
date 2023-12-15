@@ -548,8 +548,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
 
             sim.numerator.data = sim$get(outcome = private$i.outcome.for.sim,
                                          keep.dimensions = names(private$i.sim.required.dimnames),
-                                         dimension.values = private$i.sim.dimension.values
-            )
+                                         dimension.values = private$i.sim.dimension.values,
+                                         drop.single.sim.dimension = T)
             
             use.poisson = is.null(private$i.denominator.outcome.for.sim)
             if (use.poisson) {
@@ -558,7 +558,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             } else {
                 sim.denominator.data = sim$get(outcome = private$i.denominator.outcome.for.sim,
                                                keep.dimensions = names(private$i.denominator.required.dimnames),
-                                               dimension.values = private$i.denominator.dimension.values)
+                                               dimension.values = private$i.denominator.dimension.values,
+                                               drop.single.sim.dimension = T)
                 expanded.sim.denominator.data = expand.array(sim.denominator.data, dimnames(sim.numerator.data))
             }
             

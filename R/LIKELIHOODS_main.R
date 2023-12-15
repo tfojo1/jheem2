@@ -506,7 +506,7 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             
         },
         
-        #'@param sim A 'jheem.simulation' object
+        #'@param sim A 'jheem.simulation.set' object
         #'@param log Whether to use log likelihood
         #'@param check.consistency - Whether to spend time checking to make sure everything is internally consistent. Setting to F is faster, but may generate weird error messages if there are bugs
         compute = function(sim, log=T, check.consistency, debug=F)
@@ -516,8 +516,8 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             
             # VALIDATION PURPOSELY SKIPPED FOR TIME SAVING. ENSURE SIM IS A SIMULATION!
             
-            # if (!is(sim, 'jheem.simulation'))
-            #     stop(paste0(error.prefix, "'sim' must be a 'jheem.simulation' object"))
+            # if (!is(sim, 'jheem.simulation.set'))
+            #     stop(paste0(error.prefix, "'sim' must be a 'jheem.simulation.set' object"))
             
             if (check.consistency)
             {
