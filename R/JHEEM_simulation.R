@@ -19,26 +19,26 @@ JHEEM.SIMULATION.CODE.ITERATION = '2.0'
 #'@details Returns an array whose dimensions are keep.dimensions - plus (if there is more than one outcome or drop.single.outcome.dimensions==FALSE) an 'outcome' dimension at the end
 #'
 #'@export
-get.sim.data <- function(sim,
-                         outcomes,
-                         output = c('value', 'numerator', 'denominator')[[1]],
-                         keep.dimensions=NULL,
-                         dimension.values = list(),
-                         ...,
-                         check.consistency = T,
-                         drop.single.outcome.dimension = T,
-                         error.prefix = "Error getting simulation results: ")
+get.simset.data <- function(simset,
+                            outcomes,
+                            output = c('value', 'numerator', 'denominator')[[1]],
+                            keep.dimensions=NULL,
+                            dimension.values = list(),
+                            ...,
+                            check.consistency = T,
+                            drop.single.outcome.dimension = T,
+                            error.prefix = "Error getting simulation results: ")
 {
-    if (!is(jheem.engine, "R6") || !is(sim, "jheem.simulation"))
-        stop("sim must be an R6 object of class 'jheem.simulation'") 
+    if (!is(jheem.engine, "R6") || !is(simset, "jheem.simulation.set"))
+        stop("sim must be an R6 object of class 'jheem.simulation.set'") 
     
-    sim$get(outcomes = outcomes,
-            keep.dimensions = keep.dimensions,
-            dimension.values = dimension.values,
-            ...,
-            check.consistency = check.consistency,
-            drop.single.outcome.dimension = drop.single.outcome.dimension,
-            error.prefix = error.prefix)
+    simset$get(outcomes = outcomes,
+               keep.dimensions = keep.dimensions,
+               dimension.values = dimension.values,
+               ...,
+               check.consistency = check.consistency,
+               drop.single.outcome.dimension = drop.single.outcome.dimension,
+               error.prefix = error.prefix)
 }
 
 #'@name Get a Simulation Metadata Object
@@ -71,10 +71,81 @@ get.simulation.metadata <- function(version, location,
 
 create.single.simulation <- function(version,
                                      location,
-                                     outcome.numerators,
-                                     outcome.denominators)
+                                     outcome.numerators, # no sim dimension
+                                     outcome.denominators, # no sim dimension
+                                     parameters,
+                                     from.year,
+                                     to.year)
 {
+    outcome.numerators.with.sim.dimension = lapply(outcome.numerators, function(arr) {
+        new.dimnames = c(dimnames(arr), sim=1)
+        array(arr, dim=sapply(new.dimnames, length), new.dimnames)
+    })
+    outcome.denominators.with.sim.dimension = lapply(outcome.denominators, function(arr) {
+        if (is.null(arr)) return(arr)
+        new.dimnames = c(dimnames(arr), sim=1)
+        array(arr, dim=sapply(new.dimnames, length), new.dimnames)
+    })
+    parameters.indexed.by.sim = list('1'=parameters)
     
+    JHEEM.SIMULATION.SET$new(version = version,
+                             location = location,
+                             outcome.numerators = outcome.numerators.with.sim.dimension,
+                             outcome.denominators = outcome.denominators.with.sim.dimension,
+                             parameters = parameters.indexed.by.sim,
+                             from.year = from.year,
+                             to.year = to.year,
+                             n.sim = 1)
+}
+
+join.simulation.sets <- function(...)
+{
+    # Validate
+    # each argument must be either a simset or a list of simsets
+    # browser()
+    error.prefix = "Error joining simulation sets: "
+    simset.list = unlist(list(...), recursive = F)
+    
+    if (any(sapply(simset.list, function(element) {!R6::is.R6(element) || !is(element, 'jheem.simulation.set')})))
+        stop(paste0(error.prefix, "arguments must all be either 'jheem.simulation.set' objects or lists containing only 'jheem.simulation.set' objects"))
+    
+    # all simsets should have the same metadata. This will require implementing an equals() method in simulation metadata class
+    
+    new.n.sim = sum(sapply(simset.list, function(simset) {simset$n.sim}))
+    
+    sample.simset = simset.list[[1]]
+    outcomes = sample.simset$outcomes
+    
+    outcome.dimnames = lapply(sample.simset$outcome.ontologies, function(outcome.ontology) {
+        dim.names = outcome.ontology
+        dim.names[['sim']] = 1:new.n.sim
+        dim.names
+    })
+    
+    combined.outcome.numerators = lapply(outcomes, function(outcome) {
+        data.vec = sapply(simset.list, function(simset) {simset$data$outcome.numerators[[outcome]]})
+        if (is.null(data.vec)) return(NULL)
+        array(data.vec, sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
+    })
+    names(combined.outcome.numerators) = outcomes
+    
+    combined.outcome.denominators = lapply(outcomes, function(outcome) {
+        data.vec = sapply(simset.list, function(simset) {simset$data$outcome.denominators[[outcome]]})
+        if (is.null(data.vec)) return(NULL)
+        array(data.vec, sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
+    })
+    names(combined.outcome.denominators) = outcomes
+
+    combined.parameters = unlist(lapply(simset.list, function(simset) {simset$data$parameters}), recursive=F)
+    
+    JHEEM.SIMULATION.SET$new(version = sample.simset$version,
+                             location = sample.simset$location,
+                             outcome.numerators = combined.outcome.numerators,
+                             outcome.denominators = combined.outcome.denominators,
+                             parameters = combined.parameters,
+                             from.year = sample.simset$from.year,
+                             to.year = sample.simset$to.year,
+                             n.sim = new.n.sim)
 }
 
 ##-----------------------##
@@ -137,26 +208,26 @@ SIMULATION.METADATA = R6::R6Class(
                     stop(paste0(error.prefix, "'from.year' (", from.year, ") must be BEFORE 'to.year' (", to.year, ")"))
             }
             
-            private$i.from.year = from.year
-            private$i.to.year = to.year
+            private$i.metadata = list(from.year = from.year,
+                                      to.year = to.year)
             
             # Pull outcome ontologies and metadata from the specification
             
             specification = get.compiled.specification.for.version(version)
             specification.metadata = self$specification.metadata
             
-            private$i.outcome.ontologies = list()
-            private$i.outcome.metadata = list()
+            private$i.metadata$outcome.ontologies = list()
+            private$i.metadata$outcome.metadata = list()
             
             for (outcome.name in specification$outcome.names)
             {
                 outcome = specification$get.outcome(outcome.name)
                 if (outcome$save)
                 {
-                    if (outcome$is.cumulative && !is.null(private$i.from.year) && !is.null(private$i.to.year))
+                    if (outcome$is.cumulative && !is.null(private$i.metadata$from.year) && !is.null(private$i.metadata$to.year))
                     {
-                        from.year = max(private$i.from.year, outcome$from.year)
-                        to.year = min(private$i.to.year, outcome$to.year)
+                        from.year = max(private$i.metadata$from.year, outcome$from.year)
+                        to.year = min(private$i.metadata$to.year, outcome$to.year)
                         
                         if (to.year>=from.year)
                             years.for.ont = as.character(from.year:to.year)
@@ -168,20 +239,185 @@ SIMULATION.METADATA = R6::R6Class(
                     
                     ont = c(ontology(year=years.for.ont, incomplete.dimensions = 'year'),
                             specification.metadata$apply.aliases(outcome$ontology, error.prefix = error.prefix))
-                    private$i.outcome.ontologies[[outcome$name]] = ont
+                    private$i.metadata$outcome.ontologies[[outcome$name]] = ont
                     
-                    private$i.outcome.metadata[[outcome$name]] = MODEL.OUTCOME.METADATA$new(outcome.metadata = outcome$metadata,
-                                                                                            is.cumulative = outcome$is.cumulative,
-                                                                                            corresponding.observed.outcome = outcome$corresponding.data.outcome)
+                    private$i.metadata$outcome.metadata[[outcome$name]] = MODEL.OUTCOME.METADATA$new(outcome.metadata = outcome$metadata,
+                                                                                                     is.cumulative = outcome$is.cumulative,
+                                                                                                     corresponding.observed.outcome = outcome$corresponding.data.outcome)
                 }
             }
+        }
+    ),
+    
+    active = list(
+        metadata = function(value)
+        {
+            if (missing(value))
+                private$i.metadata
+            else
+                stop("Cannot modify a simulation.metadata's 'metadata' - it is read-only")
+        },
+        
+        outcomes = function(value)
+        {
+            if (missing(value))
+                names(private$i.metadata$outcome.ontologies)
+            else
+                stop("Cannot modify a simulation.metadata's 'outcomes' - they are read-only")
+        },
+        
+        outcome.ontologies = function(value)
+        {
+            if (missing(value))
+                private$i.metadata$outcome.ontologies
+            else
+                stop("Cannot modify a simulation.metadata's 'outcome.ontologies' - they are read-only")
+        },
+        
+        outcome.metadata = function(value)
+        {
+            if (missing(value))
+                private$i.metadata$outcome.metadata
+            else
+                stop("Cannot modify a simulation.metadata's 'outcome.metadata' - it is read-only")
+        },
+        
+        from.year = function(value)
+        {
+            if (missing(value))
+                private$i.metadata$from.year
+            else
+                stop("Cannot modify a simulation.metadata's 'from.year' - it is read-only")
+        },
+        
+        to.year = function(value)
+        {
+            if (missing(value))
+                private$i.metadata$to.year
+            else
+                stop("Cannot modify a simulation.metadata's 'to.year' - it is read-only")
+        }
+    ),
+    
+    private = list(
+        
+        i.metadata = NULL,
+        
+        # i.from.year = NULL,
+        # i.to.year = NULL,
+        # 
+        # i.outcome.ontologies = NULL,
+        # i.outcome.metadata = NULL,
+        
+        get.current.code.iteration = function()
+        {
+            JHEEM.SIMULATION.CODE.ITERATION
+        },
+        
+        process.dimension.values = function(dimension.values, ..., error.prefix)
+        {
+            # Validate dimension values (and fold in ...)
+            dot.dot.dot = list(...)
+            
+            check.dimension.values.valid(dot.dot.dot,
+                                         variable.name.for.error = "The elements of ...",
+                                         error.prefix = error.prefix,
+                                         allow.empty = T)
+            
+            check.dimension.values.valid(dimension.values,
+                                         variable.name.for.error = "dimension.values",
+                                         error.prefix = error.prefix,
+                                         allow.empty = T)
+            
+            dimension.values[names(dot.dot.dot)] = dot.dot.dot
+            
+            if (any(names(dimension.values)=='year'))
+                dimension.values$year = as.character(dimension.values$year)
+            
+            dimension.values
+        }
+    )
+    
+)
+
+JHEEM.SIMULATION.SET = R6::R6Class(
+    'jheem.simulation.set',
+    inherit = SIMULATION.METADATA,
+    lock_object = F,
+    portable = F,
+    
+    public = list(
+        initialize = function(version, # needs a subversion
+                              location,
+                              outcome.numerators, # now must have sim dimension
+                              outcome.denominators, # now must have sim dimension
+                              parameters,
+                              from.year,
+                              to.year,
+                              n.sim,
+                              error.prefix = "Error constructing simulation")
+        {
+            #-- Call the superclass constructor --#
+            super$initialize(version = version,
+                             location = location,
+                             type = "Simulation",
+                             years.can.be.missing = F,
+                             from.year = from.year,
+                             to.year = to.year,
+                             error.prefix = error.prefix)
+            
+            # I have not yet written the validation code
+            
+            #-- Validate outcome data --#
+            
+            # Make sure all expected outcomes are present
+            # - Numerators for all
+            # - Denominators unless the type is number or non.negative.number
+            # Make sure they are numeric arrays with dimensions that match the ontology
+
+            #-- Update the outcome metadata's years for each of the non-cumulative outcomes --#
+            
+            
+            #-- Store data --#
+            private$i.data = list(outcome.numerators = outcome.numerators,
+                                  outcome.denominators = outcome.denominators,
+                                  parameters = parameters)
+            private$i.n.sim = n.sim
+            
+            #-- Make Active Bindings with the Names of Outcomes --#
+            outcomes.to.bind = setdiff(self$outcomes, names(self))
+            lapply(outcomes.to.bind, function(outcome.name){
+                
+                makeActiveBinding(sym=outcome.name,
+                                  fun = function(value){
+                                      
+                                      if (missing(value))
+                                      {
+                                          if (is.null(private$i.data$outcome.denominators[[outcome.name]]))
+                                              private$i.data$outcome.numerators[[outcome.name]]
+                                          else
+                                          {
+                                              rv = private$i.data$outcome.numerators[[outcome.name]] /
+                                                private$i.data$outcome.denominators[[outcome.name]]
+                                              rv[private$i.data$outcome.denominators[[outcome.name]]==0] = 0
+                                              rv
+                                          }
+                                      }
+                                      else
+                                          stop("Cannot modify a simulation's 'parameters' - they are read-only")
+                                      
+                                  },
+                                  env = self)
+            })
+            
+            lockEnvironment(self)
         },
         
         
         # Returns the dimnames that the results of a call to simulation$get will have
         # It's arguments mirror simulation$get
         get.dim.names = function(outcomes,
-                                 keep.dimensions=NULL,
+                                 keep.dimensions=NULL, # will always include sim
                                  dimension.values = list(),
                                  ...,
                                  check.consistency = T,
@@ -255,28 +491,28 @@ SIMULATION.METADATA = R6::R6Class(
                     # The below should be rendered unnecessary by the resolve.ontology.dimension.values above
                     # HOWEVER - do we need to check that years is within to/from for complete outcomes? if years is NULL?
                     # Make sure dimension.values work
-#                    for (d in names(dimension.values))
-#                    {
-#                        if (is.null(ont[[d]]))
-#                        {
-#                            # do we need to check that years is within to/from for complete outcomes?
-#                        }
-#                        else
-#                        {
-#                            invalid.dimension.values = setdiff(dimension.values[[d]], ont[[d]])
-#                            if (length(invalid.dimension.values)>0)
-#                                stop(paste0(error.prefix, "For the '", outcome, 
-#                                            "' outcome, ",
-#                                            collapse.with.and("'", invalid.dimension.values, "'"),
-#                                            ifelse(length(invalid.dimension.value.dimensions)==1, " is an invalid value", " are invalid values"),
-#                                            " for the '", d, "' dimension of the ontology",
-#                                            ifelse(length(ont[[d]])<=6, 
-#                                                   paste0(" (", paste0("'", ont[[d]], "'", collapse=", "), ")"),
-#                                                   "")
-#                                ))
-#                        }
-#                    }
-
+                    #                    for (d in names(dimension.values))
+                    #                    {
+                    #                        if (is.null(ont[[d]]))
+                    #                        {
+                    #                            # do we need to check that years is within to/from for complete outcomes?
+                    #                        }
+                    #                        else
+                    #                        {
+                    #                            invalid.dimension.values = setdiff(dimension.values[[d]], ont[[d]])
+                    #                            if (length(invalid.dimension.values)>0)
+                    #                                stop(paste0(error.prefix, "For the '", outcome, 
+                    #                                            "' outcome, ",
+                    #                                            collapse.with.and("'", invalid.dimension.values, "'"),
+                    #                                            ifelse(length(invalid.dimension.value.dimensions)==1, " is an invalid value", " are invalid values"),
+                    #                                            " for the '", d, "' dimension of the ontology",
+                    #                                            ifelse(length(ont[[d]])<=6, 
+                    #                                                   paste0(" (", paste0("'", ont[[d]], "'", collapse=", "), ")"),
+                    #                                                   "")
+                    #                                ))
+                    #                        }
+                    #                    }
+                    
                 }
                 
                 for (d in names(dimension.values))
@@ -317,187 +553,33 @@ SIMULATION.METADATA = R6::R6Class(
                 }
             }
             
-            # Fold together, with outcome as the last dimension
+            # Fold together, with outcome and sim as the last dimensions
             if (!drop.single.outcome.dimension || length(outcomes)>1)
                 c(ont1,
-                  ontology(outcome=outcomes, incomplete.dimensions = 'outcome'))
+                  ontology(outcome=outcomes, sim=1:self$n.sim, incomplete.dimensions = c('outcome', 'sim')))
             else
-                ont1
-        }
-        
-    ),
-    
-    active = list(
-        
-        outcomes = function(value)
-        {
-            if (missing(value))
-                names(private$i.outcome.ontologies)
-            else
-                stop("Cannot modify a simulation.metadata's 'outcomes' - they are read-only")
-        },
-        
-        outcome.ontologies = function(value)
-        {
-            if (missing(value))
-                private$i.outcome.ontologies
-            else
-                stop("Cannot modify a simulation.metadata's 'outcome.ontologies' - they are read-only")
-        },
-        
-        outcome.metadata = function(value)
-        {
-            if (missing(value))
-                private$i.outcome.metadata
-            else
-                stop("Cannot modify a simulation.metadata's 'outcome.metadata' - it is read-only")
-        },
-        
-        from.year = function(value)
-        {
-            if (missing(value))
-                private$i.from.year
-            else
-                stop("Cannot modify a simulation.metadata's 'from.year' - it is read-only")
-        },
-        
-        to.year = function(value)
-        {
-            if (missing(value))
-                private$i.to.year
-            else
-                stop("Cannot modify a simulation.metadata's 'to.year' - it is read-only")
-        }
-    ),
-    
-    private = list(
-        
-        i.from.year = NULL,
-        i.to.year = NULL,
-        
-        i.outcome.ontologies = NULL,
-        i.outcome.metadata = NULL,
-        
-        get.current.code.iteration = function()
-        {
-            JHEEM.SIMULATION.CODE.ITERATION
-        },
-        
-        process.dimension.values = function(dimension.values, ..., error.prefix)
-        {
-            # Validate dimension values (and fold in ...)
-            #@Andrew - need to fold ... into dimension.values, as we did for data manager
-            # is how I did it right?
-            dot.dot.dot = list(...)
-            
-            check.dimension.values.valid(dot.dot.dot,
-                                         variable.name.for.error = "The elements of ...",
-                                         error.prefix = error.prefix,
-                                         allow.empty = T)
-            
-            check.dimension.values.valid(dimension.values,
-                                         variable.name.for.error = "dimension.values",
-                                         error.prefix = error.prefix,
-                                         allow.empty = T)
-            
-            dimension.values[names(dot.dot.dot)] = dot.dot.dot
-            
-            if (any(names(dimension.values)=='year'))
-                dimension.values$year = as.character(dimension.values$year)
-            
-            dimension.values
-        }
-    )
-    
-)
-
-JHEEM.SIMULATION = R6::R6Class(
-    'jheem.simulation',
-    inherit = SIMULATION.METADATA,
-    lock_object = F,
-    portable = F,
-    
-    public = list(
-        initialize = function(version, # needs a subversion
-                              location,
-                              outcome.numerators,
-                              outcome.denominators,
-                              parameters,
-                              from.year,
-                              to.year,
-                              error.prefix = "Error constructing simulation")
-        {
-            #-- Call the superclass constructor --#
-            super$initialize(version = version,
-                             location = location,
-                             type = "Simulation",
-                             years.can.be.missing = F,
-                             from.year = from.year,
-                             to.year = to.year,
-                             error.prefix = error.prefix)
-            
-            # I have not yet written the validation code
-            
-            #-- Validate outcome data --#
-            
-            # Make sure all expected outcomes are present
-            # - Numerators for all
-            # - Denominators unless the type is number or non.negative.number
-            # Make sure they are numeric arrays with dimensions that match the ontology
-
-            #-- Update the outcome metadata's years for each of the non-cumulative outcomes --#
-            
-            
-            #-- Store data --#
-            private$i.outcome.numerators = outcome.numerators
-            private$i.outcome.denominators = outcome.denominators
-            private$i.parameters = parameters
-            
-            #-- Make Active Bindings with the Names of Outcomes --#
-            outcomes.to.bind = setdiff(self$outcomes, names(self))
-            lapply(outcomes.to.bind, function(outcome.name){
-                
-                makeActiveBinding(sym=outcome.name,
-                                  fun = function(value){
-                                      
-                                      if (missing(value))
-                                      {
-                                          if (is.null(private$i.outcome.denominators[[outcome.name]]))
-                                              private$i.outcome.numerators[[outcome.name]]
-                                          else
-                                          {
-                                              rv = private$i.outcome.numerators[[outcome.name]] /
-                                                private$i.outcome.denominators[[outcome.name]]
-                                              rv[private$i.outcome.denominators[[outcome.name]]==0] = 0
-                                              rv
-                                          }
-                                      }
-                                      else
-                                          stop("Cannot modify a simulation's 'parameters' - they are read-only")
-                                      
-                                  },
-                                  env = self)
-            })
-            
-            lockEnvironment(self)
+                c(ont1,
+                  ontology(sim=1:self$n.sim, incomplete.dimensions = 'sim'))
         },
         
         get = function(outcomes,
                        output = c('value', 'numerator', 'denominator')[[1]],
-                       keep.dimensions=NULL,
+                       keep.dimensions=NULL, # will always include sim
                        dimension.values = list(),
                        ...,
                        check.consistency = T,
                        drop.single.outcome.dimension = T,
                        replace.inf.values.with.zero = T,
-                       error.prefix = "Error getting simulation results: ")
+                       error.prefix = "Error getting simulation results: ",
+                       debug=F)
         {
+            if (debug) browser()
             if (check.consistency && (!is.character(output) || length(output) != 1 || !(output %in% c('value', 'numerator', 'denominator'))))
                 stop(paste0(error.prefix, "'output' must be one of 'value', 'numerator', or 'denominator'"))
             
             # keep.dimensions will be the union of the incomplete dimensions in the outcome ontology and any dimension value dimensions
             if (is.null(keep.dimensions)) {
-                incomplete.dimensions = intersect(unlist(lapply(outcomes, function(outcome) {incomplete.dimensions(self$outcome.ontologies[[outcome]])}))) # unshared incompletes will catch error below
+                incomplete.dimensions = unique(unlist(lapply(outcomes, function(outcome) {incomplete.dimensions(self$outcome.ontologies[[outcome]])}))) # unshared incompletes will catch error below
                 keep.dimensions = union(incomplete.dimensions, names(dimension.values))
             }
             
@@ -515,29 +597,29 @@ JHEEM.SIMULATION = R6::R6Class(
             else
                 keep.dimensions = names(dim.names)[-length(dim.names)]
 
+            keep.dimensions = union(keep.dimensions, 'sim') # "sim" must always be a keep dimension
+            # dim.names[['sim']] = 1:private$i.n.sim
+
             rv = sapply(outcomes, function(outcome){
                 scale = self$outcome.metadata[[outcome]]$scale
                 numerator.needed = output %in% c('value', 'numerator')
                 denominator.needed = scale.needs.denominator(scale) && output %in% c('value', 'denominator')
                 
+                numerator.data = NULL
+                denominator.data = NULL
+                
                 if (numerator.needed) {
-                    numerator.data = private$i.outcome.numerators[[outcome]]
+                    numerator.data = private$i.data$outcome.numerators[[outcome]]
                     numerator.data = array.access(numerator.data, dimension.values)
                 }
                 if (denominator.needed) {
-                    denominator.data = private$i.outcome.denominators[[outcome]]
+                    denominator.data = private$i.data$outcome.denominators[[outcome]]
                     if (check.consistency && is.null(denominator.data))
                         stop(paste0(error.prefix, "outcome '", outcome, "' missing denominator data"))
                     denominator.data = array.access(denominator.data, dimension.values)
                 }
-                
-                if (check.consistency) {
-            #        incomplete.dimensions = incomplete.dimensions(self$outcome.ontologies[[outcome]])
-            #        if (length(setdiff(incomplete.dimensions, union(keep.dimensions, names(dimension.values)))) > 0)
-            #            stop(paste0(error.prefix, "any incomplete dimensions must be contained in 'keep.dimensions' or 'dimension.values'"))
-                    if (output == 'denominator' && scale.needs.denominator(scale))
-                        stop(paste0(error.prefix, "outcome '", outcome, "' does not use a denominator"))
-                }
+                if (check.consistency && output == 'denominator' && !scale.needs.denominator(scale))
+                     stop(paste0(error.prefix, "outcome '", outcome, "' does not use a denominator"))
 
                 # Aggregation
                 if (numerator.needed) pre.agg.dimnames = dimnames(numerator.data)
@@ -592,21 +674,40 @@ JHEEM.SIMULATION = R6::R6Class(
                 stop("Cannot modify a simulation's 'descriptor' - it is read-only")
         },
         
-        parameters = function(value)
+        # parameters = function(value)
+        # {
+        #     if (missing(value))
+        #         private$i.parameters
+        #     else
+        #         stop("Cannot modify a simulation's 'parameters' - they are read-only")
+        # },
+        
+        data = function(value)
         {
             if (missing(value))
-                private$i.parameters
+                private$i.data
             else
-                stop("Cannot modify a simulation's 'parameters' - they are read-only")
+                stop("Cannot modify a simulation.set's 'data' - it is read-only")
+        },
+        
+        n.sim = function(value)
+        {
+            if (missing(value))
+                private$i.n.sim
+            else
+                stop("Cannot modify a simulation.set's 'n.sim' - it is read-only")
         }
         
     ),
     
     private = list(
+        i.data = NULL,
         
-        i.numerators = NULL,
-        i.denominators = NULL,
-        i.parameters = NULL,
+        # i.numerators = NULL,
+        # i.denominators = NULL,
+        # i.parameters = NULL,
+        
+        i.n.sim = NULL,
         
         i.intervention = NULL,
         i.intervention.code = NULL

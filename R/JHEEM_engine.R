@@ -940,13 +940,13 @@ JHEEM = R6::R6Class(
             outcome.numerators.and.denominators = private$prepare.outcomes.for.sim(ode.results)
             
             # Make the Simulation Object
-            sim = JHEEM.SIMULATION$new(version = private$i.version,
-                                       location = private$i.location,
-                                       from.year = private$i.run.from.time,
-                                       to.year = private$i.run.to.time-1,
-                                       outcome.numerators = outcome.numerators.and.denominators$numerators,
-                                       outcome.denominators = outcome.numerators.and.denominators$denominators,
-                                       parameters = private$i.parameters)
+            sim = create.single.simulation(version = private$i.version,
+                                           location = private$i.location,
+                                           from.year = private$i.run.from.time,
+                                           to.year = private$i.run.to.time-1,
+                                           outcome.numerators = outcome.numerators.and.denominators$numerators,
+                                           outcome.denominators = outcome.numerators.and.denominators$denominators,
+                                           parameters = private$i.parameters)
             
         #    browser()
             
