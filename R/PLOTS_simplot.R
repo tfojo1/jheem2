@@ -55,6 +55,7 @@ simplot <- function(...,
     
     #-- STEP 1: PRE-PROCESSING --#
     # Get a list out of ... where each element is one simset (or sim for now)
+    
     simset.args = list(...) # will later be SIMSETS
     
     outcomes.found.in.simset.args = F
@@ -93,6 +94,9 @@ simplot <- function(...,
         else
             simset.list = simset.args
     }
+
+    # Now simset.list contains only simsets and lists containing only simsets. It needs to be just a single-level list of simsets now
+    simset.list = unlist(simset.list, recursive = F)
     
     # - make sure they are all the same version and the location
     if (length(unique(sapply(simset.list, function(simset) {simset$version}))) > 1)
@@ -230,7 +234,7 @@ simplot <- function(...,
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
     }
     
-    if (!is.null(facet.by))
+    if (!is.null(facet.by) || length(outcomes) > 1)
         rv = rv + facet_wrap(facet.formula, scales = 'free_y')
 
     rv
