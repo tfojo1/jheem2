@@ -54,4 +54,7 @@ Rcpp::sourceCpp('../jheem2/src/correlation_matrix_helpers.cpp')
 Rcpp::sourceCpp('../jheem2/src/likelihood_helpers.cpp')
 Rcpp::sourceCpp('../jheem2/src/nested_proportion_likelihood.cpp')
 
+source("../jheem2/R/FILE_MANAGER_file_manager.R")
+source("../jheem2/R/CALIBRATION_main.R")
+
 Rcpp::sourceCpp('../jheem2/src/misc_helpers.cpp')
