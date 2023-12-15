@@ -55,55 +55,55 @@ simplot <- function(...,
     
     #-- STEP 1: PRE-PROCESSING --#
     # Get a list out of ... where each element is one simset (or sim for now)
-    sim.args = list(...) # will later be SIMSETS
+    simset.args = list(...) # will later be SIMSETS
     
-    outcomes.found.in.sim.args = F
+    outcomes.found.in.simset.args = F
     # each element of 'sim.list' should be either a sim or list containing only sims.
-    for (element in sim.args) {
-        if (!R6::is.R6(element) || !is(element, 'jheem.simulation')) {
+    for (element in simset.args) {
+        if (!R6::is.R6(element) || !is(element, 'jheem.simulation.set')) {
             if (is.list(element)) {
-                if (any(sapply(element, function(sub.element) {!R6::is.R6(sub.element) || !is(sub.element, 'jheem.simulation')}))) {
-                    stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation objects or lists containing only jheem.simulation objects"))
+                if (any(sapply(element, function(sub.element) {!R6::is.R6(sub.element) || !is(sub.element, 'jheem.simulation.set')}))) {
+                    stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation.set objects or lists containing only jheem.simulation.set objects"))
                 }
             } else if (is.null(outcomes) && is.character(element)) {
                 outcomes = element
-                outcomes.found.in.sim.args = T
+                outcomes.found.in.simset.args = T
             }
             else
-                stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation objects or lists containing only jheem.simulation objects"))
+                stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation.set objects or lists containing only jheem.simulation.set objects"))
         }
     }
     
     if (!is.character(outcomes) || is.null(outcomes) || any(is.na(outcomes)) || any(duplicated(outcomes))) {
-        if (outcomes.found.in.sim.args)
+        if (outcomes.found.in.simset.args)
             stop(paste0(error.prefix, "'outcomes' found as unnamed argument in '...' must be a character vector with no NAs or duplicates"))
         else
             stop(paste0(error.prefix, "'outcomes' must be a character vector with no NAs or duplicates"))
     }
     
-    if (outcomes.found.in.sim.args) {
-        if (length(sim.args) < 2)
-            stop(paste0(error.prefix, "one or more jheem.simulation objects or lists containing only jheem.simulation objects must be supplied"))
+    if (outcomes.found.in.simset.args) {
+        if (length(simset.args) < 2)
+            stop(paste0(error.prefix, "one or more jheem.simulation.set objects or lists containing only jheem.simulation.set objects must be supplied"))
         else
-            sim.list = sim.args[1:(length(sim.args)-1)]
+            simset.list = simset.args[1:(length(simset.args)-1)]
     }
     else {
-        if (length(sim.args) < 1)
-            stop(paste0(error.prefix, "one or more jheem.simulation objects or lists containing only jheem.simulation objects must be supplied"))
+        if (length(simset.args) < 1)
+            stop(paste0(error.prefix, "one or more jheem.simulation.set objects or lists containing only jheem.simulation.set objects must be supplied"))
         else
-            sim.list = sim.args
+            simset.list = simset.args
     }
     
     # - make sure they are all the same version and the location
-    if (length(unique(sapply(sim.list, function(sim) {sim$version}))) > 1)
-        stop(paste0(error.prefix, "all simulations must have the same version"))
-    if (length(unique(sapply(sim.list, function(sim) {sim$location}))) > 1)
-        stop(paste0(error.prefix, "all simulations must have the same location"))
+    if (length(unique(sapply(simset.list, function(simset) {simset$version}))) > 1)
+        stop(paste0(error.prefix, "all simulation sets must have the same version"))
+    if (length(unique(sapply(simset.list, function(simset) {simset$location}))) > 1)
+        stop(paste0(error.prefix, "all simulation sets must have the same location"))
     
     # Check outcomes
     # - make sure each outcome is present in sim$outcomes for at least one sim/simset
-    if (any(sapply(outcomes, function(outcome) {!any(sapply(sim.list, function(sim) {outcome %in% sim$outcomes}))})))
-        stop(paste0("There weren't any simulations for one or more outcomes. Should this be an error?"))
+    if (any(sapply(outcomes, function(outcome) {!any(sapply(simset.list, function(simset) {outcome %in% simset$outcomes}))})))
+        stop(paste0("There weren't any simulation sets for one or more outcomes. Should this be an error?"))
     
     # Get the real-world outcome names
     # - eventually we're going to want to pull this from info about the likelihood if the sim notes which likelihood was used on it
@@ -116,9 +116,9 @@ simplot <- function(...,
     outcomes.for.data = sapply(outcomes, function(outcome) {
         corresponding.observed.outcome = NULL
         i = 1
-        while (i <= length(sim.list)) {
-            if (outcome %in% names(sim.list[[i]]$outcome.metadata)) {
-                corresponding.observed.outcome = sim.list[[i]]$outcome.metadata[[outcome]]$corresponding.observed.outcome
+        while (i <= length(simset.list)) {
+            if (outcome %in% names(simset.list[[i]]$outcome.metadata)) {
+                corresponding.observed.outcome = simset.list[[i]]$outcome.metadata[[outcome]]$corresponding.observed.outcome
                 break
             } else i = i + 1
         }
@@ -130,9 +130,9 @@ simplot <- function(...,
     outcome.ontologies = lapply(outcomes, function(outcome) {
         outcome.ontology = NULL
         i = 1
-        while (i <= length(sim.list)) {
-            if (outcome %in% names(sim.list[[i]]$outcome.ontologies)) {
-                outcome.ontology = sim.list[[i]]$outcome.ontologies[[outcome]]
+        while (i <= length(simset.list)) {
+            if (outcome %in% names(simset.list[[i]]$outcome.ontologies)) {
+                outcome.ontology = simset.list[[i]]$outcome.ontologies[[outcome]]
                 break
             } else i = i + 1
         }
@@ -143,7 +143,7 @@ simplot <- function(...,
     
     # Get the locations to pull data for for each outcome
     # - for now, just use the sim$location
-    location = sim.list[[1]]$location
+    location = simset.list[[1]]$location
     
     #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
 
@@ -178,20 +178,20 @@ simplot <- function(...,
     names(outcome.mappings) = outcomes
 
     #-- STEP 3: MAKE A DATA FRAME WITH ALL THE SIMULATIONS' DATA --#
-    
+    # browser()
     df.sim = NULL
-    for (i in seq_along(sim.list))
+    for (i in seq_along(simset.list))
     {
-        sim = sim.list[[i]]
-        sim.data = sim$get(outcomes = outcomes,
-                           dimension.values = dimension.values,
-                           keep.dimensions = c('year', facet.by, split.by),
-                           drop.single.outcome.dimension = F)
+        simset = simset.list[[i]]
+        simset.data = simset$get(outcomes = outcomes,
+                                 dimension.values = dimension.values,
+                                 keep.dimensions = c('year', facet.by, split.by),
+                                 drop.single.outcome.dimension = F)
 
-        dim.names.without.outcome = dimnames(sim.data)[names(dimnames(sim.data)) != 'outcome']
+        dim.names.without.outcome = dimnames(simset.data)[names(dimnames(simset.data)) != 'outcome']
         outcome.arrays = lapply(outcomes, function(outcome) {
-            arr = array(sim.data[get.array.access.indices(dimnames(sim.data),
-                                                          dimension.values = list(outcome = outcome))],
+            arr = array(simset.data[get.array.access.indices(dimnames(simset.data),
+                                                             dimension.values = list(outcome = outcome))],
                         dim = sapply(dim.names.without.outcome, length),
                         dimnames = dim.names.without.outcome)
             if (!is.null(outcome.mappings[[outcome]]))
@@ -200,15 +200,17 @@ simplot <- function(...,
                 arr
         })
         mapped.dimnames = c(dimnames(outcome.arrays[[1]]), list(outcome = outcomes))
-        mapped.sim.data = array(unlist(outcome.arrays), dim=sapply(mapped.dimnames, length), dimnames = mapped.dimnames)
+        mapped.simset.data = array(unlist(outcome.arrays), dim=sapply(mapped.dimnames, length), dimnames = mapped.dimnames)
         
-        one.df.sim = reshape2::melt(mapped.sim.data, na.rm = T)
-        one.df.sim['sim.name'] = i
+        one.df.sim = reshape2::melt(mapped.simset.data, na.rm = T)
+        one.df.sim['simset'] = i
         
         df.sim = rbind(df.sim, one.df.sim)
     }
-    
-    df.sim$sim.name = factor(df.sim$sim.name)
+    # browser()
+    df.sim$simset = factor(df.sim$simset)
+    df.sim$sim = factor(df.sim$sim)
+    n.simsets = length(unique(df.sim$simset))
     
     #- STEP 4: MAKE THE PLOT --#
 
@@ -219,11 +221,11 @@ simplot <- function(...,
     
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
-        rv = rv + geom_line(data=df.sim, aes(x=year, y=value, linetype=sim.name, color=!!sym(split.by)))
+        rv = rv + geom_line(data=df.sim, aes(x=year, y=value, linewidth=simset, linetype=sim, color=!!sym(split.by)))
         if (!is.null(df.truth))
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
     } else {
-        rv = rv + geom_line(data=df.sim, aes(x=year, y=value, color=sim.name))
+        rv = rv + geom_line(data=df.sim, aes(x=year, y=value, linetype=simset, color=sim))
         if (!is.null(df.truth))
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
     }
