@@ -686,13 +686,13 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 stop("Cannot modify a simulation's 'descriptor' - it is read-only")
         },
         
-        # parameters = function(value)
-        # {
-        #     if (missing(value))
-        #         private$i.parameters
-        #     else
-        #         stop("Cannot modify a simulation's 'parameters' - they are read-only")
-        # },
+        parameters = function(value)
+        {
+            if (missing(value))
+                private$i.data$parameters
+            else
+                stop("Cannot modify a simulation's 'parameters' - they are read-only")
+        },
         
         data = function(value)
         {
