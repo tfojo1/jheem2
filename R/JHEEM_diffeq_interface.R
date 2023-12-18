@@ -331,7 +331,10 @@ prepare.natality.info <- function(settings, quantity.dim.names,
         dimensions.with.proportions = setdiff(names(offspring.ontology)[sapply(offspring.ontology, length)>1],
                                               union(all.born.into.dimensions,
                                                     comp$parent.child.concordant.dimensions))
-        n.offspring.compartments.per.parent.category = prod(sapply(offspring.ontology[dimensions.with.proportions], length))
+        if (length(dimensions.with.proportions)==0)
+            n.offspring.compartments.per.parent.category = 1
+        else
+            n.offspring.compartments.per.parent.category = prod(sapply(offspring.ontology[dimensions.with.proportions], length))
         
         base.offspring.dim.names = offspring.ontology
         base.offspring.dim.names[all.born.into.dimensions] = comp$all.births.into.compartments
@@ -356,8 +359,12 @@ prepare.natality.info <- function(settings, quantity.dim.names,
         birth.proportion.indices.for.parent.categories = lapply(parent.categories, function(catg){
             dimension.values = base.birth.proportions.dimension.values
             dimension.values[paste0(variable.birth.proportion.dimensions.by.parent.category, '.from')] = catg[variable.birth.proportion.dimensions.by.parent.category]
-            get.array.access.indices(arr.dim.names = birth.proportions.quantity.dim.names,
-                                     dimension.values = dimension.values) - 1
+            if (length(dimension.values)==0)
+                0
+            else
+                get.array.access.indices(arr.dim.names = birth.proportions.quantity.dim.names,
+                                         dimension.values = dimension.values, 
+                                         index.from = 0)
         })
         
         
