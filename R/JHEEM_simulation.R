@@ -124,14 +124,14 @@ join.simulation.sets <- function(...)
     
     combined.outcome.numerators = lapply(outcomes, function(outcome) {
         data.vec = sapply(simset.list, function(simset) {simset$data$outcome.numerators[[outcome]]})
-        if (is.null(data.vec)) return(NULL)
+        if (any(sapply(data.vec, is.null))) return(NULL)
         array(data.vec, sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
     })
     names(combined.outcome.numerators) = outcomes
     
     combined.outcome.denominators = lapply(outcomes, function(outcome) {
         data.vec = sapply(simset.list, function(simset) {simset$data$outcome.denominators[[outcome]]})
-        if (is.null(data.vec)) return(NULL)
+        if (any(sapply(data.vec, is.null))) return(NULL)
         array(data.vec, sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
     })
     names(combined.outcome.denominators) = outcomes
@@ -146,6 +146,10 @@ join.simulation.sets <- function(...)
                              from.year = sample.simset$from.year,
                              to.year = sample.simset$to.year,
                              n.sim = new.n.sim)
+}
+
+'[.jheem.simulation.set' <- function(obj, x) {
+    rv = obj$subset(x)
 }
 
 ##-----------------------##
@@ -374,7 +378,30 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             # - Numerators for all
             # - Denominators unless the type is number or non.negative.number
             # Make sure they are numeric arrays with dimensions that match the ontology
-
+            # browser()
+            # if (!setequal(names(outcome.numerators), self$outcomes))
+            #     stop(paste0(error.prefix, "'outcome.numerators' must have an array for each outcome expected for this version and location"))
+            # if (!setequal(names(outcome.denominators) != self$outcomes))
+            #     stop(paste0(error.prefix, "'outcome.denominators' must have an array for each outcome expected for this version and location"))
+            # if (any(sapply(outcome.numerators, function(arr) {!is.numeric(arr) || !is.array(array())})))
+            #     stop(paste0(error.prefix, "'outcome.numerators' must contain only numeric arrays"))
+            # if (any(sapply(outcome.denominators, function(arr) {!is.numeric(arr) || !is.array(arr)})))
+            #     stop(paste0(error.prefix, "'outcome.denominators' must contain only numeric arrays"))
+            # 
+            # if (any(sapply(names(outcome.numerators), function(outcome) {
+            #     any(sapply(names(dim(outcome.numerators[[outcome]])), function(d) {
+            #         !setequal(dimnames(outcome.numerators[[outcome]])[[d]], self$outcome.ontologies[[outcome]][[d]]) # will years mess this up?
+            #     }))
+            # })))
+            #     stop(paste0(error.prefix, "each array in 'outcome.numerators' must have dimensions matching its outcome's ontology"))
+            # 
+            # if (any(sapply(names(outcome.denominators), function(outcome) {
+            #     any(sapply(names(dim(outcome.denominators[[outcome]])), function(d) {
+            #         !setequal(dimnames(outcome.denominators[[outcome]])[[d]], self$outcome.ontologies[[outcome]][[d]])
+            #     }))
+            # })))
+            #     stop(paste0(error.prefix, "each array in 'outcome.denominators' must have dimensions matching its outcome's ontology"))
+            
             #-- Update the outcome metadata's years for each of the non-cumulative outcomes --#
             
             
@@ -393,7 +420,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                       
                                       if (missing(value))
                                       {
-                                          if (is.null(private$i.data$outcome.denominators[[outcome.name]]))
+                                          if (is.null(private$i.data$outcome.denominators[[outcome.name]]) || is.null(private$i.data$outcome.numerators[[outcome.name]]))
                                               private$i.data$outcome.numerators[[outcome.name]]
                                           else
                                           {
@@ -663,6 +690,44 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             dim(rv) = sapply(dim.names, length)
             dimnames(rv) = dim.names
             rv
+        },
+        
+        subset = function(x)
+        {
+            error.prefix = "Error subsetting jheem.simulation.set: "
+            # 'x' must be either an integer or logical vector with valid length and values
+            if ((!is.numeric(x) && !is.logical(x)) || any(is.na(x)) || any(duplicated(x)))
+                stop(paste0(error.prefix, "'x' must be a numeric or logical vector with no NAs or repeats"))
+            if (is.numeric(x) && (any(x < 1) || any(x > self$n.sim)))
+                stop(paste0(error.prefix, "if 'x' is a numeric vector, all values must be integers between 1 and this simulation.set's 'n.sim'"))
+            if (is.logical(x) && length(x) != self$n.sim)
+                stop(paste0(error.prefix, "if 'x' is a logical vector, it must have length equal to this simulation.set's 'n.sim'"))
+
+            if (is.logical(x)) x = (1:self$n.sim)[x]
+            
+            new.n.sim = length(x)
+            new.outcome.numerators = lapply(private$i.data$outcome.numerators, function(outcome.arr) {
+                if (is.null(outcome.arr) || length(outcome.arr) == 0) return(NULL)
+                new.arr = array.access(outcome.arr, sim=x, drop=F)
+                dimnames(new.arr)[['sim']] = 1:new.n.sim
+                new.arr
+            })
+            new.outcome.denominators = lapply(private$i.data$outcome.denominators, function(outcome.arr) {
+                if (is.null(outcome.arr) || length(outcome.arr) == 0) return(NULL)
+                new.arr = array.access(outcome.arr, sim=x, drop=F)
+                dimnames(new.arr)[['sim']] = 1:new.n.sim
+                new.arr
+            })
+            new.parameters = private$i.data$parameters[x]
+            
+            JHEEM.SIMULATION.SET$new(version = self$version,
+                                     location = self$location,
+                                     outcome.numerators = new.outcome.numerators,
+                                     outcome.denominators = new.outcome.denominators,
+                                     parameters = new.parameters,
+                                     from.year = self$from.year,
+                                     to.year = self$to.year,
+                                     n.sim = new.n.sim)
         },
         
         get.engine = function()
