@@ -1169,7 +1169,8 @@ register.model.mechanism <- function(specification,
 #'@param denominator.outcome Optional: A denominator for calculating proportions. Must be the name of a separately registered cumulative outcome that has type 'non.negative.number'
 #'
 #'@param groups The groups to track for ('infected' or 'uninfected'). Choosing NULL (the default value) tracks for all groups for which the outcome could apply
-#'@param tags The tags to track for (as given in the call to \code{\link{register.transition}}). Choosing NULL (the default value) tracks for all tags for which the outcome could apply
+#'@param include.tags The tags to track for (as given in the call to \code{\link{register.transition}}). Choosing NULL (the default value) tracks for all tags for which the outcome could apply minus excluded tags
+#'@param exclude.tags Tags to exclude from tracking.
 #'@param sub.versions The sub-versions of the model for which this outcome will be recorded. If NULL, the outcome will be recorded for all sub-versions
 #'
 #'@param multiply.by An optional quantity to multiply the outcome value by at each time step before storing. Can be either (1) a numeric value, (2) a single character value referencing a model quantity or element, or (3) an expression that includes only the names of model quantities and elements and operators +, -, *, /, ^, sqrt, log, and exp
@@ -1192,7 +1193,8 @@ track.dynamic.outcome <- function(specification,
                                   dynamic.quantity.name,
                                   denominator.outcome = NULL,
                                   
-                                  tags = NULL,
+                                  include.tags = NULL,
+                                  exclude.tags = NULL,
                                   groups = NULL,
                                   sub.versions = NULL,
                                   
@@ -1213,7 +1215,7 @@ track.dynamic.outcome <- function(specification,
                                         outcome.metadata = outcome.metadata,
                                         dynamic.quantity.name = dynamic.quantity.name,
                                         denominator.outcome = denominator.outcome,
-                                        tags = tags,
+                                        include.tags = include.tags,
                                         groups = groups,
                                         sub.versions = sub.versions,
                                         multiply.by = multiply.by,
@@ -1245,7 +1247,8 @@ track.transition <- function(specification,
                              to.compartments,
                              denominator.outcome = NULL,
                              
-                             tags = NULL,
+                             include.tags = NULL,
+                             exclude.tags = NULL,
                              groups = NULL,
                              sub.versions = NULL,
                              
@@ -1268,7 +1271,8 @@ track.transition <- function(specification,
                                    from.compartments = from.compartments,
                                    to.compartments = to.compartments,
                                    denominator.outcome = denominator.outcome,
-                                   tags = tags,
+                                   include.tags = include.tags,
+                                   exclude.tags = exclude.tags,
                                    groups = groups,
                                    sub.versions = sub.versions,
                                    multiply.by = multiply.by,
@@ -2502,7 +2506,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                          dynamic.quantity.name,
                                          denominator.outcome = NULL,
                                          
-                                         tags = NULL,
+                                         include.tags = NULL,
+                                         exclude.tags = NULL,
                                          groups = NULL,
                                          sub.versions = NULL,
                                          
@@ -2528,7 +2533,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                 denominator.outcome = denominator.outcome,
                                                 multiply.by = multiply.by,
                                                 corresponding.data.outcome = corresponding.data.outcome,
-                                                tags = tags,
+                                                include.tags = include.tags,
+                                                exclude.tags = exclude.tags,
                                                 groups = groups,
                                                 keep.dimensions = keep.dimensions,
                                                 exclude.dimensions = exclude.dimensions,
@@ -2552,7 +2558,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                     to.compartments,
                                     denominator.outcome = NULL,
                                     
-                                    tags = NULL,
+                                    include.tags = NULL,
+                                    exclude.tags = NULL,
                                     groups = NULL,
                                     sub.versions = NULL,
                                     
@@ -2580,7 +2587,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    denominator.outcome = denominator.outcome,
                                                    multiply.by = multiply.by,
                                                    corresponding.data.outcome = corresponding.data.outcome,
-                                                   tags = tags,
+                                                   include.tags = include.tags,
+                                                   exclude.tags = exclude.tags,
                                                    groups = groups,
                                                    keep.dimensions = keep.dimensions,
                                                    exclude.dimensions = exclude.dimensions,
@@ -5838,7 +5846,8 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
         dynamic.tracker.involves.component = function(tracker, comp)
         {
             any(tracker$trackable.type == private$i.trackable.types) &&
-                ( is.null(tracker$tags) || any(tracker$tags == comp$tag) ) &&
+                ( is.null(tracker$exclude.tags) || all(tracker$exclude.tags != comp$tag)) &&
+                ( is.null(tracker$include.tags) || any(tracker$include.tags == comp$tag) ) &&
                 ( is.null(tracker$groups) || any(tracker$groups == comp[[ private$i.ontology.name.for.trackable[tracker$trackable.type] ]]) )
             # ^The last term of the last line relies on the fact that if a group applies to this tracker
             #  then the ontology name for the tracker is the group name
@@ -7752,7 +7761,8 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
                               
                               multiply.by,
                               corresponding.data.outcome,
-                              tags,
+                              include.tags,
+                              exclude.tags,
                               groups,
                               
                               keep.dimensions,
@@ -7803,11 +7813,24 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
                 stop(paste0(error.prefix, "If it is not NULL, 'multiply.by' must be a single, non-NA character value"))
             
             # Validate tags
-            if (!is.null(tags))
+            if (!is.null(include.tags))
             {
-                if (!is.character(tags) || length(tags)==0 || any(is.na(tags)))
-                    stop(paste0(error.prefix, "If it is not NULL, 'tags' must be a non-empty character vector with no NA values"))
+                if (!is.character(include.tags) || length(include.tags)==0 || any(is.na(include.tags)))
+                    stop(paste0(error.prefix, "If it is not NULL, 'include.tags' must be a non-empty character vector with no NA values"))
             }
+            
+            if (!is.null(exclude.tags))
+            {
+                if (!is.character(exclude.tags) || length(exclude.tags)==0 || any(is.na(exclude.tags)))
+                    stop(paste0(error.prefix, "If it is not NULL, 'exclude.tags' must be a non-empty character vector with no NA values"))
+            }
+            
+            included.and.excluded.tags = intersect(include.tags, exclude.tags)
+            if (length(included.and.excluded.tags))
+                stop(paste0(error.prefix, "'include.tags' and 'exclude.tags' cannot share values, but ",
+                            collapse.with.and("'", included.and.excluded.tags, "'"),
+                            ifelse(length(included.and.excluded.tags)==1, " is", " are"),
+                            " present in both"))
             
             # Validate groups
             if (is.null(groups))
@@ -7838,7 +7861,8 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
                 private$i.dynamic.quantity.name = DYNAMIC.TRACKER.SCHEMATA[[dynamic.quantity.name]]$type
             
             private$i.multiply.by = multiply.by
-            private$i.tags = unique(tags)
+            private$i.include.tags = unique(include.tags)
+            private$i.exclude.tags = unique(exclude.tags)
             private$i.groups = groups
         },
         
@@ -7938,12 +7962,20 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
                 stop(paste0("Cannot modify a model outcome's 'multiply.by' - it is read-only"))
         },
         
-        tags = function(value)
+        include.tags = function(value)
         {
             if (missing(value))
-                private$i.tags
+                private$i.include.tags
             else
-                stop(paste0("Cannot modify a model outcome's 'tags' - they are read-only"))
+                stop(paste0("Cannot modify a model outcome's 'include.tags' - they are read-only"))
+        },
+        
+        exclude.tags = function(value)
+        {
+            if (missing(value))
+                private$i.exclude.tags
+            else
+                stop(paste0("Cannot modify a model outcome's 'exclude.tags' - they are read-only"))
         },
         
         groups = function(value)
@@ -7967,7 +7999,8 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
         
         i.dynamic.quantity.name = NULL,
         i.multiply.by = NULL,
-        i.tags = NULL,
+        i.include.tags = NULL,
+        i.exclude.tags = NULL,
         i.groups = NULL,
         
         derive.max.possible.dim.names = function(specification, all.outcomes,  
@@ -8002,16 +8035,16 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
                                     "> to <", 
                                     paste0(private$i.to.compartments, collapse=', '),
                                     ">",
-                                    ifelse(length(private$i.tags)==0, '', 
-                                           paste0(", for tag(s) '", collapse.with.or("'", private$i.tags, "'"), ", ")),
+                                    ifelse(length(private$i.include.tags)==0, '', 
+                                           paste0(", for include.tag(s) '", collapse.with.or("'", private$i.include.tags, "'"), ", ")),
                                     " have been registered to the '", specification$version, "' specification"))
                     else
                         stop(paste0(error.prefix,
                                     "Empty model outcome '", 
                                     self$get.original.name(wrt.version=specification$version),
                                     "' - no '", private$i.dynamic.quantity.name, "' core components ",
-                                    ifelse(length(private$i.tags)==0, '', 
-                                           paste0(" for tag(s) '", collapse.with.or("'", private$i.tags, "'"), ", ")),
+                                    ifelse(length(private$i.include.tags)==0, '', 
+                                           paste0(" for include.tag(s) '", collapse.with.or("'", private$i.include.tags, "'"), ", ")),
                                     " have registered to the '",  specification$version, "' specification"))
                 }
             }
@@ -8055,7 +8088,8 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
                                                             
                               multiply.by,
                               corresponding.data.outcome,
-                              tags,
+                              include.tags,
+                              exclude.tags,
                               groups,
                               
                               keep.dimensions,
@@ -8076,7 +8110,8 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
                              dynamic.quantity.name = 'transition',
                              multiply.by = multiply.by,
                              corresponding.data.outcome = corresponding.data.outcome,
-                             tags = tags,
+                             include.tags = include.tags,
+                             exclude.tags = exclude.tags,
                              groups = groups,
                              keep.dimensions = keep.dimensions,
                              exclude.dimensions = exclude.dimensions,
