@@ -168,7 +168,7 @@ create.logistic.tail.functional.form <- function(intercept,
                                                  slope.min = NA,
                                                  slope.max = NA,
 
-                                                 parameters.are.on.transformed.scale = T,
+                                                 parameters.are.on.transformed.scale = F,
                                                  overwrite.parameters.with.alphas = F,
                                                  error.prefix = 'Cannot create logistic-tail functional.form: ')
 {
@@ -586,8 +586,8 @@ FUNCTIONAL.FORM = R6::R6Class(
         },
         
         project = function(years,
-                           alphas,
-                           dim.names,
+                           alphas = NULL,
+                           dim.names = self$minimum.dim.names,
                            future.slope = NULL,
                            future.slope.after.year = NULL,
                            future.slope.is.on.transformed.scale=F,
