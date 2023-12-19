@@ -208,12 +208,15 @@ simplot <- function(...,
         
         one.df.sim = reshape2::melt(mapped.simset.data, na.rm = T)
         one.df.sim['simset'] = i
+        one.df.sim['linewidth'] = 1/sqrt(simset$n.sim)
+        one.df.sim['alpha'] = 20 * one.df.sim['linewidth']#1/sqrt(simset$n.sim)
         
         df.sim = rbind(df.sim, one.df.sim)
     }
     # browser()
     df.sim$simset = factor(df.sim$simset)
     df.sim$sim = factor(df.sim$sim)
+    df.sim$groupid = paste0(df.sim$simset, '_', df.sim$sim, '_', df.sim[,split.by])
     n.simsets = length(unique(df.sim$simset))
     
     #- STEP 4: MAKE THE PLOT --#
@@ -222,20 +225,25 @@ simplot <- function(...,
                                       paste0(c('outcome', facet.by), collapse='+')))
     
     rv = ggplot() + scale_y_continuous(limits=c(0, NA), labels = scales::comma) + scale_color_discrete()
-    
+    # browser()
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
-        rv = rv + geom_line(data=df.sim, aes(x=year, y=value, linewidth=simset, linetype=sim, color=!!sym(split.by)))
+        rv = rv + geom_line(data=df.sim, aes(x=year, y=value, linetype=simset, group=groupid, color=!!sym(split.by), alpha=alpha, linewidth=0.5))
         if (!is.null(df.truth))
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
     } else {
-        rv = rv + geom_line(data=df.sim, aes(x=year, y=value, linetype=simset, color=sim))
+        rv = rv + geom_line(data=df.sim, aes(x=year, y=value, color=simset, group=groupid, linewidth=linewidth))
         if (!is.null(df.truth))
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
     }
     
-    if (!is.null(facet.by) || length(outcomes) > 1)
-        rv = rv + facet_wrap(facet.formula, scales = 'free_y')
-
+    if (!is.null(facet.by) || length(outcomes) > 1) {
+        rv = rv + facet_wrap(facet.formula, scales = 'free_y', )
+    }
+    
+    rv = rv +
+        scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none') +
+        scale_alpha(guide='none')
+    
     rv
 }
