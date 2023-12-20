@@ -730,6 +730,35 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                      n.sim = new.n.sim)
         },
         
+        # n: keeps every nth (rounding DOWN) sim counting backwards from the last sim
+        # keep: may be fraction or a number to keep
+        thin = function(n=NULL, keep=NULL)
+        {
+            error.prefix = "Error thinning simulation.set: "
+            if (is.null(n) && is.null(keep))
+                stop(paste0(error.prefix, "either 'n' or 'keep' must be specified"))
+            if (!is.null(n) && !is.null(keep))
+                stop(paste0(error.prefix, "exactly one of 'n' or 'keep' must be specified"))
+            if (!is.null(n) && !is.numeric(n) || length(n) != 1 || n > self$n.sim || n < 1)
+                stop(paste0(error.prefix, "'n' must be a single integer value between 1 and 'n.sim'"))
+            if (!is.null(keep) && !is.numeric(keep) || length(keep) != 1 || keep > self$n.sim || keep < 0)
+                stop(paste0(error.prefix, "'keep' must be either a single integer value between 1 and 'n.sim' or a fraction between 0 and 1"))
+            
+            if (is.null(keep)) keep = ceiling(self$n.sim / n)
+            if (keep < 1) keep = ceiling(self$n.sim * keep)
+            if (is.null(n)) n = self$n.sim / keep
+            
+            self$subset(ceiling(self$n.sim - n * (0 : (keep - 1))))
+            
+        },
+        
+        burn = function(n=NULL, keep=NULL)
+        {
+            error.prefix = "Error burning sims from simulation.set: "
+            
+            
+        },
+        
         get.engine = function()
         {
             
