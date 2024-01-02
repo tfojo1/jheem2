@@ -9,7 +9,7 @@ Rcpp::sourceCpp('../jheem2/src/ontology_mappings.cpp')
 source('../jheem2/R/HELPERS_misc_helpers.R')
 source('../jheem2/R/HELPERS_dim_names_helpers.R')
 source('../jheem2/R/HELPERS_array_helpers.R')
-source('../jheem2/R/HELPERS_age_race_helpers.R')
+source('../jheem2/R/HELPERS_age_year_helpers.R')
 Rcpp::sourceCpp('../jheem2/src/array_helpers.cpp')
 
 source('../jheem2/R/ONTOLOGY_ontology.R')
