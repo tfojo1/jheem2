@@ -484,6 +484,8 @@ parse.age.brackets <- function(age.brackets,
     
     if (require.contiguous)
         endpoints = c(lower, upper[n.brackets])
+    else
+        endpoints = NULL
     
     list(endpoints = endpoints,
          lower = lower,

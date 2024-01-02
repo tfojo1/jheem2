@@ -457,8 +457,11 @@ get.identity.ontology.mapping <- function()
 map.value.ontology <- function(value,
                                target.dim.names,
                                fun = 'sum',
-                               allow.expand.values=T,
-                               allow.map.to.subset.of.target=T,
+                               allow.expand.values = T,
+                               allow.map.to.subset.of.target = T,
+                               allow.restratify.ages = T,
+                               allow.age.extrapolation = F,
+                               smooth.infinite.age.to = 100,
                                error.prefix = '')
 {
     #-- Check Arguments --#
@@ -481,13 +484,28 @@ map.value.ontology <- function(value,
         stop(paste0(error.prefix, "Cannot map value's ontology - 'allow.map.to.subset.of.target' must be a single, non-NA logical value"))
     
     #-- Get Mapping(s) --#
+    need.to.restratify.age = F
     if (allow.expand.values)
     {
         mappings = get.mappings.to.align.ontologies(ontology.1 = dimnames(value),
                                                     ontology.2 = target.dim.names)
         
         if (is.null(mappings))
-            stop(paste0(error.prefix, "Cannot map value's ontology - there is no set of mappings that aligns the dimnames of 'value' with 'target.dim.names'"))
+        {
+            if (allow.restratify.ages && any(names(dimnames(value))=='age'))
+            {
+                target.dim.names.sans.age = dimnames(value)
+                target.dim.names.sans.age$age = NULL
+                
+                mappings = get.mappings.to.align.ontologies(ontology.1 = dimnames(value),
+                                                            ontology.2 = target.dim.names.sans.age)
+                
+                need.to.restratify.age = T
+            }
+            
+            if (is.null(mappings))
+                stop(paste0(error.prefix, "Cannot map value's ontology - there is no set of mappings that aligns the dimnames of 'value' with 'target.dim.names'"))
+        }
         
         mapping.from.value = mappings[[1]]
         mapping.from.target = mappings[[2]]
@@ -498,7 +516,21 @@ map.value.ontology <- function(value,
                                                   to.ontology = target.dim.names)
         
         if (is.null(mapping.from.value))
-            stop(paste0(error.prefix, "Cannot map value's ontology - there is no mapping that maps from the dimnames of 'value' to 'target.dim.names'"))
+        {
+            if (allow.restratify.ages && any(names(dimnames(value))=='age'))
+            {
+                target.dim.names.sans.age = dimnames(value)
+                target.dim.names.sans.age$age = NULL
+                
+                mapping.from.value = get.ontology.mapping(from.ontology = dimnames(value),
+                                                          to.ontology = target.dim.names.sans.age)
+                
+                need.to.restratify.age = T
+            }
+                
+            if (is.null(mapping.from.value))
+                stop(paste0(error.prefix, "Cannot map value's ontology - there is no mapping that maps from the dimnames of 'value' to 'target.dim.names'"))
+        }
         
         mapping.from.target = NULL
     }
@@ -507,18 +539,29 @@ map.value.ontology <- function(value,
     if (is.null(mapping.from.target) || mapping.from.target$is.identity.mapping)
     {
         if (allow.map.to.subset.of.target)
-            mapping.from.value$apply(value, fun=fun)
+            rv = mapping.from.value$apply(value, fun=fun)
         else
-            mapping.from.value$apply(value, fun=fun, to.dim.names=target.dim.names)
+            rv = mapping.from.value$apply(value, fun=fun, to.dim.names=target.dim.names)
     }
     else
     {
         mapped.value = mapping.from.value$apply(value, fun=fun)
         if (allow.map.to.subset.of.target)
-            mapping.from.target$reverse.apply(mapped.value)
+            rv = mapping.from.target$reverse.apply(mapped.value)
         else
-            mapping.from.target$reverse.apply(mapped.value, from.dim.names=target.dim.names)
+            rv = mapping.from.target$reverse.apply(mapped.value, from.dim.names=target.dim.names)
     }
+    
+    #-- Restratify ages if needed --#
+    if (need.to.restratify.age)
+        rv = restratify.age.counts(counts = rv,
+                                   desired.age.brackets = target.dim.names$age,
+                                   smooth.infinite.age.to = smooth.infinite.age.to,
+                                   allow.extrapolation = allow.age.extrapolation,
+                                   error.prefix = error.prefix)
+    
+    #-- Return --#
+    rv
 }
 
 ##-------------##
