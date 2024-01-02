@@ -731,7 +731,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         },
         
         # n: keeps every nth (rounding DOWN) sim counting backwards from the last sim
-        # keep: may be fraction or a number to keep
+        # keep: may be fraction or a number to keep. Decimal values above 1 are rounded down to nearest whole number.
         thin = function(n=NULL, keep=NULL)
         {
             error.prefix = "Error thinning simulation.set: "
