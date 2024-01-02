@@ -159,7 +159,7 @@ standardize.age.strata.names <- function(strata.names)
 #'
 #'@param counts Either (a) a dimensionless numeric vector, or (b) a numeric array, with  one dimension named "age". The "given" age brackets according to which these counts are distributed must be continuous - with no gaps between them
 #'@param desired.age.brackets,given.age.brackets The age brackets according to which the ages in counts are given or desired to be restratified to. Either (1) a character vector giving names of brackets, with one name for each age bracket value or (b) a numeric vector of age endpoints, with one more element than the number of age bracket values. given.age.brackets should be present only if names(counts) is absent (if counts is a vector) or if dimnames(counts)$age is null (if counts is an array)
-#'@param replace.infinite.age.with In building a spline over counts, what value should an infinite bound in an age range be replaced with
+#'@param smooth.infinite.age.to In building a spline over counts, what value should an infinite bound in an age range be replaced with
 #'@param allow.extrapolation A logical value indicating whether extrapolation should be allowed in restratifying. Extrapolating is required when one of the desired age brackets includes ages not present in any of the given age brackets
 #'@param na.rm Whether NAs should be ignored in counts
 #'@param method The method to be passed to \code{\link{splinefun}}. Must be a method that can produce a monotone spline (ie, either 'monoH.FC' or 'hyman')
@@ -169,7 +169,7 @@ standardize.age.strata.names <- function(strata.names)
 restratify.age.counts <- function(counts,
                                   desired.age.brackets,
                                   given.age.brackets = NULL,
-                                  replace.infinite.age.with = Inf,
+                                  smooth.infinite.age.to = Inf,
                                   allow.extrapolation = F,
                                   na.rm = F,
                                   method=c('monoH.FC','hyman')[1],
@@ -239,7 +239,7 @@ restratify.age.counts <- function(counts,
     parsed.given.brackets = parse.age.brackets(age.brackets = given.age.brackets,
                                                n.brackets = n.brackets,
                                                require.contiguous = T,
-                                               replace.infinite.age.with = replace.infinite.age.with, 
+                                               smooth.infinite.age.to = smooth.infinite.age.to, 
                                                require.non.infinite.ages = T,
                                                error.prefix = error.prefix,
                                                required.length.name.for.error = n.brackets.from,
@@ -249,7 +249,7 @@ restratify.age.counts <- function(counts,
     parsed.desired.brackets = parse.age.brackets(age.brackets = desired.age.brackets,
                                                  n.brackets = NA,
                                                  require.contiguous = F,
-                                                 replace.infinite.age.with = replace.infinite.age.with,
+                                                 smooth.infinite.age.to = smooth.infinite.age.to,
                                                  require.non.infinite.ages = T,
                                                  error.prefix = error.prefix,
                                                  required.length.name.for.error = NA,
@@ -321,13 +321,13 @@ restratify.age.counts <- function(counts,
 #'
 #'@param counts
 #'@param given.age.brackets
-#'@param replace.infinite.age.with
+#'@param smooth.infinite.age.to
 #'@param allow.extrapolation
 #'
 #'@export
 get.cumulative.age.counts.smoother <- function(counts,
                                                given.age.brackets,
-                                               replace.infinite.age.with=Inf,
+                                               smooth.infinite.age.to=Inf,
                                                allow.extrapolation=F,
                                                method=c('monoH.FC','hyman')[1],
                                                error.prefix = '')
@@ -355,7 +355,7 @@ get.cumulative.age.counts.smoother <- function(counts,
     parsed.brackets = parse.age.brackets(age.brackets = given.age.brackets,
                                          n.brackets = n.brackets,
                                          require.contiguous = T,
-                                         replace.infinite.age.with = replace.infinite.age.with,
+                                         smooth.infinite.age.to = smooth.infinite.age.to,
                                          require.non.infinite.ages = T,
                                          error.prefix = error.prefix, 
                                          required.length.name.for.error = "length(counts)",
@@ -402,7 +402,7 @@ do.get.cumulative.age.counts.smoother <- function(counts,
 parse.age.brackets <- function(age.brackets,
                                n.brackets,
                                require.contiguous,
-                               replace.infinite.age.with,
+                               smooth.infinite.age.to,
                                require.non.infinite.ages,
                                error.prefix,
                                required.length.name.for.error,
@@ -467,19 +467,19 @@ parse.age.brackets <- function(age.brackets,
     if (require.non.infinite.ages && 
         (any(is.infinite(lower)) || any(is.infinite(upper)) ))
     {
-        if (!is.numeric(replace.infinite.age.with) || length(replace.infinite.age.with)!=1)
-            stop(paste0(error.prefix, "'replace.infinite.age.with' must be a single, numeric value"))
+        if (!is.numeric(smooth.infinite.age.to) || length(smooth.infinite.age.to)!=1)
+            stop(paste0(error.prefix, "'smooth.infinite.age.to' must be a single, numeric value"))
         
-        if (is.na(replace.infinite.age.with) || is.infinite(replace.infinite.age.with))
-            stop(paste0(error.prefix, age.brackets.name.for.error, " cannot contain infinite values unless 'replace.infinite.age.with' is given a finite value"))
+        if (is.na(smooth.infinite.age.to) || is.infinite(smooth.infinite.age.to))
+            stop(paste0(error.prefix, age.brackets.name.for.error, " cannot contain infinite values unless 'smooth.infinite.age.to' is given a finite value"))
         
-        if (any(replace.infinite.age.with <= lower[!is.infinite(lower)]) ||
-            any(replace.infinite.age.with <= upper[!is.infinite(upper)]))
-            stop(paste0(error.prefix, "If any ", age.brackets.name.for.error, " contain infinite bounds, 'replace.infinite.age.with' (",
-                 replace.infinite.age.with, ") must be greater than all other (non-infinite) age values"))
+        if (any(smooth.infinite.age.to <= lower[!is.infinite(lower)]) ||
+            any(smooth.infinite.age.to <= upper[!is.infinite(upper)]))
+            stop(paste0(error.prefix, "If any ", age.brackets.name.for.error, " contain infinite bounds, 'smooth.infinite.age.to' (",
+                 smooth.infinite.age.to, ") must be greater than all other (non-infinite) age values"))
         
-        lower[is.infinite(lower)] = replace.infinite.age.with
-        upper[is.infinite(upper)] = replace.infinite.age.with
+        lower[is.infinite(lower)] = smooth.infinite.age.to
+        upper[is.infinite(upper)] = smooth.infinite.age.to
     }
     
     if (require.contiguous)
