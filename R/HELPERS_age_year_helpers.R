@@ -503,10 +503,10 @@ parse.age.brackets <- function(age.brackets,
 
 is.year.range <- function(x)
 {
-    is.character(x) && length(x) == 1 && stringr::str_detect(x, "[0-9]{4}-[0-9]{4}")
+    is.character(x) && stringr::str_detect(x, "[0-9]{4}-[0-9]{4}")
 }
 
-parse.year.range <- function(x)
+parse.year.ranges <- function(x)
 {
     if (!is.year.range(x))
         stop(paste0("Error parsing year range: 'x' must be a sinle character vector of format 'yyyy-yyyy'"))
