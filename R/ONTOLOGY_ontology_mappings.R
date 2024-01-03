@@ -1110,6 +1110,44 @@ create.age.ontology.mapping <- function(from.values,
         return (NULL)
 }
 
+create.overlapping.age.ontology.mapping <- function(from.values,
+                                                    to.values)
+{
+    from.bounds = parse.age.strata.names(from.values)
+    to.bounds = parse.age.strata.names(to.values)
+    
+    if (is.null(from.bounds) || is.null(to.bounds))
+        return (NULL)
+    
+    # Get the 'from's for each 'to'
+    # NB: A 'from' may map to more than one 'to' if the 'to's are overlapping
+    
+    froms.for.to = lapply(1:length(to.values), function(to){
+        mask = from.bounds$upper > to.bounds$lower[to] &
+            from.bounds$lower < to.bounds$upper[to]
+        
+        if (sum(mask)==0)
+            as.integer(NA)
+        else
+            (1:length(mask))[mask]
+    })
+    
+    iterated.from.values = from.values[unlist(froms.for.to)]
+    iterated.to.values = unlist(sapply(1:length(to.values), function(i){
+        rep(to.values[i], length(froms.for.to[[i]]))
+    }))
+    
+    missing.from.values = setdiff(from.values, iterated.from.values)
+    iterated.from.values = c(iterated.from.values, missing.from.values)
+    iterated.to.values = c(iterated.to.values, rep(NA, length(missing.from.values)))
+    
+    BASIC.ONTOLOGY.MAPPING$new(name = paste0('age ', length(from.values), "->", length(to.values), " strata by overlap"),
+                               from.dimensions = 'age',
+                               to.dimensions = 'age',
+                               from.values = matrix(iterated.from.values, ncol=1),
+                               to.values = matrix(iterated.to.values, ncol=1))
+}
+
 
 ##----------------------------------##
 ##----------------------------------##
