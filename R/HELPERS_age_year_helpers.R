@@ -1,4 +1,24 @@
 
+##-----------------##
+##-----------------##
+##-- YEAR RANGES --##
+##-----------------##
+##-----------------##
+
+is.year.range <- function(x)
+{
+    is.character(x) && stringr::str_detect(x, "[0-9]{4}-[0-9]{4}")
+}
+
+parse.year.ranges <- function(x)
+{
+    if (!is.year.range(x))
+        stop(paste0("Error parsing year range: 'x' must be a sinle character vector of format 'yyyy-yyyy'"))
+    list(start=substr(x, 1, 4), end=substr(x, 6, 9))
+}
+
+
+
 #'@title Make Names for a Set of Age Strata
 #'
 #'@param endpoints A numeric vector of at least two points. endpoints[1] is the lower bound (inclusive) of the first stratum, endpoints[2] is the upper bound (exclusive) for the first stratum and the lower bound for the second stratum, etc.
@@ -297,11 +317,9 @@ restratify.age.counts <- function(counts,
             rv = apply(raw, names(orig.dim), function(x){x})
             dim(rv) = new.dim
             dimnames(rv) = new.dim.names
-            
-            rv
         }
         else
-            raw
+            rv = raw
     }
     else
     {
@@ -311,8 +329,12 @@ restratify.age.counts <- function(counts,
         
         rv = smoother(parsed.desired.brackets$upper) - smoother(parsed.desired.brackets$lower)
         names(rv) = parsed.desired.brackets$names
-        rv
     }
+    
+    #-- Set the ontology mapping --#
+    attr(rv, 'mapping') = create.overlapping.age.ontology.mapping(from.values = parsed.given.brackets$names, 
+                                                                  to.values = parsed.desired.brackets$names)
+    rv
 }
 
 #'@title Get a function that projects a smoothed cumulative count up to a given age
@@ -493,22 +515,4 @@ parse.age.brackets <- function(age.brackets,
          order = o,
          names = names,
          n = length(lower))
-}
-
-##-----------------##
-##-----------------##
-##-- YEAR RANGES --##
-##-----------------##
-##-----------------##
-
-is.year.range <- function(x)
-{
-    is.character(x) && stringr::str_detect(x, "[0-9]{4}-[0-9]{4}")
-}
-
-parse.year.ranges <- function(x)
-{
-    if (!is.year.range(x))
-        stop(paste0("Error parsing year range: 'x' must be a sinle character vector of format 'yyyy-yyyy'"))
-    list(start=substr(x, 1, 4), end=substr(x, 6, 9))
 }
