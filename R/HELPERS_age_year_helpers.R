@@ -18,6 +18,49 @@ parse.year.ranges <- function(x)
 }
 
 
+#'@title Parse
+#'
+#'@param
+#'
+#'@export
+parse.year.names <- function(years)
+{
+    if (is.numeric(years))
+    {
+        if (any(ceiling(years)!=years))
+            NULL
+        else
+            list(lower=years,
+                 upper=years+1)
+    }
+    else if (is.character(years))
+    {
+        year.range.mask = grepl("^[0-9]{4}-[0-9]{4}$", years)
+        single.year.mask = grepl("^[0-9]{4}$", years)
+        
+        if (any(!year.range.mask & !single.year.mask))
+            NULL
+        else
+        {
+            rv = list(start=numeric(),
+                      end=numeric())
+            
+            single.years = as.numeric(years[single.year.mask])
+            year.range.starts = as.numeric(substr(years[year.range.mask], 1, 4))
+            year.range.ends = as.numeric(substr(years[year.range.mask], 6, 9))
+            
+            rv$lower[single.year.mask] = single.years
+            rv$upper[single.year.mask] = single.years+1
+            
+            rv$lower[year.range.mask] = year.range.starts
+            rv$upper[year.range.mask] = year.range.ends+1
+            
+            rv
+        }
+    }
+    else
+        NULL
+}
 
 #'@title Make Names for a Set of Age Strata
 #'

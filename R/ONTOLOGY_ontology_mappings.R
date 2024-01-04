@@ -615,7 +615,7 @@ do.get.ontology.mapping <- function(from.ontology,
                                     is.for.two.way = get.two.way.alignment,
                                     used.mappings=list(),
                                     mappings = c(ONTOLOGY.MAPPING.MANAGER$mappings,
-                                                 list('age','other')))
+                                                 list('age','other','year')))
 {
     error.prefix = "Error getting ontology mapping: "
     
@@ -713,6 +713,26 @@ do.get.ontology.mapping <- function(from.ontology,
                 mapping = create.age.ontology.mapping(from.values=from.ontology[['age']],
                                                       to.values=to.ontology[['age']],
                                                       allow.incomplete.span.of.infinite.age.range = T)
+                
+                if (is.null(mapping))
+                    try.mapping = F
+                else
+                {
+                    try.mapping=T
+                    mappings.to.try.next = mappings[-i]                
+                }
+            }
+            else
+                try.mapping = F
+        }
+        else if (is.character(mapping) && mapping=='year')
+        {
+            if (any(dimensions.out.of.alignment == 'year') &&
+                !is.null(from.ontology[['year']]) &&
+                !is.null(to.ontology[['year']]))
+            {
+                mapping = create.year.ontology.mapping(from.values=from.ontology[['year']],
+                                                       to.values=to.ontology[['year']])
                 
                 if (is.null(mapping))
                     try.mapping = F
@@ -1035,22 +1055,37 @@ derive.ontology <- function(x,
         stop(paste(error.prefix, var.name.for.error, " must be either (1) an object of class 'ontology' as created by the ontology() function or (2) a named list of character vectors"))
 }
 
-##------------------##
-##------------------##
-##-- AGE MAPPINGS --##
-##------------------##
-##------------------##
 
-# Fundamentally we can do this iff
-# For every 'to' value, the 'from' values within each to value completely span that to value's range
-#     (unless the upper bound is infinity and allow.incomplete.span.of.infinite.age.range==T)
-create.age.ontology.mapping <- function(from.values,
-                                        to.values,
-                                        allow.incomplete.span.of.infinite.age.range)
+##-------------------------##
+##-------------------------##
+##-- YEAR RANGE MAPPINGS --##
+##-------------------------##
+##-------------------------##
+
+create.year.ontology.mapping <- function(from.values,
+                                         to.values)
 {
-    from.bounds = parse.age.strata.names(from.values)
-    to.bounds = parse.age.strata.names(to.values)
+    from.bounds = parse.year.names(from.values)
+    to.bounds = parse.year.names(to.values)
     
+    if (is.null(from.bounds) || is.null(to.bounds))
+        return (NULL)
+    
+    do.create.age.or.year.ontology.mapping(from.values = from.values,
+                                           to.values = to.values,
+                                           from.bounds = from.bounds,
+                                           to.bounds = to.bounds,
+                                           dimension = 'year',
+                                           allow.incomplete.span.of.infinite.range = F)
+}
+
+do.create.age.or.year.ontology.mapping <- function(from.values,
+                                                   to.values,
+                                                   from.bounds,
+                                                   to.bounds,
+                                                   dimension,
+                                                   allow.incomplete.span.of.infinite.range)
+{
     if (is.null(from.bounds) || is.null(to.bounds))
         return (NULL)
     
@@ -1083,7 +1118,7 @@ create.age.ontology.mapping <- function(from.values,
         from.lowers[1] == to.bounds$lower[to] && 
             # from's span to the top or the top is infinity
             ( from.uppers[length(from.uppers)] == to.bounds$upper[to] ||
-                  (allow.incomplete.span.of.infinite.age.range
+                  (allow.incomplete.span.of.infinite.range
                    && is.infinite(to.bounds$upper[to])) ) && 
             # from's are contiguous
             all( from.lowers[-1] == from.uppers[-length(from.uppers)] ) 
@@ -1100,14 +1135,38 @@ create.age.ontology.mapping <- function(from.values,
         iterated.from.values = c(iterated.from.values, missing.from.values)
         iterated.to.values = c(iterated.to.values, rep(NA, length(missing.from.values)))
         
-        BASIC.ONTOLOGY.MAPPING$new(name = paste0('age ', length(from.values), "->", length(to.values), " strata"),
-                                   from.dimensions = 'age',
-                                   to.dimensions = 'age',
+        BASIC.ONTOLOGY.MAPPING$new(name = paste0(dimension, ' ', length(from.values), "->", length(to.values), " strata"),
+                                   from.dimensions = dimension,
+                                   to.dimensions = dimension,
                                    from.values = matrix(iterated.from.values, ncol=1),
                                    to.values = matrix(iterated.to.values, ncol=1))
     }
     else
         return (NULL)
+}
+
+##------------------##
+##------------------##
+##-- AGE MAPPINGS --##
+##------------------##
+##------------------##
+
+# Fundamentally we can do this iff
+# For every 'to' value, the 'from' values within each to value completely span that to value's range
+#     (unless the upper bound is infinity and allow.incomplete.span.of.infinite.age.range==T)
+create.age.ontology.mapping <- function(from.values,
+                                        to.values,
+                                        allow.incomplete.span.of.infinite.age.range)
+{
+    from.bounds = parse.age.strata.names(from.values)
+    to.bounds = parse.age.strata.names(to.values)
+    
+    do.create.age.or.year.ontology.mapping(from.values = from.values,
+                                           to.values = to.values,
+                                           from.bounds = from.bounds,
+                                           to.bounds = to.bounds,
+                                           dimension = 'age',
+                                           allow.incomplete.span.of.infinite.range = allow.incomplete.span.of.infinite.age.range)
 }
 
 create.overlapping.age.ontology.mapping <- function(from.values,
