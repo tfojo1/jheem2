@@ -748,7 +748,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         
         put = function(data,
                        outcome,
-                       metric,
+                       metric = 'estimate',
                        source,
                        ontology.name,
                        dimension.values,
@@ -1034,7 +1034,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         
         put.long.form = function(data,
                                  outcome,
-                                 metric,
+                                 metric = 'estimate',
                                  source,
                                  ontology.name,
                                  dimension.values,
