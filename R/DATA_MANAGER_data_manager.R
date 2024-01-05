@@ -227,6 +227,7 @@ register.data.source <- function(data.manager = get.default.data.manager(),
 put.data <- function(data.manager = get.default.data.manager(),
                      data,
                      outcome,
+                     metric,
                      source,
                      ontology.name,
                      dimension.values,
@@ -239,6 +240,7 @@ put.data <- function(data.manager = get.default.data.manager(),
     
     data.manager$put(data=data,
                      outcome=outcome,
+                     metric=metric,
                      source=source,
                      ontology.name=ontology.name,
                      dimension.values=dimension.values,
@@ -256,6 +258,7 @@ put.data <- function(data.manager = get.default.data.manager(),
 put.data.long.form <- function(data.manager = get.default.data.manager(),
                                data,
                                outcome,
+                               metric,
                                source,
                                ontology.name,
                                dimension.values,
@@ -268,6 +271,7 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
     
     data.manager$put.long.form(data=data,
                                outcome=outcome,
+                               metric=metric,
                                source=source,
                                ontology.name=ontology.name,
                                dimension.values=dimension.values,
@@ -515,20 +519,23 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             details = from.data.manager$details
             
             for (outcome in names(data)) {
-                for (source in names(data[[outcome]])) {
-                    for (ontology in names(data[[outcome]][[source]])) {
-                        for (stratification in names(data[[outcome]][[source]][[ontology]])) {
-                            
-                            self$put(data = data[[outcome]][[source]][[ontology]][[stratification]],
-                                     outcome = outcome,
-                                     source = source,
-                                     ontology.name = ontology,
-                                     dimension.values = list(),
-                                     url = unlist(url[[outcome]][[source]][[ontology]][[stratification]]),
-                                     details = unlist(details[[outcome]][[source]][[ontology]][[stratification]]))
-                            
+                for (metric in names(data[[outcome]])) {
+                    for (source in names(data[[outcome]][[metric]])) {
+                        for (ontology in names(data[[outcome]][[metric]][[source]])) {
+                            for (stratification in names(data[[outcome]][[metric]][[source]][[ontology]])) {
+                                
+                                self$put(data = data[[outcome]][[metric]][[source]][[ontology]][[stratification]],
+                                         outcome = outcome,
+                                         metric = metric,
+                                         source = source,
+                                         ontology.name = ontology,
+                                         dimension.values = list(),
+                                         url = unlist(url[[outcome]][[metric]][[source]][[ontology]][[stratification]]),
+                                         details = unlist(details[[outcome]][[metric]][[source]][[ontology]][[stratification]]))
+                                
+                            }
                         }
-                    }
+                    }   
                 }
             }
             
@@ -565,27 +572,29 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # --- Subset data
             for (data.type in c('i.data', 'i.url', 'i.details')) {
                 private[[data.type]] = lapply(private[[data.type]], function(outcome) {
-                    lapply(outcome, function(source) {
-                        # To make sure we get a named list for the source
-                        ontology.iterator = seq_along(source)
-                        names(ontology.iterator) = names(source)
-                        
-                        lapply(ontology.iterator, function(i) {
-                            if (names(source)[[i]] == ontology.name || is.null(ontology.name)) {
-                                lapply(source[[i]], function(stratification) {
-                                    dimensions.to.subset = dimension.values[names(dimension.values) %in% names(dim(stratification))]
-                                    if (length(dimensions.to.subset) > 0) {
-                                        dimnames.for.subset = dimnames(stratification)
-                                        for (d in names(dimensions.to.subset))
-                                            dimnames.for.subset[[d]] = dimensions.to.subset[[d]][dimensions.to.subset[[d]] %in% dimnames(stratification)[[d]]]
-                                        if (all(sapply(dimnames.for.subset, length) > 0))
-                                            fast.array.access(stratification, dimnames.for.subset)
+                    lapply(outcome, function(metric) {
+                        lapply(metric, function(source) {
+                            # To make sure we get a named list for the source
+                            ontology.iterator = seq_along(source)
+                            names(ontology.iterator) = names(source)
+                            
+                            lapply(ontology.iterator, function(i) {
+                                if (names(source)[[i]] == ontology.name || is.null(ontology.name)) {
+                                    lapply(source[[i]], function(stratification) {
+                                        dimensions.to.subset = dimension.values[names(dimension.values) %in% names(dim(stratification))]
+                                        if (length(dimensions.to.subset) > 0) {
+                                            dimnames.for.subset = dimnames(stratification)
+                                            for (d in names(dimensions.to.subset))
+                                                dimnames.for.subset[[d]] = dimensions.to.subset[[d]][dimensions.to.subset[[d]] %in% dimnames(stratification)[[d]]]
+                                            if (all(sapply(dimnames.for.subset, length) > 0))
+                                                fast.array.access(stratification, dimnames.for.subset)
+                                            else stratification
+                                        }
                                         else stratification
-                                    }
-                                    else stratification
-                                })
-                            }
-                            else source[[i]]
+                                    })
+                                }
+                                else source[[i]]
+                            })
                         })
                     })
                 })
@@ -739,6 +748,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         
         put = function(data,
                        outcome,
+                       metric,
                        source,
                        ontology.name,
                        dimension.values,
@@ -860,6 +870,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     stop(paste0(error.prefix, "some or all locations in 'dimension.values' are invalid"))
                 }
             }
+            
+            ##@AZ ADD VALIDATION FOR 'metric'
+            # *metric* is one of 'estimate', 'upper bound', or 'lower bound', until more options are added
+            if (!is.character(metric) || length(metric) != 1 || !(metric %in% c('estimate', 'upper.bound', 'lower.bound')))
+                stop(paste0(error.prefix, "'metric' must be a character vector with value 'estimate', 'upper.bound', or 'lower.bound'"))
 
             # 4) *source* is
             #    a single, non-NA, non-empty character value
@@ -930,7 +945,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # -> make new data elements
             
-            existing.dim.names = dimnames(private$i.data[[outcome]][[source]][[ontology.name]][[stratification]])
+            existing.dim.names = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
             
             data.already.present = !is.null(existing.dim.names)
             
@@ -943,7 +958,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (data.already.present)
                 {
                     existing.data.and.metadata = lapply(data.element.names, function(name){
-                        private[[name]][[outcome]][[source]][[ontology.name]][[stratification]]
+                        private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]]
                     })
                     names(existing.data.and.metadata) = data.element.names
                 }
@@ -961,25 +976,25 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 }
                 
                 # Make the new (empty) data structures
-                private$i.data[[outcome]][[source]][[ontology.name]][[stratification]] =
+                private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]] =
                     array(NaN, dim=sapply(new.dim.names, length), dimnames = new.dim.names)
                 
                 for (name in metadata.element.names)
                 {
-                    private[[name]][[outcome]][[source]][[ontology.name]][[stratification]] = 
+                    private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]] = 
                         lapply(1:prod(sapply(new.dim.names, length)), function(i){
                             NULL
                         })
                     
-                    dim(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]]) = sapply(new.dim.names, length)
-                    dimnames(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]]) = new.dim.names
+                    dim(private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]]) = sapply(new.dim.names, length)
+                    dimnames(private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]]) = new.dim.names
                 }
                     
                 # Overwrite the new structure with the old data, if needed
                 if (data.already.present)
                 {
                     for (name in data.element.names)
-                        array.access(private[[name]][[outcome]][[source]][[ontology.name]][[stratification]], existing.dim.names) =
+                        array.access(private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]], existing.dim.names) =
                             existing.data.and.metadata[[name]]
                 }
             }
@@ -992,7 +1007,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #@ fast.array.access loops five times if five dimensions (location, year, age, risk, sex...) with lapply
             #@ within fast.array.access, subset.values is a list of length(dims) and each element has all the dim values
             
-            overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[outcome]][[source]][[ontology.name]][[stratification]]),
+            overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]]),
                                                          dimension.values = c(dimnames(data), dimension.values))
             if (!allow.na.to.overwrite)
             {
@@ -1001,12 +1016,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
                 
             # Put data
-            private$i.data[[outcome]][[source]][[ontology.name]][[stratification]][overwrite.indices] = data
+            private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]][overwrite.indices] = data
 
             # Put metadata
-            private$i.url[[outcome]][[source]][[ontology.name]][[stratification]][overwrite.indices] = 
+            private$i.url[[outcome]][[metric]][[source]][[ontology.name]][[stratification]][overwrite.indices] = 
                 lapply(1:length(overwrite.indices), function(i){ url })
-            private$i.details[[outcome]][[source]][[ontology.name]][[stratification]][overwrite.indices] = 
+            private$i.details[[outcome]][[metric]][[source]][[ontology.name]][[stratification]][overwrite.indices] = 
                 lapply(1:length(overwrite.indices), function(i){ details })
             
             # Clear cached universal ontologies and target to universal mappings
@@ -1019,6 +1034,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         
         put.long.form = function(data,
                                  outcome,
+                                 metric,
                                  source,
                                  ontology.name,
                                  dimension.values,
@@ -1044,6 +1060,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 for (one.outcome in unique.outcomes)
                 {
                     self$put.long.form(outcome = one.outcome,
+                                       metric = metric,
                                        ontology.name = ontology.name,
                                        source = source,
                                        dimension.values = dimension.values,
@@ -1100,6 +1117,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 
                 #-- Pass through to main put function --#
                 self$put(outcome = outcome,
+                         metric = metric,
                          ontology.name = ontology.name,
                          source = source,
                          dimension.values = dimension.values,
@@ -1112,6 +1130,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         
         pull = function(data.manager,
                         outcome,
+                        metric = 'estimate',
                         keep.dimensions = NULL,
                         dimension.values = NULL,
                         sources = NULL,
@@ -1125,7 +1144,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         debug = F,
                         ...)
         {
-            # ptm = Sys.time()
             # if (debug) browser()
             error.prefix = paste0("Cannot pull '", outcome, "' data from the data manager: ")
             # *extra dimensions* are an alternative to 'dimension.values' and must pass the same checks if used
@@ -1152,6 +1170,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (is.null(outcome.info))
                     stop(paste0(error.prefix, "'", outcome, "' is not a registered outcome."))
                 
+                # *metric* is one of 'estimate', 'upper bound', or 'lower bound', until more options are added
+                if (!is.character(metric) || length(metric) != 1 || !(metric %in% c('estimate', 'upper.bound', 'lower.bound')))
+                    stop(paste0(error.prefix, "'metric' must be a character vector with value 'estimate', 'upper.bound', or 'lower.bound'"))
+                
+                if (metric %in% c('upper.bound', 'lower.bound'))
+                    stop(paste0(error.prefix, "pulling with metric '", metric, "' is not yet supprted"))
+                
                 # *keep.dimensions* is either NULL or a character vector with no NA values or repeats
                 if (!is.null(keep.dimensions) && (!is.character(keep.dimensions) || any(duplicated(keep.dimensions)) || anyNA(keep.dimensions)))
                     stop(paste0(error.prefix, "'keep.dimensions' must be either NULL or a character vector with no NA values or repeats"))
@@ -1168,8 +1193,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 #  that have all been registered previously as sources for this outcome with this data manager
                 if (!is.null(sources) && (!is.character(sources) || !length(sources)>0 || anyNA(sources) || any(nchar(sources)==0)))
                     stop(paste0(error.prefix, "'sources' must be NULL or a character vector with at least one element and no NA or empty values"))
-                
-                unregistered.sources = sapply(sources, function(x){!(x %in% names(private$i.data[[outcome]]))})
+                unregistered.sources = sapply(sources, function(x){
+                    !(x %in% unique(unlist(lapply(private$i.data[[outcome]], function(metric.data) {names(metric.data)}))))
+                })
                 if (any(unregistered.sources))
                     stop(paste0(error.prefix, "all sources must be registered for this outcome with this data manager"))
                 
@@ -1203,8 +1229,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (!is.logical(na.rm) || length(na.rm)!=1 || is.na(na.rm))
                     stop(paste0(error.prefix, "na.rm must be a single, non-NA, logical value"))
             }
-            # print(paste0("block A took ", Sys.time()-ptm))
-            # ptm = Sys.time()
 
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
@@ -1247,17 +1271,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (!is.null(keep.dimensions)) target.ontology = target.ontology[names(target.ontology) %in% union(keep.dimensions, names(dimension.values))]
             # If sources is NULL, use all the sources from the outcome
             if (is.null(sources))
-                sources.used.names = names(private$i.data[[outcome]])
+                sources.used.names = names(private$i.data[[outcome]][[metric]])
             else
                 sources.used.names = sources
             sources.successful.names = c()
-            # print(paste0("block C took ", Sys.time()-ptm))
-            # ptm = Sys.time()
+            
             ## FOR THE FUTURE: DO A PRETEND PULL TO SEE WHAT ONTOLOGIES WE NEED, THEN POTENTIALLY REMAKE THE UNIVERSAL WITH ONLY THOSE
             # if (debug) browser()
             pre.processed.data = lapply(sources.used.names, function(source.name) {
                 
-                source.ontology.names = names(private$i.data[[outcome]][[source.name]])
+                source.ontology.names = names(private$i.data[[outcome]][[metric]][[source.name]])
                 if (is.null(from.ontology.names))
                     ontologies.used.names = source.ontology.names
                 else
@@ -1268,11 +1291,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 for (ont.name in ontologies.used.names) {
                     pulled.ont.data = NULL
                     ont = private$i.ontologies[[ont.name]]
-                    stratification.names = names(private$i.data[[outcome]][[source.name]][[ont.name]])
-                    # if (debug && ont.name == 'cdc') browser()
+                    stratification.names = names(private$i.data[[outcome]][[metric]][[source.name]][[ont.name]])
+                    
                     for (strat in stratification.names) {
                         
-                        strat.data = private$i.data[[outcome]][[source.name]][[ont.name]][[strat]]
+                        strat.data = private$i.data[[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
                         strat.dimensions = names(dim(strat.data))
                         strat.dimnames = as.ontology(dimnames(strat.data), incomplete.dimensions = intersect(incomplete.dimensions(ont), strat.dimensions))
                         
@@ -1340,17 +1363,19 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion')) {
                                 denominator.outcome = outcome.info[['denominator.outcome']]
-                                
+                                # browser()
                                 # CHECK IF THIS SOURCE HAS DENOMINATOR DATA. IF NOT, TRY ANOTHER SOURCE.
-                                if (source.name %in% names(private$i.data[[denominator.outcome]]))
+                                if (source.name %in% names(private$i.data[[denominator.outcome]][['estimate']]))
                                     denominator.source = source.name
-                                else if (length(names(private$i.data[[denominator.outcome]]))>0)
-                                    denominator.source = names(private$i.data[[denominator.outcome]])[[1]]
+                                else if (length(names(private$i.data[[denominator.outcome]][['estimate']]))>0)
+                                    denominator.source = names(private$i.data[[denominator.outcome]][['estimate']])[[1]]
                                 else {
                                     source.lacks.denominator.data.flag <<- TRUE
                                     return (NULL)
                                 }
+                                
                                 denominator.array = self$pull(outcome = denominator.outcome,
+                                                              metric = 'estimate',
                                                               keep.dimensions = union(keep.dimensions, dv.names),
                                                               dimension.values = strat.dimnames,
                                                               sources = denominator.source,
@@ -1368,7 +1393,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                           dim = dim(denominator.array)[names(dim(denominator.array)) != 'source'],
                                                           dimnames = dimnames(denominator.array)[names(dimnames(denominator.array)) != 'source']
                                 )
-                                if (debug && source.name == 'lhd') browser()
+                                
                                 # # Catch an otherwise invisible bug if denominator.array somehow doesn't have the same shape/order as the data
                                 # if (!dim.names.equal(dimnames(denominator.array), dimnames(data.to.process)))
                                 #     stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect dimensions'))
@@ -1439,15 +1464,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         denominator.ontology = target.ontology ## NOTE: DO WE NEED TO HAVE THE UNIVERSAL ALIGN TO THE DENOMINATOR ONTOLOGIES TOO, WHEN WE KNOW WE'LL NEED IT?
                                         
                                         # CHECK IF THIS SOURCE HAS DENOMINATOR DATA. IF NOT, TRY ANOTHER SOURCE.
-                                        if (source.name %in% names(private$i.data[[denominator.outcome]]))
+                                        if (source.name %in% names(private$i.data[[denominator.outcome]][['estimate']]))
                                             denominator.source = source.name
-                                        else if (length(names(private$i.data[[denominator.outcome]]))>0)
-                                            denominator.source = names(private$i.data[[denominator.outcome]])[[1]]
+                                        else if (length(names(private$i.data[[denominator.outcome]][['estimate']]))>0)
+                                            denominator.source = names(private$i.data[[denominator.outcome]][['estimate']])[[1]]
                                         else {
                                             source.lacks.denominator.data.flag <<- TRUE
                                             return (NULL)
                                         }
+                                        # browser()
                                         denominator.array = self$pull(outcome = denominator.outcome,
+                                                                      metric = 'estimate', # I believe we always want "estimates" for aggregating with denominators
                                                                       keep.dimensions = names(pre.agg.dimnames),
                                                                       dimension.values = dimension.values,
                                                                       sources = denominator.source,
@@ -1621,6 +1648,83 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             post.processed.data
         },
         
+        pull.age.robust = function(data.manager,
+                                   outcome,
+                                   metric = 'estimate',
+                                   keep.dimensions = NULL,
+                                   dimension.values = NULL,
+                                   sources = NULL,
+                                   from.ontology.names = NULL,
+                                   target.ontology = NULL,
+                                   allow.mapping.from.target.ontology = T,
+                                   append.attributes = NULL,
+                                   allow.other.sources.for.denominator = F,
+                                   na.rm = F,
+                                   check.arguments = T,
+                                   debug = F,
+                                   ...,
+                                   restratify.age = F,
+                                   desired.age.brackets = NULL,
+                                   smooth.infinite.age.to = 100,
+                                   allow.extrapolation = F,
+                                   method = c('monoH.FC','hyman')[1])
+        {
+            browser()
+            # validate age arguments (like check that that target has 'age')
+            # if ()
+            # validate pull arguments internally
+            rv = self$pull(data.manager = data.manager,
+                           outcome = outcome,
+                           metric = metric,
+                           keep.dimensions = keep.dimensions,
+                           dimension.values = dimension.values,
+                           sources = sources,
+                           from.ontology.names = from.ontology.names,
+                           target.ontology = target.ontology,
+                           allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
+                           append.attributes = append.attributes,
+                           allow.other.sources.for.denominator = allow.other.sources.for.denominator,
+                           na.rm = na.rm,
+                           check.arguments = check.arguments,
+                           debug = debug,
+                           ...)
+            if (restratify.age && is.null(rv)) {
+                target.ontology$age = NULL
+                pulled.data = self$pull(data.manager = data.manager,
+                                        outcome = outcome,
+                                        metric = metric,
+                                        keep.dimensions = keep.dimensions,
+                                        dimension.values = dimension.values,
+                                        sources = sources,
+                                        from.ontology.names = from.ontology.names,
+                                        target.ontology = target.ontology,
+                                        allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
+                                        append.attributes = append.attributes,
+                                        allow.other.sources.for.denominator = allow.other.sources.for.denominator,
+                                        na.rm = na.rm,
+                                        check.arguments = check.arguments,
+                                        debug = debug,
+                                        ...)
+                # check rv scale?
+                url = attr(pulled.data, 'url')
+                details = attr(pulled.data, 'details')
+                pulled.mapping = attr(pulled.data, 'mapping')
+                restratified.data = restratify.age.counts(counts = pulled.data,
+                                                          desired.age.brackets = desired.age.brackets,
+                                                          smooth.infinite.age.to = smooth.infinite.age.to,
+                                                          allow.extrapolation = allow.extrapolation,
+                                                          na.rm = na.rm,
+                                                          method = method,
+                                                          error.prefix = error.prefix) #set
+                restratify.mapping = attr(restratified.data, 'mapping')
+                # I'll need to use the mapping returned as an attr on the above to map details and url
+                attr(restratified.data, 'url') = restratify.mapping$apply(url)
+                attr(restratified.data, 'details') = restratify.mapping$apply(details)
+                if (!is.null(pulled.mapping)) attr(restratified.data, 'mapping') = pulled.mapping # NOT TRUE ANYMORE...
+            }
+            rv
+        },
+        
         get.outcome.pretty.names = function(outcomes)
         {
             sapply(private$i.outcome.info[outcomes], function(info){
@@ -1676,15 +1780,26 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             earliest.year = Inf
             latest.year = -Inf
             if (outcome %in% names(private$i.data)) {
-                for (source in private$i.data[[outcome]]) {
-                    for (ontology in source) {
-                        for (strat in ontology) {
-                            if ('year' %in% names(dimnames(strat))) {
-                                years = sort(dimnames(strat)[['year']])
-                                if (years[[1]] < earliest.year) earliest.year = years[[1]]
-                                else if (years[[length(years)]] > latest.year) latest.year = years[[length(years)]]
+                for (metric in private$i.data[[outcome]]) {
+                    for (source in metric) {
+                        for (ontology in source) {
+                            for (strat in ontology) {
+                                if ('year' %in% names(dimnames(strat))) {
+                                    if (all(is.year.range(dimnames(strat)$year))) {
+                                        parsed.range = parse.year.ranges(dimnames(strat)$year)
+                                        starts = sort(parsed.range$start)
+                                        ends = sort(parsed.range$end, decreasing = T)
+                                        if (starts[[1]] < earliest.year) earliest.year = starts[[1]]
+                                        if (ends[[1]] > latest.year) latest.year = ends[[1]]
+                                    }
+                                    else {
+                                        years = sort(dimnames(strat)[['year']])
+                                        if (years[[1]] < earliest.year) earliest.year = years[[1]]
+                                        if (years[[length(years)]] > latest.year) latest.year = years[[length(years)]]
+                                    }
+                                }
                             }
-                        }
+                        } 
                     }
                 }
             }
@@ -1695,17 +1810,24 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             list(earliest.year = earliest.year, latest.year = latest.year)
         },
         
-        get.locations.with.data = function(outcome, years = NULL)
+        get.locations.with.data = function(outcome, metric, years = NULL)
         {
             if (is.null(outcome) || !is.character(outcome) || length(outcome) > 1 || is.na(outcome))
                 stop("'outcome' must be a single, non-NA character value")
             if (!(outcome %in% names(private$i.outcome.info)))
                 stop(paste0("'", outcome, "' is not a registered outcome."))
+            if (!(outcome %in% names(private$i.data)))
+                stop(paste0("there is no data for outcome '", outcome, "'"))
+            if (!is.character(metric) || length(metric) != 1)
+                stop("'metric' must be a single character value")
+            if (!(metric %in% names(private$i.data[[outcome]])))
+                stop(paste0("there is no data for metric '", metric, "' for outcome '", outcome, "'"))
             # *years* is NULL or a numeric vector with no NAs or duplicates
             if (!is.null(years) && (!is.numeric(years) || any(is.na(years)) || any(duplicated(years))))
                 stop("'years' must be NULL or a numeric vector with no NAs or duplicates")
-            if (outcome %in% names(private$i.data)) {
-                unique(unlist(lapply(private$i.data[[outcome]], function(source.data) {
+            
+            unique(unlist(lapply(private$i.data[[outcome]], function(metric.data) {
+                unique(unlist(lapply(metric.data, function(source.data) {
                     unique(unlist(lapply(source.data, function(ontology.data) {
                         unique(unlist(lapply(ontology.data, function(stratification.data) {
                             if (!is.null(years)) {
@@ -1721,7 +1843,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         })))
                     })))
                 })))
-            }
+            })))
         },
         
         get.ontologies.for.outcome = function(outcome, sources = NULL)
@@ -1737,15 +1859,19 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #  that have all been registered previously as sources for this outcome with this data manager
             if (!is.null(sources) && (!is.character(sources) || !length(sources)>0 || anyNA(sources) || any(nchar(sources)==0)))
                 stop(paste0(error.prefix, "'sources' must be NULL or a character vector with at least one element and no NA or empty values"))
-            unregistered.sources = sapply(sources, function(x){!(x %in% names(private$i.data[[outcome]]))})
+            unregistered.sources = sapply(sources, function(x){
+                !(x %in% unique(unlist(lapply(private$i.data[[outcome]], function(metric.data) {names(metric.data)}))))
+            })
             if (any(unregistered.sources))
                 stop(paste0(error.prefix, "all sources must be registered for this outcome with this data manager"))
            
             # GET ONTOLOGIES IN REQUESTED SOURCES
-            ont.names = unique(unlist(lapply(names(private$i.data[[outcome]]), function(source.name) {
-                source.ontologies = names(private$i.data[[outcome]][[source.name]])
-                if (is.null(sources) || source.name %in% sources) source.ontologies
-                else NULL
+            ont.names = unique(unlist(lapply(names(private$i.data[[outcome]]), function(metric.name) {
+                unique(unlist(lapply(names(private$i.data[[outcome]][[metric.name]]), function(source.name) {
+                    source.ontologies = names(private$i.data[[outcome]][[metric.name]][[source.name]])
+                    if (is.null(sources) || source.name %in% sources) source.ontologies
+                    else NULL
+                })))
             })))
             onts = lapply(ont.names, function(n) {self$get.registered.ontology(n)})
             names(onts) = ont.names
