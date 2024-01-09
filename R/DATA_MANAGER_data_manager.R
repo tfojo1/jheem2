@@ -761,7 +761,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #------------------------#
 
             error.prefix = paste0("Unable to put data to data.manager '", private$i.name, "': ")
-            
             # 1) *outcome* is a single, non-empty, non-NA character value
             #     Which corresponds to a registered outcome
             if (!is.character(outcome) || length(outcome)!=1 || is.na(outcome) || nchar(outcome)==0)
@@ -1043,7 +1042,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                  allow.na.to.overwrite=F)
         {
             #-- Initial validate arguments --#
-            
             # *data* must be a 2d object with named columns
             if (is.null(dim(data)) || length(dim(data))!=2)
                 stop("Cannot put long-form data to the data.manager. 'data' must be a 2-dimensional object")
@@ -1235,11 +1233,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (debug) browser()
             if (is.null(target.ontology) || allow.mapping.from.target.ontology) {
                 target.ontology = private$get.universal.ontology(outcome = outcome,
-                                                                  sources = sources,
-                                                                  from.ontology.names = from.ontology.names,
-                                                                  target.ontology = target.ontology,
-                                                                  return.target.to.universal.mapping = allow.mapping.from.target.ontology,
-                                                                  debug=F)
+                                                                 sources = sources,
+                                                                 from.ontology.names = from.ontology.names,
+                                                                 target.ontology = target.ontology,
+                                                                 return.target.to.universal.mapping = allow.mapping.from.target.ontology,
+                                                                 debug=F)
                 target.to.universal.mapping = attr(target.ontology, 'target.to.universal.mapping')
                 if (!any(keep.dimensions %in% target.to.universal.mapping$to.dimensions))
                     target.to.universal.mapping = get.identity.ontology.mapping()
@@ -1358,7 +1356,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 function.to.apply = 'sum'
                             }
                             else {
-                                data.to.process = private[[paste0('i.', data.type)]][[outcome]][[source.name]][[ont.name]][[strat]]
+                                data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
                                 function.to.apply = function(x) {list(unique(unlist(x)))}
                             }
                             if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion')) {
@@ -1688,7 +1686,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                            check.arguments = check.arguments,
                            debug = debug,
                            ...)
-            if (restratify.age && is.null(rv)) {
+            if (restratify.age && is.null(rv) && 'age' %in% dimnames(rv)) {
                 target.ontology$age = NULL
                 pulled.data = self$pull(data.manager = data.manager,
                                         outcome = outcome,
@@ -1715,7 +1713,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                           allow.extrapolation = allow.extrapolation,
                                                           na.rm = na.rm,
                                                           method = method,
-                                                          error.prefix = error.prefix) #set
+                                                          error.prefix = "error restratifying age counts in age robust pull: ") #set
                 restratify.mapping = attr(restratified.data, 'mapping')
                 # I'll need to use the mapping returned as an attr on the above to map details and url
                 attr(restratified.data, 'url') = restratify.mapping$apply(url)
