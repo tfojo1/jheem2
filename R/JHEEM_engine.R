@@ -660,6 +660,24 @@ JHEEM.ENGINE = R6::R6Class(
         test = function()
         {
             private$i.jheem$test()
+        },
+        
+        spawn = function(start.year,
+                         end.year,
+                         max.run.time.seconds=Inf,
+                         keep.years,
+                         error.prefix = "Cannot create JHEEM Engine: ")
+        {
+            if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
+                stop(paste0("Error in jheem.engine$spawn() - 'error.prefix' must be a single, non-NA character vector"))
+            
+            JHEEM.ENGINE$new(jheem = private$i.jheem$clone(deep=T),
+                             start.year = start.year,
+                             end.year = end.year,
+                             max.run.time.seconds = max.run.time.seconds,
+                             keep.years = keep.years:end.year,
+                             atol = private$i.atol,
+                             rtol = private$i.rtol)
         }
     ),
     

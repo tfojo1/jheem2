@@ -765,9 +765,29 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
         },
         
-        get.engine = function()
+        get.engine = function(start.year,
+                              end.year,
+                              max.run.time.seconds=Inf,
+                              keep.years,
+                              error.prefix = "Cannot get JHEEM Engine from simulation set")
         {
+            if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
+                stop(paste0("Error in simulation.set$get.engine() - 'error.prefix' must be a single, non-NA character vector"))
             
+            if (is.null(private$i.engine))
+                engine = create.jheem.engine(version = private$i.version,
+                                             location = private$i.location,
+                                             start.year = start.year,
+                                             end.year = end.year,
+                                             max.run.time.seconds = max.run.time.seconds,
+                                             prior.sim = NULL,
+                                             keep.years = keep.years)
+            else
+                engine = private$i.engine$spawn(start.year = start.year,
+                                                end.year = end.year,
+                                                max.run.time.seconds = max.run.time.seconds,
+                                                keep.years = keep.years,
+                                                error.prefix = error.prefix)
         },
         
         get.intervention = function()
@@ -822,7 +842,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         i.n.sim = NULL,
         
         i.intervention = NULL,
-        i.intervention.code = NULL
+        i.intervention.code = NULL,
         
+        i.engine = NULL
     )
 )
