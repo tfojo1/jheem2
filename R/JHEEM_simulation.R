@@ -808,19 +808,13 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         parameters = function(value)
         {
-            if (missing(value))
-                parameters = function(value)
-                {
-                    if (missing(value)) {
-                        # Return a named vector if n.sim = 1 or a matrix if n.sim > 1.
-                        if (self$n.sim == 1) private$i.data$parameters[[1]]
-                        else {
-                            matrix(unlist(private$i.data$parameters), ncol=self$n.sim, dimnames = list(parameter = names(private$i.data$parameters), sim = 1:n.sim))
-                        }
-                    }
-                    else
-                        stop("Cannot modify a simulation's 'parameters' - they are read-only")
-                },
+            if (missing(value)) {
+                # Return a named vector if n.sim = 1 or a matrix if n.sim > 1.
+                if (self$n.sim == 1) private$i.data$parameters[[1]]
+                else {
+                    matrix(unlist(private$i.data$parameters), ncol=self$n.sim, dimnames = list(parameter = names(private$i.data$parameters), sim = 1:n.sim))
+                }
+            }
             else
                 stop("Cannot modify a simulation's 'parameters' - they are read-only")
         },
