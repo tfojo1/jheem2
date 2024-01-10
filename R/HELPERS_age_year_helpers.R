@@ -12,9 +12,47 @@ is.year.range <- function(x)
 
 parse.year.ranges <- function(x)
 {
-    if (!is.year.range(x))
-        stop(paste0("Error parsing year range: 'x' must be a sinle character vector of format 'yyyy-yyyy'"))
+    if (!all(is.year.range(x)))
+        stop(paste0("Error parsing year ranges: 'x' must be a character vector containing only elements with format 'yyyy-yyyy'"))
     list(start=substr(x, 1, 4), end=substr(x, 6, 9))
+}
+
+get.range.robust.year.intersect <- function(x, y)
+{
+    error.prefix = "Error getting intersection of years: "
+    # x is year ranges
+    if(all(is.year.range(x))) {
+        
+        x.start.and.ends = parse.year.ranges(x)
+        x.as.singles = lapply(1:length(x), function(i) {
+            x.start.and.ends[['start']][[i]]:x.start.and.ends[['end']][[i]]
+        })
+        # y is singles
+        if (all(!is.year.range(y))) {
+            return(x[sapply(x.as.singles, function(year.range) {all(year.range %in% y)})])
+        }
+        
+        # y is year ranges
+        else if (all(is.year.range(y))) {
+            temporary.fix = intersect(x,y)
+            if (length(temporary.fix)!=0) return (temporary.fix)
+            else stop(paste0(error.prefix, "intersection of two year ranges is not yet supported"))
+        }
+    }
+    # x is singles
+    else if (all(!is.year.range(x))) {
+        
+        # y is singles
+        if (all(!is.year.range(y))) {
+            intersect(x,y)
+        }
+        # y is year ranges
+        else if (all(is.year.range(y))) {
+            stop(paste0(error.prefix, "intersection of something with a year range 'y' is not yet supported"))
+        }
+    }
+    else
+        stop(paste0(error.prefix, "a mixture of single years and ranges is not supported"))
 }
 
 
