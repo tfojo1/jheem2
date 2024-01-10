@@ -7,7 +7,7 @@
 
 is.year.range <- function(x)
 {
-    is.character(x) && stringr::str_detect(x, "[0-9]{4}-[0-9]{4}")
+    is.character(x) & stringr::str_detect(x, "[0-9]{4}-[0-9]{4}")
 }
 
 parse.year.ranges <- function(x)
@@ -23,7 +23,7 @@ parse.year.ranges <- function(x)
 #'@param
 #'
 #'@export
-parse.year.names <- function(years)
+parse.year.names <- function(years, allow.partial.parsing=F)
 {
     if (is.numeric(years))
     {
@@ -38,12 +38,14 @@ parse.year.names <- function(years)
         year.range.mask = grepl("^[0-9]{4}-[0-9]{4}$", years)
         single.year.mask = grepl("^[0-9]{4}$", years)
         
-        if (any(!year.range.mask & !single.year.mask))
+        if (all(!year.range.mask & !single.year.mask) ||
+            !allow.partial.parsing && (any(!year.range.mask & !single.year.mask)))
             NULL
         else
         {
             rv = list(start=numeric(),
-                      end=numeric())
+                      end=numeric(),
+                      mapped.mask = year.range.mask | single.year.mask)
             
             single.years = as.numeric(years[single.year.mask])
             year.range.starts = as.numeric(substr(years[year.range.mask], 1, 4))
@@ -54,6 +56,9 @@ parse.year.names <- function(years)
             
             rv$lower[year.range.mask] = year.range.starts
             rv$upper[year.range.mask] = year.range.ends+1
+            
+            rv$lower = rv$lower[rv$mapped.mask]
+            rv$upper = rv$upper[rv$mapped.mask]
             
             rv
         }
@@ -127,11 +132,12 @@ make.age.strata.names <- function(endpoints=NULL,
 #'@title Convert Age Strata Names into Lower and Upper Bounds for Each Stratum
 #'
 #'@param strata.names Names of age brackets. The function knows how to parse names generated in the format given by \link{make.age.strata.names}, as well as some other common formats
+#'@param allow.partial.parsing Whether to parse if only SOME of the age brackets are parseable
 #'
 #'@return A list with two elements, $lowers and $uppers, representing the lower (inclusive) and upper (exclusive) bounds of each age stratum
 #'
 #'@export
-parse.age.strata.names <- function(strata.names)
+parse.age.strata.names <- function(strata.names, allow.partial.parsing=F)
 {
     # Validate
     if (!is.character(strata.names))
@@ -194,10 +200,17 @@ parse.age.strata.names <- function(strata.names)
     uppers[single.age.mask] = lowers[single.age.mask] + 1
     
     # Return
-    if (any(is.na(uppers)) || any(is.na(lowers)))
+    if (all(is.na(uppers)) || all(is.na(lowers)))
+        NULL
+    if (!allow.partial.parsing && (any(is.na(uppers)) || any(is.na(lowers))))
         NULL
     else
-        list(lower=lowers, upper=uppers)
+    {
+        mask = !is.na(uppers) & !is.na(lowers)
+        list(lower=lowers[mask],
+             upper=uppers[mask],
+             mapped.mask = mask)
+    }
 }
 
 
@@ -306,7 +319,9 @@ restratify.age.counts <- function(counts,
                                                require.non.infinite.ages = T,
                                                error.prefix = error.prefix,
                                                required.length.name.for.error = n.brackets.from,
-                                               age.brackets.name.for.error = given.brackets.from)
+                                               age.brackets.name.for.error = given.brackets.from,
+                                               allow.partial.parsing = T)
+    n.brackets = parsed.given.brackets$n
     
     #-- Parse/Validate desired.age.brackets --#
     parsed.desired.brackets = parse.age.brackets(age.brackets = desired.age.brackets,
@@ -316,7 +331,8 @@ restratify.age.counts <- function(counts,
                                                  require.non.infinite.ages = T,
                                                  error.prefix = error.prefix,
                                                  required.length.name.for.error = NA,
-                                                 age.brackets.name.for.error = 'desired.age.brackets')
+                                                 age.brackets.name.for.error = 'desired.age.brackets',
+                                                 allow.partial.parsing = F)
     
     if (!allow.extrapolation && 
         (any(parsed.desired.brackets$lower < parsed.given.brackets$lower[1]) ||
@@ -335,10 +351,12 @@ restratify.age.counts <- function(counts,
         
         non.age.dimensions = setdiff(names(orig.dim), 'age')
         
+        counter = 1
         raw = apply(counts, non.age.dimensions, function(val){
             
-            smoother = do.get.cumulative.age.counts.smoother(counts = val[parsed.given.brackets$order],
+            smoother = do.get.cumulative.age.counts.smoother(counts = val[parsed.given.brackets$mapped.mask][parsed.given.brackets$order],
                                                              endpoints = parsed.given.brackets$endpoints,
+                                                             na.rm = na.rm,
                                                              method = method)
             
             smoother(parsed.desired.brackets$upper) - smoother(parsed.desired.brackets$lower)
@@ -366,8 +384,9 @@ restratify.age.counts <- function(counts,
     }
     else
     {
-        smoother = do.get.cumulative.age.counts.smoother(counts = counts[parsed.given.brackets$order],
+        smoother = do.get.cumulative.age.counts.smoother(counts = counts[parsed.given.brackets$mapped.mask][parsed.given.brackets$order],
                                                          endpoints = parsed.given.brackets$endpoints,
+                                                         na.rm = na.rm,
                                                          method = method)
         
         rv = smoother(parsed.desired.brackets$upper) - smoother(parsed.desired.brackets$lower)
@@ -424,8 +443,9 @@ get.cumulative.age.counts.smoother <- function(counts,
                                          require.non.infinite.ages = T,
                                          error.prefix = error.prefix, 
                                          required.length.name.for.error = "length(counts)",
-                                         age.brackets.name.for.error = 'given.age.brackets')
-    counts = counts[parsed.brackets$order]
+                                         age.brackets.name.for.error = 'given.age.brackets',
+                                         allow.partial.parsing = T)
+    counts = counts[parsed.brackets$mapped.mask][parsed.brackets$order]
     
     
     #-- Validate 'method' --#
@@ -458,8 +478,16 @@ get.cumulative.age.counts.smoother <- function(counts,
 
 do.get.cumulative.age.counts.smoother <- function(counts,
                                                   endpoints,
-                                                  method=c('monoH.FC','hyman')[1])
+                                                  na.rm,
+                                                  method=c('monoH.FC','hyman')[1],
+                                                  error.prefix='')
 {
+    if (na.rm)
+        counts[is.na(counts)] = 0
+    
+    if (length(counts)<2)
+        stop(paste0(error.prefix, "Cannot fit age smoother - there must be at least two non-NA values to smooth"))
+        
     obs.cum.n = cumsum(counts)
     splinefun(x=endpoints, y=c(0,obs.cum.n), method=method)
 }
@@ -471,7 +499,8 @@ parse.age.brackets <- function(age.brackets,
                                require.non.infinite.ages,
                                error.prefix,
                                required.length.name.for.error,
-                               age.brackets.name.for.error)
+                               age.brackets.name.for.error,
+                               allow.partial.parsing)
 {
     if (is.character(age.brackets))
     {
@@ -480,7 +509,7 @@ parse.age.brackets <- function(age.brackets,
         if (!is.na(n.brackets) && length(age.brackets) != n.brackets)
             stop(paste0(error.prefix, "When ", var.name.for.error, " is a character vector of age bracket names, it must have length == ", required.length.name.for.error))
         
-        parsed.age.brackets = parse.age.strata.names(age.brackets)
+        parsed.age.brackets = parse.age.strata.names(age.brackets, allow.partial.parsing = allow.partial.parsing)
         if (is.null(parsed.age.brackets))
             stop(paste0(error.prefix, age.brackets.name.for.error, " is not a valid set of age names"))
         
@@ -488,7 +517,7 @@ parse.age.brackets <- function(age.brackets,
         parsed.age.brackets$lower = parsed.age.brackets$lower[o]
         parsed.age.brackets$upper = parsed.age.brackets$upper[o]
         
-        if (is.na(n.brackets))
+     #   if (is.na(n.brackets))
             n.brackets = length(parsed.age.brackets$lower)
         
         if (require.contiguous && any(parsed.age.brackets$upper[-n.brackets] != parsed.age.brackets$lower[-1]))
@@ -499,6 +528,7 @@ parse.age.brackets <- function(age.brackets,
         
         lower = parsed.age.brackets$lower
         upper = parsed.age.brackets$upper
+        mapped.mask = parsed.age.brackets$mapped.mask
         
         names = age.brackets
     }    
@@ -524,6 +554,7 @@ parse.age.brackets <- function(age.brackets,
         upper = endpoints[-1]
         
         names = make.age.strata.names(endpoints = endpoints)
+        mapped.mask = rep(T, n.brackets)
     }
     else
         stop(paste0(error.prefix, age.brackets.name.for.error, " must be either a CHARACTER vector of ages names or a NUMERIC vector of age endpoints"))
@@ -557,5 +588,6 @@ parse.age.brackets <- function(age.brackets,
          upper = upper,
          order = o,
          names = names,
+         mapped.mask = mapped.mask,
          n = length(lower))
 }

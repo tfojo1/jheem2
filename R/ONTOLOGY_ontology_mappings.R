@@ -278,6 +278,7 @@ register.ontology.mapping <- function(name,
     
     # it's reversible if it's a one-to-one, complete mapping
     is.reversible = !any(is.na(from.values)) &&
+        !any(is.na(to.values)) && 
         dim(unique(from.values))[1] == n.values &&
         dim(unique(to.values))[1] == n.values #ie, there are no duplicate to value combos
     
@@ -451,6 +452,7 @@ get.identity.ontology.mapping <- function()
 #'@param fun
 #'@param allow.expand.values
 #'@param allow.map.to.subset.of.target 
+#'@param na.rm
 #'@param error.prefix
 #'
 #'@export
@@ -461,7 +463,8 @@ map.value.ontology <- function(value,
                                allow.map.to.subset.of.target = T,
                                allow.restratify.ages = T,
                                allow.age.extrapolation = F,
-                               smooth.infinite.age.to = 100,
+                               na.rm = T,
+                               smooth.infinite.age.to = 101,
                                error.prefix = '')
 {
     #-- Check Arguments --#
@@ -485,6 +488,7 @@ map.value.ontology <- function(value,
     
     #-- Get Mapping(s) --#
     need.to.restratify.age = F
+    
     if (allow.expand.values)
     {
         mappings = get.mappings.to.align.ontologies(ontology.1 = dimnames(value),
@@ -536,20 +540,27 @@ map.value.ontology <- function(value,
     }
     
     #-- Apply Mapping --#
+    
     if (is.null(mapping.from.target) || mapping.from.target$is.identity.mapping)
     {
         if (allow.map.to.subset.of.target)
-            rv = mapping.from.value$apply(value, fun=fun)
+        {
+            rv = mapping.from.value$apply(value, fun=fun, na.rm=na.rm)
+            rv = apply(rv, names(target.dim.names), fun, na.rm=na.rm)
+        }
         else
-            rv = mapping.from.value$apply(value, fun=fun, to.dim.names=target.dim.names)
+            rv = mapping.from.value$apply(value, fun=fun, to.dim.names=target.dim.names, na.rm=na.rm)
     }
     else
     {
-        mapped.value = mapping.from.value$apply(value, fun=fun)
+        mapped.value = mapping.from.value$apply(value, fun=fun, na.rm=na.rm)
         if (allow.map.to.subset.of.target)
-            rv = mapping.from.target$reverse.apply(mapped.value)
+        {
+            rv = mapping.from.target$reverse.apply(mapped.value, na.rm=na.rm)
+            rv = apply(rv, names(target.dim.names), fun, na.rm=na.rm)
+        }
         else
-            rv = mapping.from.target$reverse.apply(mapped.value, from.dim.names=target.dim.names)
+            rv = mapping.from.target$reverse.apply(mapped.value, from.dim.names=target.dim.names, na.rm=na.rm)
     }
     
     #-- Restratify ages if needed --#
@@ -558,6 +569,7 @@ map.value.ontology <- function(value,
                                    desired.age.brackets = target.dim.names$age,
                                    smooth.infinite.age.to = smooth.infinite.age.to,
                                    allow.extrapolation = allow.age.extrapolation,
+                                   na.rm = na.rm,
                                    error.prefix = error.prefix)
     
     #-- Return --#
@@ -690,19 +702,20 @@ do.get.ontology.mapping <- function(from.ontology,
         else
             return (list(from=list(get.identity.ontology.mapping()), to=NULL))
     }
-#    browser()
     
     #we can only modify to.ontology by reversing when get.two.way.alignment==T
     if (!get.two.way.alignment && length(setdiff(required.dimensions, names(to.ontology)))>0) 
         return (NULL)
 
     dimensions.out.of.alignment = required.dimensions[from.out.of.alignment.mask]
-    
+    from.dimensions.not.in.to = setdiff(names(from.ontology), names(to.ontology))
+    dimensions.out.of.alignment.or.not.in.to = c(dimensions.out.of.alignment, from.dimensions.not.in.to)
     
     for (i in 1:length(mappings))
     {
         mapping = mappings[[i]]
         mappings.to.try.next = mappings
+        
         
         if (is.character(mapping) && mapping=='age')
         {
@@ -712,7 +725,8 @@ do.get.ontology.mapping <- function(from.ontology,
             {
                 mapping = create.age.ontology.mapping(from.values=from.ontology[['age']],
                                                       to.values=to.ontology[['age']],
-                                                      allow.incomplete.span.of.infinite.age.range = T)
+                                                      allow.incomplete.span.of.infinite.age.range = T,
+                                                      allow.partial.to.parsing = T)
                 
                 if (is.null(mapping))
                     try.mapping = F
@@ -770,7 +784,7 @@ do.get.ontology.mapping <- function(from.ontology,
             try.mapping = mapping$can.apply.to.ontology(from.ontology,
                                                          error.prefix=error.prefix) &&
                 !any(is.reverse.of.used.mapping) &&
-                length(intersect(mapping$from.dimensions, dimensions.out.of.alignment)) > 0 #== length(dimensions.out.of.alignment)
+                length(intersect(mapping$from.dimensions, dimensions.out.of.alignment.or.not.in.to)) > 0 #== length(dimensions.out.of.alignment)
             # not sure the second condition above is totally correct
             # ie, do we apply the mapping only if it only involves all dimensions out of alignment (what == length(dimensions.out.of.alignment)
             # or do we apply the mapping if it involves at least one dimension out of alignment (what >0 would give us)
@@ -868,13 +882,13 @@ combine.ontology.mappings <- function(...)
     
     if (length(sub.mappings)==0)
         return (NULL)
-    
+
     identity.mapping.mask = sapply(sub.mappings, function(m){m$is.identity.mapping})
     sub.mappings = sub.mappings[!identity.mapping.mask]
     if (length(sub.mappings)==0)
         get.identity.ontology.mapping()
     else if (length(sub.mappings)==1)
-        sub.mappings[!identity.mapping.mask][[1]]
+        sub.mappings[[1]]
     else # we need to combine them
     {
         new.name = paste0(length(sub.mappings), "-mapping combo")
@@ -892,7 +906,14 @@ combine.ontology.mappings <- function(...)
         # We also need to confirm that we CAN combine these mappings
         #  ie, if the from.dimensions for any sub.mapping match the to.dimensions of a prior sub.mapping, then the values of 
         
-        can.directly.combine = all(sapply(sub.mappings, is, class2='basic.ontology.mapping'))
+        can.directly.combine = all(sapply(sub.mappings, is, class2='basic.ontology.mapping')) &&
+            all(sapply(2:length(sub.mappings), function(i){
+                m1 = sub.mappings[i]
+                all(sapply(sub.mappings[1:(i-1)], function(m2){
+                    length(intersect(m1$from.dimensions, m2$from.dimensions)==0) &&
+                        length(intersect(m1$to.dimensions, m2$to.dimensions)==0) #cannot directly join if they involve the same from or to dimensions
+                }))
+            }))
         
         mapped.dim.names = sub.mappings[[1]]$to.dim.names
         for (sub.mapping in sub.mappings[-1])
@@ -1156,10 +1177,11 @@ do.create.age.or.year.ontology.mapping <- function(from.values,
 #     (unless the upper bound is infinity and allow.incomplete.span.of.infinite.age.range==T)
 create.age.ontology.mapping <- function(from.values,
                                         to.values,
-                                        allow.incomplete.span.of.infinite.age.range)
+                                        allow.incomplete.span.of.infinite.age.range,
+                                        allow.partial.to.parsing = T)
 {
-    from.bounds = parse.age.strata.names(from.values)
-    to.bounds = parse.age.strata.names(to.values)
+    from.bounds = parse.age.strata.names(from.values, allow.partial.parsing = allow.partial.to.parsing)
+    to.bounds = parse.age.strata.names(to.values, allow.partial.parsing = F)
     
     do.create.age.or.year.ontology.mapping(from.values = from.values,
                                            to.values = to.values,
@@ -1191,9 +1213,9 @@ create.overlapping.age.ontology.mapping <- function(from.values,
             (1:length(mask))[mask]
     })
     
-    iterated.from.values = from.values[unlist(froms.for.to)]
+    iterated.from.values = from.values[from.bounds$mapped.mask][unlist(froms.for.to)]
     iterated.to.values = unlist(sapply(1:length(to.values), function(i){
-        rep(to.values[i], length(froms.for.to[[i]]))
+        rep(to.values[to.bound$mapped.mask][i], length(froms.for.to[[i]]))
     }))
     
     missing.from.values = setdiff(from.values, iterated.from.values)
@@ -2084,6 +2106,7 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                 {
                     if (throw.errors)
                     {
+                        browser()
                         stop(paste0(error.prefix, 
                                     "from.dim.names ['", d, "'] is missing ", 
                                     length(missing.values),
@@ -2129,6 +2152,20 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
     )
 )
 
+flatten.sub.mappings.list <- function(sub.mappings)
+{
+    rv = list()
+    for (map in sub.mappings)
+    {
+        if (is(map, 'combination.ontology.mapping'))
+            rv = c(rv, flatten.sub.mappings.list(map$sub.mappings))
+        else
+            rv = c(rv, list(map))
+    }
+    
+    rv
+}
+
 COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
     'combination.ontology.mapping',
     inherit = ONTOLOGY.MAPPING,
@@ -2140,6 +2177,8 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
         {
             if (!is.list(sub.mappings))
                 stop("Cannot create combination ontology mapping: sub.mappings must be a list")
+            
+            sub.mappings = flatten.sub.mappings.list(sub.mappings)
             
             super$initialize(name,
                              component.names=unlist(sapply(sub.mappings, function(map){map$component.names})))
@@ -2221,9 +2260,9 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
             {
                 sub.mapping = private$i.sub.mappings[[i]]
                 if (i == length(private$i.sub.mappings))
-                    rv = sub.mapping$apply(rv, to.dim.names)
+                    rv = sub.mapping$apply(rv, to.dim.names=to.dim.names, na.rm=na.rm, error.prefix=error.prefix)
                 else
-                    rv = sub.mapping$apply(rv, NULL)
+                    rv = sub.mapping$apply(rv, to.dim.names=NULL, na.rm=na.rm, error.prefix=error.prefix)
             }
             
             rv
@@ -2315,7 +2354,7 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
             dim.names = from.dim.names
             for (sub.mapping in private$i.sub.mappings[-length(private$i.sub.mappings)])
             {
-                if (!sub.mapping$can.apply.to.dim.names(from.dim.names,
+                if (!sub.mapping$can.apply.to.dim.names(dim.names,
                                                         to.dim.names = NULL,
                                                         throw.errors = throw.errors,
                                                         error.prefix = error.prefix))
