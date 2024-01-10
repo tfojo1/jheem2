@@ -86,7 +86,7 @@ create.single.simulation <- function(version,
         new.dimnames = c(dimnames(arr), sim=1)
         array(arr, dim=sapply(new.dimnames, length), new.dimnames)
     })
-    parameters.indexed.by.sim = list('1'=parameters)
+    parameters = list(parameters) # used to say "parameters.indexed.by.sim = list('1'=parameters)" but I don't think I need the character number there. When simsets are joined, the index is meaningless anyways
     
     JHEEM.SIMULATION.SET$new(version = version,
                              location = location,
@@ -809,7 +809,18 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         parameters = function(value)
         {
             if (missing(value))
-                private$i.data$parameters
+                parameters = function(value)
+                {
+                    if (missing(value)) {
+                        # Return a named vector if n.sim = 1 or a matrix if n.sim > 1.
+                        if (self$n.sim == 1) private$i.data$parameters[[1]]
+                        else {
+                            matrix(unlist(private$i.data$parameters), ncol=self$n.sim, dimnames = list(parameter = names(private$i.data$parameters), sim = 1:n.sim))
+                        }
+                    }
+                    else
+                        stop("Cannot modify a simulation's 'parameters' - they are read-only")
+                },
             else
                 stop("Cannot modify a simulation's 'parameters' - they are read-only")
         },
