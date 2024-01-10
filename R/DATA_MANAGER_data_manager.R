@@ -761,7 +761,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #------------------------#
 
             error.prefix = paste0("Unable to put data to data.manager '", private$i.name, "': ")
-
             # 1) *outcome* is a single, non-empty, non-NA character value
             #     Which corresponds to a registered outcome
             if (!is.character(outcome) || length(outcome)!=1 || is.na(outcome) || nchar(outcome)==0)
@@ -1043,7 +1042,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                  allow.na.to.overwrite=F)
         {
             #-- Initial validate arguments --#
-
             # *data* must be a 2d object with named columns
             if (is.null(dim(data)) || length(dim(data))!=2)
                 stop("Cannot put long-form data to the data.manager. 'data' must be a 2-dimensional object")
@@ -1358,7 +1356,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 function.to.apply = 'sum'
                             }
                             else {
-                                data.to.process = private[[paste0('i.', data.type)]][[outcome]][[source.name]][[ont.name]][[strat]]
+                                data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
                                 function.to.apply = function(x) {list(unique(unlist(x)))}
                             }
                             if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion')) {
