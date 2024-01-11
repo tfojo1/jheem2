@@ -378,7 +378,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                             stratum = character(0),
                                             source = character(0))
 
-            mappings.list = list()
             dimnames.list = list()
             remove.mask.list = list()
             private$i.transformation.matrix = NULL
@@ -391,7 +390,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 keep.dimensions = 'year'
                 if (!identical(strat, "")) keep.dimensions = c(keep.dimensions, strat)
                 data = data.manager$pull(outcome = private$i.outcome.for.data,
-                                         sources = private$i.sources.to.use,
+                                         sources = instructions$sources.to.use,
                                          keep.dimensions = keep.dimensions,
                                          dimension.values = list(year = as.character(years), location=location), # leave this for now. Will get more complicated when we have multi location models
                                          target.ontology = private$i.sim.ontology,
@@ -441,7 +440,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 private$i.obs.vector = c(private$i.obs.vector, one.obs.vector)
                 private$i.details = c(private$i.details, one.details)
                 private$i.metadata = rbind(private$i.metadata, one.metadata)
-                mappings.list = c(mappings.list, list(one.mapping))
                 dimnames.list = c(dimnames.list, list(one.dimnames))
                 remove.mask.list = c(remove.mask.list, list(one.remove.mask))
                 
@@ -471,10 +469,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             private$i.denominator.dimension.values[['year']] = private$i.years
             
             ## ---- GENERATE TRANSFORMATION MATRIX ---- ##
-
-            # WARNING: DOESN'T HANDLE YEAR RANGES, ONLY SINGLE YEARS
-            # browser()
-            private$i.transformation.matrix = generate.transformation.matrix(mappings.list, dimnames.list, remove.mask.list, n.stratifications.with.data, private$i.sim.required.dimnames)
+            private$i.transformation.matrix = generate.transformation.matrix(dimnames.list, remove.mask.list, n.stratifications.with.data, private$i.sim.required.dimnames)
             
             if (is.null(private$i.transformation.matrix))
                 stop(paste0(error.prefix, "no mappings found to align simulation and data ontologies"))
@@ -623,36 +618,32 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
         },
         
-        generate.transformation.matrix = function(mappings.list, dimnames.list, remove.mask.list, n.strats, matrix.dimnames)
+        generate.transformation.matrix = function(dimnames.list, remove.mask.list, n.strats, sim.dimnames)
         {
-            # browser()
             transformation.matrix = NULL
             for (i in 1:n.strats) {
-                one.mapping = mappings.list[[i]]
+                
                 one.dimnames = dimnames.list[[i]]
                 one.remove.mask = remove.mask.list[[i]]
                 
+                years.in.sim.and.stratification = get.range.robust.year.intersect(one.dimnames$year, sim.dimnames$year)
                 year.limited.dimnames = one.dimnames
-                year.limited.dimnames$year = matrix.dimnames$year
-                one.source.transformation.matrix = one.mapping$get.matrix(from.dim.names = matrix.dimnames,
+                year.limited.dimnames$year = years.in.sim.and.stratification
+                
+                one.mapping = get.ontology.mapping(from.ontology = sim.dimnames, to.ontology = year.limited.dimnames[names(year.limited.dimnames) != 'source'])
+                
+                one.source.transformation.matrix = one.mapping$get.matrix(from.dim.names = sim.dimnames,
                                                                           to.dim.names = year.limited.dimnames[names(year.limited.dimnames) != 'source'])
-
-                # Remove rows for years not in this stratification
-                years.in.matrix.but.not.stratification = setdiff(matrix.dimnames$year, one.dimnames$year)
-                if (length(years.in.matrix.but.not.stratification) > 0) {
-                    indices.for.years.not.present = get.array.access.indices(year.limited.dimnames[names(year.limited.dimnames) != 'source'],
-                                                                             list(year=years.in.matrix.but.not.stratification))
-                    one.source.transformation.matrix = one.source.transformation.matrix[-indices.for.years.not.present,]
-                }
 
                 # Repeat the matrix for each source this stratification has
                 one.transformation.matrix = NULL
                 for (source in 1:length(one.dimnames$source)) one.transformation.matrix = rbind(one.transformation.matrix, one.source.transformation.matrix)
                 ncol.mat = ncol(one.transformation.matrix)
+                
                 # Align the matrix rows with the one.remove.mask rows, which may have extra years, so that rows for sporadically missing data can be masked out
-                years.in.stratification.but.not.matrix = setdiff(one.dimnames$year, matrix.dimnames$year)
-                if (length(years.in.stratification.but.not.matrix) > 0) {
-                    indices.to.omit.from.one.remove.mask = get.array.access.indices(one.dimnames, list(year=years.in.stratification.but.not.matrix))
+                years.in.stratification.but.not.sim = setdiff(one.dimnames$year, year.limited.dimnames$year)
+                if (length(years.in.stratification.but.not.sim) > 0) {
+                    indices.to.omit.from.one.remove.mask = get.array.access.indices(one.dimnames, list(year=years.in.stratification.but.not.sim))
                     new.one.remove.mask = one.remove.mask[-indices.to.omit.from.one.remove.mask]
                     one.transformation.matrix = one.transformation.matrix[!new.one.remove.mask,]
                 } else
