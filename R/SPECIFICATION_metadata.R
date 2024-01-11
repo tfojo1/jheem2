@@ -34,6 +34,7 @@ SPECIFICATION.METADATA = R6::R6Class(
         {
             #-- Call the superclass constructor --#
             super$initialize(version = version,
+                             sub.version = NULL,
                              location = location,
                              type = "Specification Metadata",
                              error.prefix = error.prefix)

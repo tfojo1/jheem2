@@ -320,12 +320,14 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         initialize = function(instructions,
                               version,
                               location, #combinations of version and location tell us sublocations
+                              sub.version,
                               data.manager,
                               throw.error.if.no.data,
                               error.prefix)
         {
             # browser()
             super$initialize(instructions = instructions,
+                             sub.version = sub.version,
                              version = version,
                              location = location,
                              error.prefix = error.prefix)

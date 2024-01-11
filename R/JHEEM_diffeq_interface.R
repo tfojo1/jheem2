@@ -131,6 +131,8 @@ prepare.diffeq.settings <- function(settings,
                                     quantity.times,
                                     quantity.value.applies.mask,
                                     quantity.after.value.applies.mask,
+                                    prior.simulation.set,
+                                    prior.sim.index,
                                     check.consistency,
                                     error.prefix)
 {
@@ -155,6 +157,8 @@ prepare.diffeq.settings <- function(settings,
     settings = prepare.initial.state(settings,
                                      quantity.values = quantity.values,
                                      quantity.dim.names = quantity.dim.names,
+                                     prior.simulation.set = prior.simulation.set,
+                                     prior.sim.index = prior.sim.index,
                                      check.consistency = check.consistency,
                                      error.prefix = error.prefix)
     settings = prepare.natality.info(settings, 
@@ -201,52 +205,76 @@ notify.diffeq.settings.of.quantity.dim.names.change = function(settings,
 }
 
 
-prepare.initial.state <- function(settings, quantity.dim.names, quantity.values,
-                                  check.consistency, error.prefix)
+prepare.initial.state <- function(settings,
+                                  quantity.dim.names,
+                                  quantity.values,
+                                  prior.simulation.set,
+                                  prior.sim.index,
+                                  check.consistency,
+                                  error.prefix)
 {
     # Make sure we have a vector to fill in
     if (is.null(settings$initial_state))
         settings$initial_state = numeric(settings$state_length)
     
-    # Pull each core component touching the initial population    
-    for (i in 1:length(settings$core.components$initial.population))
-    {
-        comp = settings$core.components$initial.population[[i]]
-        quantity.name = comp$initial.population
-        quantity.value = quantity.values[[quantity.name]][[1]]
-        
-        # Update the indices if dim.names have changed
-        if (settings$need.to.update$initial.population[i])
+    if (is.null(prior.sim.index))
+    {    
+        # Pull each core component touching the initial population    
+        for (i in 1:length(settings$core.components$initial.population))
         {
-            required.ontology = settings$specification$ontologies[[comp$group]]
+            comp = settings$core.components$initial.population[[i]]
+            quantity.name = comp$initial.population
+            quantity.value = quantity.values[[quantity.name]][[1]]
             
-            # Make sure no dimensions are missing
-            missing.dimensions = setdiff(names(required.ontology)[sapply(required.ontology, length)>1],
-                                         names(dimnames(quantity.value)))
+            # Update the indices if dim.names have changed
+            if (settings$need.to.update$initial.population[i])
+            {
+                required.ontology = settings$specification$ontologies[[comp$group]]
+                
+                # Make sure no dimensions are missing
+                missing.dimensions = setdiff(names(required.ontology)[sapply(required.ontology, length)>1],
+                                             names(dimnames(quantity.value)))
+                
+                if (length(missing.dimensions)>0)
+                    stop(paste0(error.prefix,
+                                "Cannot set the initial population for '", comp$group, 
+                                "' - the quantity '",
+                                comp$initial.population, 
+                                "' must include at least one value for ",
+                                ifelse(length(missing.dimensions)==1, 'dimension ', 'dimensions '),
+                                collapse.with.and("'", missing.dimensions, "'")))
+                
+                # Recalculate the indices
+                settings$indices.for.initial.state.quantity[[comp$group]] = settings$indices_into_state_and_dx[comp$group] +
+                    get.array.access.indices(arr.dim.names = required.ontology, dimension.values = dimnames(quantity.value))
+            }
             
-            if (length(missing.dimensions)>0)
-                stop(paste0(error.prefix,
-                            "Cannot set the initial population for '", comp$group, 
-                            "' - the quantity '",
-                            comp$initial.population, 
-                            "' must include at least one value for ",
-                            ifelse(length(missing.dimensions)==1, 'dimension ', 'dimensions '),
-                            collapse.with.and("'", missing.dimensions, "'")))
-            
-            # Recalculate the indices
-            settings$indices.for.initial.state.quantity[[comp$group]] = settings$indices_into_state_and_dx[comp$group] +
-                get.array.access.indices(arr.dim.names = required.ontology, dimension.values = dimnames(quantity.value))
+            # Always recalculate the values
+            settings$initial_state = overwrite_arr(dst = settings$initial_state,
+                                                   dst_indices = settings$indices.for.initial.state.quantity[[comp$group]],
+                                                   src = quantity.value,
+                                                   src_indices = 1:length(quantity.value))
         }
-        
-        # Always recalculate the values
-        settings$initial_state = overwrite_arr(dst = settings$initial_state,
-                                               dst_indices = settings$indices.for.initial.state.quantity[[comp$group]],
-                                               src = quantity.value,
-                                               src_indices = 1:length(quantity.value))
     }
-
+    else
+    {
+        stop("Need to fix getting the source for the relevant sim index")
+        for (group in names(DIFFEQ.GROUP.INDICES))
+        {
+            src = prior.simulation.set[[group]]
+            dim(src) = c(prod(dim(src)) / dim(src)['sim'], sim(src)['sim'])
+            src = src[,sim.index]
+            
+            settings$initial_state = overwrite_arr(dst = settings$initial_state,
+                                                   dst_indices = settings$indices_into_state_and_dx[group] + 0:(length(src)-1),
+                                                   src = src,
+                                                   src_indices = 1:length(src))
+        }
+    }
+    
     settings
 }
+
 
 prepare.natality.info <- function(settings, quantity.dim.names,
                                   check.consistency, error.prefix)

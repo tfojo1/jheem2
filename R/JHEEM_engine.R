@@ -406,6 +406,7 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                 stop("jheem must be an R6 object of class 'jheem'")
             
             super$initialize(version = jheem$version,
+                             sub.version = jheem$sub.version,
                              location = jheem$location,
                              type = 'model.settings')
             
@@ -551,12 +552,15 @@ create.jheem.engine <- function(version,
                                 location,
                                 start.year,
                                 end.year,
+                                sub.version=NULL,
                                 max.run.time.seconds=Inf,
                                 prior.sim=NULL,
-                                keep.years=start.year:end.year,
+                                keep.from.year=start.year,
+                                keep.to.year=end.year,
                                 atol=1e-04, rtol=1e-04)
 {
     jheem = JHEEM$new(version = version,
+                      sub.version = sub.version,
                       location = location,
                       error.prefix = "Cannot create JHEEM Engine: ")
     
@@ -564,10 +568,27 @@ create.jheem.engine <- function(version,
                      start.year = start.year,
                      end.year = end.year,
                      max.run.time.seconds = max.run.time.seconds,
-                     keep.years = keep.years,
+                     keep.from.year = keep.from.year,
+                     keep.to.year = keep.to.year,
                      atol = atol,
                      rtol = rtol)
 }
+
+check.sim.can.seed.run <- function(prior.simulation.set,
+                                   start.year,
+                                   error.prefix)
+{
+    if (start.year < prior.simulation.set$from.year ||
+        start.year > (prior.simulation.set$to.year+1))
+    {
+        stop(paste0(error.prefix, "Cannot run simulations from ", start.year, 
+                    " from previous simulations which only include projections from ",
+                    prior.simulation.set$from.year, " to ", prior.simulation.set$to.year))
+    }
+}
+
+DEFAULT.ATOL = 1e-03
+DEFAULT.RTOL = 1e-03
 
 JHEEM.ENGINE = R6::R6Class(
     'jheem.engine',
@@ -579,20 +600,28 @@ JHEEM.ENGINE = R6::R6Class(
         initialize = function(jheem,
                               start.year,
                               end.year,
+                              prior.simulation.set=NULL,
                               max.run.time.seconds=Inf,
-                              keep.years=start.year:end.year,
-                              atol=1e-04, rtol=1e-04,
+                              keep.from.year = start.year,
+                              keep.to.year = end.year,
+                              atol= DEFAULT.ATOL, 
+                              rtol = DEFAULT.RTOL,
                               error.prefix = "Cannot create JHEEM Engine: ")
         {
             #-- Check Arguments --#
+            
+            if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
+                stop("Cannot initialize JHEEM Engine - error.prefix must be a single, non-NA character vector")
             
             if (!is(jheem, 'jheem'))
                 stop(paste0(error.prefix, "jheem must be an object of class 'jheem'"))
          
             super$initialize(version = jheem$version,
+                             sub.version = jheem$sub.version,
                              location = jheem$location,
                              type = 'engine')
                
+            # Start and end years
             if (!is.numeric(start.year) || length(start.year)!=1 || is.na(start.year))
                 stop(paste0(error.prefix, "'start.year' must be a single, non-NA numeric value"))
             
@@ -603,55 +632,114 @@ JHEEM.ENGINE = R6::R6Class(
                 stop(paste0(error.prefix, "'start.year' (", start.year,
                             ") must be PRIOR to 'end.year' (", end.year, ")"))
             
-            if (!is.numeric(max.run.time.seconds) || length(max.run.time.seconds)!=1 || is.na(max.run.time.seconds))
-                stop(paste0(error.prefix, "'max.run.time.seconds' must be a single, non-NA numeric value"))
+            # Prior simulation set
+            if (!is.null(prior.simulation.set))
+            {
+                if (!is(prior.simulation.set, 'jheem.simulation.set'))
+                    stop(paste0(error.prefix, "If 'prior.simulation.set' is specified (ie not NULL), it must be an object of class 'jheem.simulation.set'"))
+                
+                if (prior.simulation.set$version != jheem$version)
+                    stop(paste0(error.prefix, "The prior.simulation.set's version ('", prior.simulation.set$version, "') does not match the JHEEM version ('", jheem$version, "')"))
+                    
+                if (!identical(prior.simulation.set$sub.version, jheem$sub.version))
+                    stop(paste0(error.prefix, "The prior.simulation.set's sub-version (", 
+                                ifelse(is.null(prior.simulation.set$sub.version), "NULL", paste0("'", prior.simulation.set$sub.version, "'")), 
+                                ") does not match the JHEEM sub-version (",
+                                ifelse(is.null(jheem$sub.version), "NULL", paste0("'", jheem$sub.version, "'")), 
+                                ")"))
+                
+                check.sim.can.seed.run(prior.simulation.set = prior.simulation.set,
+                                       start.year = start.year,
+                                       error.prefix = error.prefix)
+            }
             
-            if (!is.numeric(keep.years) || length(keep.years)==0 || any(is.na(keep.years)))
-                stop(paste0(error.prefix, "'end.year' must be a non-empty numeric vector with no NA values"))
+            # Keep years
+            if (!is.numeric(keep.from.year) || length(keep.from.year)!=1 || is.na(keep.from.year))
+                stop(paste0(error.prefix, "'keep.from.year' must be a single, non-NA numeric value"))
             
-            if (any(keep.years<start.year) || any(keep.years>end.year))
-                stop(paste0(error.prefix, "'keep.years' (which span from ",
-                            min(keep.years), " to ", max(keep.years), 
-                            ") must all fall between 'start.year' (",
-                            start.year, ") and 'end.year' (",
-                            end.year, ")"))
+            if (!is.numeric(keep.to.year) || length(keep.to.year)!=1 || is.na(keep.to.year))
+                stop(paste0(error.prefix, "'keep.to.year' must be a single, non-NA numeric value"))
             
-            if (!is.numeric(atol) || length(atol)!=1 || is.na(atol))
-                stop(paste0(error.prefix, "'atol' must be a single, non-NA numeric value"))
+            if (keep.from.year >= keep.to.year)
+                stop(paste0(error.prefix, "'keep.from.year' (", keep.from.year,
+                            ") must be PRIOR to 'keep.to.year' (", keep.to.year, ")"))
             
-            if (!is.numeric(rtol) || length(rtol)!=1 || is.na(rtol))
-                stop(paste0(error.prefix, "'rtol' must be a single, non-NA numeric value"))
+            if (keep.to.year > end.year)
+                stop(paste0(error.prefix, "'keep.to.year' (", keep.to.year,
+                            ") cannot be AFTER 'end.year' (", end.year, ")"))
+            
+            
+            if (is.null(prior.simulation.set))
+            {
+                if (keep.from.year < start.year)
+                    stop(paste0(error.prefix, "'keep.from.year' (", keep.from.year,
+                                ") cannot be BEFORE 'start.year' (", start.year, ")"))
+            }
+            else
+            {
+                if (keep.from.year < prior.simulation.set$from.year)
+                    stop(paste0(error.prefix, "'keep.from.year' (", keep.from.year,
+                                ") cannot be BEFORE the prior.simulation.set's from.year (", prior.simulation.set$from.year, ")"))
+            }
+            
+            
+            # Max run time, atol, rtol
+            if (is.null(max.run.time.seconds))
+                max.run.time.seconds = Inf
+            else if (!is.numeric(max.run.time.seconds) || length(max.run.time.seconds)!=1 || is.na(max.run.time.seconds) || max.run.time.seconds<=0)
+                stop(paste0(error.prefix, "'max.run.time.seconds' must be a single, non-NA, positive numeric value"))
+            
+            if (is.null(atol))
+                atol = DEFAULT.ATOL
+            else if (!is.numeric(atol) || length(atol)!=1 || is.na(atol) || atol<=0)
+                stop(paste0(error.prefix, "'atol' must be a single, non-NA, positive numeric value"))
+            
+            if (is.null(rtol))
+                rtol = DEFAULT.RTOL
+            else if (!is.numeric(rtol) || length(rtol)!=1 || is.na(rtol) || rtol<=0 || rtol>=1)
+                stop(paste0(error.prefix, "'rtol' must be a single, non-NA numeric value between 0 and 1"))
             
             #-- Store Values --#
             private$i.jheem = jheem
             private$i.start.year = start.year
             private$i.end.year = end.year
             private$i.max.run.time.seconds = max.run.time.seconds
-            private$i.keep.years = keep.years
+            private$i.keep.from.year = keep.from.year
+            private$i.keep.to.year = keep.to.year
             private$i.atol = atol
             private$i.rtol = rtol
             
             private$i.check.consistency = T
         },
         
-        run = function(parameters=NULL)
+        run = function(parameters=NULL, prior.sim.index=NULL)
         {
-            private$set.parameters(parameters, error.prefix='Cannot run JHEEM Engine: ')
+            private$prepare.to.run.or.crunch(parameters = parameters,
+                                             prior.sim.index = prior.sim.index,
+                                             error.prefix = 'Cannot run JHEEM Engine: ')
+            
             private$i.jheem$run(start.year = private$i.start.year,
                                 end.year = private$i.end.year,
                                 check.consistency = private$i.check.consistency,
-                                max.run.time.seconds = private$max.run.time.seconds,
-                                prior.sim = NULL,
-                                keep.years = private$i.keep.years,
+                                max.run.time.seconds = private$i.max.run.time.seconds,
+                                prior.simulation.set = private$i.prior.simulation.set,
+                                prior.sim.index = prior.sim.index,
+                                keep.from.year = private$i.keep.from.year,
+                                keep.to.year = private$i.keep.to.year,
                                 atol = private$i.atol,
                                 rtol = private$i.rtol)
         },
         
-        crunch = function(parameters=NULL)
+        crunch = function(parameters=NULL, prior.sim.index=NULL)
         {
-            private$set.parameters(parameters, error.prefix='Cannot crunch JHEEM Engine: ')
+            private$prepare.to.run.or.crunch(parameters = parameters,
+                                             prior.sim.index = prior.sim.index,
+                                             error.prefix = 'Cannot crunch JHEEM Engine: ')
+            
             private$i.jheem$crunch(start.year = private$i.start.year,
                                    end.year = private$i.end.year,
+                                   prior.simulation.set = private$i.prior.simulation.set,
+                                   prior.sim.index = prior.sim.index,
                                    check.consistency = private$i.check.consistency)
             
             private$i.check.consistency = F
@@ -662,22 +750,83 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.jheem$test()
         },
         
-        spawn = function(start.year,
-                         end.year,
-                         max.run.time.seconds=Inf,
-                         keep.years,
-                         error.prefix = "Cannot create JHEEM Engine: ")
+        spawn = function(start.year = self$start.year,
+                         end.year = self$to.year,
+                         prior.simulation.set = NULL,
+                         max.run.time.seconds = self$max.run.time.seconds,
+                         keep.from.year = self$keep.to.year,
+                         keep.to.year = self$keep.from.year,
+                         atol = NULL,
+                         rtol = NULL,
+                         error.prefix = "Cannot create copy of JHEEM Engine: ")
         {
             if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
                 stop(paste0("Error in jheem.engine$spawn() - 'error.prefix' must be a single, non-NA character vector"))
             
+            if (is.null(prior.simulation.set))
+                prior.simulation.set = private$i.prior.simulation.set
+            
+            if (is.null(atol))
+                atol = private$i.atol
+            
+            if (is.null(rtol))
+                rtol = private$i.rtol
+            
+            if (is.null(max.run.time.seconds))
+                max.run.time.seconds = Inf
+            
             JHEEM.ENGINE$new(jheem = private$i.jheem$clone(deep=T),
                              start.year = start.year,
                              end.year = end.year,
+                             prior.simulation.set = prior.simulation.set,
                              max.run.time.seconds = max.run.time.seconds,
-                             keep.years = keep.years:end.year,
-                             atol = private$i.atol,
-                             rtol = private$i.rtol)
+                             keep.from.year = keep.from.year,
+                             keep.to.year = keep.to.year,
+                             atol = atol,
+                             rtol = rtol)
+        }
+    ),
+    
+    active = list(
+        
+        start.year = function(value)
+        {
+            if (missing(value))
+                private$i.start.year
+            else
+                stop("Cannot modify a JHEEM's 'start.year' - they are read-only")
+        },
+        
+        end.year = function(value)
+        {
+            if (missing(value))
+                private$i.end.year
+            else
+                stop("Cannot modify a JHEEM's 'end.year' - they are read-only")
+        },
+        
+        keep.from.year = function(value)
+        {
+            if (missing(value))
+                private$i.keep.from.year
+            else
+                stop("Cannot modify a JHEEM's 'keep.from.year' - they are read-only")
+        },
+        
+        keep.to.year = function(value)
+        {
+            if (missing(value))
+                private$i.keep.to.year
+            else
+                stop("Cannot modify a JHEEM's 'keep.to.year' - they are read-only")
+        },
+        
+        max.run.time.seconds = function(value)
+        {
+            if (missing(value))
+                private$i.max.run.time.seconds
+            else
+                stop("Cannot modify a JHEEM's 'max.run.time.seconds' - they are read-only")
         }
     ),
     
@@ -687,7 +836,8 @@ JHEEM.ENGINE = R6::R6Class(
         i.start.year = NULL,
         i.end.year = NULL,
         i.max.run.time.seconds = NULL,
-        i.keep.years = NULL,
+        i.keep.from.year = NULL,
+        i.keep.to.year = NULL,
         i.atol = NULL,
         i.rtol = NULL,
         
@@ -709,6 +859,30 @@ JHEEM.ENGINE = R6::R6Class(
                 
                 private$i.jheem$set.parameters(parameters.to.set, check.consistency = private$i.check.consistency)
             }
+        },
+        
+        prepare.to.run.or.crunch = function(parameters, prior.sim.index, error.prefix)
+        {
+            if (is.null(private$i.prior.simulation.set))
+            {
+                if (!is.null(prior.sim.index))
+                    stop(paste0(error.prefix, "Cannot specify 'prior.sim.index' if the JHEEM engine was not built with a prior.simulation.set"))
+            }
+            else
+            {
+                if (is.null(prior.sim.index))
+                    stop(paste0(error.prefix, "You MUST specify a 'prior.sim.index' if the JHEEM engine was built with a prior.simulation.set"))
+                
+                if (!is.numeric(prior.sim.index) || length(prior.sim.index)!=1 || is.na(prior.sim.index) || floor(prior.sim.index)!=prior.sim.index)
+                    stop(paste0(error.prefix, "'prior.sim.index' must be a single, non-NA, integer value"))
+                
+                if (prior.sim.index < 1 || prior.sim.index > private$i.prior.simulation.set$n.sim)
+                    stop(paste0(error.prefix, "'prior.sim.index' (", prior.sim.index, ") must be a valid index into the prior.simulation.set - i.e. between 1 and ", private$i.prior.simulation.set$n.sim))
+                
+                parameters = union(parameters, private$i.prior.simulation.set$parameters[,prior.sim.index])
+            }
+            
+            private$set.parameters(parameters, error.prefix=error.prefix)
         },
         
         get.current.code.iteration = function()
@@ -838,10 +1012,11 @@ JHEEM = R6::R6Class(
         ##-- CONSTRUCTOR --##
         ##-----------------##
         
-        initialize = function(version, location, error.prefix = "Cannot create JHEEM Instance: ")
+        initialize = function(version, sub.version, location, error.prefix = "Cannot create JHEEM Instance: ")
         {
             # Call the superclass constructor
             super$initialize(version = version,
+                             sub.version = sub.version,
                              location = location,
                              type = 'jheem',
                              error.prefix = error.prefix)
@@ -856,6 +1031,8 @@ JHEEM = R6::R6Class(
         
         crunch = function(start.year,
                           end.year,
+                          prior.simulation.set,
+                          prior.sim.index,
                           check.consistency = !self$has.been.crunched())
         {
             # If the specification has changed since we last crunched/set-up, reset
@@ -868,11 +1045,18 @@ JHEEM = R6::R6Class(
                           end.year = end.year,
                           error.prefix = paste0("Error preparing JHEEM to run: "))
 
-            # Do the work
+            # Calculate all required quantity values
             specification = private$get.specification()
-            sapply(specification$top.level.quantity.names, calculate.quantity.value,
+            
+            if (is.null(prior.simulation.set))
+                top.level.quantity.names = specification$top.level.quantity.names
+            else
+                top.level.quantity.names = specification$top.level.quantity.names.except.initial.population
+            
+            sapply(top.level.quantity.names, calculate.quantity.value,
                    check.consistency = check.consistency)
             
+            # Use the quantity values to set up for diffeqs
             private$i.diffeq.settings = prepare.diffeq.settings(settings = private$i.diffeq.settings,
                                                                 quantity.dim.names = private$i.quantity.dim.names,
                                                                 quantity.values = private$i.quantity.values,
@@ -880,6 +1064,8 @@ JHEEM = R6::R6Class(
                                                                 quantity.times = private$i.quantity.value.times,
                                                                 quantity.value.applies.mask = private$i.quantity.value.applies.mask,
                                                                 quantity.after.value.applies.mask = private$i.quantity.after.value.applies.mask,
+                                                                prior.simulation.set = prior.simulation.set,
+                                                                prior.sim.index = prior.sim.index,
                                                                 check.consistency = check.consistency,
                                                                 error.prefix = paste0("Error preparing JHEEM to run (while setting up the diffeq interface): "))
             
@@ -892,17 +1078,34 @@ JHEEM = R6::R6Class(
         
         run = function(start.year,
                        end.year,
-                       check.consistency=!self$has.been.crunched(),
-                       max.run.time.seconds=Inf,
-                       prior.sim=NULL,
-                       keep.years=start.year:end.year,
-                       atol=1e-04, rtol=1e-04)
+                       check.consistency,
+                       max.run.time.seconds,
+                       prior.simulation.set,
+                       prior.sim.index,
+                       keep.from.year,
+                       keep.to.year,
+                       atol,
+                       rtol)
         {
             # Crunch
             self$crunch(start.year = start.year,
                         end.year = end.year,
+                        prior.simulation.set = prior.simulation.set,
+                        prior.sim.index = prior.sim.index,
                         check.consistency = check.consistency)
             
+            # Set prior values
+            if (!is.null(prior.simulation.set))
+            {
+                if (!is(prior.simulation.set, 'jheem.simulation.set'))
+                    stop(paste0("Cannot run simulation: 'prior.simulation.set' must be an object of class 'jheem.simulation.set'"))
+                
+                if (!is.numeric(prior.sim.index) || length(prior.sim.index)!=1 || is.na(prior.sim.index) ||
+                    floor(prior.sim.index)!=prior.sim.index)
+                    stop(paste0("Cannot run simulation: 'prior.sim.index' must be a single, non-NA, integer value"))
+            }
+            else
+                initial.state = private$i.diffeq.settings$initial_state
 
             
             # Handoff to the Rcpp
@@ -944,7 +1147,7 @@ JHEEM = R6::R6Class(
             }
             
             ode.results = odeintr::integrate_sys(sys = compute.fn,
-                                                 init = private$i.diffeq.settings$initial_state,
+                                                 init = initial.state,
                                                  duration = private$i.run.to.time - private$i.run.from.time + 1, 
                                                  start = private$i.run.from.time,
                                                  atol = atol,
@@ -955,20 +1158,20 @@ JHEEM = R6::R6Class(
             private$i.outcome.denominators = list()
             
             # Process the Results
-            outcome.numerators.and.denominators = private$prepare.outcomes.for.sim(ode.results)
-            
+            outcome.numerators.and.denominators = private$prepare.outcomes.for.sim(ode.results,
+                                                                                   prior.simulation.set = prior.simulation.set,
+                                                                                   prior.sim.index = prior.sim.index)
+
             # Make the Simulation Object
             sim = create.single.simulation(version = private$i.version,
+                                           sub.version = private$i.sub.version,
                                            location = private$i.location,
                                            from.year = private$i.run.from.time,
                                            to.year = private$i.run.to.time-1,
                                            outcome.numerators = outcome.numerators.and.denominators$numerators,
                                            outcome.denominators = outcome.numerators.and.denominators$denominators,
                                            parameters = private$i.parameters)
-            
-        #    browser()
-            
-            # Join to prior sim?
+
             
             # Return
             sim
@@ -1225,10 +1428,14 @@ JHEEM = R6::R6Class(
                 })
             private$i.dependent.foreground.ids.for.parameters[depends.on] = updated.dependencies
             
+            # Flag these parameters as used in foregrounds
+            private$i.parameter.names.for.foregrounds = union(private$i.parameter.names.for.foregrounds, foreground$depends.on)
+            
             #-- Set static to false on this quantity and its dependent quantities and outcomes --#
             private$i.quantity.is.static[quantity.name] = F
             private$i.quantity.is.static[specification$get.dependent.quantity.names(quantity.name)] = F
             private$i.outcome.non.cumulative.is.static[specification$get.non.cumulative.dependent.outcome.names(quantity.name)] = F
+            
             
             #-- Clear dim.names --#
             private$clear.dim.names(quantity.name)
@@ -1268,7 +1475,7 @@ JHEEM = R6::R6Class(
             else
                 model.settings = private$i.unchecked.model.settings
             
-            used.parameter.names = element.names.in.parameters
+            used.parameter.names = union(element.names.in.parameters, private$i.parameter.names.for.foregrounds)
             
             # For calibrated parameters
             calibrated.parameters.distribution = get.parameters.distribution.for.version(self$version, type='calibrated')
@@ -1306,6 +1513,7 @@ JHEEM = R6::R6Class(
             {
                 unused.parameters = setdiff(names(parameters), used.parameter.names)
                 if (length(unused.parameters)>0)
+                {
                     stop(paste0(error.prefix,
                                 length(unused.parameters),
                                 ifelse(length(unused.parameters)==1, " is", " are"),
@@ -1314,6 +1522,7 @@ JHEEM = R6::R6Class(
                                 " not used by the model specification: ",
                                 collapse.with.and("'", unused.parameters, "'")
                                 ))
+                }
             }        
             
             # Re-resolve any dependent foregrounds
@@ -1980,6 +2189,7 @@ JHEEM = R6::R6Class(
         
         #-- Parameters --#
         i.parameters = NULL,
+        i.parameter.names.for.foregrounds = NULL,
         i.dependent.foreground.ids.for.parameters = NULL, # A list of character vectors; names are parameters names, elements are vectors of foreground ids
         
         #-- Foregrounds --#
@@ -2149,6 +2359,8 @@ JHEEM = R6::R6Class(
             private$i.parameters = numeric()
             private$i.parameters[names(specification$default.parameter.values)] = specification$default.parameter.values
 
+            private$i.parameter.names.for.foregrounds = numeric()
+            
             # Import the foregrounds
             for (frgd in specification$foregrounds)
             {
@@ -4271,17 +4483,25 @@ JHEEM = R6::R6Class(
         ##--  (after the ODE solver runs) --##
         ##----------------------------------##
 
-        prepare.outcomes.for.sim = function(ode.results)
+        prepare.outcomes.for.sim = function(ode.results,
+                                            prior.simulation.set,
+                                            prior.sim.index)
         {
+            if (!is.null(prior.simulation.set))
+                stop("We need to work out how to integrate the prior simulation set")
+            
             specification = private$get.specification()
-            sapply(specification$outcome.names, function(outcome.name){
+            
+            outcome.names = specification$get.outcome.names.for.sub.version(private$i.sub.version)
+            
+            sapply(outcome.names, function(outcome.name){
                 private$calculate.outcome.numerator.and.denominator(outcome.name = outcome.name,
                                                                     ode.results = ode.results,
                                                                     specification = specification,
                                                                     error.prefix = paste0("Error calculating the value for outcome '", outcome.name, "': "))  
             })
             
-            outcome.numerators = lapply(specification$outcome.names, function(outcome.name){
+            outcome.numerators = lapply(outcome.names, function(outcome.name){
 
                 val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
                     private$i.outcome.numerators[[outcome.name]][[y]]
@@ -4297,7 +4517,7 @@ JHEEM = R6::R6Class(
                 val
             })
             
-            outcome.denominators = lapply(specification$outcome.names, function(outcome.name){
+            outcome.denominators = lapply(outcome.names, function(outcome.name){
                 
                 if (is.null(private$i.outcome.denominators[[outcome.name]]))
                     NULL
@@ -4318,7 +4538,12 @@ JHEEM = R6::R6Class(
                 }
             })
             
-            names(outcome.numerators) = names(outcome.denominators) = specification$outcome.names
+            names(outcome.numerators) = names(outcome.denominators) = outcome.names
+            
+            
+            # Clear the values for numerators and denominators stored in the jheem object - we no longer need them
+            private$i.outcome.numerators = list()
+            private$i.outcome.denominators = list()
             
             list(numerators = outcome.numerators,
                  denominators = outcome.denominators)

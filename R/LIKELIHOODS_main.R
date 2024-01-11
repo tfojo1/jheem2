@@ -175,6 +175,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         
         instantiate.likelihood = function(version,
                                           location,
+                                          sub.version = NULL,
                                           data.manager = get.default.data.manager(), #Bernoulli's don't need this or the next argument
                                           throw.error.if.no.data = F,
                                           error.prefix = 'Error instantiating likelihood: ')
@@ -203,6 +204,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             
             private$i.likelihood.class.generator$new(instructions=self,
                                                      version=version,
+                                                     sub.version=sub.version,
                                                      location=location,
                                                      data.manager=data.manager,
                                                      throw.error.if.no.data=throw.error.if.no.data,
@@ -480,6 +482,7 @@ JHEEM.LIKELIHOOD = R6::R6Class(
         
         initialize = function(instructions,
                               version,
+                              sub.version,
                               location,
                               error.prefix)
         {
@@ -496,6 +499,7 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             
             # Call the superclass (jheem.entity) constructor
             super$initialize(version = version,
+                             sub.version = sub.version,
                              location = location,
                              type = 'likelihood',
                              error.prefix = error.prefix)

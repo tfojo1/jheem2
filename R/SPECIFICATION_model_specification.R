@@ -5793,7 +5793,7 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
                                             applies.to = applies.to,
                                             exclude.ontology.dimensions = exclude.ontology.dimensions,
                                             alias.suffix = alias.suffix,
-                                            is.for.core.component = T,
+                                            for.core.component.type = private$i.type,
                                             error.prefix = error.prefix)
                 x$get.max.dim.names(specification, 'test: ')
                 
@@ -7228,7 +7228,7 @@ MODEL.OUTCOME = R6::R6Class(
                                         required.sub.ontology.name=NULL,
                                         exclude.ontology.dimensions=character(),
                                         alias.suffix = NULL,
-                                        is.for.core.component = F,
+                                        for.core.component.type = NULL,
                                         error.prefix = error.prefix)
             })
         },

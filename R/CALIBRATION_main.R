@@ -6,6 +6,7 @@ set.up.calibration <- function(version,
                                location,
                                calibration.code,
                                root.dir,
+                               sub.version = NULL,
                                cache.frequency = 500,
                                allow.overwrite.cache = F)
 {
@@ -117,6 +118,7 @@ set.up.calibration <- function(version,
     
     #-- Set up the Run Simulation function --#
     engine = create.jheem.engine(version=version, location=location, 
+                                 sub.version = sub.version,
                                  start.year=calibration.info$start.year,
                                  end.year=calibration.info$end.year, 
                                  max.run.time.seconds = calibration.info$max.run.time.seconds) # get some of these from the calibration info object
@@ -132,6 +134,7 @@ set.up.calibration <- function(version,
     #-- Set up the compute likelihood function --#
     likelihood = calibration.info$likelihood.instructions$instantiate.likelihood(version=version,
                                                                                  location=location, 
+                                                                                 sub.version=sub.version,
                                                                                  data.manager=calibration.info$data.manager)
     compute.likelihood <- function(sim) {
         likelihood$compute(sim=sim, log=T, check.consistency=F)

@@ -107,6 +107,28 @@ string.contains.invalid.characters <- function(str, valid.characters)
     })
 }
 
+check.for.invalid.characters <- function(str,
+                                         valid.characters,
+                                         str.name,
+                                         valid.characters.description = NULL,
+                                         error.prefix = '')
+{
+    if (string.contains.invalid.characters(str, valid.characters = valid.characters))
+    {
+        invalid.characters = setdiff(strsplit(str, split='')[[1]],
+                                     strsplit(valid.characters, split='')[[1]])
+        
+        if (is.single.value)
+            stop(paste0(error.prefix,
+                        str.name,
+                        " ('", str, "') cannot contain ", 
+                        collapse.with.or("'", invalid.characters, "'"),
+                        ifelse(is.null(valid.characters.description), '', 
+                               paste0(" - it can only contain ", valid.characters.description))
+            ))
+    }
+}
+
 
 ##-------------------------------------##
 ##-------------------------------------##

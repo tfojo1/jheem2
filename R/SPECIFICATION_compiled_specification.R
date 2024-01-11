@@ -136,6 +136,15 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             }
         },
         
+        get.outcome.names.for.sub.version = function(sub.version)
+        {
+            mask = sapply(private$i.outcomes, function(outcome){
+                outcome$save &&
+                    (is.null(sub.version) || is.null(outcome$sub.versions) || any(sub.version==outcome$sub.versions))
+            })
+            names(private$i.outcomes)[mask]
+        },
+        
         get.dependent.quantity.names = function(quantity.names)
         {
             unlist(private$i.dependent.quantity.names[quantity.names])
@@ -361,6 +370,14 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 stop("Cannot modify a specification's 'top.level.quantity.names' - they are read-only")
         },
         
+        top.level.quantity.names.except.initial.population = function(value)
+        {
+            if (missing(value))
+                private$i.top.level.quantity.names.except.initial.population
+            else
+                stop("Cannot modify a specification's 'top.level.quantity.names.except.initial.population' - they are read-only")
+        },
+        
         dynamic.top.level.quantity.names = function(value)
         {
             if (missing(value))
@@ -450,6 +467,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         
         i.top.level.references = NULL,
         i.top.level.quantity.names = NULL,
+        i.top.level.quantity.names.except.initial.population = NULL,
         i.dynamic.top.level.quantity.names = NULL,
         i.element.names = NULL,
         
@@ -591,6 +609,13 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             private$i.top.level.quantity.names = unique(sapply(private$i.top.level.references, function(ref){
                 ref$value.quantity.name
             }))
+            
+            private$i.top.level.quantity.names.except.initial.population = unique(unlist(sapply(private$i.top.level.references, function(ref){
+                if (is.null(ref$for.core.component.type) || ref$for.core.component.type != 'initial.population')
+                    ref$value.quantity.name
+                else
+                    NULL
+            })))
             
             quantity.names.for.core.components = unlist(sapply(private$i.top.level.references, function(ref){
                 if (ref$is.for.core.component)
@@ -2148,7 +2173,7 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                               required.sub.ontology.name=NULL,
                               exclude.ontology.dimensions=character(),
                               max.dimensions = NULL,
-                              is.for.core.component,
+                              for.core.component.type,
                               alias.suffix,
                               error.prefix)
         {
@@ -2236,6 +2261,13 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                                 " must be a single, non-NA character value that is either 'from' or 'to'"))
             }
             
+            # Validate for.core.component.type
+            if (!is.null(for.core.component.type))
+            {
+                if (!is.character(for.core.component.type) || length(for.core.component.type)!=1 || is.na(for.core.component.type))
+                    stop(paste0(error.prefix, "If it is not NULL, 'for.core.component.type' must be a single, non-NA character value"))
+            }
+            
             private$i.version = version
             private$i.dim.names = dim.names
             private$i.ontology.name = ontology.name
@@ -2247,7 +2279,8 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
             private$i.required.sub.ontology.name = required.sub.ontology.name
             private$i.exclude.ontology.dimensions = exclude.ontology.dimensions
             private$i.max.dimensions = max.dimensions
-            private$i.is.for.core.component = is.for.core.component
+            private$i.for.core.component.type = for.core.component.type
+            private$i.is.for.core.component = !is.null(for.core.component.type)
         },
         
         
@@ -2420,6 +2453,14 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                 stop(paste0("Cannot modify a ", self$descriptor, "'s 'source' - it is read-only"))
         },
         
+        for.core.component.type = function(value)
+        {
+            if (missing(value))
+                private$i.for.core.component.type
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'for.core.component.type' - it is read-only"))
+        },
+        
         is.for.core.component = function(value)
         {
             if (missing(value))
@@ -2458,6 +2499,7 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
         i.required.sub.ontology.name = NULL,
         i.exclude.ontology.dimensions = NULL,
         i.max.dimensions = NULL,
+        i.for.core.component.type = NULL,
         i.is.for.core.component = NULL
     )
 )

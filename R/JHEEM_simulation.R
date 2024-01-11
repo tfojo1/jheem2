@@ -51,11 +51,14 @@ get.simset.data <- function(simset,
 #'@details A simulation.metadata object contains metadata, such as the dim.names to which its contents will conform
 #'
 #'@export
-get.simulation.metadata <- function(version, location,
+get.simulation.metadata <- function(version, 
+                                    location,
                                     from.year = NULL, to.year = NULL,
+                                    sub.version = NULL,
                                     error.prefix = paste0("Error deriving the simulation-metadata for '", version, "' and location '", location, "': "))
 {
     SIMULATION.METADATA$new(version=version,
+                            sub.version=sub.version,
                             location=location,
                             from.year=from.year,
                             to.year=to.year,
@@ -70,6 +73,7 @@ get.simulation.metadata <- function(version, location,
 ##-----------------------------------------------------------##
 
 create.single.simulation <- function(version,
+                                     sub.version,
                                      location,
                                      outcome.numerators, # no sim dimension
                                      outcome.denominators, # no sim dimension
@@ -86,13 +90,14 @@ create.single.simulation <- function(version,
         new.dimnames = c(dimnames(arr), sim=1)
         array(arr, dim=sapply(new.dimnames, length), new.dimnames)
     })
-    parameters = list(parameters) # used to say "parameters.indexed.by.sim = list('1'=parameters)" but I don't think I need the character number there. When simsets are joined, the index is meaningless anyways
+    parameters = matrix(parameters, ncol=1, dimnames=list(parameter=names(parameters), sim=NULL)) # used to say "parameters.indexed.by.sim = list('1'=parameters)" but I don't think I need the character number there. When simsets are joined, the index is meaningless anyways
     
     JHEEM.SIMULATION.SET$new(version = version,
+                             sub.version = sub.version,
                              location = location,
                              outcome.numerators = outcome.numerators.with.sim.dimension,
                              outcome.denominators = outcome.denominators.with.sim.dimension,
-                             parameters = parameters.indexed.by.sim,
+                             parameters = parameters,
                              from.year = from.year,
                              to.year = to.year,
                              n.sim = 1)
@@ -136,9 +141,12 @@ join.simulation.sets <- function(...)
     })
     names(combined.outcome.denominators) = outcomes
 
-    combined.parameters = unlist(lapply(simset.list, function(simset) {simset$data$parameters}), recursive=F)
+    #combined.parameters = unlist(lapply(simset.list, function(simset) {simset$data$parameters}), recursive=F)
+    
+    combined.parameters = sapply(simset.list, function(simset){simset$data$parameters})
     
     JHEEM.SIMULATION.SET$new(version = sample.simset$version,
+                             sub.version = sample.simset$sub.version,
                              location = sample.simset$location,
                              outcome.numerators = combined.outcome.numerators,
                              outcome.denominators = combined.outcome.denominators,
@@ -167,6 +175,7 @@ SIMULATION.METADATA = R6::R6Class(
     public = list(
         
         initialize = function(version,
+                              sub.version,
                               location,
                               from.year = NULL,
                               to.year = NULL,
@@ -176,6 +185,7 @@ SIMULATION.METADATA = R6::R6Class(
         {
             #-- Call the superclass constructor --#
             super$initialize(version = version,
+                             sub.version = sub.version,
                              location = location,
                              type = type,
                              error.prefix = error.prefix)
@@ -223,7 +233,7 @@ SIMULATION.METADATA = R6::R6Class(
             private$i.metadata$outcome.ontologies = list()
             private$i.metadata$outcome.metadata = list()
             
-            for (outcome.name in specification$outcome.names)
+            for (outcome.name in specification$get.outcome.names.for.sub.version(private$i.sub.version))
             {
                 outcome = specification$get.outcome(outcome.name)
                 if (outcome$save)
@@ -352,6 +362,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
     
     public = list(
         initialize = function(version, # needs a subversion
+                              sub.version,
                               location,
                               outcome.numerators, # now must have sim dimension
                               outcome.denominators, # now must have sim dimension
@@ -359,16 +370,22 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               from.year,
                               to.year,
                               n.sim,
+                              engine = NULL,
                               error.prefix = "Error constructing simulation")
         {
             #-- Call the superclass constructor --#
             super$initialize(version = version,
+                             sub.version = sub.version,
                              location = location,
                              type = "Simulation",
                              years.can.be.missing = F,
                              from.year = from.year,
                              to.year = to.year,
                              error.prefix = error.prefix)
+            
+            #-- Check engine if it is not NULL --#
+            
+            private$i.engine = engine
             
             # I have not yet written the validation code
             
@@ -401,6 +418,15 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             #     }))
             # })))
             #     stop(paste0(error.prefix, "each array in 'outcome.denominators' must have dimensions matching its outcome's ontology"))
+            
+            #-- Validate parameters --#
+            
+            # should be a matrix with one row for each sim
+            # dimnames(parameters)[[1]] must be set
+            
+            # let's standardize the dimnames here
+            dimnames(parameters) = list(parameter = dimnames(parameters)[[1]],
+                                        sim = as.character(1:n.sim))
             
             #-- Update the outcome metadata's years for each of the non-cumulative outcomes --#
             
@@ -718,7 +744,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 dimnames(new.arr)[['sim']] = 1:new.n.sim
                 new.arr
             })
-            new.parameters = private$i.data$parameters[x]
+            new.parameters = private$i.data$parameters[x,,drop=F]
             
             JHEEM.SIMULATION.SET$new(version = self$version,
                                      location = self$location,
@@ -767,8 +793,11 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         get.engine = function(start.year,
                               end.year,
-                              max.run.time.seconds=Inf,
-                              keep.years,
+                              max.run.time.seconds = NULL,
+                              keep.from.year = start.year,
+                              keep.to.year = end.year,
+                              atol = NULL,
+                              rtol = NULL,
                               error.prefix = "Cannot get JHEEM Engine from simulation set")
         {
             if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
@@ -776,17 +805,24 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             if (is.null(private$i.engine))
                 engine = create.jheem.engine(version = private$i.version,
+                                             sub.version = private$i.sub.version,
                                              location = private$i.location,
                                              start.year = start.year,
                                              end.year = end.year,
                                              max.run.time.seconds = max.run.time.seconds,
-                                             prior.sim = NULL,
-                                             keep.years = keep.years)
+                                             prior.simulation.set = self,
+                                             keep.from.year = keep.from.year,
+                                             keep.to.year = keep.to.year,
+                                             error.prefix = error.prefix)
             else
                 engine = private$i.engine$spawn(start.year = start.year,
                                                 end.year = end.year,
                                                 max.run.time.seconds = max.run.time.seconds,
-                                                keep.years = keep.years,
+                                                prior.simulation.set = self,
+                                                keep.from.year = keep.from.year,
+                                                keep.to.year = keep.to.year,
+                                                atol = atol,
+                                                rtol = rtol,
                                                 error.prefix = error.prefix)
         },
         
@@ -808,13 +844,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         parameters = function(value)
         {
-            if (missing(value)) {
-                # Return a named vector if n.sim = 1 or a matrix if n.sim > 1.
-                if (self$n.sim == 1) private$i.data$parameters[[1]]
-                else {
-                    matrix(unlist(private$i.data$parameters), ncol=self$n.sim, dimnames = list(parameter = names(private$i.data$parameters), sim = 1:n.sim))
-                }
-            }
+            if (missing(value))
+                private$i.data$parameters
             else
                 stop("Cannot modify a simulation's 'parameters' - they are read-only")
         },
