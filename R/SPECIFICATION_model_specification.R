@@ -73,13 +73,13 @@ create.jheem.specification <- function(version,
     if (missing(compartment.value.aliases) || is.null(compartment.value.aliases))
         compartment.value.aliases = list()
     
-    if (is.null(compartments.for.infected.only))
+    if (missing(compartments.for.infected.only) || is.null(compartments.for.infected.only))
         compartments.for.infected.only = list()
     
-    if (is.null(compartments.for.uninfected.only))
+    if (missing(compartments.for.uninfected.only) || is.null(compartments.for.uninfected.only))
         compartments.for.uninfected.only = list()
     
-    if (is.null(compartments.for.infected.and.uninfected))
+    if (missing(compartments.for.uninfected.only) || is.null(compartments.for.infected.and.uninfected))
         compartments.for.infected.and.uninfected = list()
     
     if (missing(age.endpoints))
