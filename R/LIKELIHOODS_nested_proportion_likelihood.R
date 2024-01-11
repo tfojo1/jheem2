@@ -638,12 +638,14 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         initialize = function(instructions,
                               version,
                               location,
+                              sub.version,
                               data.manager,
                               throw.error.if.no.data,
                               error.prefix)
         {
             super$initialize(instructions = instructions,
                              version = version,
+                             sub.version = sub.version,
                              location = location,
                              error.prefix = error.prefix)
             
