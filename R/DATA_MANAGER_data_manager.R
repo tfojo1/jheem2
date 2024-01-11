@@ -1242,8 +1242,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (!any(keep.dimensions %in% target.to.universal.mapping$to.dimensions))
                     target.to.universal.mapping = get.identity.ontology.mapping()
             }
-            # print(paste0("block B took ", Sys.time()-ptm))
-            # ptm = Sys.time()
             
             dv.names = names(dimension.values)
             dimension.values = lapply(seq_along(dimension.values), function(d) {
@@ -1330,7 +1328,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         
                         dimension.has.no.intersection = F
                         for (d in dv.names) {
-                            replacement = intersect(dimnames.for.apply[[d]], resolved.dimension.values[[d]])
+                            if (d == 'year') {
+                                replacement = get.range.robust.year.intersect(dimnames.for.apply[[d]], resolved.dimension.values[[d]])
+                            }
+                            else replacement = intersect(dimnames.for.apply[[d]], resolved.dimension.values[[d]])
                             if (length(replacement) == 0) {
                                 dimension.has.no.intersection = T
                                 break
@@ -2102,7 +2103,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 }
             }
             if (!is.null(target.ontology)) {
-                mps = get.mappings.to.align.ontologies(target.ontology, uni, allow.non.overlapping.incomplete.dimensions = T)
+                mps = get.mappings.to.align.ontologies(target.ontology, uni, allow.non.overlapping.incomplete.dimensions = F)
                 if (is.null(mps)) stop("Error mapping ontologies to target ontology for outcome '", outcome, "': did you remember to register your mappings?")
                 uni = mps[[2]]$apply.to.ontology(uni)
                 if (return.target.to.universal.mapping) attr(uni, 'target.to.universal.mapping') = mps[[1]]
