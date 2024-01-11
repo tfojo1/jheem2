@@ -97,7 +97,7 @@ do.union.or.intersect.target.populations <- function(..., combine.function, name
         }
         else if (is.list(elem))
         {
-            for (j in 1:length(sub.elem))
+            for (j in 1:length(elem))
             {
                 sub.elem = elem[[j]]
                 if (!is(sub.elem, 'target.population'))
@@ -110,7 +110,6 @@ do.union.or.intersect.target.populations <- function(..., combine.function, name
             stop(paste0("All elements of ... must be either 'target.population' objects or lists which contain only 'target.population' objects. The ",
                         get.ordinal(i), " element of ... is neither"))
     }
-    
     if (length(subpopulations)==0)
         stop("Cannot ", combine.function, " target populations: ... must contain at least one 'target.population' object")
     else if (length(subpopulations)==1)

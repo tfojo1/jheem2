@@ -30,7 +30,7 @@ source('../jheem2/R/VERSIONS_version_manager.R')
 
 source('../jheem2/R/INTERVENTIONS_target_populations.R')
 source('../jheem2/R/INTERVENTIONS_intervention_effects.R')
-#source('../jheem2/R/INTERVENTIONS_interventions.R')
+source("../jheem2/R/INTERVENTIONS_main.R")
 source('../jheem2/R/INTERVENTIONS_foreground.R')
 
 source('../jheem2/R/JHEEM_entity.R')
@@ -56,5 +56,7 @@ Rcpp::sourceCpp('../jheem2/src/nested_proportion_likelihood.cpp')
 
 source("../jheem2/R/FILE_MANAGER_file_manager.R")
 source("../jheem2/R/CALIBRATION_main.R")
+
+
 
 Rcpp::sourceCpp('../jheem2/src/misc_helpers.cpp')
