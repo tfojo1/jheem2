@@ -43,13 +43,13 @@ create.jheem.specification <- function(version,
                                        do.not.inherit.model.outcome.names = character(),
                                        do.not.inherit.transitions.for.dimension = character(),
                                        do.not.inherit.components.with.tags = character(),
-                                       compartments.for.infected.only,
-                                       compartments.for.uninfected.only,
-                                       compartments.for.infected.and.uninfected,
+                                       compartments.for.infected.only = list(),
+                                       compartments.for.uninfected.only = list(),
+                                       compartments.for.infected.and.uninfected = list(),
                                        
-                                       age.endpoints,
+                                       age.endpoints = NULL,
                                        
-                                       compartment.value.aliases)
+                                       compartment.value.aliases = list())
 {
     error.prefix = "Cannot create jheem.specification: "
     
