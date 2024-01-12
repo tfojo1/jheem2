@@ -277,7 +277,7 @@ create.jheem.specification <- function(version,
         stop(paste0(error.prefix,
                     "'compartment.value.aliases' must be a list"))
     
-    if (is.null(names(compartment.value.aliases)))
+    if (length(compartment.value.aliases)>0 && is.null(names(compartment.value.aliases)))
         stop(paste0(error.prefix,
                     "'compartment.value.aliases' must be a NAMED list"))
     
