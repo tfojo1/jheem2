@@ -1,10 +1,27 @@
-# These ontologies represent what happens with the new migration data
-ont1 = ontology(year='2011-2015', incomplete.dimensions = 'year')
-# ont2 = ontology(year=as.character(2011:2015), incomplete.dimensions = 'year')
-# 
-# # I expected both of these to work in this case, but one doesn't
-# get.mappings.to.align.ontologies(ont1, ont2, allow.non.overlapping.incomplete.dimensions = F) # an identity and a basic (correct)
-# get.mappings.to.align.ontologies(ont1, ont2, allow.non.overlapping.incomplete.dimensions = T) # two identities (incorrect)
+# This isn't an issue about year ranges anymore, but about making sure we only have relevant mappings when we end up subsetting our universal ontology in the pull function
+# This example describes a situation in which adult.immigration data is pulled with keep.dimensions 'year' and 'race' and dimension values location='C.12060'.
+target.as.supplied.in.pull.arguments = ontology(year=as.character(1970:2030),
+                                                location='C.12060',
+                                                age=c('13-24 years', '25-34 years', '35-44 years', '45-54 years', '55+ years'),
+                                                race=c('black', 'hispanic', 'other'),
+                                                sex=c('heterosexual_male', 'msm', 'female'),
+                                                incomplete.dimensions = c('year', 'location'))
+universal.after.picking.desired.dimensions = ontology(year='2011-2015',
+                                                      location=c('C.12060', 'C.12580'),
+                                                      race=c('black', 'hispanic', 'other'),
+                                                      incomplete.dimensions = c('year', 'location'))
+get.ontology.mapping(target.as.supplied.in.pull.arguments, universal.after.picking.desired.dimensions) # a combination mapping with a sex mapping for some reason? Bug?
 
-ont3 = ontology(years=as.character(2011:2020), incomplete.dimensions = 'year')
-get.ontology.mapping(ont3, ont1) #NULL
+# When we actually generate the universal ontology in the pull function, it would have had sex in it, and the returned mappings would have a sex mapping.
+# I had the idea to just get another mapping after we subset it, but somehow it's deciding to have a sex mapping anyways. Is this a bug?
+
+# Previously, I had been using the mapping given back from the universal ontology generation code, which told us how to map from the supplied target to this, below:
+universal.as.generated = ontology(year='2011-2015',
+                                  location=c('C.12060', 'C.12580'),
+                                  age=c('13-24 years', '25-34 years', '35-44 years', '45-54 years', '55+ years'),
+                                  race=c('black', 'hispanic', 'other'),
+                                  sex=c('heterosexual_male', 'msm', 'female'),
+                                  incomplete.dimensions = c('year', 'location'))
+
+# Clearly, that mapping will have a sex mapping in it, which we won't want anymore after we discard age and sex from the universal ontology.
+# Since it's not necessarily even possible to remove part of a mapping, it is clear we have to just generate a new mapping from the supplied target to the slimmed-down universal.
