@@ -59,13 +59,14 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             }
         },
         
-        instantiate.likelihood = function(version, location, data.manager, throw.error.if.no.data = F, error.prefix = '')
+        instantiate.likelihood = function(version, location, sub.version=NULL, data.manager, throw.error.if.no.data = F, error.prefix = '')
         {
             # Validate location
             # Check that these instructions are registered?
             # Make sure all outcomes for the instructions are registered to the specification of the version
             JHEEM.JOINT.LIKELIHOOD$new(instructions=self,
                                        version=version,
+                                       sub.version=sub.version,
                                        location=location,
                                        data.manager=data.manager,
                                        throw.error.if.no.data=throw.error.if.no.data,
@@ -124,6 +125,7 @@ JHEEM.JOINT.LIKELIHOOD = R6::R6Class(
         
         initialize = function(instructions,
                               version,
+                              sub.version,
                               location,
                               data.manager,
                               throw.error.if.no.data,
@@ -131,11 +133,13 @@ JHEEM.JOINT.LIKELIHOOD = R6::R6Class(
         {
             super$initialize(instructions=instructions,
                              version=version,
+                             sub.version=sub.version,
                              location=location,
                              error.prefix=error.prefix)
             
             private$i.sub.likelihoods = lapply(instructions$sub.instructions, function(instr){
                 instr$instantiate.likelihood(version=version,
+                                             sub.version=sub.version,
                                              location=location,
                                              data.manager=data.manager,
                                              throw.error.if.no.data=throw.error.if.no.data,
@@ -148,10 +152,10 @@ JHEEM.JOINT.LIKELIHOOD = R6::R6Class(
         
         i.sub.likelihoods = NULL,
         
-        do.compute = function(sim, log, check.consistency)
+        do.compute = function(sim, log, check.consistency, debug)
         {
             sub.values = sapply(private$i.sub.likelihoods, function(like){
-                like$compute(sim, log=log, check.consistency=check.consistency)
+                like$compute(sim, log=log, check.consistency=check.consistency, debug)
             })
             # print(sub.values)
             if (log)
