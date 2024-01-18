@@ -603,6 +603,7 @@ map.value.ontology <- function(value,
 #       Applying an ontology mapping yields incomplete dimensions if any of the from dimensions are incomplete
 
 
+DEBUG.ONTOLOGY.MAPPINGS = F
 
 
 #'@param from.ontology,to.ontology The ontologies of the from and to arrays
@@ -630,8 +631,11 @@ do.get.ontology.mapping <- function(from.ontology,
                                     try.allowing.non.overlapping.incomplete.dimensions = F,
                                     is.for.two.way = get.two.way.alignment,
                                     used.mappings=list(),
+                                    dimensions.to.try.dropping = NULL,
                                     mappings = c(ONTOLOGY.MAPPING.MANAGER$mappings,
-                                                 list('age','other','year')))
+                                                 list('age','other','year')),
+                                    search.depth = 0 # for debugging
+                                    )
 {
     error.prefix = "Error getting ontology mapping: "
     
@@ -702,8 +706,14 @@ do.get.ontology.mapping <- function(from.ontology,
         required.dimensions.are.present.in.to &&
         required.dim.names.are.present.in.to
     
+    if (DEBUG.ONTOLOGY.MAPPINGS)
+        debug.prefix = paste0(paste0(rep(" ", search.depth), collapse=''), "(", search.depth, ") ")
+    
     if (success)
     {
+        if (DEBUG.ONTOLOGY.MAPPINGS)
+            print(paste0(debug.prefix, "SUCCESS!"))
+        
         if (get.two.way.alignment)
             return (list(from=list(get.identity.ontology.mapping()),
                          to=list(get.identity.ontology.mapping())))
@@ -711,17 +721,19 @@ do.get.ontology.mapping <- function(from.ontology,
             return (list(from=list(get.identity.ontology.mapping()), to=NULL))
     }
     
+    if (is.null(dimensions.to.try.dropping))
+    {
+        dimensions.to.try.dropping = from.dimensions[from.out.of.alignment.mask & from.dimensions.are.complete]
+    
+        # this next line speeds us up, but could concievably be wrong if we need to drop a dimension, then add it back with a mapping
+        dimensions.to.try.dropping = setdiff(dimensions.to.try.dropping, to.dimensions)
+    }
 
     # Let's work it out
-    dimensions.we.can.drop = from.dimensions[from.out.of.alignment.mask & from.dimensions.are.complete]
-    
-    # this next line speeds us up, but could concievably be wrong if we need to drop a dimension, then add it back with a mapping
-    dimensions.we.can.drop = setdiff(dimensions.we.can.drop, to.dimensions)
-    
     dimensions.out.of.alignment = from.dimensions[from.out.of.alignment.mask]
 
-    n.dimensions.we.can.drop = length(dimensions.we.can.drop)
-    n.modifications.to.try = n.dimensions.we.can.drop + length(mappings)
+    n.dimensions.to.try.dropping = length(dimensions.to.try.dropping)
+    n.modifications.to.try = n.dimensions.to.try.dropping + length(mappings)
          
     for (try.index in 1:n.modifications.to.try)
     {
@@ -729,16 +741,20 @@ do.get.ontology.mapping <- function(from.ontology,
         try.modification = F
         post.try.used.mappings = used.mappings
         post.try.mappings = mappings
+        post.try.dimensions.to.try.dropping = dimensions.to.try.dropping[-(1:n.dimensions.to.try.dropping)]
         
-        if (try.index <= n.dimensions.we.can.drop)
+        if (try.index <= n.dimensions.to.try.dropping)
         {
-            d = dimensions.we.can.drop[try.index]
+            d = dimensions.to.try.dropping[try.index]
             post.try.from.ontology = from.ontology[from.dimensions != d]
             try.modification = T
+            
+            if (DEBUG.ONTOLOGY.MAPPINGS)
+                print(paste0(debug.prefix, "Try dropping '", d, "'"))
         }
         else
         {
-            mapping.index = try.index - n.dimensions.we.can.drop
+            mapping.index = try.index - n.dimensions.to.try.dropping
             mapping = mappings[[mapping.index]]
             post.try.mappings = mappings
             
@@ -826,6 +842,11 @@ do.get.ontology.mapping <- function(from.ontology,
                                                                        error.prefix = error.prefix)
                 
                 post.try.used.mappings = c(used.mappings, list(mapping))
+                
+                post.try.dimensions.to.try.dropping = setdiff(mapping$to.dimensions[is.complete(from.ontology)[mapping$to.dimensions]], to.dimensions)
+                
+                if (DEBUG.ONTOLOGY.MAPPINGS)
+                    print(paste0(debug.prefix, "Try mapping '", mapping$name, "'"))
             }
         }
         
@@ -841,8 +862,10 @@ do.get.ontology.mapping <- function(from.ontology,
                                                           is.for.two.way = is.for.two.way,
                                                           allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions,
                                                           try.allowing.non.overlapping.incomplete.dimensions = try.allowing.non.overlapping.incomplete.dimensions,
+                                                          dimensions.to.try.dropping = post.try.dimensions.to.try.dropping,
                                                           used.mappings = post.try.used.mappings,
-                                                          mappings = post.try.mappings)
+                                                          mappings = post.try.mappings,
+                                                          search.depth = search.depth + 1)
             
             if (!is.null(additional.mappings)) # we succeeded and we're done! Append and go home
             {
@@ -850,6 +873,7 @@ do.get.ontology.mapping <- function(from.ontology,
                     to.add = list()
                 else
                     to.add = list(mapping)
+                
                 return(list(from=c(to.add, additional.mappings$from),
                             to=additional.mappings$to))
             }
@@ -864,6 +888,9 @@ do.get.ontology.mapping <- function(from.ontology,
     rv = NULL
     if (get.two.way.alignment)
     {
+        if (DEBUG.ONTOLOGY.MAPPINGS)
+            print(paste0(debug.prefix, "Try finding the reverse mapping for two-way"))
+        
         reverse.mappings = do.get.ontology.mapping(from.ontology=to.ontology,
                                                    to.ontology=from.ontology,
                                                    required.dimensions=required.dimensions,
@@ -872,31 +899,36 @@ do.get.ontology.mapping <- function(from.ontology,
                                                    allow.non.overlapping.incomplete.dimensions=allow.non.overlapping.incomplete.dimensions,
                                                    try.allowing.non.overlapping.incomplete.dimensions = try.allowing.non.overlapping.incomplete.dimensions,
                                                    get.two.way.alignment=F,
-                                                   is.for.two.way = T) #leave off mappings to reset to the default
+                                                   is.for.two.way = T, 
+                                                   #leave off mappings and dimensions.to.try.dropping to reset to the default
+                                                   search.depth = search.depth + 1)
         
-        if (is.null(reverse.mappings)) # We couldn't make it work
-            NULL
-        else # this works! package it up and return
-            list(from=list(get.identity.ontology.mapping()),
-                 to=reverse.mappings$from)
+        if (!is.null(reverse.mappings)) # this works! package it up and return
+            return (list(from=list(get.identity.ontology.mapping()),
+                         to=reverse.mappings$from))
     }
     
-    if (is.null(rv) && allow.non.overlapping.incomplete.dimensions && !try.allowing.non.overlapping.incomplete.dimensions)
+    if (allow.non.overlapping.incomplete.dimensions && !try.allowing.non.overlapping.incomplete.dimensions)
     {
+        if (DEBUG.ONTOLOGY.MAPPINGS)
+            print(paste0(debug.prefix, "Try allowing non-overlapping incomplete dimensions"))
+        
         # Try with allow non overlapping incomplete mappings now
-        do.get.ontology.mapping(from.ontology=from.ontology,
-                                to.ontology=to.ontology,
-                                required.dimensions=required.dimensions,
-                                required.dim.names=required.dim.names,
-                                get.two.way.alignment=get.two.way.alignment,
-                                is.for.two.way=is.for.two.way,
-                                allow.non.overlapping.incomplete.dimensions=allow.non.overlapping.incomplete.dimensions,
+        do.get.ontology.mapping(from.ontology = from.ontology,
+                                to.ontology = to.ontology,
+                                required.dimensions = required.dimensions,
+                                required.dim.names = required.dim.names,
+                                get.two.way.alignment = get.two.way.alignment,
+                                is.for.two.way = is.for.two.way,
+                                allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions,
                                 try.allowing.non.overlapping.incomplete.dimensions = T,
-                                used.mappings=used.mappings,
-                                mappings = mappings)
+                                dimensions.to.try.dropping = dimensions.to.try.dropping,
+                                used.mappings = used.mappings,
+                                mappings = mappings,
+                                search.depth = search.depth + 1)
     }
     else
-        rv
+        NULL
 }
 
 #'@title Combine multiple ontology mappings into a single mapping
