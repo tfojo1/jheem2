@@ -539,7 +539,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         i.measurement.error.covariance.matrix = NULL,
         i.inverse.variance.weights.matrix = NULL,
         
-        do.compute = function(sim, log=T, check.consistency=T, debug=F)
+        do.compute = function(sim, log, check.consistency, debug)
         {
             
 
@@ -601,7 +601,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                               checkSymmetry = F)
             
             if (debug) {
-                lik.summary = cbind(private$i.metadata, private$i.obs.vector, mean, sqrt(diag(sigma)))
+                lik.summary = cbind(private$i.metadata, obs=private$i.obs.vector, mean, sd=sqrt(diag(sigma)))
                 browser()
             } 
             likelihood
