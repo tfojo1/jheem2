@@ -270,74 +270,82 @@ create.jheem.specification <- function(version,
         age.info$spans = age.info$uppers - age.info$lowers
         age.info$ages = make.age.strata.names(age.endpoints)
     }
-    
+     
     #-- Compartment Value Aliases --#
     
     if (!is.list(compartment.value.aliases))
         stop(paste0(error.prefix,
                     "'compartment.value.aliases' must be a list"))
     
-    if (length(compartment.value.aliases)>0 && is.null(names(compartment.value.aliases)))
-        stop(paste0(error.prefix,
-                    "'compartment.value.aliases' must be a NAMED list"))
-    
-    if (any(is.na(names(compartment.value.aliases))))
-        stop(paste0(error.prefix,
-                    "'compartment.value.aliases' cannot have NA names"))
-    
-    tabled.aliases = table(names(compartment.value.aliases))
-    if (any(tabled.aliases>1))
-        stop(paste0(error.prefix,
-                    "The names of 'compartment.value.aliases' must be unique. ",
-                    collapse.with.and("'", names(tabled.aliases)[tabled.aliases>1], "'"),
-                    ifelse(sum(tabled.aliases>1)==1, " is", " are"),
-                    " used more than once"))
-    
-    is.alias.function = as.logical(sapply(names(compartment.value.aliases), function(alias){
-        if (is.function(compartment.value.aliases[[alias]]))
-        {
-            arg.names = get.function.argument.names(fn=compartment.value.aliases[[alias]],
-                                                    exclude.arguments.with.default.values=T)
-            
-            invalid.arg.names = setdiff(arg.names, c('location'))
-            if (length(invalid.arg.names)>0)
-                stop(paste0(error.prefix,
-                            "Elements of 'compartment.value.aliases' that are functions can only take one argument: 'location'. The function for '",
-                            alias, "' requires ",
-                            ifelse(length(invalid.arg.names)==1, "argument ", 'arguments '),
-                            collapse.with.and("'", invalid.arg.names, "'")))
-            
-            T
-            
-        }
-        else if (is.character(compartment.value.aliases[[alias]]))
-        {
-            F
-        }
-        else
+    if (length(compartment.value.aliases)>0)
+    {
+        if (length(compartment.value.aliases)>0 && is.null(names(compartment.value.aliases)))
             stop(paste0(error.prefix,
-                        "The elements of 'compartment.value.aliases' must be either character vectors or functions. compartment.value.aliases[['",
-                        alias, "']] is neither"))
-    }))
-    
-    compartment.value.character.aliases = compartment.value.aliases[!is.alias.function]
-    compartment.value.function.aliases = compartment.value.aliases[is.alias.function]
-    
-    # This makes sure it is a named list of non-empty, non-NA character vectors,
-    #  with no duplicates in any entry
-    check.dim.names.valid(compartment.value.character.aliases,
-                          variable.name.for.error = 'compartment.value.aliases',
-                          refer.to.dimensions.as = 'entry',
-                          refer.to.dimension.plural.as = 'entries',
-                          allow.duplicate.values.across.dimensions = T,
-                          error.prefix = error.prefix)
+                        "'compartment.value.aliases' must be a NAMED list"))
+        
+        if (any(is.na(names(compartment.value.aliases))))
+            stop(paste0(error.prefix,
+                        "'compartment.value.aliases' cannot have NA names"))
+        
+        tabled.aliases = table(names(compartment.value.aliases))
+        if (any(tabled.aliases>1))
+            stop(paste0(error.prefix,
+                        "The names of 'compartment.value.aliases' must be unique. ",
+                        collapse.with.and("'", names(tabled.aliases)[tabled.aliases>1], "'"),
+                        ifelse(sum(tabled.aliases>1)==1, " is", " are"),
+                        " used more than once"))
+        
+        is.alias.function = as.logical(sapply(names(compartment.value.aliases), function(alias){
+            if (is.function(compartment.value.aliases[[alias]]))
+            {
+                arg.names = get.function.argument.names(fn=compartment.value.aliases[[alias]],
+                                                        exclude.arguments.with.default.values=T)
+                
+                invalid.arg.names = setdiff(arg.names, c('location'))
+                if (length(invalid.arg.names)>0)
+                    stop(paste0(error.prefix,
+                                "Elements of 'compartment.value.aliases' that are functions can only take one argument: 'location'. The function for '",
+                                alias, "' requires ",
+                                ifelse(length(invalid.arg.names)==1, "argument ", 'arguments '),
+                                collapse.with.and("'", invalid.arg.names, "'")))
+                
+                T
+                
+            }
+            else if (is.character(compartment.value.aliases[[alias]]))
+            {
+                F
+            }
+            else
+                stop(paste0(error.prefix,
+                            "The elements of 'compartment.value.aliases' must be either character vectors or functions. compartment.value.aliases[['",
+                            alias, "']] is neither"))
+        }))
+        
+        compartment.value.character.aliases = compartment.value.aliases[!is.alias.function]
+        compartment.value.function.aliases = compartment.value.aliases[is.alias.function]
+        
+        # This makes sure it is a named list of non-empty, non-NA character vectors,
+        #  with no duplicates in any entry
+        check.dim.names.valid(compartment.value.character.aliases,
+                              variable.name.for.error = 'compartment.value.aliases',
+                              refer.to.dimensions.as = 'entry',
+                              refer.to.dimension.plural.as = 'entries',
+                              allow.duplicate.values.across.dimensions = T,
+                              error.prefix = error.prefix)
 
-    # Check that the actual values themselves are valid
-    validate.compartment.value.aliases(names(compartment.value.aliases),
-                                       descriptor = 'name',
-                                       variable.name.for.error = 'compartment.value.aliases',
-                                       error.prefix = error.prefix)
-
+        # Check that the actual values themselves are valid
+        validate.compartment.value.aliases(names(compartment.value.aliases),
+                                           descriptor = 'name',
+                                           variable.name.for.error = 'compartment.value.aliases',
+                                           error.prefix = error.prefix)
+    }
+    else
+    {
+        compartment.value.character.aliases = list()
+        compartment.value.function.aliases = list()
+    }
+    
     # replaces age value with ages
     if (!is.null(age.endpoints))
     {
