@@ -1360,7 +1360,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
                                 function.to.apply = function(x) {list(unique(unlist(x)))}
                             }
-                            if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion')) {
+                            if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion') && !mapping.to.apply$is.identity.mapping) {
+                                
+                                # Mappings inherently perform sum operations, but that is invalid for these scales. We therefore can only map the counts and then reproduce the rate/time/proportions afterwards.
+                                # If we have an identity mapping, then we can skip this
+                                
                                 denominator.outcome = outcome.info[['denominator.outcome']]
                                 # browser()
                                 # CHECK IF THIS SOURCE HAS DENOMINATOR DATA. IF NOT, TRY ANOTHER SOURCE.
