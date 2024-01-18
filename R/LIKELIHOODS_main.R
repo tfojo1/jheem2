@@ -541,6 +541,12 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             {
                 self$compute(sim, log=log, check.consistency=check.consistency, debug=debug)
             }
+        },
+        
+        # Override at the sub-class level, just for joint likelihood
+        compute.piecewise = function(sim, log=T, check.consistency=T, debug=F)
+        {
+            self$compute(sim=sim, log=log, check.consistency = check.consistency, debug=debug)
         }
     ),
     

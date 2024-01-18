@@ -59,7 +59,7 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             }
         },
         
-        instantiate.likelihood = function(version, location, sub.version=NULL, data.manager, throw.error.if.no.data = F, error.prefix = '')
+        instantiate.likelihood = function(version, location, sub.version=NULL, data.manager=get.default.data.manager(), throw.error.if.no.data = F, error.prefix = '')
         {
             # Validate location
             # Check that these instructions are registered?
@@ -145,7 +145,20 @@ JHEEM.JOINT.LIKELIHOOD = R6::R6Class(
                                              throw.error.if.no.data=throw.error.if.no.data,
                                              error.prefix=error.prefix)
             })
+            names(private$i.sub.likelihoods) = sapply(instructions$sub.instructions, function(instr) {
+                instr$outcome.for.sim
+            })
+            private$i.sub.likelihoods
+        },
+        
+        compute.piecewise = function(sim, log=T, check.consistency=T, debug=F)
+        {
+            # why do I need to use return here?
+            return(sub.values = sapply(private$i.sub.likelihoods, function(like) {
+                like$compute(sim, log=log, check.consistency=check.consistency, debug=debug)
+            }))
         }
+        
     ),
     
     private = list(
