@@ -741,7 +741,7 @@ do.get.ontology.mapping <- function(from.ontology,
         try.modification = F
         post.try.used.mappings = used.mappings
         post.try.mappings = mappings
-        post.try.dimensions.to.try.dropping = dimensions.to.try.dropping[-(1:n.dimensions.to.try.dropping)]
+        post.try.dimensions.to.try.dropping = dimensions.to.try.dropping[-(1:try.index)]
         
         if (try.index <= n.dimensions.to.try.dropping)
         {
@@ -927,6 +927,8 @@ do.get.ontology.mapping <- function(from.ontology,
                                 mappings = mappings,
                                 search.depth = search.depth + 1)
     }
+ #   else if (search.depth==0)
+ #       browser()
     else
         NULL
 }
