@@ -293,7 +293,7 @@ create.jheem.specification <- function(version,
                     ifelse(sum(tabled.aliases>1)==1, " is", " are"),
                     " used more than once"))
     
-    is.alias.function = sapply(names(compartment.value.aliases), function(alias){
+    is.alias.function = as.logical(sapply(names(compartment.value.aliases), function(alias){
         if (is.function(compartment.value.aliases[[alias]]))
         {
             arg.names = get.function.argument.names(fn=compartment.value.aliases[[alias]],
@@ -317,8 +317,7 @@ create.jheem.specification <- function(version,
         else
             stop(paste0(error.prefix,
                         "The elements of 'compartment.value.aliases' must be either character vectors or functions. compartment.value.aliases[['",
-                        alias, "']] is neither"))
-    })
+            )
     
     compartment.value.character.aliases = compartment.value.aliases[!is.alias.function]
     compartment.value.function.aliases = compartment.value.aliases[is.alias.function]
