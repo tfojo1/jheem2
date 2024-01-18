@@ -1154,12 +1154,19 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
                 (private$i.link$max - private$i.logistic.after.value)
             
             
-            val.at.additional.year = intercept + slope * (future.slope.after.year - private$i.anchor.year)
             logistic.after.year = private$i.anchor.year + (private$i.logistic.after.value - intercept) / slope
-            mask = val.at.additional.year < private$i.logistic.after.value
-            logistic.after.year.after.additional = future.slope.after.year + 
-                (private$i.logistic.after.value - val.at.additional.year) / slope.with.future
-            logistic.after.year[mask] = logistic.after.year.after.additional[mask]
+            
+            if (future.slope.after.year==-Inf)
+                stop(paste0(error.prefix, "For a logistic.tail functional form, future.slope.after.year cannot be -Inf"))
+            else if (!is.infinite(future.slope.after.year) && !future.slope==0)
+            {
+                val.at.additional.year = intercept + slope * (future.slope.after.year - private$i.anchor.year)
+                mask = val.at.additional.year < private$i.logistic.after.value
+    
+                logistic.after.year.after.additional = future.slope.after.year + 
+                    (private$i.logistic.after.value - val.at.additional.year) / slope.with.future
+                logistic.after.year[mask] = logistic.after.year.after.additional[mask]
+            }
             
             logistic.intercept = log(private$i.logistic.after.value - private$i.link$min) - 
                 log(private$i.link$max - private$i.logistic.after.value) -
