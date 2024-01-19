@@ -16,6 +16,7 @@
 #'@export
 simplot <- function(...,
                     outcomes = NULL,
+                    corresponding.data.outcomes = NULL,
                     split.by = NULL,
                     facet.by = NULL,
                     dimension.values = list(),
@@ -118,6 +119,8 @@ simplot <- function(...,
     # likelihoods need to share their outcome for sim and data, and think about what joint likelihoods. One simulation has one (usually joint) likelihood (instructions)
     # browser()
     outcomes.for.data = sapply(outcomes, function(outcome) {
+        if (outcome %in% names(corresponding.data.outcomes))
+            return(corresponding.data.outcomes[[outcome]])
         corresponding.observed.outcome = NULL
         i = 1
         while (i <= length(simset.list)) {
@@ -159,14 +162,22 @@ simplot <- function(...,
         if (!is.null(outcomes.for.data[[i]]))
         {
             # print(i)
-            outcome.data = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                             dimension.values = c(dimension.values, list(location = location)),
-                                             keep.dimensions = c('year', facet.by, split.by), #'year' can never be in facet.by
-                                             target.ontology = outcome.ontologies[[i]],
-                                             allow.mapping.from.target.ontology = T,
-                                             debug=F)
-            outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
+            # browser()
+            outcome.data = tryCatch(
+                {
+                    result = data.manager$pull(outcome = outcomes.for.data[[i]],
+                                               dimension.values = c(dimension.values, list(location = location)),
+                                               keep.dimensions = c('year', facet.by, split.by), #'year' can never be in facet.by
+                                               target.ontology = outcome.ontologies[[i]],
+                                               allow.mapping.from.target.ontology = T,
+                                               debug=F)
+                },
+                error = function(e) {
+                    NULL
+                }
+            )
             if (!is.null(outcome.data)) {
+                outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
                 one.df.outcome = reshape2::melt(outcome.data, na.rm = T)
                 corresponding.outcome = names(outcomes.for.data)[[i]]
                 one.df.outcome['outcome'] = corresponding.outcome
@@ -186,6 +197,7 @@ simplot <- function(...,
     df.sim = NULL
     for (i in seq_along(simset.list))
     {
+        # browser()
         simset = simset.list[[i]]
         simset.data = simset$get(outcomes = outcomes,
                                  dimension.values = dimension.values,
@@ -194,16 +206,29 @@ simplot <- function(...,
 
         dim.names.without.outcome = dimnames(simset.data)[names(dimnames(simset.data)) != 'outcome']
         outcome.arrays = lapply(outcomes, function(outcome) {
+            # browser()
             arr = array(simset.data[get.array.access.indices(dimnames(simset.data),
                                                              dimension.values = list(outcome = outcome))],
                         dim = sapply(dim.names.without.outcome, length),
                         dimnames = dim.names.without.outcome)
             if (!is.null(outcome.mappings[[outcome]]))
-                outcome.mappings[[outcome]]$apply(arr)
+                tryCatch(
+                    {
+                        outcome.mappings[[outcome]]$apply(arr)
+                    },
+                    error = function(e) {
+                        NULL
+                    }
+                )
+                
             else
                 arr
         })
-        mapped.dimnames = c(dimnames(outcome.arrays[[1]]), list(outcome = outcomes))
+        # browser()
+        outcome.arrays = outcome.arrays[!sapply(outcome.arrays, is.null)]
+        outcomes.with.non.null.arrays = outcomes[!sapply(outcome.arrays, is.null)]
+        if (length(outcomes.with.non.null.arrays) == 0) next
+        mapped.dimnames = c(dimnames(outcome.arrays[[1]]), list(outcome = outcomes.with.non.null.arrays))
         mapped.simset.data = array(unlist(outcome.arrays), dim=sapply(mapped.dimnames, length), dimnames = mapped.dimnames)
         
         one.df.sim = reshape2::melt(mapped.simset.data, na.rm = T)
@@ -214,12 +239,17 @@ simplot <- function(...,
         df.sim = rbind(df.sim, one.df.sim)
     }
     # browser()
-    df.sim$simset = factor(df.sim$simset)
-    df.sim$sim = factor(df.sim$sim)
-    df.sim$groupid = paste0(df.sim$simset, '_', df.sim$sim, '_', df.sim[,split.by])
-    n.simsets = length(unique(df.sim$simset))
+    if (!is.null(df.sim)) {
+        df.sim$simset = factor(df.sim$simset)
+        df.sim$sim = factor(df.sim$sim)
+        df.sim$groupid = paste0(df.sim$simset, '_', df.sim$sim, '_', df.sim[,split.by])
+        n.simsets = length(unique(df.sim$simset))
+    }
+    
     
     #- STEP 4: MAKE THE PLOT --#
+    
+    y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
 
     facet.formula = as.formula(paste0("~",
                                       paste0(c('outcome', facet.by), collapse='+')))
@@ -228,11 +258,13 @@ simplot <- function(...,
     # browser()
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
-        rv = rv + geom_line(data=df.sim, aes(x=year, y=value, linetype=simset, group=groupid, color=!!sym(split.by), alpha=alpha, linewidth=0.5))
+        if (!is.null(df.sim))
+            rv = rv + geom_line(data=df.sim, aes(x=year, y=value, linetype=simset, group=groupid, color=!!sym(split.by), alpha=alpha, linewidth=linewidth))
         if (!is.null(df.truth))
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
     } else {
-        rv = rv + geom_line(data=df.sim, aes(x=year, y=value, color=simset, group=groupid, linewidth=linewidth))
+        if (!is.null(df.sim))
+            rv = rv + geom_line(data=df.sim, aes(x=year, y=value, color=simset, group=groupid, linewidth=linewidth))
         if (!is.null(df.truth))
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
     }
@@ -242,8 +274,9 @@ simplot <- function(...,
     }
     
     rv = rv +
-        scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none') +
-        scale_alpha(guide='none')
+        scale_alpha(guide='none') +
+        labs(y=y.label)
+    if (!is.null(df.sim)) rv + scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
     
     rv
 }
