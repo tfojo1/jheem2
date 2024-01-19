@@ -1230,17 +1230,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
 
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
+            target.from.arguments = target.ontology
             if (debug) browser()
             if (is.null(target.ontology) || allow.mapping.from.target.ontology) {
                 target.ontology = private$get.universal.ontology(outcome = outcome,
                                                                  sources = sources,
                                                                  from.ontology.names = from.ontology.names,
                                                                  target.ontology = target.ontology,
-                                                                 return.target.to.universal.mapping = allow.mapping.from.target.ontology,
                                                                  debug=F)
-                target.to.universal.mapping = attr(target.ontology, 'target.to.universal.mapping')
-                if (!any(keep.dimensions %in% target.to.universal.mapping$to.dimensions))
-                    target.to.universal.mapping = get.identity.ontology.mapping()
             }
             
             dv.names = names(dimension.values)
@@ -1264,7 +1261,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     keep.dimensions = incomplete.dimensions(target.ontology)
                 }
             }
+            
+            # Reduce target to needed dimensions and find a mapping
             if (!is.null(keep.dimensions)) target.ontology = target.ontology[names(target.ontology) %in% union(keep.dimensions, names(dimension.values))]
+            if (return.mapping.flag) target.to.universal.mapping = get.ontology.mapping(target.from.arguments, target.ontology)
+            
             # If sources is NULL, use all the sources from the outcome
             if (is.null(sources))
                 sources.used.names = names(private$i.data[[outcome]][[metric]])
@@ -1587,8 +1588,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Some sources may have returned NULL above and should be removed.
             pre.processed.data = pre.processed.data[!unlist(lapply(pre.processed.data, is.null))]
-            # print(paste0("block D took ", Sys.time()-ptm))
-            # ptm = Sys.time()
             # Extract data for data, url, and details out of what lapply returned above
             if (length(pre.processed.data) > 0) {
                 for (data.type in c('data', append.attributes)) {
@@ -1646,8 +1645,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 }
                 if (return.mapping.flag) attr(post.processed.data, 'mapping') = target.to.universal.mapping
             }
-            # print(paste0("block E took ", Sys.time()-ptm))
-            # ptm = Sys.time()
             post.processed.data
         },
         
