@@ -25,6 +25,7 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute
                                                  dimensions,
                                                  denominator.dimensions = dimensions,
+                                                 dimension.values = NULL, # EXPERIMENTAL
                                                  levels.of.stratification = NULL,
                                                  from.year = -Inf,
                                                  to.year = Inf,
@@ -45,6 +46,7 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                             denominator.outcome.for.sim = denominator.outcome.for.sim,
                                             dimensions = dimensions,
                                             denominator.dimensions = denominator.dimensions,
+                                            dimension.values = dimension.values, # EXPERIMENTAL
                                             levels.of.stratification = levels.of.stratification,
                                             from.year = from.year,
                                             to.year = to.year,
@@ -73,6 +75,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               denominator.outcome.for.sim,
                               dimensions,
                               denominator.dimensions,
+                              dimension.values, # EXPERIMENTAL
                               levels.of.stratification,
                               from.year,
                               to.year,
@@ -152,6 +155,10 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (!is.logical(equalize.weight.by.year) || length(equalize.weight.by.year) > 1 || is.null(equalize.weight.by.year) || is.na(equalize.weight.by.year))
                 stop(paste0(error.prefix, "'equalize.weight.by.year' must be a single logical value (T/F)"))
             
+            # EXPERIMENTAL DIMENSION VALUES SHOULD BE A NAMED LIST
+            if (!is.null(dimension.values) && (!is.list(dimension.values) || (length(dimension.values > 0) && is.null(names(dimension.values))) || 'year' %in% names(dimension.values)))
+                stop(paste0(error.prefix, "experimental 'dimension.values' argument must be NULL or a named list without 'year'"))
+            
             super$initialize(outcome.for.sim = outcome.for.sim,
                              dimensions = dimensions,
                              levels.of.stratification = levels.of.stratification,
@@ -173,6 +180,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                                         correlation.same.source.different.details = correlation.same.source.different.details,
                                         observation.correlation.form = observation.correlation.form,
                                         measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance)
+            private$i.dimension.values = dimension.values # EXPERIMENTAL
         },
         
         equals = function(other)
@@ -292,6 +300,15 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             }
             else
                 stop("Cannot modify a jheem.basic.likelihood.instruction's 'sources.to.use' - they are read-only")
+        },
+        
+        dimension.values = function(value) # EXPERIMENTAL
+        {
+            if (missing(value)) {
+                private$i.dimension.values
+            }
+            else
+                stop("Cannot modify a jheem.basic.likelihood.instruction's experimental 'dimension.values' - they are read-only")
         }
         
     ),
@@ -305,7 +322,8 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         i.denominator.dimensions = NULL,
         i.equalize.weight.by.year = NULL,
         i.parameters = NULL,
-        i.sources.to.use = NULL
+        i.sources.to.use = NULL,
+        i.dimension.values = NULL # EXPERIMENTAL
     )
 )
 
@@ -339,6 +357,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             private$i.parameters = instructions$parameters
             private$i.outcome.for.data = instructions$outcome.for.data
             private$i.denominator.outcome.for.sim = instructions$denominator.outcome.for.sim
+            
+            private$i.dimension.values = instructions$dimension.values # EXPERIMENTAL
 
             ## ---- DETERMINE YEARS FOR SIM METADATA ---- ##
             years = get.likelihood.years(from.year = instructions$from.year,
@@ -380,11 +400,17 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
 
             dimnames.list = list()
             remove.mask.list = list()
+            dv.remove.mask.list = list() # EXPERIMENTAL
             private$i.transformation.matrix = NULL
             private$i.sim.required.dimnames = list()
+            
+            ### EXPERIMENTAL: LIMIT STRATIFICATIONS TO ONLY THOSE WITH *ALL* THE DIMENSIONS FROM DIMENSION VALUES
+            if (length(private$i.dimension.values) > 0) {
+                private$i.stratifications = private$i.stratifications[sapply(private$i.stratifications, function(stratification) {setequal(stratification, names(private$i.dimension.values))})]
+            }
 
             ## ---- PULL DATA ---- ##
-            
+
             n.stratifications.with.data = 0
             for (strat in private$i.stratifications) {
                 keep.dimensions = 'year'
@@ -408,6 +434,11 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 one.dimnames = dimnames(data)
                 one.obs.vector = as.numeric(data)
                 one.details = attr(data, 'details')
+                
+                # EXPERIMENTAL
+                one.dimension.values.remove.mask = rep(T, length(one.obs.vector)) # EXPERIMENTAL
+                one.dimension.values.remove.mask[get.array.access.indices(one.dimnames, dimension.values=private$i.dimension.values)] = F # EXPERIMENTAL
+                dv.remove.mask.list = c(dv.remove.mask.list, list(one.dimension.values.remove.mask)) # EXPERIMENTAL
 
                 one.remove.mask = is.na(one.obs.vector)
                 one.obs.vector = one.obs.vector[!one.remove.mask]
@@ -444,6 +475,9 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 remove.mask.list = c(remove.mask.list, list(one.remove.mask))
                 
             }
+            
+            if (n.stratifications.with.data==0)
+                stop(paste0(error.prefix, "No data found for any stratifications"))
 
             # NOTE: STRATUM MUST BE RESTORED TO CHARACTER LATER WHEN WE GENERATE THE WEIGHTS MATRIX SINCE WE HAVE TO STRING SPLIT IT
             private$i.details = as.factor(private$i.details)
@@ -456,7 +490,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             else private$i.metadata$year = as.factor(private$i.metadata$year)
             private$i.metadata$stratum = as.factor(private$i.metadata$stratum)
             # private$i.metadata$source = as.factor(private$i.metadata$source) # already factor somehow
-            n.obs = length(private$i.obs.vector)
             
             ## ---- FIND REQUIRED DIMENSION VALUES, ETC. ---- ##
             private$i.years = private$i.sim.required.dimnames[['year']]
@@ -474,6 +507,13 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             if (is.null(private$i.transformation.matrix))
                 stop(paste0(error.prefix, "no mappings found to align simulation and data ontologies"))
             
+            ## ---- EXPERIMENTAL: CREATE DIMENSION VALUES MASK ---- ##
+            # APPLY IT TO TRANSFORMATION MATRIX, OBS VECTOR, METADATA
+            dv.shortened.remove.mask = unlist(dv.remove.mask.list)[!unlist(remove.mask.list)]
+            private$i.transformation.matrix = private$i.transformation.matrix[!dv.shortened.remove.mask,]
+            private$i.obs.vector = private$i.obs.vector[!dv.shortened.remove.mask]
+            private$i.metadata = private$i.metadata[!dv.shortened.remove.mask,]
+            
             ## ---- GENERATE SPARSE REPRESENTATIONS OF TRANSFORMATION MATRIX ---- ##
             private$i.transformation.matrix.indices = generate_transformation_matrix_indices(private$i.transformation.matrix,
                                                                                              length(private$i.obs.vector),
@@ -486,6 +526,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             ## ---- GENERATE MEASUREMENT ERROR COVARIANCE MATRIX ---- ##
 
             # call this function with numeric(0) replacing the locations vector and 1 replacing the correlation different locations, used in the nested proportion likelihood.
+            n.obs = length(private$i.obs.vector)
             measurement.error.correlation.matrix = get_obs_error_correlation_matrix(rep(1, n.obs**2),
                                                                                     n.obs,
                                                                                     numeric(0),
@@ -511,6 +552,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                                  equalize.weight.by.year = instructions$equalize.weight.by.year,
                                                                                                  metadata = private$i.metadata,
                                                                                                  weights = private$i.weights)
+            # browser()
         },
         check = function() {
             browser()
@@ -538,6 +580,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         i.transformation.matrix.row.oriented.indices = NULL,
         i.measurement.error.covariance.matrix = NULL,
         i.inverse.variance.weights.matrix = NULL,
+        
+        i.dimension.values = NULL, # EXPERIMENTAL
         
         do.compute = function(sim, log, check.consistency, debug)
         {
