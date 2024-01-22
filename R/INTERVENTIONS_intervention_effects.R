@@ -529,6 +529,30 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                                               version = private$i.version,
                                               error.prefix = error.prefix)
             }
+        },
+        
+        equals = function(other)
+        {
+            stop("need to finish implementing")
+            private$i.quantity.name == other$quantity.name &&
+                identical(private$i.version, other$version) &&
+                identical(private$i.location, other$location) 
+            
+            # i.start.time = NULL,
+            # i.effect.values = NULL,
+            # i.times = NULL,
+            # i.end.time = NULL,
+            # i.all.times = NULL,
+            # i.apply.effects.as = NULL,
+            # i.scale = NULL,
+            # i.allow.values.less.than.otherwise = NULL,
+            # i.allow.values.greater.than.otherwise = NULL,
+            # i.bindings = NULL,
+            # i.depends.on = NULL,
+            # i.effect.values.depend.on = NULL,
+            # i.all.times.depend.on = NULL,
+            # i.is.resolved = NULL,
+            # i.times.are.resolved = NULL,
         }
     ),
     

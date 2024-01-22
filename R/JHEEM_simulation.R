@@ -79,7 +79,10 @@ create.single.simulation <- function(version,
                                      outcome.denominators, # no sim dimension
                                      parameters,
                                      from.year,
-                                     to.year)
+                                     to.year,
+                                     intervention,
+                                     calibration.code,
+                                     run.metadata)
 {
     outcome.numerators.with.sim.dimension = lapply(outcome.numerators, function(arr) {
         new.dimnames = c(dimnames(arr), sim=1)
@@ -100,10 +103,13 @@ create.single.simulation <- function(version,
                              parameters = parameters,
                              from.year = from.year,
                              to.year = to.year,
-                             n.sim = 1)
+                             n.sim = 1,
+                             intervention = intervention,
+                             calibration.code = calibration.code,
+                             run.metadata = run.metadata)
 }
 
-join.simulation.sets <- function(...)
+join.simulation.sets <- function(..., run.metadata=NULL)
 {
     # Validate
     # each argument must be either a simset or a list of simsets
@@ -145,6 +151,13 @@ join.simulation.sets <- function(...)
     
     combined.parameters = sapply(simset.list, function(simset){simset$data$parameters})
     
+    if (is.null(run.metadata))
+        run.metadata = join.run.metadata(lapply(simset.list, function(sim){sim$run.metadata}))
+    
+    intervention = sample.simset$intervention.code
+    if (is.null(intervention))
+        intervention = sample.simset$get.intervention()
+    
     JHEEM.SIMULATION.SET$new(version = sample.simset$version,
                              sub.version = sample.simset$sub.version,
                              location = sample.simset$location,
@@ -153,7 +166,10 @@ join.simulation.sets <- function(...)
                              parameters = combined.parameters,
                              from.year = sample.simset$from.year,
                              to.year = sample.simset$to.year,
-                             n.sim = new.n.sim)
+                             n.sim = new.n.sim,
+                             intervention = intervention,
+                             calibration.code = sample.simset$calibration.code,
+                             run.metadata = run.metadata)
 }
 
 '[.jheem.simulation.set' <- function(obj, x) {
@@ -370,7 +386,10 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               from.year,
                               to.year,
                               n.sim,
+                              run.metadata,
                               engine = NULL,
+                              intervention,
+                              calibration.code,
                               error.prefix = "Error constructing simulation")
         {
             #-- Call the superclass constructor --#
@@ -430,11 +449,42 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             #-- Update the outcome metadata's years for each of the non-cumulative outcomes --#
             
+            # Validate run.metadata
+            if (!is(run.metadata, 'jheem.run.metadata'))
+                stop(paste0(error.prefix, "'run.metadata' must be an object of class 'jheem.run.metadata'"))
+            
+            # Validate intervention
+            if (is.null(intervention))
+            {}
+            else if (is.character(intervention))
+            {
+                if (length(intervention)!=1 || is.na(intervention))
+                    stop(paste0(error.prefix, "if 'intervention' is a code, it must be a single, non-NA character value"))
+            }
+            else if (is(intervention, "jheem.intervention"))
+            {
+                if (!is.null(intervention$code))
+                    intervention = intervention$code
+            }
+            else
+                stop(paste0(error.prefix, "'intervention' must either be an object of class 'jheem.intervention' or a code representing a registered intervention"))
+            
+            # Validate calibration.code
+            if (!is.null(calibration.code))
+            {
+                if (!is.character(calibration.code) || length(calibration.code)!=1 || is.na(calibration.code))
+                    stop(paste0(error.prefix, "'calibration.code' must be a single, non-NA character value"))
+            }
             
             #-- Store data --#
             private$i.data = list(outcome.numerators = outcome.numerators,
                                   outcome.denominators = outcome.denominators,
                                   parameters = parameters)
+            
+            private$i.run.metadata = run.metadata
+            private$i.intervention = intervention
+            private$i.calibration.code = calibration.code
+            
             private$i.n.sim = n.sim
             
             #-- Make Active Bindings with the Names of Outcomes --#
@@ -753,7 +803,10 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                      parameters = new.parameters,
                                      from.year = self$from.year,
                                      to.year = self$to.year,
-                                     n.sim = new.n.sim)
+                                     n.sim = new.n.sim,
+                                     calibration.code = private$i.calibration.code,
+                                     intervention = private$i.intervention.code,
+                                     run.metadata = private$i.run.metadata$subset(x))
         },
         
         # n: keeps every nth (rounding DOWN) sim counting backwards from the last sim
@@ -796,6 +849,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               max.run.time.seconds = NULL,
                               keep.from.year = start.year,
                               keep.to.year = end.year,
+                              foregrounds = NULL,
                               atol = NULL,
                               rtol = NULL,
                               error.prefix = "Cannot get JHEEM Engine from simulation set")
@@ -813,6 +867,11 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                              prior.simulation.set = self,
                                              keep.from.year = keep.from.year,
                                              keep.to.year = keep.to.year,
+                                             foregrounds = foregrounds,
+                                             intervention = private$i.intervention,
+                                             calibration.code = private$i.calibration.code,
+                                             atol = atol,
+                                             rtol = rtol,
                                              error.prefix = error.prefix)
             else
                 engine = private$i.engine$spawn(start.year = start.year,
@@ -821,6 +880,9 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                                 prior.simulation.set = self,
                                                 keep.from.year = keep.from.year,
                                                 keep.to.year = keep.to.year,
+                                                foregrounds = foregrounds,
+                                                intervention = private$i.intervention,
+                                                calibration.code = private$i.calibration.code,
                                                 atol = atol,
                                                 rtol = rtol,
                                                 error.prefix = error.prefix)
@@ -828,8 +890,25 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         get.intervention = function()
         {
-            
+            if (is(private$i.intervention, 'jheem.intervention'))
+                private$i.intervention
+            else if (is.character(private$i.intervention))
+            {
+                rv = get.intervention(private$i.intervention, throw.error.if.missing=F)
+                if (is.null(rv))
+                    stop(paste0("The simulation set has a registered intervention code of '",
+                                private$i.intervention, "' but no intervention has been registered for that code in this R session"))
+                rv
+            }
+            else
+                NULL
+        },
+        
+        save = function(root.dir)
+        {
+            # If intervention is not
         }
+        
     ),
     
     active = list(
@@ -864,12 +943,42 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 private$i.n.sim
             else
                 stop("Cannot modify a simulation.set's 'n.sim' - it is read-only")
+        },
+        
+        run.metadata = function(value)
+        {
+            if (missing(value))
+                private$i.run.metadata
+            else
+                stop("Cannot modify a simulation.set's 'run.metadata' - it is read-only")
+        },
+        
+        calibration.code = function(value)
+        {
+            if (missing(value))
+                private$i.calibration.code
+            else
+                stop("Cannot modify a simulation.set's 'calibration.code' - it is read-only")
+        },
+        
+        intervention.code = function(value)
+        {
+            if (missing(value))
+            {
+                if (is.character(private$i.intervention))
+                    private$i.intervention
+                else
+                    NULL
+            }
+            else
+                stop("Cannot modify a simulation.set's 'intervention.code' - it is read-only")
         }
         
     ),
     
     private = list(
         i.data = NULL,
+        i.run.metadata = NULL,
         
         # i.numerators = NULL,
         # i.denominators = NULL,
@@ -877,8 +986,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         i.n.sim = NULL,
         
+        i.calibration.code = NULL,
         i.intervention = NULL,
-        i.intervention.code = NULL,
         
         i.engine = NULL
     )

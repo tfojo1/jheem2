@@ -119,9 +119,10 @@ set.up.calibration <- function(version,
     #-- Set up the Run Simulation function --#
     engine = create.jheem.engine(version=version, location=location, 
                                  sub.version = sub.version,
-                                 start.year=calibration.info$start.year,
-                                 end.year=calibration.info$end.year, 
-                                 max.run.time.seconds = calibration.info$max.run.time.seconds) # get some of these from the calibration info object
+                                 start.year = calibration.info$start.year,
+                                 end.year = calibration.info$end.year, 
+                                 max.run.time.seconds = calibration.info$max.run.time.seconds,
+                                 calibration.code = calibration.code)
     engine$crunch(parameters = default.parameter.values)
 
     # 'params' is the subset of parameters that we will be modifying in the MCMC
@@ -358,10 +359,10 @@ register.calibration.info <- function(code,
 CALIBRATION.MANAGER = new.env()
 CALIBRATION.MANAGER$info = list()
 
-get.calibration.info <- function(code, error.prefix='')
+get.calibration.info <- function(code, throw.error.if.missing=T, error.prefix='')
 {
     rv = CALIBRATION.MANAGER$info[[code]]
-    if (is.null(rv))
+    if (is.null(rv) && throw.error.if.missing)
         stop(paste0(error.prefix, "No calibration info has been registered under code '", code, "'"))
     
     rv

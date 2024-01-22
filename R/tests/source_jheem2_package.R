@@ -15,6 +15,7 @@ Rcpp::sourceCpp('../jheem2/src/array_helpers.cpp')
 source('../jheem2/R/ONTOLOGY_ontology.R')
 source('../jheem2/R/ONTOLOGY_ontology_mappings.R')
 
+source('../jheem2/R/SPECIFICATION_links.R')
 source('../jheem2/R/SPECIFICATION_scales.R')
 source('../jheem2/R/SPECIFICATION_model_specification.R')
 source('../jheem2/R/SPECIFICATION_compiled_specification.R')
@@ -22,7 +23,6 @@ source('../jheem2/R/SPECIFICATION_compiled_specification.R')
 source('../jheem2/R/SPECIFICATION_functional_forms.R')
 source('../jheem2/R/SPECIFICATION_functional_form_alphas.R')
 Rcpp::sourceCpp('../jheem2/src/functional_forms.cpp')
-source('../jheem2/R/SPECIFICATION_links.R')
 source('../jheem2/R/SPECIFICATION_evaluatable_value.R')
 
 source('../jheem2/R/VERSIONS_version_manager.R')
@@ -40,6 +40,7 @@ source('../jheem2/R/SPECIFICATION_metadata.R')
 Rcpp::sourceCpp('../jheem2/src/engine_helpers.cpp')
 Rcpp::sourceCpp('../jheem2/src/diffeq.cpp')
 
+source('../jheem2/R/JHEEM_run_metadata.R')
 source('../jheem2/R/JHEEM_simulation.R')
 
 source('../jheem2/R/DATA_MANAGER_data_manager.R')

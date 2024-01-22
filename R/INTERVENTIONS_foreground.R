@@ -380,6 +380,53 @@ JHEEM.MODEL.FOREGROUND = R6::R6Class(
                         all(e1$times == e2$times)
                 }))
             }
+        },
+        
+        equals = function(other)
+        {
+            if (setequal(class(self), class(other)))
+            {
+                if (private$i.quantity.name == other$quantity.name &&
+                    identical(private$i.version, other$version) &&
+                    identical(private$i.location, other$location))
+                {
+                    if (length(private$i.target.populations) == length(other$target.populations))
+                    {
+                        unmatched.i2 = 1:length(other$target.populations)
+                        
+                        for (i1 in 1:length(private$i.target.populations))
+                        {
+                            tpop1 = private$i.target.populations[[i1]]
+                            eff1 = private$i.intervention.effects[[i1]]
+                            
+                            found.match = F
+                            for (i2 in unmatched.i2)
+                            {
+                                tpop2 = other$target.populations[[i2]]
+                                eff2 = other$effects[[i2]]
+                                
+                                if (tpop1$equals(tpop2) && eff1$equals(eff2))
+                                {
+                                    found.match = T
+                                    unmatched.i2 = unmatched.i2[unmatched.i2 != i2]
+                                    break
+                                }
+                            }
+                            
+                            if (!found.match)
+                                return (F)
+                        }
+                        
+                        T
+                    }
+                    else
+                        F
+                }
+                else 
+                    F
+            }
+            else
+                F  
         }
     ),
     

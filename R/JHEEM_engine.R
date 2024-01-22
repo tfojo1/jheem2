@@ -555,6 +555,8 @@ create.jheem.engine <- function(version,
                                 sub.version=NULL,
                                 max.run.time.seconds=Inf,
                                 prior.sim=NULL,
+                                intervention = NULL,
+                                calibration.code = NULL,
                                 keep.from.year=start.year,
                                 keep.to.year=end.year,
                                 atol=1e-04, rtol=1e-04)
@@ -604,8 +606,11 @@ JHEEM.ENGINE = R6::R6Class(
                               max.run.time.seconds=Inf,
                               keep.from.year = start.year,
                               keep.to.year = end.year,
+                              foregrounds = NULL,
                               atol= DEFAULT.ATOL, 
                               rtol = DEFAULT.RTOL,
+                              intervention = NULL,
+                              calibration.code = NULL,
                               error.prefix = "Cannot create JHEEM Engine: ")
         {
             #-- Check Arguments --#
@@ -620,6 +625,9 @@ JHEEM.ENGINE = R6::R6Class(
                              sub.version = jheem$sub.version,
                              location = jheem$location,
                              type = 'engine')
+            
+            jheem$set.intervention(intervention)
+            jheem$set.calibration.code(calibration.code)
                
             # Start and end years
             if (!is.numeric(start.year) || length(start.year)!=1 || is.na(start.year))
@@ -699,8 +707,53 @@ JHEEM.ENGINE = R6::R6Class(
             else if (!is.numeric(rtol) || length(rtol)!=1 || is.na(rtol) || rtol<=0 || rtol>=1)
                 stop(paste0(error.prefix, "'rtol' must be a single, non-NA numeric value between 0 and 1"))
             
+            # Foregrounds
+            if (!is.null(foregrounds))
+            {
+                if (is(foregrounds, 'jheem.model.foreground'))
+                    foregrounds = list(foregrounds)
+                else if (!is.list(foregrounds))
+                    stop(paste0(error.prefix, "If 'foregrounds' is not NULL, it must be a list of jheem.model.foreground objects"))
+                else if (any(!sapply(foregrounds, is, 'jheem.model.foreground')))
+                    stop(paste0(error.prefix, "If 'foregrounds' is not NULL, it must be a list of jheem.model.foreground objects"))
+                
+                for (frgd in foregrounds)
+                    jheem$set.quantity.foreground(foreground, check.consistency = T)
+            }
+            
+            # Intervention
+            if (!is.null(intervention))
+            {
+                if (is.character(intervention))
+                {
+                    if (length(intervention)!=1 || is.na(intervention))
+                        stop(paste0(error.prefix, "If 'intervention' is the code to a registered intervention, it must be a single, non-NA character value"))
+                    
+                    if (is.null(get.intervention(intervention, throw.error.if.missing=F)))
+                        stop(paste0(error.prefix, "No intervention with code '", intervention, "' has been registered. You must register the intervention before giving its code to be run"))
+                        
+                }
+                else if (is(intervention, 'jheem.intervention'))
+                {
+                    if (!is.null(intervention$code))
+                        intervention = intervention$code
+                }
+                else
+                    stop(paste0(error.prefix, "'intervention' must be either an object of class 'jheem.intervention' or the (character) code to a registered intervention"))
+            }
+            
+            # Calibration.code
+            if (!is.null(calibration.code))
+            {
+                if (!is.character(calibration.code) || length(calibration.code)!=1 || is.na(calibration.code))
+                    stop(paste0(error.prefix, "If it is not NULL, 'calibration.code' must be a single, non-NA character value"))
+            }
+            
             #-- Store Values --#
             private$i.jheem = jheem
+            private$i.intervention = intervention
+            private$i.calibration.code = calibration.code
+            
             private$i.start.year = start.year
             private$i.end.year = end.year
             private$i.max.run.time.seconds = max.run.time.seconds
@@ -756,8 +809,11 @@ JHEEM.ENGINE = R6::R6Class(
                          max.run.time.seconds = self$max.run.time.seconds,
                          keep.from.year = self$keep.to.year,
                          keep.to.year = self$keep.from.year,
+                         foregrounds = NULL,
                          atol = NULL,
                          rtol = NULL,
+                         intervention = self$intervention,
+                         calibration.code = self$calibration.code,
                          error.prefix = "Cannot create copy of JHEEM Engine: ")
         {
             if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
@@ -775,6 +831,17 @@ JHEEM.ENGINE = R6::R6Class(
             if (is.null(max.run.time.seconds))
                 max.run.time.seconds = Inf
             
+            if (!identical(calibration.code, private$i.calibration.code))
+                stop(paste0("Error in jheem.engine$spawn() - cannot change the calibration.code"))
+            
+            if (!is.null(private$i.intervention))
+            {
+                if (is.null(intervention))
+                    stop("Error in jheem.engine$spawn() - cannot set no intervention when the previous engine had an intervention set")
+                else if (!interventions.or.codes.are.equal(private$i.intervention, intervention))
+                    stop("Error in jheem.engine$spawn() - cannot change the intervention from the one set for the previous engine")
+            }
+            
             JHEEM.ENGINE$new(jheem = private$i.jheem$clone(deep=T),
                              start.year = start.year,
                              end.year = end.year,
@@ -782,8 +849,12 @@ JHEEM.ENGINE = R6::R6Class(
                              max.run.time.seconds = max.run.time.seconds,
                              keep.from.year = keep.from.year,
                              keep.to.year = keep.to.year,
+                             foregrounds = foregrounds,
                              atol = atol,
-                             rtol = rtol)
+                             rtol = rtol,
+                             intervention = intervention,
+                             calibration.code = calibration.code,
+                             error.prefix = error.prefix)
         }
     ),
     
@@ -794,7 +865,7 @@ JHEEM.ENGINE = R6::R6Class(
             if (missing(value))
                 private$i.start.year
             else
-                stop("Cannot modify a JHEEM's 'start.year' - they are read-only")
+                stop("Cannot modify a JHEEM engine's 'start.year' - they are read-only")
         },
         
         end.year = function(value)
@@ -802,7 +873,7 @@ JHEEM.ENGINE = R6::R6Class(
             if (missing(value))
                 private$i.end.year
             else
-                stop("Cannot modify a JHEEM's 'end.year' - they are read-only")
+                stop("Cannot modify a JHEEM engine's 'end.year' - they are read-only")
         },
         
         keep.from.year = function(value)
@@ -810,7 +881,7 @@ JHEEM.ENGINE = R6::R6Class(
             if (missing(value))
                 private$i.keep.from.year
             else
-                stop("Cannot modify a JHEEM's 'keep.from.year' - they are read-only")
+                stop("Cannot modify a JHEEM engine's 'keep.from.year' - they are read-only")
         },
         
         keep.to.year = function(value)
@@ -818,7 +889,7 @@ JHEEM.ENGINE = R6::R6Class(
             if (missing(value))
                 private$i.keep.to.year
             else
-                stop("Cannot modify a JHEEM's 'keep.to.year' - they are read-only")
+                stop("Cannot modify a JHEEM engine's 'keep.to.year' - they are read-only")
         },
         
         max.run.time.seconds = function(value)
@@ -826,13 +897,40 @@ JHEEM.ENGINE = R6::R6Class(
             if (missing(value))
                 private$i.max.run.time.seconds
             else
-                stop("Cannot modify a JHEEM's 'max.run.time.seconds' - they are read-only")
+                stop("Cannot modify a JHEEM engine's 'max.run.time.seconds' - they are read-only")
+        },
+        
+        parameter.names = function(value)
+        {
+            if (missing(value))
+                private$i.jheem$parameter.names
+            else
+                stop("Cannot modify a JHEEM engine's 'parameter.names' - they are read-only")
+        },
+        
+        intervention = function(value)
+        {
+            if (missing(value))
+                private$i.intervention
+            else
+                stop("Cannot modify a JHEEM engine's 'intervention' - it is read-only")
+        },
+        
+        calibration.code = function(value)
+        {
+            if (missing(value))
+                private$i.calibration.code
+            else
+                stop("Cannot modify a JHEEM engine's 'calibration.code' - it is read-only")
         }
     ),
     
     private = list(
         
         i.jheem = NULL,
+        i.intervention = NULL,
+        i.calibration.code = NULL,
+        
         i.start.year = NULL,
         i.end.year = NULL,
         i.max.run.time.seconds = NULL,
@@ -1087,6 +1185,8 @@ JHEEM = R6::R6Class(
                        atol,
                        rtol)
         {
+            run.start.time = as.numeric(Sys.time())
+            
             # Crunch
             self$crunch(start.year = start.year,
                         end.year = end.year,
@@ -1131,6 +1231,10 @@ JHEEM = R6::R6Class(
                     stop("saved - quitting for now")
                 }
                 
+                run.time = as.numeric(Sys.time()) - run.start.time
+                if (run.time > max.run.time.seconds)
+                {} #for now, nothing, but we have to return a degenerate simulation
+                
                 compute_dx(state = x,
                            time = t,
                            settings = private$i.diffeq.settings,
@@ -1146,12 +1250,17 @@ JHEEM = R6::R6Class(
                            population_trackers = private$i.diffeq.settings$population_trackers)
             }
             
+            end.preprocessing.time = as.numeric(Sys.time())
+            
             ode.results = odeintr::integrate_sys(sys = compute.fn,
                                                  init = initial.state,
                                                  duration = private$i.run.to.time - private$i.run.from.time + 1, 
                                                  start = private$i.run.from.time,
                                                  atol = atol,
                                                  rtol = rtol)
+            
+            end.diffeq.time = as.numeric(Sys.time())
+            
             ode.results = as.matrix(ode.results) # this cast to matrix is going to make pulling from the results MUCH faster
            
             private$i.outcome.numerators = list()
@@ -1162,7 +1271,32 @@ JHEEM = R6::R6Class(
                                                                                    prior.simulation.set = prior.simulation.set,
                                                                                    prior.sim.index = prior.sim.index)
 
+            run.end.time = as.numeric(Sys.time())
+            
+            
             # Make the Simulation Object
+            
+            if (is.null(private$i.intervention))
+            {
+                if (is.null(private$i.calibration.code))
+                    run.label = 'manual_run'
+                else
+                    run.label = private$i.calibration.code
+            }
+            else
+            {
+                if (is.character(private$i.intervention))
+                    run.label = private$i.intervention
+                else
+                    run.label = 'unregistered_intervention'
+            }
+            
+            run.metadata = create.single.run.metadata(run.time = run.end.time - run.start.time,
+                                                      preprocessing.time = end.preprocessing.time - run.start.time,
+                                                      postprocessing.time = run.end.time - end.diffeq.time,
+                                                      n.trials = 1,
+                                                      labels = run.label)
+            
             sim = create.single.simulation(version = private$i.version,
                                            sub.version = private$i.sub.version,
                                            location = private$i.location,
@@ -1170,7 +1304,10 @@ JHEEM = R6::R6Class(
                                            to.year = private$i.run.to.time-1,
                                            outcome.numerators = outcome.numerators.and.denominators$numerators,
                                            outcome.denominators = outcome.numerators.and.denominators$denominators,
-                                           parameters = private$i.parameters)
+                                           parameters = private$i.parameters,
+                                           run.metadata = run.metadata,
+                                           intervention = private$i.intervention,
+                                           calibration.code = private$i.calibration.code)
 
             
             # Return
@@ -1408,19 +1545,7 @@ JHEEM = R6::R6Class(
             private$i.unresolved.foregrounds[[foreground.id]] = foreground
             
             #-- Figure out What Parameters this Depends On --#
-            # Make sure we're not missing any of them
-            if (check.consistency)
-            {
-                missing.parameters = setdiff(foreground$depends.on, names(private$i.parameters))
-                if (length(missing.parameters)>0)
-                    stop(paste0(error.prefix, 
-                                ifelse(length(missing.parameters)==1, "A value for parameter ", "Values for parameters "),
-                                collapse.with.and("'", missing.parameters, "'"),
-                                " - upon which foreground for '", quantity.name, "' depends - ",
-                                ifelse(length(missing.parameters)==1, "has", "have"),
-                                " not been set to the JHEEM"))
-            }
-            
+
             # Set up to track dependencies
             depends.on = foreground$depends.on
             updated.dependencies = lapply(private$i.dependent.foreground.ids.for.parameters[depends.on], function(dep.on.ids){
@@ -1475,7 +1600,7 @@ JHEEM = R6::R6Class(
             else
                 model.settings = private$i.unchecked.model.settings
             
-            used.parameter.names = union(element.names.in.parameters, private$i.parameter.names.for.foregrounds)
+            used.parameter.names = element.names.in.parameters
             
             # For calibrated parameters
             calibrated.parameters.distribution = get.parameters.distribution.for.version(self$version, type='calibrated')
@@ -1507,6 +1632,21 @@ JHEEM = R6::R6Class(
                 if (check.consistency)
                     used.parameter.names = union(used.parameter.names, used.from.sampled)
             }
+            
+            # Check that there are no missing parameters for foregrounds
+            if (check.consistency)
+            {
+                missing.parameters = setdiff(private$i.parameter.names.for.foregrounds, names(private$i.parameters))
+                if (length(missing.parameters)>0)
+                    stop(paste0(error.prefix, 
+                                ifelse(length(missing.parameters)==1, "A value for parameter ", "Values for parameters "),
+                                collapse.with.and("'", missing.parameters, "'"),
+                                " - upon which one more more foregrounds depend - ",
+                                ifelse(length(missing.parameters)==1, "has", "have"),
+                                " not been set to the JHEEM"))
+            }
+            
+            used.parameter.names = union(used.parameter.names, private$i.parameter.names.for.foregrounds)
             
             # Check that we used all the parameters
             if (check.consistency)
@@ -2063,16 +2203,39 @@ JHEEM = R6::R6Class(
         # Just records it to the jheem
         set.intervention = function(intervention)
         {
-            if (!is.null(private$i.intervention) || !is.null(private$i.intervention.code))
-                stop(paste0("Cannot set an intervention for JHEEM: an intervention has already been set for this instance"))
-                     
-            if (!is(intervention, "jheem.intervention"))
-                stop("Cannot set intervention for JHEEM: 'intervention' must be an object of class 'jheem.intervention'")
-            
-            if (is.null(intervention$code))
-                private$i.intervention = intervention
+            if (is.null(intervention))
+            {}
+            else if (is.character(intervention))
+            {
+                if (length(intervention)!=1 || is.na(intervention))
+                    stop("Cannot set intervention for JHEEM: if 'intervention' is a code, it must be a single, non-NA character value")
+                
+                if (is.null(get.intervention(intervention, throw.error.if.missing=F)))
+                    stop(paste0("Cannot set intervention '", intervention, "' for JHEEM: if 'intervention' is a code, it must represent an intervention that has already been registered"))
+            }
+            else if (is(intervention, "jheem.intervention"))
+            {
+                if (!is.null(intervention$code))
+                    intervention = intervention$code
+            }
             else
-                private$i.intervention.code = intervention$code
+                stop("Cannot set intervention for JHEEM: 'intervention' must either be an object of class 'jheem.intervention' or a code representing a registered intervention")
+            
+            private$i.intervention = intervention
+        },
+        
+        set.calibration.code = function(calibration.code)
+        {
+            if (!is.null(calibration.code))
+            {
+                if (!is.character(calibration.code) || length(calibration.code)!=1 || is.na(calibration.code))
+                    stop("Cannot set calibration code for JHEEM: 'calibration.code' must be a single, non-NA character value")
+                
+                if (is.null(get.calibration.info(calibration.code, throw.error.if.missing=F)))
+                    stop(paste0("Cannot set calibration code '", calibration.code, "' for JHEEM: a calibration must have been registered to this code with register.calibration.info()"))
+            }
+            
+            private$i.calibration.code = calibration.code
         },
 
         has.been.crunched = function()
@@ -2114,6 +2277,14 @@ JHEEM = R6::R6Class(
                 private$i.element.backgrounds
             else
                 stop("Cannot modify a JHEEM's 'element.backgrounds' - they are read-only")
+        },
+        
+        parameter.names = function(value)
+        {
+            if (missing(value))
+                names(private$i.parameters)
+            else
+                stop("Cannot modify a JHEEM engine's 'parameter.names' - they are read-only")
         }
         
     ),
@@ -2209,9 +2380,9 @@ JHEEM = R6::R6Class(
         #-- Diffeq Settings --#
         i.diffeq.settings = NULL,
         
-        #-- Intervention Settings --#
+        #-- Intervention/Calibration Settings --#
         i.intervention = NULL,
-        i.intervention.code = NULL,
+        i.calibration.code = NULL,
         
         #-- The Model Settings to Pass Along --#
         i.checked.model.settings = NULL,

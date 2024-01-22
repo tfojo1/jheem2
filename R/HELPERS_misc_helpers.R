@@ -212,6 +212,35 @@ row.indices.of <- function(haystack, needle)
     (1:length(mask))[mask]
 }
 
+##-------------------------------##
+##-------------------------------##
+##-- FUNCTIONS and EXPRESSIONS --##
+##-------------------------------##
+##-------------------------------##
+
+get.function.names.in.expr <- function(ex)
+{
+    setdiff(all.vars(ex, functions = T), all.vars(ex, functions = F))
+}
+
+get.function.argument.names <- function(fn, 
+                                        exclude.arguments.with.default.values=F,
+                                        exclude.dot.dot.dot=exclude.arguments.with.default.values)
+{
+    fn.args = formals(args(fn))
+    arg.names = names(fn.args)
+    
+    if (exclude.arguments.with.default.values)
+        rv = arg.names[as.logical(sapply(fn.args, function(val){!is.null(val) && val==''}))]
+    else
+        rv = arg.names
+    
+    if (exclude.dot.dot.dot)
+        rv[rv!='...']
+    else
+        rv
+}
+
 ##------------------##
 ##------------------##
 ##-- COMBINATIONS --##
@@ -279,4 +308,49 @@ row.index.of <- function(haystack, needles)
 is.subset <- function(sub, super)
 {
     length(setdiff(sub, super))==0
+}
+
+##-----------##
+##-----------##
+##-- OTHER --##
+##-----------##
+##-----------##
+
+# if length(values)<n
+# makes a vector of length n, where the first 1:length(values) elements == values
+# and all subsequent elements are values[length(values)]
+pad.with.last.value <- function(values, n)
+{
+    if (length(values)<n)
+        c(values, rep(values[length(values)], n-length(values)))
+    else
+        values
+}
+
+r6.sets.equal <- function(set1, set2)
+{
+    if (length(set1) == length(set2))
+    {
+        for (obj1 in set1)
+        {
+            found.match = F
+            for (i2 in 1:length(set2))
+            {
+                obj2 = set2[[i2]]
+                if (obj1$equals(obj2))
+                {
+                    found.match = T
+                    set2 = set2[-i2]
+                    break
+                }
+            }
+            
+            if (!found.match)
+                return (F)
+        }
+        
+        T
+    }
+    else
+        F
 }

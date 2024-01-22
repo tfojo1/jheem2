@@ -3,26 +3,37 @@
 
 MODEL.SCALE.INFO = list(
     rate = list(needs.denominator = T,
-                aggregate.on.scale = 'rate'),
-    ratio = list(needs.denominator = NA),
+                aggregate.on.scale = 'rate',
+                unbounded.transformation = get.link('log')),
+    ratio = list(needs.denominator = NA,
+                 unbounded.transformation = get.link('log')),
     proportion = list(needs.denominator = T,
-                      aggregate.on.scale = 'proportion'),
+                      aggregate.on.scale = 'proportion',
+                      unbounded.transformation = get.link('logit')),
     proportion.leaving = list(needs.denominator = T,
-                              aggregate.on.scale = 'proportion.leaving'),
+                              aggregate.on.scale = 'proportion.leaving',
+                              unbounded.transformation = get.link('logit')),
     proportion.staying = list(needs.denominator = T,
-                              aggregate.on.scale = 'proportion.staying'),
+                              aggregate.on.scale = 'proportion.staying',
+                              unbounded.transformation = get.link('logit')),
     time = list(needs.denominator = T,
-                aggregate.on.scale = 'time'),
+                aggregate.on.scale = 'time',
+                unbounded.transformation = get.link('log')),
     number = list(needs.denominator = F,
-                  aggregate.on.scale = 'number'),
+                  aggregate.on.scale = 'number',
+                  unbounded.transformation = get.link('identity')),
     non.negative.number = list(needs.denominator = F,
-                               aggregate.on.scale = 'non.negative.number'),
+                               aggregate.on.scale = 'non.negative.number',
+                               unbounded.transformation = get.link('log')),
     odds = list(needs.denominator = T,
-                aggregate.on.scale = 'proportion'),
+                aggregate.on.scale = 'proportion',
+                unbounded.transformation = get.link('log')),
     odds.leaving = list(needs.denominator = T,
-                        aggregate.on.scale = 'proportion.leaving'),
+                        aggregate.on.scale = 'proportion.leaving',
+                        unbounded.transformation = get.link('log')),
     odds.staying = list(needs.denominator = T,
-                        aggregate.on.scale = 'proportion.staying')
+                        aggregate.on.scale = 'proportion.staying',
+                        unbounded.transformation = get.link('log'))
 )
 
 MODEL.SCALES = names(MODEL.SCALE.INFO)
@@ -263,14 +274,32 @@ do.convert.model.scale <- function(values,
 
 check.model.scale <- function(scale,
                               varname.for.error='scale',
+                              require.scalar=T,
                               error.prefix='')
 {
-    if (!is.character(scale) || length(scale)!=1 || is.na(scale))
-        stop(paste0(error.prefix, "'", varname.for.error, "' must be a non-NA character scalar"))
-    
-    if (all(scale != MODEL.SCALES))
-        stop(paste0(error.prefix, "'", varname.for.error, "' must be one of the following: ",
-                    collapse.with.or("'", MODEL.SCALES, "'")))
+    if (require.scalar)
+    {
+        if (!is.character(scale) || length(scale)!=1 || is.na(scale))
+            stop(paste0(error.prefix, "'", varname.for.error, "' must be a non-NA character scalar"))
+        
+        if (all(scale != MODEL.SCALES))
+            stop(paste0(error.prefix, "'", varname.for.error, "' must be one of the following: ",
+                        collapse.with.or("'", MODEL.SCALES, "'")))
+    }
+    else
+    {
+        if (!is.character(scale) || length(scale)==0 || any(is.na(scale)))
+            stop(paste0(error.prefix, "Invalid ", varname.for.error, ": '", scale, "'. Must be a non empty, non-NA character vector"))
+        
+        invalid.scales = setdiff(scale, MODEL.SCALES)
+        if (length(invalid.scales)>0)
+        {
+            stop(paste0(error.prefix, "Invalid ", varname.for.error, ": ",
+                        collapse.with.and("'", invalid.scales, "'"),
+                        ". Must be one of the following: ",
+                        collapse.with.or("'", MODEL.SCALES, "'")))
+        }
+    }
 }
 
 
@@ -344,4 +373,34 @@ aggregate.for.scale <- function(values,
     }
     else
         apply(values, keep.dimensions, sum)
+}
+
+##-------------------------##
+##-- TRANSFORMING SCALES --##
+##-------------------------##
+
+transform.to.unbounded.scale <- function(values,
+                                         scales)
+{
+    if (!is.null(names(values)) && !is.null(names(scales)))
+        scales = scales[names(values)]
+    
+    rv = sapply(1:length(values), function(i){
+        MODEL.SCALE.INFO[[ scales[i] ]]$unbounded.transformation$apply(values[i])
+    })
+    names(rv) = names(values)
+    rv
+}
+
+transform.from.unbounded.scale <- function(values,
+                                           scales)
+{
+    if (!is.null(names(values)) && !is.null(names(scales)))
+        scales = scales[names(values)]
+    
+    rv = sapply(1:length(values), function(i){
+        MODEL.SCALE.INFO[[ scales[i] ]]$unbounded.transformation$reverse.apply(values[i])
+    })
+    names(rv) = names(values)
+    rv
 }

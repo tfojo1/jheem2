@@ -268,6 +268,21 @@ EVALUATABLE.VALUE = R6::R6Class(
         simplify = function(bindings, error.prefix)
         {
             
+        },
+        
+        equals = function(other)
+        {
+            if (setequal(class(self), class(other)) &&
+                private$i.value.type == other$value.type &&
+                identical(private$i.na.replacement, other$na.replacement))
+            {
+                if (private$i.value.type=='numeric' || private$i.value.type=='character')
+                    all.equal(private$i.value, other$value)
+                else if (private$i.value.type=='expression')
+                    identical(private$i.value, other$value)
+                else if (private$i.value.type=='function')
+                    private$i.value$equals(other$value)
+            }
         }
     ),
     
@@ -295,6 +310,14 @@ EVALUATABLE.VALUE = R6::R6Class(
                 private$i.value.type
             else
                 stop("Cannot modify 'value.type' - it is read-only")
+        },
+        
+        na.replacement = function(value)
+        {
+            if (missing(value))
+                private$i.na.replacement
+            else
+                stop("Cannot modify 'na.replacement' - it is read-only")
         }
     ),
     
@@ -529,6 +552,12 @@ FUNCTION.WRAPPER = R6::R6Class(
             #-- Call the function --#
             do.call(what=private$i.fn,
                     args=args)
+        },
+        
+        equals = function(other)
+        {
+            setequal(class(self), class(other)) && 
+                identical(private$i.fn, other$fn)
         }
     ),
     
@@ -547,6 +576,14 @@ FUNCTION.WRAPPER = R6::R6Class(
                 private$i.fn.name
             else
                 stop("Cannot modify 'value.function.name' value - it is read-only")
+        },
+        
+        fn = function(value)
+        {
+            if (missing(value))
+                private$i.fn
+            else
+                stop("Cannot modify 'fn' value - it is read-only")
         }
     ),
     
@@ -564,21 +601,3 @@ FUNCTION.WRAPPER = R6::R6Class(
     )
 )
 
-##-------------##
-##-- HELPERS --##
-##-------------##
-
-get.function.names.in.expr <- function(ex)
-{
-    setdiff(all.vars(ex, functions = T), all.vars(ex, functions = F))
-}
-
-get.function.argument.names <- function(fn, exclude.arguments.with.default.values=F)
-{
-    fn.args = formals(args(fn))
-    arg.names = names(fn.args)
-    if (exclude.arguments.with.default.values)
-        arg.names[sapply(fn.args, function(val){val==''})]
-    else
-        arg.names
-}
