@@ -217,7 +217,17 @@ create.intervention.criterion <- function(outcome,
                                           aggregate.scores.as = c('mean','sum')[1],
                                           weight = 1)
 {
-    
+    JHEEM.OUTCOME.INTERVENTION.CRITERION$new(outcome = outcome,
+                                             target.value = target.value,
+                                             min.acceptable.value = min.acceptable.value,
+                                             max.acceptable.value = max.acceptable.value,
+                                             stratify.outcome.by.dimensions = stratify.outcome.by.dimensions,
+                                             dimension.values = dimension.values,
+                                             ...,
+                                             score.metric = score.metric,
+                                             coefficient.of.variance = coefficient.of.variance,
+                                             aggregate.scores.as = aggregate.scores.as,
+                                             weight = weight)
 }
 
 #'@name Create a "Guess-and-Check" Intervention that Must Satisfy Some Criteria
@@ -239,11 +249,25 @@ create.criteria.based.intervention <- function(base.intervention,
                                                initial.parameter.values,
                                                iterations.per.chunk,
                                                max.chunks.before.giving.up,
+                                               code=NULL, 
+                                               name=NULL, 
+                                               parameter.distribution=NULL,
                                                parameters.to.vary = names(parameter.scales),
                                                draw.parameters.from.previous.sims = !is.function(initial.parameter.values),
                                                method = c("Nelder-Mead", "BFGS", "CG", "SANN")[1])
 {
-    
+    CRITERIA.BASED.INTERVENTION$new(base.intervention = base.intervention,
+                                    completion.criteria = completion.criteria,
+                                    parameter.scales = parameter.scales,
+                                    initial.parameter.values = initial.parameter.values,
+                                    iterations.per.chunk = iterations.per.chunk,
+                                    max.chunks.before.giving.up = max.chunks.before.giving.up,
+                                    code = code,
+                                    name = name,
+                                    parameter.distribution = parameter.distribution,
+                                    parameters.to.vary = parameters.to.vary,
+                                    draw.parameters.from.previous.sims = draw.parameters.from.previous.sims,
+                                    method = method)
 }
 
 ##------------------------------------##
@@ -287,7 +311,7 @@ register.intervention <- function(intervention, error.prefix='')
     
     # Is something already registered?
     already.registered = get.intervention(intervention$code, throw.error.if.missing = F)
-    if (!is.null(already.registered) && !already.registered$equals(intervention))
+    if (!is.null(already.registered) && !already.registered$equals(intervention, trust.codes.to.indicate.equality = F))
         stop(paste0("A different intervention has already been registered with the code '", intervention$code, "'"))
 
     # Register it    
@@ -327,6 +351,32 @@ interventions.or.codes.are.equal <- function(int1, int2)
     }
 }
 
+INTERVENTION.TEMPORARY.CODE.PREFIX = 'tmp'
+
+get.unique.temporary.intervention.code <- function()
+{
+    time = gsub("[^0-9]", "", as.character(Sys.time()))
+    prefix = paste0(INTERVENTION.TEMPORARY.CODE.PREFIX, substr(time, 3, 14))
+    code = prefix
+    
+    counter = 1
+    success = F
+    while (!success)
+    {
+        success = all(names(INTERVENTION.MANAGER$interventions) != code)
+        if (!success)
+            code = paste0(prefix, "-", counter)
+        counter = counter + 1
+    }
+    
+    code
+}
+
+is.intervention.code.temporary <- function(code)
+{
+    substr(code, 1, nchar(INTERVENTION.TEMPORARY.CODE.PREFIX)) == INTERVENTION.TEMPORARY.CODE.PREFIX
+}
+
 ##-----------------------##
 ##-----------------------##
 ##-- CLASS DEFINITIONS --##
@@ -338,6 +388,10 @@ MAXIMUM.INTERVENTION.CODE.NCHAR = 30
 
 MINIMUM.INTERVENTION.NAME.NCHAR = 5
 MAXIMUM.INTERVENTION.NAME.NCHAR = 50
+
+DISALLOWED.INTERVENTION.CODE.PREFIXES = c(
+    INTERVENTION.TEMPORARY.CODE.PREFIX
+)
 
 #'@export
 JHEEM.INTERVENTION = R6::R6Class(
@@ -352,7 +406,9 @@ JHEEM.INTERVENTION = R6::R6Class(
             error.prefix = "Cannot create intervention: "
             
             # Do some error checking
-            if (!is.null(code))
+            if (is.null(code))
+                code = get.unique.temporary.intervention.code()
+            else
             {
                 if (!is.character(code) || length(code)!=1 || is.na(code) || 
                     nchar(code)<MINIMUM.INTERVENTION.CODE.NCHAR || nchar(code)>MAXIMUM.INTERVENTION.CODE.NCHAR)
@@ -364,6 +420,11 @@ JHEEM.INTERVENTION = R6::R6Class(
                                              str.name = "An intervention's 'code'",
                                              valid.characters.description = 'numbers, letters, dashes, or periods',
                                              error.prefix = '')
+                
+                disallowed.prefix.mask = tolower(code) == tolower(DISALLOWED.INTERVENTION.CODE.PREFIXES)
+                if (any(disallowed.prefix.mask))
+                    stop(paste0(error.prefix, "'code' cannot begin with '", 
+                                DISALLOWED.INTERVENTION.CODE.PREFIXES[disallowed.prefix.mask], "' (case-insensitive)"))
             }
             
             if (!is.null(name))
@@ -412,7 +473,7 @@ JHEEM.INTERVENTION = R6::R6Class(
             
             # Generate the new parameters
             all.parameter.names = sim$parameter.names
-            if (is.null(private$i.parameters.distribution))
+            if (is.null(private$i.parameter.distribution))
                 parameters = NULL
             else
             {
@@ -422,10 +483,10 @@ JHEEM.INTERVENTION = R6::R6Class(
                     stop(paste0(error.prefix, "'seed' must be a single, non-NA, integer value"))
                 
                 set.seed(seed)
-                parameters = generate.random.samples(private$i.parameters.distribution, n=sim$n.sim)
+                parameters = generate.random.samples(private$i.parameter.distribution, n=sim$n.sim)
                 set.seed(reset.seed) # this keeps our code from always setting to the same seed
                 
-                all.parameter.names = union(all.parameter.names, private$i.parameters.distribution@var.names)
+                all.parameter.names = union(all.parameter.names, private$i.parameter.distribution@var.names)
             }
 
             
@@ -438,11 +499,8 @@ JHEEM.INTERVENTION = R6::R6Class(
                                     foregrounds = private$get.intervention.foregrounds(),
                                     atol = atol,
                                     rtol = rtol,
+                                    intervention.code = private$i.code,
                                     error.prefix = "Cannot get JHEEM Engine from simulation set")
-            
-            # Set this intervention to the engine
-            engine$set.intervention(self)
-            
             
             
             # Run
@@ -461,11 +519,12 @@ JHEEM.INTERVENTION = R6::R6Class(
             stop("The method 'get.description' must be implemented in a descendant class of jheem.intervention")
         },
         
-        equals = function(other)
+        equals = function(other, trust.codes.to.indicate.equality=T)
         {
             if (!setequal(class(self), class(other)))
                 F
-            else if (!is.null(private$i.code) && !is.null(other$code) &&
+            else if (trust.codes.to.indicate.equality &&
+                     !is.null(private$i.code) && !is.null(other$code) &&
                      private$i.code == other$code)
                 T
             else
@@ -515,7 +574,7 @@ JHEEM.INTERVENTION = R6::R6Class(
         
         i.name = NULL,
         i.code = NULL,
-        i.parameters.distribution = NULL,
+        i.parameter.distribution = NULL,
         
         prepare.to.run = function(engine)
         {
@@ -640,6 +699,7 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
 
 CRITERIA.BASED.INTERVENTION = R6::R6Class(
     'multiple.iteration.intervention',
+    inherit = JHEEM.INTERVENTION,
     
     public = list(
         
@@ -649,11 +709,16 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
                               initial.parameter.values,
                               iterations.per.chunk,
                               max.chunks.before.giving.up,
+                              code=NULL, 
+                              name=NULL, 
+                              parameter.distribution=NULL,
                               parameters.to.vary = names(parameter.scales),
                               draw.parameters.from.previous.sims = !is.function(initial.parameter.values),
                               method = c("Nelder-Mead", "BFGS", "CG", "SANN")[1])
         {
-            super$initialize()
+            super$initialize(code = code,
+                             name = name,
+                             parameter.distribution = parameter.distribution)
             
             error.prefix = "Cannot create criteria-based intervention: "
             
@@ -662,7 +727,7 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 stop(paste0(error.prefix, "'base.intervention' must be an object of class jheem.standard.intervention - as created by create.intervention() or join.interventions()"))
             
             # Completion Criteria
-            if (!is(completion.criteria, "jheem.intervention.criterion"))
+            if (is(completion.criteria, "jheem.intervention.criterion"))
                 completion.criteria = list(completion.criteria)
             
             if (!is.list(completion.criteria))
@@ -678,7 +743,7 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
             if (!is.character(parameters.to.vary) || length(parameters.to.vary)==0 || any(is.na(parameters.to.vary)))
                 stop(paste0(error.prefix, "'parameters.to.vary' must be a non-empty character vector with no NA values"))
             
-            if (!is.character(parameter.scales) || any(is.na(scales)))
+            if (!is.character(parameter.scales) || any(is.na(parameter.scales)))
                 stop(paste0(error.prefix, "'parameter.scales' must be a character vector with no NA values"))
             
             check.model.scale(scale = parameter.scales,
@@ -721,7 +786,7 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
             # iterations.per.chunk
             if (!is.numeric(iterations.per.chunk) || length(iterations.per.chunk)==0 || any(is.na(iterations.per.chunk)))
                 stop(paste0(error.prefix, "'iterations.per.chunk' must be a non-empty numeric vector with no NA values"))
-            if (any(iterations.per.chunk)<=0)
+            if (any(iterations.per.chunk<=0))
                 stop(paste0(error.prefix, "'iterations.per.chunk' must contain only positive values"))
             
             # max.chunks.before.giving.up
@@ -746,7 +811,7 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
             private$i.base.intervention = base.intervention
             private$i.completion.criteria = completion.criteria
             
-            private$i.parameters.to.vary = parameters.to.var
+            private$i.parameters.to.vary = parameters.to.vary
             private$i.parameter.scales = parameter.scales
             
             private$i.initial.parameter.values = initial.parameter.values
@@ -936,6 +1001,7 @@ JHEEM.INTERVENTION.CRITERION = R6::R6Class(
 
 JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
     'jheem.outcome.intervention.criterion',
+    inherit = JHEEM.INTERVENTION.CRITERION,
     
     public = list(
         
@@ -1114,7 +1180,7 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
         i.min.acceptable.value = NULL,
         i.max.acceptable.value = NULL,
         
-        i.stratify.by.dimensions = NULL,
+        i.stratify.outcome.by.dimensions = NULL,
         i.dimension.values = NULL,
         
         i.score.metric = NULL,
@@ -1126,7 +1192,7 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
         {
             sim$get(outcomes = private$i.outcome,
                     dimension.values = private$i.dimension.values,
-                    keep.dimensions = private$i.stratify.by.dimensions)
+                    keep.dimensions = private$i.stratify.outcome.by.dimensions)
         }
         
     )

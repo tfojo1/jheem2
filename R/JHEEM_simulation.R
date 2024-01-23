@@ -80,7 +80,7 @@ create.single.simulation <- function(version,
                                      parameters,
                                      from.year,
                                      to.year,
-                                     intervention,
+                                     intervention.code,
                                      calibration.code,
                                      run.metadata)
 {
@@ -104,7 +104,7 @@ create.single.simulation <- function(version,
                              from.year = from.year,
                              to.year = to.year,
                              n.sim = 1,
-                             intervention = intervention,
+                             intervention.code = intervention.code,
                              calibration.code = calibration.code,
                              run.metadata = run.metadata)
 }
@@ -154,9 +154,7 @@ join.simulation.sets <- function(..., run.metadata=NULL)
     if (is.null(run.metadata))
         run.metadata = join.run.metadata(lapply(simset.list, function(sim){sim$run.metadata}))
     
-    intervention = sample.simset$intervention.code
-    if (is.null(intervention))
-        intervention = sample.simset$get.intervention()
+    intervention.code = sample.simset$intervention.code
     
     JHEEM.SIMULATION.SET$new(version = sample.simset$version,
                              sub.version = sample.simset$sub.version,
@@ -167,7 +165,7 @@ join.simulation.sets <- function(..., run.metadata=NULL)
                              from.year = sample.simset$from.year,
                              to.year = sample.simset$to.year,
                              n.sim = new.n.sim,
-                             intervention = intervention,
+                             intervention.code = intervention.code,
                              calibration.code = sample.simset$calibration.code,
                              run.metadata = run.metadata)
 }
@@ -388,7 +386,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               n.sim,
                               run.metadata,
                               engine = NULL,
-                              intervention,
+                              intervention.code,
                               calibration.code,
                               error.prefix = "Error constructing simulation")
         {
@@ -453,22 +451,13 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (!is(run.metadata, 'jheem.run.metadata'))
                 stop(paste0(error.prefix, "'run.metadata' must be an object of class 'jheem.run.metadata'"))
             
-            # Validate intervention
-            if (is.null(intervention))
-            {}
-            else if (is.character(intervention))
+            # Validate intervention.code
+            if (!is.null(intervention.code))
             {
-                if (length(intervention)!=1 || is.na(intervention))
-                    stop(paste0(error.prefix, "if 'intervention' is a code, it must be a single, non-NA character value"))
+                if (!is.character(intervention.code) || length(intervention)!=1 || is.na(intervention))
+                    stop(paste0(error.prefix, "'intervention.code' must be a single, non-NA character value"))
             }
-            else if (is(intervention, "jheem.intervention"))
-            {
-                if (!is.null(intervention$code))
-                    intervention = intervention$code
-            }
-            else
-                stop(paste0(error.prefix, "'intervention' must either be an object of class 'jheem.intervention' or a code representing a registered intervention"))
-            
+
             # Validate calibration.code
             if (!is.null(calibration.code))
             {
@@ -482,7 +471,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                   parameters = parameters)
             
             private$i.run.metadata = run.metadata
-            private$i.intervention = intervention
+            private$i.intervention.code = intervention.code
             private$i.calibration.code = calibration.code
             
             private$i.n.sim = n.sim
@@ -805,7 +794,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                      to.year = self$to.year,
                                      n.sim = new.n.sim,
                                      calibration.code = private$i.calibration.code,
-                                     intervention = private$i.intervention.code,
+                                     intervention.code = private$i.intervention.code,
                                      run.metadata = private$i.run.metadata$subset(x))
         },
         
@@ -852,6 +841,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               foregrounds = NULL,
                               atol = NULL,
                               rtol = NULL,
+                              intervention.code = self$intervention.code,
                               error.prefix = "Cannot get JHEEM Engine from simulation set")
         {
             if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
@@ -868,7 +858,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                              keep.from.year = keep.from.year,
                                              keep.to.year = keep.to.year,
                                              foregrounds = foregrounds,
-                                             intervention = private$i.intervention,
+                                             intervention.code = intervention.code,
                                              calibration.code = private$i.calibration.code,
                                              atol = atol,
                                              rtol = rtol,
@@ -881,7 +871,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                                 keep.from.year = keep.from.year,
                                                 keep.to.year = keep.to.year,
                                                 foregrounds = foregrounds,
-                                                intervention = private$i.intervention,
+                                                intervention.code = intervention.code,
                                                 calibration.code = private$i.calibration.code,
                                                 atol = atol,
                                                 rtol = rtol,
@@ -890,14 +880,15 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         get.intervention = function()
         {
-            if (is(private$i.intervention, 'jheem.intervention'))
-                private$i.intervention
-            else if (is.character(private$i.intervention))
+            if (!is.null(private$i.intervention.code))
             {
-                rv = get.intervention(private$i.intervention, throw.error.if.missing=F)
+                rv = get.intervention(private$i.intervention.code, throw.error.if.missing=F)
                 if (is.null(rv))
                     stop(paste0("The simulation set has a registered intervention code of '",
-                                private$i.intervention, "' but no intervention has been registered for that code in this R session"))
+                                private$i.intervention.code, "' but no intervention has been registered for that code in this R session",
+                                ifelse(is.intervention.code.temporary(private$i.intervention.code),
+                                       paste0("('", private$i.intervention.code, "' was a temporary code created for a one-off intervention that was not formally registered with a code)"),
+                                       "")))
                 rv
             }
             else
@@ -906,7 +897,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         save = function(root.dir)
         {
-            # If intervention is not
+            
         }
         
     ),
@@ -964,12 +955,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         intervention.code = function(value)
         {
             if (missing(value))
-            {
-                if (is.character(private$i.intervention))
-                    private$i.intervention
-                else
-                    NULL
-            }
+                private$i.intervention.code
             else
                 stop("Cannot modify a simulation.set's 'intervention.code' - it is read-only")
         }
@@ -987,7 +973,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         i.n.sim = NULL,
         
         i.calibration.code = NULL,
-        i.intervention = NULL,
+        i.intervention.code = NULL,
         
         i.engine = NULL
     )

@@ -2,6 +2,7 @@
 
 create.single.run.metadata <- function(run.time,
                                        preprocessing.time,
+                                       diffeq.time,
                                        postprocessing.time,
                                        n.trials,
                                        labels = NULL)
@@ -10,12 +11,13 @@ create.single.run.metadata <- function(run.time,
     {
         dim.names = list(run=labels, sim=1:(length(run.time)/length(labels)))
         
-        dim(run.time) = dim(preprocessing.time) = dim(postprocessing.time) = dim(n.trials) = sapply(dim.names, length)
-        dimnames(run.time) = dimnames(preprocessing.time) = dimnames(postprocessing.time) = dimnames(n.trials) = dim.names
+        dim(run.time) = dim(preprocessing.time) = dim(diffeq.time) = dim(postprocessing.time) = dim(n.trials) = sapply(dim.names, length)
+        dimnames(run.time) = dimnames(preprocessing.time) = dimnames(diffeq.time) = dimnames(postprocessing.time) = dimnames(n.trials) = dim.names
     }
     
     JHEEM.RUN.METADATA$new(run.time = run.time,
                            preprocessing.time = preprocessing.time,
+                           diffeq.time = diffeq.time,
                            postprocessing.time = postprocessing.time,
                            n.trials = n.trials)
 }
@@ -34,6 +36,10 @@ join.run.metadata <- function(metadata.to.join)
         run.metadata$preprocessing.time
     })
     
+    diffeq.time = sapply(metadata.to.join, function(run.metadata){
+        run.metadata$diffeq.time
+    })
+    
     postprocessing.time = sapply(metadata.to.join, function(run.metadata){
         run.metadata$postprocessing.time
     })
@@ -45,11 +51,12 @@ join.run.metadata <- function(metadata.to.join)
     dim.names = list(run = metadata.to.join[[1]]$run.labels,
                      sim = 1:n.sim)
     
-    dim(run.time) = dim(preprocessing.time) = dim(postprocessing.time) = dim(n.trials) = sapply(dim.names, length)
-    dimnames(run.time) = dimnames(preprocessing.time) = dimnames(postprocessing.time) = dimnames(n.trials) = dim.names
+    dim(run.time) = dim(preprocessing.time) = dim(diffeq.time) = dim(postprocessing.time) = dim(n.trials) = sapply(dim.names, length)
+    dimnames(run.time) = dimnames(preprocessing.time) = dimnames(diffeq.time) = dimnames(postprocessing.time) = dimnames(n.trials) = dim.names
     
     JHEEM.RUN.METADATA$new(run.time = run.time,
                            preprocessing.time = preprocessing.time,
+                           diffeq.time = diffeq.time,
                            postprocessing.time = postprocessing.time,
                            n.trials = n.trials)
 }
@@ -61,6 +68,7 @@ JHEEM.RUN.METADATA = R6::R6Class(
         
         initialize = function(run.time,
                               preprocessing.time,
+                              diffeq.time,
                               postprocessing.time,
                               n.trials)
         {
@@ -74,6 +82,11 @@ JHEEM.RUN.METADATA = R6::R6Class(
             if (!length(dim(preprocessing.time)==2))
                 stop("Cannot create run metadata: 'preprocessing.time' must be a numeric array with no NA values")
             
+            if (!is.numeric(diffeq.time) || any(is.na(diffeq.time)))
+                stop("Cannot create run metadata: 'diffeq.time' must be a numeric array with no NA values")
+            if (!length(dim(diffeq.time)==2))
+                stop("Cannot create run metadata: 'diffeq.time' must be a numeric array with no NA values")
+            
             if (!is.numeric(postprocessing.time) || any(is.na(postprocessing.time)))
                 stop("Cannot create run metadata: 'postprocessing.time' must be a numeric array with no NA values")
             if (!length(dim(postprocessing.time)==2))
@@ -86,16 +99,18 @@ JHEEM.RUN.METADATA = R6::R6Class(
             
             private$i.run.time = run.time
             private$i.preprocessing.time = preprocessing.time
+            private$i.diffeq.time = diffeq.time
             private$i.postprocessing.time = postprocessing.time
             private$i.n.trials = n.trials
         },
         
         subset = function(x)
         {
-            JHEEM.RUN.METADATA$new(run.time = run.time[,x, drop=F],
-                                   preprocessing.time = preprocessing.time[,x, drop=F],
-                                   postprocessing.time = postprocessing.time[,x, drop=F],
-                                   n.trials = n.trials[,x, drop=F])
+            JHEEM.RUN.METADATA$new(run.time = private$i.run.time[,x, drop=F],
+                                   preprocessing.time = private$i.preprocessing.time[,x, drop=F],
+                                   diffeq.time = private$i.diffeq.time[,x, drop=F],
+                                   postprocessing.time = private$i.postprocessing.time[,x, drop=F],
+                                   n.trials = private$i.n.trials[,x, drop=F])
         }
         
     ),
@@ -129,7 +144,7 @@ JHEEM.RUN.METADATA = R6::R6Class(
         diffeq.time = function(value)
         {
             if (missing(value))
-                private$i.run.time - private$i.preprocessing.time - private$i.postprocessing.time
+                private$i.diffeq.time
             else
                 stop("Cannot modify a run.metadata's 'diffeq.time' - it is read-only")
         },
@@ -163,6 +178,7 @@ JHEEM.RUN.METADATA = R6::R6Class(
         
         i.run.time = NULL,
         i.preprocessing.time = NULL,
+        i.diffeq.time = NULL,
         i.postprocessing.time = NULL,
         
         i.n.trials = NULL

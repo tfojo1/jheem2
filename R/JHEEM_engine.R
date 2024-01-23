@@ -555,7 +555,7 @@ create.jheem.engine <- function(version,
                                 sub.version=NULL,
                                 max.run.time.seconds=Inf,
                                 prior.sim=NULL,
-                                intervention = NULL,
+                                intervention.code = NULL,
                                 calibration.code = NULL,
                                 keep.from.year=start.year,
                                 keep.to.year=end.year,
@@ -573,7 +573,9 @@ create.jheem.engine <- function(version,
                      keep.from.year = keep.from.year,
                      keep.to.year = keep.to.year,
                      atol = atol,
-                     rtol = rtol)
+                     rtol = rtol,
+                     intervention.code = intervention.code,
+                     calibration.code = calibration.code)
 }
 
 check.sim.can.seed.run <- function(prior.simulation.set,
@@ -609,7 +611,7 @@ JHEEM.ENGINE = R6::R6Class(
                               foregrounds = NULL,
                               atol= DEFAULT.ATOL, 
                               rtol = DEFAULT.RTOL,
-                              intervention = NULL,
+                              intervention.code = NULL,
                               calibration.code = NULL,
                               error.prefix = "Cannot create JHEEM Engine: ")
         {
@@ -626,7 +628,7 @@ JHEEM.ENGINE = R6::R6Class(
                              location = jheem$location,
                              type = 'engine')
             
-            jheem$set.intervention(intervention)
+            jheem$set.intervention.code(intervention.code)
             jheem$set.calibration.code(calibration.code)
                
             # Start and end years
@@ -721,25 +723,14 @@ JHEEM.ENGINE = R6::R6Class(
                     jheem$set.quantity.foreground(foreground, check.consistency = T)
             }
             
-            # Intervention
-            if (!is.null(intervention))
+            # intervention.code
+            if (!is.null(intervention.code))
             {
-                if (is.character(intervention))
-                {
-                    if (length(intervention)!=1 || is.na(intervention))
-                        stop(paste0(error.prefix, "If 'intervention' is the code to a registered intervention, it must be a single, non-NA character value"))
+                if (!is.character(intervention.code) || length(intervention.code)!=1 || is.na(intervention.code))
+                        stop(paste0(error.prefix, "'intervention.code' must be a single, non-NA character value"))
                     
-                    if (is.null(get.intervention(intervention, throw.error.if.missing=F)))
-                        stop(paste0(error.prefix, "No intervention with code '", intervention, "' has been registered. You must register the intervention before giving its code to be run"))
-                        
-                }
-                else if (is(intervention, 'jheem.intervention'))
-                {
-                    if (!is.null(intervention$code))
-                        intervention = intervention$code
-                }
-                else
-                    stop(paste0(error.prefix, "'intervention' must be either an object of class 'jheem.intervention' or the (character) code to a registered intervention"))
+                if (is.null(get.intervention(intervention.code, throw.error.if.missing=F)))
+                    stop(paste0(error.prefix, "No intervention with code '", intervention.code, "' has been registered. You must register the intervention before giving its code to be run"))
             }
             
             # Calibration.code
@@ -751,7 +742,7 @@ JHEEM.ENGINE = R6::R6Class(
             
             #-- Store Values --#
             private$i.jheem = jheem
-            private$i.intervention = intervention
+            private$i.intervention.code = intervention.code
             private$i.calibration.code = calibration.code
             
             private$i.start.year = start.year
@@ -812,7 +803,7 @@ JHEEM.ENGINE = R6::R6Class(
                          foregrounds = NULL,
                          atol = NULL,
                          rtol = NULL,
-                         intervention = self$intervention,
+                         intervention.code = self$intervention.code,
                          calibration.code = self$calibration.code,
                          error.prefix = "Cannot create copy of JHEEM Engine: ")
         {
@@ -834,12 +825,12 @@ JHEEM.ENGINE = R6::R6Class(
             if (!identical(calibration.code, private$i.calibration.code))
                 stop(paste0("Error in jheem.engine$spawn() - cannot change the calibration.code"))
             
-            if (!is.null(private$i.intervention))
+            if (!is.null(private$i.intervention.code))
             {
-                if (is.null(intervention))
-                    stop("Error in jheem.engine$spawn() - cannot set no intervention when the previous engine had an intervention set")
-                else if (!interventions.or.codes.are.equal(private$i.intervention, intervention))
-                    stop("Error in jheem.engine$spawn() - cannot change the intervention from the one set for the previous engine")
+                if (is.null(intervention.code))
+                    stop("Error in jheem.engine$spawn() - cannot set no intervention.code when the previous engine had an intervention.code set")
+                else if (private$i.intervention.code != intervention.code)
+                    stop("Error in jheem.engine$spawn() - cannot change the intervention.code from the one set for the previous engine")
             }
             
             JHEEM.ENGINE$new(jheem = private$i.jheem$clone(deep=T),
@@ -852,7 +843,7 @@ JHEEM.ENGINE = R6::R6Class(
                              foregrounds = foregrounds,
                              atol = atol,
                              rtol = rtol,
-                             intervention = intervention,
+                             intervention.code = intervention.code,
                              calibration.code = calibration.code,
                              error.prefix = error.prefix)
         }
@@ -908,12 +899,12 @@ JHEEM.ENGINE = R6::R6Class(
                 stop("Cannot modify a JHEEM engine's 'parameter.names' - they are read-only")
         },
         
-        intervention = function(value)
+        intervention.code = function(value)
         {
             if (missing(value))
-                private$i.intervention
+                private$i.intervention.code
             else
-                stop("Cannot modify a JHEEM engine's 'intervention' - it is read-only")
+                stop("Cannot modify a JHEEM engine's 'intervention.code' - it is read-only")
         },
         
         calibration.code = function(value)
@@ -928,7 +919,7 @@ JHEEM.ENGINE = R6::R6Class(
     private = list(
         
         i.jheem = NULL,
-        i.intervention = NULL,
+        i.intervention.code = NULL,
         i.calibration.code = NULL,
         
         i.start.year = NULL,
@@ -1276,7 +1267,7 @@ JHEEM = R6::R6Class(
             
             # Make the Simulation Object
             
-            if (is.null(private$i.intervention))
+            if (is.null(private$i.intervention.code))
             {
                 if (is.null(private$i.calibration.code))
                     run.label = 'manual_run'
@@ -1284,15 +1275,11 @@ JHEEM = R6::R6Class(
                     run.label = private$i.calibration.code
             }
             else
-            {
-                if (is.character(private$i.intervention))
-                    run.label = private$i.intervention
-                else
-                    run.label = 'unregistered_intervention'
-            }
-            
+                run.label = private$i.intervention
+
             run.metadata = create.single.run.metadata(run.time = run.end.time - run.start.time,
                                                       preprocessing.time = end.preprocessing.time - run.start.time,
+                                                      diffeq.time = end.diffeq.time - end.preprocessing.time,
                                                       postprocessing.time = run.end.time - end.diffeq.time,
                                                       n.trials = 1,
                                                       labels = run.label)
@@ -1306,7 +1293,7 @@ JHEEM = R6::R6Class(
                                            outcome.denominators = outcome.numerators.and.denominators$denominators,
                                            parameters = private$i.parameters,
                                            run.metadata = run.metadata,
-                                           intervention = private$i.intervention,
+                                           intervention.code = private$i.intervention.code,
                                            calibration.code = private$i.calibration.code)
 
             
@@ -2200,28 +2187,19 @@ JHEEM = R6::R6Class(
         },
     
         # Does NOT actually do anything with the intervention
-        # Just records it to the jheem
-        set.intervention = function(intervention)
+        # Just stores it to the jheem object
+        set.intervention.code = function(intervention.code)
         {
-            if (is.null(intervention))
-            {}
-            else if (is.character(intervention))
+            if (!is.null(intervention.code))
             {
-                if (length(intervention)!=1 || is.na(intervention))
-                    stop("Cannot set intervention for JHEEM: if 'intervention' is a code, it must be a single, non-NA character value")
+                if (!is.character(intervention.code) || length(intervention)!=1 || is.na(intervention))
+                    stop("Cannot set intervention for JHEEM: 'intervention.code' must be a single, non-NA character value")
                 
-                if (is.null(get.intervention(intervention, throw.error.if.missing=F)))
-                    stop(paste0("Cannot set intervention '", intervention, "' for JHEEM: if 'intervention' is a code, it must represent an intervention that has already been registered"))
+                if (is.null(get.intervention(intervention.code, throw.error.if.missing=F)))
+                    stop(paste0("Cannot set intervention.code '", intervention.code, "' for JHEEM: no intervention with that code has been registered"))
             }
-            else if (is(intervention, "jheem.intervention"))
-            {
-                if (!is.null(intervention$code))
-                    intervention = intervention$code
-            }
-            else
-                stop("Cannot set intervention for JHEEM: 'intervention' must either be an object of class 'jheem.intervention' or a code representing a registered intervention")
-            
-            private$i.intervention = intervention
+
+            private$i.intervention.code = intervention.code
         },
         
         set.calibration.code = function(calibration.code)
@@ -2381,7 +2359,7 @@ JHEEM = R6::R6Class(
         i.diffeq.settings = NULL,
         
         #-- Intervention/Calibration Settings --#
-        i.intervention = NULL,
+        i.intervention.code = NULL,
         i.calibration.code = NULL,
         
         #-- The Model Settings to Pass Along --#
