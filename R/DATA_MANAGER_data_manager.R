@@ -190,7 +190,8 @@ register.data.outcome <- function(data.manager = get.default.data.manager(),
 #'@title Register a data source to a data manager before putting data from that source
 #'
 #'@param data.manager A jheem.data.manager object
-#'@param outcome The name (a single character value) of the outcome. This is the 'internal' name by which the outcome will be referenced in accessing the data manager
+#'@param source The name (a single character value) of the source. This is the 'internal' name by which the source will be referenced in accessing the data manager
+#'@param parent.source A parent source registered with this data manager that reflects the origin of the data this source uses
 #'@param full.name A descriptive, fully-formatted and capitalized name to use in generating figures and tables (eg in popovers). Avoid abbreviations. Should be unique to the data source (although this is not enforced)
 #'@param short.name A name for the data source to use in setting where brevity is important. Ideal to use abbreviations, but can be the same as full.name
 #'
@@ -199,6 +200,7 @@ register.data.outcome <- function(data.manager = get.default.data.manager(),
 #'@export
 register.data.source <- function(data.manager = get.default.data.manager(),
                                  source,
+                                 parent.source,
                                  full.name,
                                  short.name = full.name)
 {
@@ -206,6 +208,28 @@ register.data.source <- function(data.manager = get.default.data.manager(),
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
 
     data.manager$register.source(source=source,
+                                 parent.source=parent.source,
+                                 full.name=full.name,
+                                 short.name=short.name)
+}
+
+#'@title Register a parent data source to a data manager
+#'
+#'@param data.manager A jheem.data.manager object
+#'@param parent.source The name (a single character value) of the parent source. This is the 'internal' name by which the parent source will be referenced in accessing the data manager
+#'@param full.name A descriptive, fully-formatted and capitalized name to use in generating figures and tables (eg in popovers). Avoid abbreviations. Should be unique to the parent data source (although this is not enforced)
+#'@param short.name A name for the parent data source to use in setting where brevity is important. Ideal to use abbreviations, but can be the same as full.name
+#'
+#'@export
+register.data.source <- function(data.manager = get.default.data.manager(),
+                                 parent.source,
+                                 full.name,
+                                 short.name = full.name)
+{
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+
+    data.manager$register.source(parent.source=parent.source,
                                  full.name=full.name,
                                  short.name=short.name)
 }
@@ -505,13 +529,23 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                           denominator.outcome = from.data.manager$outcome.info[[outcome.name]][['denominator.outcome']])
             }
 
+            # register parent sources if necessary
+            for (parent.source.name in names(from.data.manager$parent.source.info)) {
+                self$register.parent.source(parent.source = from.data.manager$parent.source.info[[parent.source.name]][['parent.source']],
+                                            full.name = from.data.manager$parent.source.info[[parent.source.name]][['full.name']],
+                                            short.name = from.data.manager$parent.source.info[[parent.source.name]][['short.name']])
+            }
+
             # register sources if necessary
             for (source.name in names(from.data.manager$source.info)) {
                 if (!(source.name %in% names(self$source.info)))
                     self$register.source(source = from.data.manager$source.info[[source.name]][['source']],
+                                         parent.source = from.data.manager$source.info[[source.name]][['parent.source']],
                                          full.name = from.data.manager$source.info[[source.name]][['full.name']],
                                          short.name = from.data.manager$source.info[[source.name]][['short.name']])
             }
+
+            #
 
             # import data
             data = from.data.manager$data
@@ -700,6 +734,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         },
 
         register.source = function(source,
+                                   parent.source,
                                    full.name,
                                    short.name,
                                    overwrite=F)
@@ -713,6 +748,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             error.prefix = paste0("Unable to register source '", source,
                                   "' for data.manager '", private$i.name, "': ")
 
+            # - parent.source is a single, non-empty, non-NA character value and must be the name of a previously registered parent.source
+            if (!is.character(source) || length(source)!=1 || is.na(source) || nchar(source)==0)
+                stop(paste0(error.prefix, "'source' must be a single, non-empty, non-NA character value"))
+            if (is.null(private$i.parent.source.info[[parent.source]]))
+                stop(paste0(error.prefix, "'parent.source' must be a registered parent source with this data manager"))
 
             # - full.name is a single, non-empty, non-NA character value
             if (!is.character(full.name) || length(full.name)!=1 || is.na(full.name) || nchar(full.name)==0)
@@ -722,7 +762,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (!is.character(short.name) || length(short.name)!=1 || is.na(short.name) || nchar(short.name)==0)
                 stop(paste0(error.prefix, "'short.name' must be a single, non-empty, non-NA character value"))
 
-            # If this outcome has not previously been registered, store it
+            # If this source has not previously been registered, store it
             # Otherwise, if overwrite==T, store the new one
             # Otherwise, throw an error if full.name or short.name is different
             #   If different, throw an error
@@ -732,6 +772,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             {
                 source.info = list(
                     source = source,
+                    parent.source = parent.source,
                     full.name = full.name,
                     short.name = short.name)
 
@@ -740,6 +781,52 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else if (previous.source.info$full.name != full.name || previous.source.info$short.name != short.name)
             {
                 stop(paste0(error.prefix, "A data source named '", source, "' has already been registered. If you want to overwrite the previously registered source, use overwrite==T"))
+            }
+
+            #-- Invisibly return the data manager for convenience --#
+            invisible(self)
+        },
+
+        register.parent.source = function(parent.source,
+                                          full.name,
+                                          short.name,
+                                          overwrite=F)
+        {
+            #-- Validate arguments --#
+            error.prefix = paste0("Unable to register parent source for data.manager '", private$i.name, "': ")
+
+            # - parent.source is a single, non-empty, non-NA character value
+            if (!is.character(parent.source) || length(parent.source)!=1 || is.na(parent.source) || nchar(parent.source)==0)
+                stop(paste0(error.prefix, "'parent.source' must be a single, non-empty, non-NA character value"))
+            error.prefix = paste0("Unable to register parent.source '", parent.source,
+                                  "' for data.manager '", private$i.name, "': ")
+
+            # - full.name is a single, non-empty, non-NA character value
+            if (!is.character(full.name) || length(full.name)!=1 || is.na(full.name) || nchar(full.name)==0)
+                stop(paste0(error.prefix, "'full.name' must be a single, non-empty, non-NA character value"))
+
+            # - short.name is a single, non-empty, non-NA character value
+            if (!is.character(short.name) || length(short.name)!=1 || is.na(short.name) || nchar(short.name)==0)
+                stop(paste0(error.prefix, "'short.name' must be a single, non-empty, non-NA character value"))
+
+            # If this parent source has not previously been registered, store it
+            # Otherwise, if overwrite==T, store the new one
+            # Otherwise, throw an error if full.name or short.name is different
+            #   If different, throw an error
+
+            previous.parent.source.info = private$i.parent.source.info[[parent.source]]
+            if (overwrite || is.null(previous.parent.source.info))
+            {
+                parent.source.info = list(
+                    parent.source = parent.source,
+                    full.name = full.name,
+                    short.name = short.name)
+
+                private$i.parent.source.info[[parent.source]] = parent.source.info
+            }
+            else if (previous.parent.source.info$full.name != full.name || previous.parent.source.info$short.name != short.name)
+            {
+                stop(paste0(error.prefix, "A data parent source named '", parent.source, "' has already been registered. If you want to overwrite the previously registered parent source, use overwrite==T"))
             }
 
             #-- Invisibly return the data manager for convenience --#
@@ -1230,20 +1317,15 @@ JHEEM.DATA.MANAGER = R6::R6Class(
 
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
+            target.from.arguments = target.ontology
             if (debug) browser()
             if (is.null(target.ontology) || allow.mapping.from.target.ontology) {
                 target.ontology = private$get.universal.ontology(outcome = outcome,
                                                                  sources = sources,
                                                                  from.ontology.names = from.ontology.names,
                                                                  target.ontology = target.ontology,
-                                                                 return.target.to.universal.mapping = allow.mapping.from.target.ontology,
                                                                  debug=F)
-                target.to.universal.mapping = attr(target.ontology, 'target.to.universal.mapping')
-                if (!any(keep.dimensions %in% target.to.universal.mapping$to.dimensions))
-                    target.to.universal.mapping = get.identity.ontology.mapping()
             }
-            # print(paste0("block B took ", Sys.time()-ptm))
-            # ptm = Sys.time()
 
             dv.names = names(dimension.values)
             dimension.values = lapply(seq_along(dimension.values), function(d) {
@@ -1266,7 +1348,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     keep.dimensions = incomplete.dimensions(target.ontology)
                 }
             }
+
+            # Reduce target to needed dimensions and find a mapping
             if (!is.null(keep.dimensions)) target.ontology = target.ontology[names(target.ontology) %in% union(keep.dimensions, names(dimension.values))]
+            if (return.mapping.flag) target.to.universal.mapping = get.ontology.mapping(target.from.arguments, target.ontology)
+
             # If sources is NULL, use all the sources from the outcome
             if (is.null(sources))
                 sources.used.names = names(private$i.data[[outcome]][[metric]])
@@ -1330,7 +1416,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
 
                         dimension.has.no.intersection = F
                         for (d in dv.names) {
-                            replacement = intersect(dimnames.for.apply[[d]], resolved.dimension.values[[d]])
+                            if (d == 'year') {
+                                replacement = get.range.robust.year.intersect(dimnames.for.apply[[d]], resolved.dimension.values[[d]])
+                            }
+                            else replacement = intersect(dimnames.for.apply[[d]], resolved.dimension.values[[d]])
                             if (length(replacement) == 0) {
                                 dimension.has.no.intersection = T
                                 break
@@ -1359,7 +1448,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
                                 function.to.apply = function(x) {list(unique(unlist(x)))}
                             }
-                            if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion')) {
+                            if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion') && !mapping.to.apply$is.identity.mapping) {
+
+                                # Mappings inherently perform sum operations, but that is invalid for these scales. We therefore can only map the counts and then reproduce the rate/time/proportions afterwards.
+                                # If we have an identity mapping, then we can skip this
+
                                 denominator.outcome = outcome.info[['denominator.outcome']]
                                 # browser()
                                 # CHECK IF THIS SOURCE HAS DENOMINATOR DATA. IF NOT, TRY ANOTHER SOURCE.
@@ -1582,8 +1675,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
 
             # Some sources may have returned NULL above and should be removed.
             pre.processed.data = pre.processed.data[!unlist(lapply(pre.processed.data, is.null))]
-            # print(paste0("block D took ", Sys.time()-ptm))
-            # ptm = Sys.time()
             # Extract data for data, url, and details out of what lapply returned above
             if (length(pre.processed.data) > 0) {
                 for (data.type in c('data', append.attributes)) {
@@ -1641,8 +1732,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 }
                 if (return.mapping.flag) attr(post.processed.data, 'mapping') = target.to.universal.mapping
             }
-            # print(paste0("block E took ", Sys.time()-ptm))
-            # ptm = Sys.time()
             post.processed.data
         },
 
@@ -1884,8 +1973,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (missing(value))
                 private$i.source.info
             else
-                stop("Cannot modify 'data' in jheem.data.manager - it is read-only")
+                stop("Cannot modify 'source.info' in jheem.data.manager - it is read-only")
         },
+
+        parent.source.info = function(value)
+        {
+            if (missing(value))
+                private$i.parent.source.info
+            else
+                stop("Cannot modify 'parent.source.info' in jheem.data.manager - it is read-only")
+        }
 
         ontologies = function(value)
         {
@@ -1915,6 +2012,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         # These are named lists, with the names being the names of outcomes or data groups
         i.outcome.info = NULL,
         i.source.info = NULL,
+        i.parent.source.info = NULL,
         i.ontologies = NULL,
 
         i.cached.universal.ontologies = NULL,
@@ -2025,7 +2123,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 }
             }
             if (!is.null(target.ontology)) {
-                mps = get.mappings.to.align.ontologies(target.ontology, uni, allow.non.overlapping.incomplete.dimensions = T)
+                mps = get.mappings.to.align.ontologies(target.ontology, uni, allow.non.overlapping.incomplete.dimensions = F)
                 if (is.null(mps)) stop("Error mapping ontologies to target ontology for outcome '", outcome, "': did you remember to register your mappings?")
                 uni = mps[[2]]$apply.to.ontology(uni)
                 if (return.target.to.universal.mapping) attr(uni, 'target.to.universal.mapping') = mps[[1]]
