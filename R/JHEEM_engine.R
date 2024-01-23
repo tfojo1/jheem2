@@ -4654,7 +4654,17 @@ JHEEM = R6::R6Class(
             
             outcome.names = specification$get.outcome.names.for.sub.version(private$i.sub.version)
             
-            if (!is.degenerate)
+            if (is.degenerate)
+            {
+                # If not degenerate, these will be calculated in calculate.outcome.numerator.and.denominator
+                for (outcome.name in outcome.names)
+                {
+                    #-- Calculate the times --#
+                    if (is.null(private$i.outcome.value.times[[outcome.name]]))
+                        private$calculate.outcome.value.times(outcome.name, specification=specification)
+                }
+            }
+            else
             {
                 sapply(outcome.names, function(outcome.name){
                     private$calculate.outcome.numerator.and.denominator(outcome.name = outcome.name,
@@ -4669,7 +4679,7 @@ JHEEM = R6::R6Class(
                 outcome = specification$get.outcome(outcome.name)
                 outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
                                       private$i.outcome.dim.names.sans.time[[outcome.name]])
-                
+               
                 if (is.degenerate)
                     val = rep(as.numeric(NA), prod(sapply(outcome.dim.names, length)))
                 else
