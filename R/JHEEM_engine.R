@@ -1199,6 +1199,7 @@ JHEEM = R6::R6Class(
                 initial.state = private$i.diffeq.settings$initial_state
 
             
+            terminated.for.time = F
             # Handoff to the Rcpp
             compute.fn = function(x, t){
                 if (1==2)
@@ -1260,7 +1261,8 @@ JHEEM = R6::R6Class(
             # Process the Results
             outcome.numerators.and.denominators = private$prepare.outcomes.for.sim(ode.results,
                                                                                    prior.simulation.set = prior.simulation.set,
-                                                                                   prior.sim.index = prior.sim.index)
+                                                                                   prior.sim.index = prior.sim.index,
+                                                                                   is.degenerate = terminated.for.time)
 
             run.end.time = as.numeric(Sys.time())
             
@@ -1294,7 +1296,8 @@ JHEEM = R6::R6Class(
                                            parameters = private$i.parameters,
                                            run.metadata = run.metadata,
                                            intervention.code = private$i.intervention.code,
-                                           calibration.code = private$i.calibration.code)
+                                           calibration.code = private$i.calibration.code,
+                                           is.degenerate = terminated.for.time)
 
             
             # Return
@@ -4634,7 +4637,8 @@ JHEEM = R6::R6Class(
 
         prepare.outcomes.for.sim = function(ode.results,
                                             prior.simulation.set,
-                                            prior.sim.index)
+                                            prior.sim.index,
+                                            is.degenerate)
         {
             if (!is.null(prior.simulation.set))
                 stop("We need to work out how to integrate the prior simulation set")
@@ -4643,28 +4647,38 @@ JHEEM = R6::R6Class(
             
             outcome.names = specification$get.outcome.names.for.sub.version(private$i.sub.version)
             
-            sapply(outcome.names, function(outcome.name){
-                private$calculate.outcome.numerator.and.denominator(outcome.name = outcome.name,
-                                                                    ode.results = ode.results,
-                                                                    specification = specification,
-                                                                    error.prefix = paste0("Error calculating the value for outcome '", outcome.name, "': "))  
-            })
+            if (!is.degenerate)
+            {
+                sapply(outcome.names, function(outcome.name){
+                    private$calculate.outcome.numerator.and.denominator(outcome.name = outcome.name,
+                                                                        ode.results = ode.results,
+                                                                        specification = specification,
+                                                                        is.degenerate = is.degenerate,
+                                                                        error.prefix = paste0("Error calculating the value for outcome '", outcome.name, "': "))  
+                })
+            }
             
             outcome.numerators = lapply(outcome.names, function(outcome.name){
-
-                val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
-                    private$i.outcome.numerators[[outcome.name]][[y]]
-                }))
                 
                 outcome = specification$get.outcome(outcome.name)
                 outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
                                       private$i.outcome.dim.names.sans.time[[outcome.name]])
+                
+                if (is.degenerate)
+                    val = rep(as.numeric(NA), prod(sapply(outcome.dim.names, length)))
+                else
+                {
+                    val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
+                        private$i.outcome.numerators[[outcome.name]][[y]]
+                    }))
+                }
                 
                 dim(val) = sapply(outcome.dim.names, length)
                 dimnames(val) = outcome.dim.names
                 
                 val
             })
+            names(outcome.numerators) = outcome.names
             
             outcome.denominators = lapply(outcome.names, function(outcome.name){
                 
@@ -4672,13 +4686,18 @@ JHEEM = R6::R6Class(
                     NULL
                 else
                 {
-                    val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
-                        private$i.outcome.denominators[[outcome.name]][[y]]
-                    }))
-                    
                     outcome = specification$get.outcome(outcome.name)
                     outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
                                           private$i.outcome.dim.names.sans.time[[outcome.name]])
+                    
+                    if (is.degenerate)
+                        val = outcome.numerators[[outcome.name]]
+                    else
+                    {
+                        val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
+                            private$i.outcome.denominators[[outcome.name]][[y]]
+                        }))
+                    }                    
                     
                     dim(val) = sapply(outcome.dim.names, length)
                     dimnames(val) = outcome.dim.names
@@ -4686,8 +4705,7 @@ JHEEM = R6::R6Class(
                     val
                 }
             })
-            
-            names(outcome.numerators) = names(outcome.denominators) = outcome.names
+            names(outcome.denominators) = outcome.names
             
             
             # Clear the values for numerators and denominators stored in the jheem object - we no longer need them

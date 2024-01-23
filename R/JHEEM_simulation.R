@@ -82,7 +82,8 @@ create.single.simulation <- function(version,
                                      to.year,
                                      intervention.code,
                                      calibration.code,
-                                     run.metadata)
+                                     run.metadata,
+                                     is.degenerate)
 {
     outcome.numerators.with.sim.dimension = lapply(outcome.numerators, function(arr) {
         new.dimnames = c(dimnames(arr), sim=1)
@@ -106,7 +107,8 @@ create.single.simulation <- function(version,
                              n.sim = 1,
                              intervention.code = intervention.code,
                              calibration.code = calibration.code,
-                             run.metadata = run.metadata)
+                             run.metadata = run.metadata,
+                             is.degenerate = is.degenerate)
 }
 
 join.simulation.sets <- function(..., run.metadata=NULL)
@@ -146,6 +148,10 @@ join.simulation.sets <- function(..., run.metadata=NULL)
         array(data.vec, sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
     })
     names(combined.outcome.denominators) = outcomes
+    
+    combined.is.degenerate = unlist(sapply(simset.list, function(sim){
+        sim$is.degenerate
+    }))
 
     #combined.parameters = unlist(lapply(simset.list, function(simset) {simset$data$parameters}), recursive=F)
     
@@ -167,7 +173,8 @@ join.simulation.sets <- function(..., run.metadata=NULL)
                              n.sim = new.n.sim,
                              intervention.code = intervention.code,
                              calibration.code = sample.simset$calibration.code,
-                             run.metadata = run.metadata)
+                             run.metadata = run.metadata,
+                             is.degenerate = combined.is.degenerate)
 }
 
 '[.jheem.simulation.set' <- function(obj, x) {
@@ -388,6 +395,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               engine = NULL,
                               intervention.code,
                               calibration.code,
+                              is.degenerate = NULL,
                               error.prefix = "Error constructing simulation")
         {
             #-- Call the superclass constructor --#
@@ -473,6 +481,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             private$i.run.metadata = run.metadata
             private$i.intervention.code = intervention.code
             private$i.calibration.code = calibration.code
+            
+            private$i.is.degenerate = is.degenerate
             
             private$i.n.sim = n.sim
             
@@ -795,7 +805,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                      n.sim = new.n.sim,
                                      calibration.code = private$i.calibration.code,
                                      intervention.code = private$i.intervention.code,
-                                     run.metadata = private$i.run.metadata$subset(x))
+                                     run.metadata = private$i.run.metadata$subset(x),
+                                     is.degenerate = private$i.is.degenerate[x])
         },
         
         # n: keeps every nth (rounding DOWN) sim counting backwards from the last sim
@@ -958,6 +969,14 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 private$i.intervention.code
             else
                 stop("Cannot modify a simulation.set's 'intervention.code' - it is read-only")
+        },
+        
+        is.degenerate = function(value)
+        {
+            if (missing(value))
+                private$i.is.degenerate
+            else
+                stop("Cannot modify a simulation.set's 'is.degenerate' - it is read-only")
         }
         
     ),
@@ -974,6 +993,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         i.calibration.code = NULL,
         i.intervention.code = NULL,
+        
+        i.is.degenerate = NULL,
         
         i.engine = NULL
     )
