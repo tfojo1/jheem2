@@ -276,7 +276,7 @@ simplot <- function(...,
     rv = rv +
         scale_alpha(guide='none') +
         labs(y=y.label)
-    if (!is.null(df.sim)) rv + scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
+    if (!is.null(df.sim)) rv = rv + scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
     
     rv
 }
