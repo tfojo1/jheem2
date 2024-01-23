@@ -1223,23 +1223,30 @@ JHEEM = R6::R6Class(
                     stop("saved - quitting for now")
                 }
                 
-                run.time = as.numeric(Sys.time()) - run.start.time
+                run.time = as.numeric(Sys.time()) - end.preprocessing.time
                 if (run.time > max.run.time.seconds)
-                {} #for now, nothing, but we have to return a degenerate simulation
+                    terminated.for.time <<- T
                 
-                compute_dx(state = x,
-                           time = t,
-                           settings = private$i.diffeq.settings,
-                           quantities_info = private$i.diffeq.settings$quantities.info,
-                           quantity_scratch_vector = private$i.diffeq.settings$quantity_scratch_vector,
-                           scratch_vector = private$i.diffeq.settings$scratch.vector,
-                           natality_info = private$i.diffeq.settings$natality.info,
-                           mortality_info = private$i.diffeq.settings$mortality.info,
-                           transitions_info = private$i.diffeq.settings$transitions.info,
-                           infections_info = private$i.diffeq.settings$infections.info,
-                           remission_info = private$i.diffeq.settings$remission.info,
-                           fixed_strata_info = private$i.diffeq.settings$fixed.strata.info,
-                           population_trackers = private$i.diffeq.settings$population_trackers)
+                if (terminated.for.time)
+                {
+                    rep(0, length(x))
+                }
+                else
+                {
+                    compute_dx(state = x,
+                               time = t,
+                               settings = private$i.diffeq.settings,
+                               quantities_info = private$i.diffeq.settings$quantities.info,
+                               quantity_scratch_vector = private$i.diffeq.settings$quantity_scratch_vector,
+                               scratch_vector = private$i.diffeq.settings$scratch.vector,
+                               natality_info = private$i.diffeq.settings$natality.info,
+                               mortality_info = private$i.diffeq.settings$mortality.info,
+                               transitions_info = private$i.diffeq.settings$transitions.info,
+                               infections_info = private$i.diffeq.settings$infections.info,
+                               remission_info = private$i.diffeq.settings$remission.info,
+                               fixed_strata_info = private$i.diffeq.settings$fixed.strata.info,
+                               population_trackers = private$i.diffeq.settings$population_trackers)
+                }
             }
             
             end.preprocessing.time = as.numeric(Sys.time())
@@ -4653,7 +4660,6 @@ JHEEM = R6::R6Class(
                     private$calculate.outcome.numerator.and.denominator(outcome.name = outcome.name,
                                                                         ode.results = ode.results,
                                                                         specification = specification,
-                                                                        is.degenerate = is.degenerate,
                                                                         error.prefix = paste0("Error calculating the value for outcome '", outcome.name, "': "))  
                 })
             }
