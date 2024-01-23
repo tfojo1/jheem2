@@ -7,6 +7,7 @@
 register.data.source(
   data.manager = get.default.data.manager(),
   source,
+  parent.source,
   full.name,
   short.name = full.name
 )
@@ -14,11 +15,13 @@ register.data.source(
 \arguments{
 \item{data.manager}{A jheem.data.manager object}
 
+\item{source}{The name (a single character value) of the source. This is the 'internal' name by which the source will be referenced in accessing the data manager}
+
+\item{parent.source}{A parent source registered with this data manager that reflects the origin of the data this source uses}
+
 \item{full.name}{A descriptive, fully-formatted and capitalized name to use in generating figures and tables (eg in popovers). Avoid abbreviations. Should be unique to the data source (although this is not enforced)}
 
 \item{short.name}{A name for the data source to use in setting where brevity is important. Ideal to use abbreviations, but can be the same as full.name}
-
-\item{outcome}{The name (a single character value) of the outcome. This is the 'internal' name by which the outcome will be referenced in accessing the data manager}
 }
 \description{
 Register a data source to a data manager before putting data from that source

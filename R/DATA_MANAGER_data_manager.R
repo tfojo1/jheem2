@@ -221,10 +221,10 @@ register.data.source <- function(data.manager = get.default.data.manager(),
 #'@param short.name A name for the parent data source to use in setting where brevity is important. Ideal to use abbreviations, but can be the same as full.name
 #'
 #'@export
-register.data.source <- function(data.manager = get.default.data.manager(),
-                                 parent.source,
-                                 full.name,
-                                 short.name = full.name)
+register.parent.data.source <- function(data.manager = get.default.data.manager(),
+                                        parent.source,
+                                        full.name,
+                                        short.name = full.name)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
