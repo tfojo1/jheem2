@@ -153,7 +153,7 @@ simplot <- function(...,
     location = simset.list[[1]]$location
     
     #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
-
+    
     outcome.mappings = list() # note: not all outcomes will have corresponding data outcomes
     
     df.truth = NULL
@@ -178,10 +178,20 @@ simplot <- function(...,
             )
             if (!is.null(outcome.data)) {
                 outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
-                one.df.outcome = reshape2::melt(outcome.data, na.rm = T)
+                one.df.outcome = reshape2::melt(outcome.data, na.rm = T) # creates factors - we can't prevent it
+                
+                # If we have multiple outcomes that may map differently (for example, with years), the factor levels determined by the first outcome may not be valid for subsequent outcomes
+                one.df.outcome = as.data.frame(lapply(one.df.outcome, function(col) {
+                    if (is.factor(col)) as.character(col)
+                    else col
+                }))
+                
                 corresponding.outcome = names(outcomes.for.data)[[i]]
                 one.df.outcome['outcome'] = corresponding.outcome
                 df.truth = rbind(df.truth, one.df.outcome)
+            }
+            else {
+                outcome.mappings = c(outcome.mappings, list(NULL))
             }
         }
         else
@@ -189,9 +199,8 @@ simplot <- function(...,
             outcome.mappings = c(outcome.mappings, list(NULL))
         }
     }
-
     names(outcome.mappings) = outcomes
-
+    
     #-- STEP 3: MAKE A DATA FRAME WITH ALL THE SIMULATIONS' DATA --#
     # browser()
     df.sim = NULL
@@ -203,7 +212,7 @@ simplot <- function(...,
                                  dimension.values = dimension.values,
                                  keep.dimensions = c('year', facet.by, split.by),
                                  drop.single.outcome.dimension = F)
-
+        
         dim.names.without.outcome = dimnames(simset.data)[names(dimnames(simset.data)) != 'outcome']
         outcome.arrays = lapply(outcomes, function(outcome) {
             # browser()
@@ -220,14 +229,16 @@ simplot <- function(...,
                         NULL
                     }
                 )
-                
+            
             else
                 arr
         })
-        # browser()
+        browser()
         outcome.arrays = outcome.arrays[!sapply(outcome.arrays, is.null)]
         outcomes.with.non.null.arrays = outcomes[!sapply(outcome.arrays, is.null)]
         if (length(outcomes.with.non.null.arrays) == 0) next
+        
+        # If we have multiple outcomes, the dimnames for them *may* be different, at least for years.
         mapped.dimnames = c(dimnames(outcome.arrays[[1]]), list(outcome = outcomes.with.non.null.arrays))
         mapped.simset.data = array(unlist(outcome.arrays), dim=sapply(mapped.dimnames, length), dimnames = mapped.dimnames)
         
@@ -242,29 +253,38 @@ simplot <- function(...,
     if (!is.null(df.sim)) {
         df.sim$simset = factor(df.sim$simset)
         df.sim$sim = factor(df.sim$sim)
-        df.sim$groupid = paste0(df.sim$simset, '_', df.sim$sim, '_', df.sim[,split.by])
-        n.simsets = length(unique(df.sim$simset))
+        df.sim$groupid = paste0(df.sim$outcome, '_', df.sim$simset, '_', df.sim$sim, '_', df.sim[,split.by])
+        
+        # break df.sim into two data frames, one for outcomes where the sim will be lines and the other for where it will be points
+        groupids.with.one.member = setdiff(unique(df.sim$groupid), df.sim$groupid[which(duplicated(df.sim$groupid))])
+        df.sim$groupid_has_one_member = with(df.sim, groupid %in% groupids.with.one.member)
+        df.sim.groupids.one.member = subset(df.sim, groupid_has_one_member)
+        df.sim.groupids.many.memebers = subset(df.sim, !groupid_has_one_member)
     }
     
     
     #- STEP 4: MAKE THE PLOT --#
     
     y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
-
+    
     facet.formula = as.formula(paste0("~",
                                       paste0(c('outcome', facet.by), collapse='+')))
     
     rv = ggplot() + scale_y_continuous(limits=c(0, NA), labels = scales::comma) + scale_color_discrete()
-    # browser()
+    browser()
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
-        if (!is.null(df.sim))
-            rv = rv + geom_line(data=df.sim, aes(x=year, y=value, linetype=simset, group=groupid, color=!!sym(split.by), alpha=alpha, linewidth=linewidth))
+        if (!is.null(df.sim)) {
+            rv = rv + geom_line(data=df.sim.groupids.many.memebers, aes(x=year, y=value, linetype=simset, group=groupid, color=!!sym(split.by), alpha=alpha, linewidth=linewidth)) +
+                geom_point(data=df.sim.groupids.one.member, size=2, aes(x=year, y=value, shape=simset, color=!!sym(split.by)))
+        }
         if (!is.null(df.truth))
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
     } else {
-        if (!is.null(df.sim))
-            rv = rv + geom_line(data=df.sim, aes(x=year, y=value, color=simset, group=groupid, linewidth=linewidth))
+        if (!is.null(df.sim)) {
+            rv = rv + geom_line(data=df.sim.groupids.many.memebers, aes(x=year, y=value, linetype=simset, group=groupid, alpha=alpha, linewidth=linewidth)) +
+                geom_point(data=df.sim.groupids.one.member, size=2, aes(x=year, y=value, shape=simset))
+        }
         if (!is.null(df.truth))
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
     }
