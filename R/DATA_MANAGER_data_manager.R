@@ -2059,7 +2059,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 private$i.parent.source.info
             else
                 stop("Cannot modify 'parent.source.info' in jheem.data.manager - it is read-only")
-        }
+        },
         
         ontologies = function(value)
         {
