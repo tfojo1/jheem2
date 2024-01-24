@@ -1644,6 +1644,7 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                                          knot.times = knot.times,
                                          desired.times = years)
                 })
+                dim(arr.rv) = c(year=length(years), length(arr.rv)/length(years))
                 
                 lapply(1:length(years), function(y){
                     sub.rv = private$i.link$reverse.apply(arr.rv[y,] + 
@@ -2051,6 +2052,7 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                                                      fraction.of.asymptote.after.end = fraction.of.asymptote.after.end[i],
                                                      fraction.of.asymptote.before.start = fraction.of.asymptote.before.start[i])
                 })
+                
             }
             else if (length(knot.values)==3)
             {
@@ -2104,6 +2106,7 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                     }))
                 })
             }
+            dim(arr.rv) = c(year=length(years), length(arr.rv)/length(years))
             
             lapply(1:length(years), function(y){
                 sub.rv = arr.rv[y,]
