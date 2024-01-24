@@ -520,14 +520,21 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             
             # VALIDATION PURPOSELY SKIPPED FOR TIME SAVING. ENSURE SIM IS A SIMULATION!
             
-            # if (!is(sim, 'jheem.simulation.set'))
-            #     stop(paste0(error.prefix, "'sim' must be a 'jheem.simulation.set' object"))
+            # check n.sim > 0?
+            
+            if (!is(sim, 'jheem.simulation.set'))
+                stop(paste0(error.prefix, "'sim' must be a 'jheem.simulation.set' object"))
             
             if (check.consistency)
             {
                 # Make sure that the sim has the years needed for the likelihood
                 if (!all(private$i.years %in% sim$from.year:sim$to.year))
                     stop(paste0(error.prefix, "simulation does not have all needed years"))
+            }
+            
+            if (sim$is.degenerate) {
+                if (log) return (-Inf)
+                else return (0)
             }
             
             # Call the subclass function

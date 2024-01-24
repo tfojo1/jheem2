@@ -190,7 +190,8 @@ register.data.outcome <- function(data.manager = get.default.data.manager(),
 #'@title Register a data source to a data manager before putting data from that source
 #'
 #'@param data.manager A jheem.data.manager object
-#'@param outcome The name (a single character value) of the outcome. This is the 'internal' name by which the outcome will be referenced in accessing the data manager
+#'@param source The name (a single character value) of the source. This is the 'internal' name by which the source will be referenced in accessing the data manager
+#'@param parent.source A parent source registered with this data manager that reflects the origin of the data this source uses
 #'@param full.name A descriptive, fully-formatted and capitalized name to use in generating figures and tables (eg in popovers). Avoid abbreviations. Should be unique to the data source (although this is not enforced)
 #'@param short.name A name for the data source to use in setting where brevity is important. Ideal to use abbreviations, but can be the same as full.name
 #'
@@ -199,6 +200,7 @@ register.data.outcome <- function(data.manager = get.default.data.manager(),
 #'@export
 register.data.source <- function(data.manager = get.default.data.manager(),
                                  source,
+                                 parent.source,
                                  full.name,
                                  short.name = full.name)
 {
@@ -206,6 +208,28 @@ register.data.source <- function(data.manager = get.default.data.manager(),
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
     data.manager$register.source(source=source,
+                                 parent.source=parent.source,
+                                 full.name=full.name,
+                                 short.name=short.name)
+}
+
+#'@title Register a parent data source to a data manager
+#'
+#'@param data.manager A jheem.data.manager object
+#'@param parent.source The name (a single character value) of the parent source. This is the 'internal' name by which the parent source will be referenced in accessing the data manager
+#'@param full.name A descriptive, fully-formatted and capitalized name to use in generating figures and tables (eg in popovers). Avoid abbreviations. Should be unique to the parent data source (although this is not enforced)
+#'@param short.name A name for the parent data source to use in setting where brevity is important. Ideal to use abbreviations, but can be the same as full.name
+#'
+#'@export
+register.parent.data.source <- function(data.manager = get.default.data.manager(),
+                                        parent.source,
+                                        full.name,
+                                        short.name = full.name)
+{
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+    
+    data.manager$register.source(parent.source=parent.source,
                                  full.name=full.name,
                                  short.name=short.name)
 }
@@ -505,13 +529,23 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                           denominator.outcome = from.data.manager$outcome.info[[outcome.name]][['denominator.outcome']])
             }
             
+            # register parent sources if necessary
+            for (parent.source.name in names(from.data.manager$parent.source.info)) {
+                self$register.parent.source(parent.source = from.data.manager$parent.source.info[[parent.source.name]][['parent.source']],
+                                            full.name = from.data.manager$parent.source.info[[parent.source.name]][['full.name']],
+                                            short.name = from.data.manager$parent.source.info[[parent.source.name]][['short.name']])
+            }
+            
             # register sources if necessary
             for (source.name in names(from.data.manager$source.info)) {
                 if (!(source.name %in% names(self$source.info)))
                     self$register.source(source = from.data.manager$source.info[[source.name]][['source']],
+                                         parent.source = from.data.manager$source.info[[source.name]][['parent.source']],
                                          full.name = from.data.manager$source.info[[source.name]][['full.name']],
                                          short.name = from.data.manager$source.info[[source.name]][['short.name']])
             }
+            
+            # 
             
             # import data
             data = from.data.manager$data
@@ -700,6 +734,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         },
         
         register.source = function(source,
+                                   parent.source,
                                    full.name,
                                    short.name,
                                    overwrite=F)
@@ -713,6 +748,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             error.prefix = paste0("Unable to register source '", source, 
                                   "' for data.manager '", private$i.name, "': ")
             
+            # - parent.source is a single, non-empty, non-NA character value and must be the name of a previously registered parent.source
+            if (!is.character(source) || length(source)!=1 || is.na(source) || nchar(source)==0)
+                stop(paste0(error.prefix, "'source' must be a single, non-empty, non-NA character value"))
+            if (is.null(private$i.parent.source.info[[parent.source]]))
+                stop(paste0(error.prefix, "'parent.source' must be a registered parent source with this data manager"))
             
             # - full.name is a single, non-empty, non-NA character value
             if (!is.character(full.name) || length(full.name)!=1 || is.na(full.name) || nchar(full.name)==0)
@@ -722,7 +762,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (!is.character(short.name) || length(short.name)!=1 || is.na(short.name) || nchar(short.name)==0)
                 stop(paste0(error.prefix, "'short.name' must be a single, non-empty, non-NA character value"))
             
-            # If this outcome has not previously been registered, store it
+            # If this source has not previously been registered, store it
             # Otherwise, if overwrite==T, store the new one
             # Otherwise, throw an error if full.name or short.name is different
             #   If different, throw an error
@@ -732,6 +772,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             {
                 source.info = list(
                     source = source,
+                    parent.source = parent.source,
                     full.name = full.name,
                     short.name = short.name)
                 
@@ -742,6 +783,52 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix, "A data source named '", source, "' has already been registered. If you want to overwrite the previously registered source, use overwrite==T"))
             }
 
+            #-- Invisibly return the data manager for convenience --#
+            invisible(self)
+        },
+        
+        register.parent.source = function(parent.source,
+                                          full.name,
+                                          short.name,
+                                          overwrite=F)
+        {
+            #-- Validate arguments --#
+            error.prefix = paste0("Unable to register parent source for data.manager '", private$i.name, "': ")
+            
+            # - parent.source is a single, non-empty, non-NA character value
+            if (!is.character(parent.source) || length(parent.source)!=1 || is.na(parent.source) || nchar(parent.source)==0)
+                stop(paste0(error.prefix, "'parent.source' must be a single, non-empty, non-NA character value"))
+            error.prefix = paste0("Unable to register parent.source '", parent.source, 
+                                  "' for data.manager '", private$i.name, "': ")
+            
+            # - full.name is a single, non-empty, non-NA character value
+            if (!is.character(full.name) || length(full.name)!=1 || is.na(full.name) || nchar(full.name)==0)
+                stop(paste0(error.prefix, "'full.name' must be a single, non-empty, non-NA character value"))
+            
+            # - short.name is a single, non-empty, non-NA character value
+            if (!is.character(short.name) || length(short.name)!=1 || is.na(short.name) || nchar(short.name)==0)
+                stop(paste0(error.prefix, "'short.name' must be a single, non-empty, non-NA character value"))
+            
+            # If this parent source has not previously been registered, store it
+            # Otherwise, if overwrite==T, store the new one
+            # Otherwise, throw an error if full.name or short.name is different
+            #   If different, throw an error
+            
+            previous.parent.source.info = private$i.parent.source.info[[parent.source]]
+            if (overwrite || is.null(previous.parent.source.info))
+            {
+                parent.source.info = list(
+                    parent.source = parent.source,
+                    full.name = full.name,
+                    short.name = short.name)
+                
+                private$i.parent.source.info[[parent.source]] = parent.source.info
+            }
+            else if (previous.parent.source.info$full.name != full.name || previous.parent.source.info$short.name != short.name)
+            {
+                stop(paste0(error.prefix, "A data parent source named '", parent.source, "' has already been registered. If you want to overwrite the previously registered parent source, use overwrite==T"))
+            }
+            
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
@@ -1963,8 +2050,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (missing(value))
                 private$i.source.info
             else
-                stop("Cannot modify 'data' in jheem.data.manager - it is read-only")
+                stop("Cannot modify 'source.info' in jheem.data.manager - it is read-only")
         },
+        
+        parent.source.info = function(value)
+        {
+            if (missing(value))
+                private$i.parent.source.info
+            else
+                stop("Cannot modify 'parent.source.info' in jheem.data.manager - it is read-only")
+        }
         
         ontologies = function(value)
         {
@@ -1994,6 +2089,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         # These are named lists, with the names being the names of outcomes or data groups
         i.outcome.info = NULL,
         i.source.info = NULL,
+        i.parent.source.info = NULL,
         i.ontologies = NULL,
         
         i.cached.universal.ontologies = NULL,
