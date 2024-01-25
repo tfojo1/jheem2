@@ -72,13 +72,13 @@ STATE.MAPPINGS = c(
 # would use library(jheem2)
 
 test.proportion.aggregation = function(browse=F) {
-    
+
     error.prefix = "test.proportion.aggregation: "
-    
+
     # ---Test whether rates of suppression can be aggregated across sex---
-    
+
     # --Initialize data manager--
-    
+
     data.manager = create.data.manager('test', description='a data manager to test with')
     data.manager$register.outcome(
         'suppression',
@@ -97,9 +97,11 @@ test.proportion.aggregation = function(browse=F) {
             axis.name = "People with Diagnosed HIV (n)",
             units = 'people',
             description = "Estimated Number of People with HIV aware of their Diagnosis"))
-    
-    data.manager$register.source('cdc', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
-    
+
+    data.manager$register.parent.source('cdcparentsource', 'CDC parent source example', 'cdc')
+
+    data.manager$register.source('cdc', 'cdcparentsource', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
+
     data.manager$register.ontology(
         'CDC_bho',
         ont=ontology(
@@ -109,17 +111,17 @@ test.proportion.aggregation = function(browse=F) {
             race=c('black','hispanic','other'),
             sex=c('male','female'),
             risk=c('msm','idu','msm_idu','heterosexual','other')))
-    
+
     # --Process data--
-    
+
     data = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/sle_17.19_age.sex.csv/'))
-    
+
     outcome.mappings = c('HIV viral suppression'='suppression')
-    
+
     # This introduces NAs for the other outcomes, but we remove that data anyways
     data$outcome = outcome.mappings[data$Indicator]
     data = data[!is.na(data$outcome),]
-    
+
     names(data)[names(data)=='Year'] = 'year'
     data$year = as.character(data$year)
     names(data)[names(data)=='Geography'] = 'location'
@@ -127,11 +129,11 @@ test.proportion.aggregation = function(browse=F) {
     names(data)[names(data)=='Sex'] = 'sex'
     data$sex = tolower(data$sex)
     data$age = paste0(data$Age.Group, " years")
-    
+
     # Percentage will be one outcome
     data$Percent[data$Percent %in% c('Data not available', 'Data suppressed')] = NA
     data$value = as.numeric(data$Percent)
-    
+
     data.manager$put.long.form(
         data = data,
         ontology.name = 'CDC_bho',
@@ -139,11 +141,11 @@ test.proportion.aggregation = function(browse=F) {
         dimension.values = list(),
         url = 'www.sle1719agesex.gov',
         details = 'CDC Reporting')
-    
+
     # Prevalence will be another outcome which I'm *assuming* is represented by "population" in this dataset
     data$outcome = 'prevalence_diagnosed'
     data$value = as.numeric(gsub(",", '', data$Population))
-    
+
     data.manager$put.long.form(
         data = data,
         ontology.name = 'CDC_bho',
@@ -153,42 +155,42 @@ test.proportion.aggregation = function(browse=F) {
         details = 'CDC Reporting')
 
     # --Call pull function--
-    
+
     # This should require no aggregation
     pull.test.1 = data.manager$pull(
         outcome = 'suppression',
         keep.dimensions = c('location', 'year', 'age', 'sex'))
-    
+
     # Aggregate over sex
     pull.test.2 = data.manager$pull(
         outcome = 'suppression',
         keep.dimensions = c('location', 'year', 'age'),
         dimension.values = list(sex=c('male', 'female'))
     )
-    
+
     if (is.null(pull.test.1)) print(paste0(error.prefix, "pull.test.1 failed"))
     if (is.null(pull.test.2)) print(paste0(error.prefix, "pull.test.2 failed"))
-    
+
     # specific values that should be present
     if (pull.test.1[['AK', '2018', '13-24 years', 'male', 1]] != 73.3)
         print(paste0(error.prefix, "pull.test.1 failed"))
     if (pull.test.2[['AK', '2018', '13-24 years', 1]] != 79.975)
         print(paste0(error.prefix, "pull.test.2 failed"))
-    
+
     else print(paste0(error.prefix, "All tests passed"))
-    
+
     if (browse) browser()
-    
+
 }
 
 test.choosing.stratifications = function(browse=F) {
-    
+
     error.prefix = "test.choosing.stratifications: "
-    
+
     # ---Test whether the correct stratification will be chosen among many---
-    
+
     # --Initialize data manager--
-    
+
     data.manager = create.data.manager('test', description='a data manager to test with')
     data.manager$register.outcome(
         'new',
@@ -198,9 +200,12 @@ test.choosing.stratifications = function(browse=F) {
             axis.name = 'New Diagnoses (n)',
             units = 'cases',
             description = "New HIV Cases Diagnosed in a Year"))
-    
-    data.manager$register.source('cdc', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
-    
+
+
+    data.manager$register.parent.source('cdcparentsource', 'CDC parent source example', 'cdc')
+
+    data.manager$register.source('cdc', 'cdcparentsource', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
+
     data.manager$register.ontology(
         'CDC_bho',
         ont=ontology(
@@ -210,30 +215,30 @@ test.choosing.stratifications = function(browse=F) {
             race=c('black','hispanic','other'),
             sex=c('male','female'),
             risk=c('msm','idu','msm_idu','heterosexual','other')))
-    
+
     # --Process data--
-    
+
     data.list = list(
         data.1 = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/npm_08.19_age.male.risk.csv/')),
         data.2 = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/npm_08.19_male.risk.csv/'))
     )
-    
+
     outcome.mappings = c('HIV diagnoses'='new')
-    
+
     risk.mappings = c('Heterosexual contact' = 'heterosexual',
                       'Injection drug use' = 'idu',
                       'Other' = 'other',
                       'Male-to-male sexual contact' = 'msm',
                       'Male-to-male sexual contact and injection drug use' = 'msm_idu')
-    
+
     data.list[['data.1']]['age'] = paste0(data.list[['data.1']][['Age.Group']], " years")
 
     for (data in data.list) {
-        
+
         # This introduces NAs for the other outcomes, but we remove that data anyways
         data$outcome = outcome.mappings[data$Indicator]
         data = data[!is.na(data$outcome),]
-        
+
         names(data)[names(data)=='Year'] = 'year'
         data$year = as.character(data$year)
         names(data)[names(data)=='Geography'] = 'location'
@@ -241,10 +246,10 @@ test.choosing.stratifications = function(browse=F) {
         names(data)[names(data)=='Sex'] = 'sex'
         data$sex = tolower(data$sex)
         data$risk = risk.mappings[data$Transmission.Category]
-        
+
         # MIGHT NEED TO CONVERT SOME TO NA
         data$value = as.numeric(gsub(",", '', data$Cases))
-        
+
         data.manager$put.long.form(
             data = data,
             ontology.name = 'CDC_bho',
@@ -252,51 +257,51 @@ test.choosing.stratifications = function(browse=F) {
             dimension.values = list(),
             url = 'www.example.gov',
             details = 'CDC Reporting')
-        
+
     }
-    
-    
+
+
     # --Call pull function--
-    
+
     if (browse) browser()
-    
+
     # This should require no aggregation
     pull.test.1 = data.manager$pull(
         outcome = 'new',
         keep.dimensions = c('location', 'year', 'age', 'sex', 'risk'))
-    
+
     # Aggregate over age
     pull.test.2 = data.manager$pull(
         outcome = 'new',
         keep.dimensions = c('location', 'year', 'sex', 'risk'),
         dimension.values = list(sex=c('male', 'female'))
     )
-    
-    
+
+
     if (is.null(pull.test.1)) print(paste0(error.prefix, "pull.test.1 failed"))
     if (is.null(pull.test.2)) print(paste0(error.prefix, "pull.test.2 failed"))
-    
+
     # specific values that should be present
     if (pull.test.1[['AL', '2008', '13-24 years', 'male', 'idu', 1]] != 2)
         print(paste0(error.prefix, "pull.test.1 failed"))
     if (pull.test.2[['AL', '2008', 'male', 'idu', 1]] != 26)
         print(paste0(error.prefix, "pull.test.2 failed"))
-    
+
     else print(paste0(error.prefix, "All tests passed"))
-    
-    
+
+
 }
 
 test.target.ontology = function(browse=F) {
-    
+
     # @@@ INCOMPLETE
-    
+
     error.prefix = "test.target.ontology: "
-    
+
     # ---Test data will be mapped properly to a target ontology ---
-    
+
     # --Initialize data manager--
-    
+
     data.manager = create.data.manager('test', description='a data manager to test with')
     data.manager$register.outcome(
         'new',
@@ -306,9 +311,12 @@ test.target.ontology = function(browse=F) {
             axis.name = 'New Diagnoses (n)',
             units = 'cases',
             description = "New HIV Cases Diagnosed in a Year"))
-    
-    data.manager$register.source('cdc', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
-    
+
+
+    data.manager$register.parent.source('cdcparentsource', 'CDC parent source example', 'cdc')
+
+    data.manager$register.source('cdc', 'cdcparentsource', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
+
     data.manager$register.ontology(
         'CDC_bho',
         ont=ontology(
@@ -318,30 +326,30 @@ test.target.ontology = function(browse=F) {
             race=c('black','hispanic','other'),
             sex=c('male','female'),
             risk=c('msm','idu','msm_idu','heterosexual','other')))
-    
+
     # --Process data--
-    
+
     data.list = list(
         data.1 = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/npm_08.19_age.male.risk.csv/')),
         data.2 = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/npm_08.19_male.risk.csv/'))
     )
-    
+
     outcome.mappings = c('HIV diagnoses'='new')
-    
+
     risk.mappings = c('Heterosexual contact' = 'heterosexual',
                       'Injection drug use' = 'idu',
                       'Other' = 'other',
                       'Male-to-male sexual contact' = 'msm',
                       'Male-to-male sexual contact and injection drug use' = 'msm_idu')
-    
+
     data.list[['data.1']]['age'] = paste0(data.list[['data.1']][['Age.Group']], " years")
-    
+
     for (data in data.list) {
-        
+
         # This introduces NAs for the other outcomes, but we remove that data anyways
         data$outcome = outcome.mappings[data$Indicator]
         data = data[!is.na(data$outcome),]
-        
+
         names(data)[names(data)=='Year'] = 'year'
         data$year = as.character(data$year)
         names(data)[names(data)=='Geography'] = 'location'
@@ -349,9 +357,9 @@ test.target.ontology = function(browse=F) {
         names(data)[names(data)=='Sex'] = 'sex'
         data$sex = tolower(data$sex)
         data$risk = risk.mappings[data$Transmission.Category]
-        
+
         data$value = as.numeric(gsub(",", '', data$Cases))
-        
+
         data.manager$put.long.form(
             data = data,
             ontology.name = 'CDC_bho',
@@ -359,48 +367,48 @@ test.target.ontology = function(browse=F) {
             dimension.values = list(),
             url = 'www.example.gov',
             details = 'CDC Reporting')
-        
+
     }
-    
-    
+
+
     # --Call pull function--
-    
+
     if (browse) browser()
-    
+
     # This should require no aggregation
     pull.test.1 = data.manager$pull(
         outcome = 'new',
         keep.dimensions = c('location', 'year', 'age', 'sex', 'risk'))
-    
+
     # Aggregate over age
     pull.test.2 = data.manager$pull(
         outcome = 'new',
         keep.dimensions = c('location', 'year', 'sex', 'risk'),
         dimension.values = list(sex=c('male', 'female'))
     )
-    
-    
+
+
     if (is.null(pull.test.1)) print(paste0(error.prefix, "pull.test.1 failed"))
     if (is.null(pull.test.2)) print(paste0(error.prefix, "pull.test.2 failed"))
-    
+
     # specific values that should be present
     if (pull.test.1[['AL', '2008', '13-24 years', 'male', 'idu', 1]] != 2)
         print(paste0(error.prefix, "pull.test.1 failed"))
     if (pull.test.2[['AL', '2008', 'male', 'idu', 1]] != 26)
         print(paste0(error.prefix, "pull.test.2 failed"))
-    
+
     else print(paste0(error.prefix, "All tests passed"))
-    
+
 }
 
 test.argument.validation = function(browse=F) {
-    
+
     error.prefix = "test.argument.validation: "
-    
+
     # ---Test validation of arguments---
-    
+
     # --Create data manager same as in test.proportion.aggregation
-    
+
     data.manager = create.data.manager('test', description='a data manager to test with')
     data.manager$register.outcome(
         'suppression',
@@ -419,9 +427,11 @@ test.argument.validation = function(browse=F) {
             axis.name = "People with Diagnosed HIV (n)",
             units = 'people',
             description = "Estimated Number of People with HIV aware of their Diagnosis"))
-    
-    data.manager$register.source('cdc', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
-    
+
+    data.manager$register.parent.source('cdcparentsource', 'CDC parent source example', 'cdc')
+
+    data.manager$register.source('cdc', 'cdcparentsource', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
+
     data.manager$register.ontology(
         'CDC_bho',
         ont=ontology(
@@ -431,17 +441,17 @@ test.argument.validation = function(browse=F) {
             race=c('black','hispanic','other'),
             sex=c('male','female'),
             risk=c('msm','idu','msm_idu','heterosexual','other')))
-    
+
     # --Process data--
-    
+
     data = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/sle_17.19_age.sex.csv/'))
-    
+
     outcome.mappings = c('HIV viral suppression'='suppression')
-    
+
     # This introduces NAs for the other outcomes, but we remove that data anyways
     data$outcome <- outcome.mappings[data$Indicator]
     data = data[!is.na(data$outcome),]
-    
+
     names(data)[names(data)=='Year'] = 'year'
     data$year = as.character(data$year)
     names(data)[names(data)=='Geography'] = 'location'
@@ -449,11 +459,11 @@ test.argument.validation = function(browse=F) {
     names(data)[names(data)=='Sex'] = 'sex'
     data$sex = tolower(data$sex)
     data$age = paste0(data$Age.Group, " years")
-    
+
     # Percentage will be one outcome
     data$Percent[data$Percent %in% c('Data not available', 'Data suppressed')] = NA
     data$value = as.numeric(data$Percent)
-    
+
     data.manager$put.long.form(
         data = data,
         ontology.name = 'CDC_bho',
@@ -461,11 +471,11 @@ test.argument.validation = function(browse=F) {
         dimension.values = list(),
         url = 'www.sle1719agesex.gov',
         details = 'CDC Reporting')
-    
+
     # Prevalence will be another outcome which I'm *assuming* is represented by "population" in this dataset
     data$outcome = 'prevalence_diagnosed'
     data$value = as.numeric(gsub(",", '', data$Population))
-    
+
     data.manager$put.long.form(
         data = data,
         ontology.name = 'CDC_bho',
@@ -473,84 +483,84 @@ test.argument.validation = function(browse=F) {
         dimension.values = list(),
         url = 'www.sle1719agesex.gov',
         details = 'CDC Reporting')
-    
+
     # --Tests--
-    
+
     overall.pass = T
-    
+
     # Tests that should fail
     tests.failed = 0
     tests.failed.set = c()
     num.failure.tests = 14
-    
+
     sapply(1:num.failure.tests, function(test.index) {
         tryCatch(
             {
                 switch(
                     test.index,
-                    
+
                     # 1
                     test.outcome.fail.1 = data.manager$pull(
                         outcome = 'unregistered.outcome'
                     ),
-                    
+
                     # 2
                     test.outcome.fail.2 = data.manager$pull(
                         outcome = c("not", "single")
                     ),
-                    
+
                     # 3
                     test.outcome.fail.3 = data.manager$pull(
                         outcome = NA
                     ),
-                    
+
                     # 4
                     test.outcome.fail.4 = data.manager$pull(
                         outcome = ''
                     ),
-                    
+
                     # 5
                     test.keep.dimensions.fail.1 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         keep.dimensions = c(NA)
                     ),
-                    
+
                     # 6
                     test.keep.dimensions.fail.2 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         keep.dimensions = c('age', 'age')
                     ),
-                    
+
                     # 7
                     test.dimension.values.fail.1 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         dimension.values = list(non.existent = 'dimension')
                     ),
-                    
+
                     # 8
                     test.sources.fail.1 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         sources = list()
                     ),
-                    
+
                     # 9
                     test.sources.fail.2 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         sources = character()
                     ),
-                    
+
                     # 10
                     test.sources.fail.3 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         sources = 'unregistered.source'
                     ),
-                    
+
                     # 11
                     test.sources.fail.4 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         sources = c(NA)
                     ),
-                    
+
                     # 12
                     test.target.ontology.fail.1 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
@@ -558,7 +568,7 @@ test.argument.validation = function(browse=F) {
                             not = c('a real', 'ontology')
                         )
                     ),
-                    
+
                     # 13
                     test.target.ontology.fail.2 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
@@ -571,7 +581,7 @@ test.argument.validation = function(browse=F) {
                             incomplete.dimensions = c('location','year')),
                         dimension.values = list(risk = c('msm', 'msm_idu'))
                     ),
-                    
+
                     # 14
                     test.target.ontology.fail.3 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
@@ -597,8 +607,8 @@ test.argument.validation = function(browse=F) {
         print(paste0("The following tests failed: ", setdiff(1:num.failure.tests, tests.failed.set)))
         overall.pass = F
     }
-        
-    
+
+
     # tests that should pass
     tests.failed = 0
     num.success.tests = 6
@@ -607,36 +617,36 @@ test.argument.validation = function(browse=F) {
             {
                 switch(
                     test.index,
-                    
+
                     # 1
                     test.outcome.pass.1 = data.manager$pull(
                         outcome = 'prevalence_diagnosed'
                     ),
-                    
+
                     # 2
                     test.keep.dimensions.pass.1 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         keep.dimensions = c('age')
                     ),
-                    
+
                     # 3
                     test.dimension.values.pass.1 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         dimension.values = list(age = '25-34 years')
                     ),
-                    
+
                     # 4
                     test.sources.pass.1 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         sources = c('cdc')
                     ),
-                    
+
                     # 5
                     test.sources.pass.2 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
                         sources = NULL
                     ),
-                    
+
                     # 6
                     test.target.ontology.pass.1 = data.manager$pull(
                         outcome = 'prevalence_diagnosed',
@@ -661,19 +671,19 @@ test.argument.validation = function(browse=F) {
         print(paste0(error.prefix, tests.failed, "/", num.success.tests, " tests that should have passed failed."))
         overall.pass = F
     }
-    
+
     if (overall.pass) print(paste0(error.prefix, "All tests successful"))
-    
+
 }
 
 test.common.ontology = function(browse=F) {
-    
+
     error.prefix = "test.common.ontology: "
-    
+
     # ---Test using a common ontology---
-    
+
     # --Initialize data manager--
-    
+
     data.manager = create.data.manager('test', description='a data manager to test with')
     data.manager$register.outcome(
         'new',
@@ -683,9 +693,11 @@ test.common.ontology = function(browse=F) {
             axis.name = 'New Diagnoses (n)',
             units = 'cases',
             description = "New HIV Cases Diagnosed in a Year"))
-    
-    data.manager$register.source('cdc', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
-    
+
+    data.manager$register.parent.source('cdcparentsource', 'CDC parent source example', 'cdc')
+
+    data.manager$register.source('cdc', 'cdcparentsource', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
+
     data.manager$register.ontology(
         'cdc',
         ont = ontology(
@@ -696,11 +708,11 @@ test.common.ontology = function(browse=F) {
             sex=c('male','female'),
             risk=c('msm','idu','msm_idu','heterosexual','other'))
     )
-    
+
     # The JHEEM ontology, which will be used as a target.ontology, will be defined below
     # so that we can set its NULL dimensions to be whatever the data has.
     # Normally it these dimensions would be set when data is put with the ontology.
-    
+
     register.ontology.mapping(
         'lump.other.risk.and.heterosexual',
         from.dimensions = 'risk',
@@ -713,7 +725,7 @@ test.common.ontology = function(browse=F) {
             c('other', 'heterosexual')
         )
     )
-    
+
     register.ontology.mapping(
         'jheem.to.cdc.sex.risk',
         from.dimensions = c('sex', 'risk'),
@@ -730,22 +742,22 @@ test.common.ontology = function(browse=F) {
             c('female', 'IDU_in_remission', 'female', 'idu')
         )
     )
-    
+
     # --Process data--
-    
+
     data.list = list(
         data.1 = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/npm_08.19_race.male.risk.csv')),
         data.2 = read.csv(file.path(DATA.ROOT.DIR, 'hiv_surveillance/state/npm_08.19_male.risk.csv'))
     )
-    
+
     outcome.mappings = c('HIV diagnoses'='new')
-    
+
     risk.mappings = c('Heterosexual contact' = 'heterosexual',
                       'Injection drug use' = 'idu',
                       'Other' = 'other',
                       'Male-to-male sexual contact' = 'msm',
                       'Male-to-male sexual contact and injection drug use' = 'msm_idu')
-    
+
     race.mappings = c('American Indian/Alaska Native' = 'AAPI',
                       'Asian' = 'AAPI',
                       'Black/African American' = 'black',
@@ -754,17 +766,17 @@ test.common.ontology = function(browse=F) {
                       'White' = 'white',
                       'Multiple races' = 'other'
                       )
-    
+
     # record possible values for the incomplete dimensions, year and location
     locations = c()
     years = c()
-    
+
     for (data in data.list) {
-        
+
         # This introduces NAs for the other outcomes, but we remove that data anyways
         data$outcome = outcome.mappings[data$Indicator]
         data = data[!is.na(data$outcome),]
-        
+
         names(data)[names(data)=='Year'] = 'year'
         data$year = as.character(data$year)
         names(data)[names(data)=='Geography'] = 'location'
@@ -774,11 +786,11 @@ test.common.ontology = function(browse=F) {
         data$risk = risk.mappings[data$Transmission.Category]
         if (length(unique(data$race)) > 1)
             data$race = race.mappings[data[['Race.Ethnicity']]]
-        
+
         # MIGHT NEED TO CONVERT SOME TO NA
         data$Cases[data$Cases %in% c("Data suppressed")] = NA
         data$value = as.numeric(gsub(",", '', data$Cases))
-        
+
         data.manager$put.long.form(
             data = data,
             ontology.name = 'cdc',
@@ -786,13 +798,13 @@ test.common.ontology = function(browse=F) {
             dimension.values = list(sex='male'),
             url = 'www.example.gov',
             details = 'CDC Reporting')
-        
+
         # record years and locations
         locations = union(locations, unlist(unique(data['location'])))
         years = union(years, unlist(unique(data['year'])))
-        
+
     }
-    
+
     # --Register target.ontology--
 
     data.manager$register.ontology(
@@ -826,7 +838,7 @@ test.common.ontology = function(browse=F) {
         print("pull.test.2 failed to produce NULL")
     }
     if (browse) browser()
-    
+
     ### Tests whether the patch for allowing multiple dimension values per dimension
     pull.test.3 = data.manager$pull(
         outcome = 'new',
@@ -840,7 +852,7 @@ test.common.ontology = function(browse=F) {
     } else {
         print(paste0(error.prefix, "All tests passed"))
     }
-    
+
 }
 
 # ----MAIN----
@@ -856,7 +868,7 @@ test.common.ontology(browse=F)
 #     race=c('black','hispanic','other'),
 #     sex=c('msm', 'heterosexual_male', 'female'),
 #     risk=c('never_IDU', 'active_IDU', 'IDU_in_remission'))
-# 
+#
 # cdc.ontology = ontology(
 #     location='MD',
 #     year=as.character(2008:2020),
