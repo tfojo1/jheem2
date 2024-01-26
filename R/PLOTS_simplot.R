@@ -5,6 +5,7 @@
 #'@param split.by AZ: at most one dimension
 #'@param facet.by AZ: any number of dimensions but cannot include the split.by dimension
 #'@param dimension.values
+#'@param plot.simulations.only Logical value specifying whether to plot only simulations, not calibration data.
 #'@param data.manager The data.manager from which to draw real-world data for the plots
 #'@param style.manager We are going to have to define this down the road. It's going to govern how we do lines and sizes and colors. For now, just hard code those in, and we'll circle back to it
 #'
@@ -20,6 +21,7 @@ simplot <- function(...,
                     split.by = NULL,
                     facet.by = NULL,
                     dimension.values = list(),
+                    plot.simulations.only = F,
                     data.manager = get.default.data.manager(),
                     style.manager) # will be an R6 object. will be mine!
 {
@@ -36,6 +38,10 @@ simplot <- function(...,
     
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
     stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+    
+    # *plot.simulations.only* is a single, logical value
+    if (!is.logical(plot.simulations.only) || length(plot.simulations.only) > 1 || is.na(plot.simulations.only))
+        stop(paste0(error.prefix, "'plot.simulations.only' must be a single logical value"))
     
     # *split.by* is NULL or a single, non-NA character vector
     if (!is.null(split.by) && (!is.character(split.by) || length(split.by) > 1 || is.na(split.by)))
@@ -60,6 +66,7 @@ simplot <- function(...,
     simset.args = list(...) # will later be SIMSETS
     
     outcomes.found.in.simset.args = F
+    outcomes.collected.from.args = c()
     # each element of 'sim.list' should be either a sim or list containing only sims.
     for (element in simset.args) {
         if (!R6::is.R6(element) || !is(element, 'jheem.simulation.set')) {
@@ -154,52 +161,58 @@ simplot <- function(...,
     
     #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
     
+    df.truth = NULL
     outcome.mappings = list() # note: not all outcomes will have corresponding data outcomes
     
-    df.truth = NULL
-    for (i in seq_along(outcomes.for.data))
-    {
-        if (!is.null(outcomes.for.data[[i]]))
+    if (!plot.simulations.only) {
+        for (i in seq_along(outcomes.for.data))
         {
-            # print(i)
-            # browser()
-            outcome.data = tryCatch(
-                {
-                    result = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                               dimension.values = c(dimension.values, list(location = location)),
-                                               keep.dimensions = c('year', facet.by, split.by), #'year' can never be in facet.by
-                                               target.ontology = outcome.ontologies[[i]],
-                                               allow.mapping.from.target.ontology = T,
-                                               debug=F)
-                },
-                error = function(e) {
-                    NULL
+            if (!is.null(outcomes.for.data[[i]]))
+            {
+                # print(i)
+                # browser()
+                outcome.data = tryCatch(
+                    {
+                        result = data.manager$pull(outcome = outcomes.for.data[[i]],
+                                                   dimension.values = c(dimension.values, list(location = location)),
+                                                   keep.dimensions = c('year', facet.by, split.by), #'year' can never be in facet.by
+                                                   target.ontology = outcome.ontologies[[i]],
+                                                   allow.mapping.from.target.ontology = T,
+                                                   na.rm = T,
+                                                   debug=T)
+                        # remove source from dimnames
+                        dimnames.without.source = dimnames(result)[names(dimnames(result)) != 'source']
+                        result = array(result, sapply(dimnames.without.source, length), dimnames.without.source)
+                    },
+                    error = function(e) {
+                        NULL
+                    }
+                )
+                if (!is.null(outcome.data)) {
+                    outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
+                    one.df.outcome = reshape2::melt(outcome.data, na.rm = T) # creates factors - we can't prevent it
+                    
+                    # If we have multiple outcomes that may map differently (for example, with years), the factor levels determined by the first outcome may not be valid for subsequent outcomes
+                    one.df.outcome = as.data.frame(lapply(one.df.outcome, function(col) {
+                        if (is.factor(col)) as.character(col)
+                        else col
+                    }))
+                    
+                    corresponding.outcome = names(outcomes.for.data)[[i]]
+                    one.df.outcome['outcome'] = corresponding.outcome
+                    df.truth = rbind(df.truth, one.df.outcome)
                 }
-            )
-            if (!is.null(outcome.data)) {
-                outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
-                one.df.outcome = reshape2::melt(outcome.data, na.rm = T) # creates factors - we can't prevent it
-                
-                # If we have multiple outcomes that may map differently (for example, with years), the factor levels determined by the first outcome may not be valid for subsequent outcomes
-                one.df.outcome = as.data.frame(lapply(one.df.outcome, function(col) {
-                    if (is.factor(col)) as.character(col)
-                    else col
-                }))
-                
-                corresponding.outcome = names(outcomes.for.data)[[i]]
-                one.df.outcome['outcome'] = corresponding.outcome
-                df.truth = rbind(df.truth, one.df.outcome)
+                else {
+                    outcome.mappings = c(outcome.mappings, list(NULL))
+                }
             }
-            else {
+            else
+            {
                 outcome.mappings = c(outcome.mappings, list(NULL))
             }
         }
-        else
-        {
-            outcome.mappings = c(outcome.mappings, list(NULL))
-        }
+        names(outcome.mappings) = outcomes
     }
-    names(outcome.mappings) = outcomes
     
     #-- STEP 3: MAKE A DATA FRAME WITH ALL THE SIMULATIONS' DATA --#
     # browser()
@@ -233,16 +246,24 @@ simplot <- function(...,
             else
                 arr
         })
-        browser()
-        outcome.arrays = outcome.arrays[!sapply(outcome.arrays, is.null)]
+        # browser()
         outcomes.with.non.null.arrays = outcomes[!sapply(outcome.arrays, is.null)]
         if (length(outcomes.with.non.null.arrays) == 0) next
         
-        # If we have multiple outcomes, the dimnames for them *may* be different, at least for years.
-        mapped.dimnames = c(dimnames(outcome.arrays[[1]]), list(outcome = outcomes.with.non.null.arrays))
-        mapped.simset.data = array(unlist(outcome.arrays), dim=sapply(mapped.dimnames, length), dimnames = mapped.dimnames)
+        # melt each outcome array into a data frame, then rbind them because they have the same dimensions
+        one.df.sim = NULL
+        for (j in seq_along(outcomes)) {
+            if (is.null(outcome.arrays[[j]])) next
+            # browser()
+            # Because reshape2::melt is annoying about factors
+            outcome.df = as.data.frame(lapply(reshape2::melt(outcome.arrays[[j]], na.rm=T), function(col) {
+                if (is.factor(col)) as.character(col)
+                else col
+            }))
+            outcome.df['outcome'] = outcomes[[j]]
+            one.df.sim = rbind(one.df.sim, outcome.df)
+        }
         
-        one.df.sim = reshape2::melt(mapped.simset.data, na.rm = T)
         one.df.sim['simset'] = i
         one.df.sim['linewidth'] = 1/sqrt(simset$n.sim)
         one.df.sim['alpha'] = 20 * one.df.sim['linewidth']#1/sqrt(simset$n.sim)
@@ -262,7 +283,7 @@ simplot <- function(...,
         df.sim.groupids.many.memebers = subset(df.sim, !groupid_has_one_member)
     }
     
-    
+    # browser()
     #- STEP 4: MAKE THE PLOT --#
     
     y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
@@ -271,19 +292,19 @@ simplot <- function(...,
                                       paste0(c('outcome', facet.by), collapse='+')))
     
     rv = ggplot() + scale_y_continuous(limits=c(0, NA), labels = scales::comma) + scale_color_discrete()
-    browser()
+    # browser()
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
         if (!is.null(df.sim)) {
             rv = rv + geom_line(data=df.sim.groupids.many.memebers, aes(x=year, y=value, linetype=simset, group=groupid, color=!!sym(split.by), alpha=alpha, linewidth=linewidth)) +
-                geom_point(data=df.sim.groupids.one.member, size=2, aes(x=year, y=value, shape=simset, color=!!sym(split.by)))
+                geom_point(data=df.sim.groupids.one.member, size=3, aes(x=year, y=value, shape=simset, color=!!sym(split.by)))
         }
         if (!is.null(df.truth))
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
     } else {
         if (!is.null(df.sim)) {
             rv = rv + geom_line(data=df.sim.groupids.many.memebers, aes(x=year, y=value, linetype=simset, group=groupid, alpha=alpha, linewidth=linewidth)) +
-                geom_point(data=df.sim.groupids.one.member, size=2, aes(x=year, y=value, shape=simset))
+                geom_point(data=df.sim.groupids.one.member, size=3, aes(x=year, y=value, shape=simset))
         }
         if (!is.null(df.truth))
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
