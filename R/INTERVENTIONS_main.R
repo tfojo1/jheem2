@@ -472,9 +472,8 @@ JHEEM.INTERVENTION = R6::R6Class(
                 stop(paste0(error.prefix, "'sim' must be an object of class 'jheem.simulation.set'"))
             
             # Generate the new parameters
-            all.parameter.names = sim$parameter.names
             if (is.null(private$i.parameter.distribution))
-                parameters = NULL
+                new.parameters = NULL
             else
             {
                 reset.seed = runif(1, 0, .Machine$integer.max)
@@ -483,10 +482,8 @@ JHEEM.INTERVENTION = R6::R6Class(
                     stop(paste0(error.prefix, "'seed' must be a single, non-NA, integer value"))
                 
                 set.seed(seed)
-                parameters = generate.random.samples(private$i.parameter.distribution, n=sim$n.sim)
+                new.parameters = generate.random.samples(private$i.parameter.distribution, n=sim$n.sim)
                 set.seed(reset.seed) # this keeps our code from always setting to the same seed
-                
-                all.parameter.names = union(all.parameter.names, private$i.parameter.distribution@var.names)
             }
 
             
@@ -508,7 +505,7 @@ JHEEM.INTERVENTION = R6::R6Class(
             sim.list = lapply(1:sim$n.sim, function(i){
                 private$do.run(engine, 
                                sim.index = 1,
-                               parameters = parameters[i,])
+                               parameters = new.parameters[,i])
             })
             
             join.simulation.sets(sim.list)
@@ -594,6 +591,47 @@ JHEEM.INTERVENTION = R6::R6Class(
         }
     )
 )
+
+NULL.INTERVENTION = R6::R6Class(
+    'null.intervention',
+    inherit = JHEEM.INTERVENTION,
+    
+    public = list(
+        
+        initialize = function()
+        {
+            super$initialize(code = 'noint',
+                             name = "No Intervention",
+                             parameter.distribution = NULL)
+        }
+    ),
+    
+    private = list(
+        do.run = function(engine, sim.index, parameters, previous.parameter.values)
+        {
+            engine$run(parameters = parameters,
+                       prior.sim.index = sim.index)
+        }, 
+        
+        is.equal.to = function(other)
+        {
+            is(other, 'null.intervention')   
+        },
+        
+        get.intervention.foregrounds = function()
+        {
+            list()
+        }
+    )
+)
+
+# Make the NULL intervention
+NULL.INTERVENTION$new()
+
+get.null.intervention <- function()
+{
+    INTERVENTION.MANAGER$interventions$noint
+}
 
 SINGLE.ITERATION.INTERVENTION = R6::R6Class(
     'single.iteration.intervention',
@@ -768,8 +806,9 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     stop(paste0(error.prefix, "If 'initial.parameter.values' is a numeric vector, it must be NAMED"))
                 
                 missing.parameters = setdiff(names(initial.parameter.values), parameters.to.vary)
-                stop(paste0(error.prefix, "If 'initial.parameter.values' is a numeric vector, it must contain values for all of parameters.to.vary (missing ",
-                            collapse.with.and("'", missing.parameters, "'")))
+                if (length(missing.parameters)>0)
+                    stop(paste0(error.prefix, "If 'initial.parameter.values' is a numeric vector, it must contain values for all of parameters.to.vary (missing ",
+                                collapse.with.and("'", missing.parameters, "'"), ")"))
             }
             else if (is.function(initial.parameter.values))
             {
