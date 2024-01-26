@@ -5,7 +5,7 @@
 #'@param split.by AZ: at most one dimension
 #'@param facet.by AZ: any number of dimensions but cannot include the split.by dimension
 #'@param dimension.values
-#'@param plot.simulations.only Logical value specifying whether to plot only simulations, not calibration data.
+#'@param plot.simulation.only Should calibration data be excluded from the plot
 #'@param data.manager The data.manager from which to draw real-world data for the plots
 #'@param style.manager We are going to have to define this down the road. It's going to govern how we do lines and sizes and colors. For now, just hard code those in, and we'll circle back to it
 #'
@@ -21,7 +21,7 @@ simplot <- function(...,
                     split.by = NULL,
                     facet.by = NULL,
                     dimension.values = list(),
-                    plot.simulations.only = F,
+                    plot.simulation.only = F,
                     data.manager = get.default.data.manager(),
                     style.manager) # will be an R6 object. will be mine!
 {
@@ -39,10 +39,6 @@ simplot <- function(...,
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
     stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
-    # *plot.simulations.only* is a single, logical value
-    if (!is.logical(plot.simulations.only) || length(plot.simulations.only) > 1 || is.na(plot.simulations.only))
-        stop(paste0(error.prefix, "'plot.simulations.only' must be a single logical value"))
-    
     # *split.by* is NULL or a single, non-NA character vector
     if (!is.null(split.by) && (!is.character(split.by) || length(split.by) > 1 || is.na(split.by)))
         stop(paste0(error.prefix, "'split.by' must be NULL or a length one, non-NA character vector"))
@@ -58,7 +54,10 @@ simplot <- function(...,
         stop(paste0(error.prefix, "'split.by' cannot equal 'year'"))
     
     if (!is.null(facet.by) && 'year' %in% facet.by)
-        stop(patse0(error.prefix, "'facet.by' cannot contain 'year'"))
+        stop(paste0(error.prefix, "'facet.by' cannot contain 'year'"))
+    
+    if (!is.logical(plot.simulation.only) || length(plot.simulation.only) != 1 || is.na(plot.simulation.only))
+        stop(paste0(error.prefix, "'plot.simulation.only' must be a single logical value"))
     
     #-- STEP 1: PRE-PROCESSING --#
     # Get a list out of ... where each element is one simset (or sim for now)
@@ -66,7 +65,6 @@ simplot <- function(...,
     simset.args = list(...) # will later be SIMSETS
     
     outcomes.found.in.simset.args = F
-    outcomes.collected.from.args = c()
     # each element of 'sim.list' should be either a sim or list containing only sims.
     for (element in simset.args) {
         if (!R6::is.R6(element) || !is(element, 'jheem.simulation.set')) {
@@ -136,8 +134,6 @@ simplot <- function(...,
                 break
             } else i = i + 1
         }
-        # if (is.null(corresponding.observed.outcome))
-        #     stop(paste0("No corresponding observed outcome found for outcome '", outcome, "'")) # Shouldn't happen
         corresponding.observed.outcome
     })
     
@@ -160,121 +156,101 @@ simplot <- function(...,
     location = simset.list[[1]]$location
     
     #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
-    
-    df.truth = NULL
+
     outcome.mappings = list() # note: not all outcomes will have corresponding data outcomes
     
-    if (!plot.simulations.only) {
-        for (i in seq_along(outcomes.for.data))
+    df.truth = NULL
+    for (i in seq_along(outcomes.for.data))
+    {
+        if (!plot.simulation.only && !is.null(outcomes.for.data[[i]]))
         {
-            if (!is.null(outcomes.for.data[[i]]))
-            {
-                # print(i)
-                # browser()
-                outcome.data = tryCatch(
-                    {
-                        result = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                                   dimension.values = c(dimension.values, list(location = location)),
-                                                   keep.dimensions = c('year', facet.by, split.by), #'year' can never be in facet.by
-                                                   target.ontology = outcome.ontologies[[i]],
-                                                   allow.mapping.from.target.ontology = T,
-                                                   na.rm = T,
-                                                   debug=F)
-                        # remove source from dimnames
-                        result.mapping = attr(result, 'mapping')
-                        dimnames.without.source = dimnames(result)[names(dimnames(result)) != 'source']
-                        result = array(result, sapply(dimnames.without.source, length), dimnames.without.source)
-                        attr(result, 'mapping') = result.mapping
-                        result
-                    },
-                    error = function(e) {
-                        NULL
-                    }
-                )
-                # browser()
-                if (!is.null(outcome.data)) {
-                    outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
-                    one.df.outcome = reshape2::melt(outcome.data, na.rm = T) # creates factors - we can't prevent it
-                    
-                    # If we have multiple outcomes that may map differently (for example, with years), the factor levels determined by the first outcome may not be valid for subsequent outcomes
-                    one.df.outcome = as.data.frame(lapply(one.df.outcome, function(col) {
-                        if (is.factor(col)) as.character(col)
-                        else col
-                    }))
-                    
-                    corresponding.outcome = names(outcomes.for.data)[[i]]
-                    one.df.outcome['outcome'] = corresponding.outcome
-                    df.truth = rbind(df.truth, one.df.outcome)
+            outcome.data = tryCatch(
+                {
+                    result = data.manager$pull(outcome = outcomes.for.data[[i]],
+                                               dimension.values = c(dimension.values, list(location = location)),
+                                               keep.dimensions = c('year', facet.by, split.by), #'year' can never be in facet.by
+                                               target.ontology = outcome.ontologies[[i]],
+                                               allow.mapping.from.target.ontology = T,
+                                               debug=F)
+                },
+                error = function(e) {
+                    NULL
                 }
-                else {
-                    outcome.mappings = c(outcome.mappings, list(NULL))
-                }
-            }
-            else
-            {
-                outcome.mappings = c(outcome.mappings, list(NULL))
+            )
+            if (!is.null(outcome.data)) {
+                outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
+                
+                # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
+                one.df.outcome = reshape2::melt(outcome.data, na.rm = T)
+                one.df.outcome = as.data.frame(lapply(one.df.outcome, function(col) {
+                    if (is.factor(col)) as.character(col)
+                    else col
+                }))
+                
+                corresponding.outcome = names(outcomes.for.data)[[i]]
+                one.df.outcome['outcome'] = corresponding.outcome
+                df.truth = rbind(df.truth, one.df.outcome)
             }
         }
-        names(outcome.mappings) = outcomes
+        else
+        {
+            outcome.mappings = c(outcome.mappings, list(NULL))
+        }
     }
-    
+
+    names(outcome.mappings) = outcomes
+
     #-- STEP 3: MAKE A DATA FRAME WITH ALL THE SIMULATIONS' DATA --#
-    # browser()
+
     df.sim = NULL
-    for (i in seq_along(simset.list))
-    {
-        # browser()
-        simset = simset.list[[i]]
-        simset.data = simset$get(outcomes = outcomes,
-                                 dimension.values = dimension.values,
-                                 keep.dimensions = c('year', facet.by, split.by),
-                                 drop.single.outcome.dimension = F)
+    for (outcome in outcomes) {
         
-        dim.names.without.outcome = dimnames(simset.data)[names(dimnames(simset.data)) != 'outcome']
-        outcome.arrays = lapply(outcomes, function(outcome) {
-            # browser()
-            arr = array(simset.data[get.array.access.indices(dimnames(simset.data),
-                                                             dimension.values = list(outcome = outcome))],
-                        dim = sapply(dim.names.without.outcome, length),
-                        dimnames = dim.names.without.outcome)
-            if (!is.null(outcome.mappings[[outcome]]))
-                tryCatch(
-                    {
-                        outcome.mappings[[outcome]]$apply(arr)
-                    },
-                    error = function(e) {
-                        NULL
-                    }
-                )
+        if (!plot.simulation.only && is.null(outcome.mappings[[outcome]])) next
+        
+        # Determine the keep.dimensions we need from the sim$gets
+        extra.dimensions.needed.for.mapping = c()
+        if (!plot.simulation.only && !is.null(outcome.mappings[[outcome]])) {
+            extra.dimensions.needed.for.mapping = setdiff(outcome.mappings[[outcome]]$from.dimensions, c(facet.by, split.by))
+            keep = union(c('year', facet.by, split.by), extra.dimensions.needed.for.mapping)
+        }
+        else keep = c('year', facet.by, split.by)
+        
+        for (i in seq_along(simset.list)) {
             
-            else
-                arr
-        })
-        # browser()
-        outcomes.with.non.null.arrays = outcomes[!sapply(outcome.arrays, is.null)]
-        if (length(outcomes.with.non.null.arrays) == 0) next
-        
-        # melt each outcome array into a data frame, then rbind them because they have the same dimensions
-        one.df.sim = NULL
-        for (j in seq_along(outcomes)) {
-            if (is.null(outcome.arrays[[j]])) next
-            # browser()
-            # Because reshape2::melt is annoying about factors
-            outcome.df = as.data.frame(lapply(reshape2::melt(outcome.arrays[[j]], na.rm=T), function(col) {
+            simset = simset.list[[i]]
+            simset.data.this.outcome = simset$get(outcomes = outcome,
+                                                  dimension.values = dimension.values,
+                                                  keep.dimensions = keep,
+                                                  drop.single.outcome.dimension = T)
+            if (!plot.simulation.only) {
+                simset.data.mapped.this.outcome = tryCatch(
+                    {outcome.mappings[[outcome]]$apply(simset.data.this.outcome)},
+                    error = function(e) {NULL}
+                )
+            } else simset.data.mapped.this.outcome = simset.data.this.outcome
+            
+            if (is.null(simset.data.mapped.this.outcome)) next
+
+            # Aggregate out the extra dimensions we may have gotten for the mapping
+            simset.data.mapped.this.outcome = apply(simset.data.mapped.this.outcome, setdiff(names(dim(simset.data.mapped.this.outcome)), extra.dimensions.needed.for.mapping), sum, na.rm=T)
+            
+            # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
+            one.df.sim.this.outcome = reshape2::melt(simset.data.mapped.this.outcome, na.rm = T)
+            one.df.sim.this.outcome = as.data.frame(lapply(one.df.sim.this.outcome, function(col) {
                 if (is.factor(col)) as.character(col)
                 else col
             }))
-            outcome.df['outcome'] = outcomes[[j]]
-            one.df.sim = rbind(one.df.sim, outcome.df)
+            
+            one.df.sim.this.outcome['simset'] = i
+            one.df.sim.this.outcome['outcome'] = outcome
+            one.df.sim.this.outcome['linewidth'] = 1/sqrt(simset$n.sim) # have style manager create this later?
+            one.df.sim.this.outcome['alpha'] = 20 * one.df.sim.this.outcome['linewidth'] # same comment as above
+            
+            df.sim = rbind(df.sim, one.df.sim.this.outcome)
         }
         
-        one.df.sim['simset'] = i
-        one.df.sim['linewidth'] = 1/sqrt(simset$n.sim)
-        one.df.sim['alpha'] = 20 * one.df.sim['linewidth']#1/sqrt(simset$n.sim)
-        
-        df.sim = rbind(df.sim, one.df.sim)
     }
-    # browser()
+
     if (!is.null(df.sim)) {
         df.sim$simset = factor(df.sim$simset)
         df.sim$sim = factor(df.sim$sim)
@@ -284,10 +260,10 @@ simplot <- function(...,
         groupids.with.one.member = setdiff(unique(df.sim$groupid), df.sim$groupid[which(duplicated(df.sim$groupid))])
         df.sim$groupid_has_one_member = with(df.sim, groupid %in% groupids.with.one.member)
         df.sim.groupids.one.member = subset(df.sim, groupid_has_one_member)
-        df.sim.groupids.many.memebers = subset(df.sim, !groupid_has_one_member)
+        df.sim.groupids.many.members = subset(df.sim, !groupid_has_one_member)
     }
     
-    # browser()
+    
     #- STEP 4: MAKE THE PLOT --#
     
     y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
@@ -296,19 +272,19 @@ simplot <- function(...,
                                       paste0(c('outcome', facet.by), collapse='+')))
     
     rv = ggplot() + scale_y_continuous(limits=c(0, NA), labels = scales::comma) + scale_color_discrete()
-    # browser()
+
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
         if (!is.null(df.sim)) {
-            rv = rv + geom_line(data=df.sim.groupids.many.memebers, aes(x=year, y=value, linetype=simset, group=groupid, color=!!sym(split.by), alpha=alpha, linewidth=linewidth)) +
-                geom_point(data=df.sim.groupids.one.member, size=3, aes(x=year, y=value, shape=simset, color=!!sym(split.by)))
+            rv = rv + geom_line(data=df.sim.groupids.many.members, aes(x=year, y=value, linetype=simset, group=groupid, color=!!sym(split.by), alpha=alpha, linewidth=linewidth)) +
+                geom_point(data=df.sim.groupids.one.member, size=2, aes(x=year, y=value, shape=simset, color=!!sym(split.by)))
         }
         if (!is.null(df.truth))
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
     } else {
         if (!is.null(df.sim)) {
-            rv = rv + geom_line(data=df.sim.groupids.many.memebers, aes(x=year, y=value, linetype=simset, group=groupid, alpha=alpha, linewidth=linewidth)) +
-                geom_point(data=df.sim.groupids.one.member, size=3, aes(x=year, y=value, shape=simset))
+            rv = rv + geom_line(data=df.sim.groupids.many.members, aes(x=year, y=value, linetype=simset, group=groupid, alpha=alpha, linewidth=linewidth)) +
+                geom_point(data=df.sim.groupids.one.member, size=2, aes(x=year, y=value, shape=simset))
         }
         if (!is.null(df.truth))
             rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
