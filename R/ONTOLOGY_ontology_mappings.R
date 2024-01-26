@@ -767,7 +767,8 @@ do.get.ontology.mapping <- function(from.ontology,
                     mapping = create.age.ontology.mapping(from.values=from.ontology[['age']],
                                                           to.values=to.ontology[['age']],
                                                           allow.incomplete.span.of.infinite.age.range = T,
-                                                          allow.partial.to.parsing = T)
+                                                          allow.partial.to.parsing = !to.dimensions.are.complete['age'],
+                                                          require.map.all.to = to.dimensions.are.complete['age'])
                     
                     if (is.null(mapping))
                         try.modification = F
@@ -787,7 +788,8 @@ do.get.ontology.mapping <- function(from.ontology,
                     !is.null(to.ontology[['year']]))
                 {
                     mapping = create.year.ontology.mapping(from.values=from.ontology[['year']],
-                                                           to.values=to.ontology[['year']])
+                                                           to.values=to.ontology[['year']],
+                                                           require.map.all.to = to.dimensions.are.complete['year'])
                     
                     if (is.null(mapping))
                         try.modification = F
@@ -1172,7 +1174,8 @@ derive.ontology <- function(x,
 ##-------------------------##
 
 create.year.ontology.mapping <- function(from.values,
-                                         to.values)
+                                         to.values,
+                                         require.map.all.to)
 {
     from.bounds = parse.year.names(from.values)
     to.bounds = parse.year.names(to.values)
@@ -1185,6 +1188,7 @@ create.year.ontology.mapping <- function(from.values,
                                            from.bounds = from.bounds,
                                            to.bounds = to.bounds,
                                            dimension = 'year',
+                                           require.map.all.to = require.map.all.to,
                                            allow.incomplete.span.of.infinite.range = F)
 }
 
@@ -1193,6 +1197,7 @@ do.create.age.or.year.ontology.mapping <- function(from.values,
                                                    from.bounds,
                                                    to.bounds,
                                                    dimension,
+                                                   require.map.all.to,
                                                    allow.incomplete.span.of.infinite.range)
 {
     if (is.null(from.bounds) || is.null(to.bounds))
@@ -1212,11 +1217,25 @@ do.create.age.or.year.ontology.mapping <- function(from.values,
     })
     
     # If a 'to' has no 'froms' - give up
-    if (any(sapply(froms.for.to, is.null)))
-        return (NULL)
+    
+    no.froms.map.to.to = sapply(froms.for.to, is.null)
+    if (require.map.all.to)
+    {
+        if (any(no.froms.map.to.to))
+            return (NULL)
+    }
+    else
+    {
+        if (all(no.froms.map.to.to))
+            return (NULL)
+    }
     
     # Make sure the 'from's for each 'to' span the 'to' completely
     froms.span.tos = sapply(1:length(to.values), function(to){
+        
+        if (no.froms.map.to.to[to])
+            return (F)
+        
         from.lowers = from.bounds$lower[froms.for.to[[to]]]
         from.uppers = from.bounds$upper[froms.for.to[[to]]]
         o = order(from.lowers)
@@ -1233,10 +1252,11 @@ do.create.age.or.year.ontology.mapping <- function(from.values,
             all( from.lowers[-1] == from.uppers[-length(from.uppers)] ) 
     })
     
-    if (all(froms.span.tos))
+    if (all(froms.span.tos) ||
+        (!require.map.all.to && any(froms.span.tos)) )
     {
-        iterated.from.values = from.values[unlist(froms.for.to)]
-        iterated.to.values = unlist(sapply(1:length(to.values), function(i){
+        iterated.from.values = from.values[unlist(froms.for.to[froms.span.tos])]
+        iterated.to.values = unlist(sapply((1:length(to.values))[froms.span.tos], function(i){
             rep(to.values[i], length(froms.for.to[[i]]))
         }))
         
@@ -1266,7 +1286,8 @@ do.create.age.or.year.ontology.mapping <- function(from.values,
 create.age.ontology.mapping <- function(from.values,
                                         to.values,
                                         allow.incomplete.span.of.infinite.age.range,
-                                        allow.partial.to.parsing = T)
+                                        allow.partial.to.parsing = T,
+                                        require.map.all.to = !allow.partial.to.parsing)
 {
     from.bounds = parse.age.strata.names(from.values, allow.partial.parsing = allow.partial.to.parsing)
     to.bounds = parse.age.strata.names(to.values, allow.partial.parsing = F)
@@ -1276,6 +1297,7 @@ create.age.ontology.mapping <- function(from.values,
                                            from.bounds = from.bounds,
                                            to.bounds = to.bounds,
                                            dimension = 'age',
+                                           require.map.all.to = require.map.all.to,
                                            allow.incomplete.span.of.infinite.range = allow.incomplete.span.of.infinite.age.range)
 }
 

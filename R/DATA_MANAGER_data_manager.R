@@ -11,6 +11,8 @@ if (!exists('default.data.manager.holder'))
     default.data.manager.holder$default.data.manager = NULL
 }
 
+DATA.MANAGER.ONTOLOGY.ERRORS = new.env()
+
 ##----------------------##
 ##-- PUBLIC INTERFACE --##
 ##----------------------##
@@ -2191,7 +2193,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             if (!is.null(target.ontology)) {
                 mps = get.mappings.to.align.ontologies(target.ontology, uni, allow.non.overlapping.incomplete.dimensions = F)
-                if (is.null(mps)) stop("Error mapping ontologies to target ontology for outcome '", outcome, "': did you remember to register your mappings?")
+                if (is.null(mps)) 
+                {
+                    DATA.MANAGER.ONTOLOGY.ERRORS$did.you.remember.details = list(
+                        target.ontology = target.ontology,
+                        uni = uni
+                    )
+                    stop("Error mapping ontologies to target ontology for outcome '", outcome, "': did you remember to register your mappings?")
+                }
                 uni = mps[[2]]$apply.to.ontology(uni)
                 if (return.target.to.universal.mapping) attr(uni, 'target.to.universal.mapping') = mps[[1]]
             }
