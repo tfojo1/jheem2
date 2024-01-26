@@ -179,15 +179,19 @@ simplot <- function(...,
                                                    target.ontology = outcome.ontologies[[i]],
                                                    allow.mapping.from.target.ontology = T,
                                                    na.rm = T,
-                                                   debug=T)
+                                                   debug=F)
                         # remove source from dimnames
+                        result.mapping = attr(result, 'mapping')
                         dimnames.without.source = dimnames(result)[names(dimnames(result)) != 'source']
                         result = array(result, sapply(dimnames.without.source, length), dimnames.without.source)
+                        attr(result, 'mapping') = result.mapping
+                        result
                     },
                     error = function(e) {
                         NULL
                     }
                 )
+                # browser()
                 if (!is.null(outcome.data)) {
                     outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
                     one.df.outcome = reshape2::melt(outcome.data, na.rm = T) # creates factors - we can't prevent it
