@@ -136,7 +136,7 @@ create.ontology.mapping <- function(mappings,
     if (n.to.dimensions>1)
     {
         invalid.na.mask = apply(is.na(to.values), 1, any) &
-            !apply(is.na(from.values), 1, all)
+            !apply(is.na(to.values), 1, all)
         
         if (any(invalid.na.mask))
             stop(paste0(error.prefix,
@@ -1325,7 +1325,7 @@ create.overlapping.age.ontology.mapping <- function(from.values,
     
     iterated.from.values = from.values[from.bounds$mapped.mask][unlist(froms.for.to)]
     iterated.to.values = unlist(sapply(1:length(to.values), function(i){
-        rep(to.values[to.bound$mapped.mask][i], length(froms.for.to[[i]]))
+        rep(to.values[to.bounds$mapped.mask][i], length(froms.for.to[[i]]))
     }))
     
     missing.from.values = setdiff(from.values, iterated.from.values)
