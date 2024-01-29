@@ -392,6 +392,13 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             private$i.sim.ontology$year = as.character(years)
             private$i.sim.ontology = do.call(ontology, c(private$i.sim.ontology, list(incomplete.dimensions = c('year', 'location'))))
             
+            # Validate that instructions asked for dimensions that are in sim ontology for this outcome, and no more.
+            requested.dimensions = setdiff(unique(unlist(private$i.stratifications)), "")
+            dimensions.in.instr.not.sim = requested.dimensions[!sapply(requested.dimensions, function(d) {d %in% names(private$i.sim.ontology)})]
+            if (length(dimensions.in.instr.not.sim) > 0)
+                stop(paste0(error.prefix, "likelihood instructions requested the following dimensions not present in the simulation ontology for this outcome: ", paste(dimensions.in.instr.not.sim, collapse=", ")))
+            
+            
             private$i.obs.vector = c()
             private$i.details = c() # will contain each observation's sorted details as a collapsed character factor
             private$i.metadata = data.frame(year = character(0),
@@ -500,7 +507,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             private$i.denominator.required.dimnames = private$i.sim.required.dimnames[names(private$i.sim.required.dimnames) %in% denominator.keep.dimensions]
             private$i.denominator.dimension.values = private$i.denominator.required.dimnames[sapply(names(private$i.denominator.required.dimnames), function(d) {!identical(private$i.denominator.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
             private$i.denominator.dimension.values[['year']] = private$i.years
-            
+
             ## ---- GENERATE TRANSFORMATION MATRIX ---- ##
             private$i.transformation.matrix = generate.transformation.matrix(dimnames.list, remove.mask.list, n.stratifications.with.data, private$i.sim.required.dimnames)
             
