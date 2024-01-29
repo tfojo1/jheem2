@@ -8,7 +8,8 @@ set.up.calibration <- function(version,
                                root.dir,
                                sub.version = NULL,
                                cache.frequency = 500,
-                               allow.overwrite.cache = F)
+                               allow.overwrite.cache = F,
+                               verbose = T)
 {
     #------------------------#
     #-- Validate Arguments --#
@@ -16,16 +17,22 @@ set.up.calibration <- function(version,
     
     # @Andrew to do
     
+    error.prefix = paste0("Cannot Set Up Calibration for code '", calibration.code, "' for version '", version, "' and location '", location, "': ")
+    verbose.prefix = paste0("CALIBRATION '", calibration.code, "' (", version, " / ", location, "): ")
+    
     #--------------------------------------#
     #-- Pull the calibration info object --#
     #--------------------------------------#
     
     calibration.info = get.calibration.info(calibration.code,
-                                            error.prefix = "Cannot Set Up Calibration: ")
+                                            error.prefix = error.prefix)
     
     #---------------------------------------#
     #-- Pull Down the Prior and Subset it --#
     #---------------------------------------#
+    
+    if (verbose)
+        print(paste0(verbose.prefix, "Pulling prior, setting up defaults..."))
     
     # Pull the prior for the version
     prior = get.parameters.distribution.for.version(version, type='calibrated')
@@ -47,6 +54,7 @@ set.up.calibration <- function(version,
     #-- Prepare the Sampling Blocks --#
     #---------------------------------#
     
+    
     # Pull down the sampling blocks
     sampling.blocks = get.parameter.sampling.blocks.for.version(version)
     
@@ -65,6 +73,7 @@ set.up.calibration <- function(version,
     #-- Prepare Default Initial Values, Step Sizes, and Cov Mat --#
     #-------------------------------------------------------------#
 
+    
     #-- Default parameter values --#
     
     default.parameter.values = prior.medians
@@ -99,9 +108,78 @@ set.up.calibration <- function(version,
     #-- Incorporate prior MCMC runs into Initial Values, Step Sizes, Cov Mat --#
     #--------------------------------------------------------------------------#
     
-    # For now, just pull the default whole-hog
+    if (verbose)
+        print(paste0(verbose.prefix, "Incorporating prior MCMC runs..."))
+    
     initial.cov.mat = default.initial.cov.mat[calibration.info$parameter.names, calibration.info$parameter.names]
     initial.scaling.parameters = default.initial.scaling.parameters
+    
+    parameters.already.pulled.from.preceding = character()
+    dynamic.preceding.codes = calibration.info$preceding.calibration.codes #we'll potentially add to this list in the while block below
+    preceding.index = 1
+    while (preceding.index <= length(dynamic.preceding.codes))
+    {
+        preceding.code = dynamic.preceding.codes[preceding.index]
+        preceding.index = preceding.index + 1
+        
+        preceding.info = get.calibration.info(code = preceding.code, throw.error.if.missing = F)
+        if (is.null(preceding.info))
+            stop(paste0(error.prefix, "No calibration has been registered for the preceding.calibration.code of '", preceding.code, "'"))
+        
+        dynamic.preceding.codes = union(dynamic.preceding.codes, preceding.info$preceding.calibration.codes)
+        
+        parameters.to.pull.from.preceding = intersect(calibration.info$parameter.names,
+                                                      preceding.info$parameter.names)
+        parameters.to.pull.from.preceding = setdiff(parameters.to.pull.from.preceding,
+                                                    parameters.already.pulled.from.preceding)
+        
+        
+        if (length(parameters.to.pull.from.preceding)>0)
+        {
+            other.parameters = setdiff(calibration.info$parameter.names, parameters.to.pull.from.preceding)
+            
+            parameters.already.pulled.from.preceding = union(parameters.already.pulled.from.preceding,
+                                                             parameters.to.pull.from.preceding)
+            
+            
+            mcmc.summary = prepare.mcmc.summary(version = version,
+                                                location = location,
+                                                calibration.code = preceding.code,
+                                                root.dir = root.dir,
+                                                get.one.set.of.parameters = calibration.info$is.preliminary,
+                                                error.prefix = error.prefix)
+            
+            # default parameter values
+            transformed.parameter.values.to.pull = mcmc.summary$transformed.parameter.values[parameters.already.pulled.from.preceding]
+            default.parameter.values[parameters.to.pull.from.preceding] = sapply(parameters.to.pull.from.preceding, function(param){
+                if (parameter.scales[param] == 'log')
+                    exp(transformed.parameter.values.to.pull[param])
+                else if (parameter.scales[param] == 'logit')
+                    1 / (1 + exp(-transformed.parameter.values.to.pull[param]))
+                else
+                    transformed.parameter.values.to.pull[param] 
+            })
+            
+            # cov mat
+            initial.cov.mat[parameters.to.pull.from.preceding,parameters.to.pull.from.preceding] = initial.cov.mat[parameters.to.pull.from.preceding,parameters.to.pull.from.preceding] * (1-calibration.info$weight.to.preceding.variance.estimates) +
+                mcmc.summary$cov.mat[parameters.to.pull.from.preceding,parameters.to.pull.from.preceding] * calibration.info$weight.to.preceding.variance.estimates
+            initial.cov.mat[parameters.to.pull.from.preceding,other.parameters] = initial.cov.mat[parameters.to.pull.from.preceding,other.parameters] = 0
+            initial.cov.mat[other.parameters, parameters.to.pull.from.preceding] = initial.cov.mat[other.parameters, parameters.to.pull.from.preceding] = 0
+            
+            # scaling parameters
+            initial.scaling.parameters = lapply(names(initial.scaling.parameters), function(scaling.name){
+                scaling = initial.scaling.parameters[[scaling.name]]
+                to.pull.scaling = mcmc.summary$initial.scaling.parameters[[scaling.name]]
+                if (!is.null(to.pull.scaling))
+                {
+                    to.pull.params = intersect(parameters.to.pull.from.preceding, names(to.pull.scaling))
+                    scaling[to.pull.params] = to.pull.scaling[to.pull.params]
+                }
+                
+                scaling
+            })
+        }
+    }
     
     # For starting values, we need one row for each chain
     relevant.default.values = default.parameter.values[calibration.info$parameter.names]
@@ -112,9 +190,26 @@ set.up.calibration <- function(version,
     dimnames(starting.parameter.values) = list(NULL, parameter=calibration.info$parameter.names)
      
     
+    #-----------------#
+    #-- Some Checks --#
+    #-----------------#
+    
+    if (any(is.na(starting.parameter.values)))
+    {
+        na.parameters = calibration.info$parameter.names[apply(is.na(starting.parameter.values),2,any)]
+        stop(paste0(error.prefix,
+                    "NA starting values are present for ",
+                    ifelse(length(na.parameters)==1, "parameter ", "parameters "),
+                    collapse.with.and("'", na.parameters, "'")))
+    }
+    
     #-----------------------------#
     #-- Set up the MCMC Control --#
     #-----------------------------#
+    
+    
+    if (verbose)
+        print(paste0(verbose.prefix, "Seting up the engine..."))
     
     #-- Set up the Run Simulation function --#
     engine = create.jheem.engine(version=version, location=location, 
@@ -131,8 +226,11 @@ set.up.calibration <- function(version,
         all.parameters[names(params)] = params
         engine$run(all.parameters)
     }
-
+    
     #-- Set up the compute likelihood function --#
+    if (verbose)
+        print(paste0(verbose.prefix, "Instantiate the likelihood..."))
+
     likelihood = calibration.info$likelihood.instructions$instantiate.likelihood(version=version,
                                                                                  location=location, 
                                                                                  sub.version=sub.version,
@@ -171,6 +269,9 @@ set.up.calibration <- function(version,
     
     #-- Make the call to create the control --#
     
+    if (verbose)
+        print("Set up the MCMC control...")
+    
     ctrl = bayesian.simulations::create.adaptive.blockwise.metropolis.control(
         var.names = calibration.info$parameter.names,
         simulation.function = run.simulation,
@@ -201,6 +302,7 @@ set.up.calibration <- function(version,
     #-- Set up the Cache --#
     #----------------------#
     
+    
     calibration.dir = get.calibration.dir(version=version,
                                           location=location,
                                           calibration.code=calibration.code,
@@ -217,6 +319,10 @@ set.up.calibration <- function(version,
         prior.mcmc = NULL,
         cache.frequency = cache.frequency,
         allow.overwrite.cache = allow.overwrite.cache)
+    
+    
+    if (verbose)
+        print(paste0(verbose.prefix, "All Done!"))
 }
 
 #'@export
@@ -300,13 +406,15 @@ register.calibration.info <- function(code,
                                       parameter.names,
                                       n.iter,
                                       thin,
-                                      fixed.initial.parameter.values,
                                       description,
+                                      fixed.initial.parameter.values = numeric(),
                                       max.run.time.seconds = 10,
                                       n.chains = if (is.preliminary) 1 else 4,
                                       n.burn = if (is.preliminary) 0 else floor(n.iter / 2),
                                       data.manager = get.default.data.manager(),
-                                      draw.initial.parameter.values.from = character(),
+                                      preceding.calibration.codes = character(),
+                                      weight.to.preceding.variance.estimates = 0.5,
+                                      pull.parameters.and.values.from.preceding = T,
                                       error.prefix = "Error registering calibration info: ")
 {
     # Validate arguments
@@ -332,6 +440,26 @@ register.calibration.info <- function(code,
     
     # description is a single, non-NA character value
     
+    if (length(preceding.calibration.codes)>0)
+    {
+        for (preceding.code in preceding.calibration.codes)
+        {
+            preceding.info = get.calibration.info(code = preceding.code, throw.error.if.missing = F)
+            if (is.null(preceding.info))
+                stop(paste0(error.prefix, "No calibration has been registered for the preceding.calibration.code of '", preceding.code, "'"))
+            
+            if (pull.parameters.and.values.from.preceding)
+            {
+                parameter.names = union(parameter.names, preceding.info$parameter.names)
+                fixed.initial.parameter.values = c(
+                    fixed.initial.parameter.values,
+                    preceding.info$fixed.initial.parameter.values[setdiff(names(preceding.info$fixed.initial.parameter.values),
+                                                                          names(fixed.initial.parameter.values))]
+                )
+            }
+        }
+    }
+    
     # For now, just going to package up and store it so things work
     calibration.info = list(
         code = code,
@@ -344,8 +472,10 @@ register.calibration.info <- function(code,
         n.iter = n.iter,
         n.burn = n.burn,
         thin = thin,
-        draw.initial.parameter.values.from = draw.initial.parameter.values.from,
+        preceding.calibration.codes = preceding.calibration.codes,
         fixed.initial.parameter.values = fixed.initial.parameter.values,
+        pull.parameters.and.values.from.preceding = pull.parameters.and.values.from.preceding,
+        weight.to.preceding.variance.estimates = weight.to.preceding.variance.estimates,
         is.preliminary = is.preliminary,
         max.run.time.seconds = max.run.time.seconds,
         description = description
@@ -368,9 +498,94 @@ get.calibration.info <- function(code, throw.error.if.missing=T, error.prefix=''
     rv
 }
 
+
+prepare.mcmc.summary <- function(version,
+                                  location,
+                                  calibration.code,
+                                  root.dir,
+                                 get.one.set.of.parameters = T,
+                                  error.prefix = '')
+{
+    dir = file.path(get.calibration.dir(version=version,
+                                        location=location,
+                                        calibration.code=calibration.code,
+                                        root.dir=root.dir),
+                    'cache')
+ 
+    error.prefix = paste0(error.prefix, 
+                          "Cannot prepare a summary of the mcmc for calibration '", calibration.code, " for ' and version '", version, "' and location '", location, "' - ")   
+    if (!file.exists(dir))
+        stop(paste0(error.prefix,
+                    "No prior MCMC cache has been set up in the root directory (", root.dir, "')"))
+    
+    files = list.files(dir)
+    chain.control.files = files[grepl('chain[0-9]+_control', files)]
+    
+    if (length(chain.control.files)==0)
+        stop(paste0(error.prefix,
+                    "The prior MCMC cache is malformed"))
+    
+    chain.controls = lapply(file.path(dir, chain.control.files), function(file){
+         x = load(file)
+         get(x)
+    })
+    
+    chain.done = sapply(chain.controls, function(ctrl){
+        all(ctrl@chunk.done)
+    })
+    
+    if (any(!chain.done))
+        stop(paste0(error.prefix,
+                    "The prior MCMC has not finished running"))
+    
+    state1 = chain.controls[[1]]@chain.state
+    
+    #-- Prepare the covariance matrix --#
+    all.cov.mats = sapply(chain.controls, function(ctrl){
+        ctrl@chain.state@cov.mat
+    })
+    
+    cov.mat = rowMeans(all.cov.mats)
+    dim(cov.mat) = dim(state1@cov.mat)
+    dimnames(cov.mat) = dimnames(state1@cov.mat)
+    
+    
+    #-- Prepare the parameter values --#
+    
+    if (!get.one.set.of.parameters)
+        stop("We have not yet implemented getting multiple parameters")
+    
+    all.transformed.parameter.values = sapply(chain.controls, function(ctrl){
+        ctrl@chain.state@mean.transformed.parameters
+    })
+    
+    transformed.parameter.values = rowMeans(all.transformed.parameter.values)
+    
+    #-- Initial Scaling Steps --#
+    
+    initial.scaling.parameters = sapply(1:length(state1@log.scaling.parameters), function(i){
+        all.chain.log.values = sapply(chain.controls, function(ctrl){
+            ctrl@chain.state@log.scaling.parameters[[i]]
+        })
+        
+        exp(rowMeans(all.chain.log.values))
+    })
+    names(initial.scaling.parameters) = names(state1@log.scaling.parameters)
+    
+    
+    #-- Return --#
+    list(
+        transformed.parameter.values = transformed.parameter.values,
+        cov.mat = cov.mat,
+        initial.scaling.parameters = initial.scaling.parameters
+    )
+}
+
 ##-------------##
 ##-- HELPERS --##
 ##-------------##
+
+
 
 get.calibration.dir <- function(version, location, calibration.code, root.dir)
 {
