@@ -1304,7 +1304,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 
                 #  all of which have been previously registered with this data manager (if not NULL)
                 unregistered.ontologies = sapply(from.ontology.names, function(x){is.null(private$i.ontologies[[x]])})
-                if (is.null(from.ontology.names) && any(unregistered.ontologies))
+                if (!is.null(from.ontology.names) && any(unregistered.ontologies))
                     stop(paste0(error.prefix, "all ontologies in from.ontology.names must be registered with this data manager"))
                 
                 # *append.attributes* is either NULL or a character vector with no NA values that
@@ -1320,7 +1320,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
             target.from.arguments = target.ontology
-            # if (debug) browser()
+            if (debug) browser()
             if (is.null(target.ontology) || allow.mapping.from.target.ontology) {
                 target.ontology = private$get.universal.ontology(outcome = outcome,
                                                                  sources = sources,
