@@ -1585,15 +1585,17 @@ JHEEM = R6::R6Class(
                     stop(paste0(error.prefix, "'parameters' must be a NAMED numeric vector"))
                 
                 # overwrite into parameters vector
+                old.parameters = private$i.parameters
                 private$i.parameters[names(parameters)] = parameters
-                
+           
                 # Set the values for any elements with matching names
                 element.names.in.parameters = intersect(names(parameters), private$get.specification()$element.names)
                 element.names.in.parameters = element.names.in.parameters[sapply(private$i.element.backgrounds[element.names.in.parameters], function(bkgd){
                     is.null(bkgd$functional.form)
                 })]
-                changed.element.names.in.parameters = element.names.in.parameters[ private$i.parameters[element.names.in.parameters] != parameters[element.names.in.parameters] ]
                 
+                changed.element.names.in.parameters = element.names.in.parameters[ is.na(old.parameters[element.names.in.parameters]) | old.parameters[element.names.in.parameters] != parameters[element.names.in.parameters] ]
+
                 for (elem.name in changed.element.names.in.parameters)
                     self$set.element.value(element.name = elem.name,
                                            value = parameters[elem.name],
@@ -1704,7 +1706,7 @@ JHEEM = R6::R6Class(
                 # Re-resolve any dependent foregrounds
                 if (length(private$i.unresolved.foregrounds)>0)
                 {
-                    parameters.that.have.changed = names(parameters)[is.na(private$i.parameters[names(parameters)]) | private$i.parameters[names(parameters)]!=parameters]
+                    parameters.that.have.changed = names(parameters)[is.na(old.parameters[names(parameters)]) | old.parameters[names(parameters)]!=parameters]
                     dependent.ids = unlist(private$i.dependent.foreground.ids.for.parameters[parameters.that.have.changed])
                     re.resolve.mask = sapply(names(private$i.unresolved.foregrounds), function(id){
                         any(id == dependent.ids)
