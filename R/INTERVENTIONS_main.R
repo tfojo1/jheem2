@@ -282,6 +282,14 @@ INTERVENTION.MANAGER$interventions = list()
 #'@export
 get.intervention <- function(code, throw.error.if.missing=T, error.prefix='')
 {
+    get.intervention.from.code(code = code,
+                               throw.error.if.missing = throw.error.if.missing,
+                               error.prefix = error.prefix)
+}
+
+# an internal function, aliased to avoid clashes with R6 methods of the same name
+get.intervention.from.code <- function(code, throw.error.if.missing=T, error.prefix='')
+{
     if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
         stop(paste0("Error in get.intervention(): 'error.prefix' must be a single, non-NA character value"))
     
@@ -493,7 +501,6 @@ JHEEM.INTERVENTION = R6::R6Class(
                                     max.run.time.seconds = max.run.time.seconds,
                                     keep.from.year = keep.from.year,
                                     keep.to.year = keep.to.year,
-                                    foregrounds = private$get.intervention.foregrounds(),
                                     atol = atol,
                                     rtol = rtol,
                                     intervention.code = private$i.code,
@@ -603,6 +610,11 @@ NULL.INTERVENTION = R6::R6Class(
             super$initialize(code = 'noint',
                              name = "No Intervention",
                              parameter.distribution = NULL)
+        },
+        
+        get.intervention.foregrounds = function()
+        {
+            list()
         }
     ),
     
@@ -616,11 +628,6 @@ NULL.INTERVENTION = R6::R6Class(
         is.equal.to = function(other)
         {
             is(other, 'null.intervention')   
-        },
-        
-        get.intervention.foregrounds = function()
-        {
-            list()
         }
     )
 )
@@ -669,7 +676,7 @@ SINGLE.ITERATION.INTERVENTION = R6::R6Class(
 
 JHEEM.STANDARD.INTERVENTION = R6::R6Class(
     'jheem.standard.intervention',
-    inherit = JHEEM.INTERVENTION,
+    inherit = SINGLE.ITERATION.INTERVENTION,
     
     public = list(
         
