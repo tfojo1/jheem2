@@ -599,16 +599,20 @@ List apply_foregrounds(List values,
                 bool have_copied_start_val = false;
                 bool have_copied_end_val = false;
              
+// Rcout << "n_values_to_apply_to = " << n_values_to_apply_to << ", n_effect_times = " << n_effect_times << "\n";
                 // We're going to do two nested loops
                 // 1) An outer loop (over j) that goes through effect times
                 // 2) An inner loop (over i_index/i) that goes through all the value times for which this effect time j applies
                 while (j <= n_effect_times)
                 {
+// Rcout << "**** j = " << j << ", time_before = " << time_before << ", time_after = " << time_after << "\n";
                     // at the start of this loop, we know that
                     //   value_times[i] >= time_before
                     while (i_index < n_values_to_apply_to && value_times[i] <= time_after)
                     {
                         // Figure out what we need to overwrite
+                        
+// Rcout << "** i = " << i << ", value_times[i] = " << value_times[i] << "\n";
                         
                         if (time_before == time_after)
                         // we need to write values[i] using with val_before
@@ -647,7 +651,7 @@ List apply_foregrounds(List values,
                         }
                         else
                         {
-                            write_value = j!=-1;
+                            write_value = j!=-1 || value_times[i]!=time_before;
                             write_after_value = j!=n_effect_times && after_values[i]!=R_NilValue;
                             
                             if (time_before == R_NegInf)
@@ -720,6 +724,7 @@ List apply_foregrounds(List values,
                         // do the overwrite
                         if (write_value)
                         {
+// Rcout << "Overwrite at time " << value_times[i] << "\n";
                             values[i] = do_foreground_overwrite(values[i],
                                                                 scratch_arr,
                                                                 effect_is_multiplier,
