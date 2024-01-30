@@ -4373,7 +4373,7 @@ JHEEM = R6::R6Class(
                     {
                         for (tpop.mask in frgd$target.population.masks)
                         {
-                            dimensions = union(dimensions, names(tpop.mask))
+                            dimensions = union(dimensions, names(dimnames(tpop.mask)))
                         }
                     }
                     

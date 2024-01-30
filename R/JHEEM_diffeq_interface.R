@@ -291,7 +291,7 @@ prepare.initial.state <- function(settings,
             src = src[start.year.mask,,prior.sim.index]
             
             settings$initial_state = overwrite_arr(dst = settings$initial_state,
-                                                   dst_indices = settings$indices_into_state_and_dx[group] + 0:(length(src)-1),
+                                                   dst_indices = settings$indices_into_state_and_dx[group] + 1:length(src),
                                                    src = src,
                                                    src_indices = 1:length(src))
         }
