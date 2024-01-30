@@ -5,6 +5,29 @@ p.bias.sd.inside = 0.03
 p.bias.sd.outside = 0.03
 
 
+test.partitioning.function = function(arr, version)
+{
+    # For now, partition the different dimensions separately. Later, could have it do only one partition, a custom combined one, if you have risk and sex together
+    dimensions.to.partition = intersect(c('risk', 'sex'), names(dim(arr)))
+    # if (identical(dimensions.to.partition, c('risk')))
+    if ("risk" %in% names(dim(arr))) {
+        risk.partition.dimnames = list(risk = c('active_IDU', 'IDU_in_remission'))
+        risk.partition.arr = array(c(0.25, 0.75), dim=sapply(risk.partition.dimnames, length), risk.partition.dimnames)
+        risk.modified = array.access(arr, risk.partition.dimnames)
+        risk.modified = risk.modified * expand.array(risk.partition.arr, dimnames(risk.modified))
+        array.access(arr, dimnames(risk.modified)) = risk.modified
+    }
+    if ("sex" %in% names(dim(arr))) {
+        sex.partition.dimnames = list(sex = c('heterosexual_male', 'msm'))
+        sex.partition.arr = array(c(0.5, 0.5), dim=sapply(sex.partition.dimnames, length), sex.partition.dimnames)
+        sex.modified = array.access(arr, sex.partition.dimnames)
+        sex.modified = sex.modified * expand.array(sex.partition.arr, dimnames(sex.modified))
+        array.access(arr, dimnames(sex.modified)) = sex.modified
+    }
+    arr
+    
+}
+
 suppression.likelihood.instructions = 
   create.nested.proportion.likelihood.instructions(outcome.for.data = "suppression",
                                                    outcome.for.sim = "suppression",
@@ -14,7 +37,8 @@ suppression.likelihood.instructions =
                                                    location.types = c('COUNTY','STATE','CBSA'),
                                                    minimum.geographic.resolution.type = 'COUNTY',
                                                    
-                                                   dimensions = c("age","sex","race","risk"),
+                                                   # dimensions = c("age","sex","race","risk"),
+                                                   dimensions = c("sex"),
                                                    levels.of.stratification = c(0,1), 
                                                    from.year = as.integer(2008), 
                                                    
@@ -29,8 +53,10 @@ suppression.likelihood.instructions =
                                                    observation.correlation.form = 'compound.symmetry', 
                                                    measurement.error.sd = 0.03,
                                                    
-                                                   partitioning.function = xx,
+                                                   partitioning.function = test.partitioning.function,
                                                    
                                                    weights = list(1), # upweight?
                                                    equalize.weight.by.year = T 
   )
+
+supp.lik = suppression.likelihood.instructions$instantiate.likelihood('ehe', 'C.12580')

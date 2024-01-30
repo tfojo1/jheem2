@@ -1212,7 +1212,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                              location.2 = main.location,
                                              stratification = stratification, data.manager = data.manager, outcome = outcome, years = years, universal.ontology = universal.ontology)
                 }
-                # if (is.null(arr)) browser()
+                if (is.null(arr)) stop("bug in get.outcome.ratios: returned NULL")
                 # Map this back to the model ontology
                 arr.ontology = as.ontology(dimnames(arr), incomplete.dimensions = 'year')
                 sim.ontology.years.replaced = sim.ontology[names(sim.ontology) != 'location']
@@ -1223,10 +1223,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 model.arr.indices = aligning.mappings[[2]]$get.reverse.mapping.indices(model.arr.dimnames, dimnames(aligned.data))
                 model.arr = array(aligned.data[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
             })
-            
+
             # Return a matrix [year, metalocation] for each model stratum
             one.matrix.per.model.stratum = lapply(1:nrow(model.strata), function(i) {
-                model.dimension.values = setNames(model.strata[i,], names(model.strata[i,]))
+                model.dimension.values = as.list(setNames(as.vector(model.strata[i,]), names(model.strata)))
                 stratum.slice.by.metalocation = lapply(one.array.per.metalocation, function(meta.arr) {
                     slice = meta.arr[get.array.access.indices(dimnames(meta.arr), dimension.values = model.dimension.values)]
                 })
@@ -1242,6 +1242,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 data = data.manager$pull(outcome = outcome,
                                          keep.dimensions = keep.dimensions,
                                          dimension.values = list(year = as.character(years), location = location),
+                                         na.rm = T,
                                          debug = F) # location.1 == '24035' && length(stratification)==0) #length(stratification)==1)
                 output.before.replacement = data
                 
@@ -1366,14 +1367,16 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             model.arr.dimnames = sim.ontology[names(sim.ontology) %in% c('year', 'location', stratification)]
             model.arr.dimnames$year = years.with.data
             model.arr.dimnames$location = locations.with.n.data
-            model.arr.indices = aligning.mappings[[2]]$get.reverse.mapping.indices(model.arr.dimnames, dimnames(obs.n.array.aligned))
-            model.arr = array(obs.n.array.aligned[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
-            model.mask.arr = array(obs.n.mask.array.aligned[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
-            
+            # model.arr.indices = aligning.mappings[[2]]$get.reverse.mapping.indices(model.arr.dimnames, dimnames(obs.n.array.aligned))
+            # model.arr = array(obs.n.array.aligned[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
+            # model.mask.arr = array(obs.n.mask.array.aligned[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
+            model.arr = aligning.mappings[[2]]$reverse.apply(obs.n.array.aligned)
+            model.mask.arr = aligning.mappings[[2]]$reverse.apply(obs.n.mask.array.aligned) # @AZ does this work??? verify with a test b/c is logical, not integer
+
             # use the partitioning function - VALIDATE THAT YOU GET AN ARRAY BACK WITH SAME DIMNAMES
             partitioned.model.arr = partitioning.function(model.arr)
             partitioned.model.mask.arr = partitioning.function(model.mask.arr)
-            
+
             # check sum against the sum of the values in the aligned obs array that are actually mapped
             obs.n.arr.indices = aligning.mappings[[2]]$get.mapping.indices(model.arr.dimnames, dimnames(obs.n.array.aligned))
             values.that.map = sapply(obs.n.arr.indices, function(x) {length(x) > 0})
@@ -1395,7 +1398,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             n.obs.locations = length(locations.with.all.data) # should equal how many locations we have in our array
             n.years = length(years.with.data)
             one.matrix.per.stratum = lapply(1:nrow(model.strata), function(i) {
-                model.dimension.values = setNames(model.strata[i,], names(model.strata[i,]))
+                model.dimension.values = as.list(setNames(as.vector(model.strata[i,]), names(model.strata)))
                 stratum.matrix = matrix(limited.partitioned.model.arr[get.array.access.indices(dimnames(limited.partitioned.model.arr), dimension.values = model.dimension.values)],
                                         nrow = n.years,
                                         ncol = n.obs.locations)
@@ -1465,14 +1468,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             k.minus.2.way.data = lapply(k.minus.2.way.stratifications, function(k.minus.2.way.stratification) {
                 lower.data = get.average(data.manager, k.minus.2.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames)
                 if (is.null(lower.data)) return (NULL)
-                # if (!is.array(lower.data)) browser()
                 expand.array(lower.data, top.level.dimnames[names(top.level.dimnames) %in% c('year', 'location', stratification)])
             })
             
             k.minus.1.way.data = lapply(k.minus.1.way.stratifications, function(k.minus.1.way.stratification) {
                 lower.data = get.average(data.manager, k.minus.1.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames)
                 if (is.null(lower.data)) return (NULL)
-                # if (!is.array(lower.data)) browser()
                 expand.array(lower.data, top.level.dimnames[names(top.level.dimnames) %in% c('year', 'location', stratification)])
             })
             
