@@ -1656,6 +1656,7 @@ MODEL.OUTCOME.METADATA = R6::R6Class(
         
         initialize = function(outcome.metadata,
                               is.cumulative,
+                              is.intrinsic,
                               corresponding.observed.outcome)
         {
             if (!is(outcome.metadata, 'outcome.metadata'))
@@ -1675,6 +1676,10 @@ MODEL.OUTCOME.METADATA = R6::R6Class(
             if (!is.logical(is.cumulative) || length(is.cumulative)!=1 || is.na(is.cumulative))
                 stop(paste0(error.prefix, "'is.cumulative' must be a single, non-NA logical value"))
             
+            # Validate is.intrinsic
+            if (!is.logical(is.intrinsic) || length(is.intrinsic)!=1 || is.na(is.intrinsic))
+                stop(paste0(error.prefix, "'is.intrinsic' must be a single, non-NA logical value"))
+            
             # Validate corresponding.observed.outcome
             if (!is.null(corresponding.observed.outcome) && 
                 (!is.character(corresponding.observed.outcome) || length(corresponding.observed.outcome)!=1 || is.na(corresponding.observed.outcome)))
@@ -1683,6 +1688,7 @@ MODEL.OUTCOME.METADATA = R6::R6Class(
             
             # Store variables
             private$i.is.cumulative = is.cumulative
+            private$i.is.intrinsic = is.intrinsic
             private$i.corresponding.observed.outcome = corresponding.observed.outcome
         }
             
@@ -1698,6 +1704,14 @@ MODEL.OUTCOME.METADATA = R6::R6Class(
                 stop("Cannot modify outcome.metadata's 'is.cumulative' - it is read-only")
         },
         
+        is.intrinsic = function(value)
+        {
+            if (missing(value))
+                private$i.is.intrinsic
+            else
+                stop("Cannot modify outcome.metadata's 'is.intrinsic' - it is read-only")
+        },
+        
         corresponding.observed.outcome = function(value)
         {
             if (missing(value))
@@ -1710,6 +1724,7 @@ MODEL.OUTCOME.METADATA = R6::R6Class(
     private = list(
         
         i.is.cumulative = NULL,
+        i.is.intrinsic = NULL,
         i.corresponding.observed.outcome = NULL
     )
 )
@@ -7410,10 +7425,15 @@ MODEL.OUTCOME = R6::R6Class(
         
         is.cumulative = function(value)
         {
+            stop(paste0("A model outcome's 'is.cumulative' must be defined at the subclass level"))
+        },
+        
+        is.intrinsic = function(value)
+        {
             if (missing(value))
-                private$i.is.cumulative
+                F
             else
-                stop(paste0("Cannot modify a model outcome's 'is.cumulative' - it is read-only"))
+                stop(paste0("Cannot modify a model outcome's 'is.intrinsic' - it is read-only"))
         },
         
         keep.dimensions = function(value)
@@ -7726,6 +7746,14 @@ INTRINSIC.MODEL.OUTCOME = R6::R6Class(
                 F
             else
                 stop(paste0("Cannot modify a model outcome's 'is.cumulative' - it is read-only"))
+        },
+        
+        is.intrinsic = function(value)
+        {
+            if (missing(value))
+                T
+            else
+                stop(paste0("Cannot modify a model outcome's 'is.intrinsic' - it is read-only"))
         },
         
         groups = function(value)
@@ -8410,6 +8438,8 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                                 m*m2/3*t0^3 - (b*m2+b2*m)/2*t0^2 - b*b2*t0)
                 })
             }
+            
+            rv
         }
         
     ),

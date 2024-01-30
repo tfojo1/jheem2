@@ -385,6 +385,12 @@ transform.to.unbounded.scale <- function(values,
     if (!is.null(names(values)) && !is.null(names(scales)))
         scales = scales[names(values)]
     
+    invalid.scales = setdiff(scales, names(MODEL.SCALE.INFO))
+    if (length(invalid.scales)>0)
+        stop(paste0("Cannot transform to unbounded scale: ",
+                    collapse.with.and("'", invalid.scales, "'"),
+                    ifelse(length(invalid.scales)==1, " is not a valid scale", " are not valid scales")))
+    
     rv = sapply(1:length(values), function(i){
         MODEL.SCALE.INFO[[ scales[i] ]]$unbounded.transformation$apply(values[i])
     })
@@ -397,6 +403,12 @@ transform.from.unbounded.scale <- function(values,
 {
     if (!is.null(names(values)) && !is.null(names(scales)))
         scales = scales[names(values)]
+    
+    invalid.scales = setdiff(scales, names(MODEL.SCALE.INFO))
+    if (length(invalid.scales)>0)
+        stop(paste0("Cannot transform from unbounded scale: ",
+                    collapse.with.and("'", invalid.scales, "'"),
+                    ifelse(length(invalid.scales)==1, " is not a valid scale", " are not valid scales")))
     
     rv = sapply(1:length(values), function(i){
         MODEL.SCALE.INFO[[ scales[i] ]]$unbounded.transformation$reverse.apply(values[i])

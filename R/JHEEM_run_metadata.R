@@ -61,6 +61,20 @@ join.run.metadata <- function(metadata.to.join)
                            n.trials = n.trials)
 }
 
+append.run.metadata <- function(metadata1, metadata2)
+{
+    if (is.null(metadata1))
+        metadata2
+    else if (is.null(metadata2))
+        metadata1
+    else
+        JHEEM.RUN.METADATA$new(run.time = rbind(metadata1$run.time, metadata2$run.time),
+                               preprocessing.time = rbind(metadata1$preprocessing.time, metadata2$preprocessing.time),
+                               diffeq.time = rbind(metadata1$diffeq.time, metadata2$diffeq.time),
+                               postprocessing.time = rbind(metadata1$postprocessing.time, metadata2$postprocessing.time),
+                               n.trials = rbind(metadata1$n.trials, metadata2$n.trials))
+}
+
 JHEEM.RUN.METADATA = R6::R6Class(
     'jheem.run.metadata',
     
@@ -168,7 +182,7 @@ JHEEM.RUN.METADATA = R6::R6Class(
         run.labels = function(value)
         {
             if (missing(value))
-                dimname(private$i.run.time)[[1]]
+                dimnames(private$i.run.time)[[1]]
             else
                 stop("Cannot modify a run.metadata's 'run.labels' - it is read-only")
         }

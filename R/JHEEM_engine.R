@@ -554,28 +554,36 @@ create.jheem.engine <- function(version,
                                 end.year,
                                 sub.version=NULL,
                                 max.run.time.seconds=Inf,
-                                prior.sim=NULL,
+                                prior.simulation.set=NULL,
                                 intervention.code = NULL,
                                 calibration.code = NULL,
+                                foregrounds = NULL,
                                 keep.from.year=start.year,
                                 keep.to.year=end.year,
-                                atol=1e-04, rtol=1e-04)
+                                atol=1e-04, rtol=1e-04,
+                                error.prefix = "Cannot create JHEEM Engine: ")
 {
+    if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
+        stop("Cannot create JHEEM Engine: 'error.prefix' must be a single, non-NA character value")
+
     jheem = JHEEM$new(version = version,
                       sub.version = sub.version,
                       location = location,
-                      error.prefix = "Cannot create JHEEM Engine: ")
+                      error.prefix = error.prefix)
     
     JHEEM.ENGINE$new(jheem = jheem,
                      start.year = start.year,
                      end.year = end.year,
+                     prior.simulation.set = prior.simulation.set,
                      max.run.time.seconds = max.run.time.seconds,
                      keep.from.year = keep.from.year,
                      keep.to.year = keep.to.year,
+                     foregrounds = foregrounds,
                      atol = atol,
                      rtol = rtol,
                      intervention.code = intervention.code,
-                     calibration.code = calibration.code)
+                     calibration.code = calibration.code,
+                     error.prefix = error.prefix)
 }
 
 check.sim.can.seed.run <- function(prior.simulation.set,
@@ -616,7 +624,6 @@ JHEEM.ENGINE = R6::R6Class(
                               error.prefix = "Cannot create JHEEM Engine: ")
         {
             #-- Check Arguments --#
-            
             if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
                 stop("Cannot initialize JHEEM Engine - error.prefix must be a single, non-NA character vector")
             
@@ -711,16 +718,16 @@ JHEEM.ENGINE = R6::R6Class(
             
             # Foregrounds
             if (!is.null(foregrounds))
-            {
+            {  
                 if (is(foregrounds, 'jheem.model.foreground'))
                     foregrounds = list(foregrounds)
                 else if (!is.list(foregrounds))
                     stop(paste0(error.prefix, "If 'foregrounds' is not NULL, it must be a list of jheem.model.foreground objects"))
                 else if (any(!sapply(foregrounds, is, 'jheem.model.foreground')))
                     stop(paste0(error.prefix, "If 'foregrounds' is not NULL, it must be a list of jheem.model.foreground objects"))
-                
+
                 for (frgd in foregrounds)
-                    jheem$set.quantity.foreground(foreground, check.consistency = T)
+                    jheem$set.quantity.foreground(frgd, check.consistency = T)
             }
             
             # intervention.code
@@ -744,7 +751,9 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.jheem = jheem
             private$i.intervention.code = intervention.code
             private$i.calibration.code = calibration.code
-            
+          
+            private$i.prior.simulation.set = prior.simulation.set
+              
             private$i.start.year = start.year
             private$i.end.year = end.year
             private$i.max.run.time.seconds = max.run.time.seconds
@@ -782,6 +791,8 @@ JHEEM.ENGINE = R6::R6Class(
             
             private$i.jheem$crunch(start.year = private$i.start.year,
                                    end.year = private$i.end.year,
+                                   keep.from.year = private$i.keep.from.year,
+                                   keep.to.year = private$i.keep.to.year,
                                    prior.simulation.set = private$i.prior.simulation.set,
                                    prior.sim.index = prior.sim.index,
                                    check.consistency = private$i.check.consistency)
@@ -922,6 +933,8 @@ JHEEM.ENGINE = R6::R6Class(
         i.intervention.code = NULL,
         i.calibration.code = NULL,
         
+        i.prior.simulation.set = NULL,
+        
         i.start.year = NULL,
         i.end.year = NULL,
         i.max.run.time.seconds = NULL,
@@ -934,7 +947,6 @@ JHEEM.ENGINE = R6::R6Class(
         
         set.parameters = function(parameters, error.prefix)
         {
-            
             if (!missing(parameters) && !is.null(parameters))
             {
                 if (!is.numeric(parameters) || any(is.na(parameters)))
@@ -968,7 +980,9 @@ JHEEM.ENGINE = R6::R6Class(
                 if (prior.sim.index < 1 || prior.sim.index > private$i.prior.simulation.set$n.sim)
                     stop(paste0(error.prefix, "'prior.sim.index' (", prior.sim.index, ") must be a valid index into the prior.simulation.set - i.e. between 1 and ", private$i.prior.simulation.set$n.sim))
                 
-                parameters = union(parameters, private$i.prior.simulation.set$parameters[,prior.sim.index])
+                new.parameters = parameters
+                parameters = private$i.prior.simulation.set$parameters[,prior.sim.index]
+                parameters[names(new.parameters)] = new.parameters
             }
             
             private$set.parameters(parameters, error.prefix=error.prefix)
@@ -1120,6 +1134,8 @@ JHEEM = R6::R6Class(
         
         crunch = function(start.year,
                           end.year,
+                          keep.from.year,
+                          keep.to.year,
                           prior.simulation.set,
                           prior.sim.index,
                           check.consistency = !self$has.been.crunched())
@@ -1132,6 +1148,9 @@ JHEEM = R6::R6Class(
             # Set the times
             set.run.years(start.year = start.year,
                           end.year = end.year,
+                          keep.from.year = keep.from.year,
+                          keep.to.year = keep.to.year,
+                          prior.simulation.set = prior.simulation.set,
                           error.prefix = paste0("Error preparing JHEEM to run: "))
 
             # Calculate all required quantity values
@@ -1155,6 +1174,7 @@ JHEEM = R6::R6Class(
                                                                 quantity.after.value.applies.mask = private$i.quantity.after.value.applies.mask,
                                                                 prior.simulation.set = prior.simulation.set,
                                                                 prior.sim.index = prior.sim.index,
+                                                                start.year = start.year,
                                                                 check.consistency = check.consistency,
                                                                 error.prefix = paste0("Error preparing JHEEM to run (while setting up the diffeq interface): "))
             
@@ -1181,6 +1201,8 @@ JHEEM = R6::R6Class(
             # Crunch
             self$crunch(start.year = start.year,
                         end.year = end.year,
+                        keep.from.year = keep.from.year,
+                        keep.to.year = keep.to.year,
                         prior.simulation.set = prior.simulation.set,
                         prior.sim.index = prior.sim.index,
                         check.consistency = check.consistency)
@@ -1195,15 +1217,13 @@ JHEEM = R6::R6Class(
                     floor(prior.sim.index)!=prior.sim.index)
                     stop(paste0("Cannot run simulation: 'prior.sim.index' must be a single, non-NA, integer value"))
             }
-            else
-                initial.state = private$i.diffeq.settings$initial_state
 
-            
             terminated.for.time = F
             # Handoff to the Rcpp
             compute.fn = function(x, t){
                 if (1==2)
                 {
+                    browser()
                     args = list(state = x,
                                 time = t,
                                 settings = private$i.diffeq.settings,
@@ -1252,7 +1272,7 @@ JHEEM = R6::R6Class(
             end.preprocessing.time = as.numeric(Sys.time())
             
             ode.results = odeintr::integrate_sys(sys = compute.fn,
-                                                 init = initial.state,
+                                                 init = private$i.diffeq.settings$initial_state,
                                                  duration = private$i.run.to.time - private$i.run.from.time + 1, 
                                                  start = private$i.run.from.time,
                                                  atol = atol,
@@ -1284,7 +1304,7 @@ JHEEM = R6::R6Class(
                     run.label = private$i.calibration.code
             }
             else
-                run.label = private$i.intervention
+                run.label = private$i.intervention.code
 
             run.metadata = create.single.run.metadata(run.time = run.end.time - run.start.time,
                                                       preprocessing.time = end.preprocessing.time - run.start.time,
@@ -1293,11 +1313,15 @@ JHEEM = R6::R6Class(
                                                       n.trials = 1,
                                                       labels = run.label)
             
+            if (!is.null(prior.simulation.set))
+                run.metadata = append.run.metadata(prior.simulation.set$run.metadata$subset(prior.sim.index),
+                                                   run.metadata)
+            
             sim = create.single.simulation(version = private$i.version,
                                            sub.version = private$i.sub.version,
                                            location = private$i.location,
-                                           from.year = private$i.run.from.time,
-                                           to.year = private$i.run.to.time-1,
+                                           from.year = private$i.keep.from.time,
+                                           to.year = private$i.keep.to.time,
                                            outcome.numerators = outcome.numerators.and.denominators$numerators,
                                            outcome.denominators = outcome.numerators.and.denominators$denominators,
                                            parameters = private$i.parameters,
@@ -1569,110 +1593,115 @@ JHEEM = R6::R6Class(
         
         set.parameters = function(parameters, check.consistency)
         {
-            error.prefix = paste0("Error setting parameters for JHEEM for '", self$version, "' model in '", self$location, "': ")
-            if (!is.numeric(parameters))
-                stop(paste0(error.prefix, "'parameters' must be a numeric vector"))
-            if (any(is.na(parameters)))
-                stop(paste0(error.prefix, "'parameters' cannot contain any NA values"))
-            if (is.null(names(parameters)))
-                stop(paste0(error.prefix, "'parameters' must be a NAMED numeric vector"))
-            
-            # overwrite into parameters vector
-            private$i.parameters[names(parameters)] = parameters
-            
-            # Set the values for any elements with matching names
-            element.names.in.parameters = intersect(names(parameters), private$get.specification()$element.names)
-            element.names.in.parameters = element.names.in.parameters[sapply(private$i.element.backgrounds[element.names.in.parameters], function(bkgd){
-                is.null(bkgd$functional.form)
-            })]
-            
-            for (elem.name in element.names.in.parameters)
-                self$set.element.value(element.name = elem.name,
-                                       value = parameters[elem.name],
-                                       check.consistency = check.consistency)
-            
-            # Call the registered parameter setting function if there is one
-            if (check.consistency)
-                model.settings = private$i.checked.model.settings
-            else
-                model.settings = private$i.unchecked.model.settings
-            
-            used.parameter.names = element.names.in.parameters
-            
-            # For calibrated parameters
-            calibrated.parameters.distribution = get.parameters.distribution.for.version(self$version, type='calibrated')
-            if (!is.null(calibrated.parameters.distribution) && any(calibrated.parameters.distribution@var.names[1]==names(parameters)))
+            if (!missing(parameters) && !is.null(parameters))
             {
-                calibrated.parameters.apply.fn = get.parameters.apply.function.for.version(self$version, type='calibrated')
+                error.prefix = paste0("Error setting parameters for JHEEM for '", self$version, "' model in '", self$location, "': ")
+                if (!is.numeric(parameters))
+                    stop(paste0(error.prefix, "'parameters' must be a numeric vector"))
+                if (any(is.na(parameters)))
+                    stop(paste0(error.prefix, "'parameters' cannot contain any NA values"))
+                if (is.null(names(parameters)))
+                    stop(paste0(error.prefix, "'parameters' must be a NAMED numeric vector"))
                 
+                # overwrite into parameters vector
+                private$i.parameters[names(parameters)] = parameters
+                
+                # Set the values for any elements with matching names
+                element.names.in.parameters = intersect(names(parameters), private$get.specification()$element.names)
+                element.names.in.parameters = element.names.in.parameters[sapply(private$i.element.backgrounds[element.names.in.parameters], function(bkgd){
+                    is.null(bkgd$functional.form)
+                })]
+                changed.element.names.in.parameters = element.names.in.parameters[ private$i.parameters[element.names.in.parameters] != parameters[element.names.in.parameters] ]
+                
+                for (elem.name in changed.element.names.in.parameters)
+                    self$set.element.value(element.name = elem.name,
+                                           value = parameters[elem.name],
+                                           check.consistency = check.consistency)
+                
+                # Call the registered parameter setting function if there is one
                 if (check.consistency)
-                    parameters.to.pass = PROTECTED.NUMERIC.VECTOR$new(parameters)
+                    model.settings = private$i.checked.model.settings
                 else
-                    parameters.to.pass = parameters
+                    model.settings = private$i.unchecked.model.settings
                 
-                calibrated.parameters.apply.fn(model.settings = model.settings,
-                                               parameters = parameters.to.pass)
+                used.parameter.names = element.names.in.parameters
                 
-                if (check.consistency)
-                    used.parameter.names = union(used.parameter.names, parameters.to.pass$accessed.elements)
-            }
-
-            # For sampled parameters
-            sampled.parameters.distribution = get.parameters.distribution.for.version(self$version, type='sampled')
-            if (!is.null(sampled.parameters.distribution) && any(sampled.parameters.distribution@var.names[1]==names(parameters)))
-            {
-                sampled.parameters.apply.fn = get.parameters.apply.function.for.version(self$version, type='sampled')
-                used.from.sampled = sampled.parameters.apply.fn(model.settings = model.settings,
-                                                                parameters = parameters,
-                                                                track.used.parameters = check.consistency)
-                
-                if (check.consistency)
-                    used.parameter.names = union(used.parameter.names, used.from.sampled)
-            }
-            
-            # Check that there are no missing parameters for foregrounds
-            if (check.consistency)
-            {
-                missing.parameters = setdiff(private$i.parameter.names.for.foregrounds, names(private$i.parameters))
-                if (length(missing.parameters)>0)
-                    stop(paste0(error.prefix, 
-                                ifelse(length(missing.parameters)==1, "A value for parameter ", "Values for parameters "),
-                                collapse.with.and("'", missing.parameters, "'"),
-                                " - upon which one more more foregrounds depend - ",
-                                ifelse(length(missing.parameters)==1, "has", "have"),
-                                " not been set to the JHEEM"))
-            }
-            
-            used.parameter.names = union(used.parameter.names, private$i.parameter.names.for.foregrounds)
-            
-            # Check that we used all the parameters
-            if (check.consistency)
-            {
-                unused.parameters = setdiff(names(parameters), used.parameter.names)
-                if (length(unused.parameters)>0)
+                # For calibrated parameters
+                calibrated.parameters.distribution = get.parameters.distribution.for.version(self$version, type='calibrated')
+                if (!is.null(calibrated.parameters.distribution) && any(calibrated.parameters.distribution@var.names[1]==names(parameters)))
                 {
-                    stop(paste0(error.prefix,
-                                length(unused.parameters),
-                                ifelse(length(unused.parameters)==1, " is", " are"),
-                                " present in 'parameters' but ",
-                                ifelse(length(unused.parameters)==1, "was", "were"),
-                                " not used by the model specification: ",
-                                collapse.with.and("'", unused.parameters, "'")
-                                ))
+                    calibrated.parameters.apply.fn = get.parameters.apply.function.for.version(self$version, type='calibrated')
+                    
+                    if (check.consistency)
+                        parameters.to.pass = PROTECTED.NUMERIC.VECTOR$new(parameters)
+                    else
+                        parameters.to.pass = parameters
+                    
+                    calibrated.parameters.apply.fn(model.settings = model.settings,
+                                                   parameters = parameters.to.pass)
+                    
+                    if (check.consistency)
+                        used.parameter.names = union(used.parameter.names, parameters.to.pass$accessed.elements)
                 }
-            }        
-            
-            # Re-resolve any dependent foregrounds
-            if (length(private$i.unresolved.foregrounds)>0)
-            {
-                dependent.ids = unlist(private$i.dependent.foreground.ids.for.parameters[names(parameters)])
-                re.resolve.mask = sapply(names(private$i.unresolved.foregrounds), function(id){
-                    any(id == dependent.ids)
-                })
+    
+                # For sampled parameters
+                sampled.parameters.distribution = get.parameters.distribution.for.version(self$version, type='sampled')
+                if (!is.null(sampled.parameters.distribution) && any(sampled.parameters.distribution@var.names[1]==names(parameters)))
+                {
+                    sampled.parameters.apply.fn = get.parameters.apply.function.for.version(self$version, type='sampled')
+                    used.from.sampled = sampled.parameters.apply.fn(model.settings = model.settings,
+                                                                    parameters = parameters,
+                                                                    track.used.parameters = check.consistency)
+                    
+                    if (check.consistency)
+                        used.parameter.names = union(used.parameter.names, used.from.sampled)
+                }
                 
-                re.resolve.ids = names(private$i.unresolved.foregrounds)[re.resolve.mask]
-                for (id in re.resolve.ids)
-                    private$resolve.foreground(id)
+                # Check that there are no missing parameters for foregrounds
+                if (check.consistency)
+                {
+                    missing.parameters = setdiff(private$i.parameter.names.for.foregrounds, names(private$i.parameters))
+                    if (length(missing.parameters)>0)
+                        stop(paste0(error.prefix, 
+                                    ifelse(length(missing.parameters)==1, "A value for parameter ", "Values for parameters "),
+                                    collapse.with.and("'", missing.parameters, "'"),
+                                    " - upon which one more more foregrounds depend - ",
+                                    ifelse(length(missing.parameters)==1, "has", "have"),
+                                    " not been set to the JHEEM"))
+                }
+                
+                used.parameter.names = union(used.parameter.names, private$i.parameter.names.for.foregrounds)
+                
+                # Check that we used all the parameters
+                if (check.consistency)
+                {
+                    unused.parameters = setdiff(names(parameters), used.parameter.names)
+                    if (length(unused.parameters)>0)
+                    {
+                        stop(paste0(error.prefix,
+                                    length(unused.parameters),
+                                    ifelse(length(unused.parameters)==1, " is", " are"),
+                                    " present in 'parameters' but ",
+                                    ifelse(length(unused.parameters)==1, "was", "were"),
+                                    " not used by the model specification: ",
+                                    collapse.with.and("'", unused.parameters, "'")
+                                    ))
+                    }
+                }        
+                
+                # Re-resolve any dependent foregrounds
+                if (length(private$i.unresolved.foregrounds)>0)
+                {
+                    parameters.that.have.changed = names(parameters)[is.na(private$i.parameters[names(parameters)]) | private$i.parameters[names(parameters)]!=parameters]
+                    dependent.ids = unlist(private$i.dependent.foreground.ids.for.parameters[parameters.that.have.changed])
+                    re.resolve.mask = sapply(names(private$i.unresolved.foregrounds), function(id){
+                        any(id == dependent.ids)
+                    })
+                    
+                    re.resolve.ids = names(private$i.unresolved.foregrounds)[re.resolve.mask]
+                    for (id in re.resolve.ids)
+                        private$resolve.foreground(id)
+                }
             }
         },
         
@@ -2202,8 +2231,8 @@ JHEEM = R6::R6Class(
         {
             if (!is.null(intervention.code))
             {
-                if (!is.character(intervention.code) || length(intervention)!=1 || is.na(intervention))
-                    stop("Cannot set intervention for JHEEM: 'intervention.code' must be a single, non-NA character value")
+                if (!is.character(intervention.code) || length(intervention.code)!=1 || is.na(intervention.code))
+                    stop("Cannot set intervention code for JHEEM: 'intervention.code' must be a single, non-NA character value")
                 
                 if (is.null(get.intervention(intervention.code, throw.error.if.missing=F)))
                     stop(paste0("Cannot set intervention.code '", intervention.code, "' for JHEEM: no intervention with that code has been registered"))
@@ -2304,12 +2333,16 @@ JHEEM = R6::R6Class(
         i.outcome.non.cumulative.value.times = NULL,
         i.outcome.non.cumulative.value.time.is.after.time = NULL,
         i.outcome.value.may.not.apply.non.cumulative.times = NULL,
+        i.outcome.non.cumulative.value.times.to.calculate = NULL,
+        i.outcome.non.cumulative.value.time.to.calculate.is.after.time = NULL,
         
         i.outcome.non.cumulative.self.times = NULL,
         i.outcome.non.cumulative.self.after.times = NULL,
         
         i.outcome.value.times = NULL,
         i.outcome.value.time.is.after.time = NULL,
+        i.outcome.value.times.to.calculate = NULL,
+        i.outcome.value.time.to.calculate.is.after.time = NULL,
         
         #-- Values for quantities --#
         i.quantity.values = NULL,
@@ -2362,6 +2395,8 @@ JHEEM = R6::R6Class(
         #-- On Crunched state (and the times to run from/to))
         i.run.from.time = NULL,
         i.run.to.time = NULL,
+        i.keep.from.time = NULL,
+        i.keep.to.time = NULL,
         
         i.has.been.crunched = NULL,
         
@@ -2503,7 +2538,8 @@ JHEEM = R6::R6Class(
             private$i.outcome.non.cumulative.self.after.times = list()
             
             private$i.outcome.value.times = list()
-            private$i.outcome.value.time.is.after.time = list()
+            private$i.outcome.value.times.to.calculate = list()
+        #    private$i.outcome.value.time.is.after.time = list()
             
             
             private$i.quantity.value.all.applies.for.time = list()
@@ -2548,7 +2584,7 @@ JHEEM = R6::R6Class(
             {
                 outcome = specification$get.outcome(outcome.name)
                 
-                if (is(outcome, 'intrinsic.model.outcome') || !all(private$i.quantity.is.static[specification$get.outcome.dependee.element.names(outcome.name)]))
+                if (outcome$is.intrinsic || !all(private$i.quantity.is.static[specification$get.outcome.dependee.element.names(outcome.name)]))
                     private$i.outcome.non.cumulative.is.static[outcome.name] = F
                 else
                 {
@@ -2572,9 +2608,12 @@ JHEEM = R6::R6Class(
         
         set.run.years = function(start.year,
                                  end.year,
+                                 keep.from.year,
+                                 keep.to.year,
+                                 prior.simulation.set,
                                  error.prefix)
         {
-            #-- Error Checks --#
+            #-- RUN years: Error Checks --#
             if (!is.numeric(start.year))
                 stop(paste0(error.prefix, "'start.year' must be a single NUMERIC value"))
             if (length(start.year)!=1)
@@ -2608,13 +2647,64 @@ JHEEM = R6::R6Class(
                 
                 private$clear.element.background.self.times(specification$element.names)
                 private$clear.quantity.foreground.self.times(specification$quantity.names)
-                private$clear.outcome.value.times(specification$outcome.nam)
+                private$clear.outcome.value.times.to.calculate(specification$outcome.names)
+            }
+            
+            #-- KEEP years: Error Checks --#
+            if (!is.numeric(keep.from.year))
+                stop(paste0(error.prefix, "'keep.from.year' must be a single NUMERIC value"))
+            if (length(keep.from.year)!=1)
+                stop(paste0(error.prefix, "'keep.from.year' must be a SINGLE numeric value"))
+            if (is.na(keep.from.year))
+                stop(paste0(error.prefix, "'keep.from.year' cannot be NA"))
+            if (is.infinite(keep.from.year))
+                stop(paste0(error.prefix, "'keep.from.year' cannot be infinite"))
+            
+            if (!is.numeric(keep.to.year))
+                stop(paste0(error.prefix, "'keep.to.year' must be a single NUMERIC value"))
+            if (length(keep.to.year)!=1)
+                stop(paste0(error.prefix, "'keep.to.year' must be a SINGLE numeric value"))
+            if (is.na(keep.to.year))
+                stop(paste0(error.prefix, "'keep.to.year' cannot be NA"))
+            if (is.infinite(keep.to.year))
+                stop(paste0(error.prefix, "'keep.to.year' cannot be infinite"))
+            
+            if (keep.to.year <= keep.from.year)
+                stop(paste0(error.prefix, "'keep.to.year' (", keep.to.year, ") must be greater than 'keep.from.year' (", keep.from.year, ")"))
+            
+            if (is.null(prior.simulation.set))
+            {
+                if (keep.from.year < start.year)
+                    stop(paste0(error.prefix, "'keep.to.year' (", keep.to.year, ") must be greater than or equal to 'start.year' (", start.year, ")"))
+            }
+            else
+            {
+                if (start.year < prior.simulation.set$from.year)
+                    stop(paste0(error.prefix, "When a prior simulation set is specified, 'start.year' (", start.year, ") must be greater than or equal to the simulation set's 'from.year' (", prior.simulation.set$from.year, ")"))
+                
+                if (keep.from.year < prior.simulation.set$from.year)
+                    stop(paste0(error.prefix, "'keep.to.year' (", keep.to.year, ") must be greater than or equal to the simulation set's 'from.year' (", prior.simulation.set$from.year, ")"))
+            }
+            
+            if (keep.to.year > end.year)
+                stop(paste0(error.prefix, "'keep.to.year' (", keep.to.year, ") must be less than or equal to 'end.year' (", end.year, ")"))
+            
+            if (is.null(private$i.keep.from.time) || is.null(private$i.keep.to.time) ||
+                private$i.keep.from.time != keep.from.year || private$i.keep.to.time != (keep.to.year))
+            {
+                private$i.keep.from.time = keep.from.year
+                private$i.keep.to.time = keep.to.year
+                
+                #-- Clear times (for all elements/quantities) --#
+                specification = private$get.specification()
+                
+                private$clear.outcome.value.times(specification$outcome.names)
             }
             
             #-- Done --#
             invisible(self)
         },
-        
+       
         ##----------------------------------------##
         ##-- CALCULATING QUANTITY/ELEMENT TIMES --##
         ##----------------------------------------##
@@ -2744,7 +2834,7 @@ JHEEM = R6::R6Class(
                 
                 if (private$i.element.backgrounds[[element.name]]$is.static)
                     private$i.element.background.self.times[[element.name]] = 
-                        private$i.element.self.background.times[[element.name]] = numeric() #we'll let the foreground overwrite things
+                        private$i.element.background.self.times[[element.name]] = numeric() #we'll let the foreground overwrite things
                 else
                 {
                     if (is.null(private$i.element.backgrounds[[element.name]]$ramp.interpolated.times))
@@ -2794,32 +2884,42 @@ JHEEM = R6::R6Class(
         calculate.functional.form.times = function(bkgd)
         { 
             # The functional.form times are the union of the from.time, the to.time, and all the integers in between
-            from.time = max(bkgd$functional.form.from.time, i.run.from.time)
-            if (from.time==ceiling(from.time))
-                append.to.front = numeric()
-            else
-                append.to.front = from.time
             
-            to.time = min(bkgd$functional.form.to.time, i.run.to.time)
-            if (to.time==floor(to.time))
-                append.to.back = numeric()
+            if (bkgd$functional.form.to.time < private$i.run.from.time)
+                bkgd$functional.form.times = bkgd$functional.form.to.time
+            else if (bkgd$functional.form.from.time > private$i.run.to.time)
+                bkgd$functional.form.times = bkgd$functional.form.from.time
             else
-                append.to.back = bkgd$functional.form.from.time
-            
-            if (ceiling(to.time) >= floor(from.time))
             {
-                element = private$get.specification()$get.quantity(bkgd$name)
-                if (bkgd$functional.form$type == 'linear spline' && bkgd$functional.form$link$type=='identity' &&
-                    element$functional.form.scale == element$scale) 
-                    #If these conditions are true, we can just let the native interpolation take care of the in-between points
-                    functional.form.times = bkgd$functional.form$knot.times[bkgd$functional.form$knot.times>=from.time & bkgd$functional.form$knot.times<=to.time]
+                from.time = max(bkgd$functional.form.from.time, floor(private$i.run.from.time)) 
+                    # because functional forms are interpolated every year, using floor on the run.from.time ensures
+                    # that we pick a time that would not be added to what we would do any way
+                if (from.time==ceiling(from.time))
+                    append.to.front = numeric()
                 else
-                    functional.form.times = ceiling(from.time):floor(to.time)
+                    append.to.front = from.time
+                
+                to.time = min(bkgd$functional.form.to.time, ceiling(private$i.run.to.time))
+                if (to.time==floor(to.time))
+                    append.to.back = numeric()
+                else
+                    append.to.back = to.time
+                
+                if (ceiling(to.time) >= floor(from.time))
+                {
+                    element = private$get.specification()$get.quantity(bkgd$name)
+                    if (bkgd$functional.form$type == 'linear spline' && bkgd$functional.form$link$type=='identity' &&
+                        element$functional.form.scale == element$scale) 
+                        #If these conditions are true, we can just let the native interpolation take care of the in-between points
+                        functional.form.times = bkgd$functional.form$knot.times[bkgd$functional.form$knot.times>=from.time & bkgd$functional.form$knot.times<=to.time]
+                    else
+                        functional.form.times = ceiling(from.time):floor(to.time)
+                }
+                else
+                    functional.form.times = numeric()
+                
+                bkgd$functional.form.times = c(append.to.front, functional.form.times, append.to.back)
             }
-            else
-                functional.form.times = numeric()
-            
-            bkgd$functional.form.times = c(append.to.front, functional.form.times, append.to.back)
             
             # A debugging check
             if (length(bkgd$functional.form.times)==0)
@@ -3022,7 +3122,7 @@ JHEEM = R6::R6Class(
                 # If this has a non-cumulative dependency on any intrinsic outcome, include all the run times
                 dependee.outcomes = specification$get.outcome.non.cumulative.dependendee.outcome.names(outcome.name)
                 dependee.outcomes.are.intrinsic = sapply(dependee.outcomes, function(dep.on.outcome.name){
-                    is(specification$get.outcome(dep.on.outcome.name), 'intrinsic.model.outcome')
+                    specification$get.outcome(dep.on.outcome.name)$is.intrinsic
                 })
                 if (any(dependee.outcomes.are.intrinsic))
                     intrinsic.times = private$i.run.from.time:private$i.run.to.time
@@ -3048,6 +3148,8 @@ JHEEM = R6::R6Class(
             # Clear the times
             private$i.outcome.non.cumulative.self.times[outcome.names] = NULL
             private$i.outcome.non.cumulative.self.after.times[outcome.names] = NULL
+            
+            private$clear.outcome.non.cumulative.value.times(outcome.names)
             
             # Clear value.times for dependee.quantities
             specification = get.specification()
@@ -3285,10 +3387,12 @@ JHEEM = R6::R6Class(
         {
             # Clear the times
             private$i.outcome.non.cumulative.value.times[outcome.names] = NULL
-            private$i.outcome.non.cumulative.value.after.times[outcome.names] = NULL
+            private$i.outcome.non.cumulative.value.time.is.after.time[outcome.names] = NULL
             
             # Clear the value-all-applies times
-            private$clear.outcome.non.cumulative.value.all.applies.times(outcome.names)
+            #private$clear.outcome.non.cumulative.value.all.applies.times(outcome.names)
+            private$clear.outcome.value.times(outcome.names)
+            private$clear.outcome.value.times.to.calculate(outcome.names)
             
             # Done
             invisible(self)
@@ -3297,39 +3401,23 @@ JHEEM = R6::R6Class(
         #-- Outcome Value Times --#
         #   The times for which the final outcome will have a value
         
-        # The *outcome.value.times* is a vector of times for which this value is calculated
-        #       For a cumulative outcome, it is just every year between max(run.from.time, and the outcome's from.time) and min(run.to.time, and the outcome's to.time)
-        #       For a non-cumulative outcome, it is the *outcome.non.cumulative.value.times*
+        # The *outcome.value.times* is a vector of times for which this value will be returned
+        #       For a cumulative outcome, it is just every year between max(keep.from.time, and the outcome's from.time) and min(keep.to.time, and the outcome's to.time)
+        #       For a non-cumulative outcome, it is the elements *outcome.non.cumulative.value.times* 
+        #           which are between keep.from.time and keep.to.time+1 unioned with
+        #           the last outcome.non.cumulative.value.time <= keep.from.time and the first outcome.non.cumulative.value.time >= keep.to.year
         #           Any times for which there is both a value and an after.value will appear in twice in the vector of times
-        # The *outcome.non.cumulative.value.time.is.after.time* is a logical indicator corresponding to the *outcome.value.times* for an outcome
-        #       We store this as a logical vector for computational purposes, but
-        #       the set of after.times for an outcome is the union of all *quantity.self.after.times* for any quantity that this value depends on
+        # The *i.outcome.value.time.is.after.time* is a logical indicator corresponding to the *outcome.value.times* for an outcome
         calculate.outcome.value.times = function(outcome.name, specification)
         {
-            outcome = specification$get.outcome(outcome.name)
-            if (outcome$is.cumulative || is(outcome, 'intrinsic.model.outcome'))
-            {
-                if (outcome$is.cumulative)
-                {
-                    private$i.outcome.value.times[[outcome.name]] =
-                        max(outcome$from.year, private$i.run.from.time) : min(outcome$to.year, private$i.run.to.time-1)
-                }
-                else
-                {
-                    private$i.outcome.value.times[[outcome.name]] =
-                        max(outcome$from.year, private$i.run.from.time) : min(outcome$to.year, private$i.run.to.time)
-                }
-                
-                private$i.outcome.value.time.is.after.time[[outcome.name]] = rep(F, length(private$i.outcome.value.times[[outcome.name]]))
-            }
-            else
-            {
-                if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
-                    private$calculate.outcome.non.cumulative.value.times(outcome.name)
-                
-                private$i.outcome.value.times[[outcome.name]] = private$i.outcome.non.cumulative.value.times[[outcome.name]]
-                private$i.outcome.value.time.is.after.time[[outcome.name]] = private$i.outcome.non.cumulative.value.time.is.after.time[[outcome.name]]
-            }
+            calculated = do.calculate.outcome.value.times(outcome.name = outcome.name,
+                                                          specification = specification,
+                                                          from.time = private$i.keep.from.time,
+                                                          to.time.for.cumulative = private$i.keep.to.time,
+                                                          calculate.non.cumulative.times = F)
+            
+            private$i.outcome.value.times[[outcome.name]] = calculated$times
+            private$i.outcome.value.time.is.after.time[[outcome.name]] = calculated$is.after.time
         },
         
         clear.outcome.value.times = function(outcome.names)
@@ -3338,6 +3426,76 @@ JHEEM = R6::R6Class(
             private$i.outcome.value.time.is.after.time[outcome.names] = NULL
         },
         
+        calculate.outcome.value.times.to.calculate = function(outcome.name, specification)
+        {
+            calculated = do.calculate.outcome.value.times(outcome.name = outcome.name,
+                                                          specification = specification,
+                                                          from.time = private$i.run.from.time,
+                                                          to.time.for.cumulative = private$i.run.to.time-1,
+                                                          calculate.non.cumulative.times = F)
+            
+            private$i.outcome.value.times.to.calculate[[outcome.name]] = calculated$times
+            private$i.outcome.value.time.to.calculate.is.after.time[[outcome.name]] = calculated$is.after.time
+            
+            
+            calculated = do.calculate.outcome.value.times(outcome.name = outcome.name,
+                                                          specification = specification,
+                                                          from.time = private$i.run.from.time,
+                                                          to.time.for.cumulative = private$i.run.to.time-1,
+                                                          calculate.non.cumulative.times = T)
+            
+            private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]] = calculated$times
+            private$i.outcome.non.cumulative.value.time.to.calculate.is.after.time[[outcome.name]] = calculated$is.after.time
+        },
+        
+        clear.outcome.value.times.to.calculate = function(outcome.names)
+        {
+            private$i.outcome.value.times.to.calculate[outcome.names] = NULL
+            private$i.outcome.value.time.to.calculate.is.after.time[outcome.names] = NULL
+            
+            private$i.outcome.non.cumulative.value.times.to.calculate[outcome.names] = NULL
+            private$i.outcome.non.cumulative.value.time.to.calculate.is.after.time[outcome.names] = NULL
+        },
+        
+        do.calculate.outcome.value.times = function(outcome.name,
+                                                    specification,
+                                                    from.time,
+                                                    to.time.for.cumulative,
+                                                    calculate.non.cumulative.times)
+        {
+            outcome = specification$get.outcome(outcome.name)
+            if (!calculate.non.cumulative.times && 
+                (outcome$is.cumulative || outcome$is.intrinsic))
+            {
+                if (outcome$is.cumulative)
+                {
+                    times = max(outcome$from.year, from.time) : min(outcome$to.year, to.time.for.cumulative)
+                }
+                else
+                {
+                    times = from.time : (to.time.for.cumulative+1)
+                }
+                
+                is.after.time = rep(F, length(times))
+            }
+            else
+            {
+                if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
+                    private$calculate.outcome.non.cumulative.value.times(outcome.name)
+                
+                keep.mask = private$i.outcome.non.cumulative.value.times[[outcome.name]] > from.time &
+                    private$i.outcome.non.cumulative.value.times[[outcome.name]] < (to.time.for.cumulative+1)
+                shifted.earlier.keep.mask = c(keep.mask[-1],F)
+                shifted.later.keep.mask = c(F,keep.mask[-length(keep.mask)])
+                
+                keep.mask = keep.mask | shifted.earlier.keep.mask | shifted.later.keep.mask
+                
+                times = private$i.outcome.non.cumulative.value.times[[outcome.name]][keep.mask]
+                is.after.time = private$i.outcome.non.cumulative.value.time.is.after.time[[outcome.name]][keep.mask]
+            }
+            
+            list(times=times, is.after.time=is.after.time)
+        },
         
         ##-----------------------------------------##
         ##-- CALCULATING QUANTITY/ELEMENT VALUES --##
@@ -3377,14 +3535,13 @@ JHEEM = R6::R6Class(
                 quantity = private$get.specification()$get.quantity(quantity.name)
                 
                 #-- For debugging --#
-      #          if (is.element.name(quantity.name))
-      #              print(paste0(paste0(rep(" ", depth), collapse=''),
-      #                           "-Calculate element '", quantity.name, "'"))
-      #          else
-      #              print(paste0(paste0(rep(" ", depth), collapse=''),
-      #                           "-Calculate quantity '", quantity.name, "'"))
-
-                
+                # if (is.element.name(quantity.name))
+                #     print(paste0(paste0(rep(" ", depth), collapse=''),
+                #                  "-Calculate element '", quantity.name, "'"))
+                # else
+                #     print(paste0(paste0(rep(" ", depth), collapse=''),
+                #                  "-Calculate quantity '", quantity.name, "'"))
+   
                 #-- Fill in the background --#
                 if (private$is.element.name(quantity.name))
                     private$calculate.element.background.value(quantity.name, 
@@ -3458,7 +3615,7 @@ JHEEM = R6::R6Class(
             
             #-- Make sure the dependee quantities are all calculated --#
             sapply(quantity$depends.on, private$calculate.quantity.value, check.consistency=check.consistency, depth=depth+1)
-            
+
             #-- Loop through missing times --#
             for (time in missing.times)
             {
@@ -4647,24 +4804,18 @@ JHEEM = R6::R6Class(
                                             prior.sim.index,
                                             is.degenerate)
         {
-            if (!is.null(prior.simulation.set))
-                stop("We need to work out how to integrate the prior simulation set")
-            
             specification = private$get.specification()
             
             outcome.names = specification$get.outcome.names.for.sub.version(private$i.sub.version)
             
-            if (is.degenerate)
+            for (outcome.name in outcome.names)
             {
-                # If not degenerate, these will be calculated in calculate.outcome.numerator.and.denominator
-                for (outcome.name in outcome.names)
-                {
-                    #-- Calculate the times --#
-                    if (is.null(private$i.outcome.value.times[[outcome.name]]))
-                        private$calculate.outcome.value.times(outcome.name, specification=specification)
-                }
+                #-- Calculate the times --#
+                if (is.null(private$i.outcome.value.times[[outcome.name]]))
+                    private$calculate.outcome.value.times(outcome.name, specification=specification)
             }
-            else
+            
+            if (!is.degenerate)
             {
                 sapply(outcome.names, function(outcome.name){
                     private$calculate.outcome.numerator.and.denominator(outcome.name = outcome.name,
@@ -4679,13 +4830,34 @@ JHEEM = R6::R6Class(
                 outcome = specification$get.outcome(outcome.name)
                 outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
                                       private$i.outcome.dim.names.sans.time[[outcome.name]])
-               
+                
+                
                 if (is.degenerate)
                     val = rep(as.numeric(NA), prod(sapply(outcome.dim.names, length)))
                 else
                 {
-                    val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
-                        private$i.outcome.numerators[[outcome.name]][[y]]
+                    if (!is.null(prior.simulation.set))
+                    {
+                        prior.sim.numerator = prior.simulation.set$data$outcome.numerators[[outcome.name]]
+                        dim.names = c(dimnames(prior.sim.numerator)['year'],
+                                      other = 'temp',
+                                      dimnames(prior.sim.numerator)['sim'])
+                        dim.names$other = 1:(length(prior.sim.numerator) / prod(sapply(dim.names, length)))
+                        dim(prior.sim.numerator) = sapply(dim.names, length)
+                        dimnames(prior.sim.numerator) = dim.names
+                    }
+                    
+                    val = t(sapply(private$i.outcome.value.times[[outcome.name]], function(y){
+                        if (y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
+                            y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
+                        {
+                            private$i.outcome.numerators[[outcome.name]][[as.character(y)]]
+                        }
+                        else
+                        {
+                            prior.sim.numerator[as.character(y),,prior.sim.index]
+                        }
+                            
                     }))
                 }
                 
@@ -4710,9 +4882,29 @@ JHEEM = R6::R6Class(
                         val = outcome.numerators[[outcome.name]]
                     else
                     {
+                        if (!is.null(prior.simulation.set))
+                        {
+                            prior.sim.denominator = prior.simulation.set$data$outcome.denominators[[outcome.name]]
+                            dim.names = c(dimnames(prior.sim.denominator)['year'],
+                                          other = 'temp',
+                                          dimnames(prior.sim.denominator)['sim'])
+                            dim.names$other = 1:(length(prior.sim.denominator) / prod(sapply(dim.names, length)))
+                            dim(prior.sim.denominator) = sapply(dim.names, length)
+                            dimnames(prior.sim.denominator) = dim.names
+                        }
+                        
                         val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
-                            private$i.outcome.denominators[[outcome.name]][[y]]
+                            if (y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
+                                y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
+                            {
+                                private$i.outcome.denominators[[outcome.name]][[as.character(y)]]
+                            }
+                            else
+                            {
+                                prior.sim.denominator[as.character(y),,prior.sim.index]
+                            }
                         }))
+                        
                     }                    
                     
                     dim(val) = sapply(outcome.dim.names, length)
@@ -4737,7 +4929,7 @@ JHEEM = R6::R6Class(
                                                                 specification)
         {
             outcome = specification$get.outcome(outcome.name)
-            if (is(outcome, 'intrinsic.model.outcome') || is(outcome, 'dynamic.model.outcome'))
+            if (outcome$is.intrinsic || is(outcome, 'dynamic.model.outcome'))
                 dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]]
             else
             {
@@ -4814,8 +5006,8 @@ JHEEM = R6::R6Class(
                 outcome.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]]
                 
                 #-- Calculate the times --#
-                if (is.null(private$i.outcome.value.times[[outcome.name]]))
-                    private$calculate.outcome.value.times(outcome.name, specification=specification)
+                if (is.null(private$i.outcome.value.times.to.calculate[[outcome.name]]))
+                    private$calculate.outcome.value.times.to.calculate(outcome.name, specification=specification)
                 
                 #-- Calculate the values for all dependent outcomes --#
                 depends.on.outcomes = specification$get.outcome.direct.dependee.outcome.names(outcome.name)
@@ -4837,7 +5029,7 @@ JHEEM = R6::R6Class(
                     raw.value = get.outcome.value.from.ode.output(outcome.name,
                                                                   settings = private$i.diffeq.settings,
                                                                   ode.results = ode.results,
-                                                                  outcome.years = private$i.outcome.value.times[[outcome.name]])
+                                                                  outcome.years = private$i.outcome.value.times.to.calculate[[outcome.name]])
                 }
                 else # calculate the value from the values of other outcomes/quantities
                 {
@@ -4845,15 +5037,15 @@ JHEEM = R6::R6Class(
                     if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
                         private$calculate.outcome.non.cumulative.value.times(outcome.name)
                     
-                    if (length(private$i.outcome.non.cumulative.value.times[[outcome.name]])==0)
-                    {   
-                        times.to.pull = private$i.outcome.value.times[[outcome.name]]
+                    if (length(private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]])==0)
+                    {
+                        times.to.pull = private$i.outcome.value.times.to.calculate[[outcome.name]]
                         is.after.time = rep(F, length(times.to.pull))
                     }
                     else
                     {
-                        times.to.pull = private$i.outcome.non.cumulative.value.times[[outcome.name]]
-                        is.after.time = private$i.outcome.non.cumulative.value.time.is.after.time[[outcome.name]]
+                        times.to.pull = private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]]
+                        is.after.time = private$i.outcome.non.cumulative.value.time.to.calculate.is.after.time[[outcome.name]]
                     }
                     char.times.to.pull = as.character(times.to.pull)
                     
@@ -4878,9 +5070,9 @@ JHEEM = R6::R6Class(
                             
                             if (is.null(dep.on.outcome$denominator.outcome))
                             {
-                                if (is(dep.on.outcome, 'intrinsic.model.outcome'))
+                                if (dep.on.outcome$is.intrinsic)
                                     dep.on.numerator = interpolate(private$i.outcome.numerators[[dep.on.outcome.name]], 
-                                                                   value.times = private$i.outcome.value.times[[dep.on.outcome.name]],
+                                                                   value.times = private$i.outcome.value.times.to.calculate[[dep.on.outcome.name]],
                                                                    desired.time = times.to.pull[i])[[1]]
                                 else
                                     dep.on.numerator = private$i.outcome.numerators[[dep.on.outcome.name]][after.or.not.mask][[time]]
@@ -4918,7 +5110,6 @@ JHEEM = R6::R6Class(
                     })
                     names(bindings.of.outcomes) = specification$get.outcome.numerator.direct.dependee.outcome.names(outcome.name)
                     
-                    
                     #-- Map the bindings for dependee QUANTITIES to a list --#
                     bindings.of.quantities = lapply(specification$get.outcome.direct.dependee.quantity.names(outcome.name), function(dep.on.quantity.name){
                         
@@ -4945,7 +5136,7 @@ JHEEM = R6::R6Class(
                     
                     bindings = c(bindings.of.outcomes, bindings.of.quantities)
                     
-                    raw.value = outcome$calculate.values(desired.times = private$i.outcome.value.times[[outcome.name]],
+                    raw.value = outcome$calculate.values(desired.times = private$i.outcome.value.times.to.calculate[[outcome.name]],
                                                          bindings = bindings,
                                                          binding.times = times.to.pull,
                                                          cumulative.interval = 1,
@@ -4961,21 +5152,21 @@ JHEEM = R6::R6Class(
                 else
                 {
                     if (is.null(private$i.outcome.denominators[[outcome$denominator.outcome]]))
-                        denominator = private$i.outcome.numerators[[outcome$denominator.outcome]][as.character(private$i.outcome.value.times[[outcome.name]])]
+                        denominator = private$i.outcome.numerators[[outcome$denominator.outcome]][as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])]
                     else
                     {
-                        denominator = lapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(time){
+                        denominator = lapply(as.character(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(time){
                             
                             private$i.outcome.numerators[[outcome$denominator.outcome]][[time]] /
                                 private$i.outcome.denominators[[outcome$denominator.outcome]]
                         })
-                        names(denominator) = as.character(private$i.outcome.value.times[[outcome.name]])
+                        names(denominator) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
                     }
                 }
 
                 if (!is.null(outcome$denominator.outcome) && !outcome$value.is.numerator)
                 {
-                    raw.value = lapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(time){
+                    raw.value = lapply(as.character(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(time){
                                
                         collapsed.denominator = collapse.array.according.to.indices(arr = denominator[[time]],
                                                                                  small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.indices,
@@ -4984,7 +5175,7 @@ JHEEM = R6::R6Class(
                         raw.value[[time]] * collapsed.denominator
                             
                     })
-                    names(raw.value) = as.character(private$i.outcome.value.times[[outcome.name]])
+                    names(raw.value) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
                 }
     
                 numerator = lapply(raw.value,
@@ -5006,10 +5197,10 @@ JHEEM = R6::R6Class(
                 private$i.outcome.numerators[[outcome.name]] = numerator
                 private$i.outcome.denominators[[outcome.name]] = denominator
                 
-                names(private$i.outcome.numerators[[outcome.name]]) = as.character(private$i.outcome.value.times[[outcome.name]])
+                names(private$i.outcome.numerators[[outcome.name]]) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
                 if (!is.null(private$i.outcome.denominators[[outcome.name]]))
                     names(private$i.outcome.denominators[[outcome.name]]) =
-                        as.character(private$i.outcome.value.times[[outcome.name]])
+                        as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
             }
         },
         

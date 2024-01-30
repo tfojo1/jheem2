@@ -83,10 +83,6 @@ create.diffeq.settings <- function(jheem, error.prefix)
     names(settings$indices_into_state_and_dx) = names(settings$state_and_dx_sizes)
     
     settings$state_length = sum(settings$state_and_dx_sizes)
-    
-    #-- Set up Quantity Indices --#
-    settings$quantity.indices = 1:length(settings$specification$dynamic.top.level.quantity.names) - 1
-    names(settings$quantity.indices) = settings$specification$dynamic.top.level.quantity.names
 
     #-- Prepare Fixed Strata Info --#
     settings = prepare.fixed.strata.info(settings)
@@ -133,9 +129,21 @@ prepare.diffeq.settings <- function(settings,
                                     quantity.after.value.applies.mask,
                                     prior.simulation.set,
                                     prior.sim.index,
+                                    start.year,
                                     check.consistency,
                                     error.prefix)
 {
+    #-- Set up Quantity Indices --#
+    #   (depends on whether there is a prior sim or not)
+    
+    if (is.null(prior.simulation.set))
+        top.level.quantity.names = settings$specification$top.level.quantity.names
+    else
+        top.level.quantity.names = settings$specification$top.level.quantity.names.except.initial.population
+
+    settings$quantity.indices = 1:length(top.level.quantity.names) - 1
+    names(settings$quantity.indices) = top.level.quantity.names
+    
     #-- Prepare for quantities --#
     settings = prepare.quantities.info(settings,
                                        quantity.values = quantity.values,
@@ -159,8 +167,10 @@ prepare.diffeq.settings <- function(settings,
                                      quantity.dim.names = quantity.dim.names,
                                      prior.simulation.set = prior.simulation.set,
                                      prior.sim.index = prior.sim.index,
+                                     start.year = start.year,
                                      check.consistency = check.consistency,
                                      error.prefix = error.prefix)
+
     settings = prepare.natality.info(settings, 
                                      quantity.dim.names = quantity.dim.names,
                                      check.consistency = check.consistency,
@@ -210,6 +220,7 @@ prepare.initial.state <- function(settings,
                                   quantity.values,
                                   prior.simulation.set,
                                   prior.sim.index,
+                                  start.year,
                                   check.consistency,
                                   error.prefix)
 {
@@ -217,7 +228,7 @@ prepare.initial.state <- function(settings,
     if (is.null(settings$initial_state))
         settings$initial_state = numeric(settings$state_length)
     
-    if (is.null(prior.sim.index))
+    if (is.null(prior.simulation.set))
     {    
         # Pull each core component touching the initial population    
         for (i in 1:length(settings$core.components$initial.population))
@@ -258,12 +269,26 @@ prepare.initial.state <- function(settings,
     }
     else
     {
-        stop("Need to fix getting the source for the relevant sim index")
         for (group in names(DIFFEQ.GROUP.INDICES))
         {
             src = prior.simulation.set[[group]]
-            dim(src) = c(prod(dim(src)) / dim(src)['sim'], sim(src)['sim'])
-            src = src[,sim.index]
+            if (prior.simulation.set$n.sim>1 && !names(dimnames(src))[length(dimnames(src))]=='sim')
+                stop("Cannot pull initial state from prior sim in diffeq_interface: the prior simulation set must have 'sim' as the last dimension")
+            
+            if(!names(dimnames(src))[length(dimnames(src))]=='sim')
+                stop("Cannot pull initial state from prior sim in diffeq_interface: the prior simulation set must have 'year' as the first dimension")
+            
+            start.year.mask = dimnames(src)$year==as.character(start.year)
+            if (!any(start.year.mask))
+                stop(paste0("Cannot pull initial state from prior sim in diffeq_interface: the prior simulation set does not include the requested 'start.year' of ", start.year))
+            
+            
+            n.year = as.numeric(dim(src)['year'])
+            n.sim = as.numeric(dim(src)['sim'])
+            n.src = length(src)
+            
+            dim(src) = c(year = n.year, other = n.src / n.year / n.sim, sim = n.sim)
+            src = src[start.year.mask,,prior.sim.index]
             
             settings$initial_state = overwrite_arr(dst = settings$initial_state,
                                                    dst_indices = settings$indices_into_state_and_dx[group] + 0:(length(src)-1),
