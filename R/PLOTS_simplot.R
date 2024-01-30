@@ -171,6 +171,7 @@ simplot <- function(...,
                                                keep.dimensions = c('year', facet.by, split.by), #'year' can never be in facet.by
                                                target.ontology = outcome.ontologies[[i]],
                                                allow.mapping.from.target.ontology = T,
+                                               na.rm=T,
                                                debug=F)
                 },
                 error = function(e) {
