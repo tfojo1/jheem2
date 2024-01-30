@@ -557,7 +557,6 @@ create.jheem.engine <- function(version,
                                 prior.simulation.set=NULL,
                                 intervention.code = NULL,
                                 calibration.code = NULL,
-                                foregrounds = NULL,
                                 keep.from.year=start.year,
                                 keep.to.year=end.year,
                                 atol=1e-04, rtol=1e-04,
@@ -578,7 +577,6 @@ create.jheem.engine <- function(version,
                      max.run.time.seconds = max.run.time.seconds,
                      keep.from.year = keep.from.year,
                      keep.to.year = keep.to.year,
-                     foregrounds = foregrounds,
                      atol = atol,
                      rtol = rtol,
                      intervention.code = intervention.code,
@@ -616,7 +614,6 @@ JHEEM.ENGINE = R6::R6Class(
                               max.run.time.seconds=Inf,
                               keep.from.year = start.year,
                               keep.to.year = end.year,
-                              foregrounds = NULL,
                               atol= DEFAULT.ATOL, 
                               rtol = DEFAULT.RTOL,
                               intervention.code = NULL,
@@ -635,7 +632,7 @@ JHEEM.ENGINE = R6::R6Class(
                              location = jheem$location,
                              type = 'engine')
             
-            jheem$set.intervention.code(intervention.code)
+            jheem$set.intervention(intervention.code)
             jheem$set.calibration.code(calibration.code)
                
             # Start and end years
@@ -715,20 +712,6 @@ JHEEM.ENGINE = R6::R6Class(
                 rtol = DEFAULT.RTOL
             else if (!is.numeric(rtol) || length(rtol)!=1 || is.na(rtol) || rtol<=0 || rtol>=1)
                 stop(paste0(error.prefix, "'rtol' must be a single, non-NA numeric value between 0 and 1"))
-            
-            # Foregrounds
-            if (!is.null(foregrounds))
-            {  
-                if (is(foregrounds, 'jheem.model.foreground'))
-                    foregrounds = list(foregrounds)
-                else if (!is.list(foregrounds))
-                    stop(paste0(error.prefix, "If 'foregrounds' is not NULL, it must be a list of jheem.model.foreground objects"))
-                else if (any(!sapply(foregrounds, is, 'jheem.model.foreground')))
-                    stop(paste0(error.prefix, "If 'foregrounds' is not NULL, it must be a list of jheem.model.foreground objects"))
-
-                for (frgd in foregrounds)
-                    jheem$set.quantity.foreground(frgd, check.consistency = T)
-            }
             
             # intervention.code
             if (!is.null(intervention.code))
@@ -811,7 +794,6 @@ JHEEM.ENGINE = R6::R6Class(
                          max.run.time.seconds = self$max.run.time.seconds,
                          keep.from.year = self$keep.to.year,
                          keep.to.year = self$keep.from.year,
-                         foregrounds = NULL,
                          atol = NULL,
                          rtol = NULL,
                          intervention.code = self$intervention.code,
@@ -851,7 +833,6 @@ JHEEM.ENGINE = R6::R6Class(
                              max.run.time.seconds = max.run.time.seconds,
                              keep.from.year = keep.from.year,
                              keep.to.year = keep.to.year,
-                             foregrounds = foregrounds,
                              atol = atol,
                              rtol = rtol,
                              intervention.code = intervention.code,
@@ -1633,7 +1614,20 @@ JHEEM = R6::R6Class(
                     calibrated.parameters.apply.fn = get.parameters.apply.function.for.version(self$version, type='calibrated')
                     
                     if (check.consistency)
+                    {
+                        missing.parameters = setdiff(calibrated.parameters.distribution@var.names, names(parameters))
+                        if (length(missing.parameters)>0)
+                        {
+                            stop(paste0(error.prefix, length(missing.parameters),
+                                        ifelse(length(missing.parameters)==1, " parameter is", " parameters are"),
+                                        " expected from the calibration distribution, but ",
+                                        ifelse(length(missing.parameters)==1, "is", "are"),
+                                        " missing from 'parameters'; ",
+                                        collapse.with.and("'", missing.parameters, "'")))
+                        }
+                        
                         parameters.to.pass = PROTECTED.NUMERIC.VECTOR$new(parameters)
+                    }
                     else
                         parameters.to.pass = parameters
                     
@@ -1649,12 +1643,30 @@ JHEEM = R6::R6Class(
                 if (!is.null(sampled.parameters.distribution) && any(sampled.parameters.distribution@var.names[1]==names(parameters)))
                 {
                     sampled.parameters.apply.fn = get.parameters.apply.function.for.version(self$version, type='sampled')
-                    used.from.sampled = sampled.parameters.apply.fn(model.settings = model.settings,
-                                                                    parameters = parameters,
-                                                                    track.used.parameters = check.consistency)
                     
                     if (check.consistency)
-                        used.parameter.names = union(used.parameter.names, used.from.sampled)
+                    {
+                        missing.parameters = setdiff(sampled.parameters.distribution@var.names, names(parameters))
+                        if (length(missing.parameters)>0)
+                        {
+                            stop(paste0(error.prefix, length(missing.parameters),
+                                        ifelse(length(missing.parameters)==1, " parameter is", " parameters are"),
+                                        " expected from the sampled parameters distribution, but ",
+                                        ifelse(length(missing.parameters)==1, "is", "are"),
+                                        " missing from 'parameters'; ",
+                                        collapse.with.and("'", missing.parameters, "'")))
+                        }
+                        
+                        parameters.to.pass = PROTECTED.NUMERIC.VECTOR$new(parameters)
+                    }
+                    else
+                        parameters.to.pass = parameters
+                    
+                    sampled.parameters.apply.fn(model.settings = model.settings,
+                                                   parameters = parameters.to.pass)
+                    
+                    if (check.consistency)
+                        used.parameter.names = union(used.parameter.names, parameters.to.pass$accessed.elements)
                 }
                 
                 # Check that there are no missing parameters for foregrounds
@@ -2227,15 +2239,27 @@ JHEEM = R6::R6Class(
     
         # Does NOT actually do anything with the intervention
         # Just stores it to the jheem object
-        set.intervention.code = function(intervention.code)
+        set.intervention = function(intervention.code)
         {
             if (!is.null(intervention.code))
             {
                 if (!is.character(intervention.code) || length(intervention.code)!=1 || is.na(intervention.code))
                     stop("Cannot set intervention code for JHEEM: 'intervention.code' must be a single, non-NA character value")
                 
-                if (is.null(get.intervention(intervention.code, throw.error.if.missing=F)))
-                    stop(paste0("Cannot set intervention.code '", intervention.code, "' for JHEEM: no intervention with that code has been registered"))
+                intervention = get.intervention(intervention.code, throw.error.if.missing=F)
+                if (is.null(intervention))
+                {
+                    stop(paste0("Cannot set intervention.code '", intervention.code, 
+                                "' for JHEEM: no intervention with that code has been registered.",
+                                ifelse(is.intervention.code.temporary(intervention.code),
+                                       paste0("'", intervention.code, "' is a temporary code - it was probably created as a one-off intervention that was not formally saved."),
+                                       '')))
+                }
+                
+                for (frgd in intervention$get.intervention.foregrounds())
+                {
+                    self$set.quantity.foreground(frgd, check.consistency = T)
+                }
             }
 
             private$i.intervention.code = intervention.code
@@ -3558,17 +3582,18 @@ JHEEM = R6::R6Class(
                 char.all.times = as.character(private$i.quantity.value.times[[quantity.name]])
                 private$i.quantity.values[[quantity.name]] = private$i.quantity.values[[quantity.name]][ char.all.times ]
                 private$i.quantity.after.values[[quantity.name]] = private$i.quantity.after.values[[quantity.name]][ char.all.times ]
-                
-                
+            
                 if (any(!sapply(private$i.quantity.after.values[[quantity.name]], is.null)))
                     browser()
+                
                 #-- Fold in foreground if there is any --#
                 foregrounds = private$i.resolved.foregrounds[[quantity.name]]
                 if (length(foregrounds)>0)
                 {
                     if (length(private$i.quantity.foreground.effect.indices[[quantity.name]]) < length(foregrounds))
                         private$calculate.foreground.effect.indices(quantity.name)
-                  
+                
+
                     # The cpp function does all the work - hooray!
                     values.and.after.values = apply_foregrounds(values = private$i.quantity.values[[quantity.name]],
                                                                 value_times = private$i.quantity.value.times[[quantity.name]],

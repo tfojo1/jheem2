@@ -885,7 +885,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               max.run.time.seconds = NULL,
                               keep.from.year = NULL,
                               keep.to.year = NULL,
-                              foregrounds = NULL,
                               atol = NULL,
                               rtol = NULL,
                               intervention.code = self$intervention.code,
@@ -906,6 +905,18 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (is.null(keep.to.year))
                 keep.to.year = end.year
             
+            if (!is.null(self$intervention.code))
+            {
+                if (is.null(get.intervention.from.code(self$intervention.code, throw.error.if.missing = F)))
+                {
+                    stop(paste0("Cannot get the engine for the simulation set. The simulation ran with intervention.code '", self$intervention.code, 
+                                "' , but no intervention with that code has been registered.",
+                                ifelse(is.intervention.code.temporary(self$intervention.code),
+                                       paste0("'", self$intervention.code, "' is a temporary code - it was probably created as a one-off intervention that was not formally saved."),
+                                       '')))
+                }
+            }
+            
             if (is.null(private$i.engine))
                 engine = create.jheem.engine(version = private$i.version,
                                              sub.version = private$i.sub.version,
@@ -916,7 +927,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                              prior.simulation.set = self,
                                              keep.from.year = keep.from.year,
                                              keep.to.year = keep.to.year,
-                                             foregrounds = foregrounds,
                                              intervention.code = intervention.code,
                                              calibration.code = private$i.calibration.code,
                                              atol = atol,
@@ -929,7 +939,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                                 prior.simulation.set = self,
                                                 keep.from.year = keep.from.year,
                                                 keep.to.year = keep.to.year,
-                                                foregrounds = foregrounds,
                                                 intervention.code = intervention.code,
                                                 calibration.code = private$i.calibration.code,
                                                 atol = atol,

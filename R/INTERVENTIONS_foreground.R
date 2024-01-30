@@ -335,7 +335,8 @@ JHEEM.MODEL.FOREGROUND = R6::R6Class(
         {
             # Check arguments
             if (self$effects.are.resolved)
-                stop(paste0(error.prefix, "The foreground's effects have already been resolved"))
+                return (self)
+#                stop(paste0(error.prefix, "The foreground's effects have already been resolved"))
             
             # Resolve each effect
             bindings = as.list(parameters)
