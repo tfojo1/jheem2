@@ -155,7 +155,9 @@ join.simulation.sets <- function(..., run.metadata=NULL)
 
     #combined.parameters = unlist(lapply(simset.list, function(simset) {simset$data$parameters}), recursive=F)
     
-    combined.parameters = sapply(simset.list, function(simset){simset$data$parameters})
+    combined.parameters = sapply(simset.list, function(simset){simset$parameters})
+    dimnames(combined.parameters) = list(parameter = dimnames(simset.list[[1]]$parameters)[[1]],
+                                         sim = NULL)
     
     if (is.null(run.metadata))
         run.metadata = join.run.metadata(lapply(simset.list, function(sim){sim$run.metadata}))
@@ -269,6 +271,16 @@ SIMULATION.METADATA = R6::R6Class(
                         else
                             years.for.ont = character()
                     }
+                    else if (outcome$is.intrinsic)
+                    {
+                        from.year = max(private$i.metadata$from.year, outcome$from.year)
+                        to.year = min(private$i.metadata$to.year+1, outcome$to.year)
+                        
+                        if (to.year>=from.year)
+                            years.for.ont = as.character(from.year:to.year)
+                        else
+                            years.for.ont = character()
+                    }
                     else
                         years.for.ont = NULL
                     
@@ -278,6 +290,7 @@ SIMULATION.METADATA = R6::R6Class(
                     
                     private$i.metadata$outcome.metadata[[outcome$name]] = MODEL.OUTCOME.METADATA$new(outcome.metadata = outcome$metadata,
                                                                                                      is.cumulative = outcome$is.cumulative,
+                                                                                                     is.intrinsic = outcome$is.intrinsic,
                                                                                                      corresponding.observed.outcome = outcome$corresponding.data.outcome)
                 }
             }
@@ -448,6 +461,19 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             # should be a matrix with one row for each sim
             # dimnames(parameters)[[1]] must be set
+            if (!is.matrix(parameters) || !is.numeric(parameters))
+                stop(paste0(error.prefix, "'parameters' must be a numeric matrix"))
+            if (any(is.na(parameters)))
+                stop(paste0(error.prefix, "'parameters' cannot contain any NA values"))
+            if (is.null(dimnames(parameters)) || is.null(dimnames(parameters)[[1]]) || any(is.na(dimnames(parameters)[[1]])) || any(nchar(dimnames(parameters)[[1]])==0))
+                stop(paste0(error.prefix, "'parameters' must have dimnames set for its rows (dimension 1), and those names cannot be NA or empty strings"))
+            tabled.parameter.names = table(dimnames(parameters)[[1]])
+            if (any(tabled.parameter.names>1))
+                stop(paste0(error.prefix, "the parameter names, as given by dimnames(parameters)[[1]], must be UNIQUE. ",
+                            ifelse(sum(tabled.parameter.names>1)==1, "The parameter ", "Parameters "),
+                            collapse.with.and("'", names(tabled.parameter.names[tabled.parameter.names>1]), "'"),
+                            ifelse(sum(tabled.parameter.names>1)==1, " appears", " appear"),
+                            " more than once."))
             
             # let's standardize the dimnames here
             dimnames(parameters) = list(parameter = dimnames(parameters)[[1]],
@@ -462,7 +488,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             # Validate intervention.code
             if (!is.null(intervention.code))
             {
-                if (!is.character(intervention.code) || length(intervention)!=1 || is.na(intervention))
+                if (!is.character(intervention.code) || length(intervention.code)!=1 || is.na(intervention.code))
                     stop(paste0(error.prefix, "'intervention.code' must be a single, non-NA character value"))
             }
 
@@ -486,6 +512,16 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             private$i.n.sim = n.sim
             
+            #-- Update the ontologies for non-cumulative, non-intrinsic outcomes --#
+            for (outcome.name in self$outcomes)
+            {
+                metadata = private$i.metadata$outcome.metadata[[outcome.name]]
+                if (!metadata$is.cumulative && !metadata$is.intrinsic)
+                {
+                    private$i.metadata$outcome.ontologies[[outcome.name]]$year = dimnames(outcome.numerators[[outcome.name]])$year
+                }
+            }
+            
             #-- Make Active Bindings with the Names of Outcomes --#
             outcomes.to.bind = setdiff(self$outcomes, names(self))
             lapply(outcomes.to.bind, function(outcome.name){
@@ -506,7 +542,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                           }
                                       }
                                       else
-                                          stop("Cannot modify a simulation's 'parameters' - they are read-only")
+                                          stop(paste0("Cannot modify a simulation's '", outcome.name, "' - it is read-only"))
                                       
                                   },
                                   env = self)
@@ -844,11 +880,11 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
         },
         
-        get.engine = function(start.year,
-                              end.year,
+        get.engine = function(start.year = NULL,
+                              end.year = NULL,
                               max.run.time.seconds = NULL,
-                              keep.from.year = start.year,
-                              keep.to.year = end.year,
+                              keep.from.year = NULL,
+                              keep.to.year = NULL,
                               foregrounds = NULL,
                               atol = NULL,
                               rtol = NULL,
@@ -857,6 +893,18 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         {
             if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
                 stop(paste0("Error in simulation.set$get.engine() - 'error.prefix' must be a single, non-NA character vector"))
+            
+            if (is.null(start.year))
+                start.year = self$from.year
+            
+            if (is.null(end.year))
+                end.year = self$to.year
+            
+            if (is.null(keep.from.year))
+                keep.from.year = start.year
+            
+            if (is.null(keep.to.year))
+                keep.to.year = end.year
             
             if (is.null(private$i.engine))
                 engine = create.jheem.engine(version = private$i.version,
