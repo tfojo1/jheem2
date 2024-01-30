@@ -271,7 +271,7 @@ SIMULATION.METADATA = R6::R6Class(
                         else
                             years.for.ont = character()
                     }
-                    else if (outcome$is.intrinsic)
+                    else if (outcome$is.intrinsic && !is.null(private$i.metadata$from.year) && !is.null(private$i.metadata$to.year))
                     {
                         from.year = max(private$i.metadata$from.year, outcome$from.year)
                         to.year = min(private$i.metadata$to.year+1, outcome$to.year)
