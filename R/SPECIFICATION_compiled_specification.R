@@ -310,7 +310,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                             comp$schema$components.clash(comp, other.comp)
                         })
                         
-                        if (!all(clashes))
+                        if (all(!clashes))
                             compiled.components = c(compiled.components, list(comp))
                     }
                 }
@@ -825,8 +825,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                         stop(paste0(error.prefix,
                                     "No '", mechanism.type, "' mechanism has been registered for ",
                                     comp$name))
-    if (private$i.version=='dep')
-         browser()           
+                    
                     # Set the quantity name to the component (for the mechanism)
                     quantity = private$resolve.quantity.name(mechanism$quantity.name, this.refers.to.version=mechanism$version)
                     
