@@ -212,12 +212,13 @@ set.up.calibration <- function(version,
         print(paste0(verbose.prefix, "Seting up the engine..."))
     
     #-- Set up the Run Simulation function --#
-    engine = create.jheem.engine(version=version, location=location, 
-                                 sub.version = sub.version,
-                                 start.year = calibration.info$start.year,
-                                 end.year = calibration.info$end.year, 
-                                 max.run.time.seconds = calibration.info$max.run.time.seconds,
-                                 calibration.code = calibration.code)
+    engine = do.create.jheem.engine(version=version, location=location, 
+                                    sub.version = sub.version,
+                                    start.year = NULL, #will set start.year to the version's start.year
+                                    end.year = calibration.info$end.year, 
+                                    max.run.time.seconds = calibration.info$max.run.time.seconds,
+                                    calibration.code = calibration.code,
+                                    finalize = F)
     engine$crunch(parameters = default.parameter.values)
 
     # 'params' is the subset of parameters that we will be modifying in the MCMC
@@ -394,14 +395,13 @@ assemble.simulations.from.calibration <- function(version,
                                                       chains = chains)
     
     # could choose to delete cache now but will not, undecided
-    join.simulation.sets(mcmc@simulations[as.integer(mcmc@simulation.indices)])
+    join.simulation.sets(mcmc@simulations[as.integer(mcmc@simulation.indices)], finalize = T)
 }
 
 #'@export
 register.calibration.info <- function(code,
                                       likelihood.instructions,
                                       is.preliminary,
-                                      start.year,
                                       end.year,
                                       parameter.names,
                                       n.iter,
@@ -465,7 +465,6 @@ register.calibration.info <- function(code,
         code = code,
         likelihood.instructions = likelihood.instructions,
         data.manager = data.manager,
-        start.year = start.year,
         end.year = end.year,
         parameter.names = parameter.names,
         n.chains = n.chains,
