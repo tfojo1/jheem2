@@ -32,6 +32,8 @@
 #'
 #'@param compartment.value.aliases A named list representing substitutions to be made into compartment names (both in compartments.for.infected.only, compartments.for.uninfected.only, compartments.for.infected.and.uninfected and in subsequent references in registering model quantities). The names of the list represent what is to be replaced. The values of the list can be either (1) character vectors that are substituted in place or (2) functions that take parameter 'location' and return a character vector
 #'
+#'@param start.year The numeric year at which simulations should start. If NULL inherits the parent specification's start year
+#'
 #'@export
 create.jheem.specification <- function(version,
                                        iteration,
@@ -48,6 +50,7 @@ create.jheem.specification <- function(version,
                                        compartments.for.infected.and.uninfected = list(),
                                        
                                        age.endpoints = NULL,
+                                       start.year = NULL,
                                        
                                        compartment.value.aliases = list())
 {
@@ -270,6 +273,8 @@ create.jheem.specification <- function(version,
         age.info$spans = age.info$uppers - age.info$lowers
         age.info$ages = make.age.strata.names(age.endpoints)
     }
+    
+    #-- Start year --#
      
     #-- Compartment Value Aliases --#
     

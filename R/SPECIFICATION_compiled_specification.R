@@ -259,30 +259,34 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             rv
         },
         
-        process.core.components = function(error.prefix)
+        process.core.components = function(error.prefix, wrt.specification)
         {
             # compile all the core components
             compiled.components = list()
+            
             for (uncompiled.comp in private$i.core.components)
             {
                 compiled.components = c(compiled.components, 
                                         uncompiled.comp$schema$compile.component(uncompiled.comp,
-                                                                                 specification = self,
+                                                                                 specification = wrt.specification,
                                                                                  error.prefix = error.prefix))
             }
             
             # check for clashes among the compiled core components in this version
             #  (we may have introduced previously-unrecognized clashes by swapping in aliases)
-            for (i in 1:length(compiled.components))
+            if (length(compiled.components)>1)
             {
-                comp = compiled.components[[i]]
-                for (other.comp in compiled.components[-c(1:i)])
+                for (i in 1:length(compiled.components))
                 {
-                    if (comp$schema$components.clash(comp, other.comp))
+                    comp = compiled.components[[i]]
+                    for (other.comp in compiled.components[-c(1:i)])
                     {
-                        stop(paste0(error.prefix, "After substituting compartment aliases in specification '",
-                                    private$i.version, "', there is a clash between ",
-                                    comp$name, " and ", other.comp$name))
+                        if (comp$schema$components.clash(comp, other.comp))
+                        {
+                            stop(paste0(error.prefix, "After substituting compartment aliases in specification '",
+                                        wrt.specification$version, "', there is a clash between ",
+                                        comp$name, " and ", other.comp$name))
+                        }
                     }
                 }
             }
@@ -290,7 +294,8 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             if (!is.null(private$i.parent.specification))
             {
                 # process the parent specification's components
-                private$i.parent.specification$process.core.components(error.prefix=error.prefix)
+                private$i.parent.specification$process.core.components(error.prefix=error.prefix,
+                                                                       wrt.specification = wrt.specification)
             
                 # pull down components from the parent that don't clash
                 # (and don't contain tags we don't want to inherit)
@@ -299,11 +304,11 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                     if (all(comp$tag != private$i.do.not.inherit.components.with.tags) &&
                         (comp$type != 'transition' || all(comp$dimension != private$i.do.not.inherit.transitions.for.dimension)))
                     {
-                        clashes = sapply(compiled.components, function(other.comp){
+                        clashes = as.logical(sapply(compiled.components, function(other.comp){
                             comp$schema$components.clash(comp, other.comp)
-                        })
+                        }))
                         
-                        if (!all(clashes))
+                        if (all(!clashes))
                             compiled.components = c(compiled.components, list(comp))
                     }
                 }
@@ -532,7 +537,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             #-- Make sure required are present --#
             #-- Check for clashes --#
             do.cat("Processing core components...")          
-            self$process.core.components(error.prefix)
+            self$process.core.components(error.prefix, wrt.specification=self)
             private$process.mechanisms(error.prefix)
             do.cat("done\n")
      
@@ -1188,7 +1193,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             # Sub-in aliases to ontologies and compartments
             private$i.ontologies = apply.aliases(private$i.ontologies, aliases=private$i.compartment.value.character.aliases)
             private$i.compartments = apply.aliases(private$i.compartments, aliases=private$i.compartment.value.character.aliases)
-          
+     
             # Figure out where function aliases will plug in to compartments
             function.aliases.plug.into.compartments = lapply(private$i.compartments, function(compartments){
                 
@@ -1409,7 +1414,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                         invalid.dimensions = setdiff(names(comp$applies.to), names(max.dim.names))
                         if (length(invalid.dimensions)>0)
                         {
-                            browser()
                             stop(paste0(error.prefix,
                                         "Cannot calculate dimnames for quantity ", 
                                         quantity$get.original.name(private$i.version),
