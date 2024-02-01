@@ -33,6 +33,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                               default.parameter.values,
                               
                               age.info,
+                              start.year,
 
                               parent.specification,
                               do.not.inherit.model.quantity.names,
@@ -63,7 +64,8 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             private$i.default.parameter.values = default.parameter.values
             
             private$i.age.info = age.info
-
+            private$i.start.year = start.year
+            
             
             private$i.parent.specification = parent.specification
             private$i.do.not.inherit.model.quantity.names = do.not.inherit.model.quantity.names
@@ -304,11 +306,11 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                     if (all(comp$tag != private$i.do.not.inherit.components.with.tags) &&
                         (comp$type != 'transition' || all(comp$dimension != private$i.do.not.inherit.transitions.for.dimension)))
                     {
-                        clashes = as.logical(sapply(compiled.components, function(other.comp){
+                        clashes = sapply(compiled.components, function(other.comp){
                             comp$schema$components.clash(comp, other.comp)
-                        }))
+                        })
                         
-                        if (all(!clashes))
+                        if (!all(clashes))
                             compiled.components = c(compiled.components, list(comp))
                     }
                 }
@@ -823,7 +825,8 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                         stop(paste0(error.prefix,
                                     "No '", mechanism.type, "' mechanism has been registered for ",
                                     comp$name))
-                    
+    if (private$i.version=='dep')
+         browser()           
                     # Set the quantity name to the component (for the mechanism)
                     quantity = private$resolve.quantity.name(mechanism$quantity.name, this.refers.to.version=mechanism$version)
                     
@@ -1414,6 +1417,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                         invalid.dimensions = setdiff(names(comp$applies.to), names(max.dim.names))
                         if (length(invalid.dimensions)>0)
                         {
+                            browser()
                             stop(paste0(error.prefix,
                                         "Cannot calculate dimnames for quantity ", 
                                         quantity$get.original.name(private$i.version),

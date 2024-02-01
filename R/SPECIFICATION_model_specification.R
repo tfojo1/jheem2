@@ -39,6 +39,7 @@ create.jheem.specification <- function(version,
                                        iteration,
                                        description,
                                        sub.versions=character(),
+                                       start.year,
                                        
                                        parent.version = NULL,
                                        do.not.inherit.model.quantity.names = character(),
@@ -50,7 +51,6 @@ create.jheem.specification <- function(version,
                                        compartments.for.infected.and.uninfected = list(),
                                        
                                        age.endpoints = NULL,
-                                       start.year = NULL,
                                        
                                        compartment.value.aliases = list())
 {
@@ -275,6 +275,27 @@ create.jheem.specification <- function(version,
     }
     
     #-- Start year --#
+    
+    if (missing(start.year) || is.null(start.year))
+    {
+        if (is.null(parent.specification))
+            stop(paste(error.prefix, "start.year cannot be NULL or missing unless a parent.version has been specified"))
+        
+        start.year = parent.specification$start.year
+    }
+    else
+    {
+        if (!is.numeric(start.year) || length(start.year)!=1 || is.na(start.year))
+            stop(paste0(error.prefix, "'start.year' must be a single, non-NA numeric value"))
+        
+        min.start.year = 1960
+        max.start.year = 1980
+        if (start.year < min.start.year || start.year > max.start.year)
+            stop(paste0(error.prefix,
+                        "'start.year' (", start.year,
+                        ") must be between ", min.start.year,
+                        " and ", max.start.year))
+    }
      
     #-- Compartment Value Aliases --#
     
@@ -627,6 +648,7 @@ create.jheem.specification <- function(version,
         compartments.for.uninfected.only = compartments.for.uninfected.only,
         compartments.for.infected.and.uninfected = compartments.for.infected.and.uninfected,
         age.info = age.info,
+        start.year = start.year,
         
         compartment.value.character.aliases = compartment.value.character.aliases,
         compartment.value.function.aliases = compartment.value.function.aliases
@@ -1805,6 +1827,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                               compartments.for.uninfected.only,
                               compartments.for.infected.and.uninfected,
                               age.info,
+                              start.year,
                               
                               compartment.value.character.aliases,
                               compartment.value.function.aliases)
@@ -1827,6 +1850,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
             private$i.do.not.inherit.components.with.tags = do.not.inherit.components.with.tags
             
             private$i.age.info = age.info
+            private$i.start.year = start.year
             
             private$i.compartment.value.character.aliases = compartment.value.character.aliases
             private$i.compartment.value.function.aliases = compartment.value.function.aliases
@@ -2833,6 +2857,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                   default.parameter.values = private$i.default.parameter.values,
                                                   
                                                   age.info = private$i.age.info,
+                                                  start.year = private$i.start.year,
 
                                                   parent.specification = compiled.parent,
                                                   do.not.inherit.model.quantity.names = private$i.do.not.inherit.model.quantity.names,
@@ -2872,6 +2897,14 @@ JHEEM.SPECIFICATION = R6::R6Class(
             }
             else
                 stop("Cannot modify 'parent.version' for a jheem.specification - it is read-only")  
+        },
+        
+        start.year = function(value)
+        {
+            if (missing(value))
+                private$i.start.year
+            else
+                stop("Cannot modify 'start.year' for a jheem.specification - it is read-only")
         },
         
         ontologies = function(value)
@@ -3031,6 +3064,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         i.mechanisms = NULL,
         
         i.age.info = NULL,
+        i.start.year = NULL,
 
         i.parent.specification = NULL,
         i.do.not.inherit.model.quantity.names = NULL,
