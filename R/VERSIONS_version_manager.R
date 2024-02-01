@@ -10,7 +10,8 @@ VERSION.MANAGER.ELEMENTS = c(
     'apply.calibrated.parameters.function', 'apply.sampled.parameters.function',
     'calibrated.parameters.distribution', 'sampled.parameters.distribution',
     'calibrated.parameters.sampling.blocks', 
-    'calibrate.to.year'
+    'calibrate.to.year',
+    'nested.proportions.partition.function'
 )
 
 VERSION.MANAGER = new.env() #making this an environment allows us to modify by reference within functions
@@ -324,6 +325,67 @@ register.sampled.parameters.for.version <- function(version,
                                                            error.prefix = "Cannot register calibrated parameters: ")
 }
 
+##-----------------------------------------------##
+##-- PARTITION FUNCTION for NESTED PROPORTIONS --##
+##-----------------------------------------------##
+
+register.partition.function.for.nested.proportions <- function(version,
+                                                               partition.function)
+{
+    # Try to figure out the function's name, so that we can print an intelligible error
+    fn.name = deparse(substitute(partition.function))
+    if (!is.character(fn.name) || length(fn.name) != 1)
+        fn.name = NULL
+    
+    error.prefix = "Cannot register partition function for nested proportions: "
+    
+    # Check the function
+    if (!is(partition.function, 'function'))
+        stop(paste0(error.prefix, "'partition.function' must be a function"))
+    
+    # Pull the arguments
+    fn.args = formals(args(partition.function))
+    arg.names = names(fn.args)
+    arg.names.without.default.value = arg.names[sapply(fn.args, function(val){val==''})]
+    
+    # Check that it takes 'arr', 'version', and 'location'
+    error.prefix = paste0("Cannot register partition.function for nested.proportions: The function passed to 'partition.function' ",
+                          ifelse(is.null(fn.name), "", paste0("(", fn.name, ") ")))
+    if (all(arg.names != 'arr'))
+        stop(paste0(error.prefix, "must take 'arr' as an argument"))
+    if (all(arg.names != 'version'))
+        stop(paste0(error.prefix, "must take 'version' as an argument"))
+    if (all(arg.names != 'location'))
+        stop(paste0(error.prefix, "must take 'location' as an argument"))
+    
+    # Check that there are no other required arguments
+    extraneous.arg.names = setdiff(arg.names.without.default.value, c('arr','version','location'))
+    if (length(extraneous.arg.names)>0)
+        stop(paste0(error.prefix, " requires ",
+                    ifelse(length(extraneous.arg.names)==1, 'argument ', 'arguments '),
+                    collapse.with.and("'", extraneous.arg.names, "'"),
+                    ", but the only arguments to the function should be 'arr', 'version', and 'location'"))
+    
+    #-- Register It --#
+    do.register.for.version(version = version,
+                            element.name = 'nested.proportions.partition.function',
+                            element.value = partition.function,
+                            element.class = 'function',
+                            join.with.previous.version.value = F,
+                            join.function = NULL)
+}
+
+# This function is internal to the package
+get.partition.function.for.nested.proportions <- function(version)
+{
+    do.get.for.version(version=version,
+                       element.name='nested.proportions.partition.function')
+}
+
+##---------------------##
+##-- THE MAIN HELPER --##
+##---------------------##
+
 # A helper to streamline code for the two register.<x>.parameters.for.version functions
 do.register.parameters.distribution.and.apply.function <- function(version,
                                                                    distribution,
@@ -385,7 +447,7 @@ do.register.parameters.distribution.and.apply.function <- function(version,
         stop(paste0(error.prefix, " requires ",
                     ifelse(length(extraneous.arg.names)==1, 'argument ', 'arguments '),
                     collapse.with.and("'", extraneous.arg.names, "'"),
-                    ", but the only arguments to the function should be 'jheem.engine', 'parameters', and 'check.consistency'"))
+                    ", but the only arguments to the function should be 'jheem.engine' and 'parameters'"))
     
     #-- Register Them --#
     do.register.for.version(version = version,
