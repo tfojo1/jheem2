@@ -54,6 +54,7 @@ get.simset.data <- function(simset,
 get.simulation.metadata <- function(version, 
                                     location,
                                     from.year = NULL, to.year = NULL,
+                                    n.sim = 1,
                                     sub.version = NULL,
                                     error.prefix = paste0("Error deriving the simulation-metadata for '", version, "' and location '", location, "': "))
 {
@@ -507,7 +508,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                         parameters = rbind(t(new.parameters[,sampled.parameters.to.generate,drop=F]))
                     }
                 }
-                
             }
             
         
@@ -546,6 +546,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             private$i.calibration.code = calibration.code
             
             private$i.is.degenerate = is.degenerate
+            private$i.finalized = finalize
             
             private$i.n.sim = n.sim
             
@@ -995,6 +996,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                             error.prefix = error.prefix)
         },
         
+        #'@value Returns a NEW simulation set object, run out to end.year
         extend = function(end.year,
                           keep.from.year = self$from.year,
                           keep.to.year = end.year,
@@ -1007,6 +1009,13 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                     keep.to.year = keep.to.year,
                                     intervention.code = private$i.code,
                                     error.prefix = "Cannot get JHEEM Engine from simulation set")
+            
+            sim.list = lapply(1:private$i.n.sim, function(i){
+                engine$run(parameters = private$i.parameters[,i],
+                           prior.sim.index = i)
+            })
+            
+            join.simulation.sets(sim.list, finalize=T)
         },
         
         get.intervention = function()
@@ -1105,6 +1114,14 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 private$i.seed
             else
                 stop("Cannot modify a simulation.set's 'seed' - it is read-only")
+        },
+        
+        is.finalized = function(value)
+        {
+            if (missing(value))
+                private$i.is.finalized
+            else
+                stop("Cannot modify a simulation.set's 'is.finalized' - it is read-only")
         }
     ),
     
@@ -1122,6 +1139,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         i.intervention.code = NULL,
         
         i.is.degenerate = NULL,
+        i.finalized = NULL,
         
       #  i.engine = NULL,
         
