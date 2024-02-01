@@ -83,6 +83,7 @@ create.single.simulation <- function(version,
                                      intervention.code,
                                      calibration.code,
                                      run.metadata,
+                                     finalize,
                                      is.degenerate)
 {
     outcome.numerators.with.sim.dimension = lapply(outcome.numerators, function(arr) {
@@ -108,10 +109,11 @@ create.single.simulation <- function(version,
                              intervention.code = intervention.code,
                              calibration.code = calibration.code,
                              run.metadata = run.metadata,
+                             finalize = finalize,
                              is.degenerate = is.degenerate)
 }
 
-join.simulation.sets <- function(..., run.metadata=NULL)
+join.simulation.sets <- function(..., finalize, run.metadata=NULL)
 {
     # Validate
     # each argument must be either a simset or a list of simsets
@@ -176,6 +178,7 @@ join.simulation.sets <- function(..., run.metadata=NULL)
                              intervention.code = intervention.code,
                              calibration.code = sample.simset$calibration.code,
                              run.metadata = run.metadata,
+                             finalize = finalize,
                              is.degenerate = combined.is.degenerate)
 }
 
@@ -409,6 +412,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               intervention.code,
                               calibration.code,
                               is.degenerate = NULL,
+                              finalize, #a logical - should we add sampled parameters?
                               error.prefix = "Error constructing simulation")
         {
             #-- Call the superclass constructor --#
@@ -474,6 +478,39 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                             collapse.with.and("'", names(tabled.parameter.names[tabled.parameter.names>1]), "'"),
                             ifelse(sum(tabled.parameter.names>1)==1, " appears", " appear"),
                             " more than once."))
+            
+            #-- If we are going to finalize: --#
+            #   - Add a random seed to base future numbers on
+            #   - Generate sampled parameters
+            
+            if (finalize)
+            {
+                private$i.seed = round(runif(1, 0, .Machine$integer.max))
+                
+                sampled.parameters.distribution = get.parameters.distribution.for.version(version, type='sampled')
+                
+                
+                if (!is.null(sampled.parameters.distribution))
+                {
+                    parameter.names = dimnames(parameters)[[1]]
+                    sampled.parameters.to.generate = setdiff(sampled.parameters.distribution@var.names,
+                                                             parameter.names)
+                    
+                    if (length(sampled.parameters.to.generate)>0)
+                    {
+                        reset.seed = round(runif(1, 0, .Machine$integer.max))
+                        set.seed(self$seed)
+                        
+                        new.parameters = generate.random.samples(sampled.parameters.to.generate, n=n.sim)
+                        set.seed(reset.seed) # this keeps our code from always setting to the same seed  
+                        
+                        parameters = rbind(t(new.parameters[,sampled.parameters.to.generate,drop=F]))
+                    }
+                }
+                
+            }
+            
+        
             
             # let's standardize the dimnames here
             dimnames(parameters) = list(parameter = dimnames(parameters)[[1]],
@@ -918,7 +955,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             }
             
             if (is.null(private$i.engine))
-                engine = create.jheem.engine(version = private$i.version,
+                engine = do.create.jheem.engine(version = private$i.version,
                                              sub.version = private$i.sub.version,
                                              location = private$i.location,
                                              start.year = start.year,
@@ -931,6 +968,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                              calibration.code = private$i.calibration.code,
                                              atol = atol,
                                              rtol = rtol,
+                                             finalize = T,
                                              error.prefix = error.prefix)
             else
                 engine = private$i.engine$spawn(start.year = start.year,
@@ -943,6 +981,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                                 calibration.code = private$i.calibration.code,
                                                 atol = atol,
                                                 rtol = rtol,
+                                                finalize = T,
                                                 error.prefix = error.prefix)
         },
         
@@ -1034,8 +1073,15 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 private$i.is.degenerate
             else
                 stop("Cannot modify a simulation.set's 'is.degenerate' - it is read-only")
-        }
+        },
         
+        seed = function(value) #get's a random seed for this simulation set
+        {
+            if (missing(value))
+                private$i.seed
+            else
+                stop("Cannot modify a simulation.set's 'seed' - it is read-only")
+        }
     ),
     
     private = list(
@@ -1053,6 +1099,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         i.is.degenerate = NULL,
         
-        i.engine = NULL
+        i.engine = NULL,
+        
+        i.seed = NULL
     )
 )

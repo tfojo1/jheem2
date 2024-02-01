@@ -548,19 +548,41 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
 ##-- THE JHEEM ENGINE CLASS --##
 ##----------------------------##
 
+#'@name Create an Engine to Run JHEEM Simulations
+#'
+#'@param version,location,sub.version The JHEEM version, sub.version, and location for which to run simulations
+#'@param max.run.time.seconds The maximum amount of time to run simulations before terminating
+#'@param end.year The year to run simulations to
+#'
+#'@export
 create.jheem.engine <- function(version,
                                 location,
-                                start.year,
                                 end.year,
-                                sub.version=NULL,
-                                max.run.time.seconds=Inf,
-                                prior.simulation.set=NULL,
-                                intervention.code = NULL,
-                                calibration.code = NULL,
-                                keep.from.year=start.year,
-                                keep.to.year=end.year,
-                                atol=1e-04, rtol=1e-04,
-                                error.prefix = "Cannot create JHEEM Engine: ")
+                                sub.version = NULL,
+                                max.run.time.seconds = Inf)
+{
+    do.create.jheem.engine(version = version,
+                           location = location,
+                           end.year = end.year,
+                           sub.version = sub.version,
+                           max.run.time.seconds = max.run.time.seconds)
+}
+
+# This function is internal to the package
+do.create.jheem.engine <- function(version,
+                                   location,
+                                   start.year = NULL,
+                                   end.year,
+                                   sub.version=NULL,
+                                   max.run.time.seconds=Inf,
+                                   prior.simulation.set=NULL,
+                                   intervention.code = NULL,
+                                   calibration.code = NULL,
+                                   keep.from.year=start.year,
+                                   keep.to.year=end.year,
+                                   atol=1e-04, rtol=1e-04,
+                                   finalize = T,
+                                   error.prefix = "Cannot create JHEEM Engine: ")
 {
     if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
         stop("Cannot create JHEEM Engine: 'error.prefix' must be a single, non-NA character value")
@@ -581,6 +603,7 @@ create.jheem.engine <- function(version,
                      rtol = rtol,
                      intervention.code = intervention.code,
                      calibration.code = calibration.code,
+                     finalize = finalize,
                      error.prefix = error.prefix)
 }
 
@@ -618,6 +641,7 @@ JHEEM.ENGINE = R6::R6Class(
                               rtol = DEFAULT.RTOL,
                               intervention.code = NULL,
                               calibration.code = NULL,
+                              finalize = F,
                               error.prefix = "Cannot create JHEEM Engine: ")
         {
             #-- Check Arguments --#
@@ -635,9 +659,18 @@ JHEEM.ENGINE = R6::R6Class(
             jheem$set.intervention(intervention.code)
             jheem$set.calibration.code(calibration.code)
                
+            specification = get.compiled.specification.for.version(version)
+            
             # Start and end years
-            if (!is.numeric(start.year) || length(start.year)!=1 || is.na(start.year))
-                stop(paste0(error.prefix, "'start.year' must be a single, non-NA numeric value"))
+            if (is.null(start.year))
+            {
+                start.year = specification$start.year
+            }
+            else
+            {
+                if (!is.numeric(start.year) || length(start.year)!=1 || is.na(start.year))
+                    stop(paste0(error.prefix, "'start.year' must be a single, non-NA numeric value"))
+            }
             
             if (!is.numeric(end.year) || length(end.year)!=1 || is.na(end.year))
                 stop(paste0(error.prefix, "'end.year' must be a single, non-NA numeric value"))
@@ -647,7 +680,14 @@ JHEEM.ENGINE = R6::R6Class(
                             ") must be PRIOR to 'end.year' (", end.year, ")"))
             
             # Prior simulation set
-            if (!is.null(prior.simulation.set))
+            if (is.null(prior.simulation.set))
+            {
+                if (start.year != specification$start.year)
+                    stop(paste0(error.prefix, "If not 'prior.simulation.is.specified' then 'start.year' (given ", start.year, 
+                                ") MUST be equal to the start.year for the '", version, "' specification (",
+                                specification$start.year, ")"))
+            }
+            else
             {
                 if (!is(prior.simulation.set, 'jheem.simulation.set'))
                     stop(paste0(error.prefix, "If 'prior.simulation.set' is specified (ie not NULL), it must be an object of class 'jheem.simulation.set'"))
@@ -668,10 +708,14 @@ JHEEM.ENGINE = R6::R6Class(
             }
             
             # Keep years
-            if (!is.numeric(keep.from.year) || length(keep.from.year)!=1 || is.na(keep.from.year))
-                stop(paste0(error.prefix, "'keep.from.year' must be a single, non-NA numeric value"))
+            if (is.null(keep.from.year))
+                keep.from.year = start.year
+            else if (!is.numeric(keep.from.year) || length(keep.from.year)!=1 || is.na(keep.from.year))
+                    stop(paste0(error.prefix, "'keep.from.year' must be a single, non-NA numeric value"))
             
-            if (!is.numeric(keep.to.year) || length(keep.to.year)!=1 || is.na(keep.to.year))
+            if (is.null(keep.to.year))
+                keep.to.year = end.year
+            else if (!is.numeric(keep.to.year) || length(keep.to.year)!=1 || is.na(keep.to.year))
                 stop(paste0(error.prefix, "'keep.to.year' must be a single, non-NA numeric value"))
             
             if (keep.from.year >= keep.to.year)
@@ -730,6 +774,10 @@ JHEEM.ENGINE = R6::R6Class(
                     stop(paste0(error.prefix, "If it is not NULL, 'calibration.code' must be a single, non-NA character value"))
             }
             
+            # Finalize
+            if (!is.logical(finalize) || length(finalize)!=1 || is.na(finalize))
+                stop(paste0(error.prefix, "'finalize' must be a single, non-NA logical value"))
+            
             #-- Store Values --#
             private$i.jheem = jheem
             private$i.intervention.code = intervention.code
@@ -744,6 +792,8 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.keep.to.year = keep.to.year
             private$i.atol = atol
             private$i.rtol = rtol
+            
+            private$i.finalize = finalize
             
             private$i.check.consistency = T
         },
@@ -763,7 +813,8 @@ JHEEM.ENGINE = R6::R6Class(
                                 keep.from.year = private$i.keep.from.year,
                                 keep.to.year = private$i.keep.to.year,
                                 atol = private$i.atol,
-                                rtol = private$i.rtol)
+                                rtol = private$i.rtol,
+                                finalize = private$i.finalize)
         },
         
         crunch = function(parameters=NULL, prior.sim.index=NULL)
@@ -924,6 +975,7 @@ JHEEM.ENGINE = R6::R6Class(
         i.atol = NULL,
         i.rtol = NULL,
         
+        i.finalize = NULL,
         i.check.consistency = NULL,
         
         set.parameters = function(parameters, error.prefix)
@@ -1175,7 +1227,8 @@ JHEEM = R6::R6Class(
                        keep.from.year,
                        keep.to.year,
                        atol,
-                       rtol)
+                       rtol,
+                       finalize)
         {
             run.start.time = as.numeric(Sys.time())
             
@@ -1309,7 +1362,8 @@ JHEEM = R6::R6Class(
                                            run.metadata = run.metadata,
                                            intervention.code = private$i.intervention.code,
                                            calibration.code = private$i.calibration.code,
-                                           is.degenerate = terminated.for.time)
+                                           is.degenerate = terminated.for.time,
+                                           finalize = finalize)
 
             
             # Return

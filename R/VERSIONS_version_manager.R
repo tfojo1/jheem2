@@ -9,7 +9,8 @@ VERSION.MANAGER.ELEMENTS = c(
     'prior.versions',
     'apply.calibrated.parameters.function', 'apply.sampled.parameters.function',
     'calibrated.parameters.distribution', 'sampled.parameters.distribution',
-    'calibrated.parameters.sampling.blocks'
+    'calibrated.parameters.sampling.blocks', 
+    'calibrate.to.year'
 )
 
 VERSION.MANAGER = new.env() #making this an environment allows us to modify by reference within functions
@@ -188,13 +189,15 @@ is.compiled.specification.registered.for.version <- function(version)
 #'@param sampling.blocks A list (which may optionally be named) of character vectors. Each element (a character vector) denotes a subset of the parameters to be sampled as a single block during the calibration process. These elements must contain ONLY values present in distribution@var.names, and every value in distribution@var.names must be present in at least one of the blocks
 #'@param apply.function A function that knows how to apply parameter values to a jheem.model.settings object. The function should take two arguments: (1) 'model.settings', an object of class jheem.model.settings, and (2) 'parameters', a named numeric vector
 #'@param join.with.previous.version Whether the distribution, apply.function, and sampling blocks should be merged with those of the previous version
+#'@param calibrate.to.year The year to which the calibration should be run before sampling parameters
 #'
 #'@export
 register.calibrated.parameters.for.version <- function(version,
                                                        distribution,
                                                        sampling.blocks,
                                                        apply.function,
-                                                       join.with.previous.version)
+                                                       join.with.previous.version,
+                                                       calibrate.to.year)
 {
     
     # Try to figure out the function's name, so that we can print an intelligible error
@@ -203,13 +206,6 @@ register.calibrated.parameters.for.version <- function(version,
         fn.name = NULL
     
     error.prefix = "Cannot register calibrated parameters: "
-    do.register.parameters.distribution.and.apply.function(version = version,
-                                                           distribution = distribution,
-                                                           apply.function = apply.function,
-                                                           join.with.previous.version = join.with.previous.version,
-                                                           apply.function.name = fn.name,
-                                                           type='calibrated',
-                                                           error.prefix = error.prefix)
     
     #-- Validate Sampling Blocks --#
     if (!is.list(sampling.blocks))
@@ -245,13 +241,59 @@ register.calibrated.parameters.for.version <- function(version,
                     collapse.with.and("'", extra.in.blocks, "'")
         ))
     
-    # Register it
+    #-- Validate calibrate to year --#
+    
+    if (!is.numeric(calibrate.to.year) || length(calibrate.to.year)!=1 || is.na(calibrate.to.year))
+        stop(paste0(error.prefix, "'calibrate.to.year' must be a single, non-NA numeric value"))
+    
+    calibrate.to.window = 5 #years from present year
+    min.calibrate.to.year = as.numeric(substr(Sys.Date(), 1,4)) - calibrate.to.window
+    max.calibrate.to.year = as.numeric(substr(Sys.Date(), 1,4)) + calibrate.to.window
+    if (calibrate.to.year < min.calibrate.to.year || calibrate.to.year > max.calibrate.to.year)
+        stop(paste0(error.prefix,
+                    "'calibrate.to.year' (", calibrate.to.year, 
+                    ") must be within +/- ", calibrate.to.window,
+                    " years of the current year (ie, between ",
+                    min.calibrate.to.year, " and ", max.calibrate.to.year, ")"))
+    
+    if (!is.character(version) || length(version)!=1 || is.na(version))
+        stop("'version' must be a single, non-NA character value")
+    if (all(VERSION.MANAGER$versions!=version))
+        stop(paste0("'", version, "' has not been registered as a version"))
+    
+    specification = get.compiled.specification.for.version(version)
+    
+    if (specification$start.year >= calibrate.to.year)
+        stop(paste0(error.prefix,
+                    "'calibrate.to.year (", calibrate.from.year,
+                    ") must be AFTER the '", version, "' version's start.year' (",
+                    specification$start.year, ")"))
+    
+    #-- Register --#
+    
+    # Register the distribution and function
+    do.register.parameters.distribution.and.apply.function(version = version,
+                                                           distribution = distribution,
+                                                           apply.function = apply.function,
+                                                           join.with.previous.version = join.with.previous.version,
+                                                           apply.function.name = fn.name,
+                                                           type='calibrated',
+                                                           error.prefix = error.prefix)
+    
+    # Register the blocks
     do.register.for.version(version = version,
                             element.name = 'calibrated.parameters.sampling.blocks',
                             element.value = sampling.blocks,
                             element.class = 'list',
                             join.with.previous.version.value = join.with.previous.version,
                             join.function = c)
+    
+    # Register the calibrate.to.year
+    do.register.for.version(version = version,
+                            element.name = 'calibrate.to.year',
+                            element.value = calibrate.to.year,
+                            element.class = 'numeric',
+                            join.with.previous.version.value = F)
 }
 
 #'@title Register Parameters to Be Sampled Prior to Making Projections from a JHEEM Version
@@ -390,6 +432,24 @@ get.parameter.sampling.blocks.for.version <- function(version)
 {
     do.get.for.version(version=version,
                        element.name = 'calibrated.parameters.sampling.blocks',
+                       pull.previous.version.value.if.missing = T,
+                       allow.null = T)
+}
+
+# This function is internal to the package
+get.calibrate.from.year.for.version <- function(version)
+{
+    do.get.for.version(version=version,
+                       element.name = 'calibrate.from.year',
+                       pull.previous.version.value.if.missing = T,
+                       allow.null = T)
+}
+
+# This function is internal to the package
+get.calibrate.to.year.for.version <- function(version)
+{
+    do.get.for.version(version=version,
+                       element.name = 'calibrate.to.year',
                        pull.previous.version.value.if.missing = T,
                        allow.null = T)
 }
