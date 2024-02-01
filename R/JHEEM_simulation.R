@@ -1003,6 +1003,9 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                           keep.to.year = end.year,
                           max.run.time.seconds = NULL)
         {
+            if (!is.numeric(end.year) || length(end.year) != 1 || is.na(end.year))
+                stop("Cannot extend simulation set: 'end.year' must be a single, non-NA numeric value")
+            
             engine = self$get.engine(start.year = self$to.year + 1,
                                     end.year = end.year,
                                     max.run.time.seconds = max.run.time.seconds,

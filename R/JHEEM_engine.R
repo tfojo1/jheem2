@@ -1332,6 +1332,10 @@ JHEEM = R6::R6Class(
             }
             else
                 run.label = private$i.intervention.code
+            
+            run.label = paste0(run.label, 
+                               '_', round(private$i.run.from.time, 2),
+                               "_", round(private$i.run.to.time-1, 2))
 
             run.metadata = create.single.run.metadata(run.time = run.end.time - run.start.time,
                                                       preprocessing.time = end.preprocessing.time - run.start.time,
@@ -3582,12 +3586,19 @@ JHEEM = R6::R6Class(
             {
                 if (outcome$is.cumulative)
                 {
-                    times = max(outcome$from.year, from.time) : min(outcome$to.year, to.time.for.cumulative)
+                    from = max(outcome$from.year, from.time)
+                    to = min(outcome$to.year, to.time.for.cumulative)
                 }
                 else
                 {
-                    times = from.time : (to.time.for.cumulative+1)
+                    from = from.time
+                    to = to.time.for.cumulative+1
                 }
+                
+                if (from>to)
+                    times = numeric()
+                else
+                    times = from:to
                 
                 is.after.time = rep(F, length(times))
             }
@@ -4962,7 +4973,8 @@ JHEEM = R6::R6Class(
                     }
                     
                     val = t(sapply(private$i.outcome.value.times[[outcome.name]], function(y){
-                        if (y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
+                        if (length(private$i.outcome.value.times.to.calculate[[outcome.name]])>0 &&
+                            y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
                             y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
                         {
                             private$i.outcome.numerators[[outcome.name]][[as.character(y)]]
@@ -5008,7 +5020,8 @@ JHEEM = R6::R6Class(
                         }
                         
                         val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
-                            if (y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
+                            if (length(private$i.outcome.value.times.to.calculate[[outcome.name]])>0 &&
+                                y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
                                 y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
                             {
                                 private$i.outcome.denominators[[outcome.name]][[as.character(y)]]
@@ -5123,199 +5136,205 @@ JHEEM = R6::R6Class(
                 if (is.null(private$i.outcome.value.times.to.calculate[[outcome.name]]))
                     private$calculate.outcome.value.times.to.calculate(outcome.name, specification=specification)
                 
-                #-- Calculate the values for all dependent outcomes --#
-                depends.on.outcomes = specification$get.outcome.direct.dependee.outcome.names(outcome.name)
-                sapply(depends.on.outcomes, 
-                       private$calculate.outcome.numerator.and.denominator,
-                       ode.results = ode.results,
-                       specification = specification)
-                
-                #-- Calculate the dim.names --#
-                if (is.null(private$i.outcome.numerator.dim.names.sans.time[[outcome.name]]))
-                    private$derive.outcome.numerator.dim.names.sans.time(outcome.name=outcome.name, specification=specification)
-                
-                #-- Calculate the raw "value" of the outcome --#
-                
-                # If this is a dynamic or intrinsic outcome, pull the values from the ode results
-                if (can.get.outcome.value.from.ode.output(outcome.name,
-                                                          settings = private$i.diffeq.settings))
+                if (length(private$i.outcome.value.times.to.calculate[[outcome.name]])>0)
                 {
-                    raw.value = get.outcome.value.from.ode.output(outcome.name,
-                                                                  settings = private$i.diffeq.settings,
-                                                                  ode.results = ode.results,
-                                                                  outcome.years = private$i.outcome.value.times.to.calculate[[outcome.name]])
-                }
-                else # calculate the value from the values of other outcomes/quantities
-                {
-                    #-- Figure out what times we need to pull from --#
-                    if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
-                        private$calculate.outcome.non.cumulative.value.times(outcome.name)
                     
-                    if (length(private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]])==0)
+                    #-- Calculate the values for all dependent outcomes --#
+                    depends.on.outcomes = specification$get.outcome.direct.dependee.outcome.names(outcome.name)
+                    sapply(depends.on.outcomes, 
+                           private$calculate.outcome.numerator.and.denominator,
+                           ode.results = ode.results,
+                           specification = specification)
+                    
+                    #-- Calculate the dim.names --#
+                    if (is.null(private$i.outcome.numerator.dim.names.sans.time[[outcome.name]]))
+                        private$derive.outcome.numerator.dim.names.sans.time(outcome.name=outcome.name, specification=specification)
+                    
+                    #-- Calculate the raw "value" of the outcome --#
+                    
+                    # If this is a dynamic or intrinsic outcome, pull the values from the ode results
+                    if (can.get.outcome.value.from.ode.output(outcome.name,
+                                                              settings = private$i.diffeq.settings))
                     {
-                        times.to.pull = private$i.outcome.value.times.to.calculate[[outcome.name]]
-                        is.after.time = rep(F, length(times.to.pull))
+                        raw.value = get.outcome.value.from.ode.output(outcome.name,
+                                                                      settings = private$i.diffeq.settings,
+                                                                      ode.results = ode.results,
+                                                                      outcome.years = private$i.outcome.value.times.to.calculate[[outcome.name]])
                     }
-                    else
+                    else # calculate the value from the values of other outcomes/quantities
                     {
-                        times.to.pull = private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]]
-                        is.after.time = private$i.outcome.non.cumulative.value.time.to.calculate.is.after.time[[outcome.name]]
-                    }
-                    char.times.to.pull = as.character(times.to.pull)
-                    
-                    #-- Map the bindings for dependee OUTCOMES to a list --#
-                    bindings.of.outcomes = lapply(specification$get.outcome.numerator.direct.dependee.outcome.names(outcome.name), function(dep.on.outcome.name){
-                        dep.on.outcome = specification$get.outcome(dep.on.outcome.name)
+                        #-- Figure out what times we need to pull from --#
+                        if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
+                            private$calculate.outcome.non.cumulative.value.times(outcome.name)
                         
-                        if (is.null(private$i.outcome.non.cumulative.value.times[[dep.on.outcome.name]]))
-                            private$calculate.outcome.non.cumulative.value.times(dep.on.outcome.name)
+                        if (length(private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]])==0)
+                        {
+                            times.to.pull = private$i.outcome.value.times.to.calculate[[outcome.name]]
+                            is.after.time = rep(F, length(times.to.pull))
+                        }
+                        else
+                        {
+                            times.to.pull = private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]]
+                            is.after.time = private$i.outcome.non.cumulative.value.time.to.calculate.is.after.time[[outcome.name]]
+                        }
+                        char.times.to.pull = as.character(times.to.pull)
                         
-                        if (is.null(private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]))
-                            private$calculate.outcome.indices.from.outcome(outcome.name = outcome.name, dep.on.outcome.name = dep.on.outcome.name)
-                        
-                        binding = lapply(1:length(char.times.to.pull), function(i){
-                            
-                            time = char.times.to.pull[i]
-                            after.or.not.mask = private$i.outcome.non.cumulative.value.time.is.after.time[[dep.on.outcome.name]]
-                            
-                            
-                            if (!is.after.time[i])
-                                after.or.not.mask = !after.or.not.mask
-                            
-                            if (is.null(dep.on.outcome$denominator.outcome))
-                            {
-                                if (dep.on.outcome$is.intrinsic)
-                                    dep.on.numerator = interpolate(private$i.outcome.numerators[[dep.on.outcome.name]], 
-                                                                   value.times = private$i.outcome.value.times.to.calculate[[dep.on.outcome.name]],
-                                                                   desired.time = times.to.pull[i])[[1]]
-                                else
-                                    dep.on.numerator = private$i.outcome.numerators[[dep.on.outcome.name]][after.or.not.mask][[time]]
-                                
-                                collapse.array.according.to.indices(arr = dep.on.numerator,
-                                                                    small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
-                                                                    large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
-                                                                    small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n)
-                            }
-                            else
-                            {
-                                # NB - the intrinsic model outcomes ('infected' and 'uninfected' NEVER have a denominator set, so will never be used in this if statement)
-                                
-                                collapsed.denominator = collapse.array.according.to.indices(arr = private$i.outcome.denominators[[dep.on.outcome.name]][after.or.not.mask][[time]],
-                                                                                        small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
-                                                                                        large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
-                                                                                        small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n)
-                                
-                                rv = collapse.array.according.to.indices(arr = private$i.outcome.numerators[[dep.on.outcome.name]][after.or.not.mask][[time]],
-                                                                      small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
-                                                                      large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
-                                                                      small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n) /
-                                    collapsed.denominator
-                                    
-                                
-                                rv[collapsed.denominator==0] = 0
-                                    
-                            }
-                        })
-                        
-                        names(binding) = char.times.to.pull
-                        binding
-                        
-                        
-                    })
-                    names(bindings.of.outcomes) = specification$get.outcome.numerator.direct.dependee.outcome.names(outcome.name)
-                    
-                    #-- Map the bindings for dependee QUANTITIES to a list --#
-                    bindings.of.quantities = lapply(specification$get.outcome.direct.dependee.quantity.names(outcome.name), function(dep.on.quantity.name){
-                        
-                        if (is.null(private$i.outcome.indices[[outcome.name]]$value.from.quantity[[dep.on.quantity.name]]))
-                            private$calculate.outcome.indices.from.quantity(outcome.name = outcome.name, dep.on.quantity.name = dep.on.quantity.name)
-                        
-                        binding = lapply(1:length(char.times.to.pull), function(i){
-                            
-                            time = as.character(char.times.to.pull[i])
-                            val = NULL
-                            if (private$i.quantity.is.static[dep.on.quantity.name])
-                                val = private$i.quantity.values[[dep.on.quantity.name]][[1]]
-                            else if (is.after.time[i])
-                                val = private$i.quantity.after.values[[dep.on.quantity.name]][[time]]
-                            if (is.null(val))
-                                val = private$i.quantity.values[[dep.on.quantity.name]][[time]]
-                            
-                            val[ private$i.outcome.indices[[outcome.name]]$value.from.quantity[[dep.on.quantity.name]] ]
-                        })
-                        
-                        names(binding) = char.times.to.pull
-                        binding
-                    })
-                    names(bindings.of.quantities) = specification$get.outcome.direct.dependee.quantity.names(outcome.name)
-                    
-                    bindings = c(bindings.of.outcomes, bindings.of.quantities)
-                    
-                    raw.value = outcome$calculate.values(desired.times = private$i.outcome.value.times.to.calculate[[outcome.name]],
-                                                         bindings = bindings,
-                                                         binding.times = times.to.pull,
-                                                         cumulative.interval = 1,
-                                                         error.prefix = '')
-                }
-                
-                #-- Incorporate the denominator --#
-                if (is.null(private$i.outcome.indices[[outcome.name]]$collapse.numerator))
-                    private$calculate.outcome.collapse.value.indices(outcome.name, specification=specification)
-                
-                if (is.null(outcome$denominator.outcome))
-                    denominator = NULL
-                else
-                {
-                    if (is.null(private$i.outcome.denominators[[outcome$denominator.outcome]]))
-                        denominator = private$i.outcome.numerators[[outcome$denominator.outcome]][as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])]
-                    else
-                    {
-                        denominator = lapply(as.character(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(time){
-                            
-                            private$i.outcome.numerators[[outcome$denominator.outcome]][[time]] /
-                                private$i.outcome.denominators[[outcome$denominator.outcome]]
-                        })
-                        names(denominator) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
-                    }
-                }
-
-                if (!is.null(outcome$denominator.outcome) && !outcome$value.is.numerator)
-                {
-                    raw.value = lapply(as.character(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(time){
-                               
-                        collapsed.denominator = collapse.array.according.to.indices(arr = denominator[[time]],
-                                                                                 small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.indices,
-                                                                                 large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$large.indices,
-                                                                                 small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.n)           
-                        raw.value[[time]] * collapsed.denominator
-                            
-                    })
-                    names(raw.value) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
-                }
     
-                numerator = lapply(raw.value,
-                                   collapse.array.according.to.indices,
-                                   small.indices = private$i.outcome.indices[[outcome.name]]$collapse.numerator$small.indices,
-                                   large.indices = private$i.outcome.indices[[outcome.name]]$collapse.numerator$large.indices,
-                                   small.n = private$i.outcome.indices[[outcome.name]]$collapse.numerator$small.n)
-                
-                if (!is.null(denominator))
-                {
-                    denominator = lapply(private$i.outcome.numerators[[outcome$denominator.outcome]],
-                                         collapse.array.according.to.indices,
-                                         small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.indices,
-                                         large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$large.indices,
-                                         small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n)
+                        
+                        #-- Map the bindings for dependee OUTCOMES to a list --#
+                        bindings.of.outcomes = lapply(specification$get.outcome.numerator.direct.dependee.outcome.names(outcome.name), function(dep.on.outcome.name){
+                            dep.on.outcome = specification$get.outcome(dep.on.outcome.name)
+                            
+                            if (is.null(private$i.outcome.non.cumulative.value.times[[dep.on.outcome.name]]))
+                                private$calculate.outcome.non.cumulative.value.times(dep.on.outcome.name)
+                            
+                            if (is.null(private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]))
+                                private$calculate.outcome.indices.from.outcome(outcome.name = outcome.name, dep.on.outcome.name = dep.on.outcome.name)
+                            
+                            binding = lapply(1:length(char.times.to.pull), function(i){
+                                
+                                time = char.times.to.pull[i]
+                                after.or.not.mask = private$i.outcome.non.cumulative.value.time.is.after.time[[dep.on.outcome.name]]
+                                
+                                
+                                if (!is.after.time[i])
+                                    after.or.not.mask = !after.or.not.mask
+                                
+                                if (is.null(dep.on.outcome$denominator.outcome))
+                                {
+                                    if (dep.on.outcome$is.intrinsic)
+                                        dep.on.numerator = interpolate(private$i.outcome.numerators[[dep.on.outcome.name]], 
+                                                                       value.times = private$i.outcome.value.times.to.calculate[[dep.on.outcome.name]],
+                                                                       desired.time = times.to.pull[i])[[1]]
+                                    else
+                                        dep.on.numerator = private$i.outcome.numerators[[dep.on.outcome.name]][after.or.not.mask][[time]]
+                                    
+                                    collapse.array.according.to.indices(arr = dep.on.numerator,
+                                                                        small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
+                                                                        large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
+                                                                        small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n)
+                                }
+                                else
+                                {
+                                    # NB - the intrinsic model outcomes ('infected' and 'uninfected' NEVER have a denominator set, so will never be used in this if statement)
+                                    
+                                    collapsed.denominator = collapse.array.according.to.indices(arr = private$i.outcome.denominators[[dep.on.outcome.name]][after.or.not.mask][[time]],
+                                                                                            small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
+                                                                                            large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
+                                                                                            small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n)
+                                    
+                                    rv = collapse.array.according.to.indices(arr = private$i.outcome.numerators[[dep.on.outcome.name]][after.or.not.mask][[time]],
+                                                                          small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
+                                                                          large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
+                                                                          small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n) /
+                                        collapsed.denominator
+                                        
+                                    
+                                    rv[collapsed.denominator==0] = 0
+                                        
+                                }
+                            })
+                            
+                            names(binding) = char.times.to.pull
+                            binding
+                            
+                            
+                        })
+                        names(bindings.of.outcomes) = specification$get.outcome.numerator.direct.dependee.outcome.names(outcome.name)
+                        
+                        #-- Map the bindings for dependee QUANTITIES to a list --#
+                        bindings.of.quantities = lapply(specification$get.outcome.direct.dependee.quantity.names(outcome.name), function(dep.on.quantity.name){
+                            
+                            if (is.null(private$i.outcome.indices[[outcome.name]]$value.from.quantity[[dep.on.quantity.name]]))
+                                private$calculate.outcome.indices.from.quantity(outcome.name = outcome.name, dep.on.quantity.name = dep.on.quantity.name)
+                            
+                            binding = lapply(1:length(char.times.to.pull), function(i){
+                                
+                                time = as.character(char.times.to.pull[i])
+                                val = NULL
+                                if (private$i.quantity.is.static[dep.on.quantity.name])
+                                    val = private$i.quantity.values[[dep.on.quantity.name]][[1]]
+                                else if (is.after.time[i])
+                                    val = private$i.quantity.after.values[[dep.on.quantity.name]][[time]]
+                                if (is.null(val))
+                                    val = private$i.quantity.values[[dep.on.quantity.name]][[time]]
+                                
+                                val[ private$i.outcome.indices[[outcome.name]]$value.from.quantity[[dep.on.quantity.name]] ]
+                            })
+                            
+                            names(binding) = char.times.to.pull
+                            binding
+                        })
+                        names(bindings.of.quantities) = specification$get.outcome.direct.dependee.quantity.names(outcome.name)
+                        
+                        bindings = c(bindings.of.outcomes, bindings.of.quantities)
+                        
+                        raw.value = outcome$calculate.values(desired.times = private$i.outcome.value.times.to.calculate[[outcome.name]],
+                                                             bindings = bindings,
+                                                             binding.times = times.to.pull,
+                                                             cumulative.interval = 1,
+                                                             error.prefix = '')
+                    }
+                    
+                    #-- Incorporate the denominator --#
+                    if (is.null(private$i.outcome.indices[[outcome.name]]$collapse.numerator))
+                        private$calculate.outcome.collapse.value.indices(outcome.name, specification=specification)
+                    
+                    if (is.null(outcome$denominator.outcome))
+                        denominator = NULL
+                    else
+                    {
+                        if (is.null(private$i.outcome.denominators[[outcome$denominator.outcome]]))
+                            denominator = private$i.outcome.numerators[[outcome$denominator.outcome]][as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])]
+                        else
+                        {
+                            denominator = lapply(as.character(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(time){
+                                
+                                private$i.outcome.numerators[[outcome$denominator.outcome]][[time]] /
+                                    private$i.outcome.denominators[[outcome$denominator.outcome]]
+                            })
+                            names(denominator) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
+                        }
+                    }
+                    
+                    if (!is.null(outcome$denominator.outcome) && !outcome$value.is.numerator)
+                    {
+                        raw.value = lapply(as.character(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(time){
+                                   
+                            collapsed.denominator = collapse.array.according.to.indices(arr = denominator[[time]],
+                                                                                     small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.indices,
+                                                                                     large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$large.indices,
+                                                                                     small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.n)           
+                            raw.value[[time]] * collapsed.denominator
+                                
+                        })
+                        names(raw.value) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
+                    }
+        
+                    numerator = lapply(raw.value,
+                                       collapse.array.according.to.indices,
+                                       small.indices = private$i.outcome.indices[[outcome.name]]$collapse.numerator$small.indices,
+                                       large.indices = private$i.outcome.indices[[outcome.name]]$collapse.numerator$large.indices,
+                                       small.n = private$i.outcome.indices[[outcome.name]]$collapse.numerator$small.n)
+                    
+                    if (!is.null(denominator))
+                    {
+                        denominator = lapply(private$i.outcome.numerators[[outcome$denominator.outcome]],
+                                             collapse.array.according.to.indices,
+                                             small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.indices,
+                                             large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$large.indices,
+                                             small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n)
+                    }
+                    
+                    # Store it
+                    private$i.outcome.numerators[[outcome.name]] = numerator
+                    private$i.outcome.denominators[[outcome.name]] = denominator
+                    
+                    names(private$i.outcome.numerators[[outcome.name]]) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
+                    if (!is.null(private$i.outcome.denominators[[outcome.name]]))
+                        names(private$i.outcome.denominators[[outcome.name]]) =
+                            as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
                 }
-                
-                # Store it
-                private$i.outcome.numerators[[outcome.name]] = numerator
-                private$i.outcome.denominators[[outcome.name]] = denominator
-                
-                names(private$i.outcome.numerators[[outcome.name]]) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
-                if (!is.null(private$i.outcome.denominators[[outcome.name]]))
-                    names(private$i.outcome.denominators[[outcome.name]]) =
-                        as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
             }
         },
         
