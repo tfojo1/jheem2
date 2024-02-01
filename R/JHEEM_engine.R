@@ -869,13 +869,6 @@ JHEEM.ENGINE = R6::R6Class(
             if (!identical(calibration.code, private$i.calibration.code))
                 stop(paste0("Error in jheem.engine$spawn() - cannot change the calibration.code"))
             
-            if (!is.null(private$i.intervention.code))
-            {
-                if (is.null(intervention.code))
-                    stop("Error in jheem.engine$spawn() - cannot set no intervention.code when the previous engine had an intervention.code set")
-                else if (private$i.intervention.code != intervention.code)
-                    stop("Error in jheem.engine$spawn() - cannot change the intervention.code from the one set for the previous engine")
-            }
             
             JHEEM.ENGINE$new(jheem = private$i.jheem$clone(deep=T),
                              start.year = start.year,
@@ -2293,32 +2286,72 @@ JHEEM = R6::R6Class(
             invisible(self)
         },
     
-        # Does NOT actually do anything with the intervention
-        # Just stores it to the jheem object
         set.intervention = function(intervention.code)
         {
-            if (!is.null(intervention.code))
+            if (!identical(intervention.code, private$i.intervention.code))
             {
-                if (!is.character(intervention.code) || length(intervention.code)!=1 || is.na(intervention.code))
-                    stop("Cannot set intervention code for JHEEM: 'intervention.code' must be a single, non-NA character value")
-                
-                intervention = get.intervention(intervention.code, throw.error.if.missing=F)
-                if (is.null(intervention))
+                if (!is.null(intervention.code))
                 {
-                    stop(paste0("Cannot set intervention.code '", intervention.code, 
-                                "' for JHEEM: no intervention with that code has been registered.",
-                                ifelse(is.intervention.code.temporary(intervention.code),
-                                       paste0("'", intervention.code, "' is a temporary code - it was probably created as a one-off intervention that was not formally saved."),
-                                       '')))
+                    if (!is.character(intervention.code) || length(intervention.code)!=1 || is.na(intervention.code))
+                        stop("Cannot set intervention code for JHEEM: 'intervention.code' must be a single, non-NA character value")
+                    
+                    intervention = get.intervention(intervention.code, throw.error.if.missing=F)
+                    if (is.null(intervention))
+                    {
+                        stop(paste0("Cannot set intervention.code '", intervention.code, 
+                                    "' for JHEEM: no intervention with that code has been registered.",
+                                    ifelse(is.intervention.code.temporary(intervention.code),
+                                           paste0("'", intervention.code, "' is a temporary code - it was probably created as a one-off intervention that was not formally saved."),
+                                           '')))
+                    }
                 }
                 
-                for (frgd in intervention$get.intervention.foregrounds())
+                if (!is.null(private$i.intervention.code))
                 {
-                    self$set.quantity.foreground(frgd, check.consistency = T)
+                    prior.intervention = get.intervention(private$i.intervention.code, throw.error.if.missing=F)
+                    if (is.null(prior.intervention))
+                    {
+                        stop(paste0("Cannot load the previously set intervention.code '", private$i.intervention.code, 
+                                    "' for JHEEM: no intervention with that code has been registered.",
+                                    ifelse(is.intervention.code.temporary(intervention.code),
+                                           paste0("'", intervention.code, "' is a temporary code - it was probably created as a one-off intervention that was not formally saved."),
+                                           '')))
+                    }
+                    
                 }
+                
+                if (is.null(intervention.code))
+                {
+                    if (!is.no.intervention(prior.intervention))
+                        stop(paste0("Cannot set intervention.code for JHEEM to NULL: a previous intervention ('", private$i.intervention.code, 
+                                    "') was set and we cannot 'undo' previously-set interventions"))
+                    new.intervention.equals.prior = T
+                }
+                else
+                {
+                    if (is.null(private$i.intervention.code)) # OK to switch
+                    {
+                        new.intervention.equals.prior = F
+                    } 
+                    else
+                    {
+                        new.intervention.equals.prior = intervention$equals(prior.intervention)
+                        if (!new.intervention.equals.prior)
+                            stop(paste0("Cannot set intervention.code '", intervention.code, "' for JHEEM: a previous, different intervention ('", private$i.intervention.code, 
+                                        "') was set and we cannot 'undo' previously-set interventions"))
+                    }
+                }                        
+               
+                if (!is.null(intervention.code) && !new.intervention.equals.prior)
+                {
+                    for (frgd in intervention$get.intervention.foregrounds())
+                    {
+                        self$set.quantity.foreground(frgd, check.consistency = T)
+                    }
+                }
+    
+                private$i.intervention.code = intervention.code
             }
-
-            private$i.intervention.code = intervention.code
         },
         
         set.calibration.code = function(calibration.code)

@@ -29,8 +29,8 @@ get.simset.data <- function(simset,
                             drop.single.outcome.dimension = T,
                             error.prefix = "Error getting simulation results: ")
 {
-    if (!is(jheem.engine, "R6") || !is(simset, "jheem.simulation.set"))
-        stop("sim must be an R6 object of class 'jheem.simulation.set'") 
+    if (!is(simset, "R6") || !is(simset, "jheem.simulation.set"))
+        stop("simset must be an R6 object of class 'jheem.simulation.set'") 
     
     simset$get(outcomes = outcomes,
                keep.dimensions = keep.dimensions,
@@ -408,7 +408,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               to.year,
                               n.sim,
                               run.metadata,
-                              engine = NULL,
                               intervention.code,
                               calibration.code,
                               is.degenerate = NULL,
@@ -427,7 +426,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             #-- Check engine if it is not NULL --#
             
-            private$i.engine = engine
+            # We have decided never to store an engine - going to be dangerous if saving
+          #  private$i.engine = engine
             
             # I have not yet written the validation code
             
@@ -930,6 +930,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
                 stop(paste0("Error in simulation.set$get.engine() - 'error.prefix' must be a single, non-NA character vector"))
             
+            # substitute defaults for years if given NULL
             if (is.null(start.year))
                 start.year = self$from.year
             
@@ -942,47 +943,70 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (is.null(keep.to.year))
                 keep.to.year = end.year
             
-            if (!is.null(self$intervention.code))
+            if (!identical(intervention.code, private$i.intervention.code))
             {
-                if (is.null(get.intervention.from.code(self$intervention.code, throw.error.if.missing = F)))
+                # Check the new intervention code
+                new.intervention = get.intervention(intervention.code, throw.error.if.missing=F)
+                if (is.null(intervention))
                 {
-                    stop(paste0("Cannot get the engine for the simulation set. The simulation ran with intervention.code '", self$intervention.code, 
-                                "' , but no intervention with that code has been registered.",
-                                ifelse(is.intervention.code.temporary(self$intervention.code),
-                                       paste0("'", self$intervention.code, "' is a temporary code - it was probably created as a one-off intervention that was not formally saved."),
+                    stop(paste0("Cannot set intervention.code '", intervention.code, 
+                                "' in getting a new engine from the simulation: no intervention with that code has been registered.",
+                                ifelse(is.intervention.code.temporary(intervention.code),
+                                       paste0("'", intervention.code, "' is a temporary code - it was probably created as a one-off intervention that was not formally saved."),
                                        '')))
+                }
+                
+                # Check against the prior intervention
+                if (!is.null(self$intervention.code))
+                {
+                    prior.intervention = get.intervention.from.code(self$intervention.code, throw.error.if.missing = F)
+                    if (is.null(prior.intervention))
+                    {
+                        stop(paste0("Cannot get the engine for the simulation set. The simulation ran with intervention.code '", self$intervention.code, 
+                                    "' , but no intervention with that code has been registered.",
+                                    ifelse(is.intervention.code.temporary(self$intervention.code),
+                                           paste0("'", self$intervention.code, "' is a temporary code - it was probably created as a one-off intervention that was not formally saved."),
+                                           '')))
+                    }
+                    
+                    if (is.null(intervention.code))
+                        intervention.code = self$intervention.code
+                    else if (!is.no.intervention(prior.intervention) && !prior.intervention$equals(new.intervention))
+                        stop(paste0(error.prefix, "Cannot change the intervention.code to '", intervention.code, 
+                                    "' when getting an engine for the simulation - a different intervention ('",
+                                    self$intervention.code, "') was already used to run the simulation"))
                 }
             }
             
-            if (is.null(private$i.engine))
-                engine = do.create.jheem.engine(version = private$i.version,
-                                             sub.version = private$i.sub.version,
-                                             location = private$i.location,
-                                             start.year = start.year,
-                                             end.year = end.year,
-                                             max.run.time.seconds = max.run.time.seconds,
-                                             prior.simulation.set = self,
-                                             keep.from.year = keep.from.year,
-                                             keep.to.year = keep.to.year,
-                                             intervention.code = intervention.code,
-                                             calibration.code = private$i.calibration.code,
-                                             atol = atol,
-                                             rtol = rtol,
-                                             finalize = T,
-                                             error.prefix = error.prefix)
-            else
-                engine = private$i.engine$spawn(start.year = start.year,
-                                                end.year = end.year,
-                                                max.run.time.seconds = max.run.time.seconds,
-                                                prior.simulation.set = self,
-                                                keep.from.year = keep.from.year,
-                                                keep.to.year = keep.to.year,
-                                                intervention.code = intervention.code,
-                                                calibration.code = private$i.calibration.code,
-                                                atol = atol,
-                                                rtol = rtol,
-                                                finalize = T,
-                                                error.prefix = error.prefix)
+            engine = do.create.jheem.engine(version = private$i.version,
+                                            sub.version = private$i.sub.version,
+                                            location = private$i.location,
+                                            start.year = start.year,
+                                            end.year = end.year,
+                                            max.run.time.seconds = max.run.time.seconds,
+                                            prior.simulation.set = self,
+                                            keep.from.year = keep.from.year,
+                                            keep.to.year = keep.to.year,
+                                            intervention.code = intervention.code,
+                                            calibration.code = private$i.calibration.code,
+                                            atol = atol,
+                                            rtol = rtol,
+                                            finalize = T,
+                                            error.prefix = error.prefix)
+        },
+        
+        extend = function(end.year,
+                          keep.from.year = self$from.year,
+                          keep.to.year = end.year,
+                          max.run.time.seconds = NULL)
+        {
+            engine = self$get.engine(start.year = self$to.year + 1,
+                                    end.year = end.year,
+                                    max.run.time.seconds = max.run.time.seconds,
+                                    keep.from.year = keep.from.year,
+                                    keep.to.year = keep.to.year,
+                                    intervention.code = private$i.code,
+                                    error.prefix = "Cannot get JHEEM Engine from simulation set")
         },
         
         get.intervention = function()
@@ -1099,7 +1123,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         i.is.degenerate = NULL,
         
-        i.engine = NULL,
+      #  i.engine = NULL,
         
         i.seed = NULL
     )
