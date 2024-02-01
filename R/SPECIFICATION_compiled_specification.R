@@ -1148,7 +1148,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         # Can only be called AFTER flattening quantities
         quantity.may.be.static = function(quantity.name, error.prefix, ignore.missing=F)
         {
-            quant = self$get.quantity(quantity.name)
+            quantity = self$get.quantity(quantity.name)
             if (is.null(quantity))
             {
                 if (ignore.missing)
