@@ -206,6 +206,7 @@ SIMULATION.METADATA = R6::R6Class(
                               location,
                               from.year = NULL,
                               to.year = NULL,
+                              n.sim = 1,
                               type = "Simulation Metadata",
                               years.can.be.missing = T,
                               error.prefix)
