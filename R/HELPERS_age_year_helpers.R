@@ -17,6 +17,7 @@ parse.year.ranges <- function(x)
     list(start=substr(x, 1, 4), end=substr(x, 6, 9))
 }
 
+# Returns the subset of x that intersects y. If a member of x "intersects" a member of y, it overlaps entirely with the member of y.
 get.range.robust.year.intersect <- function(x, y)
 {
     error.prefix = "Error getting intersection of years: "
@@ -48,7 +49,15 @@ get.range.robust.year.intersect <- function(x, y)
         }
         # y is year ranges
         else if (all(is.year.range(y))) {
-            stop(paste0(error.prefix, "intersection of something with a year range 'y' is not yet supported"))
+            # find year ranges that have all their single years in x
+            y.start.and.ends = parse.year.ranges(y)
+            y.as.singles = lapply(1:length(y), function(i) {
+                y.start.and.ends[['start']][[i]]:y.start.and.ends[['end']][[i]]
+            })
+            y.which.intersect.x = sapply(y.as.singles, function(year.range) {all(year.range %in% x)})
+            y.intersect.as.singles = y.as.singles[y.which.intersect.x]
+            # Return as CHARACTER!
+            return (as.character(unlist(y.intersect.as.singles)))
         }
     }
     else
