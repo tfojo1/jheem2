@@ -5235,7 +5235,7 @@ JHEEM = R6::R6Class(
                             time = as.character(char.times.to.pull[i])
                             val = NULL
                             if (private$i.quantity.is.static[dep.on.quantity.name])
-                                val = private$i.quantity.values[[1]]
+                                val = private$i.quantity.values[[dep.on.quantity.name]][[1]]
                             else if (is.after.time[i])
                                 val = private$i.quantity.after.values[[dep.on.quantity.name]][[time]]
                             if (is.null(val))
@@ -5247,6 +5247,7 @@ JHEEM = R6::R6Class(
                         names(binding) = char.times.to.pull
                         binding
                     })
+                    names(bindings.of.quantities) = specification$get.outcome.direct.dependee.quantity.names(outcome.name)
                     
                     bindings = c(bindings.of.outcomes, bindings.of.quantities)
                     
