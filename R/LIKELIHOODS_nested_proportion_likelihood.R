@@ -60,6 +60,7 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
                                       keep.dimensions = c('year', 'location', stratification),
                                       dimension.values = list(location = names(main.subs.p)),
                                       debug = F)#identical(stratification, "risk"))
+        if (is.null(main.data)) return(NULL)
         
         # 4b. Use the msa data to prepare a target ontology for the sub-location data.
         if (dim(main.data)[['source']] > 1)
@@ -78,6 +79,7 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
                                      target.ontology = main.data.ontology,
                                      allow.mapping.from.target.ontology = T,
                                      debug=F)
+        if (is.null(sub.data)) return(NULL)
         mp = attr(sub.data, 'mapping')
         if (dim(sub.data)[['source']] > 1)
             stop(paste0(error.prefix, sub.location.type, " 'p' data from more than one source found. Please specify a single source to use in 'sub.location.type.p.source'"))
@@ -126,6 +128,7 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
                                         sources = main.location.type.p.source,
                                         keep.dimensions = c('year', 'location', stratification),
                                         dimension.values = list(location = names(main.supers.p.and.n)))
+        if (is.null(main.p.data)) return(NULL)
         if (dim(main.p.data)[['source']] > 1)
             stop(paste0(error.prefix, main.location.type, " 'p' data from more than one source found. Please specify a single source to use in 'main.location.type.p.source'")) # SHOULD HAVE BEEN CAUGHT ALREADY
         new.dimnames = dimnames(main.p.data)[names(dimnames(main.p.data)) != 'source']
@@ -140,6 +143,7 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
                                         dimension.values = list(location = names(main.supers.p.and.n), year = main.p.years),
                                         target.ontology = main.p.data.ontology,
                                         allow.mapping.from.target.ontology = T)
+        if (is.null(main.n.data)) return(NULL)
         mp.main.p.to.main.n = attr(main.n.data, 'mapping')
         if (dim(main.n.data)[['source']] > 1)
             stop(paste0(error.prefix, main.location.type, " 'n' data from more than one source found. Please specify a single source to use in 'main.location.type.n.source'"))
@@ -156,6 +160,7 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
                                          dimension.values = list(location = all.relevant.supers.p.and.n, year = main.n.years),
                                          target.ontology = main.n.data.ontology,
                                          allow.mapping.from.target.ontology = T)
+        if (is.null(super.p.data)) return(NULL)
         if (dim(super.p.data)[['source']] > 1)
             stop(paste0(error.prefix, super.location.type, " 'p' data from more than one source found. Please specify a single source to use in 'super.location.type.p.source'"))
         mp.main.n.to.super.p = attr(super.p.data, 'mapping')
@@ -171,6 +176,7 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
                                          dimension.values = list(location = all.relevant.supers.p.and.n, year = super.p.years),
                                          target.ontology = super.p.data.ontology,
                                          allow.mapping.from.target.ontology = T)
+        if (is.null(super.n.data)) return(NULL)
         if (dim(super.n.data)[['source']] > 1)
             stop(paste0(error.prefix, super.location.type, " 'n' data from more than one source found. Please specify a single source to use in 'super.location.type.n.source'"))
         mp.super.p.to.super.n = attr(super.n.data, 'mapping')
