@@ -178,8 +178,8 @@ simplot <- function(...,
                     NULL
                 }
             )
+            outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
             if (!is.null(outcome.data)) {
-                outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
                 
                 # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
                 one.df.outcome = reshape2::melt(outcome.data, na.rm = T)
@@ -206,7 +206,7 @@ simplot <- function(...,
     df.sim = NULL
     for (outcome in outcomes) {
         
-        if (!plot.simulation.only && is.null(outcome.mappings[[outcome]])) next
+        # if (!plot.simulation.only && is.null(outcome.mappings[[outcome]])) next
         
         # Determine the keep.dimensions we need from the sim$gets
         extra.dimensions.needed.for.mapping = c()
@@ -223,7 +223,7 @@ simplot <- function(...,
                                                   dimension.values = dimension.values,
                                                   keep.dimensions = keep,
                                                   drop.single.outcome.dimension = T)
-            if (!plot.simulation.only) {
+            if (!plot.simulation.only && !is.null(outcome.mappings[[outcome]])) {
                 simset.data.mapped.this.outcome = tryCatch(
                     {outcome.mappings[[outcome]]$apply(simset.data.this.outcome)},
                     error = function(e) {NULL}
@@ -251,7 +251,7 @@ simplot <- function(...,
         }
         
     }
-
+    # browser()
     if (!is.null(df.sim)) {
         df.sim$simset = factor(df.sim$simset)
         df.sim$sim = factor(df.sim$sim)
