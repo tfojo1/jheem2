@@ -114,7 +114,7 @@ create.single.simulation <- function(version,
                              is.degenerate = is.degenerate)
 }
 
-join.simulation.sets <- function(..., finalize, run.metadata=NULL)
+join.simulation.sets <- function(..., finalize=T, run.metadata=NULL)
 {
     # Validate
     # each argument must be either a simset or a list of simsets
@@ -512,7 +512,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             }
             
         
-            
             # let's standardize the dimnames here
             dimnames(parameters) = list(parameter = dimnames(parameters)[[1]],
                                         sim = as.character(1:n.sim))
@@ -588,6 +587,17 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             })
             
             lockEnvironment(self)
+        },
+        
+        print = function(...)
+        {
+            base::print(paste0(ifelse(private$i.n.sim==1, 
+                                      'A single JHEEM simulation', 
+                                      paste0("A set of ", private$i.n.sim, " JHEEM simulations")),
+                               ", from ", self$from.year, " to ", self$to.year, 
+                               ", for model version '", private$i.version, "' and location '", private$i.location, "'",
+                               ifelse(is.null(self$intervention.code), '',
+                                      paste0(" with intervention '", self$intervention.code, "'"))))
         },
         
         
@@ -868,10 +878,11 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 dimnames(new.arr)[['sim']] = 1:new.n.sim
                 new.arr
             })
-            new.parameters = private$i.data$parameters[x,,drop=F]
+            new.parameters = private$i.data$parameters[,x,drop=F]
             
             JHEEM.SIMULATION.SET$new(version = self$version,
                                      location = self$location,
+                                     sub.version = self$sub.version,
                                      outcome.numerators = new.outcome.numerators,
                                      outcome.denominators = new.outcome.denominators,
                                      parameters = new.parameters,
@@ -881,7 +892,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                      calibration.code = private$i.calibration.code,
                                      intervention.code = private$i.intervention.code,
                                      run.metadata = private$i.run.metadata$subset(x),
-                                     is.degenerate = private$i.is.degenerate[x])
+                                     is.degenerate = private$i.is.degenerate[x],
+                                     finalize = private$i.finalized)
         },
         
         # n: keeps every nth (rounding DOWN) sim counting backwards from the last sim
@@ -948,8 +960,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (!identical(intervention.code, private$i.intervention.code))
             {
                 # Check the new intervention code
-                new.intervention = get.intervention(intervention.code, throw.error.if.missing=F)
-                if (is.null(intervention))
+                new.intervention = get.intervention.from.code(intervention.code, throw.error.if.missing=F)
+                if (is.null(new.intervention))
                 {
                     stop(paste0("Cannot set intervention.code '", intervention.code, 
                                 "' in getting a new engine from the simulation: no intervention with that code has been registered.",
@@ -961,7 +973,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 # Check against the prior intervention
                 if (!is.null(self$intervention.code))
                 {
-                    prior.intervention = get.intervention.from.code(self$intervention.code, throw.error.if.missing = F)
+                    prior.intervention = get.intervention.from.code.from.code(self$intervention.code, throw.error.if.missing = F)
                     if (is.null(prior.intervention))
                     {
                         stop(paste0("Cannot get the engine for the simulation set. The simulation ran with intervention.code '", self$intervention.code, 
@@ -1026,7 +1038,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         {
             if (!is.null(private$i.intervention.code))
             {
-                rv = get.intervention(private$i.intervention.code, throw.error.if.missing=F)
+                rv = get.intervention.from.code(private$i.intervention.code, throw.error.if.missing=F)
                 if (is.null(rv))
                     stop(paste0("The simulation set has a registered intervention code of '",
                                 private$i.intervention.code, "' but no intervention has been registered for that code in this R session",
@@ -1123,7 +1135,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         is.finalized = function(value)
         {
             if (missing(value))
-                private$i.is.finalized
+                private$i.finalized
             else
                 stop("Cannot modify a simulation.set's 'is.finalized' - it is read-only")
         }
