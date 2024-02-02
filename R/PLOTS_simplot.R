@@ -21,7 +21,7 @@ simplot <- function(...,
                     split.by = NULL,
                     facet.by = NULL,
                     dimension.values = list(),
-                    plot.which = c('sim.only', 'data.only', 'both')['both'],
+                    plot.which = c('both', 'sim.only', 'data.only')[1],
                     data.manager = get.default.data.manager(),
                     style.manager) # will be an R6 object. will be mine!
 {
