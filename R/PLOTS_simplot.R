@@ -5,7 +5,7 @@
 #'@param split.by AZ: at most one dimension
 #'@param facet.by AZ: any number of dimensions but cannot include the split.by dimension
 #'@param dimension.values
-#'@param plot.simulation.only Should calibration data be excluded from the plot
+#'@param plot.which Should only simulation data or only calibration data be plotted, or both
 #'@param data.manager The data.manager from which to draw real-world data for the plots
 #'@param style.manager We are going to have to define this down the road. It's going to govern how we do lines and sizes and colors. For now, just hard code those in, and we'll circle back to it
 #'
@@ -21,7 +21,7 @@ simplot <- function(...,
                     split.by = NULL,
                     facet.by = NULL,
                     dimension.values = list(),
-                    plot.simulation.only = F,
+                    plot.which = c('both', 'sim.only', 'data.only')[1],
                     data.manager = get.default.data.manager(),
                     style.manager) # will be an R6 object. will be mine!
 {
@@ -56,8 +56,8 @@ simplot <- function(...,
     if (!is.null(facet.by) && 'year' %in% facet.by)
         stop(paste0(error.prefix, "'facet.by' cannot contain 'year'"))
     
-    if (!is.logical(plot.simulation.only) || length(plot.simulation.only) != 1 || is.na(plot.simulation.only))
-        stop(paste0(error.prefix, "'plot.simulation.only' must be a single logical value"))
+    if (!(identical(plot.which, 'sim.only') || identical(plot.which, 'data.only') || identical(plot.which, 'both')))
+        stop(paste0(error.prefix, "'plot.which' must be one of 'sim.only', 'data.only', or 'both'"))
     
     #-- STEP 1: PRE-PROCESSING --#
     # Get a list out of ... where each element is one simset (or sim for now)
@@ -162,7 +162,7 @@ simplot <- function(...,
     df.truth = NULL
     for (i in seq_along(outcomes.for.data))
     {
-        if (!plot.simulation.only && !is.null(outcomes.for.data[[i]]))
+        if (plot.which != 'sim.only' && !is.null(outcomes.for.data[[i]]))
         {
             outcome.data = tryCatch(
                 {
@@ -178,8 +178,8 @@ simplot <- function(...,
                     NULL
                 }
             )
+            outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
             if (!is.null(outcome.data)) {
-                outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
                 
                 # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
                 one.df.outcome = reshape2::melt(outcome.data, na.rm = T)
@@ -204,54 +204,55 @@ simplot <- function(...,
     #-- STEP 3: MAKE A DATA FRAME WITH ALL THE SIMULATIONS' DATA --#
 
     df.sim = NULL
-    for (outcome in outcomes) {
-        
-        if (!plot.simulation.only && is.null(outcome.mappings[[outcome]])) next
-        
-        # Determine the keep.dimensions we need from the sim$gets
-        extra.dimensions.needed.for.mapping = c()
-        if (!plot.simulation.only && !is.null(outcome.mappings[[outcome]])) {
-            extra.dimensions.needed.for.mapping = setdiff(outcome.mappings[[outcome]]$from.dimensions, c(facet.by, split.by))
-            keep = union(c('year', facet.by, split.by), extra.dimensions.needed.for.mapping)
+    if (plot.which != 'data.only') {
+        for (outcome in outcomes) {
+            
+            # Determine the keep.dimensions we need from the sim$gets
+            extra.dimensions.needed.for.mapping = c()
+            if (plot.which != 'sim.only' && !is.null(outcome.mappings[[outcome]])) {
+                extra.dimensions.needed.for.mapping = setdiff(outcome.mappings[[outcome]]$from.dimensions, c(facet.by, split.by))
+                keep = union(c('year', facet.by, split.by), extra.dimensions.needed.for.mapping)
+            }
+            else keep = c('year', facet.by, split.by)
+            
+            for (i in seq_along(simset.list)) {
+                
+                simset = simset.list[[i]]
+                simset.data.this.outcome = simset$get(outcomes = outcome,
+                                                      dimension.values = dimension.values,
+                                                      keep.dimensions = keep,
+                                                      drop.single.outcome.dimension = T)
+                if (plot.which != 'sim.only' && !is.null(outcome.mappings[[outcome]])) {
+                    simset.data.mapped.this.outcome = tryCatch(
+                        {outcome.mappings[[outcome]]$apply(simset.data.this.outcome)},
+                        error = function(e) {NULL}
+                    )
+                } else simset.data.mapped.this.outcome = simset.data.this.outcome
+                
+                if (is.null(simset.data.mapped.this.outcome)) next
+                
+                # Aggregate out the extra dimensions we may have gotten for the mapping
+                simset.data.mapped.this.outcome = apply(simset.data.mapped.this.outcome, setdiff(names(dim(simset.data.mapped.this.outcome)), extra.dimensions.needed.for.mapping), sum, na.rm=T)
+                
+                # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
+                one.df.sim.this.outcome = reshape2::melt(simset.data.mapped.this.outcome, na.rm = T)
+                one.df.sim.this.outcome = as.data.frame(lapply(one.df.sim.this.outcome, function(col) {
+                    if (is.factor(col)) as.character(col)
+                    else col
+                }))
+                
+                one.df.sim.this.outcome['simset'] = i
+                one.df.sim.this.outcome['outcome'] = outcome
+                one.df.sim.this.outcome['linewidth'] = 1/sqrt(simset$n.sim) # have style manager create this later?
+                one.df.sim.this.outcome['alpha'] = 20 * one.df.sim.this.outcome['linewidth'] # same comment as above
+                
+                df.sim = rbind(df.sim, one.df.sim.this.outcome)
+            }
+            
         }
-        else keep = c('year', facet.by, split.by)
-        
-        for (i in seq_along(simset.list)) {
-            
-            simset = simset.list[[i]]
-            simset.data.this.outcome = simset$get(outcomes = outcome,
-                                                  dimension.values = dimension.values,
-                                                  keep.dimensions = keep,
-                                                  drop.single.outcome.dimension = T)
-            if (!plot.simulation.only) {
-                simset.data.mapped.this.outcome = tryCatch(
-                    {outcome.mappings[[outcome]]$apply(simset.data.this.outcome)},
-                    error = function(e) {NULL}
-                )
-            } else simset.data.mapped.this.outcome = simset.data.this.outcome
-            
-            if (is.null(simset.data.mapped.this.outcome)) next
-
-            # Aggregate out the extra dimensions we may have gotten for the mapping
-            simset.data.mapped.this.outcome = apply(simset.data.mapped.this.outcome, setdiff(names(dim(simset.data.mapped.this.outcome)), extra.dimensions.needed.for.mapping), sum, na.rm=T)
-            
-            # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
-            one.df.sim.this.outcome = reshape2::melt(simset.data.mapped.this.outcome, na.rm = T)
-            one.df.sim.this.outcome = as.data.frame(lapply(one.df.sim.this.outcome, function(col) {
-                if (is.factor(col)) as.character(col)
-                else col
-            }))
-            
-            one.df.sim.this.outcome['simset'] = i
-            one.df.sim.this.outcome['outcome'] = outcome
-            one.df.sim.this.outcome['linewidth'] = 1/sqrt(simset$n.sim) # have style manager create this later?
-            one.df.sim.this.outcome['alpha'] = 20 * one.df.sim.this.outcome['linewidth'] # same comment as above
-            
-            df.sim = rbind(df.sim, one.df.sim.this.outcome)
-        }
-        
     }
-
+    
+    # browser()
     if (!is.null(df.sim)) {
         df.sim$simset = factor(df.sim$simset)
         df.sim$sim = factor(df.sim$sim)

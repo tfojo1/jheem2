@@ -1320,7 +1320,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
             target.from.arguments = target.ontology
-            # if (debug) browser()
+            if (debug) browser()
             if (is.null(target.ontology) || allow.mapping.from.target.ontology) {
                 target.ontology = private$get.universal.ontology(outcome = outcome,
                                                                  sources = sources,
@@ -1353,7 +1353,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Reduce target to needed dimensions and find a mapping
             if (!is.null(keep.dimensions)) target.ontology = target.ontology[names(target.ontology) %in% union(keep.dimensions, names(dimension.values))]
-            if (return.mapping.flag) target.to.universal.mapping = get.ontology.mapping(target.from.arguments, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
+            # if (return.mapping.flag) target.to.universal.mapping = get.ontology.mapping(target.from.arguments, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
+            if (return.mapping.flag) target.to.universal.mapping = get.cached.target.to.target.mapping(target.from.arguments, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
             
             # If sources is NULL, use all the sources from the outcome
             if (is.null(sources))
@@ -2086,6 +2087,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         
         i.cached.universal.ontologies = NULL,
         i.cached.target.to.universal.mappings = NULL,
+        i.cached.target.to.target.mappings = NULL,
         
         ##------------------------------##
         ##-- Private Member Functions --##
@@ -2125,6 +2127,48 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             names(rv) = names(dim.names)
             
             rv
+        },
+        
+        get.cached.target.to.target.mapping = function(outcome, sources=NULL, from.ontology.names=NULL, ont.1, ont.2, allow.non.overlapping.incomplete.dimensions = T, debug=F)
+        {
+            if (debug) browser()
+            # hash inputs
+            if (is.null(sources)) sources.for.cache = 'all' else sources.for.cache = paste0(sort(sources), collapse='__')
+            if (is.null(from.ontology.names)) ontologies.for.cache = 'all' else ontologies.for.cache = paste0(sort(from.ontology.names), collapse='__')
+            ont.1.dimensions = sort(names(ont.1))
+            ont.1.collapsed.dimension.values = sapply(ont.1.dimensions, function(d) {
+                paste0(sort(ont.1.dimensions[[d]]), collapse='__')
+            })
+            ont.2.dimensions = sort(names(ont.2))
+            ont.2.collapsed.dimension.values = sapply(ont.2.dimensions, function(d) {
+                paste0(sort(ont.2.dimensions[[d]]), collapse='__')
+            })
+            key.for.cache = paste0("ont1:", ont.1.dimensions, "=<", ont.1.collapsed.dimension.values, ">", "ont2:", ont.2.dimensions, "=<", ont.2.collapsed.dimension.values, ">", "allow.non.overlapping:", allow.non.overlapping.incomplete.dimensions, collapse='__')
+            
+            # check if already exists
+            already.exists = outcome %in% names(private$i.cached.target.to.target.mappings) &&
+                sources.for.cache %in% names(private$i.cached.target.to.target.mappings[[outcome]]) &&
+                ontologies.for.cache %in% names(private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]]) &&
+                key.for.cache %in% names(private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]])
+            # if not exists, create and store
+            if (!already.exists) {
+                new.target.to.target.ontology = get.ontology.mapping(ont.1, ont.2, allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions)
+                if (!(outcome %in% names(private$i.cached.target.to.target.mappings))) {
+                    private$i.cached.target.to.target.mappings[[outcome]] =
+                        setNames(list(setNames(list(setNames(list(new.target.to.target.ontology), key.for.cache)), ontologies.for.cache)), sources.for.cache)
+                }
+                else if (!(sources.for.cache %in% names(private$i.cached.target.to.target.mappings[[outcome]]))) {
+                    private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]] =
+                        setNames(list(setNames(list(new.target.to.target.ontology), key.for.cache)), ontologies.for.cache)
+                }
+                else if (!(ontologies.for.cache %in% names(private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]]))) {
+                    private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]] =
+                        setNames(list(new.target.to.target.ontology), key.for.cache)
+                }
+                private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[key.for.cache]] = new.target.to.target.ontology
+            }
+            #return
+            return (private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[key.for.cache]])
         },
         
         get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, target.ontology = NULL, return.target.to.universal.mapping = T, debug = F)
