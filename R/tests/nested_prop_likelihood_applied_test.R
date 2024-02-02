@@ -5,7 +5,9 @@ p.bias.sd.inside = 0.03
 p.bias.sd.outside = 0.03
 
 
-test.partitioning.function = function(arr, version)
+
+location='C.12580'
+ehe.partitioning.function = function(arr, version='ehe')
 {
     # For now, partition the different dimensions separately. Later, could have it do only one partition, a custom combined one, if you have risk and sex together
     dimensions.to.partition = intersect(c('risk', 'sex'), names(dim(arr)))
@@ -18,8 +20,17 @@ test.partitioning.function = function(arr, version)
         array.access(arr, dimnames(risk.modified)) = risk.modified
     }
     if ("sex" %in% names(dim(arr))) {
-        sex.partition.dimnames = list(sex = c('heterosexual_male', 'msm'))
-        sex.partition.arr = array(c(0.5, 0.5), dim=sapply(sex.partition.dimnames, length), sex.partition.dimnames)
+        #sex.partition.dimnames = list(sex = c('heterosexual_male', 'msm'))
+        #sex.partition.arr = array(c(0.5, 0.5), dim=sapply(sex.partition.dimnames, length), sex.partition.dimnames)
+        
+        specification.metadata = get.specification.metadata(version=version, location=location)
+        sex.partition.arr = get.best.guess.msm.proportions.by.race(location,
+                                                                   specification.metadata = specification.metadata,
+                                                                   years = DEFAULT.POPULATION.YEARS,
+                                                                   min.age = specification.metadata$age.lower.bounds[1],
+                                                                   return.proportions = T)
+        sex.partition.dimnames = dimnames(sex.partition.arr)
+        browser()
         sex.modified = array.access(arr, sex.partition.dimnames)
         sex.modified = sex.modified * expand.array(sex.partition.arr, dimnames(sex.modified))
         array.access(arr, dimnames(sex.modified)) = sex.modified
@@ -53,7 +64,7 @@ suppression.likelihood.instructions =
                                                    observation.correlation.form = 'compound.symmetry', 
                                                    measurement.error.sd = 0.03,
                                                    
-                                                   partitioning.function = test.partitioning.function,
+                                                   partitioning.function = ehe.partitioning.function,
                                                    
                                                    weights = list(1), # upweight?
                                                    equalize.weight.by.year = T 
