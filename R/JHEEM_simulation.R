@@ -789,7 +789,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                            drop.single.outcome.dimension = drop.single.outcome.dimension,
                                            drop.single.sim.dimension = drop.single.sim.dimension,
                                            error.prefix = error.prefix)
-            
+            # browser()
             dimension.values = private$process.dimension.values(dimension.values, ..., error.prefix=error.prefix)
             # if (drop.single.sim.dimension && self$n.sim==1)
             #     keep.dimensions = names(dim.names)
@@ -807,18 +807,32 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 numerator.data = NULL
                 denominator.data = NULL
                 
-                if (numerator.needed) {
+                # noting that some outcomes, like aids.diagnoses, do not have all years
+                years.this.outcome = NULL
+                unused.years.this.outcome = NULL
+                dimension.values.this.outcome = dimension.values
+                
+                if (numerator.needed)
                     numerator.data = private$i.data$outcome.numerators[[outcome]]
-                    numerator.data = array.access(numerator.data, dimension.values)
-                }
                 if (denominator.needed) {
                     denominator.data = private$i.data$outcome.denominators[[outcome]]
                     if (check.consistency && is.null(denominator.data))
                         stop(paste0(error.prefix, "outcome '", outcome, "' missing denominator data"))
-                    denominator.data = array.access(denominator.data, dimension.values)
                 }
                 if (check.consistency && output == 'denominator' && !scale.needs.denominator(scale))
                      stop(paste0(error.prefix, "outcome '", outcome, "' does not use a denominator"))
+                
+                # check that this outcome has the years we want before subset
+                if (numerator.needed) years.this.outcome = dimnames(numerator.data)$year
+                else if (denominator.needed) years.this.outcome = dimnames(denominator.data)$year
+                else years.this.outcome = intersect(dimnames(numerator.data)$year, dimnames(denominator.data)$year)
+                if ('year' %in% names(dimension.values.this.outcome)) {
+                    unused.years.this.outcome = setdiff(dimension.values[['year']], years.this.outcome)
+                    dimension.values.this.outcome[['year']] = intersect(dimension.values.this.outcome[['year']], years.this.outcome)
+                }  
+                
+                if (numerator.needed) numerator.data = array.access(numerator.data, dimension.values.this.outcome)
+                if (denominator.needed) denominator.data = array.access(denominator.data, dimension.values.this.outcome)
 
                 # Aggregation
                 if (numerator.needed) pre.agg.dimnames = dimnames(numerator.data)
@@ -844,6 +858,16 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                     if (replace.inf.values.with.zero && denominator.needed && output == 'value')
                         output.array[denominator.data == 0] = 0
                 }
+                
+                # add NAs for unused years so that this outcome's array can be mixed with the other outcomes' arrays
+                if (length(unused.years.this.outcome)>0) {
+                    dimnames.with.all.years = dimnames(output.array)
+                    dimnames.with.all.years$year = dimension.values$year
+                    output.array.with.all.years = array(NA, sapply(dimnames.with.all.years, length), dimnames.with.all.years)
+                    output.array.with.all.years[get.array.access.indices(dimnames.with.all.years, dimnames(output.array))] = output.array
+                    output.array=output.array.with.all.years
+                }
+                
                 output.array
             })
             

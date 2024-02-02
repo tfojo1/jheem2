@@ -1320,7 +1320,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
             target.from.arguments = target.ontology
-            if (debug) browser()
+            # if (debug) browser()
             if (is.null(target.ontology) || allow.mapping.from.target.ontology) {
                 target.ontology = private$get.universal.ontology(outcome = outcome,
                                                                  sources = sources,
@@ -1353,7 +1353,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Reduce target to needed dimensions and find a mapping
             if (!is.null(keep.dimensions)) target.ontology = target.ontology[names(target.ontology) %in% union(keep.dimensions, names(dimension.values))]
-            if (return.mapping.flag) target.to.universal.mapping = get.ontology.mapping(target.from.arguments, target.ontology)
+            if (return.mapping.flag) target.to.universal.mapping = get.ontology.mapping(target.from.arguments, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
             
             # If sources is NULL, use all the sources from the outcome
             if (is.null(sources))
@@ -1363,7 +1363,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             sources.successful.names = c()
             
             ## FOR THE FUTURE: DO A PRETEND PULL TO SEE WHAT ONTOLOGIES WE NEED, THEN POTENTIALLY REMAKE THE UNIVERSAL WITH ONLY THOSE
-            # if (debug) browser()
+            if (debug) browser()
             pre.processed.data = lapply(sources.used.names, function(source.name) {
                 
                 source.ontology.names = names(private$i.data[[outcome]][[metric]][[source.name]])
@@ -1889,7 +1889,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             list(earliest.year = earliest.year, latest.year = latest.year)
         },
         
-        get.locations.with.data = function(outcome, metric, years = NULL)
+        get.locations.with.data = function(outcome, metric='estimate', years = NULL)
         {
             if (is.null(outcome) || !is.character(outcome) || length(outcome) > 1 || is.na(outcome))
                 stop("'outcome' must be a single, non-NA character value")
@@ -2192,7 +2192,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 }
             }
             if (!is.null(target.ontology)) {
-                mps = get.mappings.to.align.ontologies(target.ontology, uni, allow.non.overlapping.incomplete.dimensions = F)
+                mps = get.mappings.to.align.ontologies(target.ontology, uni, allow.non.overlapping.incomplete.dimensions = T)
                 if (is.null(mps)) 
                 {
                     DATA.MANAGER.ONTOLOGY.ERRORS$did.you.remember.details = list(
