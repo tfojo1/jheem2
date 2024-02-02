@@ -4973,6 +4973,7 @@ JHEEM = R6::R6Class(
                     }
                     
                     val = t(sapply(private$i.outcome.value.times[[outcome.name]], function(y){
+                        
                         if (length(private$i.outcome.value.times.to.calculate[[outcome.name]])>0 &&
                             y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
                             y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
@@ -5231,7 +5232,7 @@ JHEEM = R6::R6Class(
                                         
                                     
                                     rv[collapsed.denominator==0] = 0
-                                        
+                                    rv
                                 }
                             })
                             
@@ -5268,7 +5269,6 @@ JHEEM = R6::R6Class(
                         names(bindings.of.quantities) = specification$get.outcome.direct.dependee.quantity.names(outcome.name)
                         
                         bindings = c(bindings.of.outcomes, bindings.of.quantities)
-                        
                         raw.value = outcome$calculate.values(desired.times = private$i.outcome.value.times.to.calculate[[outcome.name]],
                                                              bindings = bindings,
                                                              binding.times = times.to.pull,

@@ -8878,10 +8878,18 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                     t0 = pmax(first.integrate.from.time, t0.all[sub.mask]) - t0.all[sub.mask]
                     t1 = pmin(t1.all[sub.mask], last.integrate.to.time) - t0.all[sub.mask]
                     
-                    p.remaining.by.interval = (m * t1 * exp(-m*t1^2/2) + exp(-b*t1)) /
-                        (m * t0 * exp(-m*t0^2/2) + exp(-b*t0))
+                    # The solution to the diffeq:
+                    #   dPt / dt = -(mt + b) * Pt
+                    #   is
+                    #   Pt = P0 * exp(-(mt)^2/2 + bt))
+                    p.remaining.by.interval = exp(-(m*t1^2/2 + b*t1)) / exp(-(m*t0^2/2 + b*t0))
+                    
+                    # This was the prior code - a mistake
+                  #  p.remaining.by.interval = (m * t1 * exp(-m*t1^2/2) + exp(-b*t1)) /
+                  #      (m * t0 * exp(-m*t0^2/2) + exp(-b*t0))
                     
                     p.remaining = apply(p.remaining.by.interval, 2, prod)
+                    
                     
                     if (private$i.calculate.proportion.leaving)
                         1 - p.remaining
