@@ -578,6 +578,7 @@ do.create.jheem.engine <- function(version,
                                    prior.simulation.set=NULL,
                                    intervention.code = NULL,
                                    calibration.code = NULL,
+                                   outcome.location.mapping = NULL,
                                    keep.from.year=start.year,
                                    keep.to.year=end.year,
                                    atol=1e-04, rtol=1e-04,
@@ -603,6 +604,7 @@ do.create.jheem.engine <- function(version,
                      rtol = rtol,
                      intervention.code = intervention.code,
                      calibration.code = calibration.code,
+                     outcome.location.mapping = outcome.location.mapping,
                      finalize = finalize,
                      error.prefix = error.prefix)
 }
@@ -641,6 +643,7 @@ JHEEM.ENGINE = R6::R6Class(
                               rtol = DEFAULT.RTOL,
                               intervention.code = NULL,
                               calibration.code = NULL,
+                              outcome.location.mapping = NULL,
                               finalize = F,
                               error.prefix = "Cannot create JHEEM Engine: ")
         {
@@ -657,7 +660,8 @@ JHEEM.ENGINE = R6::R6Class(
                              type = 'engine')
             
             jheem$set.intervention(intervention.code)
-            jheem$set.calibration.code(calibration.code)
+            jheem$set.calibration.code(calibration.code, 
+                                       outcome.location.mapping = outcome.location.mapping)
                
             specification = get.compiled.specification.for.version(version)
             
@@ -774,6 +778,10 @@ JHEEM.ENGINE = R6::R6Class(
                     stop(paste0(error.prefix, "If it is not NULL, 'calibration.code' must be a single, non-NA character value"))
             }
             
+            # outcome.location.mapping
+            if (!is.null(outcome.location.mapping) && !is(outcome.location.mapping, 'outcome.location.mapping'))
+                stop(paste0(error.prefix, "If it is not NULL, 'outcome.location.mapping' must be an object of class 'outcome.location.mapping'"))
+            
             # Finalize
             if (!is.logical(finalize) || length(finalize)!=1 || is.na(finalize))
                 stop(paste0(error.prefix, "'finalize' must be a single, non-NA logical value"))
@@ -782,6 +790,7 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.jheem = jheem
             private$i.intervention.code = intervention.code
             private$i.calibration.code = calibration.code
+            private$i.outcome.location.mapping = outcome.location.mapping
           
             private$i.prior.simulation.set = prior.simulation.set
               
@@ -837,51 +846,6 @@ JHEEM.ENGINE = R6::R6Class(
         test = function()
         {
             private$i.jheem$test()
-        },
-        
-        spawn = function(start.year = self$start.year,
-                         end.year = self$to.year,
-                         prior.simulation.set = NULL,
-                         max.run.time.seconds = self$max.run.time.seconds,
-                         keep.from.year = self$keep.to.year,
-                         keep.to.year = self$keep.from.year,
-                         atol = NULL,
-                         rtol = NULL,
-                         intervention.code = self$intervention.code,
-                         calibration.code = self$calibration.code,
-                         error.prefix = "Cannot create copy of JHEEM Engine: ")
-        {
-            if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
-                stop(paste0("Error in jheem.engine$spawn() - 'error.prefix' must be a single, non-NA character vector"))
-            
-            if (is.null(prior.simulation.set))
-                prior.simulation.set = private$i.prior.simulation.set
-            
-            if (is.null(atol))
-                atol = private$i.atol
-            
-            if (is.null(rtol))
-                rtol = private$i.rtol
-            
-            if (is.null(max.run.time.seconds))
-                max.run.time.seconds = Inf
-            
-            if (!identical(calibration.code, private$i.calibration.code))
-                stop(paste0("Error in jheem.engine$spawn() - cannot change the calibration.code"))
-            
-            
-            JHEEM.ENGINE$new(jheem = private$i.jheem$clone(deep=T),
-                             start.year = start.year,
-                             end.year = end.year,
-                             prior.simulation.set = prior.simulation.set,
-                             max.run.time.seconds = max.run.time.seconds,
-                             keep.from.year = keep.from.year,
-                             keep.to.year = keep.to.year,
-                             atol = atol,
-                             rtol = rtol,
-                             intervention.code = intervention.code,
-                             calibration.code = calibration.code,
-                             error.prefix = error.prefix)
         }
     ),
     
@@ -957,6 +921,7 @@ JHEEM.ENGINE = R6::R6Class(
         i.jheem = NULL,
         i.intervention.code = NULL,
         i.calibration.code = NULL,
+        i.outcome.location.mapping = NULL,
         
         i.prior.simulation.set = NULL,
         
@@ -1359,6 +1324,7 @@ JHEEM = R6::R6Class(
                                            run.metadata = run.metadata,
                                            intervention.code = private$i.intervention.code,
                                            calibration.code = private$i.calibration.code,
+                                           outcome.location.mapping = private$i.outcome.location.mapping,
                                            is.degenerate = terminated.for.time,
                                            finalize = finalize)
 
@@ -1601,10 +1567,10 @@ JHEEM = R6::R6Class(
 
             # Set up to track dependencies
             depends.on = foreground$depends.on
-            updated.dependencies = lapply(private$i.dependent.foreground.ids.for.parameters[depends.on], function(dep.on.ids){
-                    c(dep.on.ids, foreground.id)
-                })
-            private$i.dependent.foreground.ids.for.parameters[depends.on] = updated.dependencies
+            for (one.dep.on in depends.on)
+            {
+                private$i.dependent.foreground.ids.for.parameters[[one.dep.on]] = c(foreground.id, private$i.dependent.foreground.ids.for.parameters[[one.dep.on]])
+            }
             
             # Flag these parameters as used in foregrounds
             private$i.parameter.names.for.foregrounds = union(private$i.parameter.names.for.foregrounds, foreground$depends.on)
@@ -1619,7 +1585,8 @@ JHEEM = R6::R6Class(
             private$clear.dim.names(quantity.name)
             
             #-- Resolve it --#
-            private$resolve.foreground(foreground.id)
+            if (length(setdiff(depends.on, names(private$i.parameters)))==0)
+                private$resolve.foreground(foreground.id)
         },
 
         
@@ -2358,7 +2325,8 @@ JHEEM = R6::R6Class(
             }
         },
         
-        set.calibration.code = function(calibration.code)
+        set.calibration.code = function(calibration.code,
+                                        outcome.location.mapping)
         {
             if (!is.null(calibration.code))
             {
@@ -2370,6 +2338,7 @@ JHEEM = R6::R6Class(
             }
             
             private$i.calibration.code = calibration.code
+            private$i.outcome.location.mapping = outcome.location.mapping
         },
 
         has.been.crunched = function()
@@ -2523,6 +2492,7 @@ JHEEM = R6::R6Class(
         #-- Intervention/Calibration Settings --#
         i.intervention.code = NULL,
         i.calibration.code = NULL,
+        i.outcome.location.mapping = NULL,
         
         #-- The Model Settings to Pass Along --#
         i.checked.model.settings = NULL,
@@ -2672,6 +2642,7 @@ JHEEM = R6::R6Class(
             private$i.parameters[names(specification$default.parameter.values)] = specification$default.parameter.values
 
             private$i.parameter.names.for.foregrounds = numeric()
+            private$i.dependent.foreground.ids.for.parameters = list()
             
             # Import the foregrounds
             for (frgd in specification$foregrounds)

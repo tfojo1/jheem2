@@ -14,6 +14,7 @@ Rcpp::sourceCpp('../jheem2/src/array_helpers.cpp')
 
 source('../jheem2/R/ONTOLOGY_ontology.R')
 source('../jheem2/R/ONTOLOGY_ontology_mappings.R')
+source('../jheem2/R/JHEEM_outcome_location_mappings.R')
 
 source('../jheem2/R/SPECIFICATION_links.R')
 source('../jheem2/R/SPECIFICATION_scales.R')

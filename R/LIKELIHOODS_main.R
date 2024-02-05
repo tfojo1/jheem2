@@ -554,6 +554,18 @@ JHEEM.LIKELIHOOD = R6::R6Class(
         compute.piecewise = function(sim, log=T, check.consistency=T, debug=F)
         {
             self$compute(sim=sim, log=log, check.consistency = check.consistency, debug=debug)
+        },
+        
+        get.outcome.location.mapping = function()
+        {
+            return (NULL) # for now we'll just return NULL to make code work
+            
+            stop("The 'get.outcome.location.mapping' function must be overridden at the subclass-level for a jheem.likelihood")  
+            
+            # @Andrew to fill in for subclasses
+            # use the code in JHEEM_outcome_location_mapping
+            # create.outcome.location.mapping for single-outcome likelihoods
+            # join.outcome.location.mappings for joint likelihoods
         }
     ),
     

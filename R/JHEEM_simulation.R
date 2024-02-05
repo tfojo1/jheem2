@@ -83,6 +83,7 @@ create.single.simulation <- function(version,
                                      to.year,
                                      intervention.code,
                                      calibration.code,
+                                     outcome.location.mapping,
                                      run.metadata,
                                      finalize,
                                      is.degenerate)
@@ -109,6 +110,7 @@ create.single.simulation <- function(version,
                              n.sim = 1,
                              intervention.code = intervention.code,
                              calibration.code = calibration.code,
+                             outcome.location.mapping = outcome.location.mapping,
                              run.metadata = run.metadata,
                              finalize = finalize,
                              is.degenerate = is.degenerate)
@@ -178,6 +180,7 @@ join.simulation.sets <- function(..., finalize=T, run.metadata=NULL)
                              n.sim = new.n.sim,
                              intervention.code = intervention.code,
                              calibration.code = sample.simset$calibration.code,
+                             outcome.location.mapping = sample.simset$outcome.location.mapping,
                              run.metadata = run.metadata,
                              finalize = finalize,
                              is.degenerate = combined.is.degenerate)
@@ -299,6 +302,17 @@ SIMULATION.METADATA = R6::R6Class(
                                                                                                      corresponding.observed.outcome = outcome$corresponding.data.outcome)
                 }
             }
+            
+            # Pull in the outcome locatoin mapping
+            if (is.null(outcome.location.mapping))
+                private$i.metadata$outcome.location.mapping = create.default.outcome.location.mapping(version = private$i.version,
+                                                                                                      location = private$i.location,
+                                                                                                      sub.version = private$i.sub.version)
+            else if (!is(outcome.location.mapping, 'outcome.location.mapping'))
+                stop(paste0(error.prefix, "'outcome.location.mapping' must be an object of class 'outcome.location.mapping'"))
+            else
+                private$i.metadata$outcome.location.mapping = outcome.location.mapping
+                
         }
     ),
     
@@ -349,18 +363,20 @@ SIMULATION.METADATA = R6::R6Class(
                 private$i.metadata$to.year
             else
                 stop("Cannot modify a simulation.metadata's 'to.year' - it is read-only")
+        },
+        
+        outcome.location.mapping = function(value)
+        {
+            if (missing(value))
+                private$i.metadata$outcome.location.mapping
+            else
+                stop("Cannot modify a simulation.metadata's 'outcome.location.mapping' - it is read-only")
         }
     ),
     
     private = list(
         
         i.metadata = NULL,
-        
-        # i.from.year = NULL,
-        # i.to.year = NULL,
-        # 
-        # i.outcome.ontologies = NULL,
-        # i.outcome.metadata = NULL,
         
         get.current.code.iteration = function()
         {
@@ -412,6 +428,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               run.metadata,
                               intervention.code,
                               calibration.code,
+                              outcome.location.mapping,
                               is.degenerate = NULL,
                               finalize, #a logical - should we add sampled parameters?
                               error.prefix = "Error constructing simulation")

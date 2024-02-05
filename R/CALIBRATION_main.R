@@ -208,16 +208,31 @@ set.up.calibration <- function(version,
     #-----------------------------#
     
     
+    
+    #-- Set up the compute likelihood function --#
     if (verbose)
-        print(paste0(verbose.prefix, "Seting up the engine..."))
+        print(paste0(verbose.prefix, "Instantiate the likelihood..."))
+    
+    likelihood = calibration.info$likelihood.instructions$instantiate.likelihood(version=version,
+                                                                                 location=location, 
+                                                                                 sub.version=sub.version,
+                                                                                 data.manager=calibration.info$data.manager)
+    compute.likelihood <- function(sim) {
+        likelihood$compute(sim=sim, log=T, check.consistency=F)
+    }
+    
     
     #-- Set up the Run Simulation function --#
+    if (verbose)
+        print(paste0(verbose.prefix, "Setting up the engine..."))
+    
     engine = do.create.jheem.engine(version=version, location=location, 
                                     sub.version = sub.version,
                                     start.year = NULL, #will set start.year to the version's start.year
                                     end.year = calibration.info$end.year, 
                                     max.run.time.seconds = calibration.info$max.run.time.seconds,
                                     calibration.code = calibration.code,
+                                    outcome.location.mapping = likelihood$get.outcome.location.mapping(),
                                     finalize = F)
     engine$crunch(parameters = default.parameter.values)
 
@@ -226,18 +241,6 @@ set.up.calibration <- function(version,
         all.parameters = default.parameter.values
         all.parameters[names(params)] = params
         engine$run(all.parameters)
-    }
-    
-    #-- Set up the compute likelihood function --#
-    if (verbose)
-        print(paste0(verbose.prefix, "Instantiate the likelihood..."))
-
-    likelihood = calibration.info$likelihood.instructions$instantiate.likelihood(version=version,
-                                                                                 location=location, 
-                                                                                 sub.version=sub.version,
-                                                                                 data.manager=calibration.info$data.manager)
-    compute.likelihood <- function(sim) {
-        likelihood$compute(sim=sim, log=T, check.consistency=F)
     }
     
     #-- Set MCMC parameters depending on whether this is prelim or not --#
