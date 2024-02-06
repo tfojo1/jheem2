@@ -569,3 +569,24 @@ check.expand.arguments <- function(to.expand=NULL,
                                target.name = "'target.dim.names'",
                                error.prefix = '')
 }
+
+
+##-----------------##
+##-- ARRAY APPLY --##
+##-----------------##
+
+#'@title Apply on Array Without Dropping Dimnames
+#'
+#'@param arr
+#'@param margin
+#'@param fun
+apply.robust <- function(arr,
+                         MARGIN,
+                         FUN,
+                         ...)
+{
+    dimnames.after.apply = dimnames(arr)[names(dimnames(arr)) %in% MARGIN]
+    array(apply(arr, MARGIN=MARGIN, FUN=FUN, ...),
+          dim=sapply(dimnames.after.apply, length),
+          dimnames=dimnames.after.apply)
+}
