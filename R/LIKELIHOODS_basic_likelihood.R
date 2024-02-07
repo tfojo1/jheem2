@@ -23,7 +23,7 @@
 create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  outcome.for.sim,
                                                  denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute
-                                                 dimensions,
+                                                 dimensions = character(0),
                                                  denominator.dimensions = dimensions,
                                                  dimension.values = NULL, # EXPERIMENTAL
                                                  levels.of.stratification = NULL,
@@ -41,6 +41,57 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  equalize.weight.by.year = T)
 {
     
+    create.basic.likelihood.instructions.with.included.multiplier(outcome.for.data = outcome.for.data,
+                                                                  outcome.for.sim = outcome.for.sim,
+                                                                  denominator.outcome.for.sim = denominator.outcome.for.sim,
+                                                                  dimensions = dimensions,
+                                                                  denominator.dimensions = denominator.dimensions,
+                                                                  dimension.values = dimension.values, # EXPERIMENTAL
+                                                                  levels.of.stratification = levels.of.stratification,
+                                                                  from.year = from.year,
+                                                                  to.year = to.year,
+                                                                  omit.years = omit.years,
+                                                                  sources.to.use = sources.to.use,
+                                                                  included.multiplier=NULL,
+                                                                  included.multiplier.sd=NULL,
+                                                                  included.multiplier.correlation=NULL,
+                                                                  correlation.different.years = correlation.different.years,
+                                                                  correlation.different.strata = correlation.different.strata,
+                                                                  correlation.different.sources = correlation.different.sources,
+                                                                  correlation.same.source.different.details = correlation.same.source.different.details,
+                                                                  observation.correlation.form = observation.correlation.form,
+                                                                  measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
+                                                                  weights = weights,
+                                                                  equalize.weight.by.year = equalize.weight.by.year
+        
+    )
+    
+}
+
+create.basic.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
+                                                                          outcome.for.sim,
+                                                                          denominator.outcome.for.sim=NULL,
+                                                                          dimensions = character(0),
+                                                                          denominator.dimensions = dimensions,
+                                                                          dimension.values = NULL, # EXPERIMENTAL
+                                                                          levels.of.stratification = NULL,
+                                                                          from.year = -Inf,
+                                                                          to.year = Inf,
+                                                                          omit.years = NULL,
+                                                                          sources.to.use = NULL,
+                                                                          included.multiplier,
+                                                                          included.multiplier.sd,
+                                                                          included.multiplier.correlation=NULL,
+                                                                          included.multiplier.correlation.structure=c('compound.symmetry', 'autoregressive.1')[1],
+                                                                          correlation.different.years = 0.5,
+                                                                          correlation.different.strata = 0.1,
+                                                                          correlation.different.sources = 0.3,
+                                                                          correlation.same.source.different.details = 0.3,
+                                                                          observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
+                                                                          measurement.error.coefficient.of.variance,
+                                                                          weights = list(),
+                                                                          equalize.weight.by.year = T)
+{
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
                                             outcome.for.sim = outcome.for.sim,
                                             denominator.outcome.for.sim = denominator.outcome.for.sim,
@@ -52,6 +103,10 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                             to.year = to.year,
                                             omit.years = omit.years,
                                             sources.to.use = sources.to.use,
+                                            included.multiplier=included.multiplier,
+                                            included.multiplier.sd=included.multiplier.sd,
+                                            included.multiplier.correlation=included.multiplier.correlation,
+                                            included.multiplier.correlation.structure=included.multiplier.correlation.structure,
                                             correlation.different.years = correlation.different.years,
                                             correlation.different.strata = correlation.different.strata,
                                             correlation.different.sources = correlation.different.sources,
@@ -59,9 +114,7 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                             observation.correlation.form = observation.correlation.form,
                                             measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
                                             weights = weights,
-                                            equalize.weight.by.year = equalize.weight.by.year
-    )
-    
+                                            equalize.weight.by.year = equalize.weight.by.year)
 }
 
 JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
@@ -81,6 +134,10 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               to.year,
                               omit.years,
                               sources.to.use,
+                              included.multiplier,
+                              included.multiplier.sd,
+                              included.multiplier.correlation,
+                              included.multiplier.correlation.structure,
                               correlation.different.years,
                               correlation.different.strata,
                               correlation.different.sources,
@@ -130,6 +187,33 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (!is.null(sources.to.use) && (!is.character(sources.to.use) || any(is.na(sources.to.use)) || any(duplicated(sources.to.use))))
                 stop(paste0(error.prefix, "'sources.to.use' must be NULL or a character vector containing no NAs or duplicates"))
             
+            # *included.multiplier* is NULL, a single numeric value, or a named numeric vector with names corresponding to years or year ranges.
+            if (!is.null(included.multiplier) &&
+                (!is.numeric(included.multiplier) || length(included.multiplier)!=1 || is.na(included.multiplier) || included.multiplier<=0) &&
+                (!is.numeric(included.multiplier) || is.null(names(included.multiplier)) || any(is.na(included.multiplier)) || any(included.multiplier<=0) || is.null(parse.year.names(names(included.multiplier)))))
+                stop(paste0(error.prefix, "'included.multiplier' must be one of: 1. NULL, 2. a single, non-NA, numeric value greater than 0, or 3. a named numeric vector with all values non-NA and greater than zero and names all corresponding to years or year ranges"))
+            
+            # *included.multiplier.sd* is NULL, a single numeric value, or a named numeric vector with the same names as *included.multiplier*.
+            if (!is.null(included.multiplier.sd) &&
+                (!is.numeric(included.multiplier.sd) || length(included.multiplier.sd)!= 1 || is.na(included.multiplier.sd) || included.multiplier.sd<=0) &&
+                (!is.numeric(included.multiplier.sd) || any(is.na(included.multiplier.sd)) || any(included.multiplier.sd<=0) || !identical(names(included.multiplier.sd), names(included.multiplier))))
+                stop(paste0(error.prefix, "'included.multiplier.sd' must be one of: 1. NULL, 2. a single, non-NA, numeric value greater than 0, or 3. a named numeric vector with all values non-NA and greater than zero and the same names as 'included.multiplier'"))
+            # and cannot be NULL if *included.multiplier* is not NULL
+            if (!is.null(included.multiplier) && is.null(included.multiplier.sd))
+                stop(paste0(error.prefix, "'included.multiplier.sd' cannot be NULL if 'included.multiplier' is not also NULL"))
+            
+            # *included.multiplier.correlation* is NULL or a single numeric value between 0 and 1.
+            if (!is.null(included.multiplier.correlation) &&
+                (!is.numeric(included.multiplier.correlation) || length(included.multiplier.correlation)!=1 || included.multiplier.correlation <=0 || included.multiplier.correlation >= 1))
+                stop(paste0(error.prefix, "'included.multiplier.correlation' must be NULL or a single numeric value between 0 and 1"))
+            # and cannot be NULL if *included.multiplier* is not NULL
+            if (!is.null(included.multiplier) && is.null(included.multiplier.correlation))
+                stop(paste0(error.prefix, "''included.multiplier.correlation' cannot be NULL if 'included.multiplier' is not also NULL"))
+            
+            # *included.multiplier.correlation.structure* is 'compound.symmetry' or 'autoregressive.1'
+            if (!is.character(included.multiplier.correlation.structure) || length(included.multiplier.correlation.structure)!=1 || !(included.multiplier.correlation.structure) %in% c('compound.symmetry', 'autoregressive.1'))
+                stop(paste0(error.prefix, "'included.multiplier.correlation.structure' must be either 'compound.symmetry' or 'autoregressive.1'"))
+            
             # *correlation.multipliers* are all single numeric vectors with values between 0 and 1 inclusive
             correlation.multipliers = list(correlation.different.years=correlation.different.years,
                                            correlation.different.strata=correlation.different.strata,
@@ -174,7 +258,11 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             private$i.denominator.dimensions = denominator.dimensions
             private$i.equalize.weight.by.year = equalize.weight.by.year
             private$i.sources.to.use = sources.to.use
-            private$i.parameters = list(correlation.different.years = correlation.different.years,
+            private$i.parameters = list(included.multiplier = included.multiplier,
+                                        included.multiplier.sd = included.multiplier.sd,
+                                        included.multiplier.correlation = included.multiplier.correlation,
+                                        included.multiplier.correlation.structure = included.multiplier.correlation.structure,
+                                        correlation.different.years = correlation.different.years,
                                         correlation.different.strata = correlation.different.strata,
                                         correlation.different.sources = correlation.different.sources,
                                         correlation.same.source.different.details = correlation.same.source.different.details,
@@ -547,11 +635,42 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                     private$i.parameters$correlation.different.source,
                                                                                     private$i.parameters$correlation.same.source.different.details,
                                                                                     private$i.parameters$observation.correlation.form == "autoregressive.1")
-
             measurement.error.sd = private$i.obs.vector * private$i.parameters$measurement.error.coefficient.of.variance
             
             private$i.measurement.error.covariance.matrix =
                 measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
+            
+            ## included multiplier to make inverse multiplier matrix times covariance matrix
+            if (!is.null(private$i.parameters$included.multiplier)) {
+                
+                if (!is.null(names(private$i.parameters$included.multiplier))) {
+                    
+                    if (any(!(private$i.metadata$year %in% names(private$i.parameters$included.multiplier))))
+                        stop(paste0(error.prefix, "all years values in data must have a corresponding 'included.multiplier'"))
+                    
+                    included.multiplier.vector = sapply(private$i.metadata$year, function(obs.year) {private$i.parameters$included.multiplier[obs.year]})
+                    included.multiplier.sd.vector = sapply(private$i.metadata$year, function(obs.year) {private$i.parameters$included.multiplier.sd[obs.year]})
+                }
+                else {
+                    included.multiplier.vector = rep(private$i.parameters$included.multiplier, n.obs)
+                    included.multiplier.sd.vector = rep(private$i.parameters$included.multiplier.sd, n.obs)
+                }
+                
+                inverse.multiplier.matrix = (1/included.multiplier.vector) %*% t(1/included.multiplier.vector)
+                
+                # AR.1 cannot be selected if we have year ranges because year ranges do not have distance measures
+                if (private$i.parameters$included.multiplier.correlation.form == "autoregressive.1" && any(is.year.range(private$i.metadata$year)))
+                    stop(paste0(error.prefix, "instructions cannot use 'autoregressive.1' for 'included.multiplier.correlation.form' since observations with year ranges were found"))
+
+                multiplier.correlation.matrix = get_multiplier_correlation_matrix(rep(1, n.obs**2),
+                                                                                  n.obs,
+                                                                                  as.numeric(private$i.metadata$year),
+                                                                                  private$i.parameters$included.multiplier.correlation,
+                                                                                  private$i.parameters$included.multiplier.correlation.structure == "autoregressive.1")
+                multiplier.covariance.matrix = multiplier.correlation.matrix * included.multiplier.sd.vector %*% t(included.multiplier.sd.vector)
+                private$i.inverse.multiplier.matrix.times.cov.mat = inverse.multiplier.matrix * multiplier.covariance.matrix
+            }
+            ##
 
             ## ---- GENERATE INVERSE VARIANCE WEIGHTS MATRIX ---- ##
             private$i.metadata$stratum = as.character(private$i.metadata$stratum)
@@ -587,6 +706,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         i.transformation.matrix.row.oriented.indices = NULL,
         i.measurement.error.covariance.matrix = NULL,
         i.inverse.variance.weights.matrix = NULL,
+        i.inverse.multiplier.matrix.times.cov.mat = NULL,
         
         i.dimension.values = NULL, # EXPERIMENTAL
         
@@ -635,8 +755,12 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                use.poisson
             )
             
-            # # --- #
             sigma = sigma * private$i.inverse.variance.weights.matrix
+            
+            # Revise sigma if including multiplier
+            if (!is.null(private$i.inverse.multiplier.matrix.times.cov.mat)) {
+                sigma = sigma + private$i.inverse.multiplier.matrix.times.cov.mat * (sigma + mean %*% t(mean))
+            }
             
             if (private$i.outcome.is.proportion)
                 likelihood = mvtnorm::dmvnorm(private$i.obs.vector * n.vector,
