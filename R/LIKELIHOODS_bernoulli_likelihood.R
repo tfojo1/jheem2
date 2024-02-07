@@ -7,7 +7,7 @@
 #'
 #'@export
 create.bernoulli.likelihood.instructions <- function(outcome.for.sim,
-                                                     dimensions,
+                                                     dimensions = character(0),
                                                      levels.of.stratification = NULL,
                                                      years,
                                                      probability.decreasing,
