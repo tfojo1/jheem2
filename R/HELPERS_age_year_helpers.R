@@ -638,3 +638,25 @@ parse.age.brackets <- function(age.brackets,
          mapped.mask = mapped.mask,
          n = length(lower))
 }
+
+#'@export
+get.age.bracket.mapping <- function(from.age.brackets,
+                                    to.age.brackets,
+                                    allow.incomplete.span.of.to = T,
+                                    allow.incomplete.span.of.infinite.age.range = T,
+                                    allow.partial.to.parsing = T,
+                                    require.map.all.to = !allow.partial.to.parsing)
+{
+    from.bounds = parse.age.strata.names(from.age.brackets, allow.partial.parsing = allow.partial.to.parsing)
+    to.bounds = parse.age.strata.names(to.age.brackets, allow.partial.parsing = F)
+    
+    do.create.age.or.year.ontology.mapping(from.values = from.age.brackets,
+                                           to.values = to.age.brackets,
+                                           from.bounds = from.bounds,
+                                           to.bounds = to.bounds,
+                                           dimension = 'age',
+                                           require.map.all.to = require.map.all.to,
+                                           allow.incomplete.span.of.to = allow.incomplete.span.of.to,
+                                           allow.incomplete.span.of.infinite.range = allow.incomplete.span.of.infinite.age.range,
+                                           return.mapping = F)
+}

@@ -1198,7 +1198,9 @@ do.create.age.or.year.ontology.mapping <- function(from.values,
                                                    to.bounds,
                                                    dimension,
                                                    require.map.all.to,
-                                                   allow.incomplete.span.of.infinite.range)
+                                                   allow.incomplete.span.of.infinite.range,
+                                                   allow.incomplete.span.of.to = F,
+                                                   return.mapping = T)
 {
     if (is.null(from.bounds) || is.null(to.bounds))
         return (NULL)
@@ -1255,8 +1257,13 @@ do.create.age.or.year.ontology.mapping <- function(from.values,
     if (all(froms.span.tos) ||
         (!require.map.all.to && any(froms.span.tos)) )
     {
-        iterated.from.values = from.values[unlist(froms.for.to[froms.span.tos])]
-        iterated.to.values = unlist(sapply((1:length(to.values))[froms.span.tos], function(i){
+        if (allow.incomplete.span.of.to)
+            mask = rep(T, length(froms.for.to))
+        else
+            mask = froms.span.tos
+        
+        iterated.from.values = from.values[unlist(froms.for.to[mask])]
+        iterated.to.values = unlist(sapply((1:length(to.values))[mask], function(i){
             rep(to.values[i], length(froms.for.to[[i]]))
         }))
         
@@ -1264,11 +1271,17 @@ do.create.age.or.year.ontology.mapping <- function(from.values,
         iterated.from.values = c(iterated.from.values, missing.from.values)
         iterated.to.values = c(iterated.to.values, rep(NA, length(missing.from.values)))
         
-        BASIC.ONTOLOGY.MAPPING$new(name = paste0(dimension, ' ', length(from.values), "->", length(to.values), " strata"),
-                                   from.dimensions = dimension,
-                                   to.dimensions = dimension,
-                                   from.values = matrix(iterated.from.values, ncol=1),
-                                   to.values = matrix(iterated.to.values, ncol=1))
+        if (return.mapping)
+            BASIC.ONTOLOGY.MAPPING$new(name = paste0(dimension, ' ', length(from.values), "->", length(to.values), " strata"),
+                                       from.dimensions = dimension,
+                                       to.dimensions = dimension,
+                                       from.values = matrix(iterated.from.values, ncol=1),
+                                       to.values = matrix(iterated.to.values, ncol=1))
+        else
+        {
+            names(iterated.to.values) = iterated.from.values
+            iterated.to.values
+        }
     }
     else
         return (NULL)
@@ -1588,6 +1601,27 @@ ONTOLOGY.MAPPING = R6::R6Class(
                                            error.prefix=error.prefix)
         },
         
+        get.mapping.vector = function(from.values=character(), from.dimension=self$from.dimensions[1], to.dimension=self$to.dimensions[1])
+        {
+            if (!is.character(from.values) || any(is.na(from.values)))
+                stop("'from.values' must be a character vector with no NA values")
+            
+            if (!is.character(from.dimension) || length(from.dimension)!=1 || is.na(from.dimension))
+                stop("'from.dimension' must be a single, non-NA character value")
+            
+            if (all(from.dimension!=self$from.dimensions))
+                stop("'from.dimension' ('", from.dimension, "') must be one of the ontology mapping's from.dimensions")
+            
+            if (!is.character(to.dimension) || length(to.dimension)!=1 || is.na(to.dimension))
+                stop("'to.dimension' must be a single, non-NA character value")
+            
+            if (all(to.dimension!=self$to.dimensions))
+                stop("'to.dimension' ('", to.dimension, "') must be one of the ontology mapping's to.dimensions")
+            
+            private$do.get.mapping.vector(from.dimension = from.dimension,
+                                          to.dimension = to.dimension)
+        },
+        
         get.reverse.mapping.indices = function(from.dim.names, to.dim.names, error.prefix='Cannot get mapping indices from ontology.mapping: ')
         {   
             forward.indices = self$get.mapping.indices(from.dim.names = from.dim.names,
@@ -1738,6 +1772,11 @@ ONTOLOGY.MAPPING = R6::R6Class(
             stop("This subclass of 'ontology.mapping' is incompletely specified. The private 'do.get.mapping.indices' method must be implemented at the subclass level")           
         },
         
+        do.get.mapping.vector = function(from.values, from.dimension, to.dimension)
+        {
+            stop("This subclass of 'ontology.mapping' is incompletely specified. The private 'do.get.mapping.vector' method must be implemented at the subclass level")     
+        },
+        
         do.apply.to.dim.names.or.ontology = function(from.dim.names,
                                                      error.prefix)
         {
@@ -1839,6 +1878,13 @@ IDENTITY.ONTOLOGY.MAPPING = R6::R6Class(
                                           error.prefix)
         {
             as.list(get.array.access.indices(from.dim.names, dimension.values=to.dim.names))
+        },
+        
+        do.get.mapping.vector = function(from.values, from.dimension, to.dimension)
+        {
+            from.values = unique(from.values)
+            names(from.values) = from.values
+            from.values
         },
         
         do.apply.to.dim.names.or.ontology = function(from.dim.names,
@@ -2092,6 +2138,16 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                 stop(paste0(error.prefix, "There was an error applying the ontology.mapping to get a mapping.indices"))
             
             rv   
+        },
+        
+        do.get.mapping.vector = function(from.values, from.dimension, to.dimension)
+        {
+            mask = !is.na(private$i.from.values)
+            
+            rv = private$i.to.values[mask, to.dimension]
+            names(rv) = private$i.from.values[mask, from.dimension]
+            
+            rv
         },
         
         do.apply.to.dim.names.or.ontology = function(from.dim.names,
@@ -2428,6 +2484,21 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
             }
             
             rv
+        },
+        
+        do.get.mapping.vector = function(from.values, from.dimension, to.dimension)
+        {
+            if (from.dimension != to.dimension)
+                stop("Cannot get a mapping vector from a combined ontology mapping unless from.dimension == to.dimension")
+            
+            mapping = private$i.sub.mappings$get.mapping.vector(from.values, from.dimension=from.dimension, to.dimension=to.dimension)
+            for (sub.mapping in private$i.sub.mappings[-1])
+            {
+                mapping2 = sub.mappings$get.mapping.vector(mapping, from.dimension=from.dimension, to.dimension=to.dimension)
+                mapping = mapping2[mapping]
+            }
+            
+            mapping
         },
         
         do.apply.to.dim.names.or.ontology = function(from.dim.names,
