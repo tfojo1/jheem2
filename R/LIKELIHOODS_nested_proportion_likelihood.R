@@ -465,9 +465,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (!is.logical(equalize.weight.by.year) || length(equalize.weight.by.year) > 1 || is.null(equalize.weight.by.year) || is.na(equalize.weight.by.year))
                 stop(paste0(error.prefix, "'equalize.weight.by.year' must be a single logical value (T/F)"))
             
-            # *partitioning.function* is a function that accepts an array as input and returns an array of the same dimnames as output. It must have two arguments called "arr" and "version". HOW TO VALIDATE THIS?
-            if (!is.function(partitioning.function) || length(formals(partitioning.function)) != 2 || names(formals(partitioning.function))[[1]] != 'arr' || names(formals(partitioning.function))[[2]] != 'version')
-                stop(paste0(error.prefix, "'partitioning.function' must be a function with only two arguments: 'arr' and 'version'"))
+            # *partitioning.function* is a function that accepts an array as input and returns an array of the same dimnames as output. It must have three arguments called "arr", "version" and "location".
+            if (!is.function(partitioning.function) || length(formals(partitioning.function)) != 3 || names(formals(partitioning.function))[[1]] != 'arr' || names(formals(partitioning.function))[[2]] != 'version' || names(formals(partitioning.function))[[3]] != 'location')
+                stop(paste0(error.prefix, "'partitioning.function' must be a function with only three arguments: 'arr', 'version', and 'location'"))
             
             # PROCESSING #
             omit.years = as.integer(omit.years)
@@ -865,7 +865,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             locations.possibly.with.n.data = dimnames(data.manager$pull(outcome = private$i.denominator.outcome.for.data,
                                                                         keep.dimensions = c('year', 'location', model.stratification),
                                                                         dimension.values = list(location = setdiff(observation.locations, location), year = years.with.data)))$location
-            print("Calculating obs.n")
+            # print("Calculating obs.n")
+            # browser()
             obs.n.info = private$get.obs.n(data.manager = data.manager,
                                            stratification = model.stratification,
                                            locations.with.n.data = locations.possibly.with.n.data,
@@ -929,7 +930,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             metalocation.info.for.conditioning.without.msa = metalocation.info.for.conditioning[locations.with.n.data,]
 
             # --- N MULTIPLIERS --- #
-            print("Calculating n.multipliers")
+            # print("Calculating n.multipliers")
             private$i.year.metalocation.n.multipliers = private$get.n.multipliers(metalocation.to.minimal.component.map = metalocation.to.minimal.component.map,
                                                                                   metalocation.type = metalocation.type,
                                                                                   main.location = location,
@@ -1212,6 +1213,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         
         get.n.multipliers = function(metalocation.to.minimal.component.map, metalocation.type, main.location, stratification, sim.ontology, model.strata, data.manager, outcome, years)
         {
+            # browser()
             n.metalocations = length(metalocation.to.minimal.component.map)
             n.years = length(years)
             model.arr.dimnames = sim.ontology[names(sim.ontology) %in% c('year', stratification)]
@@ -1251,6 +1253,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         
         get.outcome.ratios = function(location.1, location.2, stratification, data.manager, outcome, years, universal.ontology)
         {
+            # if (identical(stratification, 'sex')) browser()
+            # if (is.null(stratification)) browser()
             # Pull data for each location. Later, we will map them to an aligning ontology.
             keep.dimensions = c('year', stratification)
             location.data = lapply(list(location.1, location.2), function(location) {
@@ -1264,10 +1268,11 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 # if there is data for multiple sources, take the geometric mean of the values for each source, then remove source as a dimension.
                 if (!is.null(data)) {
                     if (dim(data)[['source']] > 1) {
-                        count.not.na = apply(data, MARGIN=names(dim(data))[names(dim(data)) != 'source'], FUN=function(x) {sum(!is.na(x))})
+                        data.dimnames.without.source=dimnames(data)[names(dimnames(data))!= 'source']
+                        count.not.na = apply.robust(data, MARGIN=names(data.dimnames.without.source), FUN=function(x) {sum(!is.na(x))})
                         expanded.count.not.na = expand.array(count.not.na, dimnames(data))
                         data[is.na(data) & expanded.count.not.na != 0] = 1
-                        output.before.replacement = apply(data, MARGIN=names(dim(data))[names(dim(data)) != 'source'], FUN=prod) ^ (1 / count.not.na)
+                        output.before.replacement = apply.robust(data, MARGIN=names(dim(data))[names(dim(data)) != 'source'], FUN=prod) ^ (1 / count.not.na)
                     } else {
                         new.dimnames = dimnames(data)[names(dimnames(data)) != 'source']
                         output.before.replacement = array(data, dim = sapply(new.dimnames, length), new.dimnames)
@@ -1436,10 +1441,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             # If data from multiple sources, take geometric mean. Then get rid of source dimension
             if (!is.null(data)) {
                 if (dim(data)[['source']] > 1) {
-                    count.not.na = apply(data, MARGIN=names(dim(data))[names(dim(data)) != 'source'], FUN=function(x) {sum(!is.na(x))})
+                    count.not.na = apply.robust(data, MARGIN=names(dim(data))[names(dim(data)) != 'source'], FUN=function(x) {sum(!is.na(x))})
                     expanded.count.not.na = expand.array(count.not.na, dimnames(data))
                     data[is.na(data) & expanded.count.not.na != 0] = 1
-                    data = apply(data, MARGIN=names(dim(data))[names(dim(data)) != 'source'], FUN=prod) ^ (1 / count.not.na)
+                    data = apply.robust(data, MARGIN=names(dim(data))[names(dim(data)) != 'source'], FUN=prod) ^ (1 / count.not.na)
                 } else {
                     new.dimnames = dimnames(data)[names(dimnames(data)) != 'source']
                     data = array(data, dim = sapply(new.dimnames, length), new.dimnames)
