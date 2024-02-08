@@ -2881,6 +2881,7 @@ JHEEM = R6::R6Class(
         #    The value.times for a quantity is the union of all the *top.level.self.times* for any
         #       top.level.quantity that depends on this quantity (including itself),
         #       and *outcome.non.cumulative.self.times* for any outcome that depends on this quantity
+        #       and *element.background.self.times* (if this is an element)
         calculate.quantity.value.times = function(quantity.name)
         {
             if (private$i.quantity.is.static[quantity.name])
@@ -2902,8 +2903,18 @@ JHEEM = R6::R6Class(
                 sapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
                 
                 # Value times is the union of these times
-                private$i.quantity.value.times[[quantity.name]] = union_sorted_vectors(c(private$i.top.level.self.times[dynamic.top.level.quantities],
-                                                                                         private$i.outcome.non.cumulative.self.times[dynamic.outcomes]))
+                
+                if (private$is.element.name(quantity.name))
+                {
+                    private$i.quantity.value.times[[quantity.name]] = union_sorted_vectors(c(private$i.element.background.self.times[quantity.name],
+                                                                                             private$i.top.level.self.times[dynamic.top.level.quantities],
+                                                                                             private$i.outcome.non.cumulative.self.times[dynamic.outcomes]))
+                }
+                else
+                {
+                    private$i.quantity.value.times[[quantity.name]] = union_sorted_vectors(c(private$i.top.level.self.times[dynamic.top.level.quantities],
+                                                                                             private$i.outcome.non.cumulative.self.times[dynamic.outcomes]))
+                }
             }
             
             invisible(self)
@@ -3148,6 +3159,9 @@ JHEEM = R6::R6Class(
         # The *top.level.self.times* for a top.level.quantity is the union of:
         #   All *element.background.self.times* for any element that the quantity depends on
         #   All *quantity.foreground.self.times* for any quantity that the top.level.quantity depends on
+        # Subsetted to be all the times > i.run.from.time and < i.run.to.time
+        #   PLUS the last time <= i.run.from.time (if there is one)
+        #   PLUS the first time >= i.run.to.time (if there is one)
         calculate.top.level.self.times = function(top.level.name)
         {
             if (private$i.quantity.is.static[top.level.name])
@@ -3169,8 +3183,25 @@ JHEEM = R6::R6Class(
                 sapply(dynamic.dependee.quantities[null.dependee.quantity.times.mask], private$calculate.quantity.foreground.self.times)
                 
                 # top.level.self.times is the union of these times
-                private$i.top.level.self.times[[top.level.name]] = union_sorted_vectors(c(private$i.element.background.self.times[dynamic.dependee.elements],
-                                                                                          private$i.quantity.foreground.self.times[dynamic.dependee.quantities]))
+                all.possible.self.times = union_sorted_vectors(c(private$i.element.background.self.times[dynamic.dependee.elements],
+                                                                 private$i.quantity.foreground.self.times[dynamic.dependee.quantities]))
+                
+                before.run.from.time.mask = all.possible.self.times <= private$i.run.from.time 
+                after.run.to.time.mask = all.possible.self.times >= private$i.run.to.time
+                
+                if (any(before.run.from.time.mask))
+                    last.before.run.time = all.possible.self.times[before.run.from.time.mask][sum(before.run.from.time.mask)]
+                else
+                    last.before.run.time = numeric()
+                
+                if (any(after.run.to.time.mask))
+                    first.after.run.time = all.possible.self.times[after.run.to.time.mask][1]
+                else
+                    first.after.run.time = numeric()
+                
+                private$i.top.level.self.times[[top.level.name]] = c(last.before.run.time,
+                                                                     all.possible.self.times[!before.run.from.time.mask & !after.run.to.time.mask],
+                                                                     first.after.run.time)
             }
             
             invisible(self)
