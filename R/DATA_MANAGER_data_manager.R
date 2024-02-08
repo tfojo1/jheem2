@@ -1364,7 +1364,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             sources.successful.names = c()
             
             ## FOR THE FUTURE: DO A PRETEND PULL TO SEE WHAT ONTOLOGIES WE NEED, THEN POTENTIALLY REMAKE THE UNIVERSAL WITH ONLY THOSE
-            if (debug) browser()
+            # if (debug) browser()
             pre.processed.data = lapply(sources.used.names, function(source.name) {
                 
                 source.ontology.names = names(private$i.data[[outcome]][[metric]][[source.name]])
@@ -1680,10 +1680,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     
                     overall.dim.names = c(dimnames(data.by.source[[1]]), list(source=sources.successful.names))
                     
-                    # if more than one source, the overall.dim.names will have the union of all incomplete dimension values
+                    # if more than one source, the overall.dim.names will have the union of all incomplete dimension values... sorted!
                     if (length(data.by.source) > 1) {
                         incomplete.dimension.values = lapply(incomplete.dimensions(target.ontology), function(d) {
-                            unique(unlist(lapply(data.by.source, function(src) {dimnames(src)[[d]]})))
+                            sort(unique(unlist(lapply(data.by.source, function(src) {dimnames(src)[[d]]}))))
                         })
                         incomplete.dimension.values = incomplete.dimension.values[!sapply(incomplete.dimension.values, is.null)]
                         overall.dim.names[names(overall.dim.names) %in% incomplete.dimensions(target.ontology)] = incomplete.dimension.values
