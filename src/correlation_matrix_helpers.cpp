@@ -56,6 +56,29 @@ NumericVector get_obs_error_correlation_matrix(NumericVector cor_mat,
 }
 
 
+// [[Rcpp::export]]
+NumericVector get_multiplier_correlation_matrix(NumericVector cor_mat,
+                                                int n_obs,
+                                                NumericVector year,
+                                                double correlation_different_year,
+                                                bool is_autoregressive_one) {
+    if (n_obs < 1) return cor_mat;
+    
+    for (int i = 0; i < n_obs - 1; i++) {
+        for (int j = i + 1; j < n_obs; j++) {
+            if (year[i] != year[j]) {
+                if (is_autoregressive_one)
+                    cor_mat[j * n_obs + i] *= pow(correlation_different_year, abs(year[j] - year[i]));
+                else
+                    cor_mat[j * n_obs + i] *= correlation_different_year;
+            }
+            cor_mat[i * n_obs + j] = cor_mat[j * n_obs + i];
+        }
+    }
+    
+    return cor_mat;
+}
+
 /***
 
 # Add an 'R' after the last * to reactivate this code for testing.
