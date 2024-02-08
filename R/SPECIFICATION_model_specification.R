@@ -1137,7 +1137,7 @@ register.transition <- function(specification,
                                 from.compartments,
                                 to.compartments,
                                 value,
-                                groups=NULL,
+                                groups,
                                 applies.to=list(),
                                 tag='transition',
                                 na.replacement = as.numeric(NA),
@@ -2265,6 +2265,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                                                   scale = 'rate',
                                                                                   error.prefix = error.prefix)
             
+            private$check.groups(groups)
+            
             for (one.group in groups)
             {
                 args = list(group = one.group,
@@ -2307,6 +2309,9 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                                                      value.name = 'birth.proportions.value',
                                                                                      scale = 'proportion',
                                                                                      error.prefix = error.prefix)
+            
+            private$check.groups(parent.groups, 'parent.groups')
+            private$check.groups(child.groups, 'child.groups')
             
             for (one.parent.group in parent.groups)
             {
@@ -2391,6 +2396,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                                       value.name = 'aging.rate.value',
                                                                       scale = 'rate',
                                                                       error.prefix = error.prefix)
+            
+            private$check.groups(groups)
             
             for (one.group in groups)
             {
@@ -2487,13 +2494,24 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                        from.compartments,
                                        to.compartments,
                                        value,
-                                       groups=NULL,
+                                       groups,
                                        applies.to=list(),
                                        tag='default',
                                        na.replacement = as.numeric(NA),
                                        ...,
                                        error.prefix = "Error registering transition: ")
         {
+            if (!is.character(dimension) || length(dimension)!=1 || is.na(dimension))
+                stop("'dimension' must be a single, non-NA, character value")
+            
+            private$check.groups(groups)
+            
+            for (group in groups)
+            {
+                if (all(dimension!=names(private$i.ontologies[[group]])))
+                    stop(paste0("'", dimension, "' is not a valid dimension for the ", group, " group"))
+            }
+            
             transition.rate.quantity.name = private$do.register.quantity.if.needed(value = value,
                                                                            value.name = 'value',
                                                                            scale = 'rate',
@@ -2612,7 +2630,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                     
                                     include.tags = NULL,
                                     exclude.tags = NULL,
-                                    groups = NULL,
+                                    groups,
                                     sub.versions = NULL,
                                     
                                     multiply.by = NULL,
@@ -2628,7 +2646,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
             multiply.by = private$do.register.quantity.if.needed(value = multiply.by,
                                                                  value.name = 'multiply.by',
                                                                  error.prefix = "Error processing 'multiply.by' for tracked transition: ")
-                
+            
+            
             outcome = TRANSITION.MODEL.OUTCOME$new(name = name,
                                                    version = self$version,
                                                    sub.versions = sub.versions,
@@ -3098,6 +3117,20 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                           ifelse(length(private$i.sub.versions)==1, "", "one of "),
                                           collapse.with.or("'", private$i.sub.versions, "'")
                                    ))))
+        },
+    
+        check.groups = function(groups, groups.name.for.error='groups')
+        {
+            if (!is.character(groups) || length(groups)==0 || any(is.na(groups)))
+                stop("'groups' must be a non-empty character vector with no NA values")
+            
+            allowed.groups = c('uninfected','infected')
+            invalid.groups = setdiff(groups, allowed.groups)
+            if (length(invalid.groups)>1)
+                stop(paste0(collapse.with.and("'", invalid.groups, "'"),
+                            ifelse(length(invalid.groups)==1, " is not a valid value", " are not valid values"),
+                            " for '", groups.name.for.error, "' - which must be either ",
+                            collapse.with.or("'", allowed.groups, "'")))
         },
         
         get.unique.internal.name = function()
