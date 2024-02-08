@@ -159,7 +159,7 @@ join.simulation.sets <- function(..., finalize=T, run.metadata=NULL)
     # all simsets should have the same metadata. This will require implementing an equals() method in simulation metadata class
     
     new.n.sim = sum(sapply(simset.list, function(simset) {simset$n.sim}))
-    
+
     sample.simset = simset.list[[1]]
     outcomes = sample.simset$outcomes
     
@@ -641,6 +641,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                              years.can.be.missing = F,
                              from.year = from.year,
                              to.year = to.year,
+                             n.sim = n.sim,
                              error.prefix = error.prefix)
             
             #-- Check engine if it is not NULL --#
@@ -822,8 +823,10 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                        ...,
                        check.consistency = T,
                        drop.single.outcome.dimension = T,
-                       drop.single.sim.dimension = F,
+                       drop.single.sim.dimension = F, # BE CAREFUL WITH THE NEW SUMMARY CODE!
                        replace.inf.values.with.zero = T,
+                       summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
+                       interval.coverage = 0.95,
                        error.prefix = "Error getting simulation results: ",
                        debug=F)
         {
@@ -926,9 +929,28 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 
                 output.array
             })
-            
+
             dim(rv) = sapply(dim.names, length)
             dimnames(rv) = dim.names
+            if (summary.type == 'mean.and.interval') {
+                alpha = (1-interval.coverage)/2
+                rv = apply(rv, setdiff(names(dim.names), 'sim'), function(x) {
+                    c(mean(x), quantile(x, probs=c(alpha, 1-alpha)))
+                })
+                new.dim.names = c(list(metric=c('mean', 'lower', 'upper')), dim.names[setdiff(names(dim.names), 'sim')])
+                dim(rv) = sapply(new.dim.names, length)
+                dimnames(rv) = new.dim.names
+            }
+            if (summary.type == 'median.and.interval') {
+                alpha = (1-interval.coverage)/2
+                rv = apply(rv, setdiff(names(dim.names), 'sim'), function(x) {
+                    c(median(x), quantile(x, probs=c(alpha, 1-alpha)))
+                })
+                new.dim.names = c(list(metric=c('mean', 'lower', 'upper')), dim.names[setdiff(names(dim.names), 'sim')])
+                dim(rv) = sapply(new.dim.names, length)
+                dimnames(rv) = new.dim.names
+            }
+            
             rv
         },
         
