@@ -1034,7 +1034,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 names(depends.on.ambiguous.as.outcomes) = names(depends.on.ambiguous.as.quantities) = outcome$depends.on.quantities.or.outcomes
             
                 ambiguous.is.outcome = !as.logical(sapply(depends.on.ambiguous.as.outcomes, is.null)) & 
-                    sapply(depends.on.ambiguous.as.outcomes, function(out){out$original.name}) != outcome$original
+                    sapply(depends.on.ambiguous.as.outcomes, function(out){out$original.name}) != outcome$original.name
                 
                 ambiguous.is.quantity = !ambiguous.is.outcome & !as.logical(sapply(depends.on.ambiguous.as.quantities, is.null))
                 
