@@ -17,8 +17,12 @@ void do_convert_scale(double *values,
     if (from_scale[0]==to_scale[0] ||
         (from_scale[0]=="proportion" && to_scale[0]=="proportion.leaving") ||
         (from_scale[0]=="proportion.leaving" && to_scale[0]=="proportion") ||
+        (from_scale[0]=="proportion.staying" && to_scale[0]=="complementary.proportion") ||
+        (from_scale[0]=="complementary.proportion" && to_scale[0]=="proportion.staying") ||
         (from_scale[0]=="odds" && to_scale[0]=="odds.leaving") ||
         (from_scale[0]=="odds.leaving" && to_scale[0]=="odds") ||
+        (from_scale[0]=="odds.staying" && to_scale[0]=="inverse.odds") ||
+        (from_scale[0]=="inverse.odds" && to_scale[0]=="odds.staying") ||
         (from_scale[0]=="non.negative.number" && to_scale[0]=="number"))
     {} // do nothing
     else if ((from_scale[0]=="number" || from_scale[0]=="non.negative.number") &&
@@ -31,7 +35,7 @@ void do_convert_scale(double *values,
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = 1 - std::exp(values[ indices[i] ]);
         }
-        else if (to_scale[0]=="proportion.staying")
+        else if (to_scale[0]=="proportion.staying" || to_scale[0]=="complementary.proportion")
         {
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = std::exp(-values[ indices[i] ]);
@@ -46,7 +50,7 @@ void do_convert_scale(double *values,
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = std::exp(values[ indices[i] ]) - 1;
         }
-        else if (to_scale[0]=="odds.staying")
+        else if (to_scale[0]=="odds.staying" || to_scale[0]=="inverse.odds")
         {
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = 1 / (std::exp(values[ indices[i] ]) - 1);
@@ -59,7 +63,7 @@ void do_convert_scale(double *values,
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = -std::log(1-values[ indices[i] ]);
         }
-        else if (to_scale[0]=="proportion.staying")
+        else if (to_scale[0]=="proportion.staying" || to_scale[0]=="complementary.proportion")
         {
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = 1 - values[ indices[i] ];
@@ -74,13 +78,13 @@ void do_convert_scale(double *values,
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = values[ indices[i] ] / (1 - values[ indices[i] ]);
         }
-        else if (to_scale[0]=="odds.staying")
+        else if (to_scale[0]=="odds.staying" || to_scale[0]=="inverse.odds")
         {
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = (1 - values[ indices[i] ]) / values[ indices[i] ];
         }
     }
-    else if (from_scale[0]=="proportion.staying")
+    else if (from_scale[0]=="proportion.staying" || from_scale[0]=="complementary.proportion")
     {
         if (to_scale[0]=="rate")
         {
@@ -102,7 +106,7 @@ void do_convert_scale(double *values,
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = (1 - values[ indices[i] ]) / values[ indices[i] ];
         }
-        else if (to_scale[0]=="odds.staying")
+        else if (to_scale[0]=="odds.staying" || to_scale[0]=="inverse.odds")
         {
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = values[ indices[i] ] / (1 - values[ indices[i] ]);
@@ -120,7 +124,7 @@ void do_convert_scale(double *values,
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = 1 - std::exp(-1/values[ indices[i] ]);
         }
-        else if (to_scale[0]=="proportion.staying")
+        else if (to_scale[0]=="proportion.staying" || to_scale[0]=="complementary.proportion")
         {
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = std::exp(-1/values[ indices[i] ]);
@@ -130,7 +134,7 @@ void do_convert_scale(double *values,
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = std::exp(1/values[ indices[i] ]) - 1;
         }
-        else if (to_scale[0]=="odds.staying")
+        else if (to_scale[0]=="odds.staying" || to_scale[0]=="inverse.odds")
         {
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = 1 / (std::exp(1/values[ indices[i] ]) - 1);
@@ -148,7 +152,7 @@ void do_convert_scale(double *values,
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = values[ indices[i] ] / (1 + values[ indices[i] ]);
         }
-        else if (to_scale[0]=="proportion.staying")
+        else if (to_scale[0]=="proportion.staying" || to_scale[0]=="complementary.proportion")
         {
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = 1 - values[ indices[i] ] / (1 + values[ indices[i] ]);
@@ -157,13 +161,13 @@ void do_convert_scale(double *values,
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = 1 / (std::log(values[ indices[i] ] + 1));
         }
-        else if (to_scale[0]=="odds.staying")
+        else if (to_scale[0]=="odds.staying" || to_scale[0]=="inverse.odds")
         {
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = 1 / values[ indices[i] ];
         }
     }
-    else if (from_scale[0]=="odds.staying")
+    else if (from_scale[0]=="odds.staying" || from_scale[0]=="inverse.odds")
     {
         if (to_scale[0]=="rate")
         {
@@ -175,7 +179,7 @@ void do_convert_scale(double *values,
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = 1 - values[ indices[i] ] / (1 + values[ indices[i] ]);
         }
-        else if (to_scale[0]=="proportion.staying")
+        else if (to_scale[0]=="proportion.staying" || to_scale[0]=="complementary.proportion")
         {
             for (int i=0; i<n; i++)
                 values[ indices[i] ] = values[ indices[i] ] / (1 + values[ indices[i] ]);
@@ -197,6 +201,22 @@ void do_convert_scale(double *values,
     return;
 }
 
+bool are_scales_inverse_of_each_other(CharacterVector scale1,
+                                      CharacterVector scale2)
+{
+    bool scale1_is_inverted = scale1[0]=="proportion.staying" ||
+        scale1[0]=="complementary.proportion" ||
+        scale1[0]=="odds.staying" ||
+        scale1[0]=="inverse.odds";
+    
+    bool scale2_is_inverted = scale2[0]=="proportion.staying" ||
+        scale2[0]=="complementary.proportion" ||
+        scale2[0]=="odds.staying" ||
+        scale2[0]=="inverse.odds";
+    
+    return (scale1_is_inverted != scale2_is_inverted);
+}
+
 // a function that actually overwrites foreground values into an array
 NumericVector do_foreground_overwrite(NumericVector arr,
                                       double *scratch_arr,
@@ -216,6 +236,15 @@ NumericVector do_foreground_overwrite(NumericVector arr,
                                       IntegerVector indices,
                                       int n_indices)
 {
+    // if scales are inverse of each other swap allow_less and allow_greater
+    if (are_scales_inverse_of_each_other(scale, effect_scale))
+    {
+        bool tmp = allow_less;
+        allow_less = allow_greater;
+        allow_greater = tmp;
+    }
+    
+    // now apply it
     if (effect_is_multiplier)
     {
         if ((allow_less || val > 1) &&
@@ -225,8 +254,13 @@ NumericVector do_foreground_overwrite(NumericVector arr,
                              scale, effect_scale,
                              indices.begin(), n_indices);
             
+//            Rcout << "   arr[" << indices[0] << "] = " << arr[indices[0]] << "\n";
+//            Rcout << "     multiply by " << val << "\n";
+            
             for (int k=0; k<n_indices; k++)
                 arr[ indices[k] ] *= val;
+
+//            Rcout << "   --> " << arr[indices[0]] << "\n";
             
             do_convert_scale(arr.begin(),
                              effect_scale, scale,
@@ -445,7 +479,6 @@ List apply_foregrounds(List values,
             last_end_time = one_end_time;
     }
     
-    
     //-- Map the times to apply to to indices --//
     //   (we only care about indices in the range of the foregrounds)
     int indices_to_apply_to[times_to_apply_to.length()];
@@ -465,6 +498,7 @@ List apply_foregrounds(List values,
         }
     }
     
+ //   return(List::create(Named("values") = values , _["after.values"] = after_values));
     if (n_values_to_apply_to > 0)
     {
         //-- Now, make sure each value points to a distinct object --//
@@ -494,7 +528,7 @@ List apply_foregrounds(List values,
                 if (i != j && v.begin() == v_check.begin())
                 {
                     v = NumericVector(v.length());
-                    for (int k=0; i<v.length(); k++)
+                    for (int k=0; k<v.length(); k++)
                         v[k] = v_check[k];
                     
                     values[i] = v;
@@ -510,7 +544,7 @@ List apply_foregrounds(List values,
                 if (v_after.begin() == v_check.begin())
                 {
                     v_after = NumericVector(v_after.length());
-                    for (int k=0; i<v_after.length(); k++)
+                    for (int k=0; k<v_after.length(); k++)
                         v_after[k] = v_check[k];
                     
                     after_values[i] = v_after;
@@ -523,7 +557,7 @@ List apply_foregrounds(List values,
                     if (v_after.begin() == v_check.begin())
                     {
                         v_after = NumericVector(v_after.length());
-                        for (int k=0; i<v_after.length(); k++)
+                        for (int k=0; k<v_after.length(); k++)
                             v_after[k] = v_check[k];
                         
                         after_values[i] = v_after;
@@ -532,8 +566,6 @@ List apply_foregrounds(List values,
                 }
             }
         }
-        
-    //    return (List::create(Named("values") = values , _["after.values"] = after_values));
         
         //-- set up a scratch array for converting the scale of first or last values --//
         NumericVector first_value = values[0];
@@ -598,7 +630,7 @@ List apply_foregrounds(List values,
                 double weight_before, weight_after;
                 bool have_copied_start_val = false;
                 bool have_copied_end_val = false;
-             
+                
 // Rcout << "n_values_to_apply_to = " << n_values_to_apply_to << ", n_effect_times = " << n_effect_times << "\n";
                 // We're going to do two nested loops
                 // 1) An outer loop (over j) that goes through effect times
@@ -656,28 +688,29 @@ List apply_foregrounds(List values,
                             
                             if (time_before == R_NegInf)
                             {
-                                weight_before = 1;
-                                weight_after = 0;
-                                val = val_to_write_after = val_before;
-                            }
-                            else if (time_after == R_PosInf)
-                            {
                                 weight_before = 0;
                                 weight_after = 1;
                                 val = val_to_write_after = val_after;
+                            }
+                            else if (time_after == R_PosInf)
+                            {
+                                weight_before = 1;
+                                weight_after = 0;
+                                val = val_to_write_after = val_before;
                             }
                             else
                             {
                                 weight_before = (time_after - value_times[i]) / (time_after - time_before);
                                 weight_after = 1 - weight_before;
                                 val = val_to_write_after = weight_before * val_before + weight_after * val_after;
+                                
                             }
                             
                             interpolate_abs_start = j==-1;
                             interpolate_abs_end = j==n_effect_times;
                         }
                         
-                        // If we need to, copy the start or end values into scratch_arr
+                        
                         //   and transform them into the scale for interpolating
                         if (interpolate_abs_start && !have_copied_start_val)
                         {
@@ -700,10 +733,12 @@ List apply_foregrounds(List values,
                             have_copied_end_val = false; //theoretically shouldn't need to mess with this flag, but will just to protect against future changes in flow
                         }
                         
+                        // If we need to, copy the start or end values into scratch_arr
                         if (interpolate_abs_end && !have_copied_end_val)
                         {
                             int end_value_index = i;
-                            while (value_times[end_value_index] != end_time && end_value_index < n_times)
+                            
+                            while (value_times[end_value_index] != end_time && end_value_index < (n_times-1))
                                 end_value_index++;
                             // Assuming that one of the value_times == end_time, then start_value index will point at that value/time
                             //  And in our R code in the engine, we require that if any time between the last effect time and end time is 
@@ -720,10 +755,15 @@ List apply_foregrounds(List values,
                             have_copied_start_val = false; //theoretically shouldn't need to mess with this flag, but will just to protect against future changes in flow
                             have_copied_end_val = true;
                         }
-
+                        
+// Rcout << "   write_value? -> " << write_value << "\n";
+                        
+                        // If we need to, copy the start or end values into scratch_arr
                         // do the overwrite
                         if (write_value)
                         {
+                            
+//                            Rcout << "   weight_before = " << weight_before << "\n";
 // Rcout << "Overwrite at time " << value_times[i] << "\n";
                             values[i] = do_foreground_overwrite(values[i],
                                                                 scratch_arr,
@@ -769,6 +809,9 @@ List apply_foregrounds(List values,
                         i_index++;
                         if (i_index < n_values_to_apply_to) //if this condition is false, the condition in the while loop will catch it
                             i = indices_to_apply_to[i_index];
+                        
+                        
+                        //    return (List::create(Named("values") = values , _["after.values"] = after_values));
                     }
                     
                     // update for the next iteration of the loop
@@ -790,6 +833,8 @@ List apply_foregrounds(List values,
                         val_after = effect_values[j];
                         time_after = effect_times[j];
                     }
+                    
+                    
                 }
             }
         }

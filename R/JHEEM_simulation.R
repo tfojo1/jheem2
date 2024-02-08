@@ -116,6 +116,35 @@ create.single.simulation <- function(version,
                              is.degenerate = is.degenerate)
 }
 
+derive.degenerate.simulation <- function(sim)
+{
+    outcome.numerators = lapply(sim$data$outcome.numerators, function(num){
+        num[] = as.numeric(NA)
+        num
+    })
+    
+    outcome.denominators = lapply(sim$data$outcome.numerators, function(denom){
+        if (!is.null(denom))
+            denom[] = as.numeric(NA)
+        denom
+    })
+    
+    create.single.simulation(version = sim$version,
+                             sub.version = sim$sub.version,
+                             location = sim$location,
+                             outcome.numerators = outcome.numerators,
+                             outcome.denominators = outcome.denominators,
+                             parameters = sim$parameters,
+                             from.year = sim$from.year,
+                             to.year = sim$to.year,
+                             intervention.code = sim$intervention.code,
+                             calibration.code = sim$calibration.code,
+                             outcome.location.mapping = sim$outcome.location.mapping,
+                             run.metadata = sim$run.metadata,
+                             finalize = sim$is.finalized,
+                             is.degenerate = T)
+}
+
 join.simulation.sets <- function(..., finalize=T, run.metadata=NULL)
 {
     # Validate

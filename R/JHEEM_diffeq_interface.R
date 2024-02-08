@@ -53,10 +53,16 @@ create.diffeq.settings <- function(jheem, error.prefix)
     pop.outcomes.mask = sapply(dynamic.outcomes, function(outcome){outcome$dynamic.quantity.name})=='population'
     pop.outcomes = dynamic.outcomes[pop.outcomes.mask]
     settings$population.outcomes = list()
+    
     for (group in names(DIFFEQ.GROUP.INDICES))
     {
-        group.mask = sapply(pop.outcomes, function(outcome){any(outcome$groups==group)})
-        settings$population.outcomes[[group]] = pop.outcomes[group.mask]
+        if (any(pop.outcomes.mask))
+        {
+            group.mask = sapply(pop.outcomes, function(outcome){any(outcome$groups==group)})
+            settings$population.outcomes[[group]] = pop.outcomes[group.mask]
+        }
+        else
+            settings$population.outcomes[[group]] = list()
     }
     
     settings$population.tracker.dependencies = lapply(settings$population.outcomes, function(pop.outcomes){

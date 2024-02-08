@@ -4,36 +4,56 @@
 MODEL.SCALE.INFO = list(
     rate = list(needs.denominator = T,
                 aggregate.on.scale = 'rate',
-                unbounded.transformation = get.link('log')),
+                unbounded.transformation = get.link('log'),
+                is.inverse = F),
     ratio = list(needs.denominator = NA,
-                 unbounded.transformation = get.link('log')),
+                 unbounded.transformation = get.link('log'),
+                 aggregate.on.scale = NA,
+                 is.inverse = F),
     proportion = list(needs.denominator = T,
                       aggregate.on.scale = 'proportion',
-                      unbounded.transformation = get.link('logit')),
+                      unbounded.transformation = get.link('logit'),
+                      is.inverse = F),
     proportion.leaving = list(needs.denominator = T,
                               aggregate.on.scale = 'proportion.leaving',
-                              unbounded.transformation = get.link('logit')),
+                              unbounded.transformation = get.link('logit'),
+                              is.inverse = F),
     proportion.staying = list(needs.denominator = T,
                               aggregate.on.scale = 'proportion.staying',
-                              unbounded.transformation = get.link('logit')),
+                              unbounded.transformation = get.link('logit'),
+                              is.inverse = F),
+    complementary.proportion = list(needs.denominator = T,
+                              aggregate.on.scale = 'complementary.proportion',
+                              unbounded.transformation = get.link('logit'),
+                              is.inverse = F),
     time = list(needs.denominator = T,
                 aggregate.on.scale = 'time',
-                unbounded.transformation = get.link('log')),
+                unbounded.transformation = get.link('log'),
+                is.inverse = F),
     number = list(needs.denominator = F,
                   aggregate.on.scale = 'number',
-                  unbounded.transformation = get.link('identity')),
+                  unbounded.transformation = get.link('identity'),
+                  is.inverse = F),
     non.negative.number = list(needs.denominator = F,
                                aggregate.on.scale = 'non.negative.number',
-                               unbounded.transformation = get.link('log')),
+                               unbounded.transformation = get.link('log'),
+                               is.inverse = F),
     odds = list(needs.denominator = T,
                 aggregate.on.scale = 'proportion',
-                unbounded.transformation = get.link('log')),
+                unbounded.transformation = get.link('log'),
+                is.inverse = F),
     odds.leaving = list(needs.denominator = T,
                         aggregate.on.scale = 'proportion.leaving',
-                        unbounded.transformation = get.link('log')),
+                        unbounded.transformation = get.link('log'),
+                        is.inverse = F),
     odds.staying = list(needs.denominator = T,
                         aggregate.on.scale = 'proportion.staying',
-                        unbounded.transformation = get.link('log'))
+                        unbounded.transformation = get.link('log'),
+                        is.inverse = T),
+    inverse.odds = list(needs.denominator = T,
+                        aggregate.on.scale = 'proportion.staying',
+                        unbounded.transformation = get.link('log'),
+                        is.inverse = T)
 )
 
 MODEL.SCALES = names(MODEL.SCALE.INFO)
@@ -86,8 +106,12 @@ convert.model.scale <- function(values,
     if (convert.from.scale==convert.to.scale ||
         (convert.from.scale=='proportion' && convert.to.scale=='proportion.leaving') ||
         (convert.from.scale=='proportion.leaving' && convert.to.scale=='proportion') ||
+        (convert.from.scale=='proportion.staying' && convert.to.scale=='complementary.proportion') ||
+        (convert.from.scale=='complementary.proportion' && convert.to.scale=='proportion.staying') ||
         (convert.from.scale=='odds' && convert.to.scale=='odds.leaving') ||
         (convert.from.scale=='odds.leaving' && convert.to.scale=='odds') ||
+        (convert.from.scale=='odds.staying' && convert.to.scale=='inverse.odds') ||
+        (convert.from.scale=='inverse.odds' && convert.to.scale=='odds.staying') ||
         (convert.from.scale=='non.negative.number' && convert.to.scale=='number'))
     {
         values
@@ -122,8 +146,12 @@ do.convert.model.scale <- function(values,
     if (convert.from.scale==convert.to.scale ||
         (convert.from.scale=='proportion' && convert.to.scale=='proportion.leaving') ||
         (convert.from.scale=='proportion.leaving' && convert.to.scale=='proportion') ||
+        (convert.from.scale=='proportion.staying' && convert.to.scale=='complementary.proportion') ||
+        (convert.from.scale=='complementary.proportion' && convert.to.scale=='proportion.staying') ||
         (convert.from.scale=='odds' && convert.to.scale=='odds.leaving') ||
         (convert.from.scale=='odds.leaving' && convert.to.scale=='odds') ||
+        (convert.from.scale=='odds.staying' && convert.to.scale=='inverse.odds') ||
+        (convert.from.scale=='inverse.odds' && convert.to.scale=='odds.staying') ||
         (convert.from.scale=='non.negative.number' && convert.to.scale=='number'))
         values
     else if (convert.from.scale=='ratio' || convert.to.scale=='ratio')
@@ -177,13 +205,13 @@ do.convert.model.scale <- function(values,
     {
         if (convert.to.scale=='proportion' || convert.to.scale=='proportion.leaving')
             1-exp(-values)
-        else if (convert.to.scale=='proportion.staying')
+        else if (convert.to.scale=='proportion.staying' || convert.to.scale=='complementary.proportion')
             exp(-values)
         else if (convert.to.scale=='time')
             1/values
         else if (convert.to.scale=='odds' || convert.to.scale=='odds.leaving')
             exp(values) - 1
-        else if (convert.to.scale=='odds.staying')
+        else if (convert.to.scale=='odds.staying' || convert.to.scale=='inverse.odds')
             1 / (exp(values)-1)
         else
             stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
@@ -192,18 +220,18 @@ do.convert.model.scale <- function(values,
     {
         if (convert.to.scale=='rate')
             -log(1-values)
-        else if (convert.to.scale=='proportion.staying')
+        else if (convert.to.scale=='proportion.staying' || convert.to.scale=='complementary.proportion')
             1-values
         else if (convert.to.scale=='time')
             -1/log(1-values)
         else if (convert.to.scale=='odds' || convert.to.scale=='odds.leaving')
             values / (1-values)
-        else if (convert.to.scale=='odds.staying')
+        else if (convert.to.scale=='odds.staying' || convert.to.scale=='inverse.odds')
             (1-values) / values
         else
             stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
     }
-    else if (convert.from.scale=='proportion.staying')
+    else if (convert.from.scale=='proportion.staying' || convert.from.scale=='complementary.proportion')
     {
         if (convert.to.scale=='rate')
             -log(values)
@@ -213,7 +241,7 @@ do.convert.model.scale <- function(values,
             -1/log(values)
         else if (convert.to.scale=='odds' || convert.to.scale=='odds.leaving')
             (1-values) / values
-        else if (convert.to.scale=='odds.staying')
+        else if (convert.to.scale=='odds.staying' || convert.to.scale=='inverse.odds')
             values / (1-values)
         else
             stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
@@ -224,11 +252,11 @@ do.convert.model.scale <- function(values,
             1/values
         else if (convert.to.scale=='proportion' || convert.to.scale=='proportion.leaving')
             1-exp(-1/values)
-        else if (convert.to.scale=='proportion.staying')
+        else if (convert.to.scale=='proportion.staying' || convert.to.scale=='complementary.proportion')
             exp(-1/values)
         else if (convert.to.scale=='odds' || convert.to.scale=='odds.leaving')
             exp(1/values) - 1
-        else if (convert.to.scale=='odds.staying')
+        else if (convert.to.scale=='odds.staying' || convert.to.scale=='inverse.odds')
             1 / (exp(1/values)-1)
         else
             stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
@@ -239,23 +267,23 @@ do.convert.model.scale <- function(values,
             log(values+1)
         else if (convert.to.scale=='proportion' || convert.to.scale=='proportion.leaving')
             values / (1+values)
-        else if (convert.to.scale=='proportion.staying')
+        else if (convert.to.scale=='proportion.staying' || convert.to.scale=='complementary.proportion')
             1 - values / (1+values)
         else if (convert.to.scale=='time')
             1 / (log(values+1))
-        else if (convert.to.scale=='odds.staying')
+        else if (convert.to.scale=='odds.staying' || convert.to.scale=='inverse.odds')
             1 / values
         else
             stop(paste0(error.prefix, "Invalid scales for conversion: '", convert.from.scale, "' to '", convert.to.scale, "'"))
         
     }
-    else if (convert.from.scale=='odds.staying')
+    else if (convert.from.scale=='odds.staying' || convert.from.scale=='inverse.odds')
     {
         if (convert.to.scale=='rate')
             log(1/values+1)
         else if (convert.to.scale=='proportion' || convert.to.scale=='proportion.leaving')
             1 - values / (1+values)
-        else if (convert.to.scale=='proportion.staying')
+        else if (convert.to.scale=='proportion.staying' || convert.to.scale=='complementary.proportion')
             values / (1+values)
         else if (convert.to.scale=='time')
             1 / (log(1/values+1))

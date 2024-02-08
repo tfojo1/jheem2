@@ -182,10 +182,11 @@ join.standard.interventions <- function(interventions, code, name, parameter.dis
 #'@export
 is.no.intervention <- function(intervention)
 {
-    if (!is(intervention, 'jheem.intervention') && !R6::is.R6(intervention))
-        stop()
+    is(intervention, 'null.intervention')
+#    if (!is(intervention, 'jheem.intervention') && !R6::is.R6(intervention))
+#        stop()
     
-    length(intervention$reduce.to.standard.intervention()$target.element.names) == 0
+#    length(intervention$reduce.to.standard.intervention()$target.element.names) == 0
 }
 
 
@@ -199,7 +200,8 @@ is.no.intervention <- function(intervention)
 #'
 #'@param outcome A character vector indicating the name of the outcome to which the criterion applies
 #'@param target.value A single, numeric value that we want the outcome to get to
-#'@param min.acceptable.value,max.acceptable.value Indicators of the min and max possible values of the outcome we would be willing to accept. Must be either (1) single, numeric values or (2) numeric vectors. In this case, the first value is the min/max threshold after the intervention runs the first chunk, the second is the threshold after the second chunk, etc.
+#'@param min.acceptable.value,max.acceptable.value Indicators of the min and max possible values of the outcome we would be willing to accept. Must be either (1) single, numeric values or (2) numeric vectors. In this case, the first values are the min/max threshold until subsequent.thresholds.apply.after.iteration[1], the second values are the thresholds prior to subsequent.thresholds.apply.after.iteration[2], etc
+#'@param subsequent.thresholds.apply.after.iteration The number of iterations after which the 2nd, 3rd, etc thresholds in min.acceptable.value, max.acceptable.value apply
 #'@param stratify.outcome.by.dimensions A character vector giving the names of dimensions according to which the outcome should be stratified. Each value in the stratified outcome for the sim must approach the target
 #'@param dimension.values The dimension values for which we should pull the outcome. Must be a named list of either character vectors, integer vectors, or logical vectors
 #'@param ... An alternative way of supplying dimensions values - must be named character vectors, integer vectors, or logical vectors
@@ -209,11 +211,12 @@ create.intervention.criterion <- function(outcome,
                                           target.value,
                                           min.acceptable.value,
                                           max.acceptable.value,
+                                          subsequent.thresholds.apply.after.iteration=numeric(),
                                           stratify.outcome.by.dimensions = character(),
                                           dimension.values = list(),
                                           ...,
                                           score.metric = c('normal.with.coefficient.of.variance','normal.with.sqrt.sd','root.squared.error')[1],
-                                          coefficient.of.variance = 0.1,
+                                          coefficient.of.variance = 1,
                                           aggregate.scores.as = c('mean','sum')[1],
                                           weight = 1)
 {
@@ -221,6 +224,7 @@ create.intervention.criterion <- function(outcome,
                                              target.value = target.value,
                                              min.acceptable.value = min.acceptable.value,
                                              max.acceptable.value = max.acceptable.value,
+                                             subsequent.thresholds.apply.after.iteration = subsequent.thresholds.apply.after.iteration,
                                              stratify.outcome.by.dimensions = stratify.outcome.by.dimensions,
                                              dimension.values = dimension.values,
                                              ...,
@@ -237,37 +241,37 @@ create.intervention.criterion <- function(outcome,
 #'@param parameters.to.vary A character vector giving the names of parameters which will vary in trying to satisfy the given criteria
 #'@param parameter.scales
 #'@param initial.parameter.values Either (1) 
-#'@param iterations.per.chunk The number of simulations to run in each chunk of the optimization. Either a single numeric value (the number of iterations for all chunks) or a numeric vector (in which case the first value is the number of iterations for the first chunk, the second the number of iterations for the second chunk, and so on)
-#'@param max.chunks.before.giving.up the maximum number of chunks to run before declaring failure and throwing an error
+#'@param max.iterations The maximum number of iterations to run in trying to satisfy intervention criteria. If criteria are not satisfied after max.iterations, will 'give up' (and either produce degenerate simulations or throw an error, depending on max.failure.rate)
+#'@param n.iterations.after.satisfying.criteria The number of iterations to run after we have satisfied the criteria to try to get as close as possible to the target
+#'@param max.failure.rate The maximum proportion of simulations in a simulation set which can fail to find a solution that satisfies intervention criteria within max.iterations. If this threshold is exceeded, will throw an error; otherwise, will return degenerate simulations when it could not find a solution
 #'@param draw.parameters.from.previous.sims
-#'@param method
 #'
 #'@export
 create.criteria.based.intervention <- function(base.intervention,
                                                completion.criteria,
                                                parameter.scales,
                                                initial.parameter.values,
-                                               iterations.per.chunk,
-                                               max.chunks.before.giving.up,
+                                               max.iterations,
+                                               n.iterations.after.satisfying.criteria = 10,
+                                               max.failure.rate = 0,
                                                code=NULL, 
                                                name=NULL, 
                                                parameter.distribution=NULL,
                                                parameters.to.vary = names(parameter.scales),
-                                               draw.parameters.from.previous.sims = !is.function(initial.parameter.values),
-                                               method = c("Nelder-Mead", "BFGS", "CG", "SANN")[1])
+                                               draw.parameters.from.previous.sims = !is.function(initial.parameter.values))
 {
     CRITERIA.BASED.INTERVENTION$new(base.intervention = base.intervention,
                                     completion.criteria = completion.criteria,
                                     parameter.scales = parameter.scales,
                                     initial.parameter.values = initial.parameter.values,
-                                    iterations.per.chunk = iterations.per.chunk,
-                                    max.chunks.before.giving.up = max.chunks.before.giving.up,
+                                    max.iterations = max.iterations,
+                                    n.iterations.after.satisfying.criteria = n.iterations.after.satisfying.criteria,
+                                    max.failure.rate = max.failure.rate,
                                     code = code,
                                     name = name,
                                     parameter.distribution = parameter.distribution,
                                     parameters.to.vary = parameters.to.vary,
-                                    draw.parameters.from.previous.sims = draw.parameters.from.previous.sims,
-                                    method = method)
+                                    draw.parameters.from.previous.sims = draw.parameters.from.previous.sims)
 }
 
 ##------------------------------------##
@@ -466,22 +470,39 @@ JHEEM.INTERVENTION = R6::R6Class(
                        start.year,
                        end.year,
                        max.run.time.seconds = NULL,
-                       keep.from.year = start.year,
+                       keep.from.year = sim$from.year,
                        keep.to.year = end.year,
                        atol = NULL,
                        rtol = NULL,
                        seed = 12345,
+                       verbose = F,
                        error.prefix='')
         {
+            # Validate arguments
             if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
                 stop("Cannot run intervention: 'error.prefix' must be a single, non-NA character value")
             
             if (!is(sim, 'jheem.simulation.set'))
                 stop(paste0(error.prefix, "'sim' must be an object of class 'jheem.simulation.set'"))
             
+            if (!sim$is.finalized)
+                stop(paste0(error.prefix, "Cannot run interventions on a simulation set that has not been finalized"))
+            
+            self$validate(version = sim$version,
+                          location = sim$location,
+                          sub.version = sim$sub.version,
+                          simulation.metadata = get.simulation.metadata(version = sim$version,
+                                                                        location = sim$location,
+                                                                        sub.version = sim$sub.version,
+                                                                        from.year = keep.from.year,
+                                                                        to.year = keep.to.year)) #a sim IS a simulation metadata object
+            
             # Generate the new parameters
             if (is.null(private$i.parameter.distribution))
+            {
                 new.parameters = NULL
+                new.param.names = NULL
+            }
             else
             {
                 reset.seed = runif(1, 0, .Machine$integer.max)
@@ -491,10 +512,12 @@ JHEEM.INTERVENTION = R6::R6Class(
                 
                 set.seed(seed)
                 new.parameters = generate.random.samples(private$i.parameter.distribution, n=sim$n.sim)
+                dim(new.parameters) = c(sim$n.sim, private$i.parameter.distribution@n.var)
+                new.param.names = private$i.parameter.distribution@var.names
+                
                 set.seed(reset.seed) # this keeps our code from always setting to the same seed
             }
 
-            
             # Get the engine
             engine = sim$get.engine(start.year = start.year,
                                     end.year = end.year,
@@ -508,14 +531,18 @@ JHEEM.INTERVENTION = R6::R6Class(
             
             
             # Run
-            private$prepare.to.run(engine)
+            private$prepare.to.run(engine, sim=sim, verbose=verbose)
             sim.list = lapply(1:sim$n.sim, function(i){
+                params = new.parameters[i,]
+                names(params) = new.param.names
+                
                 private$do.run(engine, 
-                               sim.index = 1,
-                               parameters = new.parameters[,i])
+                               sim.index = i,
+                               parameters = params,
+                               verbose = verbose)
             })
             
-            join.simulation.sets(sim.list)
+            join.simulation.sets(sim.list, finalize=T)
         },
         
         get.description = function(version)
@@ -535,14 +562,52 @@ JHEEM.INTERVENTION = R6::R6Class(
                 private$is.equal.to(other)
         },
         
-        validate = function(version, location)
-        {
-            stop("The method 'validate' must be implemented in a descendant class of jheem.intervention")
-        },
-        
         get.intervention.foregrounds = function()
         {
             stop("The method 'get.intervention.foregrounds' must be implemented in a descendant class of jheem.intervention")
+        },
+        
+        validate = function(version,
+                            location, 
+                            sub.version = NULL,
+                            simulation.metadata = NULL)
+        {
+    #        if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
+    #            stop("Error in intervention$check.can.apply(): 'error.prefix' must be a single, non-NA character vector")
+            error.prefix = paste0("Intervention cannot apply to '", version, "' specification: ")
+            
+            specification = get.compiled.specification.for.version(version)
+            foregrounds = self$get.intervention.foregrounds()
+            
+            foreground.quantities = sapply(foregrounds, function(frgd){frgd$quantity.name})
+            invalid.foreground.quantities = setdiff(foreground.quantities, specification$quantity.names)
+            if (length(invalid.foreground.quantities)>0)
+                stop(paste0(error.prefix, collapse.with.and("'", invalid.foreground.quantities, "'"),
+                            ifelse(length(invalid.foreground.quantities)==1, " is not a model quantity", " are not model quantities"),
+                            " defined in the '", version, "' specification"))
+            
+            if (!is.null(location))
+            {
+                specification.metadata = get.specification.metadata(version=version, location=location, sub.version=sub.version)
+                
+                # Use this function for its error checking
+                for (frgd in foregrounds)
+                {
+                    for (tpop in frgd$target.populations)
+                        tpop$render.population.mask(specification.metadata, error.prefix=error.prefix)
+                }
+            }
+            
+            if (is.null(simulation.metadata) && !is.null(location))
+                simulation.metadata = get.simulation.metadata(version = version,
+                                                              location = location,
+                                                              sub.version = sub.version)
+            
+            private$do.validate(version = version,
+                                location = location,
+                                sub.version = sub.version,
+                                simulation.metadata = simulation.metadata,
+                                error.prefix = error.prefix)
         }
     ),
     
@@ -570,6 +635,14 @@ JHEEM.INTERVENTION = R6::R6Class(
                 private$i.parameter.distribution
             else
                 stop("Cannot modify 'parameter.distribution' for a jheem.intervention - it is read-only")
+        },
+        
+        depends.on = function(value)
+        {
+            if (missing(value))
+                stop("The 'depends.on' active binding must be implemented at the subclass-level for a jheem.intervention")
+            else
+                stop("Cannot modify 'depends.on' for a jheem.intervention - it is read-only")
         }
             
     ),
@@ -580,12 +653,12 @@ JHEEM.INTERVENTION = R6::R6Class(
         i.code = NULL,
         i.parameter.distribution = NULL,
         
-        prepare.to.run = function(engine)
+        prepare.to.run = function(engine, sim, verbose)
         {
             # The default does nothing
         },
         
-        do.run = function(engine, sim.index, parameters, previous.parameter.values)
+        do.run = function(engine, sim.index, parameters, previous.parameter.values, verbose)
         {
             stop("The method 'do.run' must be implemented in a descendant class of jheem.intervention")
         },
@@ -595,6 +668,15 @@ JHEEM.INTERVENTION = R6::R6Class(
             print("for now, testing equality of interventions with code alone")
             F
 #            stop("The method 'is.equal.to' must be implemented in a descendant class of jheem.intervention")
+        },
+
+        do.validate = function(version,
+                               location,
+                               sub.version,
+                               simulation.metadata,
+                               error.prefix)
+        {
+            # The default does nothing additional
         }
     )
 )
@@ -618,8 +700,19 @@ NULL.INTERVENTION = R6::R6Class(
         }
     ),
     
+    active = list(
+        
+        depends.on = function(value)
+        {
+            if (missing(value))
+                character()
+            else
+                stop("Cannot modify 'depends.on' for a jheem.intervention - it is read-only")
+        }
+    ),
+    
     private = list(
-        do.run = function(engine, sim.index, parameters, previous.parameter.values)
+        do.run = function(engine, sim.index, parameters, previous.parameter.values, verbose)
         {
             engine$run(parameters = parameters,
                        prior.sim.index = sim.index)
@@ -666,7 +759,7 @@ SINGLE.ITERATION.INTERVENTION = R6::R6Class(
     
     private = list(
         
-        do.run = function(engine, sim.index, parameters, previous.parameter.values)
+        do.run = function(engine, sim.index, parameters, verbose)
         {
             engine$run(parameters = parameters,
                        prior.sim.index = sim.index)
@@ -700,11 +793,6 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
         {
             stop("need to implement")
         },
-    
-        validate = function(version, location)
-        {
-            
-        },
         
         get.intervention.foregrounds = function()
         {
@@ -721,6 +809,16 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
                 private$i.foregrounds
             else
                 stop("Cannot modify 'foregrounds' for a jheem.intervention - they are read-only")
+        },
+        
+        depends.on = function(value)
+        {
+            if (missing(value))
+                unique(unlist(sapply(private$i.foregrounds, function(frgd){
+                    frgd$depends.on
+                })))
+            else
+                stop("Cannot modify 'depends.on' for a jheem.intervention - it is read-only")
         }
     ),
     
@@ -752,14 +850,14 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
                               completion.criteria,
                               parameter.scales,
                               initial.parameter.values,
-                              iterations.per.chunk,
-                              max.chunks.before.giving.up,
+                              max.iterations,
+                              n.iterations.after.satisfying.criteria,
+                              max.failure.rate,
                               code=NULL, 
                               name=NULL, 
                               parameter.distribution=NULL,
                               parameters.to.vary = names(parameter.scales),
-                              draw.parameters.from.previous.sims = !is.function(initial.parameter.values),
-                              method = c("Nelder-Mead", "BFGS", "CG", "SANN")[1])
+                              draw.parameters.from.previous.sims = !is.function(initial.parameter.values))
         {
             super$initialize(code = code,
                              name = name,
@@ -829,30 +927,27 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 stop(paste0(error.prefix,
                             "'initial.parameter.values' must be either a named numeric vector, or a function that takes a sim and returns a named numeric vector"))
             
-            # iterations.per.chunk
-            if (!is.numeric(iterations.per.chunk) || length(iterations.per.chunk)==0 || any(is.na(iterations.per.chunk)))
-                stop(paste0(error.prefix, "'iterations.per.chunk' must be a non-empty numeric vector with no NA values"))
-            if (any(iterations.per.chunk<=0))
-                stop(paste0(error.prefix, "'iterations.per.chunk' must contain only positive values"))
+            # n.iterations.after.satisfying.criteria
+            if (!is.numeric(n.iterations.after.satisfying.criteria) || length(n.iterations.after.satisfying.criteria)!=1 || is.na(n.iterations.after.satisfying.criteria))
+                stop(paste0(error.prefix, "'n.iterations.after.satisfying.criteria' must be a single, non-NA numeric value"))
+            if (any(n.iterations.after.satisfying.criteria<0))
+                stop(paste0(error.prefix, "'n.iterations.after.satisfying.criteria' must be >= 0"))
             
-            # max.chunks.before.giving.up
-            if (!is.numeric(max.chunks.before.giving.up) || length(max.chunks.before.giving.up)!=1 || is.na(max.chunks.before.giving.up))
-                stop(paste0(error.prefix, "'max.chunks.before.giving.up' must be a single, non-NA numeric value"))
+            # max.iterations
+            if (!is.numeric(max.iterations) || length(max.iterations)!=1 || is.na(max.iterations))
+                stop(paste0(error.prefix, "'max.iterations' must be a single, non-NA numeric value"))
             
-            # draw.parameters.from.previous.sims
-            if (!is.logical(draw.parameters.from.previous.sims) || length(draw.parameters.from.previous.sims)!=1 || is.na(draw.parameters.from.previous.sims))
-                stop(paste0(error.prefix, "'draw.parameters.from.previous.sims' must be a single, non-NA logical value"))
+            if (max.iterations < n.iterations.after.satisfying.criteria)
+                stop(paste0(error.prefix, "'max.iterations' (", max.iterations, ") cannot be less than 'n.iterations.after.satisfying.criteria' (", n.iterations.after.satisfying.criteria, ")"))
             
-            # method
-            allowed.methods = c("Nelder-Mead", "BFGS", "CG", "SANN")
-            if (!is.character(method) || length(method)!=1 || is.na(method))
-                stop(paste0(error.prefix, "'method' must be a single, non-NA character value"))
+            # max.failure.rate
+            if (!is.numeric(max.failure.rate) || length(max.failure.rate)!=1 || is.na(max.failure.rate))
+                stop(paste0(error.prefix, "'max.failure.rate' must be a single, non-NA numeric value"))
             
-            if (all(method!=allowed.methods))
-                stop(paste0(error.prefix, "Invalid method '", method, "' - must be one of ",
-                            collapse.with.or("'", allowed.methods, "'")))
+            if (max.failure.rate < 0 || max.failure.rate > 1)
+                stop(paste0(error.prefix, "'max.failure.rate' (", max.failure.rate, ") must be between 0 and 1"))
             
-            
+                    
             # Store the variables
             private$i.base.intervention = base.intervention
             private$i.completion.criteria = completion.criteria
@@ -861,28 +956,43 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
             private$i.parameter.scales = parameter.scales
             
             private$i.initial.parameter.values = initial.parameter.values
-            private$i.iterations.per.chunk = iterations.per.chunk
-            private$i.max.chunks.before.giving.up = max.chunks.before.giving.up
+            private$i.n.iterations.after.satisfying.criteria = n.iterations.after.satisfying.criteria
+            private$i.max.iterations = max.iterations
+            private$i.max.failure.rate = max.failure.rate
             private$i.draw.parameters.from.previous.sims = draw.parameters.from.previous.sims
             
-            private$i.method = method
-            
-        },
-        
-        validate = function(version, location)
-        {
+            private$i.method = "Nelder-Mead"
             
         },
         
         get.intervention.foregrounds = function()
         {
             private$i.base.intervention$get.intervention.foregrounds()
+        },
+        
+        do.check.can.apply = function(version, location, sub.version, error.prefix)
+        {
+            # The default does nothing additional
         }
     ),
     
     active = list(
         
+        depends.on = function(value)
+        {
+            if (missing(value))
+                private$i.base.intervention$depends.on
+            else
+                stop("Cannot modify 'depends.on' for a jheem.intervention - it is read-only")
+        },
         
+        base.intervention = function(value)
+        {
+            if (missing(value))
+                private$i.base.intervention
+            else
+                stop("Cannot modify 'base.intervention' for a jheem.intervention - it is read-only")
+        }
     ),
     
     private = list(
@@ -897,11 +1007,15 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
         i.initial.parameters.fn.name = NULL,
         i.draw.parameters.from.previous.sims = NULL,
         
-        i.iterations.per.chunk = NULL,
-        i.max.chunks.before.giving.up = NULL,
+        i.n.iterations.after.satisfying.criteria = NULL,
+        i.max.iterations = NULL,
+        i.max.failure.rate = NULL,
         i.method = NULL,
         
+        # run-time parameters - updated for each run
         i.previous.parameter.values = NULL,
+        i.n.failures = NULL,
+        i.n.sim = NULL,
         
         
         is.equal.to = function(other)
@@ -909,13 +1023,13 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
             stop("need to implement is.equal.to for criteria-based-intervention")
         },
         
-        prepare.to.run = function(engine)
+        prepare.to.run = function(engine, sim, verbose)
         {
-            all.parameters = engine$parameter.names
+            all.parameter.names = engine$parameter.names
             if (!is.null(private$i.parameter.distribution))
-                all.parameters = union(all.parameters, private$i.parameter.distribution@var.names)
+                all.parameter.names = union(all.parameter.names, private$i.parameter.distribution@var.names)
             invalid.parameters.to.track = setdiff(private$i.parameters.to.vary,
-                                                  all.parameter.names)
+                                                  c(all.parameter.names, self$depends.on))
             
             if (length(invalid.parameters.to.track))
                 stop(paste0("Cannot run intervention: ",
@@ -923,12 +1037,14 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
                             ifelse(length(invalid.parameters.to.track)==1, 
                                    " was set as a parameter.to.track, but is",
                                    " were set as parameters.to.track, but are"),
-                            " not present in either the simulation or the intervention's parameter distribution"))
+                            " not present in either the simulation, the base.intervention, or the intervention's parameter distribution"))
             
             private$i.previous.parameter.values = NULL
+            private$i.n.failures = 0
+            private$i.n.sim = sim$n.sim
         },
         
-        do.run = function(engine, sim.index, parameters)
+        do.run = function(engine, sim.index, parameters, verbose)
         {
             error.prefix = "Cannot run criteria-based intervention: "
             
@@ -980,46 +1096,121 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
             if (private$i.draw.parameters.from.previous.sims)
                 private$i.previous.parameter.values = cbind(private$i.previous.parameter.values, parameters[private$i.parameters.to.vary])
             
-            initial.values = initial.values[private$i.parameter.scales]
+            initial.values = initial.values[private$i.parameters.to.vary]
 
             
             #-- Run optimization until criteria satisfied (or until we have to give up) --#
-            criteria.satisfied = F
-            chunk = 1
-            transformed.current.parameters = transform.to.unbounded.scale(initial.values, private$i.parameter.scales)
+            
+            transformed.current.parameters = transform.to.unbounded.scale(initial.values, scales = private$i.parameter.scales)
+            
+            # Variables to be modified from within optim
+            optim.best.score = Inf
+            optim.iteration = 0
+            optim.best.sim = NULL
+            optim.max.iterations = private$i.max.iterations
             sim = NULL
-            while (!criteria.satisfied && chunk <= private$i.max.chunks.before.giving.up)
+            
+            # don't need to save the result
+            # we are going to grab it out with the <<- operator
+            suppressWarnings(optim(par = transformed.current.parameters,
+                  fn = function(par){
+                      
+                      if (optim.iteration >= optim.max.iterations)
+                          -Inf
+                      else
+                      {
+                          optim.iteration <<- optim.iteration + 1
+                          
+                          parameters[private$i.parameters.to.vary] = transform.from.unbounded.scale(par, private$i.parameter.scales)
+                          
+                          if (verbose)
+                              base::print(paste0("Iteration ", optim.iteration, ": ", paste0(private$i.parameters.to.vary, " = ", round(parameters[private$i.parameters.to.vary], 4), collapse=', ')))
+                          
+                          
+                          sim <<- engine$run(parameters = parameters,
+                                             prior.sim.index = sim.index)
+           
+                          criteria.satisfied = all(sapply(private$i.completion.criteria, function(criterion){
+                                  criterion$is.satisfied(sim, iteration = optim.iteration)
+                              }))
+                          
+                          sub.scores =  sapply(private$i.completion.criteria, function(criterion){
+                              criterion$score.sim(sim=sim, iteration = optim.iteration, verbose=verbose)
+                          })
+                          score = sum(sub.scores)
+                          
+                          if (optim.iteration==1 && any(sub.scores==Inf))
+                              stop(paste0(error.prefix, "The ", 
+                                          ifelse(length(private$i.parametrs.to.vary)==1, "initial value", "initial set of values"),
+                                          " for parameters.to.vary (",
+                                          collapse.with.and("'", private$i.parameters.to.vary, "'"),
+                                          ") is SO far from a solution that the ",
+                                          ifelse(sum(sub.scores==Inf)==1, "criterion score", "criteria scores"),
+                                          " for ",
+                                          collapse.with.and("'", sapply(private$i.completion.criteria[sub.scores==Inf], function(cr){cr$descriptor}), "'"),
+                                          ifelse(sum(sub.scores==Inf)==1, " evaluates", " evaluate"),
+                                          " to infinity - pick ",
+                                          ifelse(length(private$i.parametrs.to.vary)==1, "a better starting value",
+                                                 "better starting values")))
+                          
+                          if (verbose)
+                              base::print(paste0("   --> score = ", round(score,3),
+                                                 ", ?satified = ", criteria.satisfied))
+                           
+                          if (criteria.satisfied)
+                          {
+                              if (is.null(optim.best.sim))
+                              {
+                                  optim.max.iterations <<- min(optim.max.iterations,
+                                                         optim.iteration + private$i.n.iterations.after.satisfying.criteria)
+                              }
+                              
+                              if (score < optim.best.score)
+                              {
+                                  optim.best.sim <<- sim
+                                  optim.best.score <<- score
+                              }
+                          }
+                          
+                          if (optim.iteration >= optim.max.iterations)
+                              -Inf
+                          else
+                              score
+                      }
+                  },
+                  method = private$i.method,
+                  control = list(maxit=private$i.max.iterations)))
+            
+            if (is.null(optim.best.sim))
             {
-                max.iter = private$i.iterations.per.chunk[min(chunk, private$i.iterations.per.chunk)]
+                private$i.n.failures = private$i.n.failures + 1
+                failure.rate = private$i.n.failures / private$i.n.sim
                 
-                optim.result = optim(par = transformed.current.parameters,
-                                     fn = function(par){
-                                         parameters[private$i.parameters.to.vary] = transform.from.unbounded.scale(par, private$i.parameter.scales)
-                                         sim <<- engine$run(parameters = parameters,
-                                                          prior.sim.index = sim.index)
-                                         
-                                         sum(sapply(private$i.completion.criteria, function(criterion){
-                                             criterion$score.sim(sim=sim, chunk=chunk)
-                                         }))
-                                     },
-                                     method = private$i.method,
-                                     control = list(maxit=max.iter))
+                if (failure.rate > private$i.max.failure.rate)
+                    stop(paste0(error.prefix, "We have been unable to satisfy all criteria ",
+                                ifelse(private$i.max.failure.rate==0, "on a simulation",
+                                       paste0("on ", private$i.n.failures, ifelse(private$i.n.failures==1, " simulation", " simulations"),
+                                              " --> a failure rate of ", round(100*failure.rate, 1), "%, which exceeds the maximum tolerable failure rate of ",
+                                              round(100*private$i.max.failure.rate, 1), '%'))))
                 
-                transformed.current.parameters = optim.result$par
-                chunk = chunk+1
-                
-                criteria.satisfied = all(sapply(private$i.completion.criteria, function(criterion){
-                    criterion$is.satisfied(sim, chunk)
-                }))
+                optim.best.sim = derive.degenerate.simulation(sim)
             }
             
-            if (!criteria.satisfied)
-                stop(paste0(error.prefix, "Unable to satisfy all criteria for the intervention after ", 
-                            private$i.max.chunks.before.giving.up, " optimization ",
-                            ifelse(length(private$i.max.chunks.before.giving.up)==1, "attempt", "attempts")))
-            
-            sim
-        }   
+            optim.best.sim
+        },
+        
+        do.validate = function(version,
+                               location, 
+                               sub.version = NULL,
+                               simulation.metadata = NULL,
+                               error.prefix = '')
+        {
+            for (criterion in private$i.completion.criteria)
+                criterion$validate(version = version,
+                                   sub.version = sub.version,
+                                   simulation.metadata,
+                                   error.prefix = error.prefix)
+        }
     )
 )
 
@@ -1033,14 +1224,33 @@ JHEEM.INTERVENTION.CRITERION = R6::R6Class(
             
         },
         
-        is.satisfied = function(sim, chunk)
+        is.satisfied = function(sim, iteration)
         {
             stop("is.satisfied() for a jheem.intervention.criterion must be implemented at the subclass level")
         },
         
-        score.sim = function(sim, chunk)
+        score.sim = function(sim, iteration, verbose)
         {
-            stop("is.satisfied() for a jheem.intervention.criterion must be implemented at the subclass level")
+            stop("score.sim() for a jheem.intervention.criterion must be implemented at the subclass level")
+        },
+        
+        validate = function(version,
+                            sub.version = NULL,
+                            simulation.metadata = NULL,
+                            error.prefix = '')
+        {
+            stop("The validate() method must be implemented at the sub-class level for jheem.intervention.criterion")
+        }
+    ),
+    
+    active = list(
+        
+        descriptor = function(value)
+        {
+            if (missing(value))
+                stop("The 'descriptor' active binding must be defined at the sub-class level for a 'jheem.intervention.criterion'")
+            else
+                stop("Cannot modify 'descriptor' for a jheem.intervention - it is read-only")
         }
     )
 )
@@ -1055,6 +1265,7 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                               target.value,
                               min.acceptable.value,
                               max.acceptable.value,
+                              subsequent.thresholds.apply.after.iteration = numeric(),
                               stratify.outcome.by.dimensions = character(),
                               dimension.values = list(),
                               ...,
@@ -1069,7 +1280,7 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             if (!is.character(outcome) || length(outcome)!=1 || is.na(outcome))
                 stop(paste0(error.prefix, "'outcome' must be a single, non-NA character value"))
             
-            if (!is.numeric(target.value) || length(target.value)==0 || any(is.na(target.value)))
+            if (!is.numeric(target.value) || length(target.value)!=1 || any(is.na(target.value)))
                 stop(paste0(error.prefix, "'target.value' must be a non-empty, numeric vector with no NA values"))
             
             # min / max
@@ -1077,16 +1288,37 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                 stop(paste0(error.prefix, "'min.acceptable.value' must be a non-empty, numeric vector with no NA values"))
             
             if (length(min.acceptable.value)>1 && any(min.acceptable.value[-1] > min.acceptable.value[-length(min.acceptable.value)]))
-                stop(paste0(error.prefix, "It does not make sense for min.acceptable.values to INCREASE (ie become more restrictive) during subsequent chunks"))
+                stop(paste0(error.prefix, "It does not make sense for min.acceptable.values to INCREASE (ie become more restrictive) at later times"))
             
             if (!is.numeric(max.acceptable.value) || length(max.acceptable.value)==0 || any(is.na(max.acceptable.value)))
                 stop(paste0(error.prefix, "'max.acceptable.value' must be a non-empty, numeric vector with no NA values"))
             
             if (length(max.acceptable.value)>1 && any(max.acceptable.value[-1] < max.acceptable.value[-length(max.acceptable.value)]))
-                stop(paste0(error.prefix, "It does not make sense for max.acceptable.values to DECREASE (ie become more restrictive) during subsequent chunks"))
+                stop(paste0(error.prefix, "It does not make sense for max.acceptable.values to DECREASE (ie become more restrictive) at later times"))
             
             min.acceptable.value = pad.with.last.value(min.acceptable.value, length(max.acceptable.value))
             max.acceptable.value = pad.with.last.value(max.acceptable.value, length(min.acceptable.value))
+            
+            # subsequent.thresholds.apply.after.iteration
+            if (!is.numeric(subsequent.thresholds.apply.after.iteration) || any(is.na(subsequent.thresholds.apply.after.iteration)))
+                stop(paste0(error.prefix, "'subsequent.thresholds.apply.after.iteration' must be a numeric vector with no NA values"))
+            
+            if (length(subsequent.thresholds.apply.after.iteration) != (length(min.acceptable.value)-1))
+            {
+                if (length(min.acceptable.value)==1)
+                    stop(paste0(error.prefix, "If there is only one value each for 'min.acceptable.value' and 'max.acceptable.value', 'subsequent.thresholds.apply.after.iteration' must be an empty vector (ie, length 0)"))
+                else
+                    stop(paste0(error.prefix, "'subsequent.thresholds.apply.after.iteration' (length ", length(subsequent.thresholds.apply.after.iteration),
+                                ") must have length one less than the greater of 'min.acceptable.value' and 'max.acceptable.value' (", length(max.acceptable.value), ")"))
+            }
+            
+            if (length(subsequent.thresholds.apply.after.iteration)>1 && 
+                any(subsequent.thresholds.apply.after.iteration[-1] <= subsequent.thresholds.apply.after.iteration[-length(subsequent.thresholds.apply.after.iteration)]))
+                stop(paste0(error.prefix, "'subsequent.thresholds.apply.after.iteration' must be in strictly ascending order"))
+            
+            if (any(subsequent.thresholds.apply.after.iteration<1))
+                stop(paste0(error.prefix, "'subsequent.thresholds.apply.after.iteration' must all be >0"))
+                
             
             if (any(min.acceptable.value >= max.acceptable.value))
                 stop(paste0(error.prefix, "The elements of min.acceptable.value must always be strictly LESS than the corresponding elements in max.acceptable.value"))
@@ -1154,6 +1386,7 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             
             private$i.min.acceptable.value = min.acceptable.value
             private$i.max.acceptable.value = max.acceptable.value
+            private$i.subsequent.thresholds.apply.after.iteration = subsequent.thresholds.apply.after.iteration
             
             private$i.stratify.outcome.by.dimensions = stratify.outcome.by.dimensions
             private$i.dimension.values = dimension.values
@@ -1164,47 +1397,87 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             private$i.score.weight = weight
         },
         
-        is.satisfied = function(sim, chunk)
+        is.satisfied = function(sim, iteration)
         {
             sim.value = private$get.sim.value(sim)
             
-            min.acceptable = private$i.min.accetable.value[min(chunk, length(private$i.min.acceptable.value))]
-            max.acceptable = private$i.max.accetable.value[min(chunk, length(private$i.max.acceptable.value))]
+            threshold.mask = c(iteration < private$i.subsequent.thresholds.apply.after.iteration, T)
+            min.acceptable = private$i.min.acceptable.value[threshold.mask][1]
+            max.acceptable = private$i.max.acceptable.value[threshold.mask][1]
             
-            all(sim.value >= min.acceptable & sim.value <= max.acceptable)
+            rv = all(sim.value >= min.acceptable & sim.value <= max.acceptable)
+            
+            rv
         },
         
-        score.sim = function(sim, chunk)
+        score.sim = function(sim, iteration, verbose)
         {
-            sim.value = private$get.sim.value(sim)
-            target.value = private$i.target.value[min(chunk, length(private$i.target.value))]
+            pre.transformed.sim.value = sim.value = private$get.sim.value(sim)
+            low = private$i.min.acceptable.value[1]
+            high = private$i.max.acceptable.value[1]
+            scale = sim$outcome.metadata[[private$i.outcome]]$scale
+            mid = pre.transformed.mid = (high + low) / 2
             
-            if (private$i.score.metric=='normal.with.coefficient.of.variance'  ||
-                private$i.score.metric=='normal.with.sqrt.sd')
+            is.in.range = sim.value >= low & sim.value <= high
+            
+            # Transform to unbounded scale            
+            sim.value = transform.to.unbounded.scale(sim.value, scale)
+            low = transform.to.unbounded.scale(low, scale)
+            high = transform.to.unbounded.scale(high, scale)
+            target = transform.to.unbounded.scale(private$i.target.value, scale)
+            mid = (high + low) / 2
+            
+            # Figure out our SD
+            # base.of.sd = c(private$i.target.value, target, pre.transformed.mid, mid) #putting four things in here helps protect us against getting an sd of zero
+            base.of.sd = abs(c(target, mid)) #putting two things in here helps protect us against getting an sd of zero
+            base.of.sd = base.of.sd[base.of.sd != 0]
+            if (length(base.of.sd)==0)
             {
-                if (private$i.score.metric=='normal.with.coefficient.of.variance')
-                    sd.for.score = target.value * private$i.coefficient.of.variance
-                else
-                    sd.for.score = sqrt(target.value)
-                
-                scores = -dnorm(sim.value, mean=target.value, sd=sd.for.score)
-                if (private$i.aggregate.scores.as=='sum')
-                    score = sum(scores)
-                else
-                    score = mean(scores)
+                base.of.sd = abs(c(private$i.target.value, pre.transformed.mid))
+                base.of.sd = base.of.sd[base.of.sd != 0]
             }
+            
+            if (length(base.of.sd)==0)
+                sd.for.score = 0.1
             else
             {
-                scores = (sim.value - private$i.target.value)^2
-                
-                if (private$i.aggregate.scores.as=='sum')
-                    score = sqrt(sum(scores))
+                if (private$i.score.metric=='normal.with.coefficient.of.variance')
+                    sd.for.score = mean(base.of.sd * private$i.coefficient.of.variance)
+                else if (private$i.score.metric=='normal.with.sqrt.sd')
+                    sd.for.score = mean(sqrt(base.of.sd))
                 else
-                    score = sqrt(mean(scores))
+                    stop(paste0("we haven't implemented scoring for metric ", private$i.score.metric))
             }
             
-            weight = private$i.score.weight[min(chunk, length(private$i.score.weight))]
-            score * weight
+            
+            # Calculate a score that applies if we are out of range
+            min.out.of.range.score = min(1/dnorm(c(low, high), mean=mid, sd=sd.for.score))
+            
+            score.out.of.range = 1/dnorm(sim.value, mean=mid, sd=sd.for.score)
+            score.out.of.range[is.in.range] = min.out.of.range.score
+            
+            # Calculate the score that applies if we are in range
+            max.in.range.score = max(1/dnorm(c(low, high), mean=target, sd=sd.for.score))
+            
+            score.in.range = 1/dnorm(sim.value, mean=target, sd=sd.for.score)
+            score.in.range[!is.in.range] = max.in.range.score
+            
+            out.of.range.score.weight = 3
+            
+            scores = score.out.of.range ^ out.of.range.score.weight + score.in.range
+            
+            if (private$i.aggregate.scores.as=='sum')
+                score = sum(scores)
+            else
+                score = mean(scores)
+            
+            score = score * private$i.score.weight
+            
+            if (verbose)
+                base::print(paste0("   ", private$i.outcome, " = ", round(pre.transformed.sim.value,3),
+                                   " (score = ", round(score, 3), ")"))
+            
+            score
         },
         
         equals = function(other)
@@ -1212,9 +1485,69 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             stop('need to implement equals for outcome-based criterion')
         },
         
-        validate = function(version, location)
+        validate = function(version,
+                            sub.version = NULL,
+                            simulation.metadata = NULL,
+                            error.prefix = '')
         {
+            if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
+                stop(paste0("Error in jheem.outcome.intervention.criterion$validate(): 'error.prefix' must be a single, non-NA character value"))
             
+            error.prefix = paste0(error.prefix, "Invalid criterion for '", private$i.outcome, "' - ")
+            
+            specification = get.compiled.specification.for.version(version)
+            outcome = specification$get.outcome(private$i.outcome)
+            
+            if (is.null(outcome))
+                stop(paste0(error.prefix, "'", private$i.outcome, "' is not a registered outcome for the '", version, "' specification"))
+            
+            if (!is.null(outcome$sub.versions) && !is.null(sub.version) && all(outcome$sub.versions!=sub.version))
+                stop(paste0(error.prefix, "'", private$i.outcome, "' is not a registered outcome for sub-version '", sub.version, 
+                            "' (it is only registered for ", collapse.with.and("'", outcome$sub.versions, "'"), ")"))
+            
+            invalid.stratify.dimensions = setdiff(private$i.stratify.outcome.by.dimensions, c(outcome$keep.dimensions,'year'))
+            if (length(invalid.stratify.dimensions)>0)
+                stop(paste0(error.prefix, collapse.with.and("'", invalid.stratify.dimensions, "'"),
+                            ifelse(length(invalid.stratify.dimensions)==1, " is not a dimension of", " are not dimensions of"),
+                            " the '", private$i.outcome, "' outcome in the '", version, "' specification - and so cannot be used to stratify the outcome for the criterion"))
+            
+            invalid.dimension.value.dimensions = setdiff(names(private$i.dimension.values), c(outcome$keep.dimensions, 'year'))
+            if (length(invalid.dimension.value.dimensions)>0)
+                stop(paste0(error.prefix, collapse.with.and("'", invalid.dimension.value.dimensions, "'"),
+                            ifelse(length(invalid.dimension.value.dimensions)==1, " is not a dimension of", " are not dimensions of"),
+                            " the '", private$i.outcome, "' outcome in the '", version, "' specification - and so cannot be used to specify dimension values of the criterion"))
+            
+            if (!is.null(simulation.metadata))
+            {
+                if (!is(simulation.metadata, 'simulation.metadata'))
+                    stop(paste0(error.prefix, "'simulation.metadata' must be an object of class 'simulation.metadata', as returned by get.simulation.metadata()"))
+                
+                outcome.ontology = simulation.metadata$outcome.ontologies[[private$i.outcome]]
+                
+                for (d in names(private$i.dimension.values))
+                {
+                    if (!is.null(outcome.ontology[[d]]))
+                    {
+                        invalid.values = setdiff(private$i.dimension.values[[d]], outcome.ontology[[d]])
+                        if (length(invalid.values)>0)
+                            stop(paste0(error.prefix, collapse.with.and("'", invalid.values, "'"),
+                                        ifelse(length(invalid.values)==1, " is not a valid value", " are valid values"),
+                                        " in the '", d, "' dimension of outcome '", private$i.outcome, 
+                                        "' in the '", version, "' specification - and so cannot be used as dimension values in the criterion"))
+                    }
+                }
+            }
+        }
+    ),
+    
+    active = list(
+        
+        descriptor = function(value)
+        {
+            if (missing(value))
+                private$i.outcome
+            else
+                stop("Cannot modify 'descriptor' for a jheem.intervention - it is read-only")
         }
     ),
     
@@ -1225,6 +1558,7 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
         i.target.value = NULL,
         i.min.acceptable.value = NULL,
         i.max.acceptable.value = NULL,
+        i.subsequent.thresholds.apply.after.iteration = NULL,
         
         i.stratify.outcome.by.dimensions = NULL,
         i.dimension.values = NULL,

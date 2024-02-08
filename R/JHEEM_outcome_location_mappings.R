@@ -1,5 +1,8 @@
 
 
+list(C.12580='C.12580')
+list(C.12580=c('C.12580','MD','24510'))
+
 #'@location.mappings is a named list, where the names correspond to modeled locations, and the elements are vectors of observed locations
 create.outcome.location.mapping <- function(location.mappings,
                                             outcome.name,

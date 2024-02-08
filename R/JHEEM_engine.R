@@ -949,12 +949,22 @@ JHEEM.ENGINE = R6::R6Class(
                 parameters.to.set = private$i.jheem$parameters
                 parameters.to.set[names(parameters)] = parameters
                 
-                private$i.jheem$set.parameters(parameters.to.set, check.consistency = private$i.check.consistency)
             }
         },
         
         prepare.to.run.or.crunch = function(parameters, prior.sim.index, error.prefix)
         {
+            if (length(parameters)>0)
+            {
+                if (!is.numeric(parameters) || any(is.na(parameters)))
+                    stop(paste0(error.prefix, "'parameters' must be a numeric vector with no NA values"))
+                
+                if (is.null(names(parameters)))   
+                    stop(paste0(error.prefix, "'parameters' must be a NAMED numeric vector"))
+            }
+                
+                
+                
             if (is.null(private$i.prior.simulation.set))
             {
                 if (!is.null(prior.sim.index))
@@ -976,7 +986,7 @@ JHEEM.ENGINE = R6::R6Class(
                 parameters[names(new.parameters)] = new.parameters
             }
             
-            private$set.parameters(parameters, error.prefix=error.prefix)
+            private$i.jheem$set.parameters(parameters, check.consistency = private$i.check.consistency)
         },
         
         get.current.code.iteration = function()
@@ -1693,13 +1703,16 @@ JHEEM = R6::R6Class(
                 if (check.consistency)
                 {
                     missing.parameters = setdiff(private$i.parameter.names.for.foregrounds, names(private$i.parameters))
+                    
                     if (length(missing.parameters)>0)
+                    {
                         stop(paste0(error.prefix, 
                                     ifelse(length(missing.parameters)==1, "A value for parameter ", "Values for parameters "),
                                     collapse.with.and("'", missing.parameters, "'"),
                                     " - upon which one more more foregrounds depend - ",
                                     ifelse(length(missing.parameters)==1, "has", "have"),
                                     " not been set to the JHEEM"))
+                    }
                 }
                 
                 used.parameter.names = union(used.parameter.names, private$i.parameter.names.for.foregrounds)
@@ -3663,8 +3676,21 @@ JHEEM = R6::R6Class(
                 {
                     if (length(private$i.quantity.foreground.effect.indices[[quantity.name]]) < length(foregrounds))
                         private$calculate.foreground.effect.indices(quantity.name)
-                
 
+                    if (1==2)
+                    {
+                        args = list(values = private$i.quantity.values[[quantity.name]],
+                                    value_times = private$i.quantity.value.times[[quantity.name]],
+                                    after_values = private$i.quantity.after.values[[quantity.name]],
+                                    times_to_apply_to = missing.times,
+                                    foregrounds = foregrounds,
+                                    indices_per_effect_per_foreground = private$i.quantity.foreground.effect.indices[[quantity.name]],
+                                    scale = quantity$scale)
+                        
+                        save(args, file='debug.apply.foregrounds.Rdata')
+                        stop("Stopping here to debug apply_foregrounds")
+                    }
+                    
                     # The cpp function does all the work - hooray!
                     values.and.after.values = apply_foregrounds(values = private$i.quantity.values[[quantity.name]],
                                                                 value_times = private$i.quantity.value.times[[quantity.name]],
@@ -3753,7 +3779,7 @@ JHEEM = R6::R6Class(
                                 update.bindings.for = comp$depends.on[ depends.on.has.after[comp$depends.on] ]
                             else
                                 update.bindings.for = comp$depends.on
-
+                            
                             for (dep.on in update.bindings.for)
                             {
 #                            bindings[update.bindings.for] = lapply(update.bindings.for, function(dep.on){
@@ -5139,7 +5165,13 @@ JHEEM = R6::R6Class(
                         if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
                             private$calculate.outcome.non.cumulative.value.times(outcome.name)
                         
-                        if (length(private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]])==0)
+                        all.dependee.outcomes.are.cumulative = all(as.logical(sapply(specification$get.outcome.numerator.direct.dependee.outcome.names(outcome.name), function(dep.on.outcome.name){
+                            specification$get.outcome(dep.on.outcome.name)$is.cumulative
+                        })))
+                        all.dependee.quantities.are.static = all(private$i.quantity.is.static[specification$get.outcome.direct.dependee.quantity.names(outcome.name)])
+                        
+                        if (all.dependee.outcomes.are.cumulative && all.dependee.quantities.are.static)
+#                        if (length(private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]])==0)
                         {
                             times.to.pull = private$i.outcome.value.times.to.calculate[[outcome.name]]
                             is.after.time = rep(F, length(times.to.pull))

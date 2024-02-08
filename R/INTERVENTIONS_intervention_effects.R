@@ -475,7 +475,7 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                 if (length(missing.bindings)>0)
                     stop(paste0(error.prefix, "Cannot resolve the intervention effect with the following ",
                                 ifelse(length(missing.bindings)==1, "binding", "bindings"),
-                                "missing: ",
+                                " missing: ",
                                 collapse.with.and("'", missing.bindings, "'")))
                 
                 # Make sure bindings are all numeric - if not, we have not anchored to location/version

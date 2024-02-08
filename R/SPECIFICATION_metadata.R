@@ -10,7 +10,7 @@
 #'@details A specification.metadata object contains metadata, such as dim.names of quantities, for a specification
 #'
 #'@export
-get.specification.metadata <- function(version, location,
+get.specification.metadata <- function(version, location, sub.version=NULL,
                                        error.prefix = NULL)
 {
     if (is.null(error.prefix))
@@ -18,6 +18,7 @@ get.specification.metadata <- function(version, location,
     
     SPECIFICATION.METADATA$new(version=version,
                                location=location,
+                               sub.version=sub.version,
                                error.prefix=error.prefix)
 }
 
@@ -30,11 +31,12 @@ SPECIFICATION.METADATA = R6::R6Class(
         
         initialize = function(version,
                               location,
+                              sub.version,
                               error.prefix)
         {
             #-- Call the superclass constructor --#
             super$initialize(version = version,
-                             sub.version = NULL,
+                             sub.version = sub.version,
                              location = location,
                              type = "Specification Metadata",
                              error.prefix = error.prefix)
