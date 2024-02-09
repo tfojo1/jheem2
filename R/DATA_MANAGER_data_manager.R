@@ -1316,6 +1316,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (!is.logical(na.rm) || length(na.rm)!=1 || is.na(na.rm))
                     stop(paste0(error.prefix, "na.rm must be a single, non-NA, logical value"))
             }
+            
+            # Check if we have any data at all for this outcome!
+            if (is.null(private$i.data[[outcome]])) return (NULL)
 
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
