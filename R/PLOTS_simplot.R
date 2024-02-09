@@ -151,9 +151,13 @@ simplot <- function(...,
         outcome.ontology
     })
     
-    # Get the locations to pull data for for each outcome
-    # - for now, just use the sim$location
-    location = simset.list[[1]]$location
+    outcome.locations = lapply(outcomes, function(outcome) {
+        locations.this.outcome = unique(unlist(lapply(simset.list, function(simset) {
+            simset$outcome.location.mapping$get.observed.locations(outcome, simset$location)
+        })))
+    })
+    names(outcome.locations) = outcomes.for.data
+    # browser()
     
     #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
 
@@ -167,8 +171,8 @@ simplot <- function(...,
             outcome.data = tryCatch(
                 {
                     result = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                               dimension.values = c(dimension.values, list(location = location)),
-                                               keep.dimensions = c('year', facet.by, split.by), #'year' can never be in facet.by
+                                               dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                               keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                target.ontology = outcome.ontologies[[i]],
                                                allow.mapping.from.target.ontology = T,
                                                na.rm=T,
@@ -252,7 +256,6 @@ simplot <- function(...,
         }
     }
     
-    # browser()
     if (!is.null(df.sim)) {
         df.sim$simset = factor(df.sim$simset)
         df.sim$sim = factor(df.sim$sim)
@@ -282,14 +285,14 @@ simplot <- function(...,
                 geom_point(data=df.sim.groupids.one.member, size=2, aes(x=year, y=value, shape=simset, color=!!sym(split.by)))
         }
         if (!is.null(df.truth))
-            rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by)))
+            rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by), shape=location))
     } else {
         if (!is.null(df.sim)) {
             rv = rv + geom_line(data=df.sim.groupids.many.members, aes(x=year, y=value, linetype=simset, group=groupid, alpha=alpha, linewidth=linewidth)) +
                 geom_point(data=df.sim.groupids.one.member, size=2, aes(x=year, y=value, shape=simset))
         }
         if (!is.null(df.truth))
-            rv = rv + geom_point(data=df.truth, aes(x=year, y=value))
+            rv = rv + geom_point(data=df.truth, aes(x=year, y=value, shape=location))
     }
     
     if (!is.null(facet.by) || length(outcomes) > 1) {
