@@ -38,7 +38,13 @@ void do_interpolate_quantity_elementwise(double *dst,
     NumericVector one_val = values[0];
     LogicalVector one_val_applies;
     int len = one_val.length();
+ 
+    if (i_before < 0)
+        i_before = 0;
     
+    if (i_after >= n_times)
+        i_after = n_times-1;
+ 
     one_val_applies = after_value_applies[i_before];
     bool before_all_applies = one_val_applies.length()==1 && one_val_applies[0];
     
@@ -71,7 +77,7 @@ void do_interpolate_quantity_elementwise(double *dst,
                 else
                 {
                     one_val_applies = value_applies[i_before_for_k];
-                    if (one_val_applies[k])
+                    if ((one_val_applies.length()==1 && one_val_applies[0]) || one_val_applies[k])
                     {
                         one_val = values[i_before_for_k];
                         val_before = one_val[k];
@@ -95,7 +101,7 @@ void do_interpolate_quantity_elementwise(double *dst,
             while (i_after < n_times)
             {
                 one_val_applies = value_applies[i_after_for_k];
-                if (one_val_applies[k])
+                if ((one_val_applies.length()==1 && one_val_applies[0]) ||one_val_applies[k])
                 {
                     one_val = values[i_after_for_k];
                     val_after = one_val[k];
@@ -104,7 +110,7 @@ void do_interpolate_quantity_elementwise(double *dst,
                 else
                 {
                     one_val_applies = after_value_applies[i_after_for_k];
-                    if (one_val_applies[k])
+                    if ((one_val_applies.length()==1 && one_val_applies[0]) || one_val_applies[k])
                     {
                         one_val = after_values[i_after_for_k];
                         val_after = one_val[k];
@@ -1323,4 +1329,45 @@ if (debug)
     
     return (dx);
     
+}
+
+
+//-- A HELPER FOR INTERPOLATING WHEN VALUE DOES NOT APPLY --//
+//--   (Used in JHEEM_engine.R in calculating outcomes)   --//
+
+
+// [[Rcpp::export]]
+List interpolate_values_when_do_not_apply(List values,
+                                          NumericVector times,
+                                          List value_applies_for_time)
+{
+    int n = values.length();
+    List rv = List::create();
+    LogicalVector one_value_applies;
+    NumericVector one_value;
+    
+    for (int i=0; i<n; i++)
+    {
+        one_value_applies = value_applies_for_time[i];
+        if (one_value_applies.length()!=1 || !one_value_applies[0])
+        {
+            one_value = values[i];
+            NumericVector new_value(one_value.length());  
+            
+            do_interpolate_quantity_elementwise(new_value.begin(), // double *dst,
+                                                values, //List values,
+                                                values, //List after_values,
+                                                times, //NumericVector times,
+                                                value_applies_for_time, //List value_applies,
+                                                value_applies_for_time, //List after_value_applies,
+                                                times[i], //double time,
+                                                i, //int i_before,
+                                                i+1//int i_after)
+            );
+            
+            values[i] = new_value;
+        }
+    }
+    
+    return (values);
 }
