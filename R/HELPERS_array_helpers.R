@@ -590,3 +590,14 @@ apply.robust <- function(arr,
           dim=sapply(dimnames.after.apply, length),
           dimnames=dimnames.after.apply)
 }
+
+##---------------------##
+##-- CHANGE DIMNAMES --##
+##---------------------##
+
+set.array.dimnames <- function(arr, new.dimnames)
+{
+    # validate new dimnames? TO DO!!
+    
+    return(array(arr, sapply(new.dimnames, length), new.dimnames))
+}
