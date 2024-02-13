@@ -1225,7 +1225,6 @@ JHEEM = R6::R6Class(
             compute.fn = function(x, t){
                 if (1==2)
                 {
-                    browser()
                     args = list(state = x,
                                 time = t,
                                 settings = private$i.diffeq.settings,
@@ -4377,7 +4376,10 @@ JHEEM = R6::R6Class(
                     }
                 }
                 
-                mask
+                if (all(mask))
+                    T
+                else
+                    mask
             })
         },
           
@@ -5446,6 +5448,7 @@ JHEEM = R6::R6Class(
                 private$calculate.outcome.non.cumulative.value.applies.masks(outcome.name, specification = specification)
             
             private$i.interpolated.outcome.numerators.when.values.dont.apply[[outcome.name]] = private$i.outcome.numerators[[outcome.name]]
+            
             interpolate_values_when_do_not_apply(values = private$i.interpolated.outcome.numerators.when.values.dont.apply[[outcome.name]],
                                                  times = private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]],
                                                  value_applies_for_time = private$i.outcome.non.cumulative.value.applies.masks[[outcome.name]])
@@ -5453,6 +5456,7 @@ JHEEM = R6::R6Class(
             if (!is.null(private$i.outcome.denominators[[outcome.name]]))
             {
                 private$i.interpolated.outcome.denominators.when.values.dont.apply[[outcome.name]] = private$i.outcome.numerators[[outcome.name]]
+                
                 interpolate_values_when_do_not_apply(values = private$i.interpolated.outcome.denominators.when.values.dont.apply[[outcome.name]],
                                                      times = private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]],
                                                      value_applies_for_time = private$i.outcome.non.cumulative.value.applies.masks[[outcome.name]])

@@ -187,6 +187,11 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             unlist(private$i.outcome.non.cumulative.dependendee.outcome.names[outcome.names])
         },
         
+        get.outcome.non.cumulative.direct.dependendee.outcome.names = function(outcome.names)
+        {
+            unlist(private$i.outcome.non.cumulative.direct.dependendee.outcome.names[outcome.names])
+        },
+        
         get.outcome.non.cumulative.dependent.outcome.names = function(outcome.names)
         {
             unlist(private$i.outcome.non.cumulative.dependent.outcome.names[outcome.names])
@@ -501,6 +506,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         i.outcome.numerator.direct.dependee.outcome.names = NULL,
         i.direct.dependent.outcome.numerator.names = NULL,
         i.outcome.direct.dependee.quantity.names = NULL,
+        i.outcome.non.cumulative.direct.dependendee.outcome.names = NULL,
         
         #----------------------------------#
         #-- COMPILE FUNCTION and HELPERS --#
@@ -1918,6 +1924,11 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 dependent = names(private$i.outcomes)
             )
             
+            private$i.outcome.non.cumulative.direct.dependendee.outcome.names = lapply(names(private$i.outcomes), function(outcome.name){
+                names(private$i.outcomes)[private$i.direct.outcome.on.outcome.non.cumulative.dependencies[,outcome.name]]
+            })
+            names(private$i.outcome.non.cumulative.direct.dependendee.outcome.names) = names(private$i.outcomes)
+            
             # i.outcome.on.quantity.dependencies[i,j] is true if outcome j ultimately depends on quantity i
             private$i.outcome.on.quantity.dependencies = sapply(names(private$i.outcomes), function(outcome.name){
                 
@@ -1936,6 +1947,8 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 dependee = names(private$i.quantities),
                 dependent = names(private$i.outcomes)
             )
+            
+            
             
             #-- Set up dependency vectors related to outcomes --#
             private$i.outcome.non.cumulative.dependendee.outcome.names = lapply(names(private$i.outcomes), function(outcome.name){

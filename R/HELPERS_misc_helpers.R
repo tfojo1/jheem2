@@ -251,6 +251,7 @@ get.function.argument.names <- function(fn,
 # returns a matrix
 # one column for each element in values
 # one row for each combo of one value from each element of values
+#'@export
 get.every.combination <- function(values)
 {
     n = length(values)
