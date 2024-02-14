@@ -794,10 +794,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             }
             if (length(private$i.obs.p)==0) stop(paste0(error.prefix, "no data was found for any stratification"))
             
-            # Now the required dimnames may have their dimensions in the wrong order or their values in the wrong order. Use the sim ontology to fix this.
+            # Now the required dimnames may have their dimensions in the wrong order or their values in the wrong order. They may also lack some values from a complete dimension. Use the sim ontology to fix this.
             corrected.sim.required.dimnames = private$i.sim.ontology[names(private$i.sim.ontology) %in% names(private$i.sim.required.dimnames)]
             corrected.sim.required.dimnames$year = private$i.sim.required.dimnames$year
-            # corrected.sim.required.dimnames = corrected.sim.required.dimnames[names(corrected.sim.required.dimnames) != 'location']
             private$i.sim.required.dimnames = corrected.sim.required.dimnames
             
             private$i.details = as.factor(private$i.details)

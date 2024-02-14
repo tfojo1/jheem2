@@ -587,6 +587,10 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             # private$i.metadata$source = as.factor(private$i.metadata$source) # already factor somehow
             
             ## ---- FIND REQUIRED DIMENSION VALUES, ETC. ---- ##
+            corrected.sim.required.dimnames = private$i.sim.ontology[names(private$i.sim.ontology) %in% names(private$i.sim.required.dimnames)]
+            corrected.sim.required.dimnames$year = private$i.sim.required.dimnames$year
+            private$i.sim.required.dimnames = corrected.sim.required.dimnames
+            
             private$i.years = private$i.sim.required.dimnames[['year']]
             private$i.sim.dimension.values = private$i.sim.required.dimnames[sapply(names(private$i.sim.required.dimnames), function(d) {!identical(private$i.sim.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
             private$i.sim.dimension.values[['year']] = private$i.years
@@ -806,7 +810,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 year.limited.dimnames$year = years.in.sim.and.stratification
                 
                 one.mapping = get.ontology.mapping(from.ontology = sim.dimnames, to.ontology = year.limited.dimnames[names(year.limited.dimnames) != 'source'])
-                
                 one.source.transformation.matrix = one.mapping$get.matrix(from.dim.names = sim.dimnames,
                                                                           to.dim.names = year.limited.dimnames[names(year.limited.dimnames) != 'source'])
 
