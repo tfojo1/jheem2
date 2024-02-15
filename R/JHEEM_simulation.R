@@ -816,6 +816,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                       paste0(" with intervention '", self$intervention.code, "'"))))
         },
         
+        # NB: these arguments all need to be duplication in JHEEM_simset_collection.R's get() method
         get = function(outcomes,
                        output = c('value', 'numerator', 'denominator')[[1]],
                        keep.dimensions=NULL,
@@ -1153,9 +1154,9 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 NULL
         },
         
-        save = function(root.dir)
+        save = function(root.dir = get.jheem.root.directory("Cannot save simulation set: "))
         {
-            
+            save.simulation.set(simset = self, root.dir = root.dir)
         }
         
     ),
