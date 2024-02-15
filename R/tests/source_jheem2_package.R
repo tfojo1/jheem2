@@ -3,6 +3,9 @@
 #   library(jheem2)
 # For testing
 
+source("../jheem2/R/FILE_MANAGER_file_manager.R")
+
+
 source('../jheem2/R/ONTOLOGY_ontology_mappings.R')
 Rcpp::sourceCpp('../jheem2/src/ontology_mappings.cpp')
 
@@ -56,7 +59,6 @@ Rcpp::sourceCpp('../jheem2/src/correlation_matrix_helpers.cpp')
 Rcpp::sourceCpp('../jheem2/src/likelihood_helpers.cpp')
 Rcpp::sourceCpp('../jheem2/src/nested_proportion_likelihood.cpp')
 
-source("../jheem2/R/FILE_MANAGER_file_manager.R")
 source("../jheem2/R/CALIBRATION_main.R")
 
 
