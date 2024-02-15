@@ -12,9 +12,95 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
                               calibration.code,
                               n.sim,
                               locations,
-                              intervention.codes)
+                              interventions)
         {
+            #-- Validate arguments --#
             
+            # version
+            if (!is.character(version) || length(version)!=1 || is.na(version))
+                stop(paste0(error.prefix, "'version' must be a single, non-NA character value"))
+            
+            # sub-version
+            if (is.null(sub.version))
+            {}
+            else if (!is.character(sub.version) || length(sub.version)!=1 || is.na(sub.version))
+                stop(paste0(error.prefix, "'sub.version' must be either NULL or a single, non-NA character value"))
+            
+            if (!is.character(version) || length(version)!=1 || is.na(version))
+                stop(paste0(error.prefix, "'version' must be a single, non-NA character value"))
+            
+            # calibration.code
+            if (is.null(calibration.code))
+            {}
+            else if (!is.character(calibration.code) || length(calibration.code)!=1 || is.na(calibration.code))
+                stop(paste0(error.prefix, "'calibration.code' must be either NULL or a single, non-NA character value"))
+            
+            # n.sim
+            if (!is.numeric(n.sim) || length(n.sim)!=1 || is.na(n.sim) || n.sim<=0 || round(n.sim)!=n.sim)
+                stop(paste0(error.prefix, "'n.sim' must be a single, non-NA, positive integer value"))
+            
+            # locations
+            if (!is.character(locations) || length(locations)==0 || any(is.na(locations)))
+                stop(paste0(error.prefix, "'locations' must be a non-empty character vector with no NA values"))
+            
+            # interventions
+            if (is.character(interventions))
+                interventions = as.list(intervention.codes)
+            else
+                interventions
+            
+            if (is.list(interventions))
+            {
+                if (length(interventions)==0)
+                    stop(paste0(error.prefix, "'interventions' cannot be empty"))
+                
+                intervention.codes = lapply(1:length(interventions), function(i){
+                    
+                    int = interventions[[i]]
+                    
+                    if (is(int, 'jheem.intervention'))
+                    {
+                        code = int$code
+                        if (is.intervention.code.temporary(code))
+                            stop(paste0(error.prefix, "The given interventions cannot have a temporary code, but the ",
+                                        get.ordinal(i), " element of 'interventions' does. Specify a code when registering this intervention to be able to use it in a simset collection"))
+                    }
+                    
+                    if (is.null(int))
+                        code = NULL # OK
+                    else if (is.character(code))
+                    {
+                        code = int
+                        if (length(code)!=1 || is.na(code))
+                            stop(paste0(error.prefix, "When character values are given in 'interventions' they must be length==1 and non-NA"))
+                        
+                        if (is.intervention.code.temporary(code))
+                            stop(paste0(error.prefix, "The given intervention codes cannot be temporary codes, but the ",
+                                        get.ordinal(i), " element of 'interventions' ('", code,
+                                        "') is. Specify a code when registering this intervention to be able to use it in a simset collection"))
+                    }
+                    else 
+                        stop(paste0(error.prefix, "The elements of 'intervention.codes' must be either NULL, character intervention codes, or jheem.intervention objects"))
+                    
+                    
+                    code
+                })
+            }
+            else
+                stop(paste0(error.prefix, "'interventions' must be either a character vector of intervention codes, or a list containing intervention codes and/or jheem.intervention objects"))
+            
+            #-- Store variables --#
+            
+            private$i.version = version
+            private$i.sub.version = sub.version
+            private$i.calibration.code = calibration.code
+            private$i.locations = locations
+            private$i.intervention.codes = intervention.codes
+            private$i.n.sim = n.sim
+            
+            private$i.intervention.code.labels = intervention.codes
+            private$i.intervention.code.labels[sapply(private$i.intervention.code.labels, is.null)] = 'baseline'
+            private$i.intervention.code.labels = as.character(unlist(private$i.intervention.code.labels))
         },
         
         run = function(start.year,
@@ -114,14 +200,52 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
     
     active = list(
         
-        n.sim = function(value)
-        {
-            
-        },
-        
         version = function(value)
         {
-            
+            if (missing(value))
+                private$iversion
+            else
+                stop("Cannot modify 'version' for a jheem.simset.collection - it is read-only")
+        },
+        
+        sub.version = function(value)
+        {
+            if (missing(value))
+                private$i.sub.version
+            else
+                stop("Cannot modify 'sub.version' for a jheem.simset.collection - it is read-only")
+        },
+        
+        calibration.code = function(value)
+        {
+            if (missing(value))
+                private$i.calibration.code
+            else
+                stop("Cannot modify 'calibration.code' for a jheem.simset.collection - it is read-only")
+        },
+        
+        n.sim = function(value)
+        {
+            if (missing(value))
+                private$i.n.sim
+            else
+                stop("Cannot modify 'n.sim' for a jheem.simset.collection - it is read-only")
+        },
+        
+        locations = function(value)
+        {
+            if (missing(value))
+                private$i.locations
+            else
+                stop("Cannot modify 'locations' for a jheem.simset.collection - they are read-only")
+        },
+        
+        intervention.codes = function(value)
+        {
+            if (missing(value))
+                private$i.intervention.codes
+            else
+                stop("Cannot modify 'intervention.codes' for a jheem.simset.collection - it is read-only")
         }
     ),
     
@@ -152,7 +276,7 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
                               sub.version = NULL,
                               calibration.code,
                               locations,
-                              intervention.codes,
+                              interventions,
                               n.sim = NULL,
                               root.dir = get.jheem.root.directory("Cannot create file-based simset collection: "))
         {
@@ -193,7 +317,7 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
                              sub.version = sub.version,
                              calibration.code = calibration.code,
                              locations = locations,
-                             intervention.codes = intervention.codes,
+                             interventions = interventions,
                              n.sim = n.sim)
             
             # store root dir
@@ -241,7 +365,9 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
                       
                     if (is.null(simset))
                     {
-                        verbose = T
+                        if (verbose)
+                            cat("\n   - No baseline simset has been run for location '", loc, "' - skipping all ",
+                                sum(need.to.do), " interventions for this location\n", sep='')
                     }
                     else
                     {
@@ -259,18 +385,48 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
                             
                             if (!is.null(int))
                             {
-                                new.simset = int$run(simset, 
-                                                     start.year = start.year,
-                                                     end.year = end.year,
-                                                     keep.from.year = keep.from.year,
-                                                     keep.to.year = keep.to.year)
+                                if (stop.for.errors)
+                                {
+                                    new.simset = int$run(simset, 
+                                                         start.year = start.year,
+                                                         end.year = end.year,
+                                                         keep.from.year = keep.from.year,
+                                                         keep.to.year = keep.to.year)
+                                }
+                                else
+                                {
+                                    tryCatch({
+                                        new.simset = int$run(simset, 
+                                                             start.year = start.year,
+                                                             end.year = end.year,
+                                                             keep.from.year = keep.from.year,
+                                                             keep.to.year = keep.to.year)
+                                    },
+                                    error = function(e){
+                                        if (verbose)
+                                            cat("\n   - There was an error running the intervention: ",
+                                                e$message, '\n   - Skipping this intervention\n', sep='')
+                                        new.simset = NULL
+                                    })
+                                }
                                 
-                                save.simulation.set(new.simset, root.dir = private$i.root.dir)
+                                if (!is.null(new.simset))
+                                {
+                                    save.simulation.set(new.simset, root.dir = private$i.root.dir)
+                                    if (verbose)
+                                        cat("Done\n")
+                                }
                             }
-                            
-                            if (verbose)
-                                cat("Done\n")
+                            else
+                            {
+                                if (verbose)
+                                    cat("\n   - No intervention was registered for code '", int.code, "' - skipping\n")
+                            }
                         }
+                        
+                        if (verbose)
+                            cat(" - Done with all ", sum(need.to.do), " interventions for location '", loc, "'\n", sep='')
+                            
                     }
                 }
                 else
@@ -289,6 +445,13 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
     
     active = list(
         
+        root.dir = function(value)
+        {
+            if (missing(value))
+                private$i.root.dir
+            else
+                stop("Cannot modify 'root.dir' for a jheem.file.based.simset.collection - it is read-only")
+        }
     ),
     
     private = list(

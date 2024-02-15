@@ -5,7 +5,7 @@
 set.up.calibration <- function(version,
                                location,
                                calibration.code,
-                               root.dir,
+                               root.dir = get.jheem.root.directory("Cannot set up calibration: "),
                                sub.version = NULL,
                                cache.frequency = 500,
                                allow.overwrite.cache = F,
@@ -333,7 +333,7 @@ set.up.calibration <- function(version,
 run.calibration <- function(version,
                             location,
                             calibration.code,
-                            root.dir,
+                            root.dir = get.jheem.root.directory("Cannot set up calibration: "),
                             chains,
                             update.frequency = 500,
                             update.detail = 'low')
@@ -354,7 +354,7 @@ run.calibration <- function(version,
 clear.calibration.cache <- function(version,
                                     location,
                                     calibration.code,
-                                    root.dir,
+                                    root.dir = get.jheem.root.directory("Cannot set up calibration: "),
                                     allow.remove.incomplete = F)
 {
     bayesian.simulations::remove.mcmc.cache(get.calibration.dir(version=version,
@@ -368,7 +368,7 @@ clear.calibration.cache <- function(version,
 assemble.mcmc.from.calibration <- function(version,
                                            location,
                                            calibration.code,
-                                           root.dir,
+                                           root.dir = get.jheem.root.directory("Cannot set up calibration: "),
                                            allow.incomplete=F,
                                            chains = NULL)
 {
@@ -386,7 +386,7 @@ assemble.mcmc.from.calibration <- function(version,
 assemble.simulations.from.calibration <- function(version,
                                                   location,
                                                   calibration.code,
-                                                  root.dir,
+                                                  root.dir = get.jheem.root.directory("Cannot set up calibration: "),
                                                   allow.incomplete=F,
                                                   chains = NULL)
 {
@@ -426,6 +426,9 @@ register.calibration.info <- function(code,
     # - a single, non-NA character value
     # - if already present, we need to check for equality
     # - We should not let calibration code overlap with any intervention codes
+    validate.calibration.code(code = code,
+                              error.prefix = "Cannot register calibration info: ",
+                              code.name.for.error = 'code')
     
     # likelihood.instructions is a likelihood.instructions object
     
@@ -589,14 +592,7 @@ prepare.mcmc.summary <- function(version,
 
 
 
-get.calibration.dir <- function(version, location, calibration.code, root.dir)
-{
-    file.path(root.dir, 
-              MCMC.SUB.DIRECTORY, 
-              get.jheem.file.path(version=version, 
-                                  location=location,
-                                  calibration.code=calibration.code))
-}
+
 
 get.distribution.variable.transformation = function(dist, unknown.value)
 {

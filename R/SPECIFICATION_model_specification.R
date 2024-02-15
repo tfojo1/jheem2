@@ -94,24 +94,10 @@ create.jheem.specification <- function(version,
     ##-- CHECK ARGUMENTS --##
 
     #-- Version --#    
-    if (!is.character(version) || length(version)!=1 || is.na(version))
-        stop(paste0(error.prefix, "'version' must be a single, non-NA character value"))
-    if (nchar(version)<MIN.SPECIFICATION.VERSION.NCHAR || nchar(version)>MAX.SPECIFICATION.VERSION.NCHAR)
-        stop(paste0(error.prefix,
-                    "'version' must have between ", MIN.SPECIFICATION.VERSION.NCHAR,
-                    " and ", MAX.SPECIFICATION.VERSION.NCHAR, " letters. ('",
-                    version, "' has ", nchar(version), ")"))
-    if (string.contains.invalid.characters(version, valid.characters = NUMBERS.LETTERS.DASH.PERIOD))
-    {
-        invalid = setdiff(strsplit(version, '')[[1]], strsplit(NUMBERS.LETTERS.DASH.PERIOD, '')[[1]])
-        stop(paste0(error.prefix,
-                    "Invalid ",
-                    ifelse(length(invalid)==1, "character", "characters"),
-                    "(", paste0(invalid, collapse=', '), 
-                    ") in version '", version, 
-                    "' - can only contain numbers, letters, periods, and dashes"))
-    }
-    
+    validate.version.code(code = version, 
+                          error.prefix = "Cannot create jheem.specification",
+                          code.name.for.error = 'version')
+        
     # make a more informative error prefix with the version
     error.prefix = paste0("Cannot create jheem.specification '", version, "': ")
     
@@ -171,22 +157,9 @@ create.jheem.specification <- function(version,
     
     for (one.sub.version in sub.versions)
     {
-        if (nchar(one.sub.version)<MIN.SPECIFICATION.SUBVERSION.NCHAR || nchar(one.sub.version)>MAX.SPECIFICATION.SUBVERSION.NCHAR)
-            stop(paste0(error.prefix,
-                        "'sub.versions' must have between ", MIN.SPECIFICATION.VERSION.NCHAR,
-                        " and ", MAX.SPECIFICATION.VERSION.NCHAR, " letters. ('",
-                        one.sub.version, "' has ", nchar(one.sub.version), ")"))
-        
-        if (string.contains.invalid.characters(one.sub.version, valid.characters = NUMBERS.LETTERS))
-        {
-            invalid = setdiff(strsplit(one.sub.version, '')[[1]], strsplit(NUMBERS.LETTERS, '')[[1]])
-            stop(paste0(error.prefix,
-                        "Invalid ",
-                        ifelse(length(invalid)==1, "character", "characters"),
-                        "(", paste0(invalid, collapse=', '), 
-                        ") in sub.version '", one.sub.version, 
-                        "' - can only contain numbers and letters"))
-        }
+        validate.sub.version.code(code = one.sub.version,
+                                  error.prefix = error.prefix,
+                                  code.name.for.error = 'the elements of sub.versions')
     }
     
     
@@ -1766,12 +1739,8 @@ MODEL.OUTCOME.METADATA = R6::R6Class(
 ##-- SOME INTERNAL (to this code file) CONSTANTS --##
 ##-------------------------------------------------##
 
-MIN.SPECIFICATION.VERSION.NCHAR = 2
-MAX.SPECIFICATION.VERSION.NCHAR = 12
 MIN.SPECIFICATION.ITERATION.NCHAR = 1
 MAX.SPECIFICATION.ITERATION.NCHAR = 20
-MIN.SPECIFICATION.SUBVERSION.NCHAR = 1
-MAX.SPECIFICATION.SUBVERSION.NCHAR = 3
 
 MIN.SPECIFICATION.DESCRIPTION.NCHAR = 2
 MAX.SPECIFICATION.DESCRIPTION.NCHAR = 500
