@@ -293,6 +293,9 @@ incomplete.dimensions <- function(x)
 #'@export
 '[<-.ontology' <- function(ont, i, value)
 {
+    if (is.null(i)) #if for some reason this is an overwrite of nothing
+        return (ont)
+    
     if (is.numeric(value))
         value = as.character(value)
     else if (is.list(value))
