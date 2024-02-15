@@ -44,7 +44,7 @@ JHEEM.ENTITY = R6::R6Class(
             if (!is.character(location) || length(location)!=1 || is.na(location) || nchar(location)==0)
                 stop(paste0(error.prefix, "'location' must be a single, non-NA, non-empty character value"))
             
-            if (!is.location.valid(location))
+            if (!locations::is.location.valid(location))
                 stop(paste0("'", location, "' is not recognized as a registered as a location"))
             
             # Validate the type
