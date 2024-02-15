@@ -395,15 +395,9 @@ is.intervention.code.temporary <- function(code)
 ##-----------------------##
 ##-----------------------##
 
-MINIMUM.INTERVENTION.CODE.NCHAR = 2
-MAXIMUM.INTERVENTION.CODE.NCHAR = 30
 
 MINIMUM.INTERVENTION.NAME.NCHAR = 5
 MAXIMUM.INTERVENTION.NAME.NCHAR = 50
-
-DISALLOWED.INTERVENTION.CODE.PREFIXES = c(
-    INTERVENTION.TEMPORARY.CODE.PREFIX
-)
 
 #'@export
 JHEEM.INTERVENTION = R6::R6Class(
@@ -419,24 +413,14 @@ JHEEM.INTERVENTION = R6::R6Class(
             
             # Do some error checking
             if (is.null(code))
+            {
                 code = get.unique.temporary.intervention.code()
+            }
             else
             {
-                if (!is.character(code) || length(code)!=1 || is.na(code) || 
-                    nchar(code)<MINIMUM.INTERVENTION.CODE.NCHAR || nchar(code)>MAXIMUM.INTERVENTION.CODE.NCHAR)
-                    stop(paste0(error.prefix, "'code' must be a single, non-NA character value with between ",
-                                MINIMUM.INTERVENTION.CODE.NCHAR, " and ", MAXIMUM.INTERVENTION.CODE.NCHAR, " letters"))
-                
-                check.for.invalid.characters(str = code,
-                                             valid.characters = NUMBERS.LETTERS.DASH.PERIOD,
-                                             str.name = "An intervention's 'code'",
-                                             valid.characters.description = 'numbers, letters, dashes, or periods',
-                                             error.prefix = '')
-                
-                disallowed.prefix.mask = tolower(code) == tolower(DISALLOWED.INTERVENTION.CODE.PREFIXES)
-                if (any(disallowed.prefix.mask))
-                    stop(paste0(error.prefix, "'code' cannot begin with '", 
-                                DISALLOWED.INTERVENTION.CODE.PREFIXES[disallowed.prefix.mask], "' (case-insensitive)"))
+                validate.intervention.code(code = code,
+                                           error.prefix = error.prefix, 
+                                           code.name.for.error = 'code')
             }
             
             if (!is.null(name))
