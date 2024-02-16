@@ -5362,6 +5362,7 @@ JHEEM = R6::R6Class(
                         names(bindings.of.quantities) = specification$get.outcome.direct.dependee.quantity.names(outcome.name)
                         
                         bindings = c(bindings.of.outcomes, bindings.of.quantities)
+                        
                         raw.value = outcome$calculate.values(desired.times = private$i.outcome.value.times.to.calculate[[outcome.name]],
                                                              bindings = bindings,
                                                              binding.times = times.to.pull,
@@ -5455,7 +5456,7 @@ JHEEM = R6::R6Class(
             
             if (!is.null(private$i.outcome.denominators[[outcome.name]]))
             {
-                private$i.interpolated.outcome.denominators.when.values.dont.apply[[outcome.name]] = private$i.outcome.numerators[[outcome.name]]
+                private$i.interpolated.outcome.denominators.when.values.dont.apply[[outcome.name]] = private$i.outcome.denominators[[outcome.name]]
                 
                 interpolate_values_when_do_not_apply(values = private$i.interpolated.outcome.denominators.when.values.dont.apply[[outcome.name]],
                                                      times = private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]],
