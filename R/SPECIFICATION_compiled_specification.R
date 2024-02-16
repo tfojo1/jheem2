@@ -73,6 +73,16 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             private$i.do.not.inherit.transitions.for.dimension = do.not.inherit.transitions.for.dimension
             private$i.do.not.inherit.components.with.tags = do.not.inherit.components.with.tags
             
+            private$i.quantity.name.mappings = list()
+            private$i.quantity.name.mappings[[version]] = names(private$i.quantities)
+            names(private$i.quantity.name.mappings[[version]]) = names(private$i.quantities)
+            
+            private$i.element.name.mappings = private$i.quantity.name.mappings
+            element.mask = sapply(private$i.quantities, function(quant){
+                quant$is.element
+            })
+            private$i.element.name.mappings[[version]] = private$i.element.name.mappings[[version]][element.mask]
+            
             
             #-- Copy ancestor specifications and add this one --#
             private$i.ancestor.specifications = list(self)
@@ -227,7 +237,15 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             for (quant in private$i.quantities)
             {
                 if (any(quant$name==names.in.use))
-                    quant$rename(paste0(quant$name, '__', quant$version))
+                {
+                    orig.name = quant$name
+                    new.name = paste0(quant$name, '__', quant$version)
+                    quant$rename(new.name)
+                    
+                    private$i.quantity.name.mappings[[private$i.version]][orig.name] = new.name
+                    if (quant$is.element)
+                        private$i.element.name.mappings[[private$i.version]][orig.name] = new.name
+                }
             }
             
             if (!is.null(private$i.parent.specification))
@@ -235,7 +253,23 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 names.in.use = union(names.in.use,
                                      sapply(private$i.quantities, function(quant){quant$name}))
                 
+                # Recurse
                 private$i.parent.specification$rename.quantities(names.in.use)
+                
+                
+                # Update quantity/element name mappings
+                private$i.quantity.name.mappings = c(private$i.quantity.name.mappings, 
+                                                     private$i.parent.specification$quantity.name.mappings)
+                
+                private$i.element.name.mappings = c(private$i.element.name.mappings, 
+                                                     private$i.parent.specification$element.name.mappings)
+                
+                element.mappings.to.import = private$i.element.name.mappings[[private$i.parent.specification$version]]
+                element.mappings.to.import = element.mappings.to.import[setdiff(names(element.mappings.to.import),
+                                                                                names(private$i.element.name.mappings[[private$i.version]]))]
+                
+                private$i.element.name.mappings[[private$i.version]] = c(private$i.element.name.mappings[[private$i.version]],
+                                                                         element.mappings.to.import)
             }
             
             self
@@ -468,6 +502,22 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 private$i.fixed.strata.info
             else
                 stop(paste0("Cannot modify a ", self$descriptor, "'s 'fixed.strata.info' - it is read-only"))
+        },
+        
+        quantity.name.mappings = function(value)
+        {
+            if (missing(value))
+                private$i.quantity.name.mappings
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'quantity.name.mappings' - they are read-only"))
+        },
+        
+        element.name.mappings = function(value)
+        {
+            if (missing(value))
+                private$i.element.name.mappings
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'element.name.mappings' - they are read-only"))
         }
     ),
     
@@ -507,6 +557,9 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         i.direct.dependent.outcome.numerator.names = NULL,
         i.outcome.direct.dependee.quantity.names = NULL,
         i.outcome.non.cumulative.direct.dependendee.outcome.names = NULL,
+        
+        i.quantity.name.mappings = NULL,
+        i.element.name.mappings = NULL,
         
         #----------------------------------#
         #-- COMPILE FUNCTION and HELPERS --#
@@ -1422,7 +1475,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                         invalid.dimensions = setdiff(names(comp$applies.to), names(max.dim.names))
                         if (length(invalid.dimensions)>0)
                         {
-                            browser()
                             stop(paste0(error.prefix,
                                         "Cannot calculate dimnames for quantity ", 
                                         quantity$get.original.name(private$i.version),

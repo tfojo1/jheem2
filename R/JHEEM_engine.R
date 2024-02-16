@@ -15,19 +15,22 @@
 #'@param model.settings An object of class 'jheem.model.settings'
 #'@param element.name The name of the model element to update a value for
 #'@param value The new value for the model element
+#'@param wrt.version The version relative to which the element name is resolved (if an element.name is overwritten in a descendant version, using wrt.version can be used to select which specification's model element is to be modified)
 #'
 #'@family Functions to modify model settings
 #'
 #'@export
 set.element.value <- function(model.settings,
                               element.name,
-                              value)
+                              value,
+                              wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.value(element.name = element.name,
-                                     value = value)
+                                     value = value,
+                                     wrt.version = wrt.version)
 }
 
 #'@title Set Main Effect Alpha Values for a Functional Form for a Model Element
@@ -49,7 +52,8 @@ set.element.functional.form.main.effect.alphas <- function(model.settings,
                                                            alpha.name,
                                                            values,
                                                            applies.to.dimension.values=names(values),
-                                                           dimensions=names(applies.to.dimension.values))
+                                                           dimensions=names(applies.to.dimension.values),
+                                                           wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
@@ -58,7 +62,8 @@ set.element.functional.form.main.effect.alphas <- function(model.settings,
                                                                 alpha.name = alpha.name,
                                                                 values = values,
                                                                 applies.to.dimension.values = applies.to.dimension.values,
-                                                                dimensions = dimensions)
+                                                                dimensions = dimensions,
+                                                                wrt.version = wrt.version)
 }
 
 #'@title Set Interaction Alpha Values for a Functional Form for a Model Element
@@ -77,7 +82,8 @@ set.element.functional.form.interaction.alphas <- function(model.settings,
                                                            alpha.name,
                                                            value,
                                                            applies.to.dimension.values=names(values),
-                                                           dimensions=names(applies.to.dimension.values))
+                                                           dimensions=names(applies.to.dimension.values),
+                                                           wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
@@ -86,7 +92,8 @@ set.element.functional.form.interaction.alphas <- function(model.settings,
                                                                 alpha.name = alpha.name,
                                                                 value = value,
                                                                 applies.to.dimension.values = applies.to.dimension.values,
-                                                                dimensions = dimensions)
+                                                                dimensions = dimensions,
+                                                                wrt.version = wrt.version)
 }
 
 #'@title Set the Times From and To Which the Functional Form Determines a Model Element's Value
@@ -100,13 +107,15 @@ set.element.functional.form.interaction.alphas <- function(model.settings,
 #'@export
 set.element.functional.form.from.time <- function(model.settings,
                                                   element.name,
-                                                  from.time)
+                                                  from.time,
+                                                  wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.from.time(element.name = element.name,
-                                                       from.time = from.time)
+                                                       from.time = from.time,
+                                                       wrt.version = wrt.version)
 }
 
 
@@ -115,13 +124,15 @@ set.element.functional.form.from.time <- function(model.settings,
 #'@export
 set.element.functional.form.to.time <- function(model.settings,
                                                 element.name,
-                                                to.time)
+                                                to.time,
+                                                wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.to.time(element.name = element.name,
-                                                     to.time = to.time)
+                                                     to.time = to.time,
+                                                     wrt.version = wrt.version)
 }
 
 
@@ -140,14 +151,16 @@ set.element.functional.form.to.time <- function(model.settings,
 set.element.ramp.times <- function(model.settings,
                                    element.name,
                                    times,
-                                   indices=1:length(times))
+                                   indices=1:length(times),
+                                   wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.ramp.times(element.name = element.name,
                                         times = times,
-                                        indices = indices)
+                                        indices = indices,
+                                        wrt.version = wrt.version)
 }
 
 #'@describeIn set.element.ramp.times
@@ -156,14 +169,16 @@ set.element.ramp.times <- function(model.settings,
 set.element.ramp.values <- function(model.settings,
                                     element.name,
                                     values,
-                                    indices=1:length(values))
+                                    indices=1:length(values),
+                                    wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.ramp.values(element.name = element.name,
                                          values = values,
-                                         indices = indices)
+                                         indices = indices,
+                                         wrt.version = wrt.version)
 }
 
 #'@describeIn set.element.ramp.times
@@ -172,14 +187,16 @@ set.element.ramp.values <- function(model.settings,
 set.element.taper.times <- function(model.settings,
                                     element.name,
                                     times,
-                                    indices=1:length(times))
+                                    indices=1:length(times),
+                                    wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.taper.times(element.name = element.name,
                                          times = times,
-                                         indices = indices)
+                                         indices = indices,
+                                         wrt.version = wrt.version)
 }
 
 #'@describeIn set.element.ramp.times
@@ -188,14 +205,16 @@ set.element.taper.times <- function(model.settings,
 set.element.taper.values <- function(model.settings,
                                      element.name,
                                      values,
-                                     indices=1:length(values))
+                                     indices=1:length(values),
+                                     wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.taper.values(element.name = element.name,
                                           values = values,
-                                          indices = indices)
+                                          indices = indices,
+                                          wrt.version = wrt.version)
 }
 
 #'@title Set a "Future Slope" and the time after which it applies, for a model element
@@ -212,13 +231,15 @@ set.element.taper.values <- function(model.settings,
 #'@export
 set.element.functional.form.future.slope <- function(model.settings,
                                                      element.names,
-                                                     slope)
+                                                     slope,
+                                                     wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.future.slope(element.names = element.names,
-                                                          slope = slope)
+                                                          slope = slope,
+                                                          wrt.version = wrt.version)
 }
 
 
@@ -227,13 +248,15 @@ set.element.functional.form.future.slope <- function(model.settings,
 #'@export
 set.element.functional.form.future.slope.after.time <- function(model.settings,
                                                                 element.names,
-                                                                after.year)
+                                                                after.year,
+                                                                wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.future.slope.after.time(element.names = element.names,
-                                                                     after.year = after.year)
+                                                                     after.year = after.year,
+                                                                     wrt.version = wrt.version)
 }
 
 
@@ -267,7 +290,8 @@ set.element.functional.form.alphas.from.parameters <- function(model.settings,
                                                                parameter.name.suffix,
                                                                dimensions.with.values.referred.to.by.name = character(),
                                                                dimensions.with.values.referred.to.by.index = character(),
-                                                               throw.error.if.no.parameters = T)
+                                                               throw.error.if.no.parameters = T,
+                                                               wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
@@ -360,7 +384,8 @@ set.element.functional.form.alphas.from.parameters <- function(model.settings,
                                                                     alpha.name = alpha.name,
                                                                     values = parameter.values,
                                                                     applies.to.dimension.values = parameter.dim.values,
-                                                                    dimensions = parameter.dimensions)
+                                                                    dimensions = parameter.dimensions,
+                                                                    wrt.version = wrt.version)
     }
     
     
@@ -418,111 +443,133 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
         },
         
         set.element.value = function(element.name,
-                                     value)
+                                     value,
+                                     wrt.version = self$version)
         {
             private$i.jheem$set.element.value(element.name = element.name,
                                                value = value,
-                                               check.consistency = private$i.check.consistency)
+                                               check.consistency = private$i.check.consistency,
+                                              wrt.version = wrt.version)
         },
         
         set.element.functional.form.main.effect.alphas = function(element.name,
                                                                   alpha.name,
                                                                   values,
                                                                   applies.to.dimension.values=names(values),
-                                                                  dimensions=names(applies.to.dimension.values))
+                                                                  dimensions=names(applies.to.dimension.values),
+                                                                  wrt.version = self$version)
         {
             private$i.jheem$set.element.functional.form.main.effect.alphas(element.name = element.name,
                                                                             alpha.name = alpha.name,
                                                                             values = values,
                                                                             applies.to.dimension.values = applies.to.dimension.values,
                                                                             dimensions = dimensions,
-                                                                            check.consistency = private$i.check.consistency)
+                                                                            check.consistency = private$i.check.consistency,
+                                                                           wrt.version = wrt.version)
         },
         
         set.element.functional.form.interaction.alphas = function(element.name,
                                                                   alpha.name,
                                                                   value,
                                                                   applies.to.dimension.values=names(values),
-                                                                  dimensions=names(applies.to.dimension.values))
+                                                                  dimensions=names(applies.to.dimension.values),
+                                                                  wrt.version = self$version)
         {
             private$i.jheem$set.element.functional.form.interaction.alphas(element.name = element.name,
                                                                             alpha.name = alpha.name,
                                                                             value = value,
                                                                             applies.to.dimension.values = applies.to.dimension.values,
                                                                             dimensions = dimensions,
-                                                                            check.consistency = private$i.check.consistency)
+                                                                            check.consistency = private$i.check.consistency,
+                                                                           wrt.version = wrt.version)
         },
         
         set.element.functional.form.from.time = function(element.name,
-                                                         from.time)
+                                                         from.time,
+                                                         wrt.version = self$version)
         {
             private$i.jheem$set.element.functional.form.from.time(element.name = element.name,
                                                                    from.time = from.time,
-                                                                   check.consistency = private$i.check.consistency)
+                                                                   check.consistency = private$i.check.consistency,
+                                                                  wrt.version = wrt.version)
         },
         
         set.element.functional.form.to.time = function(element.name,
-                                                       to.time)
+                                                       to.time,
+                                                       wrt.version = self$version)
         {
             private$i.jheem$set.element.functional.form.to.time(element.name = element.name,
                                                                  to.time = to.time,
-                                                                 check.consistency = private$i.check.consistency)
+                                                                 check.consistency = private$i.check.consistency,
+                                                                wrt.version = wrt.version)
         },
         
         set.element.ramp.times = function(element.name,
                                           times,
-                                          indices=1:length(times))
+                                          indices=1:length(times),
+                                          wrt.version = self$version)
         {
             private$i.jheem$set.element.ramp.times(element.name = element.name,
                                                     times = times,
                                                     indices = indices,
-                                                    check.consistency = private$i.check.consistency)
+                                                    check.consistency = private$i.check.consistency,
+                                                   wrt.version = wrt.version)
         },
         
         set.element.ramp.values = function(element.name,
                                            values,
-                                           indices=1:length(values))
+                                           indices=1:length(values),
+                                           wrt.version = self$version)
         {
             private$i.jheem$set.element.ramp.values(element.name = element.name,
                                                      values = values,
                                                      indices = indices,
-                                                     check.consistency = private$i.check.consistency)
+                                                     check.consistency = private$i.check.consistency,
+                                                    wrt.version = wrt.version)
         },
         
         set.element.taper.times = function(element.name,
                                            times,
-                                           indices=1:length(times))
+                                           indices=1:length(times),
+                                           wrt.version = self$version)
         {
             private$i.jheem$set.element.taper.times(element.name = element.name,
                                                      times = times,
                                                      indices = indices,
-                                                     check.consistency = private$i.check.consistency)
+                                                     check.consistency = private$i.check.consistency,
+                                                    wrt.version = wrt.version)
         },
         
         set.element.taper.values = function(element.name,
                                             values,
-                                            indices=1:length(values))
+                                            indices=1:length(values),
+                                            wrt.version = self$version)
         {
             private$i.jheem$set.element.taper.values(element.name = element.name,
                                                       values = values,
                                                       indices = indices,
-                                                      check.consistency = private$i.check.consistency)
+                                                      check.consistency = private$i.check.consistency,
+                                                     wrt.version = wrt.version)
         },
         
         set.element.functional.form.future.slope = function(element.names,
-                                                            slope)
+                                                            slope,
+                                                            wrt.version = self$version)
         {
             private$i.jheem$set.element.functional.form.future.slope(element.names,
                                                                       slope,
-                                                                      check.consistency = private$i.check.consistency)
+                                                                      check.consistency = private$i.check.consistency,
+                                                                     wrt.version = wrt.version)
         },
         
         set.element.functional.form.future.slope.after.time = function(element.names,
-                                                                       after.time)
+                                                                       after.time,
+                                                                       wrt.version = self$version)
         {
             private$i.jheem$set.element.functional.form.future.slope.after.time(element.names = element.names,
                                                                                  after.time = after.time,
-                                                                                 check.consistency = private$i.check.consistency)
+                                                                                 check.consistency = private$i.check.consistency,
+                                                                                wrt.version = wrt.version)
         }
         
     ),
@@ -1352,22 +1399,22 @@ JHEEM = R6::R6Class(
         ##------------------------------##
         ##-- MODIFY ELEMENT FUNCTIONS --##
         ##------------------------------##
-    
+
         set.element.value = function(element.name,
                                      value,
                                      check.consistency = !self$has.been.crunched(),
-                                     error.prefix='')
+                                     wrt.version = self$version)
         {
             #-- Check Arguments --#
             if (check.consistency)
             {
-                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
-                    stop(paste0(error.prefix, "Cannot set element value - 'element.name' must be a single, non-NA, character value"))
+                private$validate.element.names(element.names = element.name,
+                                              wrt.version = wrt.version,
+                                              error.prefix = "Cannot set value for element: ",
+                                              is.single.element = T)
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
-                if (all(private$i.element.names!=element.name))
-                    stop(paste0(error.prefix, "Cannot set element value - no element named '", element.name, "' exists for model specificaiton '", self$version, "'"))
-                
-                if (!is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                if (!is.null(private$i.element.backgrounds[[element.name.to.modify]]$functional.form))
                     stop(paste0(error.prefix, 
                                 "Cannot set value for element '", element.name,
                                 "' - a functional.form has been specified; set.element.value can only be used when there is no functional.form"))
@@ -1379,11 +1426,14 @@ JHEEM = R6::R6Class(
                                 "' - value must be a numeric object"))
                 
                 verify.dim.names.for.quantity(dim.names = dimnames(value),
-                                              quantity = private$get.specification()$get.quantity(element.name),
+                                              quantity = private$get.specification()$get.quantity(element.name.to.modify),
                                               variable.name.for.error = "the dimnames of 'value'",
                                               error.prefix = paste0(error.prefix, "Cannot set value for element '", element.name, "' - "),
                                               wrt.version = self$version)
             }
+            else
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
+                
             
             if (length(value)==1)
                 names(value) = NULL
@@ -1392,19 +1442,19 @@ JHEEM = R6::R6Class(
             
             #-- Clear Dependencies --#
             # Clear all values
-            private$clear.dependent.values(element.name)
+            private$clear.dependent.values(element.name.to.modify)
             
             # Clear dim.names (only if value's dim.names have changed)
             if (!dim.names.equal(dimnames(value),
-                                 dimnames(private$i.element.backgrounds[[element.name]]$value),
+                                 dimnames(private$i.element.backgrounds[[element.name.to.modify]]$value),
                                  match.order.of.dimensions = T, match.order.within.dimensions = T))
-                private$clear.dim.names(element.name)
+                private$clear.dim.names(element.name.to.modify)
             
             # No need to clear times
             
             
             #-- Set it --#
-            private$i.element.backgrounds[[element.name]]$value = value
+            private$i.element.backgrounds[[element.name.to.modify]]$value = value
             
             
             #-- Done --#
@@ -1416,19 +1466,21 @@ JHEEM = R6::R6Class(
                                                                   values,
                                                                   applies.to.dimension.values=names(values),
                                                                   dimensions=names(applies.to.dimension.values),
-                                                                  check.consistency = !self$has.been.crunched())
+                                                                  check.consistency = !self$has.been.crunched(),
+                                                                  wrt.version = self$version)
         {
             #-- Check Arguments --#
             if (check.consistency)
             {
                 #-- Check valid element with a model --#
-                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
-                    stop("Cannot set functional.form alphas: 'element.name' must be a single, non-NA, character value")
+                private$validate.element.names(element.names = element.name,
+                                              wrt.version = wrt.version,
+                                              error.prefix = "Cannot set functional.form alphas for element: ",
+                                              is.single.element = T)
                 
-                if (all(private$i.element.names!=element.name))
-                    stop(paste0("Cannot set functional.form alphas: No element named '", element.name, "' exists for model specificaiton '", self$version, "'"))
-
-                functional.form = private$i.element.backgrounds[[element.name]]$functional.form
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
+                
+                functional.form = private$i.element.backgrounds[[element.name.to.modify]]$functional.form
                 
                 if (is.null(functional.form))
                     stop(paste0("Cannot set functional.form alphas: element '", element.name, 
@@ -1444,22 +1496,24 @@ JHEEM = R6::R6Class(
                 if (!is.numeric(values) || length(values)==0 || any(is.na(values)))
                     stop(paste0(error.prefix, "'values' must be a non-empty, non-NA numeric vector"))
             }
+            else
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
             
             error.prefix = paste0("Cannot set functional.form (main-effect) alphas for '", alpha.name, "' for element '", element.name, "': ")
             
             #-- Clear Dependencies --#
             
             # Clear all values
-            private$clear.dependent.values(element.name)
+            private$clear.dependent.values(element.name.to.modify)
             
             # Clear dim.names
-            private$clear.dim.names(element.name)
+            private$clear.dim.names(element.name.to.modify)
             
             # No need to clear times
             
             #-- Set it --#
-            private$i.element.backgrounds[[element.name]]$functional.form.alphas[[alpha.name]] = 
-                set.alpha.main.effect.values(private$i.element.backgrounds[[element.name]]$functional.form.alphas[[alpha.name]],
+            private$i.element.backgrounds[[element.name.to.modify]]$functional.form.alphas[[alpha.name]] = 
+                set.alpha.main.effect.values(private$i.element.backgrounds[[element.name.to.modify]]$functional.form.alphas[[alpha.name]],
                                              dimensions = dimensions,
                                              dimension.values = applies.to.dimension.values,
                                              values = values,
@@ -1475,21 +1529,23 @@ JHEEM = R6::R6Class(
                                                                    value,
                                                                    applies.to.dimension.values=names(values),
                                                                    dimensions=names(applies.to.dimension.values),
-                                                                   check.consistency = !self$has.been.crunched())
+                                                                   check.consistency = !self$has.been.crunched(),
+                                                                  wrt.version = self$version)
         {
             #-- Check Arguments --#
             if (check.consistency)
             {
+                private$validate.element.names(element.names = element.name,
+                                              wrt.version = wrt.version,
+                                              error.prefix = "Cannot set functional.form alphas for element: ",
+                                              is.single.element = T)
+                
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
+                
                 error.prefix = paste0("Cannot set functional.form alphas for element '", element.name, "': ")
                 
-                #-- Check valid element with a model --#
-                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
-                    stop("Cannot set functional.form alphas: 'element.name' must be a single, non-NA, character value")
-                
-                if (all(private$i.element.names!=element.name))
-                    stop(paste0("Cannot set functional.form alphas: No element named '", element.name, "' exists for model specificaiton '", self$version, "'"))
-                
-                functional.form = private$i.element.backgrounds[[element.name]]$functional.form
+                #-- Check element with a model --#
+                functional.form = private$i.element.backgrounds[[element.name.to.modify]]$functional.form
                 
                 if (is.null(functional.form))
                     stop(paste0("Cannot set functional.form alphas: element '", element.name, 
@@ -1506,6 +1562,8 @@ JHEEM = R6::R6Class(
                     stop(paste0(error.prefix, "'value' must be a single, non-NA numeric value"))
                 
             }
+            else
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
             
             error.prefix = paste0("Cannot set functional.form (interaction) alphas for '", alpha.name, "' for element '", element.name, "': ")
 
@@ -1513,17 +1571,17 @@ JHEEM = R6::R6Class(
             #-- Clear Dependencies --#
             
             # Clear all values
-            private$clear.dependent.values(element.name)
+            private$clear.dependent.values(element.name.to.modify)
             
             # Clear dim.names
-            private$clear.dim.names(element.name)
+            private$clear.dim.names(element.name.to.modify)
             
             # No need to clear times
 
             #-- Set It --#
             
-            private$i.element.backgrounds[[element.name]]$functional.form.alphas[[alpha.name]] = 
-                set.alpha.interaction.value(private$i.element.backgrounds[[element.name]]$functional.form.alphas[[alpha.name]],
+            private$i.element.backgrounds[[element.name.to.modify]]$functional.form.alphas[[alpha.name]] = 
+                set.alpha.interaction.value(private$i.element.backgrounds[[element.name.to.modify]]$functional.form.alphas[[alpha.name]],
                                             dimensions = dimensions,
                                             dimension.values = applies.to.dimension.values,
                                             value = value,
@@ -1601,7 +1659,7 @@ JHEEM = R6::R6Class(
         },
 
         
-        set.parameters = function(parameters, check.consistency)
+        set.parameters = function(parameters, check.consistency, wrt.version=self$version)
         {
             if (!missing(parameters) && !is.null(parameters))
             {
@@ -1618,16 +1676,34 @@ JHEEM = R6::R6Class(
                 private$i.parameters[names(parameters)] = parameters
            
                 # Set the values for any elements with matching names
-                element.names.in.parameters = intersect(names(parameters), private$get.specification()$element.names)
-                element.names.in.parameters = element.names.in.parameters[sapply(private$i.element.backgrounds[element.names.in.parameters], function(bkgd){
+                
+                if (check.consistency)
+                {
+                    if (!is.character(wrt.version) || length(wrt.version)!=1 || is.na(wrt.version))
+                        stop(paste0(error.prefix, "'wrt.version' must be a single, non-NA, character value"))
+                    
+                    if (all(wrt.version != names(private$i.element.name.mappings)))
+                        stop(paste0(error.prefix, "'", wrt.version, "' (given as the value of 'wrt.version') is not an ancestor specification of the '",
+                                    private$i.version, "' version (",
+                                    ifelse(length(private$i.element.mappings)==1, 
+                                           "which has no ancestor specifications",
+                                           collapse.with.or("'", setdiff(names(private$i.element.mappings), private$i.version), "'")),
+                                           ")"))
+                }
+                
+                element.names.in.parameters = intersect(names(parameters), names(private$i.element.name.mappings[[wrt.version]]))
+                element.names.to.modify.in.parameters = private$i.element.name.mappings[[wrt.version]][element.names.in.parameters]
+                static.element.mask = sapply(private$i.element.backgrounds[element.names.to.modify.in.parameters], function(bkgd){
                     is.null(bkgd$functional.form)
-                })]
+                })
+                element.names.to.modify.in.parameters = element.names.to.modify.in.parameters[static.element.mask]
+                element.names.in.parameters = element.names.in.parameters[static.element.mask]
                 
                 changed.element.names.in.parameters = element.names.in.parameters[ is.na(old.parameters[element.names.in.parameters]) | old.parameters[element.names.in.parameters] != parameters[element.names.in.parameters] ]
 
-                for (elem.name in changed.element.names.in.parameters)
-                    self$set.element.value(element.name = elem.name,
-                                           value = parameters[elem.name],
+                for (i in 1:length(changed.element.names.in.parameters))
+                    self$set.element.value(element.name = element.names.to.modify.in.parameters[i],
+                                           value = parameters[ element.names.in.parameters[i] ],
                                            check.consistency = check.consistency)
                 
                 # Call the registered parameter setting function if there is one
@@ -1753,21 +1829,22 @@ JHEEM = R6::R6Class(
         
         set.element.functional.form.from.time = function(element.name,
                                                          from.time,
-                                                         check.consistency = !self$has.been.crunched())
+                                                         check.consistency = !self$has.been.crunched(),
+                                                         wrt.version = self$version)
         {
             previous.from.time = i.element.backgrounds[[element.name]]$functional.form.from.time
             
             #-- Check Arguments --#
             if (check.consistency)
             {
-                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
-                    stop("Cannot set functional.form from-time: 'element.name' must be a single, non-NA, character value")
+                private$validate.element.names(element.names = element.name,
+                                              wrt.version = wrt.version,
+                                              error.prefix = "Cannot set functional.form from-time for element: ",
+                                              is.single.element = T)
                 
-                if (all(names(private$i.element.backgrounds)!=element.name))
-                    stop(paste0("Cannot set functional.form from-time: No element named '", element.name, 
-                                "' exists in the specification for version '", private$i.version, "'"))
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
-                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                if (is.null(private$i.element.backgrounds[[element.name.to.modify]]$functional.form))
                     stop(paste0("Cannot set functional.form from-time: element '", element.name,
                                 "does not have a functional.form"))
                 
@@ -1788,39 +1865,41 @@ JHEEM = R6::R6Class(
                                 ") must be between ", MIN.FUNCTIONAL.FORM.FROM.YEAR,
                                 " and ", (current.year+MAX.FUNCTIONAL.FORM.FROM.YEAR.OFFSET.FROM.CURRENT.YEAR)))
                 
-                if (from.time > private$i.element.backgrounds[[element.name]]$functional.form.to.time)
+                if (from.time > private$i.element.backgrounds[[element.name.to.modify]]$functional.form.to.time)
                     stop(paste0("Cannot set functional.form from-time for element '", element.name,
                                 "'. from.time (",
                                 from.time, 
                                 ") must be a less than or equal to the previously specified 'to.time' (",
                                 private$i.element.backgrounds[[element.name]]$functional.form.to.time, ")"))
                 
-                if (!is.null(private$ielement.backgrounds[[element.name]]$ramp.times) &&
-                    any(from.time <= private$i.element.backgrounds[[element.name]]$ramp.times))
+                if (!is.null(private$ielement.backgrounds[[element.name.to.modify]]$ramp.times) &&
+                    any(from.time <= private$i.element.backgrounds[[element.name.to.modify]]$ramp.times))
                     stop(paste0("Cannot set functional.form from-time for element '", element.name,
                                 "'.  from.time (",
                                 from.time, 
                                 ") must be a less than or equal to the previously set ramp.times (",
-                                private$i.element.backgrounds[[element.name]]$ramp.times[length(private$i.element.backgrounds[[element.name]]$ramp.times)],
+                                private$i.element.backgrounds[[element.name.to.modify]]$ramp.times[length(private$i.element.backgrounds[[element.name.to.modify]]$ramp.times)],
                                 ")"))
             }
+            else
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
             
             
             #-- Clear Dependencies --#
             
             # Clear values for all times prior to max(old from time, new from time)
-            private$clear.dependent.values(element.name, 
-                                           clear.before.time = max(i.element.backgrounds[[element.name]]$functional.form.from.time,
+            private$clear.dependent.values(element.name.to.modify, 
+                                           clear.before.time = max(i.element.backgrounds[[element.name.to.modify]]$functional.form.from.time,
                                                                    previous.from.time))
 
             # Clear times
-            private$clear.element.background.self.times(element.name)
+            private$clear.element.background.self.times(element.name.to.modify)
             
             # No need to clear dim.names
             
             
             #-- Set It --#
-            private$i.element.backgrounds[[element.name]]$functional.form.from.time = from.time
+            private$i.element.backgrounds[[element.name.to.modify]]$functional.form.from.time = from.time
                         
             #-- Done --#
             invisible(self)
@@ -1828,25 +1907,26 @@ JHEEM = R6::R6Class(
         
         set.element.functional.form.to.time = function(element.name,
                                                         to.time,
-                                                        check.consistency = !self$has.been.crunched())
+                                                        check.consistency = !self$has.been.crunched(),
+                                                       wrt.version = self$version)
         {
             previous.from.time = i.element.backgrounds[[element.name]]$functional.form.to.time
             
             #-- Check Arguments --#
             if (check.consistency)
             {
-                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
-                    stop("Cannot set functional.form to-time: 'element.name' must be a single, non-NA, character value")
+                private$validate.element.names(element.names = element.name,
+                                              wrt.version = wrt.version,
+                                              error.prefix = "Cannot set functional.form to-time for element: ",
+                                              is.single.element = T)
                 
-                if (all(names(private$i.element.backgrounds)!=element.name))
-                    stop(paste0("Cannot set functional.form to-time: No element named '", element.name, 
-                                "' exists in the specification for version '", private$i.version, "'"))
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
-                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                if (is.null(private$i.element.backgrounds[[element.name.to.modify]]$functional.form))
                     stop(paste0("Cannot set functional.form to-time: element '", element.name,
                                 "' has no functional.form"))
                 
-                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form.to.time))
+                if (is.null(private$i.element.backgrounds[[element.name.to.modify]]$functional.form.to.time))
                     stop(paste0("Cannot set functional.form from-time for element '", element.name,
                                 "': the functional.form is static with no ramp or taper"))
                 
@@ -1855,41 +1935,43 @@ JHEEM = R6::R6Class(
                     stop(paste0("Cannot set functional.form to-time for element '", element.name,
                                 "': 'to.time' must be a single, non-NA, numeric value"))
                 
-                if (to.time < private$i.element.backgrounds[[element.name]]$functional.form.from.time)
+                if (to.time < private$i.element.backgrounds[[element.name.to.modify]]$functional.form.from.time)
                     stop(paste0("Cannot set functional.form to-time for element '", element.name,
                                 "'. to.time (",
                                 to.time, 
                                 ") must be a less than or equal to the previously specified 'from.time' (",
-                                private$i.element.backgrounds[[element.name]]$functional.form.from.time, ")"))
+                                private$i.element.backgrounds[[element.name.to.modify]]$functional.form.from.time, ")"))
                 
                 
-                if (!is.null(private$i.element.backgrounds[[element.name]]$taper.times) &&
-                    any(to.time >= private$i.element.backgrounds[[element.name]]$taper.times))
+                if (!is.null(private$i.element.backgrounds[[element.name.to.modify]]$taper.times) &&
+                    any(to.time >= private$i.element.backgrounds[[element.name.to.modify]]$taper.times))
                     stop(paste0("Cannot set functional.form to-time for element '", element.name,
                                 "'.  'to.time' (",
                                 to.time, 
                                 ") must be a less than or equal to the previously set taper.times (",
-                                private$i.element.backgrounds[[element.name]]$taper.times[1], ")"))
+                                private$i.element.backgrounds[[element.name.to.modify]]$taper.times[1], ")"))
                 
             }
+            else
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
             
             
             #-- Clear Dependencies --#
             
             # Clear values for all times after min(old to time, new to time)
-            times.to.clear.values.for.mask = private$i.quantity.value.times[[element.name]] > 
-            private$clear.dependent.values(element.name,
-                                           clear.after.time = min(i.element.backgrounds[[element.name]]$functional.form.to.time,
+            times.to.clear.values.for.mask = private$i.quantity.value.times[[element.name.to.modify]] > 
+            private$clear.dependent.values(element.name.to.modify,
+                                           clear.after.time = min(i.element.backgrounds[[element.name.to.modify]]$functional.form.to.time,
                                                                   previous.to.time))
             
             # Clear times
-            private$clear.element.background.self.times(element.name)
+            private$clear.element.background.self.times(element.name.to.modify)
             
             # No need to clear dim.names
             
             
             #-- Set It --#
-            private$i.element.backgrounds[[element.name]]$functional.form.to.time = to.time
+            private$i.element.backgrounds[[element.name.to.modify]]$functional.form.to.time = to.time
             
             #-- Done --#
             invisible(self)
@@ -1898,37 +1980,40 @@ JHEEM = R6::R6Class(
         set.element.ramp.times = function(element.name,
                                            times,
                                            indices=1:length(times),
-                                           check.consistency = !self$has.been.crunched())
+                                           check.consistency = !self$has.been.crunched(),
+                                          wrt.version = self$version)
         {
             #-- Check Arguments --#
             
             if (check.consistency)
             {
-                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
-                    stop("Cannot set ramp.times: 'element.name' must be a single, non-NA, character value")
+                private$validate.element.names(element.names = element.name,
+                                              wrt.version = wrt.version,
+                                              error.prefix = "Cannot set ramp times for element: ",
+                                              is.single.element = T)
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
-                if (all(names(private$i.element.backgrounds)!=element.name))
-                    stop(paste0("Cannot set ramp.times: No element named '", element.name, "' exists in the '", self$version, "' model specification"))
-                
-                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                if (is.null(private$i.element.backgrounds[[element.name.to.modify]]$functional.form))
                     stop(paste0("Cannot set ramp.times: element '", element.name,
                                 "' is a static value with no functional.form"))
                 
-                if (is.null(private$i.element.backgrounds[[element.name]]$ramp.values))
+                if (is.null(private$i.element.backgrounds[[element.name.to.modify]]$ramp.values))
                     stop(paste0("Cannot set ramp.times for element '", element.name,
                                 "': the functional.form is static with no ramp or taper"))
                 
                 indices = private$check.ramp.or.taper.values.and.indices(
                     values = times,
                     indices = indices,
-                    current.values = private$i.element.backgrounds[[element.name]]$ramp.times,
+                    current.values = private$i.element.backgrounds[[element.name.to.modify]]$ramp.times,
                     is.ramp = T,
                     is.times = T,
                     error.prefix = paste0("Cannot set ramp.times for element '", element.name, "': "))
             }
+            else
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
             
             #-- Check ordering of times --#
-            new.times = private$i.element.backgrounds[[element.name]]$ramp.times
+            new.times = private$i.element.backgrounds[[element.name.to.modify]]$ramp.times
             new.times[indices] = times
             
             if (check.consistency)
@@ -1937,26 +2022,26 @@ JHEEM = R6::R6Class(
                     stop(paste0("Cannot set ramp.times for element '", element.name,
                                 "': The ramp.times are not in ascending order"))
                 
-                if (new.times[length(new.times)] >= private$i.element.backgrounds[[element.name]]$functional.form.from.time)
+                if (new.times[length(new.times)] >= private$i.element.backgrounds[[element.name.to.modify]]$functional.form.from.time)
                     stop(paste0("Cannot set ramp.times for element '", element.name,
                                 "': All ramp.times must be BEFORE the previously set functional.form from-time (",
-                                private$i.element.backgrounds[[element.name]]$functional.form.from.time, ")"))
+                                private$i.element.backgrounds[[element.name.to.modify]]$functional.form.from.time, ")"))
             }
             
             #-- Clear Dependencies --#
             
             # Clear values for all times prior to functional.form.from.time
-            private$clear.dependent.values(element.name, 
-                                           clear.before.time = i.element.backgrounds[[element.name]]$functional.form.from.time)
+            private$clear.dependent.values(element.name.to.modify, 
+                                           clear.before.time = i.element.backgrounds[[element.name.to.modify]]$functional.form.from.time)
 
             # Clear times
-            private$clear.element.background.self.times(element.name)
+            private$clear.element.background.self.times(element.name.to.modify)
             
             # No need to clear dim.names
             
             
             #-- Set the Value --#
-            private$i.element.backgrounds[[element.name]]$ramp.times = new.times
+            private$i.element.backgrounds[[element.name.to.modify]]$ramp.times = new.times
             
             
             #-- Done --#
@@ -1966,22 +2051,24 @@ JHEEM = R6::R6Class(
         set.element.ramp.values = function(element.name,
                                             values,
                                             indices=1:length(values),
-                                            check.consistency = !self$has.been.crunched())
+                                            check.consistency = !self$has.been.crunched(),
+                                           wrt.version = self$version)
         {
             #-- Check Arguments --#
             if (check.consistency)
             {
-                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
-                    stop("Cannot set ramp.values: 'element.name' must be a single, non-NA, character value")
+                private$validate.element.names(element.names = element.name,
+                                              wrt.version = wrt.version,
+                                              error.prefix = "Cannot set ramp.values for element: ",
+                                              is.single.element = T)
                 
-                if (all(names(private$i.element.backgrounds)!=element.name))
-                    stop(paste0("Cannot set ramp.values: No element named '", element.name, "' exists in the '", self$version, "' model specification"))
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
-                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                if (is.null(private$i.element.backgrounds[[element.name.to.modify]]$functional.form))
                     stop(paste0("Cannot set ramp.values for element '", element.name,
                                 "' is a static value with no functional.form"))
                 
-                if (is.null(private$i.element.backgrounds[[element.name]]$ramp.values))
+                if (is.null(private$i.element.backgrounds[[element.name.to.modify]]$ramp.values))
                     stop(paste0("Cannot set ramp.values for element '", element.name,
                                 "': the functional.form is static with no ramp or taper"))
                 
@@ -1989,26 +2076,28 @@ JHEEM = R6::R6Class(
                 indices = private$check.ramp.or.taper.values.and.indices(
                     values = values,
                     indices = indices,
-                    current.values = private$i.element.backgrounds[[element.name]]$ramp.times,
+                    current.values = private$i.element.backgrounds[[element.name.to.modify]]$ramp.times,
                     is.ramp = T,
                     is.times = F,
                     error.prefix=paste0("Cannot set ramp.values for element '",
                                         element.name, "': "))
             }
+            else
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
             
             
             #-- Clear Dependencies --#
             
             # Clear values for all times prior to functional.form.from.time
-            private$clear.dependent.values(element.name, 
-                                           clear.before.time = i.element.backgrounds[[element.name]]$functional.form.from.time)
+            private$clear.dependent.values(element.name.to.modify, 
+                                           clear.before.time = i.element.backgrounds[[element.name.to.modify]]$functional.form.from.time)
             
             # No need to clear times
             # No need to clear dim.names
             
             
             #-- Set the Values --#
-            private$i.element.backgrounds[[element.name]]$ramp.values[indices] = values
+            private$i.element.backgrounds[[element.name.to.modify]]$ramp.values[indices] = values
             
             
             #-- Done --#
@@ -2018,23 +2107,25 @@ JHEEM = R6::R6Class(
         set.element.taper.times = function(element.name,
                                             times,
                                             indices=1:length(times),
-                                            check.consistency = !self$has.been.crunched())
+                                            check.consistency = !self$has.been.crunched(),
+                                           wrt.version = self$version)
         {
             #-- Check Arguments --#
             
             if (check.arguments)
             {
-                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
-                    stop("Cannot set taper.times: 'element.name' must be a single, non-NA, character value")
+                private$validate.element.names(element.names = element.name,
+                                              wrt.version = wrt.version,
+                                              error.prefix = "Cannot set taper.times for element: ",
+                                              is.single.element = T)
                 
-                if (all(names(private$i.element.backgrounds)!=element.name))
-                    stop(paste0("Cannot set taper.times: No element named '", element.name, "' exists in the '", self$version, "' model specification"))
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
-                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                if (is.null(private$i.element.backgrounds[[element.name.to.modify]]$functional.form))
                     stop(paste0("Cannot set taper.times for element '", element.name,
                                 "' is a static value with no functional.form"))
                 
-                if (is.null(private$i.element.backgrounds[[element.name]]$taper.values))
+                if (is.null(private$i.element.backgrounds[[element.name.to.modify]]$taper.values))
                     stop(paste0("Cannot set taper.times for element '", element.name,
                                 "': the functional.form is static with no ramp or taper"))
                 
@@ -2042,14 +2133,16 @@ JHEEM = R6::R6Class(
                 indices = private$check.ramp.or.taper.values.and.indices(
                     values = times,
                     indices = indices,
-                    current.values = private$i.element.backgrounds[[element.name]]$taper.times,
+                    current.values = private$i.element.backgrounds[[element.name.to.modify]]$taper.times,
                     is.ramp = F,
                     is.times = T,
                     error.prefix = paste0("Cannot set taper.times for element '", element.name, "': "))
             }
+            else
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
             
             #-- Check ordering of times --#
-            new.times = private$i.element.backgrounds[[element.name]]$taper.times
+            new.times = private$i.element.backgrounds[[element.name.to.modify]]$taper.times
             new.times[indices] = times
             
             if (check.consistency)
@@ -2058,27 +2151,27 @@ JHEEM = R6::R6Class(
                     stop(paste0("Cannot set taper.times for element '", element.name,
                                 "': The taper.times are not in ascending order"))
                 
-                if (new.times[1] <= private$i.element.backgrounds[[element.name]]$functional.form.to.time)
+                if (new.times[1] <= private$i.element.backgrounds[[element.name.to.modify]]$functional.form.to.time)
                     stop(paste0("Cannot set taper.times for element '", element.name,
                                 "': All taper.times must be AFTER the previously set functional.form to-time (",
-                                private$i.element.backgrounds[[element.name]]$functional.form.to.time, ")"))
+                                private$i.element.backgrounds[[element.name.to.modify]]$functional.form.to.time, ")"))
             }
             
             
             #-- Clear Dependencies --#
             
             # Clear values for all times after functional.form.to.time
-            private$clear.dependent.values(element.name,
-                                           clear.after.time = i.element.backgrounds[[element.name]]$functional.form.to.time)
+            private$clear.dependent.values(element.name.to.modify,
+                                           clear.after.time = i.element.backgrounds[[element.name.to.modify]]$functional.form.to.time)
             
             # Clear times
-            private$clear.element.background.self.times(element.name)
+            private$clear.element.background.self.times(element.name.to.modify)
             
             # No need to clear dim.names
             
             
             #-- Set the Value --#
-            private$i.element.backgrounds[[element.name]]$taper.times = new.times
+            private$i.element.backgrounds[[element.name.to.modify]]$taper.times = new.times
             
             
             #-- Done --#
@@ -2088,48 +2181,52 @@ JHEEM = R6::R6Class(
         set.element.taper.values = function(element.name,
                                              values,
                                              indices=1:length(values),
-                                             check.consistency = !self$has.been.crunched())
+                                             check.consistency = !self$has.been.crunched(),
+                                            wrt.version = self$version)
         {
             #-- Check Arguments --#
             if (check.consistency)
             {
-                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
-                    stop("Cannot set taper.values: 'element.name' must be a single, non-NA, character value")
+                private$validate.element.names(element.names = element.name,
+                                              wrt.version = wrt.version,
+                                              error.prefix = "Cannot set taper.values for element: ",
+                                              is.single.element = T)
                 
-                if (all(names(private$i.element.backgrounds)!=element.name))
-                    stop(paste0("Cannot set taper.values: No element named '", element.name, "' exists in the '", self$version, "' model specification"))
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
-                if (is.null(private$i.element.backgrounds[[element.name]]$functional.form))
+                if (is.null(private$i.element.backgrounds[[element.name.to.modify]]$functional.form))
                     stop(paste0("Cannot set taper.values for element '", element.name,
                                 "' is a static value with no functional.form"))
                 
-                if (is.null(private$i.element.backgrounds[[element.name]]$taper.values))
+                if (is.null(private$i.element.backgrounds[[element.name.to.modify]]$taper.values))
                     stop(paste0("Cannot set taper.values for element '", element.name,
                                 "': the functional.form is static with no ramp or taper"))
                 
                 
                 indices = check.ramp.or.taper.values.and.indices(values=times,
                                                                  indices=indices,
-                                                                 current.values=private$i.element.backgrounds[[element.name]]$taper.times,
+                                                                 current.values=private$i.element.backgrounds[[element.name.to.modify]]$taper.times,
                                                                  is.ramp=T,
                                                                  is.times=F,
                                                                  error.prefix=paste0("Cannot set taper.values for element '",
                                                                                      element.name, "':"))
             }
+            else
+                element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
             
             
             #-- Clear Dependencies --#
             
             # Clear values for all times after functional.form.to.time
-            private$clear.dependent.values(element.name, 
-                                           clear.after.time = i.element.backgrounds[[element.name]]$functional.form.to.time)
+            private$clear.dependent.values(element.name.to.modify, 
+                                           clear.after.time = i.element.backgrounds[[element.name.to.modify]]$functional.form.to.time)
             
             # No need to clear times
             # No need to clear dim.names
             
             
             #-- Set the Value --#
-            private$i.element.backgrounds[[element.name]]$taper.values[indices] = values
+            private$i.element.backgrounds[[element.name.to.modify]]$taper.values[indices] = values
             
             
             #-- Done --#
@@ -2138,7 +2235,8 @@ JHEEM = R6::R6Class(
         
         set.element.functional.form.future.slope = function(element.names,
                                                             slope,
-                                                            check.consistency = !self$has.been.crunched())
+                                                            check.consistency = !self$has.been.crunched(),
+                                                            wrt.version = self$version)
         {
             #-- Check Arguments --#
             if (check.consistency)
@@ -2146,19 +2244,14 @@ JHEEM = R6::R6Class(
                 if (!is.numeric(slope) || length(slope)!=1 || is.na(slope))
                     stop("Cannot set functional.form future-slope: 'slope' must be a single, non-NA, numeric value")
                 
-                if (!is.character(element.names) || length(element.names)==0 || is.na(element.names))
-                    stop("Cannot set functional.form future-slope: 'element.names' must be a non-empty, non-NA, character vector")
+                private$validate.element.names(element.names = element.names,
+                                               wrt.version = wrt.version,
+                                               error.prefix = "Cannot set functional.form future-slope for element(s): ",
+                                               is.single.element = T)
                 
-                invalid.names = setdiff(element.names, names(private$i.element.backgrounds))
-                if (length(invalid.names)>0)
-                    stop(paste0("Cannot set functional.form future-slope: No ",
-                                ifelse(length(invalid.names)==1, "element", "elements"),
-                                " named '",
-                                collapse.with.and("'", invalid.names, "'"),
-                                ifelse(length(invalid.names)==1, " exists", " exist"),
-                                " in the '", self$version, "' model specification"))
+                element.names.to.modify = private$i.element.name.mappings[[wrt.version]][element.names]
                 
-                no.functional.form.mask = sapply(private$i.element.backgrounds[element.names], function(bkgd){
+                no.functional.form.mask = sapply(private$i.element.backgrounds[element.names.to.modify], function(bkgd){
                     is.null(bkgd$functional.form)
                 })
                 if (any(no.functional.form.mask))
@@ -2171,7 +2264,7 @@ JHEEM = R6::R6Class(
                                        "These elements are static values"),
                                 " with no functional.form"))
 
-                static.mask = sapply(private$i.element.backgrounds[element.names], function(bkgd){
+                static.mask = sapply(private$i.element.backgrounds[element.names.to.modify], function(bkgd){
                     bkgd$functional.form$is.static
                 })
                 if (any(static.mask))
@@ -2182,19 +2275,22 @@ JHEEM = R6::R6Class(
                                 ifelse(sum(static.mask)==1, "this element has", "these elements have"),
                                 " a static functional form with no ramp or taper"))
             }
+            else
+                element.names.to.modify = private$i.element.name.mappings[[wrt.version]][element.names]
             
             #-- Clear Dependencies --#
             
             # Clear values for all times after functional.form.future.slope.after.time
-            private$clear.dependent.values(element.name,
-                                           clear.after.time = i.element.backgrounds[[element.name]]$future.slope.after.time)
+            for (element.name in element.names.to.modify)
+                private$clear.dependent.values(element.name,
+                                               clear.after.time = i.element.backgrounds[[element.name]]$future.slope.after.time)
             
             # No need to clear times
             # No need to clear dim.names
             
             
             #-- Set the Value --#
-            for (element.name in element.names)
+            for (element.name in element.names.to.modify)
                 private$i.element.backgrounds[[element.name]][['future.slope']] = slope
             
             
@@ -2204,7 +2300,8 @@ JHEEM = R6::R6Class(
         
         set.element.functional.form.future.slope.after.time = function(element.names,
                                                                        after.time,
-                                                                       check.consistency = !self$has.been.crunched())
+                                                                       check.consistency = !self$has.been.crunched(),
+                                                                       wrt.version = self$version)
         {
             previous.future.slope.after.time = i.element.backgrounds[[element.name]]$future.slope.after.time
             
@@ -2214,19 +2311,14 @@ JHEEM = R6::R6Class(
                 if (!is.numeric(after.year) || length(after.year)!=1 || is.na(after.year))
                     stop("Cannot set functional.form future-slope-after-year: 'after.year' must be a single, non-NA, numeric value")
                 
-                if (!is.character(element.names) || length(element.names)==0 || is.na(element.names))
-                    stop("Cannot set functional.form future-slope-after-year: 'element.names' must be a non-empty, non-NA, character vector")
+                private$validate.element.names(element.names = element.names,
+                                               wrt.version = wrt.version,
+                                               error.prefix = "Cannot set functional.form future-slope-after-year for element(s): ",
+                                               is.single.element = T)
                 
-                invalid.names = setdiff(element.names, names(private$i.element.backgrounds))
-                if (length(invalid.names)>0)
-                    stop(paste0("Cannot set functional.form future-slope-after-year: No ",
-                                ifelse(length(invalid.names)==1, "element", "elements"),
-                                " named '",
-                                collapse.with.and("'", invalid.names, "'"),
-                                ifelse(length(invalid.names)==1, " exists", " exist"),
-                                " in the '", self$version, "' model specification"))
+                element.names.to.modify = private$i.element.name.mappings[[wrt.version]][element.names]
                 
-                no.functional.form.mask = sapply(private$i.element.backgrounds[element.names], function(bkgd){
+                no.functional.form.mask = sapply(private$i.element.backgrounds[element.names.to.modify], function(bkgd){
                     is.null(bkgd$functional.form)
                 })
                 if (any(no.functional.form.mask))
@@ -2239,7 +2331,7 @@ JHEEM = R6::R6Class(
                                        "These elements are static values"),
                                 " with no functional.form"))
                 
-                static.mask = sapply(private$i.element.backgrounds[element.names], function(bkgd){
+                static.mask = sapply(private$i.element.backgrounds[element.names.to.modify], function(bkgd){
                     bkgd$functional.form$is.static
                 })
                 if (any(static.mask))
@@ -2250,20 +2342,23 @@ JHEEM = R6::R6Class(
                                 ifelse(sum(static.mask)==1, "this element has", "these elements have"),
                                 " a static functional form with no ramp or taper"))
             }
+            else
+                element.names.to.modify = private$i.element.name.mappings[[wrt.version]][element.names]
  
             
             #-- Clear Dependencies --#
             
             # Clear values for all times after min(old, new functional.form.future.slope.after.time)
-            private$clear.dependent.values(element.name, 
-                                           clear.after.time = min(i.element.backgrounds[[element.name]]$future.slope.after.time,
-                                                                  previous.future.slope.after.time))
+            for (element.name in element.names.to.modify)
+                private$clear.dependent.values(element.name, 
+                                               clear.after.time = min(i.element.backgrounds[[element.name]]$future.slope.after.time,
+                                                                      previous.future.slope.after.time))
 
             # No need to clear times
             # No need to clear dim.names
             
             #-- Set the Value --#
-            for (element.name in element.names)
+            for (element.name in element.names.to.modify)
                 private$i.element.backgrounds[[element.name]]$future.slope.after.year = after.year
             
             
@@ -2417,6 +2512,8 @@ JHEEM = R6::R6Class(
         #-- Element names/backgrounds --#
         i.element.names = NULL,
         i.element.backgrounds = NULL,
+        
+        i.element.name.mappings = NULL,
 
         #-- Times for quantities --#
         i.quantity.value.times = NULL,
@@ -2529,6 +2626,48 @@ JHEEM = R6::R6Class(
             JHEEM.CODE.ITERATION
         },
         
+        validate.element.names = function(element.names,
+                                          wrt.version,
+                                          error.prefix,
+                                          is.single.element=T)
+        {
+            if (!is.character(wrt.version) || length(wrt.version)!=1 || is.na(wrt.version))
+                stop(paste0(error.prefix, "'wrt.version' must be a single, non-NA, character value"))
+            
+            if (all(wrt.version != names(private$i.element.name.mappings)))
+                stop(paste0(error.prefix, "'", wrt.version, "' (given as the value of 'wrt.version') is not an ancestor specification of the '",
+                            private$i.version, "' version (",
+                            ifelse(length(private$i.element.mappings)==1, 
+                                   "which has no ancestor specifications",
+                                   collapse.with.or("'", setdiff(names(private$i.element.mappings), private$i.version), "'"),
+                                   ")")))
+            
+            if (is.single.element)
+            {
+                element.name = element.names #aliased for readability
+                
+                if (!is.character(element.name) || length(element.name)!=1 || is.na(element.name))
+                    stop(paste0(error.prefix, "'element.name' must be a single, non-NA, character value"))
+                
+                if (all(names(private$i.element.name.mappings[[wrt.version]]) != element.name))
+                    stop(paste0(error.prefix, "no element named '", element.name, "' exists with respect to model specification '", wrt.version, "'"))
+            }
+            else
+            {
+                if (!is.character(element.names) || length(element.names)==0 || any(is.na(element.names)))
+                    stop(paste0(error.prefix, "'element.names' must be a non-empty character vector with no NA values"))
+                
+                invalid.names = setdiff(element.names, names(private$i.element.name.mappings[[wrt.version]]))
+                if (length(invalid.names)>0)
+                    stop(paste0(error.prefix, "No ",
+                                ifelse(length(invalid.names)==1, "element", "elements"),
+                                " named '",
+                                collapse.with.and("'", invalid.names, "'"),
+                                ifelse(length(invalid.names)==1, " exists", " exist"),
+                                " with respect to the '", wrt.version, "' model specification"))
+            }
+        },
+        
         ##------------##
         ##-- SET UP --##
         ##------------##
@@ -2593,6 +2732,8 @@ JHEEM = R6::R6Class(
                 bkgd
             })
             names(private$i.element.backgrounds) = private$i.element.names = specification$element.names
+            
+            private$i.element.name.mappings = specification$element.name.mappings
             
             # Figure out if quantities are static
             private$i.quantity.is.static = rep(F, length(specification$quantity.names))
