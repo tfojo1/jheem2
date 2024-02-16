@@ -1446,7 +1446,7 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             score.in.range = 1/dnorm(sim.value, mean=target, sd=sd.for.score)
             score.in.range[!is.in.range] = max.in.range.score
             
-            out.of.range.score.weight = 3
+            out.of.range.score.weight = 1
             
             scores = score.out.of.range ^ out.of.range.score.weight + score.in.range
             
