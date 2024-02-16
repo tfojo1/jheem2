@@ -417,7 +417,7 @@ register.calibration.info <- function(code,
                                       data.manager = get.default.data.manager(),
                                       preceding.calibration.codes = character(),
                                       weight.to.preceding.variance.estimates = 0.5,
-                                      pull.parameters.and.values.from.preceding = T,
+                                      pull.parameters.and.values.from.preceding = F,
                                       error.prefix = "Error registering calibration info: ")
 {
     # Validate arguments
