@@ -1701,10 +1701,13 @@ JHEEM = R6::R6Class(
                 
                 changed.element.names.in.parameters = element.names.in.parameters[ is.na(old.parameters[element.names.in.parameters]) | old.parameters[element.names.in.parameters] != parameters[element.names.in.parameters] ]
 
-                for (i in 1:length(changed.element.names.in.parameters))
-                    self$set.element.value(element.name = element.names.to.modify.in.parameters[i],
-                                           value = parameters[ element.names.in.parameters[i] ],
-                                           check.consistency = check.consistency)
+                if (length(changed.element.names.in.parameters)>0)
+                {
+                    for (i in 1:length(changed.element.names.in.parameters))
+                        self$set.element.value(element.name = element.names.to.modify.in.parameters[i],
+                                               value = parameters[ element.names.in.parameters[i] ],
+                                               check.consistency = check.consistency)
+                }
                 
                 # Call the registered parameter setting function if there is one
                 if (check.consistency)
