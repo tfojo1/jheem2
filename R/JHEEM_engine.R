@@ -1699,13 +1699,15 @@ JHEEM = R6::R6Class(
                 element.names.to.modify.in.parameters = element.names.to.modify.in.parameters[static.element.mask]
                 element.names.in.parameters = element.names.in.parameters[static.element.mask]
                 
-                changed.element.names.in.parameters = element.names.in.parameters[ is.na(old.parameters[element.names.in.parameters]) | old.parameters[element.names.in.parameters] != parameters[element.names.in.parameters] ]
+                changed.mask = is.na(old.parameters[element.names.in.parameters]) | old.parameters[element.names.in.parameters] != parameters[element.names.in.parameters]
+                changed.element.names.in.parameters = element.names.in.parameters[changed.mask]
+                changed.element.names.to.modify.in.parameters = element.names.to.modify.in.parameters[changed.mask]
 
                 if (length(changed.element.names.in.parameters)>0)
                 {
                     for (i in 1:length(changed.element.names.in.parameters))
-                        self$set.element.value(element.name = element.names.to.modify.in.parameters[i],
-                                               value = parameters[ element.names.in.parameters[i] ],
+                        self$set.element.value(element.name = changed.element.names.to.modify.in.parameters[i],
+                                               value = parameters[ changed.element.names.in.parameters[i] ],
                                                check.consistency = check.consistency)
                 }
                 
