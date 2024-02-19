@@ -3,7 +3,7 @@
 p.bias = list(in.mean=0, out.mean=0, in.sd=0.03, out.sd=0.03)
 
 # specify a source when there is more than one source for a single pull, even if they don't happen to have data for the same strata. This occurs here for MSA-level diagnosed.prevalence.
-p.bias = get.p.bias.estimates(dimensions=c('sex', 'race'), levels.of.stratification = c(0,1), outcome.for.p = 'suppression', outcome.for.n='diagnosed.prevalence', sub.location.type='county', super.location.type='state', main.location.type = 'cbsa', main.location.type.n.source ='cdc.surveillance.reports')
+#p.bias = get.p.bias.estimates(dimensions=c('sex', 'race'), levels.of.stratification = c(0,1), outcome.for.p = 'suppression', outcome.for.n='diagnosed.prevalence', sub.location.type='county', super.location.type='state', main.location.type = 'cbsa', main.location.type.n.source ='cdc.surveillance.reports')
 
 
 location='C.12580'
@@ -49,8 +49,8 @@ suppression.likelihood.instructions =
                                                    location.types = c('COUNTY','STATE','CBSA'),
                                                    minimum.geographic.resolution.type = 'COUNTY',
                                                    
-                                                   # dimensions = c("age","sex","race","risk"),
-                                                   dimensions = c("sex"),
+                                                   dimensions = c("age","sex","race","risk"),
+                                                   #dimensions = c("sex"),
                                                    levels.of.stratification = c(0,1), 
                                                    from.year = as.integer(2008), 
                                                    

@@ -1,14 +1,15 @@
 print("SOURCING CODE")
-#source('../jheem_analyses/applications/EHE/ehe_specification.R')
-#source('../jheem_analyses/applications/EHE/ehe_likelihoods.R')
+source('../jheem_analyses/applications/EHE/ehe_specification.R')
+source('../jheem_analyses/applications/EHE/ehe_likelihoods.R')
 #source('../jheem_analyses/commoncode/locations_of_interest.R')
 
-source('../jheem2/R/CALIBRATION_main.R')
+#source('../jheem2/R/CALIBRATION_main.R')
 
+TEST.ROOT.DIR = '../test_runs/'
 print("SETTING UP MCMC")
 CALIBRATION.CODE = 'init.pop.ehe'
-N.ITER = 100
-LOCATION = MIAMI.MSA 
+N.ITER = 50
+LOCATION = 'C.12580' 
 # SF, LA, Riverside, Memphis had a bug with 'proportion.msm.of.male' being NA or empty 
 # NOLA had a bug with mobility data[] subscript out of bounds 
 
@@ -59,11 +60,10 @@ par.names = c("black.birth.rate.multiplier",
 register.calibration.info(CALIBRATION.CODE,
                           likelihood.instructions = joint.pop.migration.likelihood.instructions,
                           data.manager = SURVEILLANCE.MANAGER,
-                          start.year = 1970,
                           end.year = 2030, 
                           parameter.names = par.names,
                           n.iter = N.ITER,
-                          thin = 50, 
+                          thin = 10, 
                           fixed.initial.parameter.values = c(global.trate=0.1), 
                           is.preliminary = T,
                           max.run.time.seconds = 10,
@@ -71,67 +71,69 @@ register.calibration.info(CALIBRATION.CODE,
                           )
 
 
-# clear.calibration.cache(version='ehe',
-#                         location=LOCATION,
-#                         calibration.code = CALIBRATION.CODE,
-#                         root.dir = '../test_runs')
-# 
-# set.up.calibration(version='ehe',
-#                    location=LOCATION,
-#                    calibration.code = CALIBRATION.CODE,
-#                    root.dir = '../test_runs',
-#                    cache.frequency = 250)
-# 
-# mcmc = run.calibration(version = 'ehe',
-#                        location = LOCATION,
-#                        calibration.code = CALIBRATION.CODE,
-#                        root.dir = '../test_runs',
-#                        chains = 1,
-#                        update.frequency = 100,
-#                        update.detail = 'med')
-
-
-par2 = EHE.PARAMETERS.PRIOR@var.names[grepl('trate', EHE.PARAMETERS.PRIOR@var.names)]
-
-CALIBRATION.CODE.2 = 'test.calibration'
-register.calibration.info(CALIBRATION.CODE.2,
-                          likelihood.instructions = joint.pop.migration.likelihood.instructions,
-#                          likelihood.instructions = full.likelihood.instructions,
-                          data.manager = SURVEILLANCE.MANAGER,
-                          start.year = 1970,
-                          end.year = 2030, 
-                          parameter.names = c(par.names, par2),
-                          n.iter = N.ITER,
-                          thin = 10, 
-                          is.preliminary = T,
-                          max.run.time.seconds = 10,
-                          description = "A test run",
-                          preceding.calibration.codes = CALIBRATION.CODE
-)
-  
 clear.calibration.cache(version='ehe',
                         location=LOCATION,
-                        calibration.code = CALIBRATION.CODE.2,
-                        root.dir = '../test_runs')
+                        calibration.code = CALIBRATION.CODE,
+                        root.dir = TEST.ROOT.DIR)
 
 set.up.calibration(version='ehe',
                    location=LOCATION,
-                   calibration.code = CALIBRATION.CODE.2,
-                   root.dir = '../test_runs',
+                   calibration.code = CALIBRATION.CODE,
+                   root.dir = TEST.ROOT.DIR,
                    cache.frequency = 250)
 
+
+# 
+# par2 = EHE.PARAMETERS.PRIOR@var.names[grepl('trate', EHE.PARAMETERS.PRIOR@var.names)]
+# 
+# CALIBRATION.CODE.2 = 'test.calibration'
+# register.calibration.info(CALIBRATION.CODE.2,
+#                           likelihood.instructions = joint.pop.migration.likelihood.instructions,
+# #                          likelihood.instructions = full.likelihood.instructions,
+#                           data.manager = SURVEILLANCE.MANAGER,
+#                           start.year = 1970,
+#                           end.year = 2030, 
+#                           parameter.names = c(par.names, par2),
+#                           n.iter = N.ITER,
+#                           thin = 10, 
+#                           is.preliminary = T,
+#                           max.run.time.seconds = 10,
+#                           description = "A test run",
+#                           preceding.calibration.codes = CALIBRATION.CODE
+# )
+#   
+# clear.calibration.cache(version='ehe',
+#                         location=LOCATION,
+#                         calibration.code = CALIBRATION.CODE.2,
+#                         root.dir = TEST.ROOT.DIR)
+# 
+# set.up.calibration(version='ehe',
+#                    location=LOCATION,
+#                    calibration.code = CALIBRATION.CODE.2,
+#                    root.dir = TEST.ROOT.DIR,
+#                    cache.frequency = 250)
+# 
 
 
 set.seed(12345)
 start.time = Sys.time()
 print(paste0("STARTING MCMC RUN AT ",Sys.time()))
+# mcmc = run.calibration(version = 'ehe',
+#                 location = LOCATION,
+#                 calibration.code = CALIBRATION.CODE.2,
+#                 root.dir = TEST.ROOT.DIR,
+#                 chains = 1,
+#                 update.frequency = 100,
+#                 update.detail = 'med')
+
 mcmc = run.calibration(version = 'ehe',
-                location = LOCATION,
-                calibration.code = CALIBRATION.CODE.2,
-                root.dir = '../test_runs',
-                chains = 1,
-                update.frequency = 100,
-                update.detail = 'med')
+                       location = LOCATION,
+                       calibration.code = CALIBRATION.CODE,
+                       root.dir = TEST.ROOT.DIR,
+                       chains = 1,
+                       update.frequency = 100,
+                       update.detail = 'med')
+
 end.time = Sys.time()
 run.time = as.numeric(end.time) - as.numeric(start.time)
 
@@ -144,9 +146,9 @@ print(paste0("DONE RUNNING MCMC: Took ",
 #mcmc = assemble.mcmc.from.calibration(version = 'ehe',
 #                                      location = LOCATION,
 #                                      calibration.code = CALIBRATION.CODE,
-#                                      root.dir = '../test_runs',
+#                                      root.dir = TEST.ROOT.DIR,
 #                                      chains = 1)
 
-sim = mcmc@simulations[[length(mcmc@simulations)]]
+#sim = mcmc@simulations[[length(mcmc@simulations)]]
 
-save(sim,file=paste0("prelim_results/init.pop.migration.sim_",Sys.Date(),"_",LOCATION,".Rdata"))
+#save(sim,file=paste0("prelim_results/init.pop.migration.sim_",Sys.Date(),"_",LOCATION,".Rdata"))

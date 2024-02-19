@@ -20,6 +20,8 @@ baltimore.multi.age.rates = do.get.empiric.aging.rates(location = 'C.12580',
                                                       specification.metadata = specification.metadata,
                                                       force.match.age.brackets.to.before.smoothing = SURVEILLANCE.MANAGER$ontologies$cdc.national$age)
 
+
+
 time = 1
 
 df = reshape2::melt(us.full.age.rates[[time]], value.name = 'national_full_age')
@@ -34,6 +36,12 @@ ggplot(df, aes(x=national_full_age, y=national_five_age, color=age)) +
 ggplot(df, aes(x=national_full_age, y=md_five_age, color=age)) +
   geom_point() + geom_abline(intercept=0, slope=1) + xlim(0,.5) + ylim(0,.5) +
   ggtitle("US Full-Age vs MD Five-Age")
+
+
+ggplot(df, aes(x=md_five_age, y=national_five_age, color=age)) +
+  geom_point() + geom_abline(intercept=0, slope=1) + xlim(0,.5) + ylim(0,.5) +
+  ggtitle("MD Five-Age vs US Five-Age")
+
 
 delta = (us.five.age.rates[[time]] - us.full.age.rates[[time]])
 rel.delta = ((us.five.age.rates[[time]] - us.full.age.rates[[time]]) / us.full.age.rates[[time]])
@@ -85,3 +93,35 @@ round(cbind('five-year'=apply(abs(delta), 'age', max),
 round(cbind('census (truth)' = apply(baltimore.per.census.rates[[time]], 'age', mean),
       'five-year'=apply(baltimore.five.age.rates[[time]], 'age', mean),
       'multi-year'=apply(baltimore.multi.age.rates[[time]], 'age', mean)),3)
+
+
+rowMeans(us.full.age.rates[[time]])
+
+
+raw.1999 = c('0-12 years' = 2517,
+             '13-14 years' = 242,
+             '15-24 years' = 8984,
+             '25-34 years' = 59153,
+             '35-44 years' = 98193,
+             '45-54 years' = 45171,
+             '55-64 years' = 10732,
+             '65+ years' = 2985)
+
+restratified.1999 = restratify.age.counts(counts = raw.1999,
+                                          desired.age.brackets = 1:101,
+                                          smooth.infinite.age.to = 101)
+
+aging.1999 = sapply(1:(specification.metadata$n.ages-1), function(age.index){
+    
+    lower = specification.metadata$age.lower.bounds[age.index]
+    upper = min(101, specification.metadata$age.upper.bounds[age.index]-1)
+    ages.in.bracket = paste0(lower:upper, " years")
+
+    restratified.1999[ages.in.bracket[length(ages.in.bracket)]] /
+      sum(restratified.1999[ages.in.bracket])
+})
+
+
+cbind('2010' = rowMeans(us.full.age.rates[[time]]),
+      '1999' = aging.1999
+)
