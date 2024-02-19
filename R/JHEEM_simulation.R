@@ -339,9 +339,7 @@ SIMULATION.METADATA = R6::R6Class(
             
             # Pull in the outcome location mapping
             if (is.null(outcome.location.mapping))
-                private$i.metadata$outcome.location.mapping = create.default.outcome.location.mapping(version = private$i.version,
-                                                                                                      location = private$i.location,
-                                                                                                      sub.version = private$i.sub.version)
+                private$i.metadata$outcome.location.mapping = outcome.location.mapping = NULL
             else if (!is(outcome.location.mapping, 'outcome.location.mapping'))
                 stop(paste0(error.prefix, "'outcome.location.mapping' must be an object of class 'outcome.location.mapping'"))
             else
@@ -559,7 +557,14 @@ SIMULATION.METADATA = R6::R6Class(
         outcome.location.mapping = function(value)
         {
             if (missing(value))
-                private$i.metadata$outcome.location.mapping
+            {
+                if (is.null(private$i.metadata$outcome.location.mapping))
+                    create.default.outcome.location.mapping(version = private$i.version,
+                                                            location = private$i.location,
+                                                            sub.version = private$i.sub.version)
+                else
+                    private$i.metadata$outcome.location.mapping
+            }
             else
                 stop("Cannot modify a simulation.metadata's 'outcome.location.mapping' - it is read-only")
         },

@@ -3,7 +3,7 @@
 list(C.12580='C.12580')
 list(C.12580=c('C.12580','MD','24510'))
 
-#'@location.mappings is a named list, where the names correspond to modeled locations, and the elements are vectors of observed locations
+#'@param location.mappings is a named list, where the names correspond to modeled locations, and the elements are vectors of observed locations
 create.outcome.location.mapping <- function(location.mappings,
                                             outcome.name,
                                             version,
@@ -96,7 +96,8 @@ OUTCOME.LOCATION.MAPPING = R6::R6Class(
         },
         
         get.observed.locations = function(outcome.name,
-                                          modeled.location)
+                                          modeled.location,
+                                          data.manager = get.default.data.manager())
         {
             error.prefix = "Cannot get observed locations: "
             
@@ -123,9 +124,41 @@ OUTCOME.LOCATION.MAPPING = R6::R6Class(
                         modeled.location
                     else
                     {
-                        c(modeled.location,
-                          locations::get.overlapping.locations(modeled.location, "STATE"),
-                          locations::get.contained.locations(modeled.location, "COUNTY"))
+                        max.n.states = 3
+                        max.n.counties = 3
+                        
+                        states = locations::get.overlapping.locations(modeled.location, "STATE")
+                        counties = locations::get.contained.locations(modeled.location, "COUNTY")
+                        
+                        if (length(states)>max.n.states || length(counties)>max.n.counties)
+                        {
+                            weighting.outcome = 'diagnosed.prevalence'
+                            weight.by.county = data.manager$pull(outcome = weighting.outcome,
+                                                                 dimension.values = list(location=counties),
+                                                                 keep.dimensions = c('year', 'location'))
+                            
+                            if (!is.null(weight.by.county))
+                            {
+                                weight.by.county = apply(weight.by.county, 'location', mean, na.rm=T)[counties]
+                                
+                                if (length(states)>max.n.states)
+                                {
+                                    weight.by.state = sapply(states, function(state){
+                                        counties.in.state = intersect(counties, locations::get.contained.locations(state, 'county'))
+                                        sum(weight.by.county[counties.in.state])
+                                    })
+                                    
+                                    states = states[ order(weight.by.state, decreasing = T)[1:max.n.states] ]
+                                }
+                                
+                                if (length(counties)>max.n.counties)
+                                {
+                                    counties = counties[ order(weight.by.county, decreasing = T)[1:max.n.counties] ]
+                                }
+                            }
+                        }
+                        
+                        c(modeled.location, states, counties)
                     }
                 }
                 else
