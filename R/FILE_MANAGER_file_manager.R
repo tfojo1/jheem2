@@ -137,8 +137,7 @@ get.simset.filename.and.dir <- function(version,
                     SIMULATION.SUB.DIRECTORY,
                     version.element,
                     calibration.element,
-                    location.element,
-                    intervention.element)
+                    location.element)
     
     list(
         filename = filename,
