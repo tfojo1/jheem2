@@ -128,15 +128,17 @@ set.up.calibration <- function(version,
         
         dynamic.preceding.codes = union(dynamic.preceding.codes, preceding.info$preceding.calibration.codes)
         
-        parameters.to.pull.from.preceding = intersect(calibration.info$parameter.names,
+        parameters.to.pull.from.preceding = intersect(prior@var.names,
                                                       preceding.info$parameter.names)
         parameters.to.pull.from.preceding = setdiff(parameters.to.pull.from.preceding,
                                                     parameters.already.pulled.from.preceding)
+        parameters.to.pull.cov.from.preceding = intersect(parameters.to.pull.from.preceding,
+                                                          calibration.info$parameter.names)
         
         
         if (length(parameters.to.pull.from.preceding)>0)
         {
-            other.parameters = setdiff(calibration.info$parameter.names, parameters.to.pull.from.preceding)
+            other.parameters.for.cov = setdiff(calibration.info$parameter.names, parameters.to.pull.from.preceding)
             
             parameters.already.pulled.from.preceding = union(parameters.already.pulled.from.preceding,
                                                              parameters.to.pull.from.preceding)
@@ -150,7 +152,7 @@ set.up.calibration <- function(version,
                                                 error.prefix = error.prefix)
             
             # default parameter values
-            transformed.parameter.values.to.pull = mcmc.summary$transformed.parameter.values[parameters.already.pulled.from.preceding]
+            transformed.parameter.values.to.pull = mcmc.summary$transformed.parameter.values[parameters.to.pull.from.preceding]
             default.parameter.values[parameters.to.pull.from.preceding] = sapply(parameters.to.pull.from.preceding, function(param){
                 if (parameter.scales[param] == 'log')
                     exp(transformed.parameter.values.to.pull[param])
@@ -161,10 +163,10 @@ set.up.calibration <- function(version,
             })
             
             # cov mat
-            initial.cov.mat[parameters.to.pull.from.preceding,parameters.to.pull.from.preceding] = initial.cov.mat[parameters.to.pull.from.preceding,parameters.to.pull.from.preceding] * (1-calibration.info$weight.to.preceding.variance.estimates) +
-                mcmc.summary$cov.mat[parameters.to.pull.from.preceding,parameters.to.pull.from.preceding] * calibration.info$weight.to.preceding.variance.estimates
-            initial.cov.mat[parameters.to.pull.from.preceding,other.parameters] = initial.cov.mat[parameters.to.pull.from.preceding,other.parameters] = 0
-            initial.cov.mat[other.parameters, parameters.to.pull.from.preceding] = initial.cov.mat[other.parameters, parameters.to.pull.from.preceding] = 0
+            initial.cov.mat[parameters.to.pull.cov.from.preceding,parameters.to.pull.cov.from.preceding] = initial.cov.mat[parameters.to.pull.cov.from.preceding,parameters.to.pull.cov.from.preceding] * (1-calibration.info$weight.to.preceding.variance.estimates) +
+                mcmc.summary$cov.mat[parameters.to.pull.cov.from.preceding,parameters.to.pull.cov.from.preceding] * calibration.info$weight.to.preceding.variance.estimates
+            initial.cov.mat[parameters.to.pull.cov.from.preceding,other.parameters.for.cov] = initial.cov.mat[parameters.to.pull.cov.from.preceding,other.parameters.for.cov] = 0
+            initial.cov.mat[other.parameters.for.cov, parameters.to.pull.cov.from.preceding] = initial.cov.mat[other.parameters.for.cov, parameters.to.pull.cov.from.preceding] = 0
             
             # scaling parameters
             initial.scaling.parameters = lapply(names(initial.scaling.parameters), function(scaling.name){
@@ -172,7 +174,7 @@ set.up.calibration <- function(version,
                 to.pull.scaling = mcmc.summary$initial.scaling.parameters[[scaling.name]]
                 if (!is.null(to.pull.scaling))
                 {
-                    to.pull.params = intersect(parameters.to.pull.from.preceding, names(to.pull.scaling))
+                    to.pull.params = intersect(parameters.to.pull.cov.from.preceding, names(to.pull.scaling))
                     scaling[to.pull.params] = to.pull.scaling[to.pull.params]
                 }
                 
