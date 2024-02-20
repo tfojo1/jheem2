@@ -490,7 +490,7 @@ SIMULATION.METADATA = R6::R6Class(
             if (!drop.single.outcome.dimension || length(outcomes)>1) {
                 if (!drop.single.sim.dimension || self$n.sim > 1)
                     c(ont1,
-                      ontology(outcome=outcomes, sim=1:self$n.sim, incomplete.dimensions = c('outcome', 'sim')))
+                      ontology(sim=1:self$n.sim, outcome=outcomes, incomplete.dimensions = c('outcome', 'sim')))
                 else
                     c(ont1,
                       ontology(outcome=outcomes, incomplete.dimensions = 'outcome'))

@@ -46,6 +46,7 @@ Rcpp::sourceCpp('../jheem2/src/diffeq.cpp')
 
 source('../jheem2/R/JHEEM_run_metadata.R')
 source('../jheem2/R/JHEEM_simulation.R')
+source('../jheem2/R/JHEEM_simset_collection.R')
 
 source('../jheem2/R/DATA_MANAGER_data_manager.R')
 source('../jheem2/R/PLOTS_simplot.R')

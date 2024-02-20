@@ -1,5 +1,31 @@
 
-
+#'@name Create a Collection of JHEEM Simulation-Sets
+#'
+#'@param version,sub.version The version and (optional) sub-version for the simsets
+#'@param locations A character vector of locations for which to collect simsets
+#'@param interventions The interventions for which to collect interventions. Can be either (a) a character vector of intervention codes or (b) a list of 'jheem.intervention' objects or single character intervention codes
+#'@param n.sim Optional - the number of simulations which collected simsets should contain. If NULL, the number will attempt to be figured out
+#'@param root.dir The root directory relative to which all simset files (and all JHEEM files) are saved
+#'
+#'@value An object of class 'jheem.simset.collection'
+#'
+#'@export
+create.simset.collection <- function(version,
+                                     calibration.code,
+                                     locations,
+                                     interventions,
+                                     n.sim = NULL,
+                                     sub.version = NULL,
+                                     root.dir = get.jheem.root.directory("Cannot create simset collection: "))
+{
+    JHEEM.FILE.BASED.SIMSET.COLLECTION$new(version = version,
+                                           sub.version = sub.version,
+                                           calibration.code = calibration.code,
+                                           locations = locations,
+                                           interventions = interventions,
+                                           n.sim = n.sim,
+                                           root.dir = root.dir)
+}
 
 JHEEM.SIMSET.COLLECTION = R6::R6Class(
     'jheem.simset.collection',
@@ -45,7 +71,7 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
             
             # interventions
             if (is.character(interventions))
-                interventions = as.list(intervention.codes)
+                interventions = as.list(interventions)
             else
                 interventions
             
@@ -68,7 +94,7 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
                     
                     if (is.null(int))
                         code = NULL # OK
-                    else if (is.character(code))
+                    else if (is.character(int))
                     {
                         code = int
                         if (length(code)!=1 || is.na(code))
@@ -81,7 +107,6 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
                     }
                     else 
                         stop(paste0(error.prefix, "The elements of 'intervention.codes' must be either NULL, character intervention codes, or jheem.intervention objects"))
-                    
                     
                     code
                 })
@@ -146,7 +171,7 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
                     if (is.null(simset))
                         NULL
                     else if (simset$n.sim != self$n.sim)
-                        stop(paste0(error.prefix, "The simset for location"))
+                        stop(paste0(error.prefix, "The simset for location ", loc, " and intervention ", int.code, " does not have the expected number of simulations"))
                     else
                     {
                         sub.rv = simset$get(outcomes = outcomes,
@@ -162,12 +187,25 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
                                             interval.coverage = interval.coverage,
                                             error.prefix = error.prefix)
                         
+                        this.inner.dim.names = dimnames(sub.rv)
+                        if (any(names(this.inner.dim.names)=='location'))
+                        {
+                            if (length(this.inner.dim.names$location)==1 || this.inner.dim.names$location==loc)
+                                this.inner.dim.names = this.inner.dim.names[setdiff(names(this.inner.dim.names), 'location')]
+                            else if (length(private$i.locations)>1 && !is.null(inner.dim.names))
+                            {
+                                if (!length(this.inner.dim.names$location) != length(inner.dim.names$location) ||
+                                    !all(this.inner.dim.names$location == inner.dim.names$location))
+                                    stop(paste0(error.prefix, "The dimensions for the results of get() produce different 'location' dimensions for different locations in the simset collection, and cannot be collected into one array"))
+                            }
+                        }
+                        
                         if (is.null(inner.dim.names))
-                            inner.dim.names = dimnames(sub.rv)
-                        else if (!dim.names.equal(inner.dim.names, dimnames(sub.rv)))
+                            inner.dim.names <<- this.inner.dim.names
+                        else if (!dim.names.equal(inner.dim.names, this.inner.dim.names))
                             stop(paste0(error.prefix, "The dimnames for the results of get() on the simset for location ",
                                         loc,
-                                        ifelse(is.null(int.code), "", 
+                                        ifelse(is.null(int.code), "",
                                                paste0(" and intervention '", int.code, "'")),
                                         " do not match the dimnames for results of get() on preceding simsets"))
                         
@@ -184,17 +222,32 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
             
             rv = sapply(list.rv, function(list.rv.for.int){
                 list.rv.for.int[sapply(list.rv.for.int, is.null)] = rep(as.numeric(NA), n.inner)
-                list.rv.for.int
+                sapply(list.rv.for.int, function(sub){
+                    sub
+                })
             })
             
             # Set dimnames and return
-            dim.names = list(inner.dim.names,
-                             location = private$i.locations,
-                             intervention = private$i.intervention.code.labels)
+            dim.names = c(inner.dim.names,
+                          list(location = private$i.locations,
+                               intervention = private$i.intervention.code.labels))
             
             dim(rv) = sapply(dim.names, length)
             dimnames(rv) = dim.names
             rv
+        },
+        
+        print = function(...)
+        {
+            n = length(private$i.locations) * length(private$i.intervention.codes)
+            print(paste0("A simset collection with ", n,
+                         ifelse(n==1, " simset (one location and one intervention)",
+                                paste0(" simsets (", 
+                                       length(private$i.locations),
+                                       ifelse(length(private$i.locations)==1, " location", " locations"),
+                                       " and ", length(private$i.intervention.codes),
+                                       ifelse(length(private$i.intervention.codes)==1, " intervention", " interventions"),
+                                       ")"))))
         }
     ),
     
@@ -299,10 +352,14 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
                 
                 error.infix = paste0("prior simulations for version '",
                                      version, "'",
+                                     ifelse(!is.null(sub.version) && is.null(calibration.code), ",", ""),
+                                     ifelse(!is.null(sub.version) && is.null(calibration.code), " and", ""),
                                      ifelse(is.null(sub.version), "",
-                                            paste0(", sub.version '", sub.version, "'")),
+                                            paste0(" sub.version '", sub.version, "'")),
+                                     ifelse(!is.null(sub.version) && !is.null(calibration.code), ",", ""),
+                                     ifelse(!is.null(calibration.code), " and", ""),
                                      ifelse(is.null(calibration.code), "",
-                                            paste0(", calibration.code '", calibration.code, )))
+                                            paste0(" calibration.code '", calibration.code, "'")))
                 if (length(n.sim)==0)
                     stop(paste0("Cannot create file-based simset collection: no ", error.infix, 
                                 " have been saved, so we cannot infer n.sim. You must explicitly specify 'n.sim' if you want to create this simset collection"))
@@ -352,9 +409,12 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
                 if (any(need.to.do))
                 {
                     if (verbose)
-                        cat("Running ", length(private$i.intervention.codes), " interventions for location '",
+                        cat("Running ", length(private$i.intervention.codes), 
+                            ifelse(length(private$i.intervention.codes)==1, " intervention", " interventions"),
+                            " for location '",
                             loc, "' (", i, "/", length(private$i.locations),
-                            " locations):\n", sep='')
+                            ifelse(length(private$i.locations)==1, " location", " locations"),
+                            "):\n", sep='')
                     
                     # Load the baseline simset
                     simset = private$do.get.simset(location = loc,
@@ -366,22 +426,25 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
                     if (is.null(simset))
                     {
                         if (verbose)
-                            cat("\n   - No baseline simset has been run for location '", loc, "' - skipping all ",
+                            cat(" - No baseline simset has been run for location '", loc, "' - skipping all ",
                                 sum(need.to.do), " interventions for this location\n", sep='')
                     }
                     else
                     {
                         for (j in 1:sum(need.to.do))
                         {
-                            int.code = private$i.intervention.codes[need.to.do][j]
+                            int.code = private$i.intervention.codes[need.to.do][[j]]
                             
                             if (verbose)
                                 cat(" - Running intervention '", int.code, 
                                     "' (", j, "/", sum(need.to.do),
                                     " interventions)...", sep='')
                             
-                            int = get.intervention.from.code(code = int.code,
-                                                             throw.error.if.missing = T)
+                            if (is.null(int.code))
+                                int = get.null.intervention()
+                            else
+                                int = get.intervention.from.code(code = int.code,
+                                                                 throw.error.if.missing = T)
                             
                             if (!is.null(int))
                             {
@@ -434,13 +497,14 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
                     if (verbose)
                         cat("Skipping ", 
                             loc, "' (", i, "/", length(private$i.locations),
-                            " - we have previously run all interventions and don't need to redo\n",)
+                            ifelse(length(private$i.locations)==1, " location", " locations"),
+                            ") - we have previously run all interventions and don't need to redo\n", sep='')
                 }
             }
             
             if (verbose)
                 cat("All Done")
-        },
+        }
     ),
     
     active = list(
@@ -484,11 +548,28 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
                         '...', sep='')
                 
                 x = load(file)
-                get(x)
                 
                 if (verbose)
                     cat("Done\n")
+                
+                get(x)
             }
+        },
+        
+        files.exist = function()
+        {
+            rv = sapply(private$i.intervention.codes, function(code){
+                sapply(private$i.locations, function(loc){
+                    
+                    file.exists(private$do.get.simset.file(location=loc,
+                                                           intervention.code=intervention.code,
+                                                           error.prefix=''))
+                    
+                })
+            })
+            
+            dimnames(rv) = list(location = private$i.locations,
+                                intervention = private$i.intervention.codes)
         },
         
         do.get.simset.file = function(location, intervention.code, error.prefix)

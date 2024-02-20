@@ -299,10 +299,11 @@ infer.stored.simset.n.sim <- function(version = version,
     if (!is.null(sub.version))
         version.element = paste0(version, '-', sub.version)
     
-    dir = file.path(root.dir, version.element)
+    dir = file.path(root.dir, SIMULATION.SUB.DIRECTORY, version.element)
+
     if (dir.exists(dir))
     {
-        sub.dirs = list.dirs(dir, full.names = F)
+        sub.dirs = setdiff(list.dirs(dir, full.names = F, recursive = F), '')
         if (length(sub.dirs)==0)
             NULL
         else
