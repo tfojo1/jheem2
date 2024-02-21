@@ -22,6 +22,40 @@ create.single.run.metadata <- function(run.time,
                            n.trials = n.trials)
 }
 
+copy.run.metadata <- function(metadata.to.copy,
+                              run.time = metadata.to.copy$run.time,
+                              preprocessing.time = metadata.to.copy$preprocessing.time,
+                              diffeq.time = metadata.to.copy$diffeq.time,
+                              postprocessing.time = metadata.to.copy$postprocessing.time,
+                              n.trials = metadata.to.copy$n.trials)
+{
+    dim.names = NULL
+    if (is.null(dim.names))
+        dim.names = dimnames(run.time)
+    if (is.null(dim.names))
+        dim.names = dimnames(preprocessing.time)
+    if (is.null(dim.names))
+        dim.names = dimnames(diffeq.time)
+    if (is.null(dim.names))
+        dim.names = dimnames(postprocessing.time)
+    if (is.null(dim.names))
+        dim.names = dimnames(n.trials)
+    if (is.null(dim.names))
+        stop("Cannot copy.run.metadata() - the dimnames for at least one of run.time, preprocessing.time, diffeq.time, postprocessing.time, or n.trials must be set")
+    
+    dim(run.time) = dim(preprocessing.time) = dim(diffeq.time) =
+        dim(postprocessing.time) = dim(n.trials) = sapply(dim.names, length)
+    
+    dimnames(run.time) = dimnames(preprocessing.time) = dimnames(diffeq.time) =
+        dimnames(postprocessing.time) = dimnames(n.trials) = dim.names
+    
+    JHEEM.RUN.METADATA$new(run.time = run.time,
+                           preprocessing.time = preprocessing.time,
+                           diffeq.time = diffeq.time,
+                           postprocessing.time = postprocessing.time,
+                           n.trials = n.trials)
+}
+
 join.run.metadata <- function(metadata.to.join)
 {
     n.sim = sum(sapply(metadata.to.join, function(run.metadata){
@@ -161,6 +195,14 @@ JHEEM.RUN.METADATA = R6::R6Class(
                 private$i.diffeq.time
             else
                 stop("Cannot modify a run.metadata's 'diffeq.time' - it is read-only")
+        },
+        
+        other.time = function(value)
+        {
+            if (missing(value))
+                private$i.run.time - private$i.preprocessing.time - private$i.diffeq.time - private$i.postprocessing.time
+            else
+                stop("Cannot modify a run.metadata's 'other.time' - it is read-only")
         },
         
         n.trials = function(value)

@@ -399,8 +399,18 @@ assemble.simulations.from.calibration <- function(version,
                                                       allow.incomplete = allow.incomplete,
                                                       chains = chains)
     
+    
+    sim.indices = as.integer(mcmc@simulation.indices)
+    run.times = as.numeric(mcmc@run.times)
+    
+    run.metadatas = lapply(1:length(sim.indices), function(i){
+        r.meta = mcmc@simulations[[ sim.indices[i] ]]$run.metadata
+        copy.run.metadata(r.meta, run.time = run.times[i] / mcmc@thin)
+    })
+    simulations = mcmc@simulations[sim.indices]
+    
     # could choose to delete cache now but will not, undecided
-    join.simulation.sets(mcmc@simulations[as.integer(mcmc@simulation.indices)], finalize = T)
+    join.simulation.sets(simulations, finalize = T, run.metadata = join.run.metadata(run.metadatas))
 }
 
 #'@export
