@@ -23,7 +23,8 @@ simplot <- function(...,
                     dimension.values = list(),
                     plot.which = c('both', 'sim.only', 'data.only')[1],
                     data.manager = get.default.data.manager(),
-                    style.manager) # will be an R6 object. will be mine!
+                    style.manager = NULL) # pending style manager initializing correctly
+                    # style.manager = get.default.style.manager()) # will be an R6 object. will be mine!
 {
     ### --- FEATURES TO ADD --- ###
     # - change y-axis from 'value' to the name of the outcome? Maybe not, since "value" is shared by all plots
@@ -270,7 +271,7 @@ simplot <- function(...,
     
     
     #- STEP 4: MAKE THE PLOT --#
-    
+    # browser()
     y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
     
     facet.formula = as.formula(paste0("~",
@@ -285,14 +286,14 @@ simplot <- function(...,
                 geom_point(data=df.sim.groupids.one.member, size=2, aes(x=year, y=value, shape=simset, color=!!sym(split.by)))
         }
         if (!is.null(df.truth))
-            rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by), shape=location))
+            rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by), shape=ifelse(length(unique(location))==1, source, location)))
     } else {
         if (!is.null(df.sim)) {
             rv = rv + geom_line(data=df.sim.groupids.many.members, aes(x=year, y=value, linetype=simset, group=groupid, alpha=alpha, linewidth=linewidth)) +
                 geom_point(data=df.sim.groupids.one.member, size=2, aes(x=year, y=value, shape=simset))
         }
         if (!is.null(df.truth))
-            rv = rv + geom_point(data=df.truth, aes(x=year, y=value, shape=location))
+            rv = rv + geom_point(data=df.truth, aes(x=year, y=value, shape=ifelse(length(unique(location))==1, source, location)))
     }
     
     if (!is.null(facet.by) || length(outcomes) > 1) {
