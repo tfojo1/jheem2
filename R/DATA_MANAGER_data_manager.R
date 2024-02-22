@@ -1031,6 +1031,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             put.dim.names = private$prepare.put.dim.names(outer.join.dim.names(if (is.array(data)) dimnames(data) else list(), dimension.values),
                                                           ontology.name = ontology.name)
             
+            ## @AZ re-order the put.dim.names to ensure it has the same order of dimensions as the stratification does.
+            stratification.dimensions = private$get.required.stratification(dimension.values = dimension.values,
+                                                                            data = data,
+                                                                            ontology.name = ontology.name,
+                                                                            return.as.dimensions = T)
+            put.dim.names = put.dim.names[stratification.dimensions]
+            
+            
             # -> make new data elements
             
             existing.dim.names = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
