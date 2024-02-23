@@ -873,7 +873,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                            outcome.for.n = private$i.denominator.outcome.for.data,
                                            sim.ontology = private$i.sim.ontology,
                                            model.strata = model.strata,
-                                           partitioning.function = private$i.partitioning.function)
+                                           partitioning.function = private$i.partitioning.function,
+                                           version = version,
+                                           location = location)
             private$i.obs.n = obs.n.info$obs.n
             locations.with.n.data = obs.n.info$locations.with.n.data
             # missing stuff also stored in info
@@ -1370,7 +1372,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             rep(list(matrix.each.stratum), n.strata)
         },
 
-        get.obs.n = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, sim.ontology, model.strata, partitioning.function)
+        get.obs.n = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, sim.ontology, model.strata, partitioning.function, version, location)
         {
             # Get obs.n.array with its missing data mask attached an attribute. Convert the mask to numeric so that at the end of partitioning, anything > 0 has a ancestral value that was missing
             obs.n.array = get.average(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = T)
@@ -1393,8 +1395,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             model.mask.arr = aligning.mappings[[2]]$reverse.apply(obs.n.mask.array.aligned) # @AZ does this work??? verify with a test b/c is logical, not integer
 
             # use the partitioning function - VALIDATE THAT YOU GET AN ARRAY BACK WITH SAME DIMNAMES
-            partitioned.model.arr = partitioning.function(model.arr)
-            partitioned.model.mask.arr = partitioning.function(model.mask.arr)
+            partitioned.model.arr = partitioning.function(model.arr, version=version, location=location)
+            partitioned.model.mask.arr = partitioning.function(model.mask.arr, version=version, location=location)
 
             # check sum against the sum of the values in the aligned obs array that are actually mapped
             obs.n.arr.indices = aligning.mappings[[2]]$get.mapping.indices(model.arr.dimnames, dimnames(obs.n.array.aligned))
