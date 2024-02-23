@@ -8,10 +8,8 @@ p.bias = list(in.mean=0, out.mean=0, in.sd=0.03, out.sd=0.03)
 
 ehe.partitioning.function = function(arr, version='ehe', location)
 {
-    # LATER THERE WILL A DEFAULT PARTITIONING FUNCTION THAT IS USED IF THE USER LEAVES THE ARGUMENT NULL IN THE INSTRUCTIONS
-    # For now, partition the different dimensions separately. Later, could have it do only one partition, a custom combined one, if you have risk and sex together
-    dimensions.to.partition = intersect(c('risk', 'sex'), names(dim(arr)))
-    # if (identical(dimensions.to.partition, c('risk')))
+orig = arr
+all(orig[,,,,'heterosexual_male',] == orig[,,,,'msm',]) # this is false - I thought it should be true
     if ("risk" %in% names(dim(arr))) {
         risk.partition.dimnames = list(risk = c('active_IDU', 'IDU_in_remission'))
         risk.partition.arr = array(c(0.25, 0.75), dim=sapply(risk.partition.dimnames, length), risk.partition.dimnames)
@@ -24,17 +22,17 @@ ehe.partitioning.function = function(arr, version='ehe', location)
         #sex.partition.arr = array(c(0.5, 0.5), dim=sapply(sex.partition.dimnames, length), sex.partition.dimnames)
         
         specification.metadata = get.specification.metadata(version=version, location=location)
-        proportion.msm = get.best.guess.msm.proportions.by.race(location,
-                                                                specification.metadata = specification.metadata,
-                                                                keep.age = any(names(dim(arr))=='age'),
-                                                                keep.race = any(names(dim(arr))=='race'))
+        proportion.msm = get.best.guess.msm.proportions(location,
+                                                        specification.metadata = specification.metadata,
+                                                        keep.age = any(names(dim(arr))=='age'),
+                                                        keep.race = any(names(dim(arr))=='race'))
         # sex.partition.arr = get.best.guess.msm.proportions.by.race(location,
         #                                                            specification.metadata = specification.metadata,
         #                                                            years = DEFAULT.POPULATION.YEARS,
         #                                                            min.age = specification.metadata$age.lower.bounds[1],
         #                                                            return.proportions = T)
-        
-        sex.partition.arr = c(as.numeric(proportion.msm), 1-as.numeric(p))
+
+        sex.partition.arr = c(as.numeric(proportion.msm), 1-as.numeric(proportion.msm))
         sex.partition.dimnames = c(dimnames(proportion.msm), list(sex=c('msm','heterosexual_male')))
         dim(sex.partition.arr) = sapply(sex.partition.dimnames, length)
         dimnames(sex.partition.arr) = sex.partition.dimnames
