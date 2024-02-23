@@ -463,13 +463,13 @@ SIMULATION.METADATA = R6::R6Class(
             names(ontologies) = outcomes
             
             # Make sure the ontologies are congruous
-            ont1 = ontologies[[1]]
+            ont1 = as.list(ontologies[[1]])
             if (check.consistency)
             {
-                out1 = outcomes[1]
-                for (out2 in outcomes[-1])
+                outcome1 = outcomes[1]
+                for (outcome2 in outcomes[-1])
                 {
-                    ont2 = ontologies[[2]]
+                    ont2 = as.list(ontologies[[2]])
                     
                     unequal.dimensions.mask = sapply(names(ont1), function(d){
                         !identical(ont1[[d]], ont2[[d]])
@@ -478,7 +478,7 @@ SIMULATION.METADATA = R6::R6Class(
                     if (any(unequal.dimensions.mask))
                     {
                         unequal.dimensions = names(ont1)[unequal.dimensions.mask]
-                        stop(paste0(error.prefix, "Cannot get data for outcomes '", out1, "' and '", out2, 
+                        stop(paste0(error.prefix, "Cannot get data for outcomes '", outcome1, "' and '", outcome2, 
                                     "' in one function call. Their ontologies have differing values for the ",
                                     collapse.with.and("'", unequal.dimensions, "'"),
                                     ifelse(length(unequal.dimensions)==1, " dimension.", " dimensions.")))
@@ -487,21 +487,13 @@ SIMULATION.METADATA = R6::R6Class(
             }
             # if (debug) browser()
             # Fold together, with outcome and sim as the last dimensions
-            if (!drop.single.outcome.dimension || length(outcomes)>1) {
-                if (!drop.single.sim.dimension || self$n.sim > 1)
-                    c(ont1,
-                      ontology(sim=1:self$n.sim, outcome=outcomes, incomplete.dimensions = c('outcome', 'sim')))
-                else
-                    c(ont1,
-                      ontology(outcome=outcomes, incomplete.dimensions = 'outcome'))
-            }
-            else {
-                if (!drop.single.sim.dimension || self$n.sim > 1)
-                    c(ont1,
-                      ontology(sim=1:self$n.sim, incomplete.dimensions = 'sim'))
-                else
-                    ont1
-            }
+            # ont1 = ontologies[[1]]
+            if (!drop.single.sim.dimension || self$n.sim > 1)
+                ont1 = c(ont1, list(sim=1:self$n.sim))
+                # return(c(ont1, ontology(sim=1:self$n.sim, incomplete.dimensions = 'sim')))
+            if (!drop.single.outcome.dimension || length(outcomes)>1)
+                ont1 = c(ont1, list(outcome=outcomes))
+            return (ont1)
         }
     ),
     
@@ -854,7 +846,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                            drop.single.outcome.dimension = drop.single.outcome.dimension,
                                            drop.single.sim.dimension = drop.single.sim.dimension,
                                            error.prefix = error.prefix)
-            # browser()
             dimension.values = private$process.dimension.values(dimension.values, ..., error.prefix=error.prefix)
             # if (drop.single.sim.dimension && self$n.sim==1)
             #     keep.dimensions = names(dim.names)
@@ -956,7 +947,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 dim(rv) = sapply(new.dim.names, length)
                 dimnames(rv) = new.dim.names
             }
-            
             rv
         },
         
