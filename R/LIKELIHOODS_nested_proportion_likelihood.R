@@ -132,7 +132,6 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
     if (!lack.super.location.type)
         p.bias.out.msa = unlist(lapply(stratifications, function(stratification)
         {
-            browser()
             # 5a. Pull msa *p* data. Use it to make a target ontology for the msa *n* data pull. This assumes that the different outcomes can have the same ontology, which they'd have to if they are a matching numerator/denominator pair.
             main.p.data = data.manager$pull(outcome = outcome.for.p,
                                             sources = main.location.type.p.source,
