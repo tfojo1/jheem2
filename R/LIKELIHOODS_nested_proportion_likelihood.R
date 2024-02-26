@@ -1064,7 +1064,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             dim(sim.p) = flattened.dims
             dim(sim.n) = flattened.dims
             
-            ptm = Sys.time()
+            # ptm = Sys.time()
             lik.components = get_nested_proportion_likelihood_components(p = sim.p,
                                                                          n = sim.n,
                                                                          year_metalocation_n_multipliers = private$i.year.metalocation.n.multipliers,
@@ -1098,7 +1098,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                                                          obs_p = private$i.obs.p,
                                                                          
                                                                          obs_error = private$i.obs.error)
-            print(Sys.time() - ptm)
+            # print(Sys.time() - ptm)
             mean = lik.components$mean.v
             sigma = lik.components$cov.mat
             obs.vector = lik.components$obs.v
@@ -1374,6 +1374,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
 
         get.obs.n = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, sim.ontology, model.strata, partitioning.function, version, location)
         {
+            # browser()
             # Get obs.n.array with its missing data mask attached an attribute. Convert the mask to numeric so that at the end of partitioning, anything > 0 has a ancestral value that was missing
             obs.n.array = get.average(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = T)
             data.ontology = as.ontology(dimnames(obs.n.array), incomplete.dimensions = c('year', 'location'))

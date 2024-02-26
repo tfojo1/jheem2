@@ -541,10 +541,12 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             }
             
             # Call the subclass function
-            private$do.compute(sim, log=log, check.consistency=check.consistency, debug=debug)
+            result=private$do.compute(sim, log=log, check.consistency=check.consistency, debug=debug)
             
             # Flip check.consistency flag
             private$i.check.consistency.flag = F
+            
+            return(result)
         },
         
         # A function-factory
