@@ -682,7 +682,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                                  equalize.weight.by.year = instructions$equalize.weight.by.year,
                                                                                                  metadata = private$i.metadata,
                                                                                                  weights = private$i.weights)
-            # browser()
+
         },
         check = function() {
             browser()
@@ -717,11 +717,11 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         do.compute = function(sim, log, check.consistency, debug)
         {
             
-
             sim.numerator.data = sim$get(outcome = private$i.outcome.for.sim,
                                          keep.dimensions = names(private$i.sim.required.dimnames),
                                          dimension.values = private$i.sim.dimension.values,
-                                         drop.single.sim.dimension = T)
+                                         drop.single.sim.dimension = T,
+                                         check.consistency = check.consistency)
             
             use.poisson = is.null(private$i.denominator.outcome.for.sim)
             if (use.poisson) {
@@ -731,7 +731,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 sim.denominator.data = sim$get(outcome = private$i.denominator.outcome.for.sim,
                                                keep.dimensions = names(private$i.denominator.required.dimnames),
                                                dimension.values = private$i.denominator.dimension.values,
-                                               drop.single.sim.dimension = T)
+                                               drop.single.sim.dimension = T,
+                                               check.consistency = check.consistency)
                 expanded.sim.denominator.data = expand.array(sim.denominator.data, dimnames(sim.numerator.data))
             }
             

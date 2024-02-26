@@ -508,12 +508,15 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             private$i.stratifications = instructions$stratifications
             private$i.weights = instructions$weights
             
+            # Set check.consistency flag
+            private$i.check.consistency.flag = T
+            
         },
         
         #'@param sim A 'jheem.simulation.set' object
         #'@param log Whether to use log likelihood
         #'@param check.consistency - Whether to spend time checking to make sure everything is internally consistent. Setting to F is faster, but may generate weird error messages if there are bugs
-        compute = function(sim, log=T, check.consistency=T, debug=F)
+        compute = function(sim, log=T, check.consistency=private$i.check.consistency.flag, debug=F)
         {
             #@Andrew implement
             error.prefix = "Error computing likelihood: "
@@ -539,6 +542,9 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             
             # Call the subclass function
             private$do.compute(sim, log=log, check.consistency=check.consistency, debug=debug)
+            
+            # Flip check.consistency flag
+            private$i.check.consistency.flag = F
         },
         
         # A function-factory
@@ -570,6 +576,7 @@ JHEEM.LIKELIHOOD = R6::R6Class(
     ),
     
     private = list(
+        i.check.consistency.flag = NULL,
         i.years = NULL,
         i.outcome.for.sim = NULL,
         i.stratifications = NULL,
