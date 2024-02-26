@@ -4,8 +4,8 @@
 #'@param levels.of.stratification
 #'@param outcome.for.p
 #'@param outcome.for.n
-#'@param sub.location.type
-#'@param super.location.type
+#'@param sub.location.type Can be NULL
+#'@param super.location.type Can be NULL
 #'@param main.location.type
 #'@param minimum.sample.size
 #'
@@ -16,6 +16,12 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
     
     # --- VALIDATION --- #
     
+    
+    # --- so that I don't have to change the code very much to accomadate not having a sub.location.type or super.location.type, I'll set a default but just skip one or other of the loops later.
+    lack.sub.location.type = is.null(sub.location.type)
+    lack.super.location.type = is.null(super.location.type)
+    if (lack.sub.location.type) sub.location.type = 'county'
+    if (lack.super.location.type) super.location.type = 'state'
     
     # 0. Prepare stratifications using the same method the likelihood code does, only NULL is better for level 0 than ""
     levels.of.stratification = as.integer(levels.of.stratification)
@@ -52,207 +58,214 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
     all.relevant.supers.p.and.n = unique(unlist(main.supers.p.and.n))
     
     # 4. Generate an inside-msa p-bias sample by looping across each stratification
-    p.bias.in.msa = unlist(lapply(stratifications, function(stratification)
-    {
-        # 4a. Pull msa data. Make sure only one source is present because more than one source will make it ambiguous what values will match what. We're already expecting to have different sources for main and sub data.
-        main.data = data.manager$pull(outcome = outcome.for.p,
-                                      sources = main.location.type.p.source,
-                                      keep.dimensions = c('year', 'location', stratification),
-                                      dimension.values = list(location = names(main.subs.p)),
-                                      debug = F)#identical(stratification, "risk"))
-        if (is.null(main.data)) return(NULL)
-        
-        # 4b. Use the msa data to prepare a target ontology for the sub-location data.
-        if (dim(main.data)[['source']] > 1)
-            stop(paste0(error.prefix, main.location.type, " 'p' data from more than one source found. Please specify a single source to use in 'main.location.type.p.source'"))
-        new.dimnames = dimnames(main.data)[names(dimnames(main.data)) != 'source']
-        main.data = array(main.data, sapply(new.dimnames, length), new.dimnames)
-        main.data.ontology = as.ontology(dimnames(main.data), incomplete.dimensions = c('year', 'location'))
-        main.data.ontology$location = union(main.data.ontology$location, all.relevant.subs.p) #used to just use all.relevant.subs.p, but then a mapping can't be found because the universal will be only MSAs due to LHD ontology determining uni's location dimension.
-        main.years = main.data.ontology$year
-
-        # 4c. Pull sub-location data with the main data's ontology as a target. NOTE: IF SUB-LEVEL DATA EXISTS FOR MULTIPLE ONTOLOGIES, ONLY THE FIRST ONTOLOGY'S DATA WILL BE PULLED
-        sub.data = data.manager$pull(outcome=outcome.for.p,
-                                     sources = sub.location.type.p.source,
-                                     keep.dimensions = c('year', 'location', stratification),
-                                     dimension.values = list(location = all.relevant.subs.p, year = main.years),
-                                     target.ontology = main.data.ontology,
-                                     allow.mapping.from.target.ontology = T,
-                                     debug=F)
-        if (is.null(sub.data)) return(NULL)
-        mp = attr(sub.data, 'mapping')
-        if (dim(sub.data)[['source']] > 1)
-            stop(paste0(error.prefix, sub.location.type, " 'p' data from more than one source found. Please specify a single source to use in 'sub.location.type.p.source'"))
-        new.dimnames = dimnames(sub.data)[names(dimnames(sub.data)) != 'source']
-        sub.data = array(sub.data, sapply(new.dimnames, length), new.dimnames)
-        
-        # 4d. Determine which MSAs and their sub-locations are present in this stratification's data
-        msas.with.data.this.stratification.mask = names(main.subs.p) %in% dimnames(main.data)$location
-        msas.with.data.this.stratification = names(main.subs.p)[msas.with.data.this.stratification.mask]
-        main.subs.this.stratification = lapply(main.subs.p[msas.with.data.this.stratification.mask], function(main.subs) {
-            main.subs[main.subs %in% dimnames(sub.data)$location]
-        })
-        main.subs.this.stratification = main.subs.this.stratification[lengths(main.subs.this.stratification) > 0]
-        if (length(main.subs.this.stratification) == 0) return(NULL)
-        
-        # 4e. Map the msa data to the ontology of the sub data.
-        align.on.dimnames = dimnames(sub.data)
-        align.on.dimnames$location = dimnames(main.data)$location
-        aligned.main.data = mp$apply(main.data, to.dim.names = align.on.dimnames)
-
-        # 4f. Get a p-bias vector for each MSA that has data in this stratification and return the collection
-        p.bias.vector = unlist(lapply(1:length(main.subs.this.stratification), function(i) {
+    if (!lack.sub.location.type)
+        p.bias.in.msa = unlist(lapply(stratifications, function(stratification)
+        {
+            # 4a. Pull msa data. Make sure only one source is present because more than one source will make it ambiguous what values will match what. We're already expecting to have different sources for main and sub data.
+            main.data = data.manager$pull(outcome = outcome.for.p,
+                                          sources = main.location.type.p.source,
+                                          keep.dimensions = c('year', 'location', stratification),
+                                          dimension.values = list(location = names(main.subs.p)),
+                                          debug = F)#identical(stratification, "risk"))
+            if (is.null(main.data)) return(NULL)
             
-            # 4f.1 Get a slice of the data array for the MSA and another for its sub-locations.
-            main.slice = main.data[get.array.access.indices(dimnames(main.data), dimension.values = list(location = names(main.subs.this.stratification)[[i]]))]
-            subs.slice = sub.data[get.array.access.indices(dimnames(sub.data), dimension.values = list(location = main.subs.this.stratification[[i]]))]
-            main.slice.dimnames = dimnames(main.data)[names(dimnames(main.data)) != 'location']
-            subs.slice.dimnames = c(main.slice.dimnames, list(location = main.subs.this.stratification[[i]]))
-            main.slice = array(main.slice, dim = sapply(main.slice.dimnames, length), dimnames = main.slice.dimnames)
+            # 4b. Use the msa data to prepare a target ontology for the sub-location data.
+            if (dim(main.data)[['source']] > 1)
+                stop(paste0(error.prefix, main.location.type, " 'p' data from more than one source found. Please specify a single source to use in 'main.location.type.p.source'"))
+            new.dimnames = dimnames(main.data)[names(dimnames(main.data)) != 'source']
+            main.data = array(main.data, sapply(new.dimnames, length), new.dimnames)
+            main.data.ontology = as.ontology(dimnames(main.data), incomplete.dimensions = c('year', 'location'))
+            main.data.ontology$location = union(main.data.ontology$location, all.relevant.subs.p) #used to just use all.relevant.subs.p, but then a mapping can't be found because the universal will be only MSAs due to LHD ontology determining uni's location dimension.
+            main.years = main.data.ontology$year
+    
+            # 4c. Pull sub-location data with the main data's ontology as a target. NOTE: IF SUB-LEVEL DATA EXISTS FOR MULTIPLE ONTOLOGIES, ONLY THE FIRST ONTOLOGY'S DATA WILL BE PULLED
+            sub.data = data.manager$pull(outcome=outcome.for.p,
+                                         sources = sub.location.type.p.source,
+                                         keep.dimensions = c('year', 'location', stratification),
+                                         dimension.values = list(location = all.relevant.subs.p, year = main.years),
+                                         target.ontology = main.data.ontology,
+                                         allow.mapping.from.target.ontology = T,
+                                         debug=F)
+            if (is.null(sub.data)) return(NULL)
+            mp = attr(sub.data, 'mapping')
+            if (dim(sub.data)[['source']] > 1)
+                stop(paste0(error.prefix, sub.location.type, " 'p' data from more than one source found. Please specify a single source to use in 'sub.location.type.p.source'"))
+            new.dimnames = dimnames(sub.data)[names(dimnames(sub.data)) != 'source']
+            sub.data = array(sub.data, sapply(new.dimnames, length), new.dimnames)
             
-            # 4f.2 Expand the MSA slice to be the same size as the subs slice
-            expanded.main.array = expand.array(main.slice, target.dim.names = subs.slice.dimnames)
+            # 4d. Determine which MSAs and their sub-locations are present in this stratification's data
+            msas.with.data.this.stratification.mask = names(main.subs.p) %in% dimnames(main.data)$location
+            msas.with.data.this.stratification = names(main.subs.p)[msas.with.data.this.stratification.mask]
+            main.subs.this.stratification = lapply(main.subs.p[msas.with.data.this.stratification.mask], function(main.subs) {
+                main.subs[main.subs %in% dimnames(sub.data)$location]
+            })
+            main.subs.this.stratification = main.subs.this.stratification[lengths(main.subs.this.stratification) > 0]
+            if (length(main.subs.this.stratification) == 0) return(NULL)
             
-            # 4f.3 Take the difference at each position between sub-location and MSA and return as a vector -- this forms part of our in-msa p-bias sample
-            p.bias.vector.for.this.msa = as.vector(subs.slice - expanded.main.array)
-            p.bias.vector.for.this.msa[!is.na(p.bias.vector.for.this.msa)]
-            
+            # 4e. Map the msa data to the ontology of the sub data.
+            align.on.dimnames = dimnames(sub.data)
+            align.on.dimnames$location = dimnames(main.data)$location
+            aligned.main.data = mp$apply(main.data, to.dim.names = align.on.dimnames)
+    
+            # 4f. Get a p-bias vector for each MSA that has data in this stratification and return the collection
+            p.bias.vector = unlist(lapply(1:length(main.subs.this.stratification), function(i) {
+                
+                # 4f.1 Get a slice of the data array for the MSA and another for its sub-locations.
+                main.slice = main.data[get.array.access.indices(dimnames(main.data), dimension.values = list(location = names(main.subs.this.stratification)[[i]]))]
+                subs.slice = sub.data[get.array.access.indices(dimnames(sub.data), dimension.values = list(location = main.subs.this.stratification[[i]]))]
+                main.slice.dimnames = dimnames(main.data)[names(dimnames(main.data)) != 'location']
+                subs.slice.dimnames = c(main.slice.dimnames, list(location = main.subs.this.stratification[[i]]))
+                main.slice = array(main.slice, dim = sapply(main.slice.dimnames, length), dimnames = main.slice.dimnames)
+                
+                # 4f.2 Expand the MSA slice to be the same size as the subs slice
+                expanded.main.array = expand.array(main.slice, target.dim.names = subs.slice.dimnames)
+                
+                # 4f.3 Take the difference at each position between sub-location and MSA and return as a vector -- this forms part of our in-msa p-bias sample
+                p.bias.vector.for.this.msa = as.vector(subs.slice - expanded.main.array)
+                p.bias.vector.for.this.msa[!is.na(p.bias.vector.for.this.msa)]
+                
+            }))
         }))
-    }))
+    else p.bias.in.msa = NA
     
     # 5. Generate an outside-msa p-bias sample by looping across each stratification
-    p.bias.out.msa = unlist(lapply(stratifications, function(stratification)
-    {
-        # 5a. Pull msa *p* data. Use it to make a target ontology for the msa *n* data pull. This assumes that the different outcomes can have the same ontology, which they'd have to if they are a matching numerator/denominator pair.
-        main.p.data = data.manager$pull(outcome = outcome.for.p,
-                                        sources = main.location.type.p.source,
-                                        keep.dimensions = c('year', 'location', stratification),
-                                        dimension.values = list(location = names(main.supers.p.and.n)))
-        if (is.null(main.p.data)) return(NULL)
-        if (dim(main.p.data)[['source']] > 1)
-            stop(paste0(error.prefix, main.location.type, " 'p' data from more than one source found. Please specify a single source to use in 'main.location.type.p.source'")) # SHOULD HAVE BEEN CAUGHT ALREADY
-        new.dimnames = dimnames(main.p.data)[names(dimnames(main.p.data)) != 'source']
-        main.p.data = array(main.p.data, sapply(new.dimnames, length), new.dimnames)
-        main.p.data.ontology = as.ontology(dimnames(main.p.data), incomplete.dimensions = c('year', 'location'))
-        main.p.years = main.p.data.ontology$year
-        
-        # 5b. Pull msa *n* data. Use it to make a target ontology for the super *p* data pull.
-        main.n.data = data.manager$pull(outcome = outcome.for.n,
-                                        sources = main.location.type.n.source,
-                                        keep.dimensions = c('year', 'location', stratification),
-                                        dimension.values = list(location = names(main.supers.p.and.n), year = main.p.years),
-                                        target.ontology = main.p.data.ontology,
-                                        allow.mapping.from.target.ontology = T)
-        if (is.null(main.n.data)) return(NULL)
-        mp.main.p.to.main.n = attr(main.n.data, 'mapping')
-        if (dim(main.n.data)[['source']] > 1)
-            stop(paste0(error.prefix, main.location.type, " 'n' data from more than one source found. Please specify a single source to use in 'main.location.type.n.source'"))
-        new.dimnames = dimnames(main.n.data)[names(dimnames(main.n.data)) != 'source']
-        main.n.data = array(main.n.data, sapply(new.dimnames, length), new.dimnames)
-        main.n.data.ontology = as.ontology(dimnames(main.n.data), incomplete.dimensions = c('year', 'location'))
-        main.n.data.ontology$location = union(main.n.data.ontology$location, all.relevant.supers.p.and.n)
-        main.n.years = main.n.data.ontology$year
-
-        # 5c. Pull super-location *p* data. Use it to make a target ontology for the super *n* data pull.
-        super.p.data = data.manager$pull(outcome = outcome.for.p,
-                                         sources = super.location.type.p.source,
-                                         keep.dimensions = c('year', 'location', stratification),
-                                         dimension.values = list(location = all.relevant.supers.p.and.n, year = main.n.years),
-                                         target.ontology = main.n.data.ontology,
-                                         allow.mapping.from.target.ontology = T)
-        if (is.null(super.p.data)) return(NULL)
-        if (dim(super.p.data)[['source']] > 1)
-            stop(paste0(error.prefix, super.location.type, " 'p' data from more than one source found. Please specify a single source to use in 'super.location.type.p.source'"))
-        mp.main.n.to.super.p = attr(super.p.data, 'mapping')
-        new.dimnames = dimnames(super.p.data)[names(dimnames(super.p.data)) != 'source']
-        super.p.data = array(super.p.data, sapply(new.dimnames, length), new.dimnames)
-        super.p.data.ontology = as.ontology(dimnames(super.p.data), incomplete.dimensions = c('year', 'location'))
-        super.p.years = super.p.data.ontology$year
-        # browser()
-        # 5d. Pull super-location *n* data.
-        super.n.data = data.manager$pull(outcome = outcome.for.n,
-                                         sources = super.location.type.n.source,
-                                         keep.dimensions = c('year', 'location', stratification),
-                                         dimension.values = list(location = all.relevant.supers.p.and.n, year = super.p.years),
-                                         target.ontology = super.p.data.ontology,
-                                         allow.mapping.from.target.ontology = T)
-        if (is.null(super.n.data)) return(NULL)
-        if (dim(super.n.data)[['source']] > 1)
-            stop(paste0(error.prefix, super.location.type, " 'n' data from more than one source found. Please specify a single source to use in 'super.location.type.n.source'"))
-        mp.super.p.to.super.n = attr(super.n.data, 'mapping')
-        new.dimnames = dimnames(super.n.data)[names(dimnames(super.n.data)) != 'source']
-        super.n.data = array(super.n.data, sapply(new.dimnames, length), new.dimnames)
-        
-        # 5e. Align all four datasets by mapping main.p.data to main.n.data, then both of them to super.p.data, then all three of them to super.n.data. Then rename them for ease of reading.
-        align.on.main.p.dimnames = dimnames(main.p.data)
-        aligned.main.p.data = mp.main.p.to.main.n$apply(main.p.data, to.dim.names = align.on.main.p.dimnames)
-        
-        align.on.main.n.dimnames = dimnames(main.n.data)
-        align.on.main.p.to.main.n.dimnames = dimnames(aligned.main.p.data)
-        aligned.main.n.data = mp.main.n.to.super.p$apply(main.n.data, to.dim.names = align.on.main.n.dimnames)
-        aligned.main.p.to.main.n.data = mp.main.n.to.super.p$apply(aligned.main.p.data, to.dim.names = align.on.main.p.to.main.n.dimnames)
-        
-        align.on.super.p.dimnames = dimnames(super.p.data)
-        align.on.main.n.to.super.p.dimnames = dimnames(aligned.main.n.data)
-        align.on.main.p.to.main.n.to.super.p.dimnames = dimnames(aligned.main.p.to.main.n.data)
-        aligned.super.p.data = mp.super.p.to.super.n$apply(super.p.data, to.dim.names = align.on.super.p.dimnames)
-        aligned.main.n.to.super.p.data = mp.super.p.to.super.n$apply(aligned.main.n.data, to.dim.names = align.on.main.n.to.super.p.dimnames)
-        aligned.main.p.to.main.n.to.super.p.data = mp.super.p.to.super.n$apply(aligned.main.p.to.main.n.data, to.dim.names = align.on.main.p.to.main.n.to.super.p.dimnames)
-        
-        main.p.data = aligned.main.p.to.main.n.to.super.p.data
-        main.n.data = aligned.main.n.to.super.p.data
-        super.p.data = aligned.super.p.data
-
-        # 5d. Determine which MSAs and their super-locations are present in all of this stratification's data
-        mains.with.data.this.stratification.mask = names(main.supers.p.and.n) %in% intersect(dimnames(main.p.data)$location, dimnames(main.n.data)$location)
-        mains.with.data.this.stratification = names(main.supers.p.and.n)[mains.with.data.this.stratification.mask]
-        main.supers.this.stratification = lapply(main.supers.p.and.n[mains.with.data.this.stratification.mask], function(main.supers) {
-            main.supers[main.supers %in% intersect(dimnames(super.p.data)$location, dimnames(super.n.data)$location)]
-        })
-        names(main.supers.this.stratification) = mains.with.data.this.stratification
-        main.supers.this.stratification = main.supers.this.stratification[lengths(main.supers.this.stratification) > 0]
-        if (length(main.supers.this.stratification) == 0) return(NULL)
-        common.years = intersect(dimnames(main.p.data)$year, intersect(dimnames(main.n.data)$year, intersect(dimnames(super.p.data)$year, dimnames(super.n.data)$year)))
-
-        # 5f. Get a p-bias vector for each MSA that has data in this stratification and return the collection
-        p.bias.vector = unlist(lapply(1:length(main.supers.this.stratification), function(i) {
-            # 5f.1 Get a slices of the n and p data arrays for the MSA and others for its super-locations. Make sure they have the same *years* (TO GENERALIZE, MAKE THIS ANY INCOMPLETE DIMENSIONS IN THE ONTOLOGY).
-            main.p.slice = main.p.data[get.array.access.indices(dimnames(main.p.data), dimension.values = list(year=common.years, location = names(main.supers.this.stratification)[[i]]))]
-            supers.p.slice = super.p.data[get.array.access.indices(dimnames(super.p.data), dimension.values = list(year=common.years, location = main.supers.this.stratification[[i]]))]
-            main.n.slice = main.n.data[get.array.access.indices(dimnames(main.n.data), dimension.values = list(year=common.years, location = names(main.supers.this.stratification)[[i]]))]
-            supers.n.slice = super.n.data[get.array.access.indices(dimnames(super.n.data), dimension.values = list(year=common.years, location = main.supers.this.stratification[[i]]))]
+    if (!lack.super.location.type)
+        p.bias.out.msa = unlist(lapply(stratifications, function(stratification)
+        {
+            browser()
+            # 5a. Pull msa *p* data. Use it to make a target ontology for the msa *n* data pull. This assumes that the different outcomes can have the same ontology, which they'd have to if they are a matching numerator/denominator pair.
+            main.p.data = data.manager$pull(outcome = outcome.for.p,
+                                            sources = main.location.type.p.source,
+                                            keep.dimensions = c('year', 'location', stratification),
+                                            dimension.values = list(location = names(main.supers.p.and.n)))
+            if (is.null(main.p.data)) return(NULL)
+            if (dim(main.p.data)[['source']] > 1)
+                stop(paste0(error.prefix, main.location.type, " 'p' data from more than one source found. Please specify a single source to use in 'main.location.type.p.source'")) # SHOULD HAVE BEEN CAUGHT ALREADY
+            new.dimnames = dimnames(main.p.data)[names(dimnames(main.p.data)) != 'source']
+            main.p.data = array(main.p.data, sapply(new.dimnames, length), new.dimnames)
+            main.p.data.ontology = as.ontology(dimnames(main.p.data), incomplete.dimensions = c('year', 'location'))
+            main.p.years = main.p.data.ontology$year
             
-            main.p.slice.dimnames = dimnames(main.p.data)[names(dimnames(main.p.data)) != 'location']
-            main.p.slice.dimnames$year = common.years
-            supers.p.slice.dimnames = c(main.p.slice.dimnames, list(location = main.supers.this.stratification[[i]]))
-            supers.p.slice.dimnames$year = common.years
-            main.n.slice.dimnames = dimnames(main.n.data)[names(dimnames(main.n.data)) != 'location']
-            main.n.slice.dimnames$year = common.years
-            supers.n.slice.dimnames = c(main.n.slice.dimnames, list(location = main.supers.this.stratification[[i]]))
-            supers.n.slice.dimnames$year = common.years
+            # 5b. Pull msa *n* data. Use it to make a target ontology for the super *p* data pull.
+            main.n.data = data.manager$pull(outcome = outcome.for.n,
+                                            sources = main.location.type.n.source,
+                                            keep.dimensions = c('year', 'location', stratification),
+                                            dimension.values = list(location = names(main.supers.p.and.n), year = main.p.years),
+                                            target.ontology = main.p.data.ontology,
+                                            allow.mapping.from.target.ontology = T)
+            if (is.null(main.n.data)) return(NULL)
+            mp.main.p.to.main.n = attr(main.n.data, 'mapping')
+            if (dim(main.n.data)[['source']] > 1)
+                stop(paste0(error.prefix, main.location.type, " 'n' data from more than one source found. Please specify a single source to use in 'main.location.type.n.source'"))
+            new.dimnames = dimnames(main.n.data)[names(dimnames(main.n.data)) != 'source']
+            main.n.data = array(main.n.data, sapply(new.dimnames, length), new.dimnames)
+            main.n.data.ontology = as.ontology(dimnames(main.n.data), incomplete.dimensions = c('year', 'location'))
+            main.n.data.ontology$location = union(main.n.data.ontology$location, all.relevant.supers.p.and.n)
+            main.n.years = main.n.data.ontology$year
+    
+            # 5c. Pull super-location *p* data. Use it to make a target ontology for the super *n* data pull.
+            super.p.data = data.manager$pull(outcome = outcome.for.p,
+                                             sources = super.location.type.p.source,
+                                             keep.dimensions = c('year', 'location', stratification),
+                                             dimension.values = list(location = all.relevant.supers.p.and.n, year = main.n.years),
+                                             target.ontology = main.n.data.ontology,
+                                             allow.mapping.from.target.ontology = T)
+            if (is.null(super.p.data)) return(NULL)
+            if (dim(super.p.data)[['source']] > 1)
+                stop(paste0(error.prefix, super.location.type, " 'p' data from more than one source found. Please specify a single source to use in 'super.location.type.p.source'"))
+            mp.main.n.to.super.p = attr(super.p.data, 'mapping')
+            new.dimnames = dimnames(super.p.data)[names(dimnames(super.p.data)) != 'source']
+            super.p.data = array(super.p.data, sapply(new.dimnames, length), new.dimnames)
+            super.p.data.ontology = as.ontology(dimnames(super.p.data), incomplete.dimensions = c('year', 'location'))
+            super.p.years = super.p.data.ontology$year
+            # browser()
+            # 5d. Pull super-location *n* data.
+            super.n.data = data.manager$pull(outcome = outcome.for.n,
+                                             sources = super.location.type.n.source,
+                                             keep.dimensions = c('year', 'location', stratification),
+                                             dimension.values = list(location = all.relevant.supers.p.and.n, year = super.p.years),
+                                             target.ontology = super.p.data.ontology,
+                                             allow.mapping.from.target.ontology = T)
+            if (is.null(super.n.data)) return(NULL)
+            if (dim(super.n.data)[['source']] > 1)
+                stop(paste0(error.prefix, super.location.type, " 'n' data from more than one source found. Please specify a single source to use in 'super.location.type.n.source'"))
+            mp.super.p.to.super.n = attr(super.n.data, 'mapping')
+            new.dimnames = dimnames(super.n.data)[names(dimnames(super.n.data)) != 'source']
+            super.n.data = array(super.n.data, sapply(new.dimnames, length), new.dimnames)
             
-            main.p.slice = array(main.p.slice, dim = sapply(main.p.slice.dimnames, length), dimnames = main.p.slice.dimnames)
-            main.n.slice = array(main.n.slice, dim = sapply(main.n.slice.dimnames, length), dimnames = main.n.slice.dimnames)
+            # 5e. Align all four datasets by mapping main.p.data to main.n.data, then both of them to super.p.data, then all three of them to super.n.data. Then rename them for ease of reading.
+            align.on.main.p.dimnames = dimnames(main.p.data)
+            aligned.main.p.data = mp.main.p.to.main.n$apply(main.p.data, to.dim.names = align.on.main.p.dimnames)
             
-            # 5f.2 Expand the MSA slices to be the same size as the supers slices
-            expanded.main.p.array = expand.array(main.p.slice, target.dim.names = supers.p.slice.dimnames)
-            expanded.main.n.array = expand.array(main.n.slice, target.dim.names = supers.n.slice.dimnames)
+            align.on.main.n.dimnames = dimnames(main.n.data)
+            align.on.main.p.to.main.n.dimnames = dimnames(aligned.main.p.data)
+            aligned.main.n.data = mp.main.n.to.super.p$apply(main.n.data, to.dim.names = align.on.main.n.dimnames)
+            aligned.main.p.to.main.n.data = mp.main.n.to.super.p$apply(aligned.main.p.data, to.dim.names = align.on.main.p.to.main.n.dimnames)
             
-            # 5f.3 Perform a calculation at each position between super-location and MSA and return as a vector -- this forms part of our out-of-msa p-bias sample
-            p.bias.vector.for.this.msa = as.vector((supers.p.slice * supers.n.slice - main.p.slice * main.n.slice) / (supers.n.slice - main.n.slice) - main.p.slice) # can get divide by 0, making Inf
-            p.bias.vector.for.this.msa[!is.na(p.bias.vector.for.this.msa) & !is.infinite(p.bias.vector.for.this.msa)]
+            align.on.super.p.dimnames = dimnames(super.p.data)
+            align.on.main.n.to.super.p.dimnames = dimnames(aligned.main.n.data)
+            align.on.main.p.to.main.n.to.super.p.dimnames = dimnames(aligned.main.p.to.main.n.data)
+            aligned.super.p.data = mp.super.p.to.super.n$apply(super.p.data, to.dim.names = align.on.super.p.dimnames)
+            aligned.main.n.to.super.p.data = mp.super.p.to.super.n$apply(aligned.main.n.data, to.dim.names = align.on.main.n.to.super.p.dimnames)
+            aligned.main.p.to.main.n.to.super.p.data = mp.super.p.to.super.n$apply(aligned.main.p.to.main.n.data, to.dim.names = align.on.main.p.to.main.n.to.super.p.dimnames)
+            
+            main.p.data = aligned.main.p.to.main.n.to.super.p.data
+            main.n.data = aligned.main.n.to.super.p.data
+            super.p.data = aligned.super.p.data
+    
+            # 5d. Determine which MSAs and their super-locations are present in all of this stratification's data
+            mains.with.data.this.stratification.mask = names(main.supers.p.and.n) %in% intersect(dimnames(main.p.data)$location, dimnames(main.n.data)$location)
+            mains.with.data.this.stratification = names(main.supers.p.and.n)[mains.with.data.this.stratification.mask]
+            main.supers.this.stratification = lapply(main.supers.p.and.n[mains.with.data.this.stratification.mask], function(main.supers) {
+                main.supers[main.supers %in% intersect(dimnames(super.p.data)$location, dimnames(super.n.data)$location)]
+            })
+            names(main.supers.this.stratification) = mains.with.data.this.stratification
+            main.supers.this.stratification = main.supers.this.stratification[lengths(main.supers.this.stratification) > 0]
+            if (length(main.supers.this.stratification) == 0) return(NULL)
+            common.years = intersect(dimnames(main.p.data)$year, intersect(dimnames(main.n.data)$year, intersect(dimnames(super.p.data)$year, dimnames(super.n.data)$year)))
+    
+            # 5f. Get a p-bias vector for each MSA that has data in this stratification and return the collection
+            p.bias.vector = unlist(lapply(1:length(main.supers.this.stratification), function(i) {
+                # 5f.1 Get a slices of the n and p data arrays for the MSA and others for its super-locations. Make sure they have the same *years* (TO GENERALIZE, MAKE THIS ANY INCOMPLETE DIMENSIONS IN THE ONTOLOGY).
+                main.p.slice = main.p.data[get.array.access.indices(dimnames(main.p.data), dimension.values = list(year=common.years, location = names(main.supers.this.stratification)[[i]]))]
+                supers.p.slice = super.p.data[get.array.access.indices(dimnames(super.p.data), dimension.values = list(year=common.years, location = main.supers.this.stratification[[i]]))]
+                main.n.slice = main.n.data[get.array.access.indices(dimnames(main.n.data), dimension.values = list(year=common.years, location = names(main.supers.this.stratification)[[i]]))]
+                supers.n.slice = super.n.data[get.array.access.indices(dimnames(super.n.data), dimension.values = list(year=common.years, location = main.supers.this.stratification[[i]]))]
+                
+                main.p.slice.dimnames = dimnames(main.p.data)[names(dimnames(main.p.data)) != 'location']
+                main.p.slice.dimnames$year = common.years
+                supers.p.slice.dimnames = c(main.p.slice.dimnames, list(location = main.supers.this.stratification[[i]]))
+                supers.p.slice.dimnames$year = common.years
+                main.n.slice.dimnames = dimnames(main.n.data)[names(dimnames(main.n.data)) != 'location']
+                main.n.slice.dimnames$year = common.years
+                supers.n.slice.dimnames = c(main.n.slice.dimnames, list(location = main.supers.this.stratification[[i]]))
+                supers.n.slice.dimnames$year = common.years
+                
+                main.p.slice = array(main.p.slice, dim = sapply(main.p.slice.dimnames, length), dimnames = main.p.slice.dimnames)
+                main.n.slice = array(main.n.slice, dim = sapply(main.n.slice.dimnames, length), dimnames = main.n.slice.dimnames)
+                
+                # 5f.2 Expand the MSA slices to be the same size as the supers slices
+                expanded.main.p.array = expand.array(main.p.slice, target.dim.names = supers.p.slice.dimnames)
+                expanded.main.n.array = expand.array(main.n.slice, target.dim.names = supers.n.slice.dimnames)
+                
+                # 5f.3 Perform a calculation at each position between super-location and MSA and return as a vector -- this forms part of our out-of-msa p-bias sample
+                p.bias.vector.for.this.msa = as.vector((supers.p.slice * supers.n.slice - main.p.slice * main.n.slice) / (supers.n.slice - main.n.slice) - main.p.slice) # can get divide by 0, making Inf
+                p.bias.vector.for.this.msa[!is.na(p.bias.vector.for.this.msa) & !is.infinite(p.bias.vector.for.this.msa)]
+            }))
         }))
-    }))
+    else p.bias.out.msa = NA
 
     # 6. Return the mean and standard deviation of the in-msa and out-of-msa samples. Note that this next needs to be processed via metalocation type and made into a list of matrices by model stratum.
-    if (length(p.bias.in.msa) < minimum.sample.size || length(p.bias.out.msa) < minimum.sample.size)
-        stop(paste0(error.prefix, "not enough samples found"))
+    if (!lack.sub.location.type && length(p.bias.in.msa) < minimum.sample.size)
+        stop(paste0(error.prefix, "not enough samples found for p.bias.in.msa"))
+    if (!lack.super.location.type && length(p.bias.out.msa) < minimum.sample.size)
+        stop(paste0(error.prefix, "not enough samples found for p.bias.out.msa"))
     list(in.mean = mean(p.bias.in.msa),
          out.mean = mean(p.bias.out.msa),
          in.sd = sd(p.bias.in.msa),
          out.sd = sd(p.bias.out.msa),
-         n.in = length(p.bias.in.msa),
-         n.out = length(p.bias.out.msa))
+         n.in = ifelse(!lack.sub.location.type, length(p.bias.in.msa), NA),
+         n.out = ifelse(!lack.super.location.type, length(p.bias.out.msa), NA))
 }
 
 
