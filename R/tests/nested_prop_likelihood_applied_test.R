@@ -8,16 +8,18 @@ p.bias = list(in.mean=0, out.mean=0, in.sd=0.03, out.sd=0.03)
 
 ehe.partitioning.function = function(arr, version='ehe', location)
 {
-orig = arr
-all(orig[,,,,'heterosexual_male',] == orig[,,,,'msm',]) # this is false - I thought it should be true
-    if ("risk" %in% names(dim(arr))) {
+    if ("risk" %in% names(dim(arr)) &&
+        all(array.access(arr, risk='active_IDU')==array.access(arr, risk='IDU_in_remission')))
+    {
         risk.partition.dimnames = list(risk = c('active_IDU', 'IDU_in_remission'))
         risk.partition.arr = array(c(0.25, 0.75), dim=sapply(risk.partition.dimnames, length), risk.partition.dimnames)
         risk.modified = array.access(arr, risk.partition.dimnames)
         risk.modified = risk.modified * expand.array(risk.partition.arr, dimnames(risk.modified))
         array.access(arr, dimnames(risk.modified)) = risk.modified
     }
-    if ("sex" %in% names(dim(arr))) {
+    if ("sex" %in% names(dim(arr)) &&
+        all(array.access(arr, sex='msm')==array.access(arr, sex='heterosexual_male')))
+    {
         #sex.partition.dimnames = list(sex = c('heterosexual_male', 'msm'))
         #sex.partition.arr = array(c(0.5, 0.5), dim=sapply(sex.partition.dimnames, length), sex.partition.dimnames)
         
