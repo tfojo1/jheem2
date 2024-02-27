@@ -215,7 +215,7 @@ simplot <- function(...,
             # Determine the keep.dimensions we need from the sim$gets
             extra.dimensions.needed.for.mapping = c()
             if (plot.which != 'sim.only' && !is.null(outcome.mappings[[outcome]])) {
-                extra.dimensions.needed.for.mapping = setdiff(outcome.mappings[[outcome]]$from.dimensions, c(facet.by, split.by))
+                extra.dimensions.needed.for.mapping = setdiff(outcome.mappings[[outcome]]$from.dimensions, c(facet.by, split.by, 'year'))
                 keep = union(c('year', facet.by, split.by), extra.dimensions.needed.for.mapping)
             }
             else keep = c('year', facet.by, split.by)
