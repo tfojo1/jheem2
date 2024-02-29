@@ -458,6 +458,7 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
                                 }
                                 else
                                 {
+                                    new.simset = NULL
                                     tryCatch({
                                         new.simset = int$run(simset, 
                                                              start.year = start.year,
