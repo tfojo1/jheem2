@@ -780,25 +780,11 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             outcomes.to.bind = setdiff(self$outcomes, names(self))
             lapply(outcomes.to.bind, function(outcome.name){
                 
-                makeActiveBinding(sym=outcome.name,
-                                  fun = function(value){
-                                      
-                                      if (missing(value))
-                                      {
-                                          if (is.null(private$i.data$outcome.denominators[[outcome.name]]) || is.null(private$i.data$outcome.numerators[[outcome.name]]))
-                                              private$i.data$outcome.numerators[[outcome.name]]
-                                          else
-                                          {
-                                              rv = private$i.data$outcome.numerators[[outcome.name]] /
-                                                private$i.data$outcome.denominators[[outcome.name]]
-                                              rv[private$i.data$outcome.denominators[[outcome.name]]==0] = 0
-                                              rv
-                                          }
-                                      }
-                                      else
-                                          stop(paste0("Cannot modify a simulation's '", outcome.name, "' - it is read-only"))
-                                      
-                                  },
+                fn = eval(parse(text=paste0("function(value){private$eval.outcome.active.binding(value, outcome.name='",outcome.name,"')}")))
+                environment(fn) = self
+                
+                makeActiveBinding(sym = outcome.name,
+                                  fun = fn,
                                   env = self)
             })
             
@@ -1328,6 +1314,24 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         # just for diagnostics, will be removed soon
         slowerFoo = function(dimension.values, ..., check.consistency, error.prefix) {
             private$process.dimension.values(dimension.values, ..., check.consistency = check.consistency, error.prefix=error.prefix)
+        },
+        
+        eval.outcome.active.binding = function(value, outcome.name)
+        {
+            if (missing(value))
+            {
+                if (is.null(private$i.data$outcome.denominators[[outcome.name]]) || is.null(private$i.data$outcome.numerators[[outcome.name]]))
+                    private$i.data$outcome.numerators[[outcome.name]]
+                else
+                {
+                    rv = private$i.data$outcome.numerators[[outcome.name]] /
+                        private$i.data$outcome.denominators[[outcome.name]]
+                    rv[private$i.data$outcome.denominators[[outcome.name]]==0] = 0
+                    rv
+                }
+            }
+            else
+                stop(paste0("Cannot modify a simulation's '", outcome.name, "' - it is read-only"))
         }
     )
 )
