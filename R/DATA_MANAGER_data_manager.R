@@ -1459,12 +1459,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 # If we have an identity mapping, then we can skip this
                                 
                                 denominator.outcome = outcome.info[['denominator.outcome']]
-                                # browser()
-                                # CHECK IF THIS SOURCE HAS DENOMINATOR DATA. IF NOT, TRY ANOTHER SOURCE.
+                                # Check if this source has data, otherwise use all available sources and apply mean over result, or give up.
                                 if (source.name %in% names(private$i.data[[denominator.outcome]][['estimate']]))
                                     denominator.source = source.name
                                 else if (length(names(private$i.data[[denominator.outcome]][['estimate']]))>0)
-                                    denominator.source = names(private$i.data[[denominator.outcome]][['estimate']])[[1]]
+                                    denominator.source = names(private$i.data[[denominator.outcome]][['estimate']])
                                 else {
                                     source.lacks.denominator.data.flag <<- TRUE
                                     return (NULL)
@@ -1484,21 +1483,31 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     return (NULL)
                                 }
                                 
-                                # Since the denominator.array came from only one source, we can remove the source so that it will match size of data
-                                denominator.array = array(denominator.array,
-                                                          dim = dim(denominator.array)[names(dim(denominator.array)) != 'source'],
-                                                          dimnames = dimnames(denominator.array)[names(dimnames(denominator.array)) != 'source']
-                                )
+                                # If the denominator.array came from only one source, we can remove the source so that it will match size of data
+                                non.source.dimensions = names(dim(denominator.array))[names(dim(denominator.array))!='source']
+                                if (dim(denominator.array)['source'] == 1) 
+                                    denominator.array = array(denominator.array,
+                                                              dim = dim(denominator.array)[non.source.dimensions],
+                                                              dimnames = dimnames(denominator.array)[non.source.dimensions]
+                                    )
+                                
+                                # Otherwise, we need to take the mean across source
+                                else denominator.array = apply.robust(denominator.array, non.source.dimensions, mean, na.rm=T)
                                 
                                 # # Catch an otherwise invisible bug if denominator.array somehow doesn't have the same shape/order as the data
                                 # if (!dim.names.equal(dimnames(denominator.array), dimnames(data.to.process)))
                                 #     stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect dimensions'))
                                 
                                 # So apparently it's possible that the ontology we get denominator data from can have the same dimension values but in a different order from those in our main data
-                                denom.to.data.mapping = get.ontology.mapping(dimnames(denominator.array), dimnames(data.to.process))
+                                denom.to.data.mapping = get.ontology.mapping(dimnames(denominator.array), as.ontology(dimnames(data.to.process), incomplete.dimensions=c('year', 'location'))) # made it as.ontology b/c couldn't map year otherwise
                                 if (is.null(denom.to.data.mapping))
                                     stop(paste0(error.prefix, 'bug in aggregation code: denominator array dimensions cannot be mapped to main data dimensions'))
-                                denominator.array = denom.to.data.mapping$apply(denominator.array, to.dim.names = dimnames(data.to.process)) # need this argument to ensure correct order
+                                
+                                # It's possible that we didn't find as many years or locations in the denominator as we did in the data.to.process
+                                if (!setequal(dimnames(denominator.array)$year, dimnames(data.to.process)$year) || !setequal(dimnames(denominator.array)$location, dimnames(data.to.process)$location))
+                                    data.to.process = array.access(data.to.process, year=dimnames(denominator.array)$year, location=dimnames(denominator.array)$location)
+                                
+                                denominator.array = denom.to.data.mapping$apply(denominator.array, to.dim.names = dimnames(data.to.process))
                                 
                                 # Perform weighted average
                                 unmapped.numerator = data.to.process * denominator.array
@@ -1531,6 +1540,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             next
                         }
                         names(pulled.ont.data) = data.types
+                        
+                        # We might need to subset details or url if the 'data' was unexpectedly subset due to denominator data for a proportion having fewer years or locations
+                        if (outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion')) {
+                            tryCatch(
+                                {if ('details' %in% data.types) pulled.ont.data[['details']] = array.access(pulled.ont.data[['details']], dimnames(pulled.ont.data[['data']]))},
+                                error=function(e) {browser()}
+                            )
+                            
+                            if ('url' %in% data.types) pulled.ont.data[['details']] = array.access(pulled.ont.data[['details']], dimnames(pulled.ont.data[['data']]))
+                        }
                         
                         # Aggregate if needed
                         initial.dimnames = dimnames.for.apply
@@ -1593,8 +1612,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         #     stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect dimensions'))
                                         
                                         # So apparently it's possible that the ontology we get denominator data from can have the same dimension values but in a different order from those in our main data
-                                        denom.to.data.mapping = get.ontology.mapping(dimnames(denominator.array), dimnames(data.by.data.type))
+                                        denom.to.data.mapping = get.ontology.mapping(dimnames(denominator.array), dimnames(data.by.data.type)) # as ontology??
                                         if (is.null(denom.to.data.mapping))
+                                            # browser()
                                             stop(paste0(error.prefix, 'bug in aggregation code: denominator array dimensions cannot be mapped to main data dimensions'))
                                         denominator.array = denom.to.data.mapping$apply(denominator.array, to.dim.names = dimnames(data.by.data.type)) # need this argument to ensure correct order
                                         
