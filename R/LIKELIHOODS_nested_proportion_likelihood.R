@@ -16,7 +16,7 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
     
     # --- VALIDATION --- #
     
-    
+
     # --- so that I don't have to change the code very much to accomadate not having a sub.location.type or super.location.type, I'll set a default but just skip one or other of the loops later.
     lack.sub.location.type = is.null(sub.location.type)
     lack.super.location.type = is.null(super.location.type)
@@ -45,17 +45,26 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
     if (length(msas.p)==0)
         stop(paste0(error.prefix, "no locations of type '", main.location.type, "' with '", outcome.for.p, "' data found"))
     if (length(msas.p.and.n)==0)
-        stop(paste0(error.prefix, "no locations of type '", main.location.type, "' with '", outcome.for.n, "' data found"))
+        stop(paste0(error.prefix, "no locations of type '", main.location.type, "' with both '", outcome.for.p, "' and '", outcome.for.n, "' data found"))
     
     # 3. Make a list of MSAs and their sub-locations (p) and super locations (n and p) that have data; scrap MSAs with nothing
-    main.subs.p = lapply(msas.p, function(msa) {intersect(locations::get.contained.locations(msa, sub.location.type, return.list = F), locations.with.p.data)})
-    main.supers.p.and.n = lapply(msas.p.and.n, function(msa) {intersect(locations::get.containing.locations(msa, super.location.type, return.list = F), locations.with.p.and.n.data)})
-    names(main.subs.p) = msas.p
-    names(main.supers.p.and.n) = msas.p.and.n
-    main.subs.p = main.subs.p[lengths(main.subs.p) > 0]
-    main.supers.p.and.n = main.supers.p.and.n[lengths(main.supers.p.and.n) > 0]
-    all.relevant.subs.p = unique(unlist(main.subs.p))
-    all.relevant.supers.p.and.n = unique(unlist(main.supers.p.and.n))
+    if (!lack.sub.location.type) {
+        main.subs.p = lapply(msas.p, function(msa) {intersect(locations::get.contained.locations(msa, sub.location.type, return.list = F), locations.with.p.data)})
+        names(main.subs.p) = msas.p
+        main.subs.p = main.subs.p[lengths(main.subs.p) > 0]
+        all.relevant.subs.p = unique(unlist(main.subs.p))
+        if (is.null(all.relevant.subs.p))
+            stop(paste0(error.prefix, "no locations of type '", sub.location.type, "' with '", outcome.for.p, "' data found"))
+    }
+    if (!lack.super.location.type) {
+        main.supers.p.and.n = lapply(msas.p.and.n, function(msa) {intersect(locations::get.containing.locations(msa, super.location.type, return.list = F), locations.with.p.and.n.data)})
+        names(main.supers.p.and.n) = msas.p.and.n
+        main.supers.p.and.n = main.supers.p.and.n[lengths(main.supers.p.and.n) > 0]
+        all.relevant.supers.p.and.n = unique(unlist(main.supers.p.and.n))
+        if (is.null(all.relevant.supers.p.and.n))
+            stop(paste0(error.prefix, "no locations of type '", super.location.type, "' with both '", outcome.for.p, "' and '", outcome.for.n, "' data found"))
+    }
+    
     
     # 4. Generate an inside-msa p-bias sample by looping across each stratification
     if (!lack.sub.location.type)
@@ -290,6 +299,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              
                                                              location.types, # test is c('county', 'state')
                                                              minimum.geographic.resolution.type, # test with 'county' #metalocations MUST contain these
+                                                             maximum.locations.per.type = 3,
                                                              
                                                              dimensions = character(0),
                                                              levels.of.stratification = NULL,
@@ -329,6 +339,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                         denominator.outcome.for.sim = denominator.outcome.for.sim,
                                                         location.types = location.types,
                                                         minimum.geographic.resolution.type = minimum.geographic.resolution.type,
+                                                        maximum.locations.per.type = maximum.locations.per.type,
                                                         dimensions = dimensions,
                                                         levels.of.stratification = levels.of.stratification,
                                                         from.year = from.year,
@@ -368,6 +379,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               denominator.outcome.for.sim,
                               location.types,
                               minimum.geographic.resolution.type,
+                              maximum.locations.per.type,
                               dimensions,
                               levels.of.stratification,
                               from.year,
@@ -427,6 +439,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             # *minimum.geographic.resolution.type* is a character vector containing a single registered location type # convert to 
             if (!is.character(minimum.geographic.resolution.type) || length(minimum.geographic.resolution.type)!=1 || is.na(minimum.geographic.resolution.type) || !(toupper(minimum.geographic.resolution.type) %in% locations::get.location.types()))
                 stop(paste0(error.prefix, "'minimum.geographic.resolution.type] must be a character containing a single registered location type"))
+            
+            # *maximum.locations.per.type* is a single numeric value greater than zero
+            if (!is.numeric(maximum.locations.per.type) || length(maximum.locations.per.type)!=1 || is.na(maximum.locations.per.type) || maximum.locations.per.type<1)
+                stop(paste0(error.prefix, "'maximum.locations.per.type' must be a single numeric value greater than zero"))
             
             # *from.year* and *to.year* are single numeric vectors. *to.year* must be larger than *from.year*
             if (from.year != -Inf && (!is.numeric(from.year) || length(from.year) > 1 || is.null(from.year) || is.na(from.year)))
@@ -488,6 +504,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             
             private$i.location.types = location.types
             private$i.minimum.geographic.resolution.type = minimum.geographic.resolution.type
+            private$i.maximum.locations.per.type = maximum.locations.per.type
             
             private$i.outcome.for.data = outcome.for.data
             private$i.denominator.outcome.for.data = denominator.outcome.for.data
@@ -621,6 +638,15 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'minimum.geographic.resolution.type' - it is read-only")
         },
+        maximum.locations.per.type = function(value)
+        {
+            if (missing(value))
+            {
+                private$i.maximum.locations.per.type
+            }
+            else
+                stop("Cannot modify a jheem.likelihood.instruction's 'maximum.locations.per.type' - it is read-only")
+        },
         partitioning.function = function(value)
         {
             if (missing(value))
@@ -638,6 +664,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         
         i.location.types = NULL,
         i.minimum.geographic.resolution.type = NULL,
+        i.maximum.locations.per.type = NULL,
         
         i.outcome.for.data = NULL,
         i.denominator.outcome.for.data = NULL,
@@ -681,6 +708,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 stop(paste0(error.prefix, "'data.manager' must be an R6 object with class 'jheem.data.manager'"))
             
             # --- UNPACK INSTRUCTIONS --- #
+            # browser()
 
             private$i.parameters = instructions$parameters
             private$i.outcome.for.data = instructions$outcome.for.data
@@ -708,10 +736,14 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             if(!(sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$is.cumulative))
                 stop(paste0(error.prefix, "'outcome.for.sim' must be cumulative in this specification"))
-
-            # all.locations = private$get.all.locations(location = location,
-            #                                           location.types = instructions$location.types)
-            all.locations = c('24510', 'C.12580', 'MD')
+            
+            all.locations = private$get.all.locations(location = location,
+                                                      location.types = instructions$location.types,
+                                                      maximum.locations.per.type = instructions$maximum.locations.per.type,
+                                                      minimum.geographic.resolution.type = instructions$minimum.geographic.resolution.type,
+                                                      data.manager = data.manager,
+                                                      years = years)
+            # all.locations = c('24510', 'C.12580', 'MD')
 
             ## ---- PREPARE DATA STRUCTURES ---- ##
             
@@ -719,7 +751,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             private$i.sim.ontology = sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
             private$i.sim.ontology$year = as.character(years)
             private$i.sim.ontology$location = all.locations
-            private$i.sim.ontology = do.call(ontology, c(private$i.sim.ontology, list(incomplete.dimensions = c('year', 'location'))))
 
             private$i.obs.p = c()
             private$i.details = c() # will contain each observation's sorted details as a collapsed character factor
@@ -805,7 +836,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 
             }
             if (length(private$i.obs.p)==0) stop(paste0(error.prefix, "no data was found for any stratification"))
-            
+
             # Now the required dimnames may have their dimensions in the wrong order or their values in the wrong order. They may also lack some values from a complete dimension. Use the sim ontology to fix this.
             corrected.sim.required.dimnames = private$i.sim.ontology[names(private$i.sim.ontology) %in% names(private$i.sim.required.dimnames)]
             corrected.sim.required.dimnames$year = private$i.sim.required.dimnames$year
@@ -1131,9 +1162,27 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         },
         
         # find all locations that we will check for data
-        get.all.locations = function(location, location.types)
+        get.all.locations = function(location, location.types, maximum.locations.per.type, minimum.geographic.resolution.type, data.manager, years)
         {
-            sort(c(location, unique(unlist(lapply(location.types, function(type) {locations::get.overlapping.locations(location, type, return.list = F)})))))
+            main.contained.locs = unlist(locations::get.location.code(locations::get.contained.locations(location, minimum.geographic.resolution.type), minimum.geographic.resolution.type))
+            # This is slower than I expected
+            sort(unique(unlist(lapply(location.types, function(type) {
+                # An overly verbose way to get overlapping locations as codes rather than names -- should ask Jeff to improve interface
+                locations.this.type = unlist(locations::get.location.code(locations::get.overlapping.locations(location, type), type))
+                
+                # if we have too many, compare them on the basis of how much denominator they have overlapping the main location
+                if (length(locations.this.type) <= maximum.locations.per.type) return(locations.this.type)
+                
+                loc.denominators = sapply(locations.this.type, function(loc) {
+                    contained.locs = unlist(locations::get.location.code(locations::get.contained.locations(loc, minimum.geographic.resolution.type), minimum.geographic.resolution.type))
+                    overlapping.contained.locs = intersect(contained.locs, main.contained.locs)
+                    denom.totals = data.manager$pull(outcome=private$i.denominator.outcome.for.data, keep.dimensions = 'year', dimension.values = list(location=overlapping.contained.locs))
+                    return(mean(denom.totals, na.rm=T))
+                })
+                
+                return (locations.this.type[names(sort(loc.denominators, decreasing=T))][1:maximum.locations.per.type])
+                
+                }))))
         },
         
         generate.transformation.matrix.nested = function(mappings.list, dimnames.list, locations.list, remove.mask.list, n.strats, matrix.dimnames)
