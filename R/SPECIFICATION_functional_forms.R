@@ -1598,12 +1598,16 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             {
                 if (private$i.modifiers.apply.to.change)
                 {
-                    before.knot.value = knot.values[[1]] - terms$before.modifier * (knot.values[[2]] - knot.values[[1]])
+#                    before.knot.value = knot.values[[1]] - terms$before.modifier * (knot.values[[2]] - knot.values[[1]])
+                    transformed.knot1 = private$i.link$apply(knot.values[[1]])
+                    before.knot.value = private$i.link$reverse.apply(
+                        transformed.knot1 - terms$before.modifier * (private$i.link$apply(knot.values[[2]]) - transformed.knot1)
+                    )
                 }
                 else
                 {
-                    before.knot.value = private$modifier.link$reverse.apply(
-                        private$modifier.link$apply(knot.values[[1]]) +
+                    before.knot.value = private$i.modifier.link$reverse.apply(
+                        private$i.modifier.link$apply(knot.values[[1]]) +
                             terms$before.modifier
                     )
                 }
@@ -1616,13 +1620,18 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             {
                 if (private$i.modifiers.apply.to.change)
                 {
-                    after.knot.value = knot.values[[length(knot.values)]] + 
-                        terms$after.modifier * (knot.values[[length(knot.values)]] - knot.values[[length(knot.values)-1]])                    
+                   # after.knot.value = knot.values[[length(knot.values)]] + 
+                   #     terms$after.modifier * (knot.values[[length(knot.values)]] - knot.values[[length(knot.values)-1]])     
+                   transformed.knot.n = private$i.link$apply(knot.values[[length(knot.values)]])               
+                   after.knot.value = private$i.link$reverse.apply(
+                       transformed.knot.n + 
+                           terms$after.modifier * (transformed.knot.n - private$i.link$apply(knot.values[[length(knot.values)-1]]))
+                   )
                 }
                 else
                 {
-                    after.knot.value = private$modifier.link$reverse.apply(
-                        private$modifier.link$apply(knot.values[[length(knot.values)]]) + 
+                    after.knot.value = privatei.$modifier.link$reverse.apply(
+                        private$i.modifier.link$apply(knot.values[[length(knot.values)]]) + 
                             terms$after.modifier
                     )
                 }
@@ -1640,6 +1649,7 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             {
                 arr.rv = sapply(1:n, function(i){
                     knot.values.for.i = sapply(knot.values, function(v){v[i]})
+                    
                     private$apply.spline(knot.values = private$i.link$apply(knot.values.for.i),
                                          knot.times = knot.times,
                                          desired.times = years)
