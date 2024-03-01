@@ -2447,8 +2447,8 @@ JHEEM = R6::R6Class(
                 if (!is.character(calibration.code) || length(calibration.code)!=1 || is.na(calibration.code))
                     stop("Cannot set calibration code for JHEEM: 'calibration.code' must be a single, non-NA character value")
                 
-                if (is.null(get.calibration.info(calibration.code, throw.error.if.missing=F)))
-                    stop(paste0("Cannot set calibration code '", calibration.code, "' for JHEEM: a calibration must have been registered to this code with register.calibration.info()"))
+#                if (is.null(get.calibration.info(calibration.code, throw.error.if.missing=F)))
+#                    stop(paste0("Cannot set calibration code '", calibration.code, "' for JHEEM: a calibration must have been registered to this code with register.calibration.info()"))
             }
             
             private$i.calibration.code = calibration.code
@@ -2725,6 +2725,8 @@ JHEEM = R6::R6Class(
                 
                 if (!is.null(bkgd$functional.form))
                 {
+                    if (element.name=='race.sexual.oes')
+                        browser()
                     bkgd$functional.form.alphas = lapply(bkgd$functional.form$alpha.names, 
                                                          create.functional.form.alphas,
                                                          functional.form = bkgd$functional.form,
