@@ -2725,8 +2725,6 @@ JHEEM = R6::R6Class(
                 
                 if (!is.null(bkgd$functional.form))
                 {
-                    if (element.name=='race.sexual.oes')
-                        browser()
                     bkgd$functional.form.alphas = lapply(bkgd$functional.form$alpha.names, 
                                                          create.functional.form.alphas,
                                                          functional.form = bkgd$functional.form,
@@ -4160,7 +4158,7 @@ JHEEM = R6::R6Class(
                         value = bkgd$value
                     else
                         value = convert.model.scale(bkgd$functional.form$project.static(alphas = bkgd$functional.form.alphas,
-                                                                                        dim.names = i.quantity.dim.names[[element.name]],
+                                                                                        dim.names = private$i.quantity.dim.names[[element.name]],
                                                                                         check.consistency = check.consistency,
                                                                                         error.prefix = paste0("Error projecting values from the (static) functional form for element '", element.name, "': ")),
                                                     convert.from.scale = element$functional.form.scale,

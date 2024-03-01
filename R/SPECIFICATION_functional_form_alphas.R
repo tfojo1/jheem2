@@ -80,6 +80,9 @@ create.functional.form.alphas <- function(functional.form,
                         "'", name, "' is not a valid name for an alpha for the given functional.form (Must be one of ",
                         paste0("'", functional.form$alpha.names, "'", collapse=', '), ")"))
         
+        if (is.null(maximum.dim.names))
+            maximum.dim.names = functional.form$minimum.dim.names
+        
         check.dim.names.valid(maximum.dim.names,
                               variable.name.for.error='maximum.dim.names',
                               error.prefix=error.prefix,
@@ -107,6 +110,8 @@ create.functional.form.alphas <- function(functional.form,
                                 paste0("'", functional.form$minimum.dim.names[[d]], "'", collapse=', '), ")"))
             })
         }
+        else if (is.null(maximum.dim.names))
+            maximum.dim.names = functional.form$minimum.dim.names
     }
     
     rv = list(

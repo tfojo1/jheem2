@@ -315,7 +315,10 @@ LOG.LINK = R6::R6Class(
         
         reverse.apply = function(values)
         {
-            pmin(private$i.max, private$i.min + exp(values))
+            rv = pmin(private$i.max, private$i.min + exp(values))
+            dim(rv) = dim(values)
+            dimnames(rv) = dimnames(values)
+            rv
         }
     )
 )
@@ -343,7 +346,10 @@ IDENTITY.LINK = R6::R6Class(
         
         reverse.apply = function(values)
         {
-            pmin(private$i.max, pmax(private$i.min, values))
+            rv = pmin(private$i.max, pmax(private$i.min, values))
+            dim(rv) = dim(values)
+            dimnames(rv) = dimnames(values)
+            rv
         }
     )
 )

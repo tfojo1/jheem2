@@ -1237,6 +1237,19 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 stop("Cannot modify a simulation's 'parameters' - they are read-only")
         },
         
+        params = function(value)
+        {
+            if (missing(value))
+            {
+                if (private$i.nsim==1)
+                    private$i.data$parameters[,1]
+                else
+                    stop("The 'params' field is only available for single-simulation sets (ie, when nsim==1)")
+            }
+            else
+                stop("Cannot modify a simulation's 'params' - they are read-only")
+        },
+        
         data = function(value)
         {
             if (missing(value))

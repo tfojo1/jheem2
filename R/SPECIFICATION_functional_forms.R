@@ -664,7 +664,7 @@ FUNCTIONAL.FORM = R6::R6Class(
                         stop(paste0(error.prefix, "'future.slope.after.year' must be set in order to project from functional.form"))
                 }
             }
-
+            
             #-- Incorporate Alphas --#
             terms = lapply(self$alpha.names, function(name){
                 private$i.beta.links[[name]]$reverse.apply(
