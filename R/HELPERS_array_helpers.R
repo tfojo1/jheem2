@@ -114,9 +114,46 @@ get.array.access.indices <- function(arr.dim.names,
 
 #'@export
 'array.access<-' = function(arr,
-                            dimension.values,
+                            ...,
                             value)
-{
+{# Process ... into a list of dimension values
+    args = list(...)
+    
+    error.prefix = 'Error in array.access(): '
+    dimension.values = list()
+    for (elem.index in 1:length(args))
+    {
+        elem = args[[elem.index]]
+        if (is.list(elem))
+        {
+            if (length(elem)>0 && 
+                (is.null(names(elem)) || any(is.na(names(elem))) || any(nchar(names(elem))==0)))
+                stop(paste0(error.prefix, "Elements of ... which are lists must be NAMED"))
+            
+            invalid.type.mask = !sapply(elem, is.null) & !sapply(elem, is.numeric) & !sapply(elem, is.character) & !sapply(elem, is.logical)
+            if (any(invalid.type.mask))
+                stop(paste0(error.prefix, "The elements of ... which are lists must contain only numeric, character, or logical vectors. ",
+                            ifelse(sum(invalid.type.mask)==1, "The value for dimension ", "Values for dimensions "),
+                            collapse.with.and("'", names(elem)[invalid.type.mask], "'"),
+                            ifelse(sum(invalid.type.mask)==1, " is", " are"),
+                            " none of these."))
+            
+            dimension.values = c(dimension.values, elem)
+        }
+        else
+        {
+            elem.name = names(args)[elem.index]
+            if (is.null(elem.name) || is.na(elem.name) || nchar(elem.name)==0)
+                stop(paste0(error.prefix, "Elements of ... which are not lists must have a NAME"))
+            
+            if (!is.numeric(elem) && !is.character(elem) && !is.logical(elem))
+                stop(paste0(error.prefix, "The elements of ... which are not lists must be either numeric, character, or logical vectors. ",
+                            "The value for dimension '", names(args)[elem.index], "' is none of these."))
+            
+            dimension.values = c(dimension.values, args[elem.index])
+        }
+    }
+    
     if (is.numeric(arr))
     {
         rv = do_array_overwrite(dst_array=arr,

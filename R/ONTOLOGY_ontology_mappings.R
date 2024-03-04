@@ -485,7 +485,7 @@ map.value.ontology <- function(value,
     
     if (!is.logical(allow.map.to.subset.of.target) || length(allow.map.to.subset.of.target)!=1 || is.na(allow.map.to.subset.of.target))
         stop(paste0(error.prefix, "Cannot map value's ontology - 'allow.map.to.subset.of.target' must be a single, non-NA logical value"))
-    
+
     #-- Get Mapping(s) --#
     need.to.restratify.age = F
     
@@ -498,10 +498,13 @@ map.value.ontology <- function(value,
         {
             if (allow.restratify.ages && any(names(dimnames(value))=='age'))
             {
-                target.dim.names.sans.age = dimnames(value)
+                target.dim.names.sans.age = target.dim.names
                 target.dim.names.sans.age$age = NULL
                 
-                mappings = get.mappings.to.align.ontologies(ontology.1 = dimnames(value),
+                value.dim.names.sans.age = dimnames(value)
+                value.dim.names.sans.age$age = NULL
+                
+                mappings = get.mappings.to.align.ontologies(ontology.1 = value.dim.names.sans.age,
                                                             ontology.2 = target.dim.names.sans.age)
                 
                 need.to.restratify.age = T
@@ -523,10 +526,13 @@ map.value.ontology <- function(value,
         {
             if (allow.restratify.ages && any(names(dimnames(value))=='age'))
             {
-                target.dim.names.sans.age = dimnames(value)
+                target.dim.names.sans.age = target.dim.names
                 target.dim.names.sans.age$age = NULL
                 
-                mapping.from.value = get.ontology.mapping(from.ontology = dimnames(value),
+                value.dim.names.sans.age = dimnames(value)
+                value.dim.names.sans.age$age = NULL
+                
+                mapping.from.value = get.ontology.mapping(from.ontology = value.dim.names.sans.age,
                                                           to.ontology = target.dim.names.sans.age)
                 
                 need.to.restratify.age = T
