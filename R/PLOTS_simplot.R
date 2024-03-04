@@ -277,33 +277,33 @@ simplot <- function(...,
     facet.formula = as.formula(paste0("~",
                                       paste0(c('outcome', facet.by), collapse='+')))
     
-    rv = ggplot() + scale_y_continuous(limits=c(0, NA), labels = scales::comma) + scale_color_discrete()
+    rv = ggplot2::ggplot() + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma) + ggplot2::scale_color_discrete()
 
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
         if (!is.null(df.sim)) {
-            rv = rv + geom_line(data=df.sim.groupids.many.members, aes(x=year, y=value, linetype=simset, group=groupid, color=!!sym(split.by), alpha=alpha, linewidth=linewidth)) +
-                geom_point(data=df.sim.groupids.one.member, size=2, aes(x=year, y=value, shape=simset, color=!!sym(split.by)))
+            rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=simset, group=groupid, color=!!ggplot2::sym(split.by), alpha=alpha, linewidth=linewidth)) +
+                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=simset, color=!!ggplot2::sym(split.by)))
         }
         if (!is.null(df.truth))
-            rv = rv + geom_point(data=df.truth, aes(x=year, y=value, color=!!sym(split.by), shape=ifelse(length(unique(location))==1, source, location)))
+            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, color=!!ggplot2::sym(split.by), shape=ifelse(length(unique(location))==1, source, location)))
     } else {
         if (!is.null(df.sim)) {
-            rv = rv + geom_line(data=df.sim.groupids.many.members, aes(x=year, y=value, linetype=simset, group=groupid, alpha=alpha, linewidth=linewidth)) +
-                geom_point(data=df.sim.groupids.one.member, size=2, aes(x=year, y=value, shape=simset))
+            rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=simset, group=groupid, alpha=alpha, linewidth=linewidth)) +
+                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=simset))
         }
         if (!is.null(df.truth))
-            rv = rv + geom_point(data=df.truth, aes(x=year, y=value, shape=ifelse(length(unique(location))==1, source, location)))
+            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, shape=ifelse(length(unique(location))==1, source, location)))
     }
     
     if (!is.null(facet.by) || length(outcomes) > 1) {
-        rv = rv + facet_wrap(facet.formula, scales = 'free_y', )
+        rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y', )
     }
     
     rv = rv +
-        scale_alpha(guide='none') +
-        labs(y=y.label)
-    if (!is.null(df.sim)) rv = rv + scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
+        ggplot2::scale_alpha(guide='none') +
+        ggplot2::labs(y=y.label)
+    if (!is.null(df.sim)) rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
     
     rv
 }
