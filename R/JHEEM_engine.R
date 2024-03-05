@@ -1696,6 +1696,7 @@ JHEEM = R6::R6Class(
                 static.element.mask = sapply(private$i.element.backgrounds[element.names.to.modify.in.parameters], function(bkgd){
                     is.null(bkgd$functional.form)
                 })
+                non.static.element.names.in.parameters = element.names.in.parameters[!static.element.mask]
                 element.names.to.modify.in.parameters = element.names.to.modify.in.parameters[static.element.mask]
                 element.names.in.parameters = element.names.in.parameters[static.element.mask]
                 
@@ -1798,21 +1799,38 @@ JHEEM = R6::R6Class(
                 }
                 
                 used.parameter.names = union(used.parameter.names, private$i.parameter.names.for.foregrounds)
-                
                 # Check that we used all the parameters
                 if (check.consistency)
                 {
                     unused.parameters = setdiff(names(parameters), used.parameter.names)
                     if (length(unused.parameters)>0)
                     {
-                        stop(paste0(error.prefix,
-                                    length(unused.parameters),
-                                    ifelse(length(unused.parameters)==1, " is", " are"),
-                                    " present in 'parameters' but ",
-                                    ifelse(length(unused.parameters)==1, "was", "were"),
-                                    " not used by the model specification: ",
-                                    collapse.with.and("'", unused.parameters, "'")
-                                    ))
+                        unused.parameters.matching.non.static.elements = intersect(unused.parameters, non.static.element.names.in.parameters)
+                        if (length(unused.parameters.matching.non.static.elements)>0)
+                        {
+                            if (length(unused.parameters.matching.non.static.elements)==1)
+                                stop(paste0(error.prefix,
+                                            "'", unused.parameters.matching.non.static.elements, "'",
+                                            " is present in 'parameters' as a scalar value, but corresponds to a model element with a functional form specified. ",
+                                            "Either refactor to not use a functional form or specify functional form alphas instead of a scalar value for '", 
+                                            unused.parameters.matching.non.static.elements, "'"))
+                            else
+                                stop(paste0(error.prefix,
+                                            collapse.with.and("'", unused.parameters.matching.non.static.elements, "'"),
+                                            " are present in 'parameters' as scalar values, but correspond to model element with functional forms specified. ",
+                                            "Either refactor to not use functional forms or specify functional form alphas instead of a scalar values for the model elements"))
+                        }
+                        else
+                        {
+                            stop(paste0(error.prefix,
+                                        length(unused.parameters),
+                                        ifelse(length(unused.parameters)==1, " is", " are"),
+                                        " present in 'parameters' but ",
+                                        ifelse(length(unused.parameters)==1, "was", "were"),
+                                        " not used by the model specification: ",
+                                        collapse.with.and("'", unused.parameters, "'")
+                                        ))
+                        }
                     }
                 }        
                 
