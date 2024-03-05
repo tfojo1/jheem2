@@ -675,10 +675,9 @@ prepare.infections.info <- function(settings, quantity.dim.names,
                                                                         target.dim.names = susceptibility.dim.names,
                                                                         index.from = 0)
         
-        susceptibility.quantity.indices.for.from.contacts = lapply(susceptibility.indices.per.to.contact, function(susceptibility.indices){
+        susceptibility.quantity.indices.for.to.contacts = lapply(susceptibility.indices.per.to.contact, function(susceptibility.indices){
             susceptibility.to.quantity.indices[susceptibility.indices]
         })
-        
         
         # Set up denominator indices
         
@@ -750,7 +749,7 @@ prepare.infections.info <- function(settings, quantity.dim.names,
             n_to_contacts = n.to.contacts,
             
             state_indices_for_to_contacts = state.indices.for.to.contacts,
-            susceptibility_indices_for_to_contacts = susceptibility.to.quantity.indices,
+            susceptibility_indices_for_to_contacts = susceptibility.quantity.indices.for.to.contacts,
             
             state_indices_for_transmitting_from_contacts = state.indices.for.from.contacts,
             transmissibility_indices_for_transmitting_from_contacts = transmissibility.quantity.indices.for.from.contacts,
