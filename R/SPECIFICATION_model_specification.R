@@ -3231,6 +3231,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
     
         do.register.core.component = function(type, args, error.prefix)
         {
+            private$check.lock(error.prefix)
+            
             schema = CORE.COMPONENT.SCHEMATA[[type]]
             if (is.null(schema))
                 stop(paste0(error.prefix, "'", type, 

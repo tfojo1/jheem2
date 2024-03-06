@@ -1286,7 +1286,7 @@ JHEEM = R6::R6Class(
                                 fixed_strata_info = private$i.diffeq.settings$fixed.strata.info,
                                 population_trackers = private$i.diffeq.settings$population_trackers)
                     
-                    save(args, file='R/local_testing/diffeq_test_args.Rdata')
+                    save(args, file='../jheem2/R/local_testing/diffeq_test_args.Rdata')
                     
                     stop("saved - quitting for now")
                 }
@@ -5764,6 +5764,22 @@ JHEEM = R6::R6Class(
                 
                 if (!outcome$value.is.numerator)
                 {
+                    numerator.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]]
+                    denominator.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]]
+                    
+                    if (!dim.names.are.subset(sub.dim.names = numerator.dim.names,
+                                              super.dim.names = denominator.dim.names))
+                        stop("Error in dimnames for outcomes: the *numerator* dimnames of outcome '",
+                             outcome.name, "' (with ",
+                             ifelse(length(numerator.dim.names)==1, "dimension ", "dimensions "),
+                             collapse.with.and("'", names(numerator.dim.names), "'"),
+                             ") are NOT a subset of the dimnames of the denominator outcome '",
+                             outcome$denominator.outcome, "' (with ",
+                             ifelse(length(denominator.dim.names)==1, "dimension ", "dimensions "),
+                             collapse.with.and("'", names(denominator.dim.names), "'"),
+                             ")")
+                        
+                        
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator =
                         get.collapse.array.indices(small.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]],
                                                 large.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]])

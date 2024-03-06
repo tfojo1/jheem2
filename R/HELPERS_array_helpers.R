@@ -433,7 +433,11 @@ get.collapse.array.indices <- function(large.arr.dim.names, small.arr.dim.names)
 {
     intersected.dim.names = intersect.joined.dim.names(large.arr.dim.names, small.arr.dim.names)
     
-    list(
+    if (!dim.names.are.subset(sub.dim.names = intersected.dim.names,
+                              super.dim.names = large.arr.dim.names))
+        stop("Cannot get.collapse.array.indices(): the large.arr.dim.names are not a superset of the relevant values in small.arr.dim.names")
+    
+    rv = list(
         small.indices = get.expand.array.indices(to.expand.dim.names = small.arr.dim.names,
                                                  target.dim.names = intersected.dim.names),
         large.indices = get.array.access.indices(arr.dim.names = large.arr.dim.names,
@@ -441,6 +445,18 @@ get.collapse.array.indices <- function(large.arr.dim.names, small.arr.dim.names)
         small.n = prod(sapply(small.arr.dim.names, length)),
         large.n = prod(sapply(large.arr.dim.names, length))
     )
+    
+    if (length(rv$small.indices) != length(rv$large.indices))
+        stop("Internal error in get.collapse.array.indices(): small.indices and large.indices must have the same length")
+    
+    if (any(rv$small.indices>rv$small.n) || any(rv$small.indices<1))
+        stop(paste0("Internal error in get.collapse.array.indices(): small.indices must be between 1 and small.n (", rv$small.n, ")"))
+    
+    if (any(rv$large.indices>rv$large.n) || any(rv$large.indices<1))
+        stop(paste0("Internal error in get.collapse.array.indices(): large.indices must be between 1 and large.n (", rv$large.n, ")"))
+    
+    
+    rv
 }
 
 #'@export
