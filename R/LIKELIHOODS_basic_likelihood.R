@@ -22,7 +22,7 @@
 #'@export
 create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  outcome.for.sim,
-                                                 denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute
+                                                 denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute. OR, if outcome is proportion, rate, or time, use denominator within sim data
                                                  dimensions = character(0),
                                                  denominator.dimensions = dimensions,
                                                  dimension.values = NULL, # EXPERIMENTAL
@@ -723,10 +723,20 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                          drop.single.sim.dimension = T,
                                          check.consistency = check.consistency)
             
-            use.poisson = is.null(private$i.denominator.outcome.for.sim)
+            # if denom for sim is NULL, figure out if it's a proportion or not
+            # if so, use a sim get requesting to get only the denominator
+            use.poisson = is.null(private$i.denominator.outcome.for.sim && !private$i.outcome.is.proportion)
             if (use.poisson) {
                 sim.denominator.data = numeric(0)
                 expanded.sim.denominator.data = numeric(0)# so as not to throw errors in cpp sigma
+            } else if (is.null(private$i.denominator.outcome.for.sim)) {
+                sim.denominator.data = sim$get(outcome = private$ioutcome.for.sim,
+                                               keep.dimensions = names(private$i.denominator.required.dimnames),
+                                               dimension.values = private$i.denominator.dimension.values,
+                                               output = 'denominator',
+                                               drop.single.sim.dimension = T,
+                                               check.consistency = check.consistency)
+                expanded.sim.denominator.data = expand.array(sim.denominator.data, dimnames(sim.numerator.data))
             } else {
                 sim.denominator.data = sim$get(outcome = private$i.denominator.outcome.for.sim,
                                                keep.dimensions = names(private$i.denominator.required.dimnames),

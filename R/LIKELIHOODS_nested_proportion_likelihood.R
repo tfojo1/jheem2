@@ -13,7 +13,6 @@
 get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensions, levels.of.stratification, outcome.for.p, outcome.for.n, sub.location.type, super.location.type, main.location.type = 'CBSA', minimum.sample.size = 12, main.location.type.p.source=NULL, sub.location.type.p.source=NULL, super.location.type.p.source=NULL, main.location.type.n.source=NULL, sub.location.type.n.source=NULL, super.location.type.n.source=NULL, debug=F)
 {
     error.prefix = "Error getting p bias estimates: "
-    stop(paste0(error.prefix, "Andrew is still working on this"))
     # --- VALIDATION --- #
     if (debug) browser()
 
@@ -119,9 +118,9 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
             p.bias.vector = unlist(lapply(1:length(main.subs.this.stratification), function(i) {
                 
                 # 4f.1 Get a slice of the data array for the MSA and another for its sub-locations.
-                main.slice = main.data[get.array.access.indices(dimnames(main.data), dimension.values = list(location = names(main.subs.this.stratification)[[i]]))]
+                main.slice = aligned.main.data[get.array.access.indices(dimnames(aligned.main.data), dimension.values = list(location = names(main.subs.this.stratification)[[i]]))]
                 subs.slice = sub.data[get.array.access.indices(dimnames(sub.data), dimension.values = list(location = main.subs.this.stratification[[i]]))]
-                main.slice.dimnames = dimnames(main.data)[names(dimnames(main.data)) != 'location']
+                main.slice.dimnames = dimnames(aligned.main.data)[names(dimnames(aligned.main.data)) != 'location']
                 subs.slice.dimnames = c(main.slice.dimnames, list(location = main.subs.this.stratification[[i]]))
                 main.slice = array(main.slice, dim = sapply(main.slice.dimnames, length), dimnames = main.slice.dimnames)
                 
@@ -305,7 +304,7 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
 create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              denominator.outcome.for.data, # is NEVER null here because we are working with proportions
                                                              outcome.for.sim,
-                                                             denominator.outcome.for.sim, # If NULL (as it would be for population), will be doing the Poisson version of compute
+                                                             denominator.outcome.for.sim = NULL, # if NULL, uses denominator data within the sim data
                                                              
                                                              location.types, # test is c('county', 'state')
                                                              minimum.geographic.resolution.type, # test with 'county' #metalocations MUST contain these
@@ -1128,10 +1127,21 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         {
             sim.p = sim$get(outcome = private$i.outcome.for.sim,
                             keep.dimensions = private$i.sim.keep.dimensions,
-                            dimension.values = private$i.sim.dimension.values)
-            sim.n = sim$get(outcome = private$i.denominator.outcome.for.sim,
+                            dimension.values = private$i.sim.dimension.values,
+                            drop.single.sim.dimension = T,
+                            check.consistency = check.consistency)
+            if (is.null(private$i.denominator.outcome.for.sim))
+                sim.n = sim$get(outcome = private$i.outcome.for.sim,
+                        keep.dimensions = private$i.sim.keep.dimensions,
+                        dimension.values = private$i.sim.dimension.values,
+                        output = 'denominator',
+                        drop.single.sim.dimension = T,
+                        check.consistency = check.consistency)
+            else sim.n = sim$get(outcome = private$i.denominator.outcome.for.sim,
                             keep.dimensions = private$i.sim.keep.dimensions,
-                            dimension.values = private$i.sim.dimension.values)
+                            dimension.values = private$i.sim.dimension.values,
+                            drop.single.sim.dimension = T,
+                            check.consistency = check.consistency)
             
             sim.p.original = sim.p
             sim.p = array(0.7, dim(sim.p.original))
