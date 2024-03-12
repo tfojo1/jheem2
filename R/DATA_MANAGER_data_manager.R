@@ -959,10 +959,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 }
             }
             
-            ##@AZ ADD VALIDATION FOR 'metric'
-            # *metric* is one of 'estimate', 'upper bound', or 'lower bound', until more options are added
-            if (!is.character(metric) || length(metric) != 1 || !(metric %in% c('estimate', 'upper.bound', 'lower.bound')))
-                stop(paste0(error.prefix, "'metric' must be a character vector with value 'estimate', 'upper.bound', or 'lower.bound'"))
+            # *metric* is one of 'estimate', 'upper.bound', 'lower.bound', or 'coefficient.of.variance' until more options are added
+            if (!is.character(metric) || length(metric) != 1 || !(metric %in% c('estimate', 'upper.bound', 'lower.bound', 'coefficient.of.variance')))
+                stop(paste0(error.prefix, "'metric' must be a character vector with value 'estimate', 'upper.bound', 'lower.bound' or 'coefficient.of.variance'"))
 
             # 4) *source* is
             #    a single, non-NA, non-empty character value
@@ -1265,9 +1264,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (is.null(outcome.info))
                     stop(paste0(error.prefix, "'", outcome, "' is not a registered outcome."))
                 
-                # *metric* is one of 'estimate', 'upper bound', or 'lower bound', until more options are added
-                if (!is.character(metric) || length(metric) != 1 || !(metric %in% c('estimate', 'upper.bound', 'lower.bound')))
-                    stop(paste0(error.prefix, "'metric' must be a character vector with value 'estimate', 'upper.bound', or 'lower.bound'"))
+                # *metric* is one of 'estimate', 'upper.bound', 'lower.bound', or 'coefficient.of.variance' until more options are added
+                if (!is.character(metric) || length(metric) != 1 || !(metric %in% c('estimate', 'upper.bound', 'lower.bound', 'coefficient.of.variance')))
+                    stop(paste0(error.prefix, "'metric' must be a character vector with value 'estimate', 'upper.bound', 'lower.bound' or 'coefficient.of.variance'"))
                 
                 if (metric %in% c('upper.bound', 'lower.bound'))
                     stop(paste0(error.prefix, "pulling with metric '", metric, "' is not yet supprted"))
