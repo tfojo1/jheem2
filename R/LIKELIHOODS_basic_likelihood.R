@@ -37,6 +37,8 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  correlation.same.source.different.details = 0.3,
                                                  observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
                                                  measurement.error.coefficient.of.variance,
+                                                 error.variance.term=NULL,
+                                                 error.variance.type=NULL,
                                                  weights = list(),
                                                  equalize.weight.by.year = T)
 {
@@ -61,6 +63,8 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                                                   correlation.same.source.different.details = correlation.same.source.different.details,
                                                                   observation.correlation.form = observation.correlation.form,
                                                                   measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
+                                                                  error.variance.term = error.variance.term,
+                                                                  error.variance.type = error.variance.type,
                                                                   weights = weights,
                                                                   equalize.weight.by.year = equalize.weight.by.year
         
@@ -89,6 +93,8 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
                                                                           correlation.same.source.different.details = 0.3,
                                                                           observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
                                                                           measurement.error.coefficient.of.variance,
+                                                                          error.variance.term=NULL,
+                                                                          error.variance.type=NULL,
                                                                           weights = list(),
                                                                           equalize.weight.by.year = T)
 {
@@ -113,6 +119,8 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
                                             correlation.same.source.different.details = correlation.same.source.different.details,
                                             observation.correlation.form = observation.correlation.form,
                                             measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
+                                            error.variance.term = error.variance.term,
+                                            error.variance.type = error.variance.type,
                                             weights = weights,
                                             equalize.weight.by.year = equalize.weight.by.year)
 }
@@ -144,6 +152,8 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               correlation.same.source.different.details,
                               observation.correlation.form,
                               measurement.error.coefficient.of.variance,
+                              error.variance.term,
+                              error.variance.type,
                               weights,
                               equalize.weight.by.year)
         {
@@ -233,6 +243,8 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (!is.numeric(measurement.error.coefficient.of.variance) || length(measurement.error.coefficient.of.variance) > 1 || is.na(measurement.error.coefficient.of.variance) || measurement.error.coefficient.of.variance > 1 || measurement.error.coefficient.of.variance < 0)
                 stop(paste0(error.prefix, "'measurement.error.coefficient.of.variance' must be a numeric value between 0 and 1 inclusive"))
             
+            # TO DO: VALIDATE ERROR.VARIANCE.TERM AND TYPE
+            
             # *weights* -- validated in the super$initialize
             
             # *equalize.weight.by.year* is a boolean
@@ -267,7 +279,9 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                                         correlation.different.sources = correlation.different.sources,
                                         correlation.same.source.different.details = correlation.same.source.different.details,
                                         observation.correlation.form = observation.correlation.form,
-                                        measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance)
+                                        measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
+                                        error.variance.term = error.variance.term,
+                                        error.variance.type = error.variance.type,)
             private$i.dimension.values = dimension.values # EXPERIMENTAL
         },
         
@@ -639,6 +653,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                     private$i.parameters$correlation.different.source,
                                                                                     private$i.parameters$correlation.same.source.different.details,
                                                                                     private$i.parameters$observation.correlation.form == "autoregressive.1")
+            # if we get measurement error sd from data, we'll need to have pulled it along with the regular data
+            
             measurement.error.sd = private$i.obs.vector * private$i.parameters$measurement.error.coefficient.of.variance
             
             private$i.measurement.error.covariance.matrix =
@@ -725,7 +741,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
             # if denom for sim is NULL, figure out if it's a proportion or not
             # if so, use a sim get requesting to get only the denominator
-            use.poisson = is.null(private$i.denominator.outcome.for.sim && !private$i.outcome.is.proportion)
+            use.poisson = is.null(private$i.denominator.outcome.for.sim) && !private$i.outcome.is.proportion
             if (use.poisson) {
                 sim.denominator.data = numeric(0)
                 expanded.sim.denominator.data = numeric(0)# so as not to throw errors in cpp sigma
