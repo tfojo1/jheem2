@@ -281,7 +281,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                                         observation.correlation.form = observation.correlation.form,
                                         measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
                                         error.variance.term = error.variance.term,
-                                        error.variance.type = error.variance.type,)
+                                        error.variance.type = error.variance.type)
             private$i.dimension.values = dimension.values # EXPERIMENTAL
         },
         
