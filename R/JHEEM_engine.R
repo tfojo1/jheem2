@@ -5436,7 +5436,7 @@ JHEEM = R6::R6Class(
                             if (!is.null(dep.on.outcome$denominator.outcome))
                             {
                                 if (dep.on.outcome$is.cumulative)
-                                    dep.on.denominators = private$i.outcome.denominators[[dep.on.outcome.name]]
+                                  pull.denominators.from = private$i.outcome.denominators[[dep.on.outcome.name]]
                                 else
                                     pull.denominators.from = private$i.interpolated.outcome.denominators.when.values.dont.apply[[dep.on.outcome.name]]
                                 
