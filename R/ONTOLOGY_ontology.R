@@ -211,7 +211,18 @@ is.ontology <- function(x)
 #'@export
 is_complete.ontology <- function(x)
 {
-    attr(x, 'is.complete')
+    rv = attr(x, 'is.complete')
+    if (length(rv) != length(x)) #this protects us against an old error that might still persist in saved ontologies
+    {
+        incomplete.dimensions = names(rv)[rv]
+        new.is.complete = sapply(names(x), function(d){
+            all(incomplete.dimensions != d)
+        })
+        names(new.is.complete) = names(x)
+        new.is.complete
+    }
+    else
+        rv
 }
 
 #'@title Get indicators of which dimensions in an ontology are complete
@@ -357,7 +368,11 @@ incomplete.dimensions <- function(x)
 
     attr(rv, 'is.complete') = new.is.complete
     
+    
+    
     class(rv) = c('ontology', 'list')
+    if (length(attr(rv, 'is.complete')) != length(rv))
+        browser()
     rv
 }
 
@@ -372,9 +387,17 @@ incomplete.dimensions <- function(x)
 #'@export
 '[[<-.ontology' <- function(ont, i, value)
 {
-    NextMethod()
-#    ont[i] = list(value)
-#    ont
+    rv = NextMethod()
+    
+    old.is.complete = attr(rv, 'is.complete')
+    incomplete.dimensions = names(is.complete)[old.is.complete]
+    new.is.complete = sapply(names(ont), function(d){
+        all(incomplete.dimensions != d)
+    })
+    names(new.is.complete) = names(ont)
+    attr(rv, 'is.complete') = new.is.complete
+    
+    rv
 }
 
 #'@title Modify an ontology
@@ -388,9 +411,17 @@ incomplete.dimensions <- function(x)
 #'@export
 '$<-.ontology' <- function(ont, i, value)
 {
-    NextMethod()
-#    ont[[i]] = value
-#    ont
+    rv = NextMethod()
+    
+    old.is.complete = attr(rv, 'is.complete')
+    incomplete.dimensions = names(is.complete)[old.is.complete]
+    new.is.complete = sapply(names(ont), function(d){
+        all(incomplete.dimensions != d)
+    })
+    names(new.is.complete) = names(ont)
+    attr(rv, 'is.complete') = new.is.complete
+        
+    rv
 }
 
 #'@title Modify an Ontology's Names
@@ -418,9 +449,7 @@ incomplete.dimensions <- function(x)
         stop(paste0("The names of an ontology cannot be repeated, (",
                     paste0("'", names(tabled.names)[tabled.names>1], "'", collapse=', '),
                     ")"))
-    
-    names(attr(rv, 'is.complete')) = names(rv)
-    
+
     rv
 }
 
@@ -449,7 +478,9 @@ c.ontology <- function(...)
         do.call(ontology, args=c(list.args, list(incomplete.dimensions=incomplete.dims)))
     }
     else
+    {
         NextMethod()
+    }
 }
 
 #'@title Resolve dimension.values into a set of dimnames for an ontology
