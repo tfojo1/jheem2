@@ -354,6 +354,7 @@ pull.data <- function(data.manager = get.default.data.manager(),
                       target.ontology = NULL,
                       allow.mapping.from.target.ontology = T,
                       append.attributes = NULL,
+                      append.metrics = NULL,
                       allow.other.sources.for.denominator = F,
                       na.rm = F,
                       check.arguments = T,
@@ -371,6 +372,7 @@ pull.data <- function(data.manager = get.default.data.manager(),
                       target.ontology = target.ontology,
                       allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
                       append.attributes = append.attributes,
+                      append.metrics = append.metrics,
                       allow.other.sources.for.denominator = allow.other.sources.for.denominator,
                       na.rm = na.rm,
                       check.arguments = check.arguments,
@@ -1040,8 +1042,18 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # -> make new data elements
             
-            existing.dim.names = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
+            # This metric might not have any data yet, but others may
+            # data.already.present = is.null(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
+            # 
+            # if (data.already.present) existing.dim.names = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
+            # else {
+            #     existing.dim.names = NULL
+            #     for (met in names(private$i.data[[outocme]])) {
+            #         existing.dim.names = dimnames(private$i.data[[outcome]][[met]][[source]][[ontology.name]][[stratification]])
+            #     }
+            # }
             
+            existing.dim.names = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
             data.already.present = !is.null(existing.dim.names)
             
             if (!data.already.present ||
@@ -1232,6 +1244,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         target.ontology = NULL,
                         allow.mapping.from.target.ontology = T,
                         append.attributes = NULL,
+                        append.metrics = NULL,
                         allow.other.sources.for.denominator = F,
                         na.rm = F,
                         check.arguments = T,
@@ -1780,46 +1793,69 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                    method = c('monoH.FC','hyman')[1])
         {
             browser()
-            # validate age arguments (like check that that target has 'age')
-            # if ()
             # validate pull arguments internally
-            rv = self$pull(data.manager = data.manager,
-                           outcome = outcome,
-                           metric = metric,
-                           keep.dimensions = keep.dimensions,
-                           dimension.values = dimension.values,
-                           sources = sources,
-                           from.ontology.names = from.ontology.names,
-                           target.ontology = target.ontology,
-                           allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
-                           append.attributes = append.attributes,
-                           allow.other.sources.for.denominator = allow.other.sources.for.denominator,
-                           na.rm = na.rm,
-                           check.arguments = check.arguments,
-                           debug = debug,
-                           ...)
-            if (restratify.age && is.null(rv) && 'age' %in% dimnames(rv)) {
-                target.ontology$age = NULL
-                pulled.data = self$pull(data.manager = data.manager,
-                                        outcome = outcome,
-                                        metric = metric,
-                                        keep.dimensions = keep.dimensions,
-                                        dimension.values = dimension.values,
-                                        sources = sources,
-                                        from.ontology.names = from.ontology.names,
-                                        target.ontology = target.ontology,
-                                        allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
-                                        append.attributes = append.attributes,
-                                        allow.other.sources.for.denominator = allow.other.sources.for.denominator,
-                                        na.rm = na.rm,
-                                        check.arguments = check.arguments,
-                                        debug = debug,
-                                        ...)
+            if (!restratify.age || !('age' %in% union(keep.dimensions, names(dimension.values)))) {
+                rv = self$pull(data.manager = data.manager,
+                          outcome = outcome,
+                          metric = metric,
+                          keep.dimensions = keep.dimensions,
+                          dimension.values = dimension.values,
+                          sources = sources,
+                          from.ontology.names = from.ontology.names,
+                          target.ontology = target.ontology,
+                          allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
+                          append.attributes = append.attributes,
+                          allow.other.sources.for.denominator = allow.other.sources.for.denominator,
+                          na.rm = na.rm,
+                          check.arguments = check.arguments,
+                          debug = debug,
+                          ...)
+            }
+            else {
+                rv = tryCatch(
+                    {self$pull(data.manager = data.manager,
+                               outcome = outcome,
+                               metric = metric,
+                               keep.dimensions = keep.dimensions,
+                               dimension.values = dimension.values,
+                               sources = sources,
+                               from.ontology.names = from.ontology.names,
+                               target.ontology = target.ontology,
+                               allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
+                               append.attributes = append.attributes,
+                               allow.other.sources.for.denominator = allow.other.sources.for.denominator,
+                               na.rm = na.rm,
+                               check.arguments = check.arguments,
+                               debug = debug,
+                               ...)},
+                    error=function(e){ NULL}
+                )
+                
+                if (is.null(rv)) {
+                    target.ontology = target.ontology[names(target.ontology)!='age']
+                    rv = self$pull(data.manager = data.manager,
+                                   outcome = outcome,
+                                   metric = metric,
+                                   keep.dimensions = keep.dimensions,
+                                   dimension.values = dimension.values,
+                                   sources = sources,
+                                   from.ontology.names = from.ontology.names,
+                                   target.ontology = target.ontology,
+                                   allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
+                                   append.attributes = append.attributes,
+                                   allow.other.sources.for.denominator = allow.other.sources.for.denominator,
+                                   na.rm = na.rm,
+                                   check.arguments = check.arguments,
+                                   debug = debug,
+                                   ...)
+                }
+                if (is.null(rv)) return (rv)
+                
                 # check rv scale?
-                url = attr(pulled.data, 'url')
-                details = attr(pulled.data, 'details')
-                pulled.mapping = attr(pulled.data, 'mapping')
-                restratified.data = restratify.age.counts(counts = pulled.data,
+                url = attr(rv, 'url')
+                details = attr(rv, 'details')
+                pulled.mapping = attr(rv, 'mapping')
+                restratified.data = restratify.age.counts(counts = rv,
                                                           desired.age.brackets = desired.age.brackets,
                                                           smooth.infinite.age.to = smooth.infinite.age.to,
                                                           allow.extrapolation = allow.extrapolation,
@@ -1830,7 +1866,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 # I'll need to use the mapping returned as an attr on the above to map details and url
                 attr(restratified.data, 'url') = restratify.mapping$apply(url)
                 attr(restratified.data, 'details') = restratify.mapping$apply(details)
-                if (!is.null(pulled.mapping)) attr(restratified.data, 'mapping') = pulled.mapping # NOT TRUE ANYMORE...
+                if (!is.null(pulled.mapping)) attr(restratified.data, 'mapping') = pulled.mapping # NOT TRUE ANYMORE... (? what did I write this for?)
+                rv = restratified.data
             }
             rv
         },
