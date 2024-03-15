@@ -1,4 +1,6 @@
 
+DATA.MANAGER.CODE.ITERATION = 2
+
 # Depends on:
 # R6 package
 # HELPERS_misc_helpers
@@ -506,6 +508,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             private$i.description = description
             
             
+            private$i.code.iteration = DATA.MANAGER.CODE.ITERATION
+            
             if (is.null(copy.from.data.manager))
             {
                 # Create the empty values for other member variables
@@ -519,6 +523,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             else
             {
+ #               if (is.null(copy.from.data.manager$code.iteration) ||
+ #                   private$i.code.iteration != copy.from.data.manager$code.iteration)
+ #               {
+ #                   stop("Cannot copy from data manager: the code iterations are incompatible")
+ #               }
+                
                 private$i.data = copy.from.data.manager$data
                 private$i.url = copy.from.data.manager$url
                 private$i.details = copy.from.data.manager$details
@@ -527,6 +537,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 private$i.ontologies = copy.from.data.manager$ontologies
                 private$i.parent.source.info = copy.from.data.manager$parent.source.info
             }
+            
         },
         
         import.data = function(from.data.manager)
@@ -2150,6 +2161,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 private$i.ontologies
             else
                 stop("Cannot modify 'ontologies' in jheem.data.manager - it is read-only")
+        },
+        
+        code.iteration = function(value)
+        {
+            if (missing(value))
+                private$i.code.iteration
+            else
+                stop("Cannot modify 'code.iteration' in jheem.data.manager - it is read-only")
         }
     ),
     
@@ -2158,6 +2177,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         #-- About the Data Manager itself --#
         i.name = NULL,
         i.description = NULL,
+        i.code.iteration = NULL,
         
         #-- Storage structures for data and metadata --#
         # These three are lists of lists of lists of lists, indexed
