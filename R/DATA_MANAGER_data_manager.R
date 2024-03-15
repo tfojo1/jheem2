@@ -83,6 +83,7 @@ load.data.manager <- function(file,
     new.data.manager = copy.data.manager(loaded.data.manager,
                                          name=copy.name,
                                          description=copy.description)
+    
     if (set.as.default)
         default.data.manager.holder$default.data.manager = new.data.manager
     
@@ -105,8 +106,9 @@ copy.data.manager <- function(data.manager = get.default.data.manager(),
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     new.data.manager = JHEEM.DATA.MANAGER$new(name=name,
-                                              description=description)
-    new.data.manager$import.data(from.data.manager=data.manager)
+                                              description=description,
+                                              copy.from.data.manager = data.manager)
+    
     if (set.as.default) default.data.manager.holder$default.data.manager = new.data.manager
     invisible(new.data.manager)
 }
@@ -488,7 +490,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             browser()
         },
       
-        initialize = function(name, description)
+        initialize = function(name, description, copy.from.data.manager=NULL)
         {
             # Validate arguments
             # *name* is a single, non-empty, non-NA character value
@@ -503,13 +505,28 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             private$i.name = name
             private$i.description = description
             
-            # Create the empty values for other member variables
-            private$i.data = list()
-            private$i.url = list()
-            private$i.details = list()
             
-            private$i.outcome.info = list()
-            private$i.ontologies = list()
+            if (is.null(copy.from.data.manager))
+            {
+                # Create the empty values for other member variables
+                private$i.data = list()
+                private$i.url = list()
+                private$i.details = list()
+                
+                private$i.outcome.info = list()
+                private$i.ontologies = list()
+                private$i.parent.source.info = list()
+            }
+            else
+            {
+                private$i.data = copy.from.data.manager$data
+                private$i.url = copy.from.data.manager$url
+                private$i.details = copy.from.data.manager$details
+                
+                private$i.outcome.info = copy.from.data.manager$outcome.info
+                private$i.ontologies = copy.from.data.manager$ontologies
+                private$i.parent.source.info = copy.from.data.manager$parent.source.info
+            }
         },
         
         import.data = function(from.data.manager)
@@ -577,6 +594,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 }
             }
             
+        },
+        
+        overwrite.with = function(other)
+        {
+            private$i.data = other$data
+            private$i.source
         },
         
         subset.data = function(dimension.values,
