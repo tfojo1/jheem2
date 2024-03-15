@@ -2340,7 +2340,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (length(onts) > 1) {
                 for (i in 2:length(onts)) {
                     mps = get.mappings.to.align.ontologies(onts[[i]], uni, allow.non.overlapping.incomplete.dimensions = T)
-                    if (is.null(mps)) stop("Error mapping ontologies for outcome '", outcome, "': did you remember to register your mappings for ontology '", names(onts)[[i]],"'?")
+                    if (is.null(mps)) 
+                    {
+                        DATA.MANAGER.ONTOLOGY.ERRORS$did.you.remember.details = list(
+                            onts.i = onts[[i]],
+                            uni = uni
+                        )
+                        stop("Error mapping ontologies for outcome '", outcome, "': did you remember to register your mappings for ontology '", names(onts)[[i]],"'?")
+                    }
                     uni = mps[[2]]$apply.to.ontology(uni)
                     
                 }
