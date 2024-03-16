@@ -1,4 +1,6 @@
 
+source('../jheem_analyses/applications/EHE/ehe_specification.R')
+SURVEILLANCE.MANAGER = load.data.manager('../../cached/surveillance.manager.rdata')
 
 target.ontology = ontology(
   year = as.character(2008:2022),

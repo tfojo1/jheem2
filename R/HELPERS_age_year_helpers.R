@@ -398,15 +398,23 @@ restratify.age.counts <- function(counts,
         
         non.age.dimensions = setdiff(names(orig.dim), 'age')
         
-        counter = 1
         raw = apply(counts, non.age.dimensions, function(val){
+
+
+            # smoother = do.get.cumulative.age.counts.smoother(counts = sub.val,
+            #                                                  endpoints = parsed.given.brackets$endpoints,
+            #                                                  na.rm = na.rm,
+            #                                                  method = method)
+            #
+            # smoother(parsed.desired.brackets$upper) - smoother(parsed.desired.brackets$lower)
             
-            smoother = do.get.cumulative.age.counts.smoother(counts = val[parsed.given.brackets$mapped.mask][parsed.given.brackets$order],
-                                                             endpoints = parsed.given.brackets$endpoints,
-                                                             na.rm = na.rm,
-                                                             method = method)
+            smoother = do.get.age.counts.smoother(counts = val[parsed.given.brackets$mapped.mask][parsed.given.brackets$order],
+                                                  endpoints = parsed.given.brackets$endpoints,
+                                                  na.rm = na.rm,
+                                                  method = method,
+                                                  check.consistency=F)
             
-            smoother(parsed.desired.brackets$upper) - smoother(parsed.desired.brackets$lower)
+            smoother(lower = parsed.desired.brackets$lower, upper = parsed.desired.brackets$upper)
         })
         
         raw.dim = c(age = length(parsed.desired.brackets$names),
@@ -431,12 +439,21 @@ restratify.age.counts <- function(counts,
     }
     else
     {
-        smoother = do.get.cumulative.age.counts.smoother(counts = counts[parsed.given.brackets$mapped.mask][parsed.given.brackets$order],
-                                                         endpoints = parsed.given.brackets$endpoints,
-                                                         na.rm = na.rm,
-                                                         method = method)
+        # smoother = do.get.cumulative.age.counts.smoother(counts = counts[parsed.given.brackets$mapped.mask][parsed.given.brackets$order],
+        #                                                  endpoints = parsed.given.brackets$endpoints,
+        #                                                  na.rm = na.rm,
+        #                                                  method = method)
+        # 
+        # rv = smoother(parsed.desired.brackets$upper) - smoother(parsed.desired.brackets$lower)
         
-        rv = smoother(parsed.desired.brackets$upper) - smoother(parsed.desired.brackets$lower)
+        smoother = do.get.age.counts.smoother(counts = counts[parsed.given.brackets$mapped.mask][parsed.given.brackets$order],
+                                              endpoints = parsed.given.brackets$endpoints,
+                                              na.rm = na.rm,
+                                              method = method,
+                                              check.consistency=F)
+        
+        rv = smoother(lower = parsed.desired.brackets$lower, upper = parsed.desired.brackets$upper)
+        
         names(rv) = parsed.desired.brackets$names
     }
     
@@ -523,20 +540,138 @@ get.cumulative.age.counts.smoother <- function(counts,
     }
 }
 
+do.get.age.counts.smoother <- function(counts,
+                                       endpoints,
+                                       na.rm,
+                                       method=c('monoH.FC','hyman')[1],
+                                       error.prefix='',
+                                       check.consistency=F)
+{
+    counts.were.na = is.na(counts)
+    counts[is.na(counts)] = 0
+    
+    if (length(counts)<2)
+        stop("Cannot get age counts smoother: must have at least two counts to smooth")
+    
+    obs.cum.n = cumsum(counts) 
+    fn = splinefun(x=endpoints, y=c(0,obs.cum.n), method=method)
+    
+    
+    need.to.check.na = na.rm || all(!counts.were.na)
+    if (need.to.check.na)
+    {
+        n.counts = length(counts)
+        one.before.was.na = c(F,counts.were.na[-n.counts])
+        one.after.was.na = c(counts.were.na[-1],F)
+        count.upper = endpoints[-1]
+        count.lower = endpoints[-length(endpoints)]
+        
+        count.upper.before = c(-Inf, count.upper[-n.counts])
+        count.lower.after = c(count.lower[-1], Inf)
+    }
+    
+    function(lowers, uppers){
+        
+        if (check.consistency)
+        {
+            if (!is.numeric(lowers) || any(is.na(lowers)))
+                stop("error getting smoothed age counts: lowers must be a numeric vector with no NA values")
+            
+            if (!is.numeric(uppers) || any(is.na(uppers)))
+                stop("error getting smoothed age counts: uppers must be a numeric vector with no NA values")
+            
+            if (length(lowers) != length(uppers))
+                stop("error getting smoothed age counts: lowers and uppers must be the same length")
+            
+            if (any(uppers <= lowers))
+                stop("error getting smoothed age counts: all values of lowers must be strictly LESS than the corresponding values of uppers")
+        }
+        
+        rv = fn(uppers) - fn(lowers)
+        
+        # we can trust the interpolation for a lower and upper bound iff
+        # (1) all the counts between the range containing the lower and the range containing the upper were not NA
+        #   AND
+        # (2) Either (a) The lower bound exactly lines up to a count lower bound 
+        #       OR
+        #           (b) The range for the first count contains the lower bound or the lower bound precedes the range for the first count
+        #       OR
+        #           (c) The count before the range containing the lower bound was non-NA
+        #   AND
+        # (3) Either (a) The upper bound exactly lines up to a count upper bounds
+        #       OR
+        #           (b) The range for the last count contains the upper bound or the upper bound follows the range for the last count
+        #       OR
+        #           (c) The count after the range containting the upper bound was non-NA
+        
+        if (need.to.check.na)
+        {
+            trust.mask = sapply(1:length(lowers), function(i){
+                
+                lower = lowers[i]
+                upper = uppers[i]
+                
+                count.mask.between.lower.and.upper = lower >= count.lower & upper <= count.upper
+                if (any(counts.were.na[count.mask.between.lower.and.upper])) #fails condition (1)
+                    return (F)
+                
+                lower.meets.criterion.2.a.or.b = any(lower==count.lower) || lower < count.lower[2]
+                if (!lower.meets.criterion.2.a.or.b)
+                {
+                    count.mask.for.lower = count.lower <= lower & count.lower.after > lower
+                    count.i.for.lower = (1:n.counts)[count.mask.for.lower]
+                    lower.meets.criterion.2c = !counts.were.na[count.i.for.lower-1]
+                    if (!lower.meets.criterion.2c)
+                        return (F)
+                }
+                
+                upper.meets.criterion.3.a.or.b = any(upper==count.upper) || upper > count.upper[n.counts-1]
+                if (!upper.meets.criterion.3.a.or.b)
+                {
+                    count.mask.for.upper = count.upper >= upper & count.upper.before < upper
+                    count.i.for.upper = (1:n.counts)[count.mask.for.upper]
+                    upper.meets.criterion.3c = !counts.were.na[count.i.for.upper+1]
+                    if (!upper.meets.criterion.3c)
+                        return (F)
+                }
+                
+                T
+            })
+            
+            rv[!trust.mask] = NA
+        }
+        
+        
+        rv
+    }
+}
+
 do.get.cumulative.age.counts.smoother <- function(counts,
                                                   endpoints,
                                                   na.rm,
                                                   method=c('monoH.FC','hyman')[1],
                                                   error.prefix='')
 {
-    if (na.rm)
-        counts[is.na(counts)] = 0
+    stop("Deprecated")
+    na.mask = is.na(counts)
+    counts[is.na(counts)] = 0
     
-    if (length(counts)<2)
-        stop(paste0(error.prefix, "Cannot fit age smoother - there must be at least two non-NA values to smooth"))
-        
+    # mask = !is.na(counts)
+    # if (sum(mask)<2)
+    #     stop(paste0(error.prefix, "Cannot fit age smoother - there must be at least two non-NA values to smooth"))
+    # 
+    
     obs.cum.n = cumsum(counts)
-    splinefun(x=endpoints, y=c(0,obs.cum.n), method=method)
+    fn = splinefun(x=endpoints, y=c(0,obs.cum.n), method=method)
+    if (na.rm || all(!na.mask))
+        fn
+    else
+    {
+        function(x, deriv){
+            
+            rv = fn(x, deriv)
+        }
+    }
 }
 
 parse.age.brackets <- function(age.brackets,

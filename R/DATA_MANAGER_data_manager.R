@@ -1826,7 +1826,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                    allow.extrapolation = F,
                                    method = c('monoH.FC','hyman')[1])
         {
-            browser()
             # validate pull arguments internally
             if (!restratify.age || !('age' %in% union(keep.dimensions, names(dimension.values)))) {
                 rv = self$pull(data.manager = data.manager,
@@ -1898,10 +1897,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                           error.prefix = "error restratifying age counts in age robust pull: ") #set
                 restratify.mapping = attr(restratified.data, 'mapping')
                 # I'll need to use the mapping returned as an attr on the above to map details and url
-                attr(restratified.data, 'url') = restratify.mapping$apply(url)
-                attr(restratified.data, 'details') = restratify.mapping$apply(details)
-                if (!is.null(pulled.mapping)) attr(restratified.data, 'mapping') = pulled.mapping # NOT TRUE ANYMORE... (? what did I write this for?)
-                rv = restratified.data
+                attr(restratified.data, 'mapping') = attr(rv, 'mapping')
+                if (any(append.attributes)=='url')
+                    attr(restratified.data, 'url') = restratify.mapping$apply(url)
+                if (any(append.attributes)=='details')
+                    attr(restratified.data, 'details') = restratify.mapping$apply(details)
+              #  if (!is.null(pulled.mapping)) attr(restratified.data, 'mapping') = pulled.mapping # NOT TRUE ANYMORE... (? what did I write this for?)
+                    rv = restratified.data
             }
             rv
         },
