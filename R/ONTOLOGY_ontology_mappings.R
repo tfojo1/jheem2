@@ -685,9 +685,19 @@ do.get.ontology.mapping <- function(from.ontology,
             {
                 setequal(from.ontology[[d]], to.ontology[[d]]) # satisfies condition (3)
             }
-            else
+            else # to[[d]] is complete, from[[d]] is incomplete
             {
-                length(setdiff(to.ontology[[d]], from.ontology[[d]]))==0 # satisfies condition (3)
+                if ((get.two.way.alignment || is.for.two.way))
+                {
+                    if (try.allowing.non.overlapping.incomplete.dimensions)
+                        T
+                    else
+                        length(intersect(from.ontology[[d]], to.ontology[[d]]))>0
+                }
+                else
+                {
+                    length(setdiff(to.ontology[[d]], from.ontology[[d]]))==0 # satisfies condition (3)
+                }
             }
         }
         else if (!is.null(to.ontology[d]) && !to.dimensions.are.complete[d] && try.allowing.non.overlapping.incomplete.dimensions)
@@ -711,7 +721,7 @@ do.get.ontology.mapping <- function(from.ontology,
         !any(from.out.of.alignment.mask) &&
         required.dimensions.are.present.in.to &&
         required.dim.names.are.present.in.to
-    
+
     if (DEBUG.ONTOLOGY.MAPPINGS)
         debug.prefix = paste0(paste0(rep(" ", search.depth), collapse=''), "(", search.depth, ") ")
     
@@ -2284,7 +2294,9 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                                     length(missing.values),
                                     ifelse(length(missing.values)==1, ' value', ' values'),
                                     ": ", collapse.with.and("'", missing.values, "'")))
-                    } else T
+                    } 
+                    else
+                        T
                 }
             })
             

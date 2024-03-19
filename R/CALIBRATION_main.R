@@ -276,7 +276,7 @@ set.up.calibration <- function(version,
     #-- Make the call to create the control --#
     
     if (verbose)
-        print("Set up the MCMC control...")
+        print(paste0(verbose.prefix, "Set up the MCMC control..."))
     
     ctrl = bayesian.simulations::create.adaptive.blockwise.metropolis.control(
         var.names = calibration.info$parameter.names,

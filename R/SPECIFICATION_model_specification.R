@@ -1188,6 +1188,7 @@ register.model.mechanism <- function(specification,
 #'@param keep.dimensions The dimensions which to keep in storing outcome values. All other dimensions are marginalized. Either keep.dimensions OR exclude.dimensions but not both can be set; if both are NULL, will keep all possible dimensions for the outcome.
 #'@param exclude.dimensions Dimensions to be marginalized out when storing outcome values. Either keep.dimensions OR exclude.dimensions but not both can be set; if both are NULL, will keep all possible dimensions for the outcome.
 #'@param subset.dimension.values A list of dimension values indicating for which values of which dimensions the outcome should be tracked
+#'@param rename.dimension.values A list of names character vectors indicating which dimension values should be renamed in the 
 #'@param scale The scale of this outcome. Can be NULL when outcome.metadata is not NULL (only required when not saving and not using outcome.metadata)
 #'@param save A logical indicator of whether this outcome should be stored in simulations. If FALSE, the outcome will be available for calculating other outcomes (with \code{\link{track.cumulative.outcome}} or \code{\link{track.point.outcome}}), but will not be retrievable afterwards
 #'@param from.year,to.year The time span during which the outcome should be recorded
@@ -1211,6 +1212,7 @@ track.dynamic.outcome <- function(specification,
                                   keep.dimensions = NULL,
                                   exclude.dimensions = NULL,
                                   subset.dimension.values = NULL,
+                                  rename.dimension.values = NULL,
                                   scale = NULL,
                                   from.year = -Inf,
                                   to.year = Inf,
@@ -1231,6 +1233,7 @@ track.dynamic.outcome <- function(specification,
                                         keep.dimensions = keep.dimensions,
                                         exclude.dimensions = exclude.dimensions,
                                         subset.dimension.values = subset.dimension.values,
+                                        rename.dimension.values = rename.dimension.values,
                                         scale = scale,
                                         from.year = from.year,
                                         to.year = to.year,
@@ -1265,6 +1268,7 @@ track.transition <- function(specification,
                              keep.dimensions = NULL,
                              exclude.dimensions = NULL,
                              subset.dimension.values = NULL,
+                             rename.dimension.values = NULL,
                              scale = NULL,
                              from.year = -Inf,
                              to.year = Inf,
@@ -1288,6 +1292,7 @@ track.transition <- function(specification,
                                    keep.dimensions = keep.dimensions,
                                    exclude.dimensions = exclude.dimensions,
                                    subset.dimension.values = subset.dimension.values,
+                                   rename.dimension.values = rename.dimension.values,
                                    scale = scale,
                                    from.year = from.year,
                                    to.year = to.year,
@@ -1318,6 +1323,7 @@ track.integrated.outcome <- function(specification,
                                      keep.dimensions = NULL,
                                      exclude.dimensions = NULL,
                                      subset.dimension.values = NULL,
+                                     rename.dimension.values = NULL,
                                      scale = NULL,
                                      from.year = -Inf,
                                      to.year = Inf,
@@ -1337,6 +1343,7 @@ track.integrated.outcome <- function(specification,
                                            keep.dimensions = keep.dimensions,
                                            exclude.dimensions = exclude.dimensions,
                                            subset.dimension.values = subset.dimension.values,
+                                           rename.dimension.values = rename.dimension.values,
                                            from.year = from.year,
                                            to.year = to.year,
                                            scale = scale,
@@ -1366,6 +1373,7 @@ track.cumulative.outcome <- function(specification,
                                      keep.dimensions = NULL,
                                      exclude.dimensions = NULL,
                                      subset.dimension.values = NULL,
+                                     rename.dimension.values = NULL,
                                      scale = NULL,
                                      from.year = -Inf,
                                      to.year = Inf,
@@ -1384,6 +1392,7 @@ track.cumulative.outcome <- function(specification,
                                          keep.dimensions = keep.dimensions,
                                          exclude.dimensions = exclude.dimensions,
                                          subset.dimension.values = subset.dimension.values,
+                                         rename.dimension.values = rename.dimension.values,
                                          scale = scale,
                                          from.year = from.year,
                                          to.year = to.year,
@@ -1412,6 +1421,7 @@ track.point.outcome <- function(specification,
                                 keep.dimensions = NULL,
                                 exclude.dimensions = NULL,
                                 subset.dimension.values = NULL,
+                                rename.dimension.values = NULL,
                                 scale = NULL,
                                 from.year = -Inf,
                                 to.year = Inf,
@@ -1430,6 +1440,7 @@ track.point.outcome <- function(specification,
                                       keep.dimensions = keep.dimensions,
                                       exclude.dimensions = exclude.dimensions,
                                       subset.dimension.values = subset.dimension.values,
+                                      rename.dimension.values = rename.dimension.values,
                                       scale = scale,
                                       from.year = from.year,
                                       to.year = to.year,
@@ -1459,6 +1470,7 @@ track.cumulative.proportion.from.rate <- function(specification,
                                                   keep.dimensions = NULL,
                                                   exclude.dimensions = NULL,
                                                   subset.dimension.values = NULL,
+                                                  rename.dimension.values = NULL,
                                                   from.year = -Inf,
                                                   to.year = Inf,
                                                   save = T)
@@ -1476,6 +1488,7 @@ track.cumulative.proportion.from.rate <- function(specification,
                                                         keep.dimensions = keep.dimensions,
                                                         exclude.dimensions = exclude.dimensions,
                                                         subset.dimension.values = subset.dimension.values,
+                                                        rename.dimension.values = rename.dimension.values,
                                                         from.year = from.year,
                                                         to.year = to.year,
                                                         save = save)
@@ -2555,6 +2568,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                          keep.dimensions = NULL,
                                          exclude.dimensions = NULL,
                                          subset.dimension.values = NULL,
+                                         rename.dimension.values = NULL,
                                          scale = NULL,
                                          from.year = -Inf,
                                          to.year = Inf,
@@ -2578,6 +2592,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                 keep.dimensions = keep.dimensions,
                                                 exclude.dimensions = exclude.dimensions,
                                                 subset.dimension.values = subset.dimension.values,
+                                                rename.dimension.values = rename.dimension.values,
                                                 scale = scale,
                                                 from.year = from.year,
                                                 to.year = to.year,
@@ -2607,6 +2622,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                     keep.dimensions = NULL,
                                     exclude.dimensions = NULL,
                                     subset.dimension.values = NULL,
+                                    rename.dimension.values = NULL,
                                     scale = NULL,
                                     from.year = -Inf,
                                     to.year = Inf,
@@ -2633,6 +2649,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    keep.dimensions = keep.dimensions,
                                                    exclude.dimensions = exclude.dimensions,
                                                    subset.dimension.values = subset.dimension.values,
+                                                   rename.dimension.values = rename.dimension.values,
                                                    scale = scale,
                                                    from.year = from.year,
                                                    to.year = to.year,
@@ -2659,6 +2676,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                             keep.dimensions = NULL,
                                             exclude.dimensions = NULL,
                                             subset.dimension.values = NULL,
+                                            rename.dimension.values = NULL,
                                             from.year = -Inf,
                                             to.year = Inf,
                                             scale = NULL,
@@ -2676,6 +2694,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    keep.dimensions = keep.dimensions,
                                                    exclude.dimensions = exclude.dimensions,
                                                    subset.dimension.values = subset.dimension.values,
+                                                   rename.dimension.values = rename.dimension.values,
                                                    from.year = from.year,
                                                    to.year = to.year,
                                                    scale = scale,
@@ -2699,6 +2718,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                             keep.dimensions = NULL,
                                             exclude.dimensions = NULL,
                                             subset.dimension.values = NULL,
+                                            rename.dimension.values = NULL,
                                             scale = NULL,
                                             from.year = -Inf,
                                             to.year = Inf,
@@ -2715,6 +2735,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    keep.dimensions = keep.dimensions,
                                                    exclude.dimensions = exclude.dimensions,
                                                    subset.dimension.values = subset.dimension.values,
+                                                   rename.dimension.values = rename.dimension.values,
                                                    from.year = from.year,
                                                    to.year = to.year,
                                                    scale = scale,
@@ -2738,6 +2759,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                        keep.dimensions = NULL,
                                        exclude.dimensions = NULL,
                                        subset.dimension.values = NULL,
+                                       rename.dimension.values = NULL,
                                        scale = NULL,
                                        from.year = -Inf,
                                        to.year = Inf,
@@ -2754,6 +2776,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                               keep.dimensions = keep.dimensions,
                                               exclude.dimensions = exclude.dimensions,
                                               subset.dimension.values = subset.dimension.values,
+                                              rename.dimension.values = rename.dimension.values,
                                               scale = scale,
                                               from.year = from.year,
                                               to.year = to.year,
@@ -2777,6 +2800,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                          keep.dimensions = NULL,
                                                          exclude.dimensions = NULL,
                                                          subset.dimension.values = NULL,
+                                                         rename.dimension.values = NULL,
                                                          from.year = -Inf,
                                                          to.year = Inf,
                                                          save = T)
@@ -2792,6 +2816,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                            keep.dimensions = keep.dimensions,
                                                            exclude.dimensions = exclude.dimensions,
                                                            subset.dimension.values = subset.dimension.values,
+                                                           rename.dimension.values = rename.dimension.values,
                                                            from.year = from.year,
                                                            to.year = to.year,
                                                            save = save)
@@ -3860,6 +3885,49 @@ MODEL.QUANTITY = R6::R6Class(
         i.must.be.static = NULL
     )
 )
+
+recursively.set.dim.names.and.aliases <- function(quantity, 
+                                                  specification,
+                                                  max.dim.names,
+                                                  required.dim.names,
+                                                  max.dimensions,
+                                                  dimension.aliases,
+                                                  error.prefix)
+{
+    quantity$set.dim.names.and.dimension.aliases(max.dim.names = max.dim.names,
+                                              required.dim.names = required.dim.names,
+                                              max.dimensions = max.dimensions,
+                                              dimension.aliases = dimension.aliases,
+                                              error.prefix = paste0(error.prefix, "Cannot set aliases when recursively setting dimnames for quantity ", quantity$get.original.name(specification$version), " - "))
+    
+    for (dep.on.name in quantity$depends.on)
+    {
+        dep.on.quant = specification$get.quantity(dep.on.name)
+        recursively.set.dim.names.and.aliases(quantity = dep.on.quant,
+                                              specification = specification,
+                                              max.dim.names = max.dim.names,
+                                              required.dim.names = required.dim.names,
+                                              max.dimensions = max.dimensions,
+                                              dimension.aliases = dimension.aliases,
+                                              error.prefix = error.prefix)
+    }
+    
+    for (possible.parent.quant in specification$quantities)
+    {
+        if (is.null(possible.parent.quant$max.dim.names) && any(possible.parent.quant$depends.on==quantity$name))
+        {
+            recursively.set.dim.names.and.aliases(quantity = possible.parent.quant,
+                                                  specification = specification,
+                                                  max.dim.names = max.dim.names,
+                                                  required.dim.names = required.dim.names,
+                                                  max.dimensions = max.dimensions,
+                                                  dimension.aliases = dimension.aliases,
+                                                  error.prefix = error.prefix)
+        }
+    }
+}
+
+
 
 MODEL.ELEMENT = R6::R6Class(
     'model.element',
@@ -6885,6 +6953,7 @@ MODEL.OUTCOME = R6::R6Class(
                               keep.dimensions,
                               exclude.dimensions,
                               subset.dimension.values,
+                              rename.dimension.values,
                               save,
                               from.year,
                               to.year,
@@ -6928,6 +6997,9 @@ MODEL.OUTCOME = R6::R6Class(
             {
                 if (is.null(scale))
                     stop(paste0(error.prefix, "If outcome.metadata is NULL, scale must be specified (it can NOT be NULL)"))
+                
+                if (save)
+                    stop(paste0(error.prefix, "If save is TRUE, outcome.metadata cannot be NULL"))
             }
             else
             {
@@ -7020,6 +7092,20 @@ MODEL.OUTCOME = R6::R6Class(
                                          allow.empty = T,
                                          error.prefix = error.prefix)
             
+            # Validate rename.dimension.values
+            if (is.null(rename.dimension.values))
+                rename.dimension.values = list()
+            check.dimension.values.valid(rename.dimension.values, 
+                                         variable.name.for.error = 'rename.dimension.values', 
+                                         allow.empty = T,
+                                         error.prefix = error.prefix)
+            
+            sapply(rename.dimension.values, function(values){
+                if (is.null(names(values)) || any(is.na(names(values))) || any(nchar(names(values))==0) || max(table(names(values)))>1)
+                    stop(paste0(error.prefix,
+                                "'rename.dimension.values' must be a named list of NAMED character vectors"))
+            })
+            
             # Validate from.year, to.year
             if (!is.numeric(from.year) || length(from.year)!=1 || is.na(from.year))
                 stop(paste0(error.prefix, "'from.year' must be a single, non-NA, numeric value"))
@@ -7042,6 +7128,7 @@ MODEL.OUTCOME = R6::R6Class(
             private$i.keep.dimensions = unique(keep.dimensions)
             private$i.exclude.dimensions = unique(exclude.dimensions)
             private$i.subset.dimension.values = subset.dimension.values
+            private$i.rename.dimension.values = rename.dimension.values
             private$i.corresponding.data.outcome = corresponding.data.outcome
             private$i.save = save
             private$i.from.year = from.year
@@ -7127,7 +7214,7 @@ MODEL.OUTCOME = R6::R6Class(
                                     collapse.with.and("'", missing.dimensions, "'"),
                                     " but ",
                                     ifelse(length(dim.names)==0,
-                                           "the outcome must be dimensionless",
+                                           "the derived dimensions for the outcome indicate it must be dimensionless",
                                            paste0(ifelse(length(missing.dimensions)==1, " it is ", " they are "),
                                                   "not present in the derived set of possible for the dimensions for the outcome (",
                                                   collapse.with.and("'", names(dim.names), "'"), ")"))
@@ -7143,9 +7230,30 @@ MODEL.OUTCOME = R6::R6Class(
                 }
             }
             
+            
+            # Generate the renamed ontology
+            missing.rename.dimensions = setdiff(names(private$i.rename.dimension.values), names(dim.names))
+            if (length(missing.rename.dimensions)>0)
+            {
+                stop(paste0(error.prefix,
+                            "The rename.dimension.values argument for the outcome '",
+                            self$get.original.name(specification$version), 
+                            "' contained ",
+                            ifelse(length(missing.rename.dimensions)==1, "dimension ", "dimensions "),
+                            collapse.with.and("'", missing.rename.dimensions, "'"),
+                            ". ",
+                            ifelse(length(missing.rename.dimensions)==1, "It is", "They are"),
+                            " not present in the calculated dimnames for the outcome"))
+            }
+            
+            renamed.dim.names = do.rename.dim.names(dim.names,
+                                                    rename.dimension.values = private$i.rename.dimension.values,
+                                                    error.prefix = paste0(error.prefix, "Error renaming outcome's dimnames - "))
+            
+            
             if (set)
             {
-                # Check that the denominator can accommodate (are supsersets of) max.dim.names or dim.names
+                # Check that the denominator can accommodate (are supsersets of) renamed.dim.names
                 if (!is.null(private$i.denominator.outcome))
                 {
                     denominator.outcome = all.outcomes[[private$i.denominator.outcome]]
@@ -7153,21 +7261,16 @@ MODEL.OUTCOME = R6::R6Class(
                                                                                  all.outcomes = all.outcomes,
                                                                                  error.prefix = error.prefix,
                                                                                  set = F)
-                    
-                    if (private$i.value.is.numerator)
-                        relevant.to.denominator.dim.names = dim.names[intersect(names(denominator.dim.names), names(dim.names))]
-                    else
-                        relevant.to.denominator.dim.names = dim.names
-                    
-                    
+      
                     # A lot of work below into printing a useful error message
-                    if (!dim.names.are.subset(sub.dim.names=dim.names, super.dim.names=denominator.dim.names))
+                    if (!dim.names.are.subset(sub.dim.names=renamed.dim.names, super.dim.names=denominator.dim.names))
                     {
-                        dimensions = names(dim.names)
+                        dimensions = names(renamed.dim.names)
                         denominator.dimensions = names(denominator.dim.names)
                         
                         missing.dimensions = setdiff(dimensions, denominator.dimensions)
                         if (length(missing.dimensions)>0)
+                        {
                             error.details = paste0("The denominator outcome (with ",
                                                    ifelse(length(denominator.dimensions)==0, "no dimensions",
                                                           ifelse(length(denominator.dimensions)==1, "dimension", "dimensions")),
@@ -7176,10 +7279,11 @@ MODEL.OUTCOME = R6::R6Class(
                                                    ifelse(length(missing.dimensions)==1, "dimension ", "dimensions "),
                                                    collapse.with.and("'", missing.dimensions, "'"),
                                                    ", which are present in the outcome's calculated dimensions.")
+                        }
                         else
                         {
                             missing.values.per.dimension = sapply(dimensions, function(d){
-                                setdiff(dim.names[[d]], denominator.dim.names[[d]])
+                                setdiff(renamed.dim.names[[d]], denominator.dim.names[[d]])
                             })
                             dimensions.with.missing.mask = sapply(missing.values.per.dimension, length)>0
                             
@@ -7212,9 +7316,23 @@ MODEL.OUTCOME = R6::R6Class(
                 for (quant in private$get.all.depends.on.quantities(specification, all.outcomes=all.outcomes, error.prefix=error.prefix))
                 {
                     if (is.null(quant$max.dim.names))
-                        stop(paste0(error.prefix,
-                                    "The max.dim.names of quantity ", quant$get.original.name(specification$version),
-                                    ", on which the outcome depends, cannot be inferred from the model specification"))
+                    {
+                        # I believe this is opening us up to an error here
+                        # the max dim names set here might be incompatible with max dim names set on the same quantity from
+                        #  this same block of code for another outcome
+                        #   will deal with it when it comes up
+                        recursively.set.dim.names.and.aliases(quantity = quant, 
+                                                              specification = specification,
+                                                              max.dim.names = max.dim.names,
+                                                              required.dim.names = NULL,
+                                                              max.dimensions = NULL,
+                                                              dimension.aliases = NULL,
+                                                              error.prefix = error.prefix)
+                        
+                        # stop(paste0(error.prefix,
+                        #             "The max.dim.names of quantity ", quant$get.original.name(specification$version),
+                        #             ", on which the outcome depends, cannot be inferred from the model specification"))
+                    }
                     
                     extra.dimensions.in.quantity = setdiff(names(quant$max.dim.names), names(max.dim.names))
                     if (length(extra.dimensions.in.quantity)>0)
@@ -7251,11 +7369,13 @@ MODEL.OUTCOME = R6::R6Class(
                     }
                 }
             
-                private$i.ontology = as.ontology(dim.names, incomplete.dimensions = intersect(names(dim.names),
-                                                                                              incomplete.dimensions(specification$ontologies$all)))
+                # Set the ontologies
+                to.be.incomplete = intersect(names(dim.names), incomplete.dimensions(specification$ontologies$all))
+                private$i.unrenamed.ontology = as.ontology(dim.names, incomplete.dimensions = to.be.incomplete)
+                private$i.ontology = as.ontology(renamed.dim.names, incomplete.dimensions = to.be.incomplete)
             }
             
-            dim.names
+            renamed.dim.names
         },
         
         create.top.level.references = function(specification, all.outcomes, error.prefix)
@@ -7503,6 +7623,14 @@ MODEL.OUTCOME = R6::R6Class(
                 stop(paste0("Cannot modify a model outcome's 'subset.dimension.values' - it is read-only"))
         },
         
+        rename.dimension.values = function(value)
+        {
+            if (missing(value))
+                private$i.rename.dimension.values
+            else
+                stop(paste0("Cannot modify a model outcome's 'rename.dimension.values' - it is read-only"))
+        },
+        
         save = function(value)
         {
             if (missing(value))
@@ -7511,12 +7639,28 @@ MODEL.OUTCOME = R6::R6Class(
                 stop(paste0("Cannot modify a model outcome's 'save' - it is read-only"))
         },
         
+        unrenamed.ontology = function(value)
+        {
+            if (missing(value))
+                private$i.unrenamed.ontology
+            else
+                stop(paste0("Cannot modify a model outcome's 'unrenamed.ontology' - it is read-only"))
+        },
+        
         ontology = function(value)
         {
             if (missing(value))
                 private$i.ontology
             else
                 stop(paste0("Cannot modify a model outcome's 'ontology' - it is read-only"))
+        },
+        
+        unrenamed.dim.names = function(value)
+        {
+            if (missing(value))
+                private$i.unrenamed.ontology
+            else
+                stop(paste0("Cannot modify a model outcome's 'unrenamed.dim.names' - they are read-only"))
         },
         
         dim.names = function(value)
@@ -7576,9 +7720,11 @@ MODEL.OUTCOME = R6::R6Class(
         i.keep.dimensions = NULL,
         i.exclude.dimensions = NULL,
         i.subset.dimension.values = NULL,
+        i.rename.dimension.values = NULL,
         i.save = NULL,
         
         i.ontology = NULL,
+        i.unrenamed.ontology = NULL,
         
         i.from.year = NULL,
         i.to.year = NULL,
@@ -7639,9 +7785,9 @@ MODEL.OUTCOME = R6::R6Class(
             dep.on.outcomes = private$get.all.depends.on.outcomes(all.outcomes = all.outcomes,
                                                                   include.denominator.outcome = include.denominator.outcome,
                                                                   error.prefix = error.prefix)
-            
+
             rv = NULL
-            
+
             for (dep.on in dep.on.outcomes)
                 rv = intersect.shared.dim.names(rv, dep.on$derive.dim.names(specification = specification,
                                                                             all.outcomes = all.outcomes,
@@ -7698,6 +7844,45 @@ MODEL.OUTCOME = R6::R6Class(
         }
     )
 )
+
+# A helper for actualizing the rename
+do.rename.dim.names <- function(dim.names,
+                                rename.dimension.values,
+                                error.prefix)
+{
+    if (is.null(dim.names))
+        NULL
+    else
+    {
+        renamed.dim.names = lapply(names(dim.names), function(d){
+            
+            values = dim.names[[d]]
+            renames = rename.dimension.values[[d]]
+            if (!is.null(renames))
+            {
+                missing.rename.values = setdiff(names(renames), values)
+                if (length(missing.rename.values))
+                {
+                    stop(paste0(error.prefix,
+                                "The rename.dimension.values argument for the outcome '",
+                                self$get.original.name(specification$version), 
+                                "' references ",
+                                ifelse(length(missing.rename.values)==1, "value ", "value "),
+                                collapse.with.and("'", missing.rename.values, "'"),
+                                " in the '", d, "' dimension. ",
+                                ifelse(length(missing.rename.dimensions)==1, "It is", "They are"),
+                                " not present in the calculated dimnames for the outcome"))
+                }
+                
+                apply.aliases(values, aliases = renames)
+            }
+            else
+                values
+        })
+        names(renamed.dim.names) = names(dim.names)
+        renamed.dim.names
+    }
+}
 
 INTRINSIC.MODEL.OUTCOME = R6::R6Class(
     'intrinsic.model.outcome',
@@ -7766,6 +7951,7 @@ INTRINSIC.MODEL.OUTCOME = R6::R6Class(
                              keep.dimensions = NULL,
                              exclude.dimensions = NULL,
                              subset.dimension.values = NULL,
+                             rename.dimension.values = NULL,
                              save = save,
                              from.year = -Inf,
                              to.year = Inf,
@@ -7847,6 +8033,7 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
                               keep.dimensions,
                               exclude.dimensions,
                               subset.dimension.values,
+                              rename.dimension.values,
                               save,
                               
                               from.year,
@@ -7863,6 +8050,7 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
                              keep.dimensions = keep.dimensions,
                              exclude.dimensions = exclude.dimensions,
                              subset.dimension.values = subset.dimension.values,
+                             rename.dimension.values = rename.dimension.values,
                              save = save,
                              from.year = from.year,
                              to.year = to.year)
@@ -8174,6 +8362,7 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
                               keep.dimensions,
                               exclude.dimensions,
                               subset.dimension.values,
+                              rename.dimension.values,
                               save,
                               
                               from.year,
@@ -8195,6 +8384,7 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
                              keep.dimensions = keep.dimensions,
                              exclude.dimensions = exclude.dimensions,
                              subset.dimension.values = subset.dimension.values,
+                             rename.dimension.values = rename.dimension.values,
                              from.year = from.year,
                              to.year = to.year,
                              save = save)
@@ -8291,6 +8481,7 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                               keep.dimensions,
                               exclude.dimensions,
                               subset.dimension.values,
+                              rename.dimension.values,
                               scale,
                               save,
                               
@@ -8308,6 +8499,7 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                              keep.dimensions = keep.dimensions,
                              exclude.dimensions = exclude.dimensions,
                              subset.dimension.values = subset.dimension.values,
+                             rename.dimension.values = rename.dimension.values,
                              save = save,
                              from.year = from.year,
                              to.year = to.year)
@@ -8583,6 +8775,7 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
                               keep.dimensions,
                               exclude.dimensions,
                               subset.dimension.values,
+                              rename.dimension.values,
                               scale,
                               save,
                               from.year,
@@ -8600,6 +8793,7 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
                              keep.dimensions = keep.dimensions,
                              exclude.dimensions = exclude.dimensions,
                              subset.dimension.values = subset.dimension.values,
+                             rename.dimension.values = rename.dimension.values,
                              save = save,
                              from.year = from.year,
                              to.year = to.year,
@@ -8765,6 +8959,7 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                               keep.dimensions = NULL,
                               exclude.dimensions = NULL,
                               subset.dimension.values = NULL,
+                              rename.dimension.values = NULL,
                               save = T,
                               from.year,
                               to.year)
@@ -8791,6 +8986,7 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                              keep.dimensions = keep.dimensions,
                              exclude.dimensions = exclude.dimensions,
                              subset.dimension.values = subset.dimension.values,
+                             rename.dimension.values = rename.dimension.values,
                              save = save,
                              from.year = from.year,
                              to.year = to.year,

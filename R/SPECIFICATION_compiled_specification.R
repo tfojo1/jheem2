@@ -1097,13 +1097,15 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 
                 ambiguous.is.quantity = !ambiguous.is.outcome & !as.logical(sapply(depends.on.ambiguous.as.quantities, is.null))
                 
-                missing.depends.on = outcome$depends.on.outcomes[!ambiguous.is.outcome & !ambiguous.is.quantity]
+                missing.depends.on = outcome$depends.on.quantities.or.outcomes[!ambiguous.is.outcome & !ambiguous.is.quantity]
                 if (length(missing.depends.on)>0)
+                {
                     stop(paste0(error.prefix,
                                 "Model outcome ", outcome$get.original.name(wrt.version=private$i.version), " depends on ",
                                 collapse.with.and("'", missing.depends.on, "'"),
                                 ifelse(length(missing.depends.on)==1, ' which has ', ' which have '),
                                 "not been registered as either model.quantities (using register.model.outcome() ) or tracked model outcomes"))
+                }
                 
                 depends.on.outcomes = c(depends.on.outcomes, depends.on.ambiguous.as.outcomes[ambiguous.is.outcome])
                 depends.on.quantities = c(depends.on.outcomes, depends.on.ambiguous.as.quantities[ambiguous.is.quantity])
@@ -1909,7 +1911,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             private$i.outcome.direct.dependee.quantity.names = outcome.depends.on.quantities
             
             private$i.outcome.direct.dependee.outcome.names = lapply(private$i.outcomes, function(outcome){
-                setdiff(outcome$depends.on, outcome.depends.on.quantities[outcome$name])
+                setdiff(outcome$depends.on, outcome.depends.on.quantities[[outcome$name]])
             })
             
             private$i.outcome.numerator.direct.dependee.outcome.names = lapply(private$i.outcomes, function(outcome){
