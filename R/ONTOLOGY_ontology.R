@@ -353,7 +353,9 @@ incomplete.dimensions <- function(x)
     # Incomplete dimensions stay incomplete
     old.is.complete = attr(ont, 'is.complete')
     new.is.complete = sapply(names(ont), function(d){
-        if (!old.is.complete[d])
+        if (is.na(old.is.complete[d]))
+            T
+        else if (!old.is.complete[d])
             F
         else
         {
@@ -389,12 +391,26 @@ incomplete.dimensions <- function(x)
 {
     rv = NextMethod()
     
-    old.is.complete = attr(rv, 'is.complete')
-    incomplete.dimensions = names(is.complete)[old.is.complete]
+    # Cannot add to complete dimensions
+    # Subsetted complete dimensions are incomplete
+    # Incomplete dimensions stay incomplete
+    old.is.complete = attr(ont, 'is.complete')
     new.is.complete = sapply(names(ont), function(d){
-        all(incomplete.dimensions != d)
+        if (is.na(old.is.complete[d]))
+            T
+        else if (!old.is.complete[d])
+            F
+        else
+        {
+            if (setequal(ont[[d]], rv[[d]]))
+                T
+            else if (length(setdiff(rv[[d]], ont[[d]]))>0)
+                stop(paste0("Cannot add values to complete dimension '", d, "' in the ontology"))
+            else
+                F
+        }
     })
-    names(new.is.complete) = names(ont)
+    
     attr(rv, 'is.complete') = new.is.complete
     
     rv
@@ -413,12 +429,26 @@ incomplete.dimensions <- function(x)
 {
     rv = NextMethod()
     
-    old.is.complete = attr(rv, 'is.complete')
-    incomplete.dimensions = names(is.complete)[old.is.complete]
+    # Cannot add to complete dimensions
+    # Subsetted complete dimensions are incomplete
+    # Incomplete dimensions stay incomplete
+    old.is.complete = attr(ont, 'is.complete')
     new.is.complete = sapply(names(ont), function(d){
-        all(incomplete.dimensions != d)
+        if (is.na(old.is.complete[d]))
+            T
+        else if (!old.is.complete[d])
+            F
+        else
+        {
+            if (setequal(ont[[d]], rv[[d]]))
+                T
+            else if (length(setdiff(rv[[d]], ont[[d]]))>0)
+                stop(paste0("Cannot add values to complete dimension '", d, "' in the ontology"))
+            else
+                F
+        }
     })
-    names(new.is.complete) = names(ont)
+    
     attr(rv, 'is.complete') = new.is.complete
         
     rv
