@@ -5794,8 +5794,8 @@ JHEEM = R6::R6Class(
                     }
                         
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator =
-                        get.collapse.array.indices(small.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]],
-                                                large.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]])
+                        get.collapse.array.indices(small.arr.dim.names = numerator.dim.names,
+                                                large.arr.dim.names = denominator.dim.names)
                 }
             }
         },
