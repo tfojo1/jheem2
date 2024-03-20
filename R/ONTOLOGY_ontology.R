@@ -142,7 +142,7 @@ print.ontology <- function(ont)
     {
         to.print = lapply(ont, function(val){val})
         complete.text = rep('incomplete', length(ont))
-        complete.text[attr(ont, 'is.complete')] = 'complete'
+        complete.text[is.complete(ont)] = 'complete'
         names(to.print) = paste0(names(ont), " (", complete.text, ")")
         
         print(to.print)
@@ -211,7 +211,7 @@ is.ontology <- function(x)
 #'@export
 is_complete.ontology <- function(x)
 {
-    rv = attr(x, 'is.complete')
+    rv = as.logical(attr(x, 'is.complete'))
     if (length(rv) != length(x)) #this protects us against an old error that might still persist in saved ontologies
     {
         incomplete.dimensions = names(rv)[rv]
@@ -287,7 +287,7 @@ incomplete.dimensions <- function(x)
                            " does not reference a valid dimension",
                            " do not reference valid dimensions")))
     
-    attr(rv, 'is.complete') = attr(ont, 'is.complete')[names(rv)]
+    attr(rv, 'is.complete') = is.complete(ont)[names(rv)]
     class(rv) = c('ontology','list')
     
     rv
@@ -351,12 +351,10 @@ incomplete.dimensions <- function(x)
     # Cannot add to complete dimensions
     # Subsetted complete dimensions are incomplete
     # Incomplete dimensions stay incomplete
-    old.is.complete = attr(ont, 'is.complete')
+    old.is.complete = is.complete(ont)
     new.is.complete = sapply(names(ont), function(d){
         if (is.null(ont[[d]]))
             F
-        else if (is.na(old.is.complete[d]))
-            T
         else if (!old.is.complete[d])
             F
         else
@@ -394,12 +392,10 @@ incomplete.dimensions <- function(x)
     # Cannot add to complete dimensions
     # Subsetted complete dimensions are incomplete
     # Incomplete dimensions stay incomplete
-    old.is.complete = attr(ont, 'is.complete')
+    old.is.complete = is.complete(ont)
     new.is.complete = sapply(names(ont), function(d){
         if (is.null(ont[[d]]))
             F
-        else if (is.na(old.is.complete[d]))
-            T
         else if (!old.is.complete[d])
             F
         else
@@ -434,12 +430,11 @@ incomplete.dimensions <- function(x)
     # Cannot add to complete dimensions
     # Subsetted complete dimensions are incomplete
     # Incomplete dimensions stay incomplete
-    old.is.complete = attr(ont, 'is.complete')
+    old.is.complete = is.complete(ont)
+    tryCatch({
     new.is.complete = sapply(names(ont), function(d){
         if (is.null(ont[[d]]))
             F
-        else if (is.na(old.is.complete[d]))
-            T
         else if (!old.is.complete[d])
             F
         else
@@ -451,6 +446,10 @@ incomplete.dimensions <- function(x)
             else
                 F
         }
+    })
+    },
+    error = function(e){
+        browser()
     })
     
     attr(rv, 'is.complete') = new.is.complete
