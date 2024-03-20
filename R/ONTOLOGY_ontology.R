@@ -353,7 +353,9 @@ incomplete.dimensions <- function(x)
     # Incomplete dimensions stay incomplete
     old.is.complete = attr(ont, 'is.complete')
     new.is.complete = sapply(names(ont), function(d){
-        if (is.na(old.is.complete[d]))
+        if (is.null(ont[[d]]))
+            F
+        else if (is.na(old.is.complete[d]))
             T
         else if (!old.is.complete[d])
             F
@@ -373,8 +375,6 @@ incomplete.dimensions <- function(x)
     
     
     class(rv) = c('ontology', 'list')
-    if (length(attr(rv, 'is.complete')) != length(rv))
-        browser()
     rv
 }
 
@@ -396,7 +396,9 @@ incomplete.dimensions <- function(x)
     # Incomplete dimensions stay incomplete
     old.is.complete = attr(ont, 'is.complete')
     new.is.complete = sapply(names(ont), function(d){
-        if (is.na(old.is.complete[d]))
+        if (is.null(ont[[d]]))
+            F
+        else if (is.na(old.is.complete[d]))
             T
         else if (!old.is.complete[d])
             F
@@ -434,7 +436,9 @@ incomplete.dimensions <- function(x)
     # Incomplete dimensions stay incomplete
     old.is.complete = attr(ont, 'is.complete')
     new.is.complete = sapply(names(ont), function(d){
-        if (is.na(old.is.complete[d]))
+        if (is.null(ont[[d]]))
+            F
+        else if (is.na(old.is.complete[d]))
             T
         else if (!old.is.complete[d])
             F
