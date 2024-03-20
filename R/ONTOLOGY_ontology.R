@@ -211,7 +211,7 @@ is.ontology <- function(x)
 #'@export
 is_complete.ontology <- function(x)
 {
-    rv = as.logical(attr(x, 'is.complete'))
+    rv = attr(x, 'is.complete')
     if (length(rv) != length(x)) #this protects us against an old error that might still persist in saved ontologies
     {
         incomplete.dimensions = names(rv)[rv]
