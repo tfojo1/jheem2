@@ -3782,7 +3782,6 @@ JHEEM = R6::R6Class(
                                                     calculate.non.cumulative.times)
         {
             outcome = specification$get.outcome(outcome.name)
-            print(outcome.name)
             if (!calculate.non.cumulative.times && 
                 (outcome$is.cumulative || outcome$is.intrinsic))
             {

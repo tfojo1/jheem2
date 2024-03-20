@@ -544,7 +544,7 @@ map.value.ontology <- function(value,
         
         mapping.from.target = NULL
     }
-    
+
     #-- Apply Mapping --#
     
     if (is.null(mapping.from.target) || mapping.from.target$is.identity.mapping)
@@ -553,6 +553,11 @@ map.value.ontology <- function(value,
         {
             rv = mapping.from.value$apply(value, fun=fun, na.rm=na.rm)
             rv = apply(rv, names(target.dim.names), fun, na.rm=na.rm)
+            if (is.null(dim(rv)))
+            {
+                dim(rv) = sapply(target.dim.names, length)
+                dimnames(rv) = target.dim.names
+            }
         }
         else
             rv = mapping.from.value$apply(value, fun=fun, to.dim.names=target.dim.names, na.rm=na.rm)
@@ -564,6 +569,11 @@ map.value.ontology <- function(value,
         {
             rv = mapping.from.target$reverse.apply(mapped.value, na.rm=na.rm)
             rv = apply(rv, names(target.dim.names), fun, na.rm=na.rm)
+            if (is.null(dim(rv)))
+            {
+                dim(rv) = sapply(target.dim.names, length)
+                dimnames(rv) = target.dim.names
+            }
         }
         else
             rv = mapping.from.target$reverse.apply(mapped.value, from.dim.names=target.dim.names, na.rm=na.rm)
@@ -578,8 +588,8 @@ map.value.ontology <- function(value,
                                    na.rm = na.rm,
                                    error.prefix = error.prefix)
     
-    #-- Return --#
-    rv
+    #-- Put it in order and return --#
+    get.identity.ontology.mapping()$apply(rv, to.dim.names = target.dim.names)
 }
 
 ##-------------##
