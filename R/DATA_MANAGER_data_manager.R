@@ -1,5 +1,5 @@
 
-DATA.MANAGER.CODE.ITERATION = 2
+DATA.MANAGER.CODE.ITERATION = 3
 
 # Depends on:
 # R6 package
@@ -1142,13 +1142,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 {
                     private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]] =
                         array(NaN, dim=sapply(new.dim.names, length), dimnames = new.dim.names)
-                    # private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]] = 
-                    #     lapply(1:prod(sapply(new.dim.names, length)), function(i){
-                    #         NULL
-                    #     })
-                    # 
-                    # dim(private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]]) = sapply(new.dim.names, length)
-                    # dimnames(private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]]) = new.dim.names
                 }
                     
                 # Overwrite the new structure with the old data, if needed
