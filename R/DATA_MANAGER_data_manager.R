@@ -1,5 +1,5 @@
 
-DATA.MANAGER.CODE.ITERATION = 2
+DATA.MANAGER.CODE.ITERATION = 3
 
 # Depends on:
 # R6 package
@@ -542,7 +542,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         
         import.data = function(from.data.manager)
         {
-            
+            stop("this doesn't work until the hashed details and url stuff is hashed out")
             if (!R6::is.R6(from.data.manager) || !is(from.data.manager, 'jheem.data.manager'))
                 stop("'from.data.manager' must be an R6 object with class 'jheem.data.manager'")
             
@@ -1047,6 +1047,23 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (!is.logical(allow.na.to.overwrite) || length(allow.na.to.overwrite)!=1 || is.na(allow.na.to.overwrite))
                 stop(paste0(error.prefix, "'allow.na.to.overwrite' must be a single, non-NA logical value"))
             
+            #--------------------------#
+            #-- Hash url and details --#
+            #--------------------------#
+            
+            url.hashed = paste0(sort(url), collapse='__')
+            details.hashed = paste0(sort(details), collapse='__')
+            if (url.hashed %in% private$i.url.list) url = which(private$i.url.list==url.hashed)
+            else {
+                private$i.url.list = c(private$i.url.list, url.hashed)
+                url = length(private$i.url.list)
+            }
+            if (details.hashed %in% private$i.details.list) url = which(private$i.details.list==details.hashed)
+            else {
+                private$i.details.list = c(private$i.details.list, details.hashed)
+                details = length(private$i.details.list)
+            }
+            
             #--------------------------------#
             #-- Set up to receive the data --#
             #--------------------------------#
@@ -1112,8 +1129,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     new.dim.names = put.dim.names
                 
                 # Update ontology
+                
                 for (d in names(new.dim.names)) {
-                    private$i.ontologies[[ontology.name]][[d]] = sort(union(private$i.ontologies[[ontology.name]][[d]], new.dim.names[[d]]))
+                    ont[[d]] = sort(union(ont[[d]], new.dim.names[[d]]))
                 }
                 
                 # Make the new (empty) data structures
@@ -1122,13 +1140,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 
                 for (name in metadata.element.names)
                 {
-                    private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]] = 
-                        lapply(1:prod(sapply(new.dim.names, length)), function(i){
-                            NULL
-                        })
-                    
-                    dim(private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]]) = sapply(new.dim.names, length)
-                    dimnames(private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]]) = new.dim.names
+                    private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]] =
+                        array(NaN, dim=sapply(new.dim.names, length), dimnames = new.dim.names)
                 }
                     
                 # Overwrite the new structure with the old data, if needed
@@ -1160,10 +1173,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]][overwrite.indices] = data
 
             # Put metadata
-            private$i.url[[outcome]][[metric]][[source]][[ontology.name]][[stratification]][overwrite.indices] = 
-                lapply(1:length(overwrite.indices), function(i){ url })
-            private$i.details[[outcome]][[metric]][[source]][[ontology.name]][[stratification]][overwrite.indices] = 
-                lapply(1:length(overwrite.indices), function(i){ details })
+            private$i.url[[outcome]][[metric]][[source]][[ontology.name]][[stratification]][overwrite.indices] = url
+            private$i.details[[outcome]][[metric]][[source]][[ontology.name]][[stratification]][overwrite.indices] = details
             
             # Clear cached universal ontologies and target to universal mappings
             private$i.cached.universal.ontologies = list()
@@ -1497,6 +1508,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             else {
                                 data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
+                                data.to.process = private$unhash.url.or.details.arr(data.to.process)
                                 function.to.apply = function(x) {list(unique(unlist(x)))}
                             }
                             if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion') && !mapping.to.apply$is.identity.mapping) {
@@ -1888,6 +1900,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 url = attr(rv, 'url')
                 details = attr(rv, 'details')
                 pulled.mapping = attr(rv, 'mapping')
+                # will need to transform a numerator and denominator to pass in to restratify age counts for proportions
                 restratified.data = restratify.age.counts(counts = rv,
                                                           desired.age.brackets = desired.age.brackets,
                                                           smooth.infinite.age.to = smooth.infinite.age.to,
@@ -2189,6 +2202,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         i.data = NULL,
         i.url = NULL,
         i.details = NULL,
+        i.url.list = NULL,
+        i.details.list = NULL,
         
         #-- Metadata --#
         # These are named lists, with the names being the names of outcomes or data groups
@@ -2368,6 +2383,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (return.target.to.universal.mapping) attr(uni, 'target.to.universal.mapping') = mps[[1]]
             }
             uni
+        },
+        
+        unhash.url.or.details.arr = function(arr)
+        {
+            new.arr = lapply(arr, function(hashed.value) {private$i.url.list[[hashed.value]]})
+            dim(new.arr) = dim(arr)
+            dimnames(new.arr) = dimnames(arr)
+            new.arr
         }
         
     )
