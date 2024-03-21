@@ -33,7 +33,7 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  sources.to.use = NULL,
                                                  correlation.different.years = 0.5,
                                                  correlation.different.strata = 0.1,
-                                                 correlation.different.sources = 0.3,
+                                                 correlation.different.sources = 0.3, 
                                                  correlation.same.source.different.details = 0.3,
                                                  observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
                                                  measurement.error.coefficient.of.variance,
@@ -843,17 +843,17 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 # Repeat the matrix for each source this stratification has
                 one.transformation.matrix = NULL
                 for (source in 1:length(one.dimnames$source)) one.transformation.matrix = rbind(one.transformation.matrix, one.source.transformation.matrix)
-                ncol.mat = ncol(one.transformation.matrix)
+                ncol.in.matrix = ncol(one.transformation.matrix)
                 
                 # Align the matrix rows with the one.remove.mask rows, which may have extra years, so that rows for sporadically missing data can be masked out
-                years.in.stratification.but.not.sim = setdiff(one.dimnames$year, year.limited.dimnames$year)
+                years.in.stratification.but.not.sim = setdiff(one.dimnames$year, years.in.sim.and.stratification)
                 if (length(years.in.stratification.but.not.sim) > 0) {
                     indices.to.omit.from.one.remove.mask = get.array.access.indices(one.dimnames, list(year=years.in.stratification.but.not.sim))
                     new.one.remove.mask = one.remove.mask[-indices.to.omit.from.one.remove.mask]
                     one.transformation.matrix = one.transformation.matrix[!new.one.remove.mask,]
                 } else
                     one.transformation.matrix = one.transformation.matrix[!one.remove.mask]
-                one.transformation.matrix = matrix(one.transformation.matrix, ncol=ncol.mat)
+                one.transformation.matrix = matrix(one.transformation.matrix, ncol=ncol.in.matrix)
                 transformation.matrix = rbind(transformation.matrix, one.transformation.matrix)
             }
             transformation.matrix
