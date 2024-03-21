@@ -712,7 +712,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                              location = location,
                              error.prefix = error.prefix)
             
-            post.time.checkpoint.flag = T
+            post.time.checkpoint.flag = F
             
             # Validate *data.manager*, a 'jheem.data.manager' object
             if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
@@ -783,7 +783,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             ## ---- PULL DATA ---- ##
             if (post.time.checkpoint.flag) print(paste0("Begin pulling: ", Sys.time()))
-            
+            # browser()
             n.stratifications.with.data = 0
             for (strat in private$i.stratifications) {
                 keep.dimensions = c('year', 'location')
@@ -1105,21 +1105,22 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                                                                                  weights = private$i.weights)
             
             # --- SAVE SIM$GET INSTRUCTIONS --- #
-            # private$i.optimized.get.instructions = list(
-            #     sim.p.instr = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
-            #                                                                   keep.dimensions = private$i.sim.keep.dimensions,
-            #                                                                   dimension.values = private$i.sim.dimension.values,
-            #                                                                   drop.single.sim.dimension = T),
-            #     sim.n.instr.1 = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
-            #                                                                     keep.dimensions = private$i.sim.keep.dimensions,
-            #                                                                     dimension.values = private$i.sim.dimension.values,
-            #                                                                     output = 'denominator',
-            #                                                                     drop.single.sim.dimension = T),
-            #     sim.n.instr.2 = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.denominator.outcome.for.sim,
-            #                                                                     keep.dimensions = private$i.sim.keep.dimensions,
-            #                                                                     dimension.values = private$i.sim.dimension.values,
-            #                                                                     drop.single.sim.dimension = T)
-            # )
+            private$i.optimized.get.instructions = list()
+            private$i.optimized.get.instructions[['sim.p.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
+                                                                                                                    keep.dimensions = private$i.sim.keep.dimensions,
+                                                                                                                    dimension.values = private$i.sim.dimension.values,
+                                                                                                                    drop.single.sim.dimension = T)
+            if (is.null(private$i.denominator.outcome.for.sim))
+                private$i.optimized.get.instructions[['sim.n.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
+                                                                                                                        keep.dimensions = private$i.sim.keep.dimensions,
+                                                                                                                        dimension.values = private$i.sim.dimension.values,
+                                                                                                                        output = 'denominator',
+                                                                                                                        drop.single.sim.dimension = T)
+            else
+                private$i.optimized.get.instructions[['sim.n.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.denominator.outcome.for.sim,
+                                                                                                                        keep.dimensions = private$i.sim.keep.dimensions,
+                                                                                                                        dimension.values = private$i.sim.dimension.values,
+                                                                                                                        drop.single.sim.dimension = T)
             
             ptm = Sys.time()
             if (post.time.checkpoint.flag) print(paste0("End time: ", ptm))
@@ -1176,27 +1177,11 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         
         do.compute = function(sim, log=T, check.consistency=T, debug=F)
         {
-            # browser()
-            sim.p = sim$get(outcome = private$i.outcome.for.sim,
-                            keep.dimensions = private$i.sim.keep.dimensions,
-                            dimension.values = private$i.sim.dimension.values,
-                            drop.single.sim.dimension = T,
-                            check.consistency = check.consistency)
-            # sim.p = sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])
+            sim.p = sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])
             if (is.null(private$i.denominator.outcome.for.sim))
-                sim.n = sim$get(outcome = private$i.outcome.for.sim,
-                                keep.dimensions = private$i.sim.keep.dimensions,
-                                dimension.values = private$i.sim.dimension.values,
-                                output = 'denominator',
-                                drop.single.sim.dimension = T,
-                                check.consistency = check.consistency)
-            # sim.p = sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])
-            else sim.n = sim$get(outcome = private$i.denominator.outcome.for.sim,
-                                 keep.dimensions = private$i.sim.keep.dimensions,
-                                 dimension.values = private$i.sim.dimension.values,
-                                 drop.single.sim.dimension = T,
-                                 check.consistency = check.consistency)
-            # sim.p = sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])
+                sim.n = sim$optimized.get(private$i.optimized.get.instructions[["sim.n.instr"]])
+            else
+                sim.n = sim$optimized.get(private$i.optimized.get.instructions[["sim.n.instr"]])
             
             flattened.dims = c(year = dim(sim.p)[['year']], stratum = prod(dim(sim.p)[names(dim(sim.p)) != 'year']))
             dim(sim.p) = flattened.dims
