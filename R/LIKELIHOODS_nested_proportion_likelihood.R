@@ -712,7 +712,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                              location = location,
                              error.prefix = error.prefix)
             
-            post.time.checkpoint.flag = F
+            post.time.checkpoint.flag = T
             
             # Validate *data.manager*, a 'jheem.data.manager' object
             if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
@@ -815,6 +815,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 one.metadata = reshape2::melt(data)
                 one.metadata = one.metadata[!one.remove.mask,]
                 
+                # Recover required dimnames from one.metadata -- note that year won't be fixed yet
+                one.sim.required.dimnames = one.mapping$get.required.from.dim.names(lapply(one.metadata[!(colnames(one.metadata) %in% c('location', 'source', 'value'))],
+                                                                                                function(x) {sort(as.character(unique(x)))})) ## MONITOR THIS SORT FOR BUGS
+                
                 # Convert any year ranges in metadata to single years using their median year
                 one.metadata$year = sapply(one.metadata$year, function(year.or.year.range) {
                     year.or.year.range = as.character(year.or.year.range)
@@ -837,9 +841,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 })
                 names(one.dimnames$year) = NULL # a necessary step because the old year ranges were becoming names
                 
-                # Recover required dimnames from one.metadata
-                one.sim.required.dimnames = one.mapping$get.required.from.dim.names(lapply(one.metadata[!(colnames(one.metadata) %in% c('location', 'source', 'value'))],
-                                                                                           function(x) {sort(as.character(unique(x)))})) ## MONITOR THIS SORT FOR BUGS
                 one.sim.required.dimnames$year = new.years
                 
                 one.metadata = one.metadata[, sort(colnames(one.metadata))]
@@ -1102,6 +1103,24 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                                                                                  equalize.weight.by.year = instructions$equalize.weight.by.year,
                                                                                                  metadata = private$i.metadata,
                                                                                                  weights = private$i.weights)
+            
+            # --- SAVE SIM$GET INSTRUCTIONS --- #
+            # private$i.optimized.get.instructions = list(
+            #     sim.p.instr = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
+            #                                                                   keep.dimensions = private$i.sim.keep.dimensions,
+            #                                                                   dimension.values = private$i.sim.dimension.values,
+            #                                                                   drop.single.sim.dimension = T),
+            #     sim.n.instr.1 = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
+            #                                                                     keep.dimensions = private$i.sim.keep.dimensions,
+            #                                                                     dimension.values = private$i.sim.dimension.values,
+            #                                                                     output = 'denominator',
+            #                                                                     drop.single.sim.dimension = T),
+            #     sim.n.instr.2 = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.denominator.outcome.for.sim,
+            #                                                                     keep.dimensions = private$i.sim.keep.dimensions,
+            #                                                                     dimension.values = private$i.sim.dimension.values,
+            #                                                                     drop.single.sim.dimension = T)
+            # )
+            
             ptm = Sys.time()
             if (post.time.checkpoint.flag) print(paste0("End time: ", ptm))
             
@@ -1142,6 +1161,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         i.denominator.outcome.for.sim = NULL,
         i.outcome.for.n.multipliers = NULL,
         
+        i.optimized.get.instructions = NULL,
+        
         i.obs.vector = NULL,
         i.details = NULL,
         i.metadata = NULL,
@@ -1161,6 +1182,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                             dimension.values = private$i.sim.dimension.values,
                             drop.single.sim.dimension = T,
                             check.consistency = check.consistency)
+            # sim.p = sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])
             if (is.null(private$i.denominator.outcome.for.sim))
                 sim.n = sim$get(outcome = private$i.outcome.for.sim,
                                 keep.dimensions = private$i.sim.keep.dimensions,
@@ -1168,11 +1190,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                 output = 'denominator',
                                 drop.single.sim.dimension = T,
                                 check.consistency = check.consistency)
+            # sim.p = sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])
             else sim.n = sim$get(outcome = private$i.denominator.outcome.for.sim,
                                  keep.dimensions = private$i.sim.keep.dimensions,
                                  dimension.values = private$i.sim.dimension.values,
                                  drop.single.sim.dimension = T,
                                  check.consistency = check.consistency)
+            # sim.p = sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])
             
             flattened.dims = c(year = dim(sim.p)[['year']], stratum = prod(dim(sim.p)[names(dim(sim.p)) != 'year']))
             dim(sim.p) = flattened.dims
