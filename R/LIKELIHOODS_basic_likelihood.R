@@ -698,7 +698,25 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                                  equalize.weight.by.year = instructions$equalize.weight.by.year,
                                                                                                  metadata = private$i.metadata,
                                                                                                  weights = private$i.weights)
-
+            
+            ## ---- SAVE THE PREPARED OPTIMIZED GET INSTRUCTIONS ---- ##
+            private$i.optimized.get.instructions = list()
+            private$i.optimized.get.instructions[["sim.num.instr"]] = sim.metadata$prepare.optimized.get.instructions(outcomes = private$i.outcome.for.sim,
+                                                                                                                      keep.dimensions = names(private$i.sim.required.dimnames),
+                                                                                                                      dimension.values = private$i.sim.dimension.values,
+                                                                                                                      drop.single.sim.dimension = T)
+            if (private$i.outcome.is.proportion) {
+                if (is.null(private$i.denominator.outcome.for.sim))
+                    private$i.optimized.get.instructions[['sim.denom.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
+                                                                                                                                keep.dimensions = names(private$i.denominator.required.dimnames),
+                                                                                                                                dimension.values = private$i.denominator.dimension.values,
+                                                                                                                                output = 'denominator',
+                                                                                                                                drop.single.sim.dimension = T)
+                else private$i.optimized.get.instructions[['sim.denom.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.denominator.outcome.for.sim,
+                                                                                                                                 keep.dimensions = names(private$i.denominator.required.dimnames),
+                                                                                                                                 dimension.values = private$i.denominator.dimension.values,
+                                                                                                                                 drop.single.sim.dimension = T)
+            }
         },
         check = function() {
             browser()
@@ -712,6 +730,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         i.outcome.for.data = NULL,
         i.denominator.outcome.for.sim = NULL,
         i.outcome.is.proportion = NULL,
+        
+        i.optimized.get.instructions = NULL,
 
         i.obs.vector = NULL,
         i.details = NULL,
@@ -733,11 +753,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         do.compute = function(sim, log, check.consistency, debug)
         {
             
-            sim.numerator.data = sim$get(outcome = private$i.outcome.for.sim,
-                                         keep.dimensions = names(private$i.sim.required.dimnames),
-                                         dimension.values = private$i.sim.dimension.values,
-                                         drop.single.sim.dimension = T,
-                                         check.consistency = check.consistency)
+            sim.numerator.data = sim$optimized.get(private$i.optimized.get.instructions[["sim.num.instr"]])
             
             # if denom for sim is NULL, figure out if it's a proportion or not
             # if so, use a sim get requesting to get only the denominator
@@ -745,20 +761,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             if (use.poisson) {
                 sim.denominator.data = numeric(0)
                 expanded.sim.denominator.data = numeric(0)# so as not to throw errors in cpp sigma
-            } else if (is.null(private$i.denominator.outcome.for.sim)) {
-                sim.denominator.data = sim$get(outcome = private$ioutcome.for.sim,
-                                               keep.dimensions = names(private$i.denominator.required.dimnames),
-                                               dimension.values = private$i.denominator.dimension.values,
-                                               output = 'denominator',
-                                               drop.single.sim.dimension = T,
-                                               check.consistency = check.consistency)
-                expanded.sim.denominator.data = expand.array(sim.denominator.data, dimnames(sim.numerator.data))
             } else {
-                sim.denominator.data = sim$get(outcome = private$i.denominator.outcome.for.sim,
-                                               keep.dimensions = names(private$i.denominator.required.dimnames),
-                                               dimension.values = private$i.denominator.dimension.values,
-                                               drop.single.sim.dimension = T,
-                                               check.consistency = check.consistency)
+                sim.denominator.data = sim$optimized.get(private$i.optimized.get.instructions[["sim.denom.instr"]])
                 expanded.sim.denominator.data = expand.array(sim.denominator.data, dimnames(sim.numerator.data))
             }
             
