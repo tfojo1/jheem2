@@ -142,7 +142,7 @@ print.ontology <- function(ont)
     {
         to.print = lapply(ont, function(val){val})
         complete.text = rep('incomplete', length(ont))
-        complete.text[attr(ont, 'is.complete')] = 'complete'
+        complete.text[is.complete(ont)] = 'complete'
         names(to.print) = paste0(names(ont), " (", complete.text, ")")
 
         print(to.print)
@@ -211,7 +211,18 @@ is.ontology <- function(x)
 #'@export
 is_complete.ontology <- function(x)
 {
-    attr(x, 'is.complete')
+    rv = attr(x, 'is.complete')
+    if (length(rv) != length(x)) #this protects us against an old error that might still persist in saved ontologies
+    {
+        incomplete.dimensions = names(rv)[as.logical(rv)]
+        new.is.complete = sapply(names(x), function(d){
+            all(incomplete.dimensions != d)
+        })
+        names(new.is.complete) = names(x)
+        new.is.complete
+    }
+    else
+        rv
 }
 
 #'@title Get indicators of which dimensions in an ontology are complete
@@ -276,7 +287,7 @@ incomplete.dimensions <- function(x)
                            " does not reference a valid dimension",
                            " do not reference valid dimensions")))
 
-    attr(rv, 'is.complete') = attr(ont, 'is.complete')[names(rv)]
+    attr(rv, 'is.complete') = is.complete(ont)[names(rv)]
     class(rv) = c('ontology','list')
 
     rv
@@ -293,6 +304,9 @@ incomplete.dimensions <- function(x)
 #'@export
 '[<-.ontology' <- function(ont, i, value)
 {
+    if (is.null(i)) #if for some reason this is an overwrite of nothing
+        return (ont)
+
     if (is.numeric(value))
         value = as.character(value)
     else if (is.list(value))
@@ -337,9 +351,11 @@ incomplete.dimensions <- function(x)
     # Cannot add to complete dimensions
     # Subsetted complete dimensions are incomplete
     # Incomplete dimensions stay incomplete
-    old.is.complete = attr(ont, 'is.complete')
+    old.is.complete = is.complete(ont)
     new.is.complete = sapply(names(ont), function(d){
-        if (!old.is.complete[d])
+        if (is.null(ont[[d]]))
+            F
+        else if (!old.is.complete[d])
             F
         else
         {
@@ -353,6 +369,8 @@ incomplete.dimensions <- function(x)
     })
 
     attr(rv, 'is.complete') = new.is.complete
+
+
 
     class(rv) = c('ontology', 'list')
     rv
@@ -369,9 +387,30 @@ incomplete.dimensions <- function(x)
 #'@export
 '[[<-.ontology' <- function(ont, i, value)
 {
-    NextMethod()
-    #    ont[i] = list(value)
-    #    ont
+    rv = NextMethod()
+
+    # Cannot add to complete dimensions
+    # Subsetted complete dimensions are incomplete
+    # Incomplete dimensions stay incomplete
+    old.is.complete = is.complete(ont)
+    new.is.complete = sapply(names(ont), function(d){
+        if (is.null(ont[[d]]))
+            F
+        else if (!old.is.complete[d])
+            F
+        else
+        {
+            if (setequal(ont[[d]], rv[[d]]))
+                T
+            else if (length(setdiff(rv[[d]], ont[[d]]))>0)
+                stop(paste0("Cannot add values to complete dimension '", d, "' in the ontology"))
+            else
+                F
+        }
+    })
+    attr(rv, 'is.complete') = new.is.complete
+
+    rv
 }
 
 #'@title Modify an ontology
@@ -385,9 +424,31 @@ incomplete.dimensions <- function(x)
 #'@export
 '$<-.ontology' <- function(ont, i, value)
 {
-    NextMethod()
-    #    ont[[i]] = value
-    #    ont
+    rv = NextMethod()
+
+    # Cannot add to complete dimensions
+    # Subsetted complete dimensions are incomplete
+    # Incomplete dimensions stay incomplete
+    old.is.complete = is.complete(ont)
+    new.is.complete = sapply(names(ont), function(d){
+        if (is.null(ont[[d]]))
+            F
+        else if (!old.is.complete[d])
+            F
+        else
+        {
+            if (setequal(ont[[d]], rv[[d]]))
+                T
+            else if (length(setdiff(rv[[d]], ont[[d]]))>0)
+                stop(paste0("Cannot add values to complete dimension '", d, "' in the ontology"))
+            else
+                F
+        }
+    })
+
+    attr(rv, 'is.complete') = new.is.complete
+
+    rv
 }
 
 #'@title Modify an Ontology's Names
@@ -416,7 +477,9 @@ incomplete.dimensions <- function(x)
                     paste0("'", names(tabled.names)[tabled.names>1], "'", collapse=', '),
                     ")"))
 
-    names(attr(rv, 'is.complete')) = names(rv)
+    new.is.complete = is.complete(rv)
+    names(new.is.complete) = names(rv)
+    attr(rv, 'is.complete') = new.is.complete
 
     rv
 }
@@ -446,7 +509,9 @@ c.ontology <- function(...)
         do.call(ontology, args=c(list.args, list(incomplete.dimensions=incomplete.dims)))
     }
     else
+    {
         NextMethod()
+    }
 }
 
 #'@title Resolve dimension.values into a set of dimnames for an ontology
