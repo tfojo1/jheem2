@@ -214,7 +214,7 @@ is_complete.ontology <- function(x)
     rv = attr(x, 'is.complete')
     if (length(rv) != length(x)) #this protects us against an old error that might still persist in saved ontologies
     {
-        incomplete.dimensions = names(rv)[rv]
+        incomplete.dimensions = names(rv)[as.logical(rv)]
         new.is.complete = sapply(names(x), function(d){
             all(incomplete.dimensions != d)
         })
@@ -408,7 +408,6 @@ incomplete.dimensions <- function(x)
                 F
         }
     })
-    
     attr(rv, 'is.complete') = new.is.complete
     
     rv
@@ -431,7 +430,6 @@ incomplete.dimensions <- function(x)
     # Subsetted complete dimensions are incomplete
     # Incomplete dimensions stay incomplete
     old.is.complete = is.complete(ont)
-    tryCatch({
     new.is.complete = sapply(names(ont), function(d){
         if (is.null(ont[[d]]))
             F
@@ -446,10 +444,6 @@ incomplete.dimensions <- function(x)
             else
                 F
         }
-    })
-    },
-    error = function(e){
-        browser()
     })
     
     attr(rv, 'is.complete') = new.is.complete
@@ -482,6 +476,10 @@ incomplete.dimensions <- function(x)
         stop(paste0("The names of an ontology cannot be repeated, (",
                     paste0("'", names(tabled.names)[tabled.names>1], "'", collapse=', '),
                     ")"))
+    
+    new.is.complete = is.complete(rv)
+    names(new.is.complete) = names(rv)
+    attr(rv, 'is.complete') = new.is.complete
 
     rv
 }
