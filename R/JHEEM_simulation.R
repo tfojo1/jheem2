@@ -498,12 +498,12 @@ SIMULATION.METADATA = R6::R6Class(
         },
         
         prepare.optimized.get.instructions = function(outcomes,
-                                              keep.dimensions=NULL, # will always include sim
-                                              dimension.values = list(),
-                                              check.consistency = T,
-                                              drop.single.outcome.dimension = T,
-                                              drop.single.sim.dimension = F,
-                                              error.prefix = "Error preparing optimized get info: ")
+                                                      keep.dimensions=NULL, # will always include sim
+                                                      dimension.values = list(),
+                                                      check.consistency = T,
+                                                      drop.single.outcome.dimension = T,
+                                                      drop.single.sim.dimension = F,
+                                                      error.prefix = "Error preparing optimized get info: ")
         {
             if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
                 stop("Cannot prepare.optimized.get.instructions() - error.prefix must a single, non-NA character value")
@@ -685,6 +685,8 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
                 
                 # Set up the outcome ontology
                 outcome.ontology = sim.metadata$outcome.ontologies[[outcome]]
+                outcome.ontology$year = as.character(private$i.target.years)
+                outcome.ontology$sim = as.character(1:private$i.n.sim)
                 
                 # Figure out which dimensions come before/after the year dimension
                 year.dimension.index = (1:length(outcome.ontology))[names(outcome.ontology)=='year']
@@ -692,8 +694,6 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
                 after.year.mask = (1:length(outcome.ontology)) > year.dimension.index
                 
                 # Set up the subset of the ontology from which we will draw values
-                outcome.ontology$year = as.character(private$i.target.years)
-                outcome.ontology$sim = as.character(1:private$i.n.sim)
                 draw.from.dim.names = intersect.joined.dim.names(outcome.ontology, dimension.values)
                 
                 # Get indices from the ontology to the draw-from subset
@@ -768,7 +768,6 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
             }
             
             # Do the get
-            browser()
             rv = do_optimized_get(numerators = outcome.numerators[private$i.outcomes],
                                   denominators = outcome.denominators[private$i.outcomes],
                                   info_by_outcome = private$i.info.by.outcome,
