@@ -14,14 +14,16 @@ if (1==2)
 
 
 args = list(
-    outcomes = c('new','diagnosed.prevalence'),
+    outcomes = c('suppression','proportion.general.population.tested'),
     keep.dimensions = c('year','race','sex','risk'),
+    output = 'value',
+    replace.inf.values.with.zero = T,
     dimension.values = list(year=as.character(2008:2020),
                             race = c('black','hispanic'),
                             sex = c('msm','female'))
 )
 
-opt.instr = do.call(sim$prepare.optimized.get.instructions, args)
+opt.instr = do.call(sim.metadata$prepare.optimized.get.instructions, args)
 
 opt.result = sim$optimized.get(opt.instr)
 

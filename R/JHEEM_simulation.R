@@ -63,6 +63,7 @@ get.simulation.metadata <- function(version,
                             location=location,
                             from.year=from.year,
                             to.year=to.year,
+                            n.sim = n.sim,
                             error.prefix=error.prefix)
 }
 
@@ -500,9 +501,11 @@ SIMULATION.METADATA = R6::R6Class(
         prepare.optimized.get.instructions = function(outcomes,
                                                       keep.dimensions=NULL, # will always include sim
                                                       dimension.values = list(),
+                                                      output = c('value', 'numerator', 'denominator')[[1]],
                                                       check.consistency = T,
                                                       drop.single.outcome.dimension = T,
                                                       drop.single.sim.dimension = F,
+                                                      replace.inf.values.with.zero = T,
                                                       error.prefix = "Error preparing optimized get info: ")
         {
             if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
@@ -513,9 +516,11 @@ SIMULATION.METADATA = R6::R6Class(
                 outcomes = outcomes,
                 keep.dimensions = keep.dimensions,
                 dimension.values = dimension.values,
+                output = output,
                 check.consistency = check.consistency,
                 drop.single.outcome.dimension = drop.single.outcome.dimension,
                 drop.single.sim.dimension = drop.single.sim.dimension,
+                replace.inf.values.with.zero = replace.inf.values.with.zero,
                 error.prefix = error.prefix
             )
         }
@@ -641,9 +646,11 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
                               outcomes,
                               keep.dimensions=NULL, # will always include sim
                               dimension.values = list(),
+                              output = c('value', 'numerator', 'denominator')[[1]],
                               check.consistency = T,
                               drop.single.outcome.dimension = T,
                               drop.single.sim.dimension = F,
+                              replace.inf.values.with.zero = T,
                               error.prefix = "Error preparing optimized get info: ")
         {
             # Set up the value dim.names
@@ -681,7 +688,26 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
             private$i.outcomes = outcomes
             private$i.n.per.outcome = prod(sapply(private$i.value.dim.names, length)) / length(outcomes)
             
+            
+            if (check.consistency && (!is.character(output) || length(output) != 1 || !(output %in% c('value', 'numerator', 'denominator'))))
+                stop(paste0(error.prefix, "'output' must be one of 'value', 'numerator', or 'denominator'"))
+            private$i.output = output
+            
+            if (!is.logical(replace.inf.values.with.zero) || length(replace.inf.values.with.zero)!=1 || is.na(replace.inf.values.with.zero))
+                stop(paste0(error.prefix, "'replace.inf.values.with.zero', must be a single, non-NA, logical value"))
+            private$i.replace.inf.values.with.zero = replace.inf.values.with.zero
+            
             private$i.info.by.outcome = lapply(private$i.outcomes, function(outcome){
+                
+                # Make sure output is appropriate to the outcome
+                outcome.metadata = sim.metadata$outcome.metadata[[outcome]]
+                if (output=='denominator' && 
+                    (outcome.metadata$scale=='non.negative.number' || outcome.metadata$scale=='number'))
+                {
+                    stop(paste0(error.prefix,
+                                "output is set to 'denominator', but the outcome '",
+                                outcome, "' does not carry a denominator"))
+                }
                 
                 # Set up the outcome ontology
                 outcome.ontology = sim.metadata$outcome.ontologies[[outcome]]
@@ -716,12 +742,17 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
                 
                 draw.from.to.dim.names.indices = outcome.subset.to.dim.names[draw.from.to.outcome.subset]
                 
+                
                 list(
                     outcome = outcome,
                     n.before.year.dimension = prod(as.numeric(sapply(outcome.ontology[before.year.mask], length))),
                     n.after.year.dimension = prod(as.numeric(sapply(outcome.ontology[after.year.mask], length))),
                     to.indices = draw.from.to.dim.names.indices,
-                    raw.from.indices = outcome.to.draw.from.indices
+                    raw.from.indices = outcome.to.draw.from.indices,
+                    result.indices = outcome.subset.to.dim.names,
+                    pull.numerator.only = output=='numerator' || (output=='value' && (outcome.metadata$scale=='non.negative.number' || outcome.metadata$scale=='number')),
+                    pull.denominator.only = output=='denominator',
+                    pull.numerator.denominator.ratio = output=='value' && outcome.metadata$scale!='non.negative.number' && outcome.metadata$scale!='number'
                 )
             })
             names(private$i.info.by.outcome) = private$i.outcomes
@@ -771,7 +802,8 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
             rv = do_optimized_get(numerators = outcome.numerators[private$i.outcomes],
                                   denominators = outcome.denominators[private$i.outcomes],
                                   info_by_outcome = private$i.info.by.outcome,
-                                  n_to_per_outcome = private$i.n.per.outcome)
+                                  n_to_per_outcome = private$i.n.per.outcome,
+                                  avoid_infinite = private$i.replace.inf.values.with.zero)
             
             # Set dimnames and return
             dim(rv) = sapply(private$i.value.dim.names, length)
@@ -787,6 +819,9 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
     private = list(
         
         i.outcomes = NULL,
+        i.output = NULL,
+        i.replace.inf.values.with.zero = NULL,
+        
         i.value.dim.names = NULL,
         i.target.years = NULL,
         i.info.by.outcome = NULL,
