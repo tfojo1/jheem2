@@ -14,6 +14,7 @@ pull.data(
   target.ontology = NULL,
   allow.mapping.from.target.ontology = T,
   append.attributes = NULL,
+  append.metrics = NULL,
   allow.other.sources.for.denominator = F,
   na.rm = F,
   check.arguments = T,
