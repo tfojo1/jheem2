@@ -1129,9 +1129,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     new.dim.names = put.dim.names
                 
                 # Update ontology
-                
                 for (d in names(new.dim.names)) {
-                    ont[[d]] = sort(union(ont[[d]], new.dim.names[[d]]))
+                    private$i.ontologies[[ontology.name]][[d]] = sort(union(private$i.ontologies[[ontology.name]][[d]], new.dim.names[[d]]))
                 }
                 
                 # Make the new (empty) data structures

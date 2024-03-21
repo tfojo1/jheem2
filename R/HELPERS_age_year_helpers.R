@@ -30,7 +30,7 @@ get.range.robust.year.intersect <- function(x, y)
         })
         # y is singles
         if (all(!is.year.range(y))) {
-            return(x[sapply(x.as.singles, function(year.range) {all(year.range %in% y)})])
+            return(unique(x[sapply(x.as.singles, function(year.range) {all(year.range %in% y)})]))
         }
         
         # y is year ranges
@@ -45,7 +45,7 @@ get.range.robust.year.intersect <- function(x, y)
         
         # y is singles
         if (all(!is.year.range(y))) {
-            intersect(x,y)
+            return(intersect(x,y))
         }
         # y is year ranges
         else if (all(is.year.range(y))) {
@@ -57,7 +57,7 @@ get.range.robust.year.intersect <- function(x, y)
             y.which.intersect.x = sapply(y.as.singles, function(year.range) {all(year.range %in% x)})
             y.intersect.as.singles = y.as.singles[y.which.intersect.x]
             # Return as CHARACTER!
-            return (as.character(unlist(y.intersect.as.singles)))
+            return (unique(as.character(unlist(y.intersect.as.singles))))
         }
     }
     else
