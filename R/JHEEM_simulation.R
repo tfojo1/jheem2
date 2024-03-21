@@ -495,6 +495,29 @@ SIMULATION.METADATA = R6::R6Class(
                 ont1 = c(ont1, list(outcome=outcomes))
             
             return (ont1)
+        },
+        
+        prepare.optimized.get.instructions = function(outcomes,
+                                              keep.dimensions=NULL, # will always include sim
+                                              dimension.values = list(),
+                                              check.consistency = T,
+                                              drop.single.outcome.dimension = T,
+                                              drop.single.sim.dimension = F,
+                                              error.prefix = "Error preparing optimized get info: ")
+        {
+            if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
+                stop("Cannot prepare.optimized.get.instructions() - error.prefix must a single, non-NA character value")
+            
+            OPTIMIZED.GET.INSTRUCTIONS$new(
+                sim.metadata = self,
+                outcomes = outcomes,
+                keep.dimensions = keep.dimensions,
+                dimension.values = dimension.values,
+                check.consistency = check.consistency,
+                drop.single.outcome.dimension = drop.single.outcome.dimension,
+                drop.single.sim.dimension = drop.single.sim.dimension,
+                error.prefix = error.prefix
+            )
         }
     ),
     
@@ -607,6 +630,177 @@ SIMULATION.METADATA = R6::R6Class(
         }
     )
     
+)
+
+OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
+    'jheem.simulation.optimized.get.instructions',
+    
+    public = list(
+        
+        initialize = function(sim.metadata,
+                              outcomes,
+                              keep.dimensions=NULL, # will always include sim
+                              dimension.values = list(),
+                              check.consistency = T,
+                              drop.single.outcome.dimension = T,
+                              drop.single.sim.dimension = F,
+                              error.prefix = "Error preparing optimized get info: ")
+        {
+            # Set up the value dim.names
+            private$i.value.dim.names = value.dim.names = sim.metadata$get.dim.names(
+                outcomes = outcomes,
+                keep.dimensions = keep.dimensions,
+                dimension.values = dimension.values,
+                check.consistency = check.consistency,
+                drop.single.outcome.dimension = F,
+                drop.single.sim.dimension = F,
+                error.prefix = error.prefix
+            )
+            
+            if (drop.single.outcome.dimension && length(value.dim.names$outcome)==1)
+                private$i.value.dim.names = private$i.value.dim.names[setdiff(names(private$i.value.dim.names), 'outcome')]
+            
+            if (drop.single.sim.dimension && length(value.dim.names$sim)==1)
+                private$i.value.dim.names = private$i.value.dim.names[setdiff(names(private$i.value.dim.names), 'sim')]
+            
+            # Set up the years
+            raw.years = dimension.values$year
+            if (is.null(raw.years))
+                stop(paste0(error.prefix, "'dimension.values' MUST contain values for 'year'"))
+            private$i.target.years = as.numeric(raw.years)
+            if (any(is.na(private$i.target.years)))
+                stop(paste0(error.prefix, "'dimension.values$year' MUST only contain character representations of numeric values"))
+            private$i.min.target.year = min(private$i.target.years)
+            private$i.max.target.year = max(private$i.target.years)
+            
+            if (is.null(private$i.value.dim.names$year))
+                stop(paste0(error.prefix, "'keep.dimensions' MUST include 'year'"))
+            
+            private$i.n.sim = sim.metadata$n.sim
+            
+            private$i.outcomes = outcomes
+            private$i.n.per.outcome = prod(sapply(private$i.value.dim.names, length)) / length(outcomes)
+            
+            private$i.info.by.outcome = lapply(private$i.outcomes, function(outcome){
+                
+                # Set up the outcome ontology
+                outcome.ontology = sim.metadata$outcome.ontologies[[outcome]]
+                
+                # Figure out which dimensions come before/after the year dimension
+                year.dimension.index = (1:length(outcome.ontology))[names(outcome.ontology)=='year']
+                before.year.mask = (1:length(outcome.ontology)) < year.dimension.index
+                after.year.mask = (1:length(outcome.ontology)) > year.dimension.index
+                
+                # Set up the subset of the ontology from which we will draw values
+                outcome.ontology$year = as.character(private$i.target.years)
+                outcome.ontology$sim = as.character(1:private$i.n.sim)
+                draw.from.dim.names = intersect.joined.dim.names(outcome.ontology, dimension.values)
+                
+                # Get indices from the ontology to the draw-from subset
+                outcome.to.draw.from.indices = get.array.access.indices(arr.dim.names = outcome.ontology,
+                                                                        dimension.values = draw.from.dim.names,
+                                                                        index.from = 1)
+                
+                # Get indices into the dim.names (just for this outcome)
+                outcome.subset.of.dim.names = value.dim.names
+                outcome.subset.of.dim.names$outcome = outcome
+                
+                outcome.subset.to.dim.names = get.array.access.indices(arr.dim.names = private$i.value.dim.names,
+                                                                       dimension.values = outcome.subset.of.dim.names,
+                                                                       index.from = 0)
+                
+                draw.from.dim.names$outcome = outcome
+                draw.from.to.outcome.subset = get.expand.array.indices(to.expand.dim.names = outcome.subset.of.dim.names,
+                                                                       target.dim.names = draw.from.dim.names,
+                                                                       index.from = 1)
+                
+                draw.from.to.dim.names.indices = outcome.subset.to.dim.names[draw.from.to.outcome.subset]
+                
+                list(
+                    outcome = outcome,
+                    n.before.year.dimension = prod(as.numeric(sapply(outcome.ontology[before.year.mask], length))),
+                    n.after.year.dimension = prod(as.numeric(sapply(outcome.ontology[after.year.mask], length))),
+                    to.indices = draw.from.to.dim.names.indices,
+                    raw.from.indices = outcome.to.draw.from.indices
+                )
+            })
+            names(private$i.info.by.outcome) = private$i.outcomes
+        },
+        
+        do.get = function(outcome.numerators, 
+                          outcome.denominators,
+                          n.sim,
+                          sim.from.year,
+                          sim.to.year,
+                          error.prefix)
+        {
+            # Make sure n.sim is the same in sim and optimized.info
+            if (n.sim != private$i.n.sim)
+                stop(paste0(error.prefix, "The optimized.get.instructions was prepared for ", 
+                            private$i.n.sim, ifelse(private$i.n.sim==1, ' simulation', " simulations"),
+                            ", but the simulation.set contains ",
+                            ifelse(n.sim < private$i.n.sim, "only ", ""),
+                            n.sim, ifelse(n.sim==1, " simulation", " simulations")))
+            
+            # Make sure years can accomodate
+            if (sim.from.year > private$i.min.target.year || sim.to.year < private$i.max.target.year)
+                stop(paste0(error.prefix, "In order to execute this optimized get, the simulation must span at least from ",
+                            private$i.min.target.year, " to ", private$i.max.target.year,
+                            ", but it only spans from ", sim.from.year, " to ", sim.to.year, "."))
+            
+            # If we need to, re-index by year
+            if (is.null(private$i.cached.from.year) || private$i.cached.from.year!=sim.from.year || private$i.cached.to.year!=sim.to.year)
+            {
+                private$i.info.by.outcome = lapply(private$i.info.by.outcome, function(info){
+                    
+                    year.indices = get_year_indices_for_optimized_info(outcome_years = as.numeric(dimnames(outcome.numerators[[info$outcome]])$year),
+                                                                       target_years = private$i.target.years,
+                                                                       n_before_year_dimension = info$n.before.year.dimension,
+                                                                       n_after_year_dimension = info$n.after.year.dimension)
+                    
+                    if (is.null(year.indices))
+                        stop(paste0(error.prefix, "There was an error in the cpp function to get year indices for outcome '", info$outcome, "'"))
+                    
+                    info$from.indices = year.indices[info$raw.from.indices]
+                    
+                    info
+                })
+            }
+            
+            # Do the get
+            browser()
+            rv = do_optimized_get(numerators = outcome.numerators[private$i.outcomes],
+                                  denominators = outcome.denominators[private$i.outcomes],
+                                  info_by_outcome = private$i.info.by.outcome,
+                                  n_to_per_outcome = private$i.n.per.outcome)
+            
+            # Set dimnames and return
+            dim(rv) = sapply(private$i.value.dim.names, length)
+            dimnames(rv) = private$i.value.dim.names
+            rv
+        }
+    ),
+    
+    active = list(
+        
+    ),
+    
+    private = list(
+        
+        i.outcomes = NULL,
+        i.value.dim.names = NULL,
+        i.target.years = NULL,
+        i.info.by.outcome = NULL,
+        
+        i.n.per.outcome = NULL,
+        
+        i.min.target.year = NULL,
+        i.max.target.year = NULL,
+        i.cached.from.year = NULL,
+        i.cached.to.year = NULL,
+        
+        i.n.sim = NULL
+    )
 )
 
 JHEEM.SIMULATION.SET = R6::R6Class(
@@ -800,6 +994,23 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                ", for model version '", private$i.version, "' and location '", private$i.location, "'",
                                ifelse(is.null(self$intervention.code), '',
                                       paste0(" with intervention '", self$intervention.code, "'"))))
+        },
+        
+        optimized.get = function(optimized.get.instructions,
+                                 error.prefix = "Error in executing optimized.get(): ")
+        {
+            if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
+                stop(paste0("Cannot execute optimized.get() - 'error.prefix' must be a single, non-NA character vector"))
+            
+            if (!is(optimized.get.instructions, "jheem.simulation.optimized.get.instructions"))
+                stop(paste0(error.prefix, "'optimized.get.instructions' must be an object of class 'jheem.simulation.optimized.get.instructions', created by prepare.optimized.get.instructions()"))
+            
+            optimized.get.instructions$do.get(outcome.numerators = private$i.data$outcome.numerators,
+                                              outcome.denominators = private$i.data$outcome.denominators,
+                                              n.sim = private$i.n.sim,
+                                              sim.from.year = self$from.year,
+                                              sim.to.year = self$to.year,
+                                              error.prefix = error.prefix)
         },
         
         # NB: these arguments all need to be duplication in JHEEM_simset_collection.R's get() method
