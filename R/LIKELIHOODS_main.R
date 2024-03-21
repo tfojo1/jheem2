@@ -142,9 +142,10 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                 stop(paste0(error.prefix, "'outcome.for.sim' must be a character vector of length 1"))
             private$i.outcome.for.sim = outcome.for.sim
             
-            # *dimensions* is a character vector with no NAs or duplicates
+            # *dimensions* is a character vector with no NAs or duplicates, post conversion if NULL
+            if (is.null(dimensions)) dimensions = character(0)
             if (!is.character(dimensions) || is.null(dimensions) || any(is.na(dimensions)) || any(duplicated(dimensions)))
-                stop(paste0(error.prefix, "'dimensions' must be a character vector containing no NAs or duplicates"))
+                stop(paste0(error.prefix, "'dimensions' must be NULL or a character vector containing no NAs or duplicates"))
             private$i.dimensions = dimensions
             
             # *levels.of.stratification* is NULL or a numeric vector with no NAs or duplicates
