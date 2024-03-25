@@ -516,6 +516,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 private$i.data = list()
                 private$i.url = list()
                 private$i.details = list()
+                private$i.url.list = list()
+                private$i.details.list = list()
 
                 private$i.outcome.info = list()
                 private$i.ontologies = list()
@@ -532,6 +534,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 private$i.data = copy.from.data.manager$data
                 private$i.url = copy.from.data.manager$url
                 private$i.details = copy.from.data.manager$details
+                private$i.url.list = copy.from.data.manager$url.list
+                private$i.details.list = copy.from.data.manager$details.list
 
                 private$i.outcome.info = copy.from.data.manager$outcome.info
                 private$i.ontologies = copy.from.data.manager$ontologies
@@ -1508,7 +1512,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             else {
                                 data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
-                                data.to.process = private$unhash.url.or.details.arr(data.to.process)
+                                data.to.process = self$unhash.url.or.details.arr(data.to.process)
                                 function.to.apply = function(x) {list(unique(unlist(x)))}
                             }
                             if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion') && !mapping.to.apply$is.identity.mapping) {
@@ -2084,8 +2088,15 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix, "'", outcome, "' is not a registered outcome"))
             if (!(outcome %in% names(private$i.data))) return (NULL)
             private$get.universal.ontology(outcome, return.target.to.universal.mapping = F)
-        }
+        },
 
+        unhash.url.or.details.arr = function(arr)
+        {
+            new.arr = lapply(arr, function(hashed.value) {private$i.url.list[[hashed.value]]})
+            dim(new.arr) = dim(arr)
+            dimnames(new.arr) = dimnames(arr)
+            new.arr
+        }
     ),
 
     active = list(
@@ -2144,6 +2155,22 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 private$i.details
             else
                 stop("Cannot modify 'details' in jheem.data.manager - it is read-only")
+        },
+
+        url.list = function(value)
+        {
+            if (missing(value))
+                private$i.url.list
+            else
+                stop("Cannot modify 'url.list' in jheem.data.manager - it is read-only")
+        },
+
+        details.list = function(value)
+        {
+            if (missing(value))
+                private$i.details.list
+            else
+                stop("Cannot modify 'details.list' in jheem.data.manager - it is read-only")
         },
 
         outcome.info = function(value)
@@ -2383,14 +2410,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (return.target.to.universal.mapping) attr(uni, 'target.to.universal.mapping') = mps[[1]]
             }
             uni
-        },
-
-        unhash.url.or.details.arr = function(arr)
-        {
-            new.arr = lapply(arr, function(hashed.value) {private$i.url.list[[hashed.value]]})
-            dim(new.arr) = dim(arr)
-            dimnames(new.arr) = dimnames(arr)
-            new.arr
         }
 
     )
