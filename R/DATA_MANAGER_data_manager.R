@@ -522,6 +522,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 private$i.outcome.info = list()
                 private$i.ontologies = list()
                 private$i.parent.source.info = list()
+                private$i.source.info = list()
             }
             else
             {
@@ -540,6 +541,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 private$i.outcome.info = copy.from.data.manager$outcome.info
                 private$i.ontologies = copy.from.data.manager$ontologies
                 private$i.parent.source.info = copy.from.data.manager$parent.source.info
+                private$i.source.info = copy.from.data.manager$source.info
             }
             
         },
