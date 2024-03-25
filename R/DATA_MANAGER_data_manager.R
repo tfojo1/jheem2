@@ -1058,7 +1058,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 private$i.url.list = c(private$i.url.list, url.hashed)
                 url = length(private$i.url.list)
             }
-            if (details.hashed %in% private$i.details.list) url = which(private$i.details.list==details.hashed)
+            if (details.hashed %in% private$i.details.list) details = which(private$i.details.list==details.hashed)
             else {
                 private$i.details.list = c(private$i.details.list, details.hashed)
                 details = length(private$i.details.list)
@@ -1093,7 +1093,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
 
             # -> make new data elements
 
-            # This metric might not have any data yet, but others may
+            # # This metric might not have any data yet, but others may
             # data.already.present = is.null(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
             #
             # if (data.already.present) existing.dim.names = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
@@ -1149,6 +1149,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     for (name in data.element.names)
                         array.access(private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]], existing.dim.names) =
                             existing.data.and.metadata[[name]]
+
                 }
             }
 
