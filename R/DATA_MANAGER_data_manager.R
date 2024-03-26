@@ -1069,6 +1069,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 private$i.details.list = c(private$i.details.list, details.hashed)
                 details = length(private$i.details.list)
             }
+            url = as.integer(url)
+            details = as.integer(details) # don't know why which() and length() didn't already make it integer...
 
             #--------------------------------#
             #-- Set up to receive the data --#
