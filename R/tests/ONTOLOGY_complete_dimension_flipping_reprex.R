@@ -1,4 +1,4 @@
-ont = ontology(year=NULL)
+ont = ontology(year=NULL, sex=c('male','female'))
 is.complete(ont)
 ont$year = '2010'
 is.complete(ont)

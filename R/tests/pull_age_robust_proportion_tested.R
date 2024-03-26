@@ -18,6 +18,7 @@ SURVEILLANCE.MANAGER$pull(outcome='proportion.tested', target.ontology = target.
 
 # What I think we really want to test. Works until the "restratify.age.counts" step, throwing an error related to the spline etc.
 SURVEILLANCE.MANAGER$pull.age.robust(outcome='proportion.tested',
+                                     dimension.values = list(location='C.12580'),
                                      keep.dimensions=c('year', 'location', 'age'),
                                      target.ontology = target.ontology,
                                      restratify.age=T,
