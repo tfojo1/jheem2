@@ -1514,7 +1514,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             else {
                                 data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
-                                data.to.process = self$unhash.url.or.details.arr(data.to.process)
+                                if (data.type == 'url') data.to.process = self$unhash.url(data.to.process)
+                                if (data.type == 'details') data.to.process = self$unhash.details(data.to.process)
                                 function.to.apply = function(x) {list(unique(unlist(x)))}
                             }
                             if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion') && !mapping.to.apply$is.identity.mapping) {
@@ -2092,13 +2093,21 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             private$get.universal.ontology(outcome, return.target.to.universal.mapping = F)
         },
         
-         unhash.url.or.details.arr = function(arr)
-         {
-             new.arr = lapply(arr, function(hashed.value) {private$i.url.list[[hashed.value]]})
-             dim(new.arr) = dim(arr)
-             dimnames(new.arr) = dimnames(arr)
-             new.arr
-         } 
+        unhash.url = function(arr)
+        {
+            new.arr = lapply(arr, function(hashed.value) {private$i.url.list[[hashed.value]]})
+            dim(new.arr) = dim(arr)
+            dimnames(new.arr) = dimnames(arr)
+            new.arr
+        },
+        
+        unhash.details = function(arr)
+        {
+            new.arr = lapply(arr, function(hashed.value) {private$i.details.list[[hashed.value]]})
+            dim(new.arr) = dim(arr)
+            dimnames(new.arr) = dimnames(arr)
+            new.arr
+        }
     ),
     
     active = list(
