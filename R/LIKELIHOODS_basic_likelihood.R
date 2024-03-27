@@ -797,19 +797,49 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 sigma = sigma + private$i.inverse.multiplier.matrix.times.cov.mat * (sigma + mean %*% t(mean))
             }
             
-            if (private$i.outcome.is.proportion)
-                likelihood = mvtnorm::dmvnorm(private$i.obs.vector * n.vector,
-                                              mean = mean,
-                                              sigma = matrix(sigma, nrow=length(private$i.obs.vector), ncol=length(private$i.obs.vector)),
-                                              log=T,
-                                              checkSymmetry = F)
-            else
-                likelihood = mvtnorm::dmvnorm(private$i.obs.vector,
-                                              mean = mean,
-                                              sigma = matrix(sigma, nrow=length(private$i.obs.vector), ncol=length(private$i.obs.vector)),
-                                              log=T,
-                                              checkSymmetry = F)
+            dim(sigma) = c(length(private$i.obs.vector), length(private$i.obs.vector))
             
+            if (private$i.outcome.is.proportion)
+                obs = private$i.obs.vector * n.vector
+            else
+                obs = private$i.obs.vector
+            
+            if (1==2)
+            {
+                if (private$i.use.lognormal.approximation)
+                {
+                    sigma = log(1/mean %*% sigma %*% t(1/mean) + 1)
+                    mean = log(mean) - diag(sigma)/2
+                }
+                
+                if (!is.null(private$i.lag.matrix))
+                {
+                    mean = private$i.lag.matrix %*% mean
+                    sigma = private$i.lag.matrix %*% sigma %*% private$i.transposed.lag.matrix # there is a more efficient way to do this if we know there are only two non-zero elements per row in lag matrix
+                    obs = private$i.lag.matrix %*% obs
+                }
+            }
+            
+            # if (private$i.outcome.is.proportion)
+            #     likelihood = mvtnorm::dmvnorm(private$i.obs.vector * n.vector,
+            #                                   mean = mean,
+            #                                   sigma = matrix(sigma, nrow=length(private$i.obs.vector), ncol=length(private$i.obs.vector)),
+            #                                   log=T,
+            #                                   checkSymmetry = F)
+            # else
+            #     likelihood = mvtnorm::dmvnorm(private$i.obs.vector,
+            #                                   mean = mean,
+            #                                   sigma = matrix(sigma, nrow=length(private$i.obs.vector), ncol=length(private$i.obs.vector)),
+            #                                   log=T,
+            #                                   checkSymmetry = F)
+            
+            likelihood = mvtnorm::dmvnorm(obs,
+                                          mean = mean,
+                                          sigma = sigma,
+                                          log=T,
+                                          checkSymmetry = F)
+            
+                        
             if (debug) {
                 lik.summary = cbind(private$i.metadata, obs=private$i.obs.vector, mean, sd=sqrt(diag(sigma)))
                 browser()
