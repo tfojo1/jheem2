@@ -1696,7 +1696,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     complete.dimnames$location = locations.with.n.data
                     complete.dimnames$year = years.with.data
                     complete.array = array(NA, dim=sapply(complete.dimnames, length), complete.dimnames)
-                    complete.array[get.array.access.indices(complete.array, dimnames(data))] = data # problem: dimnames(data) has single years but complete.array has year ranges
+                    complete.array[get.array.access.indices(complete.dimnames, dimnames(data))] = data
+                    # problem: dimnames(data) has single years but complete.array has year ranges
                     data = complete.array
                 }
             }
