@@ -300,6 +300,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              omit.years = NULL,
                                                              
                                                              sources.to.use = NULL,
+                                                             redundant.location.threshold = 5,
                                                              
                                                              p.bias.inside.location,
                                                              p.bias.outside.location,
@@ -338,6 +339,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                         to.year = to.year,
                                                         omit.years = omit.years,
                                                         sources.to.use = sources.to.use,
+                                                        redundant.location.threshold = redundant.location.threshold,
                                                         p.bias.inside.location = p.bias.inside.location,
                                                         p.bias.outside.location = p.bias.outside.location,
                                                         p.bias.sd.inside.location = p.bias.sd.inside.location,
@@ -379,6 +381,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               to.year,
                               omit.years,
                               sources.to.use,
+                              redundant.location.threshold,
                               p.bias.inside.location,
                               p.bias.outside.location,
                               p.bias.sd.inside.location,
@@ -457,6 +460,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (!is.null(sources.to.use) && (!is.character(sources.to.use) || any(is.na(sources.to.use)) || any(duplicated(sources.to.use))))
                 stop(paste0(error.prefix, "'sources.to.use' must be NULL or a character vector containing no NAs or duplicates"))
             
+            # *redundant.location.threshold* is a nonnegative numeric value
+            if (!is.numeric(redundant.location.threshold) || length(redundant.location.threshold)!=1 || is.na(redundant.location.threshold) || redundant.location.threshold < 0)
+                stop(paste0(error.prefix, "'redundant.location.threshold' must be a single, non-negative numeric value"))
+            
             # *p.bias* constants, *correlation.multipliers*, *within.location* error correlations, *metalocation* correlations, *measurement.error.sd*, and *n.multiplier.cv* are all single numeric values with values between 0 and 1 inclusive
             between.negative.one.and.positive.one = list(p.bias.inside.location=p.bias.inside.location, 
                                                          p.bias.outside.location=p.bias.outside.location,
@@ -513,6 +520,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             private$i.equalize.weight.by.year = equalize.weight.by.year
             
             private$i.sources.to.use = sources.to.use
+            private$i.redundant.location.threshold = redundant.location.threshold
             private$i.parameters = list(correlation.different.locations = correlation.different.locations,
                                         correlation.different.years = correlation.different.years,
                                         correlation.different.strata = correlation.different.strata,
@@ -614,19 +622,30 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                 stop("Cannot modify a jheem.likelihood.instruction's 'equalize.weight.by.year' - it is read-only")
         },
         
-        parameters = function(value) {
+        parameters = function(value)
+            {
             if (missing(value)) {
                 private$i.parameters
             }
             else
                 stop("Cannot modify a jheem.basic.likelihood.instruction's 'parameters' - they are read-only")
         },
-        sources.to.use = function(value) {
+        sources.to.use = function(value)
+            {
             if (missing(value)) {
                 private$i.sources.to.use
             }
             else
                 stop("Cannot modify a jheem.basic.likelihood.instruction's 'sources.to.use' - they are read-only")
+        },
+        redundant.location.threshold = function(value)
+        {
+            if (missing(value))
+            {
+                private$i.redundant.location.threshold
+            }
+            else
+                stop("Cannot modify a jheem.likelihood.instruction's 'redundant.location.threshold' - it is read-only")
         },
         location.types = function(value)
         {
@@ -686,6 +705,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         
         i.parameters = NULL,
         i.sources.to.use = NULL,
+        i.redundant.location.threshold = NULL,
         
         i.partitioning.function = NULL
     )
@@ -884,7 +904,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             # Find redundant locations (have at most only a few more data points than the main location does) and remove them, only if we have data for our main location
             redundant.locations = NULL
             if (location %in% private$i.metadata$location) {
-                redundant.locations = private$get.redundant.locations(location, private$i.metadata)
+                redundant.locations = private$get.redundant.locations(location, private$i.metadata, extra.points.needed.to.keep = instructions$redundant.location.threshold)
                 # Check if we even have data for more than just the main location.
                 if (length(setdiff(all.locations, redundant.locations))==1)
                     stop(paste0(error.prefix, "data only found for main location after removing redundant locations"))
@@ -1036,13 +1056,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             }
             dim(private$i.year.metalocation.to.year.obs.location.mapping) = c(n.obs.locations*n.years, n.metalocations*n.years)
             private$i.year.metalocation.to.year.obs.location.mask = apply(private$i.year.metalocation.to.year.obs.location.mapping != 0, 2, any)
-            private$i.year.metalocation.to.year.obs.location.mapping = 
+            private$i.year.metalocation.to.year.obs.location.mapping =
                 private$i.year.metalocation.to.year.obs.location.mapping[,private$i.year.metalocation.to.year.obs.location.mask]
-            
+
             private$i.year.metalocation.to.obs.mapping = lapply(1:n.strata, function(i) {
                 private$i.year.loc.stratum.to.obs.mapping[[i]] %*% private$i.year.metalocation.to.year.obs.location.mapping
             })
-            
+
             year.metalocation.to.year.obs.n.mapping.per.stratum = array(0, dim = c(n.years, length(locations.with.n.data) + 1, n.years, n.metalocations))
             metalocation.info.for.conditioning = metalocation.info$metalocation.to.obs.location.mapping[c(locations.with.n.data, location),]
             metalocation.info.for.conditioning = metalocation.info.for.conditioning[, apply(metalocation.info.for.conditioning!=0, 2, any)]
@@ -1279,7 +1299,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             }))))
         },
         
-        get.redundant.locations = function(main.location, metadata, extra.points.needed.to.keep=5)
+        get.redundant.locations = function(main.location, metadata, extra.points.needed.to.keep)
         { # have to say "main.location" instead of "location" because of subsetting by location==location
             # browser()
             redundant.locations = character(0)
@@ -1404,27 +1424,36 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             n.years = length(years)
             model.arr.dimnames = sim.ontology[names(sim.ontology) %in% c('year', stratification)]
             model.arr.dimnames$year = years
+            model.arr.ontology = as.ontology(model.arr.dimnames, incomplete.dimensions = 'year')
+            
+            # Change stratification into what dimensions the n data ontology will need to achieve it and get mappings to align
             universal.ontology = data.manager$get.universal.ontology.for.outcome(outcome)
+            aligning.mappings = get.mappings.to.align.ontologies(universal.ontology, sim.ontology)
+            if (!is.null(stratification))
+                stratification.for.n = aligning.mappings[[1]]$get.required.from.dimensions(stratification)
+            else stratification.for.n = stratification
+            
             one.array.per.metalocation = lapply(1:n.metalocations, function(i) {
                 if (metalocation.type[[i]] == 'msa') {
-                    output.dimnames = sim.ontology[names(sim.ontology) %in% c('year', stratification)]
-                    arr = array(1, dim=sapply(output.dimnames, length), output.dimnames)
+                    arr = array(1, dim=sapply(model.arr.dimnames, length), model.arr.dimnames)
                 }
                 else {
                     arr = get.outcome.ratios(location.1 = metalocation.to.minimal.component.map[[i]],
                                              location.2 = main.location,
-                                             stratification = stratification, data.manager = data.manager, outcome = outcome, years = years, universal.ontology = universal.ontology)
+                                             stratification = stratification.for.n, data.manager = data.manager, outcome = outcome, years = years, universal.ontology = universal.ontology)
+                    
+                    if (is.null(arr)) stop("bug in get.outcome.ratios: returned NULL")
+                    # Map this back to the model ontology
+                    arr.ontology = as.ontology(dimnames(arr), incomplete.dimensions = 'year')
+                    # sim.ontology.years.replaced = sim.ontology[names(sim.ontology) != 'location']
+                    # sim.ontology.years.replaced$year = arr.ontology$year
+                    aligning.mappings = get.mappings.to.align.ontologies(arr.ontology, model.arr.ontology, allow.non.overlapping.incomplete.dimensions = T) # needs to be subset of sim.ontology?
+                    if (is.null(aligning.mappings)) stop(paste0("couldn't find mappings to align the metalocation data ontology and sim ontology"))
+                    aligned.data = aligning.mappings[[1]]$apply(arr)
+                    model.arr.indices = aligning.mappings[[2]]$get.reverse.mapping.indices(model.arr.dimnames, dimnames(aligned.data))
+                    model.arr = array(aligned.data[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
                 }
-                if (is.null(arr)) stop("bug in get.outcome.ratios: returned NULL")
-                # Map this back to the model ontology
-                arr.ontology = as.ontology(dimnames(arr), incomplete.dimensions = 'year')
-                sim.ontology.years.replaced = sim.ontology[names(sim.ontology) != 'location']
-                sim.ontology.years.replaced$year = arr.ontology$year
-                aligning.mappings = get.mappings.to.align.ontologies(arr.ontology, sim.ontology.years.replaced, allow.non.overlapping.incomplete.dimensions = T) # needs to be subset of sim.ontology?
-                if (is.null(aligning.mappings)) stop(paste0("couldn't find mappings to align the metalocation data ontology and sim ontology"))
-                aligned.data = aligning.mappings[[1]]$apply(arr)
-                model.arr.indices = aligning.mappings[[2]]$get.reverse.mapping.indices(model.arr.dimnames, dimnames(aligned.data))
-                model.arr = array(aligned.data[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
+                
             })
             
             # Return a matrix [year, metalocation] for each model stratum
@@ -1557,37 +1586,50 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             # Change stratification into what dimensions the n data ontology will need to achieve it and get mappings to align
             universal.ontology.for.n = data.manager$get.universal.ontology.for.outcome(outcome.for.n)
-            aligning.mappings = get.mappings.to.align.ontologies(universal.ontology.for.n, sim.ontology)
-            stratification.for.n = aligning.mappings[[1]]$get.required.from.dimensions(stratification) # I think this always works... until there's a case where it doesn't.
+            initial.aligning.mappings = get.mappings.to.align.ontologies(universal.ontology.for.n, sim.ontology)
+            # browser()
+            if (!is.null(stratification))
+                stratification.for.n = initial.aligning.mappings[[1]]$get.required.from.dimensions(stratification) # I think this always works... until there's a case where it doesn't.
+            else
+                stratification.for.n = stratification # NULL
             
             # Get obs.n.array with its missing data mask attached an attribute. Convert the mask to numeric so that at the end of partitioning, anything > 0 has a ancestral value that was missing
             obs.n.array = get.average(data.manager, stratification.for.n, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = T) # Note: "stratification" may be character(0) if we only have totals
-            data.ontology = as.ontology(dimnames(obs.n.array), incomplete.dimensions = c('year', 'location'))
+            data.ontology = as.ontology(dimnames(obs.n.array)[names(dim(obs.n.array))!='location'], incomplete.dimensions = c('year'))
             obs.n.mask.array = array(as.numeric(attr(obs.n.array, 'missing.data.mask')), dim(obs.n.array), dimnames(obs.n.array))
             
-            # map data to aligning ontology
-            obs.n.array.aligned = aligning.mappings[[1]]$apply(obs.n.array)
-            obs.n.mask.array.aligned = aligning.mappings[[1]]$apply(obs.n.mask.array)
-            
-            # reverse map data and model mask to model ontology
-            model.arr.dimnames = sim.ontology[names(sim.ontology) %in% c('year', 'location', stratification)]
-            model.arr.dimnames$year = years.with.data
-            model.arr.dimnames$location = locations.with.n.data
-            # model.arr.indices = aligning.mappings[[2]]$get.reverse.mapping.indices(model.arr.dimnames, dimnames(obs.n.array.aligned))
-            # model.arr = array(obs.n.array.aligned[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
-            # model.mask.arr = array(obs.n.mask.array.aligned[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
-            model.arr = aligning.mappings[[2]]$reverse.apply(obs.n.array.aligned)
-            model.mask.arr = aligning.mappings[[2]]$reverse.apply(obs.n.mask.array.aligned) # @AZ does this work??? verify with a test b/c is logical, not integer
-            # browser() ## ADDED FOR TODD
-            # use the partitioning function - VALIDATE THAT YOU GET AN ARRAY BACK WITH SAME DIMNAMES
-            partitioned.model.arr = partitioning.function(model.arr, version=version, location=location)
-            partitioned.model.mask.arr = partitioning.function(model.mask.arr, version=version, location=location)
-            
-            # check sum against the sum of the values in the aligned obs array that are actually mapped
-            obs.n.arr.indices = aligning.mappings[[2]]$get.mapping.indices(model.arr.dimnames, dimnames(obs.n.array.aligned))
-            values.that.map = sapply(obs.n.arr.indices, function(x) {length(x) > 0})
-            if (sum(obs.n.array.aligned[values.that.map], na.rm=T) != sum(partitioned.model.arr, na.rm=T))
-                stop("Sums not equal before and after partitioning obs-n")
+            if (!is.null(stratification))
+            {
+                # map data to aligning ontology
+                aligning.mappings = get.mappings.to.align.ontologies(data.ontology, sim.ontology[private$i.sim.keep.dimensions], allow.non.overlapping.incomplete.dimensions = T)
+                
+                obs.n.array.aligned = aligning.mappings[[1]]$apply(obs.n.array)
+                obs.n.mask.array.aligned = aligning.mappings[[1]]$apply(obs.n.mask.array)
+                
+                # reverse map data and model mask to model ontology
+                model.arr.dimnames = sim.ontology[names(sim.ontology) %in% c('year', 'location', stratification)]
+                model.arr.dimnames$year = years.with.data
+                model.arr.dimnames$location = locations.with.n.data
+                # model.arr.indices = aligning.mappings[[2]]$get.reverse.mapping.indices(model.arr.dimnames, dimnames(obs.n.array.aligned))
+                # model.arr = array(obs.n.array.aligned[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
+                # model.mask.arr = array(obs.n.mask.array.aligned[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
+                model.arr = aligning.mappings[[2]]$reverse.apply(obs.n.array.aligned)
+                model.mask.arr = aligning.mappings[[2]]$reverse.apply(obs.n.mask.array.aligned) # @AZ does this work??? verify with a test b/c is logical, not integer
+                # browser() ## ADDED FOR TODD
+                # use the partitioning function - VALIDATE THAT YOU GET AN ARRAY BACK WITH SAME DIMNAMES
+                partitioned.model.arr = partitioning.function(model.arr, version=version, location=location)
+                
+                partitioned.model.mask.arr = partitioning.function(model.mask.arr, version=version, location=location)
+                
+                # check sum against the sum of the values in the aligned obs array that are actually mapped
+                obs.n.arr.indices = aligning.mappings[[2]]$get.mapping.indices(model.arr.dimnames, dimnames(obs.n.array.aligned))
+                values.that.map = sapply(obs.n.arr.indices, function(x) {length(x) > 0})
+                if (sum(obs.n.array.aligned[values.that.map], na.rm=T) != sum(partitioned.model.arr, na.rm=T))
+                    stop("Sums not equal before and after partitioning obs-n")
+            } else {
+                partitioned.model.arr = obs.n.array
+                partitioned.model.mask.arr = obs.n.mask.array
+            }
             
             # Record which values had been missing at the highest level of stratification and needed to be estimated
             was.missing.arr = array(partitioned.model.mask.arr > 0, dim(partitioned.model.mask.arr), dimnames(partitioned.model.mask.arr))
