@@ -320,6 +320,9 @@ register.ontology.mapping <- function(name,
     o = order(n.from.per.mapping, n.to.per.mapping, decreasing = F)
     ONTOLOGY.MAPPING.MANAGER$mappings = ONTOLOGY.MAPPING.MANAGER$mappings[o]
     
+    # clear cached mappings
+    ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings=list()
+    ONTOLOGY.MAPPING.MANAGER$cached.two.way.mappings=list()
     
     #-- (Invisibly) Return the Mapping --#
     invisible(mapping)
@@ -342,16 +345,25 @@ get.ontology.mapping <- function(from.ontology,
     from.ontology = derive.ontology(from.ontology, var.name.for.error = "'from.ontology'", error.prefix = "Error in get.ontology.mapping(): ")
     to.ontology = derive.ontology(to.ontology, var.name.for.error = "'to.ontology'", error.prefix = "Error in get.ontology.mapping(): ")
  
-    #-- Call the sub-function --#
-    mappings = do.get.ontology.mapping(from.ontology = from.ontology,
-                                       to.ontology = to.ontology,
-                                       required.dimensions = names(to.ontology),
-                                       required.dim.names = NULL,
-                                       get.two.way.alignment = F,
-                                       allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions)
+    rv = ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings[[hash.ontology(from.ontology)]][[hash.ontology((to.ontology))]]
     
-    #-- Package up and return --#
-    combine.ontology.mappings(mappings[[1]])
+    if (is.null(rv))
+    {
+        ONTOLOGY.MAPPING.MANAGER$cached.two.way.mappings=list()
+        #-- Call the sub-function --#
+        mappings = do.get.ontology.mapping(from.ontology = from.ontology,
+                                           to.ontology = to.ontology,
+                                           required.dimensions = names(to.ontology),
+                                           required.dim.names = NULL,
+                                           get.two.way.alignment = F,
+                                           allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions)
+        
+        #-- Package up and cache --#
+        rv = combine.ontology.mappings(mappings[[1]])
+        ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings[[hash.ontology(from.ontology)]][[hash.ontology((to.ontology))]] = rv
+    }
+    
+    rv
 }
 
 #'@title Get a Pair of Ontology Mappings that Aligns two Data Elements
@@ -373,21 +385,30 @@ get.mappings.to.align.ontologies <- function(ontology.1,
     #-- Validate Arguments --#
     ontology.1 = derive.ontology(ontology.1, var.name.for.error = "'ontology.1'", error.prefix = "Error getting aligning ontology mappings: ")
     ontology.2 = derive.ontology(ontology.2, var.name.for.error = "'ontology.2'", error.prefix = "Error getting aligning ontology mappings: ")
+
+    rv = ONTOLOGY.MAPPING.MANAGER$cached.two.way.mappings[[hash.ontology(ontology.1)]][[hash.ontology((ontology.2))]]
+
+    if (is.null(rv))
+    {
+        #-- Call the sub-function --#
+        mappings = do.get.ontology.mapping(from.ontology = ontology.1,
+                                           to.ontology = ontology.2,
+                                           required.dimensions = align.on.dimensions,
+                                           required.dim.names = include.dim.names,
+                                           get.two.way.alignment = T,
+                                           allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions)
+        
+        #-- Package up and return --#
+        if (is.null(mappings))
+            rv = NULL
+        else
+            rv = list(mapping.from.1 = combine.ontology.mappings(mappings[[1]]),
+                      mapping.from.2 = combine.ontology.mappings(mappings[[2]]) )
+        
+        ONTOLOGY.MAPPING.MANAGER$cached.two.way.mappings[[hash.ontology(ontology.1)]][[hash.ontology((ontology.2))]] = rv
+    }
     
-    #-- Call the sub-function --#
-    mappings = do.get.ontology.mapping(from.ontology = ontology.1,
-                                       to.ontology = ontology.2,
-                                       required.dimensions = align.on.dimensions,
-                                       required.dim.names = include.dim.names,
-                                       get.two.way.alignment = T,
-                                       allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions)
-    
-    #-- Package up and return --#
-    if (is.null(mappings))
-        NULL
-    else
-        list(mapping.from.1 = combine.ontology.mappings(mappings[[1]]),
-             mapping.from.2 = combine.ontology.mappings(mappings[[2]]) )
+    rv
 }
 
 #'@title Get a Matrix that Applies an Ontology Mapping
@@ -1392,6 +1413,8 @@ create.overlapping.age.ontology.mapping <- function(from.values,
 
 ONTOLOGY.MAPPING.MANAGER = new.env()
 ONTOLOGY.MAPPING.MANAGER$mappings=list()
+ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings=list()
+ONTOLOGY.MAPPING.MANAGER$cached.two.way.mappings=list()
 
 
 ##-----------------------##

@@ -639,3 +639,21 @@ resolve.dimension.values.against.dim.names <- function(dimension.values, dim.nam
     names(rv) = names(dimension.values)
     rv
 }
+
+
+hash.ontology <- function(ont)
+{
+    dim.separator = '___'
+    val.separator = '__'
+    
+    is.comp = is.complete(ont)
+    hash.per.dimension = sapply(sort(names(ont)), function(d){
+        
+        paste0(d, val.separator, 
+               ifelse(is.comp[d], 'comp', 'inc'), val.separator,
+               paste0(sort(ont[[d]]), collapse=val.separator))
+        
+    })
+    
+    paste0(hash.per.dimension, collapse = dim.separator)
+}
