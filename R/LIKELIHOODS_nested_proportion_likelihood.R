@@ -738,6 +738,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                          omit.years = instructions$omit.years,
                                          data.manager = data.manager,
                                          outcome.for.data = private$i.outcome.for.data)
+            years.n = get.likelihood.years(from.year = instructions$from.year,
+                                           to.year = instructions$to.year,
+                                           omit.years = instructions$omit.years,
+                                           data.manager = data.manager,
+                                           outcome.for.data = private$i.denominator.outcome.for.data)
+            years = intersect(years, years.n)
             
             # --- VALIDATE THAT OUTCOME.FOR.SIM IS A PROPORTION --- #
             sim.metadata = get.simulation.metadata(version=version,
@@ -816,6 +822,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 one.metadata = one.metadata[!one.remove.mask,]
                 
                 # Recover required dimnames from one.metadata -- note that year won't be fixed yet
+                # if (identical(strat, "risk")) browser()
                 one.sim.required.dimnames = one.mapping$get.required.from.dim.names(lapply(one.metadata[!(colnames(one.metadata) %in% c('location', 'source', 'value'))],
                                                                                                 function(x) {sort(as.character(unique(x)))})) ## MONITOR THIS SORT FOR BUGS
                 
@@ -853,7 +860,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     if (!(d %in% names(private$i.sim.required.dimnames)))
                         private$i.sim.required.dimnames = c(private$i.sim.required.dimnames, setNames(list(one.sim.required.dimnames[[d]]), d))
                     else
-                        private$i.sim.required.dimnames[[d]] = union(private$i.sim.required.dimnames[[d]], one.sim.required.dimnames[[d]])
+                        private$i.sim.required.dimnames[[d]] = sort(union(private$i.sim.required.dimnames[[d]], one.sim.required.dimnames[[d]]))
                 }
                 
                 # Convert one.details list of vectors to a list of characters of collapsed sorted details, then unlist to a vector
@@ -867,7 +874,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 locations.list = c(locations.list, list(one.locations))
                 remove.mask.list = c(remove.mask.list, list(one.remove.mask))
                 
-                data.keep.dimensions = union(data.keep.dimensions, keep.dimensions)
+                # data.keep.dimensions = union(data.keep.dimensions, keep.dimensions) # Why do I do this?? Maybe I don't need a dimension?
                 
             }
             if (length(private$i.obs.p)==0) stop(paste0(error.prefix, "no data was found for any stratification"))
@@ -886,7 +893,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             private$i.obs.p = private$i.obs.p[!redundant.locations.mask]
             private$i.metadata = private$i.metadata[!redundant.locations.mask,]
             private$i.details = private$i.details[!redundant.locations.mask]
-            
+
             # The remove mask needs to be updated -- carefully -- because it is in reference to the state before removal and will be used later on for the transformation mapping matrix.
             # Since location is the second dimension after year in all the arrays pulled, n.years times n.locations is the size of a block repeated a certain number of times
             year.location.block.counts = sapply(dimnames.list, function(x) {prod(sapply(x, length)[!(names(x) %in% c('year', 'location'))])})
@@ -898,7 +905,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             locations.list = lapply(1:length(locations.list), function(i) {locations.list[[i]][!removed.locations.list[[i]]]})
 
             # Now the required dimnames may have their dimensions in the wrong order or their values in the wrong order. They may also lack some values from a complete dimension. Use the sim ontology to fix this.
-            private$i.sim.ontology$location = union(private$i.sim.ontology$location[!(private$i.sim.ontology$location %in% redundant.locations)], location) # location MUST be here to ensure it counts as an obs location, even if no obs exist for it
+            private$i.sim.ontology$location = union(setdiff(private$i.sim.ontology$location, redundant.locations), location) # location MUST be here to ensure it counts as an obs location, even if no obs exist for it
             corrected.sim.required.dimnames = private$i.sim.ontology[names(private$i.sim.ontology) %in% names(private$i.sim.required.dimnames)]
             corrected.sim.required.dimnames$year = private$i.sim.required.dimnames$year
             private$i.sim.required.dimnames = corrected.sim.required.dimnames
@@ -921,12 +928,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             private$i.sim.dimension.values = as.list(private$i.sim.dimension.values)
             
             # Make sure sim keep dimensions has year because the sim$get relies on it later
-            private$i.sim.keep.dimensions = union('year', private$i.sim.keep.dimensions)
+            private$i.sim.keep.dimensions = union('year', names(private$i.sim.required.dimnames))
             
-            private$i.sim.keep.dimensions = unique(unlist(lapply(mappings.list, function(mp) {
-                if (is.null(mp)) NULL
-                else mp$get.required.from.dimensions(data.keep.dimensions)
-            })))
+            # What in the world was this for???
+            # private$i.sim.keep.dimensions = unique(unlist(lapply(mappings.list, function(mp) {
+            #     if (is.null(mp)) NULL
+            #     else mp$get.required.from.dimensions(data.keep.dimensions)
+            # })))
             
             # Reorder -- everything should be in the order of the sim.ontology so that it aligns with the sim$get arrays later.
             private$i.sim.keep.dimensions = names(private$i.sim.ontology)[sort(sapply(private$i.sim.keep.dimensions, function(d) {which(names(private$i.sim.ontology) == d)}))]
@@ -950,7 +958,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 model.strata = expand.grid(private$i.sim.ontology[names(private$i.sim.ontology) %in% model.stratification])
                 n.strata = nrow(model.strata)
             }
-            
+            # browser()
             private$i.obs.year.index = sapply(private$i.metadata$year, function(y) {which(years.with.data == y)})
             
             if (post.time.checkpoint.flag) print(paste0("Generate measurement error correlation matrix: ", Sys.time()))
@@ -976,7 +984,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             n.obs.locations = length(observation.locations) # we have ensured the main location is always in here because it will be used for metalocations and therefore must be accounted for everywhere else too
             
             locations.possibly.with.n.data = dimnames(data.manager$pull(outcome = private$i.denominator.outcome.for.data,
-                                                                        keep.dimensions = c('year', 'location', model.stratification),
+                                                                        keep.dimensions = c('year', 'location'), # used to also include the model.stratification in keep.dimensions, a sometimes impossible ask!
                                                                         dimension.values = list(location = setdiff(observation.locations, location), year = years.with.data)))$location
             if (post.time.checkpoint.flag) print(paste0("Calculate obs.n: ", Sys.time()))
 
@@ -1271,7 +1279,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             }))))
         },
         
-        get.redundant.locations = function(main.location, metadata, extra.points.needed.to.keep=5) { # have to say "main.location" instead of "location" because of subsetting by location==location
+        get.redundant.locations = function(main.location, metadata, extra.points.needed.to.keep=5)
+        { # have to say "main.location" instead of "location" because of subsetting by location==location
+            # browser()
             redundant.locations = character(0)
             
             other.locations = setdiff(unique(metadata$location), main.location)
@@ -1544,13 +1554,18 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         get.obs.n = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, sim.ontology, model.strata, partitioning.function, version, location)
         {
             # browser()
+            
+            # Change stratification into what dimensions the n data ontology will need to achieve it and get mappings to align
+            universal.ontology.for.n = data.manager$get.universal.ontology.for.outcome(outcome.for.n)
+            aligning.mappings = get.mappings.to.align.ontologies(universal.ontology.for.n, sim.ontology)
+            stratification.for.n = aligning.mappings[[1]]$get.required.from.dimensions(stratification) # I think this always works... until there's a case where it doesn't.
+            
             # Get obs.n.array with its missing data mask attached an attribute. Convert the mask to numeric so that at the end of partitioning, anything > 0 has a ancestral value that was missing
-            obs.n.array = get.average(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = T) # Note: "stratification" may be character(0) if we only have totals
+            obs.n.array = get.average(data.manager, stratification.for.n, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = T) # Note: "stratification" may be character(0) if we only have totals
             data.ontology = as.ontology(dimnames(obs.n.array), incomplete.dimensions = c('year', 'location'))
             obs.n.mask.array = array(as.numeric(attr(obs.n.array, 'missing.data.mask')), dim(obs.n.array), dimnames(obs.n.array))
             
-            # get mapping to align
-            aligning.mappings = get.mappings.to.align.ontologies(data.ontology, sim.ontology)
+            # map data to aligning ontology
             obs.n.array.aligned = aligning.mappings[[1]]$apply(obs.n.array)
             obs.n.mask.array.aligned = aligning.mappings[[1]]$apply(obs.n.mask.array)
             
@@ -1563,7 +1578,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             # model.mask.arr = array(obs.n.mask.array.aligned[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
             model.arr = aligning.mappings[[2]]$reverse.apply(obs.n.array.aligned)
             model.mask.arr = aligning.mappings[[2]]$reverse.apply(obs.n.mask.array.aligned) # @AZ does this work??? verify with a test b/c is logical, not integer
-            
+            # browser() ## ADDED FOR TODD
             # use the partitioning function - VALIDATE THAT YOU GET AN ARRAY BACK WITH SAME DIMNAMES
             partitioned.model.arr = partitioning.function(model.arr, version=version, location=location)
             partitioned.model.mask.arr = partitioning.function(model.mask.arr, version=version, location=location)
@@ -1604,17 +1619,25 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         # hard code female msm as not needed so we can stop if it is NA?
         get.average = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames = NULL)
         {
-            # browser()
+            # if (is.top.level) browser()
+            # print(paste0(stratification, collapse="__"))
             data = data.manager$pull(outcome = outcome.for.n,
                                      keep.dimensions = c('year', 'location', stratification),
                                      dimension.values = list(location = locations.with.n.data, year = years.with.data))
             
-            # if we are at the top level but got nothing, throw an error because these are supposed to be locations with data
-            if (is.null(data) && is.top.level)
-                stop("Top level did not have any data for locations that were supposed to have data")
-            
-            # If data from multiple sources, take geometric mean. Then get rid of source dimension
-            if (!is.null(data)) {
+            # # if we are at the top level but got nothing, throw an error because these are supposed to be locations with data
+            # if (is.null(data) && is.top.level)
+            #     stop("Top level did not have any data for locations that were supposed to have data")
+            ## NEW PLAN: MAKE AN ARRAY OF ALL NA WITH THE DIMENSIONS WE KNOW ALL THE PULLS COME OUT IN: THE UNIVERSAL ONTOLOGY FOR THIS OUTCOME
+            if (is.null(data) && is.top.level) {
+                universal = data.manager$get.universal.ontology.for.outcome(outcome.for.n)
+                universal = universal[c('year', 'location', stratification)]
+                universal$location = locations.with.n.data
+                universal$year = years.with.data
+                data = array(NA, sapply(universal, length), universal)
+            }
+            else if (!is.null(data)) {
+                # If data from multiple sources, take geometric mean. Then get rid of source dimension
                 if (dim(data)[['source']] > 1) {
                     count.not.na = apply.robust(data, MARGIN=names(dim(data))[names(dim(data)) != 'source'], FUN=function(x) {sum(!is.na(x))})
                     expanded.count.not.na = expand.array(count.not.na, dimnames(data))
@@ -1624,10 +1647,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     new.dimnames = dimnames(data)[names(dimnames(data)) != 'source']
                     data = array(data, dim = sapply(new.dimnames, length), new.dimnames)
                 }
-            }
-            
-            # If we are lacking certain years (or locations), expand data to include them as NA.
-            if (!is.null(data)) {
+                
+                # If we are lacking certain years (or locations), expand data to include them as NA.
                 if (!setequal(dimnames(data)$location, locations.with.n.data) || !setequal(dimnames(data)$year, get.range.robust.year.intersect(years.with.data, dimnames(data)$year))) {
                     complete.dimnames = dimnames(data)
                     complete.dimnames$location = locations.with.n.data
@@ -1679,7 +1700,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 matching.k.minus.1.way.stratification.mask = sapply(k.minus.1.way.stratifications, function(k.minus.1.way.stratification) {is.subset(k.minus.2.way.stratification, k.minus.1.way.stratification)})
                 Reduce('*', k.minus.1.way.data[matching.k.minus.1.way.stratification.mask]) / k.minus.2.way.data[[i]]
             })
-            
+            # if (identical(stratification, c('age', 'race'))) browser()
             arrays.to.be.averaged.na.mask = lapply(arrays.to.be.averaged, function(arr) {is.na(arr)})
             count.not.na = length(arrays.to.be.averaged) - Reduce('+', arrays.to.be.averaged.na.mask)
             arrays.to.be.averaged.replaced.with.zeroes = lapply(arrays.to.be.averaged, function(arr) {
