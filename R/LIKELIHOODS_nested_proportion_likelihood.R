@@ -753,6 +753,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             private$i.within.location.p.error.correlation = private$i.parameters$within.location.p.error.correlation
             private$i.within.location.n.error.correlation = private$i.parameters$within.location.n.error.correlation
             
+            
+            # Find years we have data for. Note: this does not guarantee that we'll have data for *our* locations, especially since we don't know what counties they'll be made up of yet.
+            # If we get to n-multipliers and don't have enough data, I'll just throw an error and the user can change the year range that's used.
             years = get.likelihood.years(from.year = instructions$from.year,
                                          to.year = instructions$to.year,
                                          omit.years = instructions$omit.years,
@@ -764,6 +767,15 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                            data.manager = data.manager,
                                            outcome.for.data = private$i.denominator.outcome.for.data)
             years = intersect(years, years.n)
+            
+            if (!is.null(private$i.outcome.for.n.multipliers)) {
+                years.n.multipliers = get.likelihood.years(from.year = instructions$from.year,
+                                                           to.year = instructions$to.year,
+                                                           omit.years = instructions$omit.years,
+                                                           data.manager = data.manager,
+                                                           outcome.for.data = private$i.outcome.for.n.multipliers)
+                years = intersect(years, years.n.multipliers)
+            }
             
             # --- VALIDATE THAT OUTCOME.FOR.SIM IS A PROPORTION --- #
             sim.metadata = get.simulation.metadata(version=version,
@@ -855,7 +867,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     }
                     else return(year.or.year.range)
                 })
-                new.years = unique(one.metadata$year)
+                new.years = sort(unique(one.metadata$year))
                 
                 # Do the same for the dimnames
                 one.dimnames$year = sapply(one.dimnames$year, function(year.or.year.range) {
@@ -1453,7 +1465,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     model.arr.indices = aligning.mappings[[2]]$get.reverse.mapping.indices(model.arr.dimnames, dimnames(aligned.data))
                     model.arr = array(aligned.data[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
                 }
-                
+                if (any(is.na(arr))) stop("not enough data for n-multipliers in one or more locations")
+                arr
             })
             
             # Return a matrix [year, metalocation] for each model stratum
