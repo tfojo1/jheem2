@@ -538,6 +538,9 @@ prepare.mcmc.summary <- function(version,
     files = list.files(dir)
     chain.control.files = files[grepl('chain[0-9]+_control', files)]
     
+    x = load(file.path(dir, 'global_control.Rdata'))
+    global.control = get(x)
+    
     if (length(chain.control.files)==0)
         stop(paste0(error.prefix,
                     "The prior MCMC cache is malformed"))
@@ -588,9 +591,11 @@ prepare.mcmc.summary <- function(version,
         dim(all.chain.log.values) = c(length(all.chain.log.values) / length(chain.controls),
                                       length(chain.controls))
         
-        exp(rowMeans(all.chain.log.values))
+        rv = exp(rowMeans(all.chain.log.values))
+        names(rv) = names(chain.controls[[1]]@chain.state@log.scaling.parameters[[i]])
+        rv
     })
-    names(initial.scaling.parameters) = names(state1@log.scaling.parameters)
+    names(initial.scaling.parameters) = names(global.control@control@var.blocks)
     
     
     #-- Return --#
