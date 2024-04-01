@@ -585,6 +585,9 @@ prepare.mcmc.summary <- function(version,
             ctrl@chain.state@log.scaling.parameters[[i]]
         })
         
+        dim(all.chain.log.values) = c(length(all.chain.log.values) / length(chain.controls),
+                                      length(chain.controls))
+        
         exp(rowMeans(all.chain.log.values))
     })
     names(initial.scaling.parameters) = names(state1@log.scaling.parameters)
