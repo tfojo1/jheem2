@@ -85,6 +85,7 @@ create.single.simulation <- function(version,
                                      intervention.code,
                                      calibration.code,
                                      outcome.location.mapping,
+                                     solver.metadata,
                                      run.metadata,
                                      finalize,
                                      is.degenerate)
@@ -112,6 +113,7 @@ create.single.simulation <- function(version,
                              intervention.code = intervention.code,
                              calibration.code = calibration.code,
                              outcome.location.mapping = outcome.location.mapping,
+                             solver.metadata = solver.metadata,
                              run.metadata = run.metadata,
                              finalize = finalize,
                              is.degenerate = is.degenerate)
@@ -141,6 +143,7 @@ derive.degenerate.simulation <- function(sim)
                              intervention.code = sim$intervention.code,
                              calibration.code = sim$calibration.code,
                              outcome.location.mapping = sim$outcome.location.mapping,
+                             solver.metadata = sim$solver.metadata,
                              run.metadata = sim$run.metadata,
                              finalize = sim$is.finalized,
                              is.degenerate = T)
@@ -211,6 +214,7 @@ join.simulation.sets <- function(..., finalize=T, run.metadata=NULL)
                              intervention.code = intervention.code,
                              calibration.code = sample.simset$calibration.code,
                              outcome.location.mapping = sample.simset$outcome.location.mapping,
+                             solver.metadata = solver.metadata,
                              run.metadata = run.metadata,
                              finalize = finalize,
                              is.degenerate = combined.is.degenerate)
@@ -853,6 +857,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               from.year,
                               to.year,
                               n.sim,
+                              solver.metadata,
                               run.metadata,
                               intervention.code,
                               calibration.code,
@@ -968,6 +973,10 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (!is(run.metadata, 'jheem.run.metadata'))
                 stop(paste0(error.prefix, "'run.metadata' must be an object of class 'jheem.run.metadata'"))
             
+            # Validate solver.metadata
+            if (!is(solver.metadata, 'solver.metadata'))
+                stop(paste0(error.prefix, "'solver.metadata' must be an object of class 'solver.metadata'"))
+            
             # Validate intervention.code
             if (!is.null(intervention.code))
             {
@@ -986,7 +995,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             private$i.data = list(outcome.numerators = outcome.numerators,
                                   outcome.denominators = outcome.denominators,
                                   parameters = parameters)
-            
+    
+            private$i.solver.metadata = solver.metadata        
             private$i.run.metadata = run.metadata
             private$i.intervention.code = intervention.code
             private$i.calibration.code = calibration.code
@@ -1270,8 +1280,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               max.run.time.seconds = NULL,
                               keep.from.year = NULL,
                               keep.to.year = NULL,
-                              atol = NULL,
-                              rtol = NULL,
                               intervention.code = self$intervention.code,
                               error.prefix = "Cannot get JHEEM Engine from simulation set")
         {
@@ -1337,8 +1345,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                             keep.to.year = keep.to.year,
                                             intervention.code = intervention.code,
                                             calibration.code = private$i.calibration.code,
-                                            atol = atol,
-                                            rtol = rtol,
+                                            solver.metadata = private$i.solver.metadata,
                                             finalize = T,
                                             error.prefix = error.prefix)
         },
@@ -1503,6 +1510,14 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 stop("Cannot modify a simulation.set's 'data' - it is read-only")
         },
         
+        solver.metadata = function(value)
+        {
+            if (missing(value))
+                private$i.solver.metadata
+            else
+                stop("Cannot modify a simulation.set's 'solver.metadata' - it is read-only")
+        },
+        
         run.metadata = function(value)
         {
             if (missing(value))
@@ -1566,7 +1581,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         i.is.degenerate = NULL,
         i.finalized = NULL,
         
-        #  i.engine = NULL,
+        i.solver.metadata = NULL,
         
         i.seed = NULL,
         # just for diagnostics, will be removed soon

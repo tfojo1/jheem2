@@ -1135,34 +1135,36 @@ prepare.tracker <- function(outcome.name,
 }
 
 can.get.outcome.value.from.ode.output <- function(outcome.name,
-                                              settings)
+                                                  settings)
 {
     any(names(settings$outcomes)==outcome.name)
 }
 
+# ode.results has
+# $times - a numeric vector of times
+# $values - a numeric matrix with ncol = length(times)
 get.outcome.value.from.ode.output <- function(outcome.name,
                                               settings,
                                               ode.results,
                                               outcome.years)
 {
     outcome = settings$outcomes[[outcome.name]]
-    first.ode.year = ode.results[1,1]
+    first.ode.year = ode.results$times[1]
     
-    cols = 1 + settings$indices_into_state_and_dx[outcome.name] + 1:settings$state_and_dx_sizes[outcome.name]
-    # The "1 + ..." is because the first column is "time"
-    
-    rows = outcome.years - first.ode.year + 1
+    rows = settings$indices_into_state_and_dx[outcome.name] + 1:settings$state_and_dx_sizes[outcome.name]
+
+    cols = outcome.years - first.ode.year + 1
     
     if (outcome$is.cumulative)
     {
-        rv = lapply(rows, function(r){
-            as.numeric(ode.results[r+1,cols]) - as.numeric(ode.results[r,cols])
+        rv = lapply(cols, function(j){
+            ode.results$values[rows,j+1] - ode.results$values[rows,j]
         })
     }
     else
     {
-        rv = lapply(rows, function(r){
-            as.numeric(ode.results[r,cols])
+        rv = lapply(cols, function(j){
+            ode.results$values[rows,j]
         })
     }
     

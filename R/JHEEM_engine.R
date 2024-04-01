@@ -410,7 +410,7 @@ JHEEM.CODE.ITERATION = '2.0'
 
 ##------------------------------------##
 ##-- THE JHEEM MODEL SETTINGS CLASS --##
-##                                    ##
+##------------------------------------##
 ##   This class is a pass-through     ##
 ##   wrapper to the jheem             ##
 ##   class, so that we can expose     ##
@@ -593,7 +593,240 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
 
 ##----------------------------##
 ##-- THE JHEEM ENGINE CLASS --##
+##     (and helper class)     ##
 ##----------------------------##
+
+SUPPORTED.SOLVER.METHODS = list(
+    odeintr = 'DP5',
+    diffeqr = c('BS3','DP5')
+)
+
+# internal to the package
+get.diffeqr.engine <- function()
+{
+    if (is.null(DIFFEQR.ENGINE))
+        DIFFEQR.ENGINE = diffeqr::diffeq_setup()
+    
+    DIFFEQR.ENGINE
+}
+DIFFEQR.ENGINE = NULL
+
+create.solver.metadata = function(method = 'DP5',
+                                  package = NULL,
+                                  atol = 1e-02,
+                                  rtol = 1e-04)
+{
+    SOLVER.METADATA$new(method = method,
+                        package = package,
+                        atol = atol,
+                        rtol = rtol)
+}
+
+SOLVER.METADATA = R6::R6Class(
+    'solver.metadata',
+    
+    public = list(
+        
+        initialize = function(method = 'DP5',
+                              package = NULL,
+                              atol = 1e-02,
+                              rtol = 1e-04)
+        {
+            error.prefix = "Cannot create solver metadata: "
+            
+            if (!is.character(method) || length(method)!=1 || is.na(method))
+                stop(paste0(error.prefix, "'method' must be a single, non-NA character value"))
+            
+            if (is.null(package))
+            {
+                package.contains.method.mask = sapply(SUPPORTED.SOLVER.METHODS, function(methods){
+                    any(methods==method)
+                })
+                if (!any(package.contains.method.mask))
+                    stop(paste0(error.prefix, "The method '", method, "' is not supported by any solver package"))
+                
+                package = names(SUPPORTED.SOLVER.METHODS)[package.contains.method.mask][1]
+            }
+            else
+            {
+                if (!is.character(package) || length(package)!=1 || is.na(package))
+                    stop(paste0(error.prefix, "'package' must be a single, non-NA character value"))
+                
+                if (all(names(SUPPORTED.SOLVER.METHODS)!=package))
+                    stop(paste0(error.prefix, "Invalid package '", package, "' - must be one of ",
+                                collapse.with.or("'", names(SUPPORTED.SOLVER.METHODS), "'")))
+                
+                if (all(SUPPORTED.SOLVER.METHODS[[package]]!=method))
+                    stop(paste0(error.prefix, "The package '", package, "' does not support solver method '", method, "'"))
+            }
+            
+            if (is.null(atol))
+                atol = DEFAULT.ATOL
+            else if (!is.numeric(atol) || length(atol)!=1 || is.na(atol) || atol<=0)
+                stop(paste0(error.prefix, "'atol' must be a single, non-NA, positive numeric value"))
+            
+            if (is.null(rtol))
+                rtol = DEFAULT.RTOL
+            else if (!is.numeric(rtol) || length(rtol)!=1 || is.na(rtol) || rtol<=0)
+                stop(paste0(error.prefix, "'rtol' must be a single, non-NA, positive numeric value"))
+            
+            # Store variables
+            private$i.package = package
+            private$i.method = method
+            private$i.atol = atol
+            private$i.rtol = rtol
+            
+        },
+        
+        # returns a list with three elements
+        # $times - a numeric vector of times
+        # $values - a numeric matrix with ncol = length(times) and one row for each element in the diffeq state
+        # $terminated.for.time - a boolean indicating whether the sim was terminated for exceeding max.run.time.seconds
+        do.solve = function(diffeq.settings,
+                            max.run.time.seconds,
+                            run.from.time,
+                            run.to.time)
+        {
+            start.time = as.numeric(Sys.time())
+            terminated.for.time = F
+            if (private$i.package=='odeintr')
+            {
+                compute.fn = function(x, t){
+                    
+                    run.time = as.numeric(Sys.time()) - start.time
+                    if (run.time > max.run.time.seconds)
+                        terminated.for.time <<- T
+                    
+                    if (terminated.for.time)
+                    {
+                        rep(0, length(x))
+                    }
+                    else
+                    {
+                        compute_dx(state = x,
+                                   time = t,
+                                   settings = diffeq.settings,
+                                   quantities_info = diffeq.settings$quantities.info,
+                                   quantity_scratch_vector = diffeq.settings$quantity_scratch_vector,
+                                   scratch_vector = diffeq.settings$scratch.vector,
+                                   natality_info = diffeq.settings$natality.info,
+                                   mortality_info = diffeq.settings$mortality.info,
+                                   transitions_info = diffeq.settings$transitions.info,
+                                   infections_info = diffeq.settings$infections.info,
+                                   remission_info = diffeq.settings$remission.info,
+                                   fixed_strata_info = diffeq.settings$fixed.strata.info,
+                                   population_trackers = diffeq.settings$population_trackers)
+                    }
+                }
+                
+                ode.results = odeintr::integrate_sys(sys = compute.fn,
+                                                     init = diffeq.settings$initial_state,
+                                                     duration = run.to.time - run.from.time + 1, 
+                                                     start = run.from.time,
+                                                     atol = private$i.atol,
+                                                     rtol = private$i.rtol)
+                
+                list(times = ode.results[,1],
+                     values = t(as.matrix(ode.results[,-1])),
+                     terminated.for.time = terminated.for.time)
+            }
+            else if (private$i.package=='diffeqr')
+            {
+                compute.fn = function(u,p,t){
+                    
+                    run.time = as.numeric(Sys.time()) - start.time
+                    if (run.time > max.run.time.seconds)
+                        terminated.for.time <<- T
+                    
+                    if (terminated.for.time)
+                    {
+                        rep(0, length(x))
+                    }
+                    else
+                    {
+                        compute_dx(state = u,
+                                   time = t,
+                                   settings = diffeq.settings,
+                                   quantities_info = diffeq.settings$quantities.info,
+                                   quantity_scratch_vector = diffeq.settings$quantity_scratch_vector,
+                                   scratch_vector = diffeq.settings$scratch.vector,
+                                   natality_info = diffeq.settings$natality.info,
+                                   mortality_info = diffeq.settings$mortality.info,
+                                   transitions_info = diffeq.settings$transitions.info,
+                                   infections_info = diffeq.settings$infections.info,
+                                   remission_info = diffeq.settings$remission.info,
+                                   fixed_strata_info = diffeq.settings$fixed.strata.info,
+                                   population_trackers = diffeq.settings$population_trackers)
+                    }
+                }
+                
+                diffeqr.engine = get.diffeqr.engine()
+                prob = diffeqr.engine$ODEProblem(compute.fn,
+                                                 diffeq.settings$initial_state,
+                                                 c(run.from.time, run.to.time+1))
+                
+                method = diffeqr.engine[[private$i.method]]()
+                
+                ode.results = diffeqr.engine$solve(prob,
+                                                   method,
+                                                   saveat=run.from.time:(run.to.time+1),
+                                                   abstol=private$i.atol,
+                                                   reltol=private$i.rtol)
+                
+                list(times = ode.results$t,
+                     values = sapply(ode.results$u, identity),
+                     terminated.for.time = terminated.for.time)
+            }
+            else
+            {
+                stop(paste0("Cannot solve ODEs - we only support packages 'odeintr' and 'diffeqr' - not '", private$i.package, "'"))
+            }
+        }
+    ),
+    
+    active = list(
+        
+        package = function(value)
+        {
+            if (missing(value))
+                private$i.package
+            else
+                stop("Cannot modify a JHEEM engine's 'package' - it is read-only")
+        },
+        
+        method = function(value)
+        {
+            if (missing(value))
+                private$i.method
+            else
+                stop("Cannot modify a JHEEM engine's 'method' - it is read-only")
+        },
+        
+        atol = function(value)
+        {
+            if (missing(value))
+                private$i.atol
+            else
+                stop("Cannot modify a JHEEM engine's 'atol' - it is read-only")
+        },
+        
+        rtol = function(value)
+        {
+            if (missing(value))
+                private$i.rtol
+            else
+                stop("Cannot modify a JHEEM engine's 'rtol' - it is read-only")
+        }
+    ),
+    
+    private = list(
+        
+        i.package = NULL,
+        i.method = NULL,
+        i.atol = NULL,
+        i.rtol = NULL
+    )
+)
 
 #'@name Create an Engine to Run JHEEM Simulations
 #'
@@ -606,13 +839,15 @@ create.jheem.engine <- function(version,
                                 location,
                                 end.year,
                                 sub.version = NULL,
-                                max.run.time.seconds = Inf)
+                                max.run.time.seconds = Inf,
+                                solver.metadata = create.solver.metadata())
 {
     do.create.jheem.engine(version = version,
                            location = location,
                            end.year = end.year,
                            sub.version = sub.version,
-                           max.run.time.seconds = max.run.time.seconds)
+                           max.run.time.seconds = max.run.time.seconds,
+                           solver.metadata = solver.metadata)
 }
 
 # This function is internal to the package
@@ -620,6 +855,7 @@ do.create.jheem.engine <- function(version,
                                    location,
                                    start.year = NULL,
                                    end.year,
+                                   solver.metadata,
                                    sub.version=NULL,
                                    max.run.time.seconds=Inf,
                                    prior.simulation.set=NULL,
@@ -628,7 +864,6 @@ do.create.jheem.engine <- function(version,
                                    outcome.location.mapping = NULL,
                                    keep.from.year=start.year,
                                    keep.to.year=end.year,
-                                   atol=1e-04, rtol=1e-04,
                                    finalize = T,
                                    error.prefix = "Cannot create JHEEM Engine: ")
 {
@@ -647,8 +882,7 @@ do.create.jheem.engine <- function(version,
                      max.run.time.seconds = max.run.time.seconds,
                      keep.from.year = keep.from.year,
                      keep.to.year = keep.to.year,
-                     atol = atol,
-                     rtol = rtol,
+                     solver.metadata = solver.metadata,
                      intervention.code = intervention.code,
                      calibration.code = calibration.code,
                      outcome.location.mapping = outcome.location.mapping,
@@ -669,8 +903,6 @@ check.sim.can.seed.run <- function(prior.simulation.set,
     }
 }
 
-DEFAULT.ATOL = 1e-03
-DEFAULT.RTOL = 1e-03
 
 JHEEM.ENGINE = R6::R6Class(
     'jheem.engine',
@@ -686,8 +918,7 @@ JHEEM.ENGINE = R6::R6Class(
                               max.run.time.seconds=Inf,
                               keep.from.year = start.year,
                               keep.to.year = end.year,
-                              atol= DEFAULT.ATOL, 
-                              rtol = DEFAULT.RTOL,
+                              solver.metadata,
                               intervention.code = NULL,
                               calibration.code = NULL,
                               outcome.location.mapping = NULL,
@@ -792,22 +1023,15 @@ JHEEM.ENGINE = R6::R6Class(
             }
             
             
-            # Max run time, atol, rtol
+            # Max run time, solver.metadata
             if (is.null(max.run.time.seconds))
                 max.run.time.seconds = Inf
             else if (!is.numeric(max.run.time.seconds) || length(max.run.time.seconds)!=1 || is.na(max.run.time.seconds) || max.run.time.seconds<=0)
                 stop(paste0(error.prefix, "'max.run.time.seconds' must be a single, non-NA, positive numeric value"))
             
-            if (is.null(atol))
-                atol = DEFAULT.ATOL
-            else if (!is.numeric(atol) || length(atol)!=1 || is.na(atol) || atol<=0)
-                stop(paste0(error.prefix, "'atol' must be a single, non-NA, positive numeric value"))
-            
-            if (is.null(rtol))
-                rtol = DEFAULT.RTOL
-            else if (!is.numeric(rtol) || length(rtol)!=1 || is.na(rtol) || rtol<=0 || rtol>=1)
-                stop(paste0(error.prefix, "'rtol' must be a single, non-NA numeric value between 0 and 1"))
-            
+            if (!is(solver.metadata, "solver.metadata"))
+                stop(paste0(error.prefix, "'solver.metadata' must be an object of class 'solver.metadata' created by create.solver.metadata()"))
+
             # intervention.code
             if (!is.null(intervention.code))
             {
@@ -846,9 +1070,9 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.max.run.time.seconds = max.run.time.seconds
             private$i.keep.from.year = keep.from.year
             private$i.keep.to.year = keep.to.year
-            private$i.atol = atol
-            private$i.rtol = rtol
             
+            private$i.solver.metadata = solver.metadata
+
             private$i.finalize = finalize
             
             private$i.check.consistency = T
@@ -868,8 +1092,7 @@ JHEEM.ENGINE = R6::R6Class(
                                 prior.sim.index = prior.sim.index,
                                 keep.from.year = private$i.keep.from.year,
                                 keep.to.year = private$i.keep.to.year,
-                                atol = private$i.atol,
-                                rtol = private$i.rtol,
+                                solver.metadata = private$i.solver.metadata,
                                 finalize = private$i.finalize)
         },
         
@@ -960,6 +1183,14 @@ JHEEM.ENGINE = R6::R6Class(
                 private$i.calibration.code
             else
                 stop("Cannot modify a JHEEM engine's 'calibration.code' - it is read-only")
+        },
+        
+        solver.metadata = function(value)
+        {
+            if (missing(value))
+                private$i.solver.metadata
+            else
+                stop("Cannot modify a JHEEM engine's 'solver.metadata' - it is read-only")
         }
     ),
     
@@ -977,8 +1208,8 @@ JHEEM.ENGINE = R6::R6Class(
         i.max.run.time.seconds = NULL,
         i.keep.from.year = NULL,
         i.keep.to.year = NULL,
-        i.atol = NULL,
-        i.rtol = NULL,
+        
+        i.solver.metadata = NULL,
         
         i.finalize = NULL,
         i.check.consistency = NULL,
@@ -1241,8 +1472,7 @@ JHEEM = R6::R6Class(
                        prior.sim.index,
                        keep.from.year,
                        keep.to.year,
-                       atol,
-                       rtol,
+                       solver.metadata,
                        finalize)
         {
             run.start.time = as.numeric(Sys.time())
@@ -1267,69 +1497,15 @@ JHEEM = R6::R6Class(
                     stop(paste0("Cannot run simulation: 'prior.sim.index' must be a single, non-NA, integer value"))
             }
 
-            terminated.for.time = F
-            # Handoff to the Rcpp
-            compute.fn = function(x, t){
-                if (1==2)
-                {
-                    args = list(state = x,
-                                time = t,
-                                settings = private$i.diffeq.settings,
-                                quantities_info = private$i.diffeq.settings$quantities.info,
-                                quantity_scratch_vector = private$i.diffeq.settings$quantity_scratch_vector,
-                                scratch_vector = private$i.diffeq.settings$scratch.vector,
-                                natality_info = private$i.diffeq.settings$natality.info,
-                                mortality_info = private$i.diffeq.settings$mortality.info,
-                                transitions_info = private$i.diffeq.settings$transitions.info,
-                                infections_info = private$i.diffeq.settings$infections.info,
-                                remission_info = private$i.diffeq.settings$remission.info,
-                                fixed_strata_info = private$i.diffeq.settings$fixed.strata.info,
-                                population_trackers = private$i.diffeq.settings$population_trackers)
-                    
-                    save(args, file='../jheem2/R/local_testing/diffeq_test_args.Rdata')
-                    
-                    stop("saved - quitting for now")
-                }
-                
-                run.time = as.numeric(Sys.time()) - end.preprocessing.time
-                if (run.time > max.run.time.seconds)
-                    terminated.for.time <<- T
-                
-                if (terminated.for.time)
-                {
-                    rep(0, length(x))
-                }
-                else
-                {
-                    compute_dx(state = x,
-                               time = t,
-                               settings = private$i.diffeq.settings,
-                               quantities_info = private$i.diffeq.settings$quantities.info,
-                               quantity_scratch_vector = private$i.diffeq.settings$quantity_scratch_vector,
-                               scratch_vector = private$i.diffeq.settings$scratch.vector,
-                               natality_info = private$i.diffeq.settings$natality.info,
-                               mortality_info = private$i.diffeq.settings$mortality.info,
-                               transitions_info = private$i.diffeq.settings$transitions.info,
-                               infections_info = private$i.diffeq.settings$infections.info,
-                               remission_info = private$i.diffeq.settings$remission.info,
-                               fixed_strata_info = private$i.diffeq.settings$fixed.strata.info,
-                               population_trackers = private$i.diffeq.settings$population_trackers)
-                }
-            }
-            
             end.preprocessing.time = as.numeric(Sys.time())
             
-            ode.results = odeintr::integrate_sys(sys = compute.fn,
-                                                 init = private$i.diffeq.settings$initial_state,
-                                                 duration = private$i.run.to.time - private$i.run.from.time + 1, 
-                                                 start = private$i.run.from.time,
-                                                 atol = atol,
-                                                 rtol = rtol)
+            ode.results = solver.metadata$do.solve(diffeq.settings = private$i.diffeq.settings,
+                                                   max.run.time.seconds = max.run.time.seconds,
+                                                   run.from.time = private$i.run.from.time,
+                                                   run.to.time = private$i.run.to.time)
             
             end.diffeq.time = as.numeric(Sys.time())
             
-            ode.results = as.matrix(ode.results) # this cast to matrix is going to make pulling from the results MUCH faster
-           
             private$i.outcome.numerators = list()
             private$i.outcome.denominators = list()
             private$i.interpolated.outcome.numerators.when.values.dont.apply = list()
@@ -1339,7 +1515,7 @@ JHEEM = R6::R6Class(
             outcome.numerators.and.denominators = private$prepare.outcomes.for.sim(ode.results,
                                                                                    prior.simulation.set = prior.simulation.set,
                                                                                    prior.sim.index = prior.sim.index,
-                                                                                   is.degenerate = terminated.for.time)
+                                                                                   is.degenerate = ode.results$terminated.for.time)
 
             run.end.time = as.numeric(Sys.time())
             
@@ -1379,11 +1555,12 @@ JHEEM = R6::R6Class(
                                            outcome.numerators = outcome.numerators.and.denominators$numerators,
                                            outcome.denominators = outcome.numerators.and.denominators$denominators,
                                            parameters = private$i.parameters,
+                                           solver.metadata = solver.metadata,
                                            run.metadata = run.metadata,
                                            intervention.code = private$i.intervention.code,
                                            calibration.code = private$i.calibration.code,
                                            outcome.location.mapping = private$i.outcome.location.mapping,
-                                           is.degenerate = terminated.for.time,
+                                           is.degenerate = ode.results$terminated.for.time,
                                            finalize = finalize)
 
             
@@ -5769,9 +5946,33 @@ JHEEM = R6::R6Class(
             outcome = specification$get.outcome(outcome.name)
             if (!is.null(outcome$denominator.outcome))
             {
-                private$i.outcome.indices[[outcome.name]]$collapse.denominator =
-                    get.collapse.array.indices(small.arr.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]],
-                                            large.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]])
+                if (dim.names.are.subset(sub.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
+                                         super.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]]))
+                {
+                    private$i.outcome.indices[[outcome.name]]$collapse.denominator =
+                        get.collapse.array.indices(small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
+                                                   large.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]])
+                }
+                else if (dim.names.are.subset(sub.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]],
+                                              super.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]]))
+                {
+                    private$i.outcome.indices[[outcome.name]]$collapse.denominator =
+                        get.collapse.array.indices(small.arr.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]],
+                                                large.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]])
+                }
+                else
+                {
+                    stop("Error in dimnames for outcomes: the dimnames of outcome '",
+                         outcome.name, "' (with ",
+                         ifelse(length(numerator.dim.names)==1, "dimension ", "dimensions "),
+                         collapse.with.and("'", names(numerator.dim.names), "'"),
+                         ") are NOT a subset of the dimnames of the denominator outcome '",
+                         outcome$denominator.outcome, "' (with ",
+                         ifelse(length(denominator.dim.names)==1, "dimension ", "dimensions "),
+                         collapse.with.and("'", names(denominator.dim.names), "'"),
+                         ")",
+                         ifelse(is.null(outcome$rename.dimension.values), "", " - either before or after renaming the outcome's dim.names"))
+                }
                 
                 if (!outcome$value.is.numerator)
                 {

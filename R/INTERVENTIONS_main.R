@@ -456,8 +456,6 @@ JHEEM.INTERVENTION = R6::R6Class(
                        max.run.time.seconds = NULL,
                        keep.from.year = sim$from.year,
                        keep.to.year = end.year,
-                       atol = NULL,
-                       rtol = NULL,
                        seed = 12345,
                        verbose = F,
                        error.prefix='')
@@ -508,8 +506,6 @@ JHEEM.INTERVENTION = R6::R6Class(
                                     max.run.time.seconds = max.run.time.seconds,
                                     keep.from.year = keep.from.year,
                                     keep.to.year = keep.to.year,
-                                    atol = atol,
-                                    rtol = rtol,
                                     intervention.code = private$i.code,
                                     error.prefix = "Cannot get JHEEM Engine from simulation set")
             
