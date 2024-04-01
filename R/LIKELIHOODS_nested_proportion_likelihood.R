@@ -1465,7 +1465,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     model.arr.indices = aligning.mappings[[2]]$get.reverse.mapping.indices(model.arr.dimnames, dimnames(aligned.data))
                     model.arr = array(aligned.data[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
                 }
-                
+                if (any(is.na(arr))) stop("not enough data for n-multipliers in one or more locations")
+                arr
             })
             
             # Return a matrix [year, metalocation] for each model stratum
