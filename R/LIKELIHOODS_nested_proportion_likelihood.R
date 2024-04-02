@@ -1447,7 +1447,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             one.array.per.metalocation = lapply(1:n.metalocations, function(i) {
                 if (metalocation.type[[i]] == 'msa') {
-                    arr = array(1, dim=sapply(model.arr.dimnames, length), model.arr.dimnames)
+                    model.arr = array(1, dim=sapply(model.arr.dimnames, length), model.arr.dimnames)
                 }
                 else {
                     arr = get.outcome.ratios(location.1 = metalocation.to.minimal.component.map[[i]],
@@ -1465,8 +1465,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     model.arr.indices = aligning.mappings[[2]]$get.reverse.mapping.indices(model.arr.dimnames, dimnames(aligned.data))
                     model.arr = array(aligned.data[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
                 }
-                if (any(is.na(arr))) stop("not enough data for n-multipliers in one or more locations")
-                arr
+                if (any(is.na(model.arr))) stop("not enough data for n-multipliers in one or more locations")
+                model.arr
             })
             
             # Return a matrix [year, metalocation] for each model stratum
