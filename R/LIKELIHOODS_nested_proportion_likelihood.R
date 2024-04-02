@@ -1446,13 +1446,16 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             else stratification.for.n = stratification
             
             one.array.per.metalocation = lapply(1:n.metalocations, function(i) {
+                ### SET UP CACHE ###
+                n.mult.cache = new.env()
+                
                 if (metalocation.type[[i]] == 'msa') {
                     model.arr = array(1, dim=sapply(model.arr.dimnames, length), model.arr.dimnames)
                 }
                 else {
                     arr = get.outcome.ratios(location.1 = metalocation.to.minimal.component.map[[i]],
                                              location.2 = main.location,
-                                             stratification = stratification.for.n, data.manager = data.manager, outcome = outcome, years = years, universal.ontology = universal.ontology)
+                                             stratification = stratification.for.n, data.manager = data.manager, outcome = outcome, years = years, universal.ontology = universal.ontology, cache=n.mult.cache)
                     
                     if (is.null(arr)) stop("bug in get.outcome.ratios: returned NULL")
                     # Map this back to the model ontology
@@ -1482,9 +1485,14 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             }
         },
         
-        get.outcome.ratios = function(location.1, location.2, stratification, data.manager, outcome, years, universal.ontology)
+        get.outcome.ratios = function(location.1, location.2, stratification, data.manager, outcome, years, universal.ontology, cache)
         {
             # Pull data for each location. Later, we will map them to an aligning ontology.
+            
+            ### check if this is cached. If so, use it and return. If not, set it at the end.
+            this.step.hash = paste0(stratification, collapse = '__')
+            if (this.step.hash %in% names(cache)) return(cache[[this.step.hash]])
+            
             # browser()
             keep.dimensions = c('year', stratification)
             location.data = lapply(list(location.1, location.2), function(location) {
@@ -1533,7 +1541,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             # recurse
             stratification.ratios = lapply(recursive.stratifications.list, function(lower.stratification) {
-                lower.ratio.arr = get.outcome.ratios(location.1, location.2, lower.stratification, data.manager, outcome, years, universal.ontology)
+                lower.ratio.arr = get.outcome.ratios(location.1, location.2, lower.stratification, data.manager, outcome, years, universal.ontology, cache=cache)
                 # if (!is.null(lower.ratio.arr) && !is.null(ratio.arr)) lower.ratio.arr = expand.array(to.expand = lower.ratio.arr, target.dim.names = dimnames(ratio.arr))
                 # lower.ratio.arr
             })
@@ -1577,7 +1585,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 if (is.null(ratio.arr)) return(replacement.arr ^ (1 / count.not.na))
                 else ratio.arr[missing.data.mask] = replacement.arr[missing.data.mask] ^ (1 / count.not.na[missing.data.mask])
             }
-            ratio.arr # may be NULL
+            cache[[this.step.hash]] = ratio.arr
+            return(ratio.arr) # may be NULL
         },
         
         get.p.bias.matrices = function(n.strata, metalocation.type, n.years, p.bias.in, p.bias.out)
