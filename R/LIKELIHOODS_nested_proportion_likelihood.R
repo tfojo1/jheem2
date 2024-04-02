@@ -1615,8 +1615,11 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             else
                 stratification.for.n = stratification # NULL
             
+            ### SET UP CACHE ###
+            obs.n.cache = new.env()
+            
             # Get obs.n.array with its missing data mask attached an attribute. Convert the mask to numeric so that at the end of partitioning, anything > 0 has a ancestral value that was missing
-            obs.n.array = get.average(data.manager, stratification.for.n, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = T) # Note: "stratification" may be character(0) if we only have totals
+            obs.n.array = get.average(data.manager, stratification.for.n, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = T, cache=obs.n.cache) # Note: "stratification" may be character(0) if we only have totals
             data.ontology = as.ontology(dimnames(obs.n.array)[names(dim(obs.n.array))!='location'], incomplete.dimensions = c('year'))
             obs.n.mask.array = array(as.numeric(attr(obs.n.array, 'missing.data.mask')), dim(obs.n.array), dimnames(obs.n.array))
             
@@ -1681,8 +1684,14 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         },
         
         # hard code female msm as not needed so we can stop if it is NA?
-        get.average = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames = NULL)
+        get.average = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames = NULL, cache)
         {
+            
+            ### check if this is cached. If so, use it and return. If not, set it at the end.
+            if (length(stratification)==0) this.step.hash = 'NULL'
+            else this.step.hash = paste0(stratification, collapse = '__')
+            if (this.step.hash %in% names(cache)) return(cache[[this.step.hash]])
+            
             # if (is.top.level) browser()
             # print(paste0(stratification, collapse="__"))
             data = data.manager$pull(outcome = outcome.for.n,
@@ -1731,12 +1740,18 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             if (!is.null(data)) {
                 missing.data.mask = is.na(data)
                 attr(data, 'missing.data.mask') = missing.data.mask
-                if (!any(missing.data.mask)) return(data)
+                if (!any(missing.data.mask)) {
+                    cache[[this.step.hash]] = data
+                    return(data)
+                }
             }
             
             # If we're at a 0- or 1-way stratification, just return what we got (which may be NULL)
             k = length(stratification)
-            if (k < 2) return(data)
+            if (k < 2) {
+                cache[[this.step.hash]] = data
+                return(data)   
+            }
             
             # Otherwise, we're either missing something or have nothing, so we will take an average built out of k-2- and k-1-way stratifications
             # there will be k choose k-2 of the k-2-way stratifications and k choose k-1 of the k-1-way stratifications.
@@ -1747,13 +1762,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             # if we lack data for certain years... could be an issue... should add years in I think
             
             k.minus.2.way.data = lapply(k.minus.2.way.stratifications, function(k.minus.2.way.stratification) {
-                lower.data = get.average(data.manager, k.minus.2.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames)
+                lower.data = get.average(data.manager, k.minus.2.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames, cache=cache)
                 if (is.null(lower.data)) return (NULL)
                 expand.array(lower.data, top.level.dimnames[names(top.level.dimnames) %in% c('year', 'location', stratification)])
             })
             
             k.minus.1.way.data = lapply(k.minus.1.way.stratifications, function(k.minus.1.way.stratification) {
-                lower.data = get.average(data.manager, k.minus.1.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames)
+                lower.data = get.average(data.manager, k.minus.1.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames, cache=cache)
                 if (is.null(lower.data)) return (NULL)
                 expand.array(lower.data, top.level.dimnames[names(top.level.dimnames) %in% c('year', 'location', stratification)])
             })
@@ -1776,8 +1791,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             replacement.array = Reduce('+', arrays.to.be.averaged.replaced.with.zeroes) / count.not.na
             
             # either replace the missing positions with those from the replacement array, or return the whole replacement array
-            if (is.null(data)) return(replacement.array)
+            if (is.null(data)) {
+                cache[[this.step.hash]] = replacement.array
+                return(replacement.array)
+            }
             data[missing.data.mask] = replacement.array[missing.data.mask]
+            cache[[this.step.hash]] = data
+            
             data
         },
         
