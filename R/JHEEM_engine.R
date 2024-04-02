@@ -740,7 +740,7 @@ SOLVER.METADATA = R6::R6Class(
                     
                     if (terminated.for.time)
                     {
-                        rep(0, length(x))
+                        rep(0, length(u))
                     }
                     else
                     {
