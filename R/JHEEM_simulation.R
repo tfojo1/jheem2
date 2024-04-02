@@ -214,7 +214,7 @@ join.simulation.sets <- function(..., finalize=T, run.metadata=NULL)
                              intervention.code = intervention.code,
                              calibration.code = sample.simset$calibration.code,
                              outcome.location.mapping = sample.simset$outcome.location.mapping,
-                             solver.metadata = solver.metadata,
+                             solver.metadata = sample.simset$solver.metadata,
                              run.metadata = run.metadata,
                              finalize = finalize,
                              is.degenerate = combined.is.degenerate)
