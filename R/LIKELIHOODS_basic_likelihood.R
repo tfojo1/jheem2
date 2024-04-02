@@ -127,7 +127,7 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
 
 create.time.lagged.comparsion.likelihood.instructions <- function(outcome.for.data,
                                                  outcome.for.sim,
-                                                 use.lognormal = T,
+                                                 use.lognormal.approximation = T,
                                                  denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute. OR, if outcome is proportion, rate, or time, use denominator within sim data
                                                  dimensions = character(0),
                                                  denominator.dimensions = dimensions,
