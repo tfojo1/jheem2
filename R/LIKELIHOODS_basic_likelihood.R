@@ -836,13 +836,15 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 {
                     sigma = log(1/mean %*% sigma %*% t(1/mean) + 1)
                     mean = log(mean) - diag(sigma)/2
+                    # obs should have been put on the log scale before this
                 }
                 
                 if (!is.null(private$i.lag.matrix))
                 {
                     mean = private$i.lag.matrix %*% mean
                     sigma = private$i.lag.matrix %*% sigma %*% private$i.transposed.lag.matrix # there is a more efficient way to do this if we know there are only two non-zero elements per row in lag matrix
-                    obs = private$i.lag.matrix %*% obs
+                    
+                    #to do at instantiate time: obs = private$i.lag.matrix %*% obs
                 }
             }
             
