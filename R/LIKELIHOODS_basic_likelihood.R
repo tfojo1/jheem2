@@ -125,6 +125,32 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
                                             equalize.weight.by.year = equalize.weight.by.year)
 }
 
+create.time.lagged.comparsion.likelihood.instructions <- function(outcome.for.data,
+                                                 outcome.for.sim,
+                                                 use.lognormal = T,
+                                                 denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute. OR, if outcome is proportion, rate, or time, use denominator within sim data
+                                                 dimensions = character(0),
+                                                 denominator.dimensions = dimensions,
+                                                 dimension.values = NULL, # EXPERIMENTAL
+                                                 levels.of.stratification = NULL,
+                                                 from.year = -Inf,
+                                                 to.year = Inf,
+                                                 omit.years = NULL,
+                                                 sources.to.use = NULL,
+                                                 correlation.different.years = 0.5,
+                                                 correlation.different.strata = 0.1,
+                                                 correlation.different.sources = 0.3, 
+                                                 correlation.same.source.different.details = 0.3,
+                                                 observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
+                                                 measurement.error.coefficient.of.variance,
+                                                 error.variance.term=NULL,
+                                                 error.variance.type=NULL,
+                                                 weights = list(),
+                                                 equalize.weight.by.year = T)
+{
+    
+}
+
 JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
     'jheem.basic.likelihood.instructions',
     inherit = JHEEM.LIKELIHOOD.INSTRUCTIONS,
