@@ -1396,7 +1396,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
             target.from.arguments = target.ontology
-            if (debug) browser()
+            # if (debug) browser()
             if (is.null(target.ontology) || allow.mapping.from.target.ontology) {
                 target.ontology = private$get.universal.ontology(outcome = outcome,
                                                                  sources = sources,
@@ -1440,9 +1440,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             sources.successful.names = c()
             
             ## FOR THE FUTURE: DO A PRETEND PULL TO SEE WHAT ONTOLOGIES WE NEED, THEN POTENTIALLY REMAKE THE UNIVERSAL WITH ONLY THOSE
-            # if (debug) browser()
+            if (debug) browser()
             pre.processed.data = lapply(sources.used.names, function(source.name) {
-                
                 source.ontology.names = names(private$i.data[[outcome]][[metric]][[source.name]])
                 if (is.null(from.ontology.names))
                     ontologies.used.names = source.ontology.names
@@ -1512,7 +1511,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             if (data.type == 'data') {
                                 data.to.process = strat.data
-                                function.to.apply = 'sum'
+                                function.to.apply = function(x) {sum(x, na.rm=T)}
                             }
                             else {
                                 data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
@@ -1740,8 +1739,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     pulled.source.data = lapply(data.types, function(data.type) {
                         
                         if (!is.null(pulled.source.data)) {
-                            # if (data.type == 'details') browser()
-                            if (debug) browser()
                             new.pulled.source.data.this.type = array(NA, sapply(new.source.data.dimnames, length), new.source.data.dimnames)
                             new.pulled.source.data.this.type[get.array.access.indices(new.source.data.dimnames, dimnames(pulled.source.data[[data.type]]))] = pulled.source.data[[data.type]]
                             pulled.data.na.mask = !is.na(pulled.ont.data[[data.type]])
