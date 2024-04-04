@@ -1019,7 +1019,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                                                         keep.dimensions = c('year', 'location'), # used to also include the model.stratification in keep.dimensions, a sometimes impossible ask!
                                                                         dimension.values = list(location = setdiff(observation.locations, location), year = years.with.data)))$location
             if (post.time.checkpoint.flag) print(paste0("Calculate obs.n: ", Sys.time()))
-
+            
             obs.n.info = private$get.obs.n(data.manager = data.manager,
                                            stratification = model.stratification, # may be character(0)
                                            locations.with.n.data = locations.possibly.with.n.data,
@@ -1468,7 +1468,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     model.arr.indices = aligning.mappings[[2]]$get.reverse.mapping.indices(model.arr.dimnames, dimnames(aligned.data))
                     model.arr = array(aligned.data[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
                 }
-                if (any(is.na(model.arr))) stop("not enough data for n-multipliers in one or more locations")
+                # if (any(is.na(model.arr))) browser()# stop("not enough data for n-multipliers in one or more locations")
                 model.arr
             })
             
@@ -1504,7 +1504,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 output.before.replacement = data
                 
                 # if there is data for multiple sources, take the geometric mean of the values for each source, then remove source as a dimension.
+                # Because the pull now can return imaginary zeroes that should be NA, convert all zeroes to NA before the mean
                 if (!is.null(data)) {
+                    data[data==0] = NA
                     if (dim(data)[['source']] > 1) {
                         data.dimnames.without.source=dimnames(data)[names(dimnames(data))!= 'source']
                         count.not.na = apply.robust(data, MARGIN=names(data.dimnames.without.source), FUN=function(x) {sum(!is.na(x))})
@@ -1526,6 +1528,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             {
                 # take ratio and find missing value positions
                 ratio.arr = location.data[[1]] / location.data[[2]]
+                # if (any(is.infinite(ratio.arr))) browser()
                 missing.data.mask = is.na(ratio.arr)
                 if (!any(missing.data.mask) || is.null(stratification)) return (ratio.arr)
             }
@@ -1760,7 +1763,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             # get each k-2-way and expand it to fit the data dimnames
             # if we lack data for certain years... could be an issue... should add years in I think
-            
+            # if (identical(stratification, c('risk', 'race'))) browser()
             k.minus.2.way.data = lapply(k.minus.2.way.stratifications, function(k.minus.2.way.stratification) {
                 lower.data = get.average(data.manager, k.minus.2.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames, cache=cache)
                 if (is.null(lower.data)) return (NULL)
@@ -1797,7 +1800,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             }
             data[missing.data.mask] = replacement.array[missing.data.mask]
             cache[[this.step.hash]] = data
-            
+            # if (any(is.na(data))) browser()
             data
         },
         
