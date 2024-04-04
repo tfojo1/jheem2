@@ -117,9 +117,10 @@ set.up.calibration <- function(version,
     parameters.already.pulled.from.preceding = character()
     dynamic.preceding.codes = calibration.info$preceding.calibration.codes #we'll potentially add to this list in the while block below
     preceding.index = 1
+    
     while (preceding.index <= length(dynamic.preceding.codes))
     {
-        preceding.code = dynamic.preceding.codes[preceding.index]
+      preceding.code = dynamic.preceding.codes[preceding.index]
         preceding.index = preceding.index + 1
         
         preceding.info = get.calibration.info(code = preceding.code, throw.error.if.missing = F)
@@ -168,7 +169,10 @@ set.up.calibration <- function(version,
             initial.cov.mat[parameters.to.pull.cov.from.preceding,other.parameters.for.cov] = initial.cov.mat[parameters.to.pull.cov.from.preceding,other.parameters.for.cov] = 0
             initial.cov.mat[other.parameters.for.cov, parameters.to.pull.cov.from.preceding] = initial.cov.mat[other.parameters.for.cov, parameters.to.pull.cov.from.preceding] = 0
             
+            initial.scaling.parameters.original=initial.scaling.parameters
+          
             # scaling parameters
+            initial.scaling.parameters.names = names(initial.scaling.parameters)
             initial.scaling.parameters = lapply(names(initial.scaling.parameters), function(scaling.name){
                 scaling = initial.scaling.parameters[[scaling.name]]
                 to.pull.scaling = mcmc.summary$initial.scaling.parameters[[scaling.name]]
@@ -180,9 +184,10 @@ set.up.calibration <- function(version,
                 
                 scaling
             })
-        }
+            names(initial.scaling.parameters) = initial.scaling.parameters.names
+           }
     }
-    
+
     # For starting values, we need one row for each chain
     relevant.default.values = default.parameter.values[calibration.info$parameter.names]
     starting.parameter.values = t(sapply(1:calibration.info$n.chains, function(chain){
@@ -191,7 +196,6 @@ set.up.calibration <- function(version,
     dim(starting.parameter.values) = c(calibration.info$n.chains, length(relevant.default.values))
     dimnames(starting.parameter.values) = list(NULL, parameter=calibration.info$parameter.names)
      
-    
     #-----------------#
     #-- Some Checks --#
     #-----------------#
@@ -204,26 +208,26 @@ set.up.calibration <- function(version,
                     ifelse(length(na.parameters)==1, "parameter ", "parameters "),
                     collapse.with.and("'", na.parameters, "'")))
     }
-    
+
     #-----------------------------#
     #-- Set up the MCMC Control --#
     #-----------------------------#
-    
-    
+
     
     #-- Set up the compute likelihood function --#
     if (verbose)
         print(paste0(verbose.prefix, "Instantiate the likelihood..."))
-    
+
     likelihood = calibration.info$likelihood.instructions$instantiate.likelihood(version=version,
                                                                                  location=location, 
                                                                                  sub.version=sub.version,
                                                                                  data.manager=calibration.info$data.manager)
+
     compute.likelihood <- function(sim) {
         likelihood$compute(sim=sim, log=T, check.consistency=F)
     }
     
-    
+
     #-- Set up the Run Simulation function --#
     if (verbose)
         print(paste0(verbose.prefix, "Setting up the engine..."))
@@ -245,7 +249,7 @@ set.up.calibration <- function(version,
         all.parameters[names(params)] = params
         engine$run(all.parameters)
     }
-    
+
     #-- Set MCMC parameters depending on whether this is prelim or not --#
     if (calibration.info$is.preliminary) # get is.preliminary of calibration info object
     {
@@ -273,12 +277,12 @@ set.up.calibration <- function(version,
         cov.update.prior=500
         cov.update.decay=1
     }
-    
+
     #-- Make the call to create the control --#
     
     if (verbose)
         print(paste0(verbose.prefix, "Set up the MCMC control..."))
-    
+
     ctrl = bayesian.simulations::create.adaptive.blockwise.metropolis.control(
         var.names = calibration.info$parameter.names,
         simulation.function = run.simulation,
@@ -585,7 +589,7 @@ prepare.mcmc.summary <- function(version,
     transformed.parameter.values = rowMeans(all.transformed.parameter.values)
     
     #-- Initial Scaling Steps --#
-    
+    # Andrew says lapply would be safer here since we're expecting a list anyway
     initial.scaling.parameters = sapply(1:length(state1@log.scaling.parameters), function(i){
         all.chain.log.values = sapply(chain.controls, function(ctrl){
             ctrl@chain.state@log.scaling.parameters[[i]]
