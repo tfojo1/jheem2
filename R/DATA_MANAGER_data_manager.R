@@ -1511,7 +1511,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             if (data.type == 'data') {
                                 data.to.process = strat.data
-                                function.to.apply = function(x) {sum(x, na.rm=na.rm)}
+                                function.to.apply = function(x) {sum(x)}
                             }
                             else {
                                 data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
