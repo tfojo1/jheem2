@@ -31,4 +31,4 @@ arr2 = arr1
 arr2['2011', 'there', 'American Indian/Alaska Native'] = NA
 
 # If we don't, the NA is propagated and we'll be stuck with no estimate of the 'other' race count in the output. This is the case we saw in suppression's "obs-n" recently.
-mp$apply(arr1, list(year=ont2$year, location='there', race=ont2$race), fun = function(x){sum(x, na.rm=F)})
+mp$apply(arr2, list(year=ont2$year, location='there', race=ont2$race), fun = function(x){sum(x, na.rm=F)})
