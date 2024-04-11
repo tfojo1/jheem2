@@ -1493,7 +1493,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         {
             if (missing(value))
             {
-                if (private$i.nsim==1)
+                if (private$i.n.sim==1)
                     private$i.data$parameters[,1]
                 else
                     stop("The 'params' field is only available for single-simulation sets (ie, when nsim==1)")

@@ -1435,12 +1435,21 @@ JHEEM = R6::R6Class(
             # Calculate all required quantity values
             specification = private$get.specification()
             
-            if (is.null(prior.simulation.set))
-                top.level.quantity.names = specification$top.level.quantity.names
-            else
-                top.level.quantity.names = specification$top.level.quantity.names.except.initial.population
+            # # Old way of doing this - now we're going to call each quantity
+            # if (is.null(prior.simulation.set))
+            #     top.level.quantity.names = specification$top.level.quantity.names
+            # else
+            #     top.level.quantity.names = specification$top.level.quantity.names.except.initial.population
+            # 
+            # sapply(top.level.quantity.names, calculate.quantity.value,
+            #        check.consistency = check.consistency)
             
-            sapply(top.level.quantity.names, calculate.quantity.value,
+            if (is.null(prior.simulation.set))
+                ordered.quantity.names = specification$ordered.quantity.names
+            else
+                ordered.quantity.names = specification$ordered.quantity.names.except.initial.population
+
+            sapply(ordered.quantity.names, calculate.quantity.value,
                    check.consistency = check.consistency)
             
             # Use the quantity values to set up for diffeqs
@@ -4124,29 +4133,38 @@ JHEEM = R6::R6Class(
         calculate.quantity.background.value = function(quantity.name, missing.times,
                                                        depth, check.consistency)
         {
+# all.start = Sys.time()
             missing.times = as.character(missing.times)
+            specification.metadata = self$specification.metadata
+            error.prefix = "Error calculating background value for quantity: "
             
             #-- Fill in missing values --#
             quantity = private$get.specification()$get.quantity(quantity.name)
             
             #-- Make sure the dependee quantities are all calculated --#
-            sapply(quantity$depends.on, private$calculate.quantity.value, check.consistency=check.consistency, depth=depth+1)
+            # Not doing this anymore to avoid redundant calls
+            #sapply(quantity$depends.on, private$calculate.quantity.value, check.consistency=check.consistency, depth=depth+1)
 
+# outside.loop.start = Sys.time()
             #-- Loop through missing times --#
             for (time in missing.times)
             {
-                char.time = as.character(time)
-                depends.on.has.after = sapply(private$i.quantity.after.values[quantity$depends.on], function(values){
+# outer.loop.start = Sys.time()
+                #char.time = as.character(time)
+                char.time = time
+                depends.on.has.after = vapply(private$i.quantity.after.values[quantity$depends.on], function(values){
                     !is.null(values[[char.time]])
-                })
+                }, FUN.VALUE = logical(1))
                 names(depends.on.has.after) = quantity$depends.on
+                any.depends.on.has.after = any(depends.on.has.after)
                 
-                bindings = list(specification.metadata = self$specification.metadata,
+                bindings = list(specification.metadata = specification.metadata,
                                 location = private$i.location)
                 
                 for (is.after.time in c(F,T))
                 {
-                    if (is.after.time && !any(depends.on.has.after))
+# loop.start = Sys.time()
+                    if (is.after.time && !any.depends.on.has.after)
                         quant.value = NULL
                     else
                     {
@@ -4154,18 +4172,20 @@ JHEEM = R6::R6Class(
                         component.values = list()
                         for (i in 1:quantity$n.components) # From Todd in Nov 2023: I truly have no idea why, but doing this as a for loop was 30x faster than doing it as an sapply
                         {
+# pre.bindings.start = Sys.time()
                             #-- Pull the component and set up the error prefix --#
                             comp = quantity$components[[i]]
                             
-                            if (i==1)
-                                error.prefix = paste0("Error evaluating value for quantity '", quantity.name, " at time ", time, ": ")
-                            else
-                                error.prefix = paste0("Error evaluating value for the ", get.ordinal(i-1), " subset of quantity '", quantity.name, " at time ", time, ": ")
+                            # we're going to save time by not always building an informative error prefix
+                            # if (i==1)
+                            #     error.prefix = paste0("Error evaluating value for quantity '", quantity.name, " at time ", time, ": ")
+                            # else
+                            #     error.prefix = paste0("Error evaluating value for the ", get.ordinal(i-1), " subset of quantity '", quantity.name, " at time ", time, ": ")
                             
                             #-- Calculate dim.names (if we need to and we can) --#
-                            if ((length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
-                                 is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) &&
-                                comp$value.type!='function')
+                            if (comp$value.type!='function' &&
+                                (length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
+                                 is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) )
                                 calculate.quantity.component.dim.names(quantity, component.index=i)
                             
                             #-- Bind the depends-on quantities --#
@@ -4173,11 +4193,13 @@ JHEEM = R6::R6Class(
                                 update.bindings.for = comp$depends.on[ depends.on.has.after[comp$depends.on] ]
                             else
                                 update.bindings.for = comp$depends.on
-                            
+# pre.bindings.end = Sys.time()
+# pre.bindings.time <<- pre.bindings.time + as.numeric(pre.bindings.end) - as.numeric(pre.bindings.start)
+
+
+# bindings.start = Sys.time()
                             for (dep.on in update.bindings.for)
                             {
-#                            bindings[update.bindings.for] = lapply(update.bindings.for, function(dep.on){
-                                
                                 if (private$i.quantity.is.static[dep.on])
                                     values = private$i.quantity.values[[dep.on]][['all']]
                                 else if (is.after.time)
@@ -4198,17 +4220,20 @@ JHEEM = R6::R6Class(
                                     
                                     values = values[dep.on.indices]
                                 }
-#                                else
- #                                   values
-                                
+
                                 bindings[[dep.on]] = values
                             }
-                           # })
+# bindings.end = Sys.time()
+# bindings.time <<- bindings.time + as.numeric(bindings.end) - as.numeric(bindings.start)
 
+# eval.start = Sys.time()
                             #-- Calculate the value --#
                             value = comp$evaluate(bindings = bindings,
                                                   error.prefix = error.prefix)
-                            
+# eval.end = Sys.time()
+# eval.time <<- eval.time + as.numeric(eval.end) - as.numeric(eval.start)
+ 
+# fn.comp.start = Sys.time()
                             #-- If a function value.type, check the returned value and set its dim.names if needed --#
                             if (comp$value.type=='function')
                             {
@@ -4235,7 +4260,8 @@ JHEEM = R6::R6Class(
                                                 " do not match the dimnames of values for previous times"))
                                 }
                             }
-                            
+# fn.comp.end = Sys.time()
+# fn.comp.time <<- fn.comp.time + as.numeric(fn.comp.end) - as.numeric(fn.comp.start)
                             #-- A check --#
                             if (length(value)==0)
                                 browser()
@@ -4245,13 +4271,14 @@ JHEEM = R6::R6Class(
                         }
 
                         #-- Recalculate the dim.names if needed --#
-                        if (is.null(i.quantity.dim.names[[quantity.name]]))
+                        if (is.null(private$i.quantity.dim.names[[quantity.name]]))
                             calculate.quantity.dim.names(quantity)
                         
                         
                         #-- Incorporate each component into the quantity value --#
                         quant.value = NULL
                         
+# incorporate.start = Sys.time()
                         for (i in 1:quantity$n.components)
                         {
                             comp = quantity$components[[i]]
@@ -4270,20 +4297,20 @@ JHEEM = R6::R6Class(
                             if (is.null(access.indices))
                                 quant.value = comp.value[expand.indices]
                             else if (comp$apply.function=='overwrite')
-                                #quant.value = do_access_overwrite(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
-                                quant.value[access.indices] = comp.value[expand.indices]
+                                quant.value = do_access_overwrite(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
+                                #quant.value[access.indices] = comp.value[expand.indices]
                             else if (comp$apply.function=='add')
-                                #quant.value = do_access_add(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
-                                quant.value[access.indices] = quant.value[access.indices] + comp.value[expand.indices]
+                                quant.value = do_access_add(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
+                                #quant.value[access.indices] = quant.value[access.indices] + comp.value[expand.indices]
                             else if (comp$apply.function=='subtract')
-                                #quant.value = do_access_subtract(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
-                                quant.value[access.indices] = quant.value[access.indices] - comp.value[expand.indices]
+                                quant.value = do_access_subtract(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
+                                #quant.value[access.indices] = quant.value[access.indices] - comp.value[expand.indices]
                             else if (comp$apply.function=='multiply')
-                                #quant.value = do_access_multiply(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
-                                quant.value[access.indices] = quant.value[access.indices] * comp.value[expand.indices]
+                                quant.value = do_access_multiply(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
+                                #quant.value[access.indices] = quant.value[access.indices] * comp.value[expand.indices]
                             else if (comp$apply.function=='divide')
-                                #quant.value = do_access_divide(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
-                                quant.value[access.indices] = quant.value[access.indices] / comp.value[expand.indices]
+                                quant.value = do_access_divide(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
+                                #quant.value[access.indices] = quant.value[access.indices] / comp.value[expand.indices]
                             else
                                 stop(paste0("Invalid apply.function '", comp$apply.function, "' for model quantity '", quantity.name,
                                             "'. Must be one of 'overwrite', 'add', 'subtract', 'multiply', or 'divide'"))
@@ -4292,13 +4319,14 @@ JHEEM = R6::R6Class(
                             if (any(is.na(quant.value)))
                                 browser()
                         }
-                        
+# incorporate.end = Sys.time()
+# incorporate.time <<- incorporate.time + as.numeric(incorporate.end) - as.numeric(incorporate.start)
                         
     
                         
                         #-- Check for NA --#
-                        if (any(is.na(quant.value)))
-                            browser()
+                        #if (any(is.na(quant.value)))
+                        #    browser()
                         #                            stop(paste0(paste0("Error calculating values for model quantity '", quantity.name, "': NA values were generated")))
                         
                         if (length(quant.value)==0)
@@ -4307,8 +4335,8 @@ JHEEM = R6::R6Class(
                         #-- Set the dimnames --#
                         if (length(private$i.quantity.dim.names[[quantity.name]]) > 0)
                         {
-                            dim(quant.value) = sapply(private$i.quantity.dim.names[[quantity.name]], length)
-                            dimnames(quant.value) = private$i.quantity.dim.names[[quantity.name]]
+                           dim(quant.value) = vapply(private$i.quantity.dim.names[[quantity.name]], length, FUN.VALUE = integer(1))
+                           dimnames(quant.value) = private$i.quantity.dim.names[[quantity.name]]
                         }
                         
                     }
@@ -4318,9 +4346,17 @@ JHEEM = R6::R6Class(
                         private$i.quantity.after.values[[quantity.name]][char.time] = list(quant.value) #wrapping in a list here lets us enter in NULL values
                     else
                         private$i.quantity.values[[quantity.name]][[char.time]] = quant.value
+# loop.end = Sys.time()
+# loop.time <<- loop.time + as.numeric(loop.end) - as.numeric(loop.start)
                 }
+# outer.loop.end = Sys.time()
+# outer.loop.time <<- outer.loop.time + as.numeric(outer.loop.end) - as.numeric(outer.loop.start)
             }
+# outside.loop.end = Sys.time()
+# outside.loop.time <<- outside.loop.time + as.numeric(outside.loop.end) - as.numeric(outside.loop.start)
             
+# all.end = Sys.time()
+# all.time <<- all.time + as.numeric(all.end) - as.numeric(all.start)
             # Done
             invisible(self)
         },
@@ -4462,8 +4498,8 @@ JHEEM = R6::R6Class(
             private$i.quantity.after.values[[element.name]][char.times] = lapply(missing.times, function(time){NULL})
             
             # A debug check
-            if (any(sapply(private$i.quantity.values[[element.name]], length)==0))
-                browser()
+            #if (any(sapply(private$i.quantity.values[[element.name]], length)==0))
+            #    browser()
             
             # Done
             invisible(self)
@@ -5540,10 +5576,17 @@ JHEEM = R6::R6Class(
                     
                     #-- Calculate the values for all dependent outcomes --#
                     depends.on.outcomes = specification$get.outcome.direct.dependee.outcome.names(outcome.name)
-                    sapply(depends.on.outcomes, 
-                           private$calculate.outcome.numerator.and.denominator,
-                           ode.results = ode.results,
-                           specification = specification)
+                    for (dep.on.outcome in depends.on.outcomes)
+                    {
+                        if (is.null(private$i.outcome.numerators[[dep.on.outcome]]))
+                            private$calculate.outcome.numerator.and.denominator(outcome.name = dep.on.outcome,
+                                                                                ode.results = ode.results,
+                                                                                specification = specification)
+                    }
+                    # sapply(depends.on.outcomes, 
+                    #        private$calculate.outcome.numerator.and.denominator,
+                    #        ode.results = ode.results,
+                    #        specification = specification)
                     
                     #-- Calculate the dim.names --#
                     if (is.null(private$i.outcome.numerator.dim.names.sans.time[[outcome.name]]))
@@ -5566,9 +5609,9 @@ JHEEM = R6::R6Class(
                         if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
                             private$calculate.outcome.non.cumulative.value.times(outcome.name)
                         
-                        all.dependee.outcomes.are.cumulative = all(as.logical(sapply(specification$get.outcome.numerator.direct.dependee.outcome.names(outcome.name), function(dep.on.outcome.name){
+                        all.dependee.outcomes.are.cumulative = all(as.logical(vapply(specification$get.outcome.numerator.direct.dependee.outcome.names(outcome.name), function(dep.on.outcome.name){
                             specification$get.outcome(dep.on.outcome.name)$is.cumulative
-                        })))
+                        }, FUN.VALUE = logical(1))))
                         all.dependee.quantities.are.static = all(private$i.quantity.is.static[specification$get.outcome.direct.dependee.quantity.names(outcome.name)])
                         
                         if (all.dependee.outcomes.are.cumulative && all.dependee.quantities.are.static)
@@ -5693,7 +5736,7 @@ JHEEM = R6::R6Class(
                                 quantity.values[!is.after.time] = private$i.quantity.values[[dep.on.quantity.name]][ char.times.to.pull[!is.after.time] ]
                                 quantity.value.applies[!is.after.time] = private$i.quantity.value.applies.mask[[dep.on.quantity.name]][ char.times.to.pull[!is.after.time] ]
                                 
-                                no.after.value = sapply(quantity.values, is.null) #might be NULL if there was no after value
+                                no.after.value = vapply(quantity.values, is.null, FUN.VALUE = logical(1)) #might be NULL if there was no after value
                                 quantity.values[no.after.value] = private$i.quantity.values[[dep.on.quantity.name]][ char.times.to.pull[no.after.value] ]
                                 quantity.value.applies[no.after.value] = private$i.quantity.value.applies.mask[[dep.on.quantity.name]][ char.times.to.pull[no.after.value] ]
                                 
