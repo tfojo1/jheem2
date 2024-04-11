@@ -1511,7 +1511,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             if (data.type == 'data') {
                                 data.to.process = strat.data
-                                function.to.apply = function(x) {sum(x)}
+                                function.to.apply = function(x) {sum(x, na.rm=na.rm)}
                             }
                             else {
                                 data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
@@ -1589,7 +1589,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             else {
                                 mapped.data.by.type = mapping.to.apply$apply(data.to.process,
-                                                                             na.rm = na.rm,
+                                                                             na.rm = na.rm, # DOESN'T DO ANYTHING????
                                                                              to.dim.names = dimnames.for.apply,
                                                                              fun = function.to.apply)
                             }

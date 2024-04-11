@@ -1699,7 +1699,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             # print(paste0(stratification, collapse="__"))
             data = data.manager$pull(outcome = outcome.for.n,
                                      keep.dimensions = c('year', 'location', stratification),
-                                     dimension.values = list(location = locations.with.n.data, year = years.with.data))
+                                     dimension.values = list(location = locations.with.n.data, year = years.with.data),
+                                     na.rm=T)
             
             # # if we are at the top level but got nothing, throw an error because these are supposed to be locations with data
             # if (is.null(data) && is.top.level)
@@ -1713,7 +1714,11 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 data = array(NA, sapply(universal, length), universal)
             }
             else if (!is.null(data)) {
+                # set zeroes to NA to compensate for the pull turning some NAs into imaginary zeroes
+                data[data==0]=NA
+                
                 # If data from multiple sources, take geometric mean. Then get rid of source dimension
+                if (!('source' %in% names(dim(data)))) browser()
                 if (dim(data)[['source']] > 1) {
                     count.not.na = apply.robust(data, MARGIN=names(dim(data))[names(dim(data)) != 'source'], FUN=function(x) {sum(!is.na(x))})
                     expanded.count.not.na = expand.array(count.not.na, dimnames(data))
@@ -1800,7 +1805,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             }
             data[missing.data.mask] = replacement.array[missing.data.mask]
             cache[[this.step.hash]] = data
-            # if (any(is.na(data))) browser()
+            # if (any(is.nan(data))) browser()
             data
         },
         
