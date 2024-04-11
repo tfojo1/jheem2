@@ -424,6 +424,22 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 stop("Cannot modify a specification's 'top.level.quantity.names.except.initial.population' - they are read-only")
         },
         
+        ordered.quantity.names = function(value)
+        {
+            if (missing(value))
+                private$i.ordered.quantity.names
+            else
+                stop("Cannot modify a specification's 'ordered.quantity.names' - they are read-only")
+        },
+        
+        ordered.quantity.names.except.initial.population = function(value)
+        {
+            if (missing(value))
+                private$i.ordered.quantity.names.except.initial.population
+            else
+                stop("Cannot modify a specification's 'ordered.quantity.names.except.initial.population' - they are read-only")
+        },
+        
         dynamic.top.level.quantity.names = function(value)
         {
             if (missing(value))
@@ -530,6 +546,8 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         i.top.level.references = NULL,
         i.top.level.quantity.names = NULL,
         i.top.level.quantity.names.except.initial.population = NULL,
+        i.ordered.quantity.names = NULL,
+        i.ordered.quantity.names.except.initial.population = NULL,
         i.dynamic.top.level.quantity.names = NULL,
         i.element.names = NULL,
         
@@ -824,6 +842,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             #-- Finalize Dependencies --#
             do.cat("Finalizing dependencies...")
             private$calculate.dependencies()
+            private$calculate.ordered.quantity.names()
             do.cat("done\n")
             
             #-- Print a 'done' message --#
@@ -2057,6 +2076,43 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 rv[dependee.name] = T #define things to depend on themselves
             
             rv
+        },
+
+        calculate.ordered.quantity.names = function()
+        {
+            all.quantity.depths = integer()
+            for (quantity.name in private$i.top.level.quantity.names)
+                all.quantity.depths = private$calculate.quantity.dependency.depth(quantity.name = quantity.name, 
+                                                                                  quantity.depths = all.quantity.depths)
+            private$i.ordered.quantity.names = names(all.quantity.depths)[order(all.quantity.depths)]
+            
+            all.quantity.depths.except.initial.population = integer()
+            for (quantity.name in private$i.top.level.quantity.names.except.initial.population)
+                all.quantity.depths.except.initial.population = private$calculate.quantity.dependency.depth(quantity.name = quantity.name, 
+                                                                                                            quantity.depths = all.quantity.depths.except.initial.population)
+            private$i.ordered.quantity.names.except.initial.population = names(all.quantity.depths.except.initial.population)[order(all.quantity.depths.except.initial.population)]
+        },
+
+        # The quantity dependency depth is
+        # 0 if the quantity does not depend on anything
+        # 1 + the max quantity dependency depth of any quantity it depends on
+        calculate.quantity.dependency.depth = function(quantity.name, quantity.depths)
+        {
+            if (is.na(quantity.depths[quantity.name]))
+            {
+                quantity = self$get.quantity(quantity.name)
+                if (length(quantity$depends.on)==0)
+                    quantity.depths[quantity.name] = 0
+                else
+                {
+                    for (dep.on in quantity$depends.on)
+                        quantity.depths = private$calculate.quantity.dependency.depth(quantity.name = dep.on, quantity.depths = quantity.depths)
+                    
+                    quantity.depths[quantity.name] = 1 + max(quantity.depths[quantity$depends.on])
+                }
+            }
+            
+            quantity.depths
         },
         
         # a helper function that wraps print statements in a check if verbose
