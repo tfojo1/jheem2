@@ -1,14 +1,14 @@
+N.SIM = 50
+RUN.RPROF = T
+SOLVER.METHOD = 'DP5'
+
 source('../jheem_analyses/applications/EHE/calibration_runs/ehe_register_calibrations.R')
 
+print("STARTING PROFILING")
+
 set.jheem.root.directory('Q:test')
-
-N.SIM = 50
-RUN.RPROF = F
 LOCATION = BALTIMORE.MSA
-CALIBRATION.CODE.TO.RUN = 'testcal' # CALIBRATION.CODE.POPULATION
-
-index.time = 0
-fold.time = 0
+CALIBRATION.CODE.TO.RUN = 'testcal2' # CALIBRATION.CODE.POPULATION
 
 par.names.pop = c("black.birth.rate.multiplier",
                   "hispanic.birth.rate.multiplier",
@@ -78,12 +78,23 @@ register.calibration.info(CALIBRATION.CODE.TO.RUN,
                           fixed.initial.parameter.values = c(global.trate=0.1), 
                           is.preliminary = T,
                           max.run.time.seconds = 10,
+                          solver.metadata = create.solver.metadata(method=SOLVER.METHOD),
                           description = "A quick run to get population parameters in the general vicinity"
 )
 
 clear.calibration.cache(version='ehe',
                         location=LOCATION,
                         calibration.code = CALIBRATION.CODE.TO.RUN)
+
+# all.time = 0
+# loop.time = 0
+# pre.bindings.time = 0
+# bindings.time = 0
+# eval.time = 0
+# fn.comp.time = 0
+# incorporate.time = 0
+# outer.loop.time = 0
+# outside.loop.time = 0
 
 set.up.calibration(version='ehe',
                    location=LOCATION,
@@ -96,6 +107,16 @@ print(paste0("STARTING MCMC RUN AT ", Sys.time()))
 
 if (RUN.RPROF)
     Rprof()
+
+# all.time = 0
+# loop.time = 0
+# pre.bindings.time = 0
+# bindings.time = 0
+# eval.time = 0
+# fn.comp.time = 0
+# incorporate.time = 0
+# outer.loop.time = 0
+# outside.loop.time = 0
 
 mcmc = run.calibration(version = 'ehe',
                        location = LOCATION,
@@ -119,4 +140,22 @@ print(paste0("DONE RUNNING MCMC: Took ",
              round(run.time / N.SIM, 1), " seconds per simulation on average)"))
 
 
-simset = assemble.simulations.from.calibration(version = 'ehe', calibration.code = CALIBRATION.CODE.TO.RUN, location = LOCATION)
+# simset = assemble.simulations.from.calibration(version = 'ehe', calibration.code = CALIBRATION.CODE.TO.RUN, location = LOCATION)
+
+
+# times = c(
+#     all = all.time,
+#     outside.loop = outside.loop.time,
+#     outer.loop = outer.loop.time,
+#     loop = loop.time,
+#     pre.bindings = pre.bindings.time,
+#     bindings = bindings.time,
+#     eval = eval.time,
+#     fn.comp = fn.comp.time,
+#     incorporate = incorporate.time
+# )
+
+# cat(paste0("% of all time: \n",
+#            paste0(names(times), ": ",
+#                   round(100*times/all.time, 1), "%",
+#                   collapse='\n'), "\n"))

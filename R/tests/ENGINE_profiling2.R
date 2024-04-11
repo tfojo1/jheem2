@@ -3,29 +3,8 @@
 N.SIM = 50
 RUN.RPROF = T
 
-
-index.time = 0
-fold.time = 0
-binding.time = 0
-eval.time = 0
-fn.dim.names.time = 0
-in.time = 0
-out.time = 0
-total.calc.time = 0
-preamble.time = 0
-loop.top.time = 0
 source('../jheem2/R/tests/ENGINE_test.R')
 
-index.time = 0
-fold.time = 0
-binding.time = 0
-eval.time = 0
-fn.dim.names.time = 0
-in.time = 0
-out.time = 0
-total.calc.time = 0
-preamble.time = 0
-loop.top.time = 0
 
 
 print(paste0("Starting ", N.SIM, " runs..."))
