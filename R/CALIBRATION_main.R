@@ -133,24 +133,27 @@ set.up.calibration <- function(version,
                                                       preceding.info$parameter.names)
         parameters.to.pull.from.preceding = setdiff(parameters.to.pull.from.preceding,
                                                     parameters.already.pulled.from.preceding)
+        
         parameters.to.pull.cov.from.preceding = intersect(parameters.to.pull.from.preceding,
                                                           calibration.info$parameter.names)
         
         
         if (length(parameters.to.pull.from.preceding)>0)
         {
-            other.parameters.for.cov = setdiff(calibration.info$parameter.names, parameters.to.pull.from.preceding)
-            
-            parameters.already.pulled.from.preceding = union(parameters.already.pulled.from.preceding,
-                                                             parameters.to.pull.from.preceding)
-            
-            
             mcmc.summary = prepare.mcmc.summary(version = version,
                                                 location = location,
                                                 calibration.code = preceding.code,
                                                 root.dir = root.dir,
                                                 get.one.set.of.parameters = calibration.info$is.preliminary,
                                                 error.prefix = error.prefix)
+            
+            parameters.to.pull.from.preceding = intersect(parameters.to.pull.from.preceding, mcmc.summary$parameter.names)
+            parameters.to.pull.cov.from.preceding = intersect(parameters.to.pull.cov.from.preceding, mcmc.summary$parameter.names)
+            
+            other.parameters.for.cov = setdiff(calibration.info$parameter.names, parameters.to.pull.from.preceding)
+            
+            parameters.already.pulled.from.preceding = union(parameters.already.pulled.from.preceding,
+                                                             parameters.to.pull.from.preceding)
             
             # default parameter values
             transformed.parameter.values.to.pull = mcmc.summary$transformed.parameter.values[parameters.to.pull.from.preceding]
@@ -609,7 +612,8 @@ prepare.mcmc.summary <- function(version,
     list(
         transformed.parameter.values = transformed.parameter.values,
         cov.mat = cov.mat,
-        initial.scaling.parameters = initial.scaling.parameters
+        initial.scaling.parameters = initial.scaling.parameters,
+        parameter.names = names(transformed.parameter.values)
     )
 }
 
