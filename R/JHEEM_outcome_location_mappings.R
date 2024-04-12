@@ -1,7 +1,20 @@
 
 
-list(C.12580='C.12580')
-list(C.12580=c('C.12580','MD','24510'))
+if (1==2)
+{
+
+    # for basic likelihood
+    create.outcome.location.mapping(list(C.12580='C.12580'),
+                                    'new',
+                                    'ehe',
+                                    'C.12580')
+
+    # for nested prop lik    
+    create.outcome.location.mapping(list(C.12580=c("MD", 'C.12580', "24510")),
+                                    'new',
+                                    'ehe',
+                                    'C.12580')
+}
 
 #'@param location.mappings is a named list, where the names correspond to modeled locations, and the elements are vectors of observed locations
 create.outcome.location.mapping <- function(location.mappings,
