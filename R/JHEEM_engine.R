@@ -2925,6 +2925,7 @@ JHEEM = R6::R6Class(
             
             # Set up the element backgrounds
             private$i.element.backgrounds = lapply(specification$element.names, function(elem.name){
+                save(elem.name, file='debug.mac.Rdata')
                 elem = specification$get.quantity(elem.name)
                 bkgd = elem$get.element.background(specification.metadata = self$specification.metadata,
                                                    error.prefix = paste0("Error creating JHEEM for version '", private$i.version, "' and location '", private$i.location, "': "))
