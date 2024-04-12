@@ -126,29 +126,54 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
 }
 
 create.time.lagged.comparsion.likelihood.instructions <- function(outcome.for.data,
-                                                 outcome.for.sim,
-                                                 use.lognormal.approximation = T,
-                                                 denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute. OR, if outcome is proportion, rate, or time, use denominator within sim data
-                                                 dimensions = character(0),
-                                                 denominator.dimensions = dimensions,
-                                                 dimension.values = NULL, # EXPERIMENTAL
-                                                 levels.of.stratification = NULL,
-                                                 from.year = -Inf,
-                                                 to.year = Inf,
-                                                 omit.years = NULL,
-                                                 sources.to.use = NULL,
-                                                 correlation.different.years = 0.5,
-                                                 correlation.different.strata = 0.1,
-                                                 correlation.different.sources = 0.3, 
-                                                 correlation.same.source.different.details = 0.3,
-                                                 observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
-                                                 measurement.error.coefficient.of.variance,
-                                                 error.variance.term=NULL,
-                                                 error.variance.type=NULL,
-                                                 weights = list(),
-                                                 equalize.weight.by.year = T)
+                                                                  outcome.for.sim,
+                                                                  denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute. OR, if outcome is proportion, rate, or time, use denominator within sim data
+                                                                  dimensions = character(0),
+                                                                  denominator.dimensions = dimensions,
+                                                                  dimension.values = NULL, # EXPERIMENTAL
+                                                                  levels.of.stratification = NULL,
+                                                                  from.year = -Inf,
+                                                                  to.year = Inf,
+                                                                  omit.years = NULL,
+                                                                  sources.to.use = NULL,
+                                                                  correlation.different.years = 0.5,
+                                                                  correlation.different.strata = 0.1,
+                                                                  correlation.different.sources = 0.3, 
+                                                                  correlation.same.source.different.details = 0.3,
+                                                                  observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
+                                                                  measurement.error.coefficient.of.variance,
+                                                                  error.variance.term=NULL,
+                                                                  error.variance.type=NULL,
+                                                                  weights = list(),
+                                                                  equalize.weight.by.year = T,
+                                                                  use.lognormal.approximation = T)
 {
-    
+    JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
+                                            outcome.for.sim = outcome.for.sim,
+                                            denominator.outcome.for.sim = denominator.outcome.for.sim,
+                                            dimensions = dimensions,
+                                            denominator.dimensions = denominator.dimensions,
+                                            dimension.values = dimension.values, # EXPERIMENTAL
+                                            levels.of.stratification = levels.of.stratification,
+                                            from.year = from.year,
+                                            to.year = to.year,
+                                            omit.years = omit.years,
+                                            sources.to.use = sources.to.use,
+                                            included.multiplier=NULL,
+                                            included.multiplier.sd=NULL,
+                                            included.multiplier.correlation=NULL,
+                                            correlation.different.years = correlation.different.years,
+                                            correlation.different.strata = correlation.different.strata,
+                                            correlation.different.sources = correlation.different.sources,
+                                            correlation.same.source.different.details = correlation.same.source.different.details,
+                                            observation.correlation.form = observation.correlation.form,
+                                            measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
+                                            error.variance.term = error.variance.term,
+                                            error.variance.type = error.variance.type,
+                                            weights = weights,
+                                            equalize.weight.by.year = equalize.weight.by.year,
+                                            use.lognormal.approximation = use.lognormal.approximation,
+                                            calculate.lagged.difference = T)
 }
 
 JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
@@ -171,7 +196,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               included.multiplier,
                               included.multiplier.sd,
                               included.multiplier.correlation,
-                              included.multiplier.correlation.structure,
+                              included.multiplier.correlation.structure=c('compound.symmetry', 'autoregressive.1')[1],
                               correlation.different.years,
                               correlation.different.strata,
                               correlation.different.sources,
@@ -181,7 +206,9 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               error.variance.term,
                               error.variance.type,
                               weights,
-                              equalize.weight.by.year)
+                              equalize.weight.by.year,
+                              use.lognormal.approximation=F,
+                              calculate.lagged.difference=F)
         {
             
             
@@ -281,6 +308,9 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (!is.null(dimension.values) && (!is.list(dimension.values) || (length(dimension.values > 0) && is.null(names(dimension.values))) || 'year' %in% names(dimension.values)))
                 stop(paste0(error.prefix, "experimental 'dimension.values' argument must be NULL or a named list without 'year'"))
             
+            #use.lognormal.approximation
+            #calculate.lagged.difference
+            
             super$initialize(outcome.for.sim = outcome.for.sim,
                              dimensions = dimensions,
                              levels.of.stratification = levels.of.stratification,
@@ -309,6 +339,8 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                                         error.variance.term = error.variance.term,
                                         error.variance.type = error.variance.type)
             private$i.dimension.values = dimension.values # EXPERIMENTAL
+            private$i.use.lognormal.approximation = use.lognormal.approximation
+            private$i.calculate.lagged.difference = calculate.lagged.difference
         },
         
         equals = function(other)
@@ -429,7 +461,6 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.basic.likelihood.instruction's 'sources.to.use' - they are read-only")
         },
-        
         dimension.values = function(value) # EXPERIMENTAL
         {
             if (missing(value)) {
@@ -437,8 +468,23 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             }
             else
                 stop("Cannot modify a jheem.basic.likelihood.instruction's experimental 'dimension.values' - they are read-only")
+        },
+        use.lognormal.approximation = function(value)
+        {
+            if (missing(value)) {
+                private$i.use.lognormal.approximation
+            }
+            else
+                stop("Cannot modify a jheem.basic.likelihood.instruction's 'use.lognormal.approximation' - it is read-only")
+        },
+        calculate.lagged.difference = function(value)
+        {
+            if (missing(value)) {
+                private$i.calculate.lagged.difference
+            }
+            else
+                stop("Cannot modify a jheem.basic.likelihood.instruction's 'calculate.lagged.difference' - it is read-only")
         }
-        
     ),
     
     private = list(
@@ -451,7 +497,9 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         i.equalize.weight.by.year = NULL,
         i.parameters = NULL,
         i.sources.to.use = NULL,
-        i.dimension.values = NULL # EXPERIMENTAL
+        i.dimension.values = NULL, # EXPERIMENTAL
+        i.use.lognormal.approximation = NULL,
+        i.calculate.lagged.difference = NULL
     )
 )
 
@@ -487,6 +535,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             private$i.denominator.outcome.for.sim = instructions$denominator.outcome.for.sim
             
             private$i.dimension.values = instructions$dimension.values # EXPERIMENTAL
+            private$i.use.lognormal.approximation = instructions$use.lognormal.approximation
+            private$i.calculate.lagged.difference = instructions$calculate.lagged.difference
 
             ## ---- DETERMINE YEARS FOR SIM METADATA ---- ##
             years = get.likelihood.years(from.year = instructions$from.year,
@@ -564,6 +614,13 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                         stop(paste0(error.prefix, "no data was found for the stratification '", strat, "'"))
                     else next
                 }
+                
+                # If we have lognormal approximation on, we should transform the observations right now, after converting zeroes to NA so that they are ignored in the same ways.
+                if (private$i.use.lognormal.approximation) {
+                    data[data==0]=NA
+                    data = log(data)
+                }
+                
                 n.stratifications.with.data = n.stratifications.with.data + 1
                 one.mapping = attr(data, 'mapping')
                 one.dimnames = dimnames(data)
@@ -574,7 +631,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 one.dimension.values.remove.mask = rep(T, length(one.obs.vector)) # EXPERIMENTAL
                 one.dimension.values.remove.mask[get.array.access.indices(one.dimnames, dimension.values=private$i.dimension.values)] = F # EXPERIMENTAL
                 dv.remove.mask.list = c(dv.remove.mask.list, list(one.dimension.values.remove.mask)) # EXPERIMENTAL
-
+                
                 one.remove.mask = is.na(one.obs.vector)
                 one.obs.vector = one.obs.vector[!one.remove.mask]
                 one.details = one.details[!one.remove.mask]
@@ -610,6 +667,9 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 remove.mask.list = c(remove.mask.list, list(one.remove.mask))
                 
             }
+            # browser()
+            
+            private$i.n.obs = length(private$i.obs.vector)
             
             if (n.stratifications.with.data==0)
                 stop(paste0(error.prefix, "No data found for any stratifications"))
@@ -639,6 +699,21 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             private$i.denominator.required.dimnames = private$i.sim.required.dimnames[names(private$i.sim.required.dimnames) %in% denominator.keep.dimensions]
             private$i.denominator.dimension.values = private$i.denominator.required.dimnames[sapply(names(private$i.denominator.required.dimnames), function(d) {!identical(private$i.denominator.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
             private$i.denominator.dimension.values[['year']] = private$i.years
+            
+            ## ---- GENERATE LAGGED PAIRS IF REQUESTED ---- ##
+            if (private$i.calculate.lagged.difference) {
+                private$i.metadata$year = suppressWarnings(as.numeric(private$i.metadata$year))
+                if (any(is.na(private$i.metadata$year)))
+                    stop(paste0(error.prefix, "'calculate.lagged.difference' can only be used with single-year data points"))
+                private$i.lagged.pairs = generate_lag_matrix_indices(private$i.metadata$year,# check if valid -- no year ranges, please!
+                                                                     rep(0, nrow(private$i.metadata)), # location not used for basic likelihoods but is available for nested prop likelihoods
+                                                                     as.integer(as.factor(private$i.metadata$stratum)),
+                                                                     as.integer(as.factor(private$i.metadata$source)),
+                                                                     private$i.n.obs)
+                if (length(private$i.lagged.pairs)==0)
+                    stop(paste0(error.prefix, "no data found for lagged-year pairs"))
+                private$i.n.lagged.obs = length(private$i.lagged.pairs)/2
+            }
 
             ## ---- GENERATE TRANSFORMATION MATRIX ---- ##
             private$i.transformation.matrix = generate.transformation.matrix(dimnames.list, remove.mask.list, n.stratifications.with.data, private$i.sim.required.dimnames)
@@ -655,19 +730,18 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
             ## ---- GENERATE SPARSE REPRESENTATIONS OF TRANSFORMATION MATRIX ---- ##
             private$i.transformation.matrix.indices = generate_transformation_matrix_indices(private$i.transformation.matrix,
-                                                                                             length(private$i.obs.vector),
-                                                                                             length(private$i.transformation.matrix) / length(private$i.obs.vector))
+                                                                                             private$i.n.obs,
+                                                                                             length(private$i.transformation.matrix) / private$i.n.obs)
 
             private$i.transformation.matrix.row.oriented.indices = generate_transformation_matrix_row_oriented_indices(private$i.transformation.matrix,
-                                                                                                                       length(private$i.obs.vector),
-                                                                                                                       length(private$i.transformation.matrix) / length(private$i.obs.vector))
+                                                                                                                       private$i.n.obs,
+                                                                                                                       length(private$i.transformation.matrix) / private$i.n.obs)
 
             ## ---- GENERATE MEASUREMENT ERROR COVARIANCE MATRIX ---- ##
 
             # call this function with numeric(0) replacing the locations vector and 1 replacing the correlation different locations, used in the nested proportion likelihood.
-            n.obs = length(private$i.obs.vector)
-            measurement.error.correlation.matrix = get_obs_error_correlation_matrix(rep(1, n.obs**2),
-                                                                                    n.obs,
+            measurement.error.correlation.matrix = get_obs_error_correlation_matrix(rep(1, private$i.n.obs**2),
+                                                                                    private$i.n.obs,
                                                                                     numeric(0),
                                                                                     as.numeric(private$i.metadata$year),
                                                                                     as.numeric(private$i.metadata$stratum),
@@ -698,8 +772,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                     included.multiplier.sd.vector = sapply(private$i.metadata$year, function(obs.year) {private$i.parameters$included.multiplier.sd[obs.year]})
                 }
                 else {
-                    included.multiplier.vector = rep(private$i.parameters$included.multiplier, n.obs)
-                    included.multiplier.sd.vector = rep(private$i.parameters$included.multiplier.sd, n.obs)
+                    included.multiplier.vector = rep(private$i.parameters$included.multiplier, private$i.n.obs)
+                    included.multiplier.sd.vector = rep(private$i.parameters$included.multiplier.sd, private$i.n.obs)
                 }
                 
                 inverse.multiplier.matrix = (1/included.multiplier.vector) %*% t(1/included.multiplier.vector)
@@ -708,8 +782,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 if (private$i.parameters$included.multiplier.correlation.form == "autoregressive.1" && any(is.year.range(private$i.metadata$year)))
                     stop(paste0(error.prefix, "instructions cannot use 'autoregressive.1' for 'included.multiplier.correlation.form' since observations with year ranges were found"))
 
-                multiplier.correlation.matrix = get_multiplier_correlation_matrix(rep(1, n.obs**2),
-                                                                                  n.obs,
+                multiplier.correlation.matrix = get_multiplier_correlation_matrix(rep(1, private$i.n.obs**2),
+                                                                                  private$i.n.obs,
                                                                                   as.numeric(private$i.metadata$year),
                                                                                   private$i.parameters$included.multiplier.correlation,
                                                                                   private$i.parameters$included.multiplier.correlation.structure == "autoregressive.1")
@@ -743,6 +817,14 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                                                                  dimension.values = private$i.denominator.dimension.values,
                                                                                                                                  drop.single.sim.dimension = T)
             }
+            
+            ## ---- APPLY LAG TO THE OBS VECTOR IF REQUESTED ---- ##
+            if (private$i.calculate.lagged.difference) {
+                private$i.obs.vector = apply_lag_to_vector(private$i.obs.vector,
+                                                           private$i.lagged.pairs,
+                                                           rep(0, private$i.n.lagged.obs),
+                                                           private$i.n.lagged.obs)
+            }
         },
         check = function() {
             browser()
@@ -774,7 +856,12 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         i.inverse.variance.weights.matrix = NULL,
         i.inverse.multiplier.matrix.times.cov.mat = NULL,
         
+        i.n.obs = NULL,
+        i.n.lagged.obs = NULL,
         i.dimension.values = NULL, # EXPERIMENTAL
+        i.use.lognormal.approximation = NULL,
+        i.calculate.lagged.difference = NULL,
+        i.lagged.pairs = NULL,
         
         do.compute = function(sim, log, check.consistency, debug)
         {
@@ -796,23 +883,23 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             if (private$i.outcome.is.proportion) {
                 n.vector = get_basic_likelihood_mean(expanded.sim.denominator.data,
                                                      private$i.transformation.matrix.row.oriented.indices,
-                                                     length(private$i.obs.vector),
-                                                     n.vector = numeric(length(private$i.obs.vector)))
+                                                     private$i.n.obs,
+                                                     n.vector = numeric(private$i.n.obs))
             }
             
             # Warning! These don't throw an error when sim.numerator.data isn't long enough!
             mean = get_basic_likelihood_mean(sim.numerator.data,
                                              private$i.transformation.matrix.row.oriented.indices,
-                                             length(private$i.obs.vector),
-                                             mean = numeric(length(private$i.obs.vector))
+                                             private$i.n.obs,
+                                             mean = numeric(private$i.n.obs)
             )
             
             sigma = get_basic_likelihood_sigma(sim.numerator.data,
                                                expanded.sim.denominator.data,
                                                private$i.transformation.matrix.indices,
                                                private$i.measurement.error.covariance.matrix,
-                                               length(private$i.obs.vector),
-                                               sigma = numeric(length(private$i.obs.vector) ^ 2), # maybe define before this?
+                                               private$i.n.obs,
+                                               sigma = numeric(private$i.n.obs ^ 2), # maybe define before this?
                                                use.poisson
             )
             
@@ -823,29 +910,36 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 sigma = sigma + private$i.inverse.multiplier.matrix.times.cov.mat * (sigma + mean %*% t(mean))
             }
             
-            dim(sigma) = c(length(private$i.obs.vector), length(private$i.obs.vector))
-            
             if (private$i.outcome.is.proportion)
                 obs = private$i.obs.vector * n.vector
             else
                 obs = private$i.obs.vector
             
-            if (1==2)
+
+            if (private$i.use.lognormal.approximation)
             {
-                if (private$i.use.lognormal.approximation)
-                {
-                    sigma = log(1/mean %*% sigma %*% t(1/mean) + 1)
-                    mean = log(mean) - diag(sigma)/2
-                    # obs should have been put on the log scale before this
-                }
+                mean.reciprocal = 1/mean
+                sigma = log(mean.reciprocal %*% t(mean.reciprocal) * sigma + 1)
+                mean = log(mean) - diag(sigma)/2
+                # obs should have been put on the log scale before this
+            }
+            
+            if (private$i.calculate.lagged.difference)
+            {
+                mean = apply_lag_to_vector(mean,
+                                           private$i.lagged.pairs,
+                                           rep(0, private$i.n.lagged.obs),
+                                           private$i.n.obs)
+                ## oops... sigma is coming back with negatives!!
+                sigma = apply_lag_to_matrix(sigma,
+                                            private$i.lagged.pairs,
+                                            rep(0, private$i.n.lagged.obs**2),
+                                            private$i.n.obs)
+                dim(sigma) = c(private$i.n.lagged.obs, private$i.n.lagged.obs)
+                # mean = private$i.lag.matrix %*% mean
+                # sigma = private$i.lag.matrix %*% sigma %*% private$i.transposed.lag.matrix # there is a more efficient way to do this if we know there are only two non-zero elements per row in lag matrix
                 
-                if (!is.null(private$i.lag.matrix))
-                {
-                    mean = private$i.lag.matrix %*% mean
-                    sigma = private$i.lag.matrix %*% sigma %*% private$i.transposed.lag.matrix # there is a more efficient way to do this if we know there are only two non-zero elements per row in lag matrix
-                    
-                    #to do at instantiate time: obs = private$i.lag.matrix %*% obs
-                }
+                #to do at instantiate time: obs = private$i.lag.matrix %*% obs
             }
             
             # if (private$i.outcome.is.proportion)
@@ -869,10 +963,13 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
                         
             if (debug) {
-                lik.summary = cbind(private$i.metadata, obs=private$i.obs.vector, mean, sd=sqrt(diag(sigma)))
+                if (private$i.calculate.lagged.difference)
+                    lik.summary = cbind(obs=obs, mean=mean, sd=sqrt(diag(sigma)))
+                else
+                    lik.summary = cbind(private$i.metadata, obs=private$i.obs.vector, mean, sd=sqrt(diag(sigma)))
                 browser()
             } 
-            likelihood
+            return(likelihood)
             
             # verify.matrix.operation.correctness(sim.denominator.data,
             #                                     sim.numerator.data,

@@ -66,3 +66,4 @@ source("../jheem2/R/CALIBRATION_main.R")
 
 
 Rcpp::sourceCpp('../jheem2/src/misc_helpers.cpp')
+Rcpp::sourceCpp('../jheem2/src/lag_matrix.cpp')

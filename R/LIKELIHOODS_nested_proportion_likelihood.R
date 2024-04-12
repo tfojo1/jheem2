@@ -1273,8 +1273,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                           checkSymmetry = F)
             
             if (debug) {
-                browser()
                 output.summary = cbind(private$i.metadata, obs.p = round(private$i.obs.p, 3), mean.p = round(mean/lik.components$obs.n, 3), sd.p = round(sqrt(diag(sigma))/lik.components$obs.n, 3))
+                browser()
             }
             likelihood
             
