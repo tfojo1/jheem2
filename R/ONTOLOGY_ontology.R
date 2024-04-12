@@ -267,6 +267,40 @@ incomplete.dimensions <- function(x)
     UseMethod('incomplete.dimensions')
 }
 
+'is.complete<-' <- function(ont, value)
+{
+    UseMethod('is_complete<-')
+}
+
+'is_complete<-.ontology' <- function(ont, value)
+{
+    if (length(value) != length(ont) || is.null(names(value)) || !setequal(names(value), names(ont)))
+        stop("In setting the complete dimensions of the ontology, every dimension must have a name (the length of the names must be the same as the length of the ontology and cannot be NULL)")
+    if (!is.logical(value))
+        stop("In setting the complete dimensions of the ontology, 'value' must be a named logical vector")
+    if (is.null(names(value))) {
+        attr(ont, 'is.complete') = value
+    }
+    for (d in names(ont)) {
+        attr(ont, 'is.complete')[[d]] = value[[d]]
+    }
+    ont
+}
+
+'incomplete.dimensions<-' <- function(ont, value)
+{
+    UseMethod('incomplete_dimensions<-')
+}
+
+'incomplete_dimensions<-.ontology' <- function(ont, value)
+{
+    # TO-DO: Add validation
+    is.complete.dimensions = sapply(names(ont), function(d) {T})
+    for (d in value) is.complete.dimensions[[d]] = F
+    is.complete(ont) <- is.complete.dimensions
+    ont
+}
+
 #'@title Subset an ont
 #'
 #'@param ont An ontology, as created by \code\link{ontology}}
