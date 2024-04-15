@@ -10,6 +10,40 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// do_matrix_multiply_A_specified_interpolated_blocks_increment
+void do_matrix_multiply_A_specified_interpolated_blocks_increment(double *A, double *B, double *dst, int m_A, int m_B, int n_B, int n_blocks, int *A_block_per_row);
+RcppExport SEXP _jheem2_do_matrix_multiply_A_specified_interpolated_blocks_increment(SEXP *ASEXP, SEXP *BSEXP, SEXP *dstSEXP, SEXP m_ASEXP, SEXP m_BSEXP, SEXP n_BSEXP, SEXP n_blocksSEXP, SEXP *A_block_per_rowSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type *A(*ASEXP);
+    Rcpp::traits::input_parameter< double >::type *B(*BSEXP);
+    Rcpp::traits::input_parameter< double >::type *dst(*dstSEXP);
+    Rcpp::traits::input_parameter< int >::type m_A(m_ASEXP);
+    Rcpp::traits::input_parameter< int >::type m_B(m_BSEXP);
+    Rcpp::traits::input_parameter< int >::type n_B(n_BSEXP);
+    Rcpp::traits::input_parameter< int >::type n_blocks(n_blocksSEXP);
+    Rcpp::traits::input_parameter< int >::type *A_block_per_row(*A_block_per_rowSEXP);
+    do_matrix_multiply_A_specified_interpolated_blocks_increment(*A, *B, *dst, m_A, m_B, n_B, n_blocks, *A_block_per_row);
+    return R_NilValue;
+END_RCPP
+}
+// do_matrix_multiply_A_specified_interpolated_blocks_increment
+void do_matrix_multiply_A_specified_interpolated_blocks_increment(double *A, double *B, double *dst, double *A_blocks_per_row, int m_A, int m_B, int n_B, int n_blocks);
+RcppExport SEXP _jheem2_do_matrix_multiply_A_specified_interpolated_blocks_increment(SEXP *ASEXP, SEXP *BSEXP, SEXP *dstSEXP, SEXP *A_blocks_per_rowSEXP, SEXP m_ASEXP, SEXP m_BSEXP, SEXP n_BSEXP, SEXP n_blocksSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type *A(*ASEXP);
+    Rcpp::traits::input_parameter< double >::type *B(*BSEXP);
+    Rcpp::traits::input_parameter< double >::type *dst(*dstSEXP);
+    Rcpp::traits::input_parameter< double >::type *A_blocks_per_row(*A_blocks_per_rowSEXP);
+    Rcpp::traits::input_parameter< int >::type m_A(m_ASEXP);
+    Rcpp::traits::input_parameter< int >::type m_B(m_BSEXP);
+    Rcpp::traits::input_parameter< int >::type n_B(n_BSEXP);
+    Rcpp::traits::input_parameter< int >::type n_blocks(n_blocksSEXP);
+    do_matrix_multiply_A_specified_interpolated_blocks_increment(*A, *B, *dst, *A_blocks_per_row, m_A, m_B, n_B, n_blocks);
+    return R_NilValue;
+END_RCPP
+}
 // overwrite_arr
 NumericVector overwrite_arr(NumericVector dst, IntegerVector dst_indices, NumericVector src, IntegerVector src_indices);
 RcppExport SEXP _jheem2_overwrite_arr(SEXP dstSEXP, SEXP dst_indicesSEXP, SEXP srcSEXP, SEXP src_indicesSEXP) {
@@ -62,6 +96,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// do_collapse_according_to_indices
+NumericVector do_collapse_according_to_indices(NumericVector arr, IntegerVector large_indices, IntegerVector small_indices, int small_n);
+RcppExport SEXP _jheem2_do_collapse_according_to_indices(SEXP arrSEXP, SEXP large_indicesSEXP, SEXP small_indicesSEXP, SEXP small_nSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type arr(arrSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type large_indices(large_indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type small_indices(small_indicesSEXP);
+    Rcpp::traits::input_parameter< int >::type small_n(small_nSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_collapse_according_to_indices(arr, large_indices, small_indices, small_n));
+    return rcpp_result_gen;
+END_RCPP
+}
 // do_array_overwrite
 RObject do_array_overwrite(NumericVector dst_array, NumericVector src_array, List dimension_values);
 RcppExport SEXP _jheem2_do_array_overwrite(SEXP dst_arraySEXP, SEXP src_arraySEXP, SEXP dimension_valuesSEXP) {
@@ -88,14 +136,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // do_get_expand_indices
-RObject do_get_expand_indices(IntegerVector dst_array, List src_dim_names);
-RcppExport SEXP _jheem2_do_get_expand_indices(SEXP dst_arraySEXP, SEXP src_dim_namesSEXP) {
+RObject do_get_expand_indices(IntegerVector dst_array, List src_dim_names, int index_from);
+RcppExport SEXP _jheem2_do_get_expand_indices(SEXP dst_arraySEXP, SEXP src_dim_namesSEXP, SEXP index_fromSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< IntegerVector >::type dst_array(dst_arraySEXP);
     Rcpp::traits::input_parameter< List >::type src_dim_names(src_dim_namesSEXP);
-    rcpp_result_gen = Rcpp::wrap(do_get_expand_indices(dst_array, src_dim_names));
+    Rcpp::traits::input_parameter< int >::type index_from(index_fromSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_get_expand_indices(dst_array, src_dim_names, index_from));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -169,6 +218,44 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// get_obs_error_correlation_matrix
+NumericVector get_obs_error_correlation_matrix(NumericVector cor_mat, int n_obs, NumericVector location, NumericVector year, NumericVector stratum, NumericVector source, NumericVector details, double correlation_different_location, double correlation_different_year, double correlation_different_strata, double correlation_different_source, double correlation_same_source_different_details, bool is_autoregressive_one);
+RcppExport SEXP _jheem2_get_obs_error_correlation_matrix(SEXP cor_matSEXP, SEXP n_obsSEXP, SEXP locationSEXP, SEXP yearSEXP, SEXP stratumSEXP, SEXP sourceSEXP, SEXP detailsSEXP, SEXP correlation_different_locationSEXP, SEXP correlation_different_yearSEXP, SEXP correlation_different_strataSEXP, SEXP correlation_different_sourceSEXP, SEXP correlation_same_source_different_detailsSEXP, SEXP is_autoregressive_oneSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type cor_mat(cor_matSEXP);
+    Rcpp::traits::input_parameter< int >::type n_obs(n_obsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type location(locationSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type year(yearSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type stratum(stratumSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type source(sourceSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type details(detailsSEXP);
+    Rcpp::traits::input_parameter< double >::type correlation_different_location(correlation_different_locationSEXP);
+    Rcpp::traits::input_parameter< double >::type correlation_different_year(correlation_different_yearSEXP);
+    Rcpp::traits::input_parameter< double >::type correlation_different_strata(correlation_different_strataSEXP);
+    Rcpp::traits::input_parameter< double >::type correlation_different_source(correlation_different_sourceSEXP);
+    Rcpp::traits::input_parameter< double >::type correlation_same_source_different_details(correlation_same_source_different_detailsSEXP);
+    Rcpp::traits::input_parameter< bool >::type is_autoregressive_one(is_autoregressive_oneSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_obs_error_correlation_matrix(cor_mat, n_obs, location, year, stratum, source, details, correlation_different_location, correlation_different_year, correlation_different_strata, correlation_different_source, correlation_same_source_different_details, is_autoregressive_one));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_multiplier_correlation_matrix
+NumericVector get_multiplier_correlation_matrix(NumericVector cor_mat, int n_obs, NumericVector year, double correlation_different_year, bool is_autoregressive_one);
+RcppExport SEXP _jheem2_get_multiplier_correlation_matrix(SEXP cor_matSEXP, SEXP n_obsSEXP, SEXP yearSEXP, SEXP correlation_different_yearSEXP, SEXP is_autoregressive_oneSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type cor_mat(cor_matSEXP);
+    Rcpp::traits::input_parameter< int >::type n_obs(n_obsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type year(yearSEXP);
+    Rcpp::traits::input_parameter< double >::type correlation_different_year(correlation_different_yearSEXP);
+    Rcpp::traits::input_parameter< bool >::type is_autoregressive_one(is_autoregressive_oneSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_multiplier_correlation_matrix(cor_mat, n_obs, year, correlation_different_year, is_autoregressive_one));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_dx
 NumericVector compute_dx(NumericVector state, double time, List settings, NumericVector quantity_scratch_vector, NumericVector scratch_vector, List quantities_info, List natality_info, List mortality_info, List transitions_info, List infections_info, List remission_info, List fixed_strata_info, List population_trackers);
 RcppExport SEXP _jheem2_compute_dx(SEXP stateSEXP, SEXP timeSEXP, SEXP settingsSEXP, SEXP quantity_scratch_vectorSEXP, SEXP scratch_vectorSEXP, SEXP quantities_infoSEXP, SEXP natality_infoSEXP, SEXP mortality_infoSEXP, SEXP transitions_infoSEXP, SEXP infections_infoSEXP, SEXP remission_infoSEXP, SEXP fixed_strata_infoSEXP, SEXP population_trackersSEXP) {
@@ -189,6 +276,36 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< List >::type fixed_strata_info(fixed_strata_infoSEXP);
     Rcpp::traits::input_parameter< List >::type population_trackers(population_trackersSEXP);
     rcpp_result_gen = Rcpp::wrap(compute_dx(state, time, settings, quantity_scratch_vector, scratch_vector, quantities_info, natality_info, mortality_info, transitions_info, infections_info, remission_info, fixed_strata_info, population_trackers));
+    return rcpp_result_gen;
+END_RCPP
+}
+// interpolate_values_when_do_not_apply
+List interpolate_values_when_do_not_apply(List values, NumericVector times, List value_applies_for_time);
+RcppExport SEXP _jheem2_interpolate_values_when_do_not_apply(SEXP valuesSEXP, SEXP timesSEXP, SEXP value_applies_for_timeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type times(timesSEXP);
+    Rcpp::traits::input_parameter< List >::type value_applies_for_time(value_applies_for_timeSEXP);
+    rcpp_result_gen = Rcpp::wrap(interpolate_values_when_do_not_apply(values, times, value_applies_for_time));
+    return rcpp_result_gen;
+END_RCPP
+}
+// apply_foregrounds
+List apply_foregrounds(List values, NumericVector value_times, List after_values, NumericVector times_to_apply_to, List foregrounds, List indices_per_effect_per_foreground, CharacterVector scale);
+RcppExport SEXP _jheem2_apply_foregrounds(SEXP valuesSEXP, SEXP value_timesSEXP, SEXP after_valuesSEXP, SEXP times_to_apply_toSEXP, SEXP foregroundsSEXP, SEXP indices_per_effect_per_foregroundSEXP, SEXP scaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type value_times(value_timesSEXP);
+    Rcpp::traits::input_parameter< List >::type after_values(after_valuesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type times_to_apply_to(times_to_apply_toSEXP);
+    Rcpp::traits::input_parameter< List >::type foregrounds(foregroundsSEXP);
+    Rcpp::traits::input_parameter< List >::type indices_per_effect_per_foreground(indices_per_effect_per_foregroundSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type scale(scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(apply_foregrounds(values, value_times, after_values, times_to_apply_to, foregrounds, indices_per_effect_per_foreground, scale));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -327,6 +444,75 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// generate_transformation_matrix_indices
+IntegerVector generate_transformation_matrix_indices(NumericVector transformation_matrix, int m, int n);
+RcppExport SEXP _jheem2_generate_transformation_matrix_indices(SEXP transformation_matrixSEXP, SEXP mSEXP, SEXP nSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type transformation_matrix(transformation_matrixSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    rcpp_result_gen = Rcpp::wrap(generate_transformation_matrix_indices(transformation_matrix, m, n));
+    return rcpp_result_gen;
+END_RCPP
+}
+// generate_transformation_matrix_row_oriented_indices
+RObject generate_transformation_matrix_row_oriented_indices(NumericVector transformation_matrix, int m, int n);
+RcppExport SEXP _jheem2_generate_transformation_matrix_row_oriented_indices(SEXP transformation_matrixSEXP, SEXP mSEXP, SEXP nSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type transformation_matrix(transformation_matrixSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    rcpp_result_gen = Rcpp::wrap(generate_transformation_matrix_row_oriented_indices(transformation_matrix, m, n));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_basic_likelihood_mean
+NumericVector get_basic_likelihood_mean(const NumericVector sim_numerator, const List transformation_matrix_row_oriented_indices, int m, NumericVector mean);
+RcppExport SEXP _jheem2_get_basic_likelihood_mean(SEXP sim_numeratorSEXP, SEXP transformation_matrix_row_oriented_indicesSEXP, SEXP mSEXP, SEXP meanSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const NumericVector >::type sim_numerator(sim_numeratorSEXP);
+    Rcpp::traits::input_parameter< const List >::type transformation_matrix_row_oriented_indices(transformation_matrix_row_oriented_indicesSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type mean(meanSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_basic_likelihood_mean(sim_numerator, transformation_matrix_row_oriented_indices, m, mean));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_basic_likelihood_sigma
+NumericVector get_basic_likelihood_sigma(const NumericVector sim_numerator, const NumericVector sim_denominator, const NumericVector transformation_matrix_indices, const NumericVector measurement_error_cov_matrix, int m, NumericVector sigma, const bool Poisson);
+RcppExport SEXP _jheem2_get_basic_likelihood_sigma(SEXP sim_numeratorSEXP, SEXP sim_denominatorSEXP, SEXP transformation_matrix_indicesSEXP, SEXP measurement_error_cov_matrixSEXP, SEXP mSEXP, SEXP sigmaSEXP, SEXP PoissonSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const NumericVector >::type sim_numerator(sim_numeratorSEXP);
+    Rcpp::traits::input_parameter< const NumericVector >::type sim_denominator(sim_denominatorSEXP);
+    Rcpp::traits::input_parameter< const NumericVector >::type transformation_matrix_indices(transformation_matrix_indicesSEXP);
+    Rcpp::traits::input_parameter< const NumericVector >::type measurement_error_cov_matrix(measurement_error_cov_matrixSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< const bool >::type Poisson(PoissonSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_basic_likelihood_sigma(sim_numerator, sim_denominator, transformation_matrix_indices, measurement_error_cov_matrix, m, sigma, Poisson));
+    return rcpp_result_gen;
+END_RCPP
+}
+// character_vectors_overlap
+bool character_vectors_overlap(CharacterVector x, CharacterVector y);
+RcppExport SEXP _jheem2_character_vectors_overlap(SEXP xSEXP, SEXP ySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< CharacterVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type y(ySEXP);
+    rcpp_result_gen = Rcpp::wrap(character_vectors_overlap(x, y));
+    return rcpp_result_gen;
+END_RCPP
+}
 // sorted_vectors_overlap
 bool sorted_vectors_overlap(NumericVector x, NumericVector y);
 RcppExport SEXP _jheem2_sorted_vectors_overlap(SEXP xSEXP, SEXP ySEXP) {
@@ -359,6 +545,61 @@ BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< List >::type vectors(vectorsSEXP);
     rcpp_result_gen = Rcpp::wrap(union_sorted_vectors(vectors));
+    return rcpp_result_gen;
+END_RCPP
+}
+// intersect_sorted_vectors
+RObject intersect_sorted_vectors(List vectors);
+RcppExport SEXP _jheem2_intersect_sorted_vectors(SEXP vectorsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type vectors(vectorsSEXP);
+    rcpp_result_gen = Rcpp::wrap(intersect_sorted_vectors(vectors));
+    return rcpp_result_gen;
+END_RCPP
+}
+// interpolate_sorted_vectors
+List interpolate_sorted_vectors(NumericVector v1, NumericVector v2, bool indicator1, bool indicator2);
+RcppExport SEXP _jheem2_interpolate_sorted_vectors(SEXP v1SEXP, SEXP v2SEXP, SEXP indicator1SEXP, SEXP indicator2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type v1(v1SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type v2(v2SEXP);
+    Rcpp::traits::input_parameter< bool >::type indicator1(indicator1SEXP);
+    Rcpp::traits::input_parameter< bool >::type indicator2(indicator2SEXP);
+    rcpp_result_gen = Rcpp::wrap(interpolate_sorted_vectors(v1, v2, indicator1, indicator2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_nested_proportion_likelihood_components
+List get_nested_proportion_likelihood_components(NumericMatrix p, NumericMatrix n, List year_metalocation_n_multipliers, List year_metalocation_n_multiplier_sd, List year_metalocation_p_bias, List year_metalocation_p_sd, double metalocation_p_correlation, double metalocation_n_multiplier_correlation, List year_metalocation_to_year_obs_n_mapping, List obs_n, List obs_n_plus_conditioned_error_variances, LogicalVector year_metalocation_to_year_condition_on_location_mask, NumericMatrix year_metalocation_to_year_condition_on_location_mapping, LogicalVector year_metalocation_to_year_obs_location_mask, NumericMatrix year_metalocation_to_year_obs_location_mapping, List year_loc_stratum_to_obs_mapping, List year_metalocation_to_obs_mapping, IntegerVector obs_year_index, NumericVector obs_p, NumericMatrix obs_error);
+RcppExport SEXP _jheem2_get_nested_proportion_likelihood_components(SEXP pSEXP, SEXP nSEXP, SEXP year_metalocation_n_multipliersSEXP, SEXP year_metalocation_n_multiplier_sdSEXP, SEXP year_metalocation_p_biasSEXP, SEXP year_metalocation_p_sdSEXP, SEXP metalocation_p_correlationSEXP, SEXP metalocation_n_multiplier_correlationSEXP, SEXP year_metalocation_to_year_obs_n_mappingSEXP, SEXP obs_nSEXP, SEXP obs_n_plus_conditioned_error_variancesSEXP, SEXP year_metalocation_to_year_condition_on_location_maskSEXP, SEXP year_metalocation_to_year_condition_on_location_mappingSEXP, SEXP year_metalocation_to_year_obs_location_maskSEXP, SEXP year_metalocation_to_year_obs_location_mappingSEXP, SEXP year_loc_stratum_to_obs_mappingSEXP, SEXP year_metalocation_to_obs_mappingSEXP, SEXP obs_year_indexSEXP, SEXP obs_pSEXP, SEXP obs_errorSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type p(pSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type n(nSEXP);
+    Rcpp::traits::input_parameter< List >::type year_metalocation_n_multipliers(year_metalocation_n_multipliersSEXP);
+    Rcpp::traits::input_parameter< List >::type year_metalocation_n_multiplier_sd(year_metalocation_n_multiplier_sdSEXP);
+    Rcpp::traits::input_parameter< List >::type year_metalocation_p_bias(year_metalocation_p_biasSEXP);
+    Rcpp::traits::input_parameter< List >::type year_metalocation_p_sd(year_metalocation_p_sdSEXP);
+    Rcpp::traits::input_parameter< double >::type metalocation_p_correlation(metalocation_p_correlationSEXP);
+    Rcpp::traits::input_parameter< double >::type metalocation_n_multiplier_correlation(metalocation_n_multiplier_correlationSEXP);
+    Rcpp::traits::input_parameter< List >::type year_metalocation_to_year_obs_n_mapping(year_metalocation_to_year_obs_n_mappingSEXP);
+    Rcpp::traits::input_parameter< List >::type obs_n(obs_nSEXP);
+    Rcpp::traits::input_parameter< List >::type obs_n_plus_conditioned_error_variances(obs_n_plus_conditioned_error_variancesSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type year_metalocation_to_year_condition_on_location_mask(year_metalocation_to_year_condition_on_location_maskSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type year_metalocation_to_year_condition_on_location_mapping(year_metalocation_to_year_condition_on_location_mappingSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type year_metalocation_to_year_obs_location_mask(year_metalocation_to_year_obs_location_maskSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type year_metalocation_to_year_obs_location_mapping(year_metalocation_to_year_obs_location_mappingSEXP);
+    Rcpp::traits::input_parameter< List >::type year_loc_stratum_to_obs_mapping(year_loc_stratum_to_obs_mappingSEXP);
+    Rcpp::traits::input_parameter< List >::type year_metalocation_to_obs_mapping(year_metalocation_to_obs_mappingSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type obs_year_index(obs_year_indexSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type obs_p(obs_pSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type obs_error(obs_errorSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_nested_proportion_likelihood_components(p, n, year_metalocation_n_multipliers, year_metalocation_n_multiplier_sd, year_metalocation_p_bias, year_metalocation_p_sd, metalocation_p_correlation, metalocation_n_multiplier_correlation, year_metalocation_to_year_obs_n_mapping, obs_n, obs_n_plus_conditioned_error_variances, year_metalocation_to_year_condition_on_location_mask, year_metalocation_to_year_condition_on_location_mapping, year_metalocation_to_year_obs_location_mask, year_metalocation_to_year_obs_location_mapping, year_loc_stratum_to_obs_mapping, year_metalocation_to_obs_mapping, obs_year_index, obs_p, obs_error));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -406,21 +647,57 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// do_optimized_get
+NumericVector do_optimized_get(List numerators, List denominators, List info_by_outcome, int n_to_per_outcome, bool avoid_infinite);
+RcppExport SEXP _jheem2_do_optimized_get(SEXP numeratorsSEXP, SEXP denominatorsSEXP, SEXP info_by_outcomeSEXP, SEXP n_to_per_outcomeSEXP, SEXP avoid_infiniteSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type numerators(numeratorsSEXP);
+    Rcpp::traits::input_parameter< List >::type denominators(denominatorsSEXP);
+    Rcpp::traits::input_parameter< List >::type info_by_outcome(info_by_outcomeSEXP);
+    Rcpp::traits::input_parameter< int >::type n_to_per_outcome(n_to_per_outcomeSEXP);
+    Rcpp::traits::input_parameter< bool >::type avoid_infinite(avoid_infiniteSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_optimized_get(numerators, denominators, info_by_outcome, n_to_per_outcome, avoid_infinite));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_year_indices_for_optimized_info
+RObject get_year_indices_for_optimized_info(NumericVector outcome_years, NumericVector target_years, int n_before_year_dimension, int n_after_year_dimension);
+RcppExport SEXP _jheem2_get_year_indices_for_optimized_info(SEXP outcome_yearsSEXP, SEXP target_yearsSEXP, SEXP n_before_year_dimensionSEXP, SEXP n_after_year_dimensionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type outcome_years(outcome_yearsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type target_years(target_yearsSEXP);
+    Rcpp::traits::input_parameter< int >::type n_before_year_dimension(n_before_year_dimensionSEXP);
+    Rcpp::traits::input_parameter< int >::type n_after_year_dimension(n_after_year_dimensionSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_year_indices_for_optimized_info(outcome_years, target_years, n_before_year_dimension, n_after_year_dimension));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_jheem2_do_matrix_multiply_A_specified_interpolated_blocks_increment", (DL_FUNC) &_jheem2_do_matrix_multiply_A_specified_interpolated_blocks_increment, 8},
+    {"_jheem2_do_matrix_multiply_A_specified_interpolated_blocks_increment", (DL_FUNC) &_jheem2_do_matrix_multiply_A_specified_interpolated_blocks_increment, 8},
     {"_jheem2_overwrite_arr", (DL_FUNC) &_jheem2_overwrite_arr, 4},
     {"_jheem2_add_to_arr", (DL_FUNC) &_jheem2_add_to_arr, 4},
     {"_jheem2_overwrite_arr_with_scalar", (DL_FUNC) &_jheem2_overwrite_arr_with_scalar, 2},
     {"_jheem2_add_scalar_to_arr", (DL_FUNC) &_jheem2_add_scalar_to_arr, 2},
+    {"_jheem2_do_collapse_according_to_indices", (DL_FUNC) &_jheem2_do_collapse_according_to_indices, 4},
     {"_jheem2_do_array_overwrite", (DL_FUNC) &_jheem2_do_array_overwrite, 3},
     {"_jheem2_do_expand_array", (DL_FUNC) &_jheem2_do_expand_array, 2},
-    {"_jheem2_do_get_expand_indices", (DL_FUNC) &_jheem2_do_get_expand_indices, 2},
+    {"_jheem2_do_get_expand_indices", (DL_FUNC) &_jheem2_do_get_expand_indices, 3},
     {"_jheem2_do_access_overwrite", (DL_FUNC) &_jheem2_do_access_overwrite, 4},
     {"_jheem2_do_access_add", (DL_FUNC) &_jheem2_do_access_add, 4},
     {"_jheem2_do_access_subtract", (DL_FUNC) &_jheem2_do_access_subtract, 4},
     {"_jheem2_do_access_multiply", (DL_FUNC) &_jheem2_do_access_multiply, 4},
     {"_jheem2_do_access_divide", (DL_FUNC) &_jheem2_do_access_divide, 4},
+    {"_jheem2_get_obs_error_correlation_matrix", (DL_FUNC) &_jheem2_get_obs_error_correlation_matrix, 13},
+    {"_jheem2_get_multiplier_correlation_matrix", (DL_FUNC) &_jheem2_get_multiplier_correlation_matrix, 5},
     {"_jheem2_compute_dx", (DL_FUNC) &_jheem2_compute_dx, 13},
+    {"_jheem2_interpolate_values_when_do_not_apply", (DL_FUNC) &_jheem2_interpolate_values_when_do_not_apply, 3},
+    {"_jheem2_apply_foregrounds", (DL_FUNC) &_jheem2_apply_foregrounds, 7},
     {"_jheem2_calculate_main_effect_indices", (DL_FUNC) &_jheem2_calculate_main_effect_indices, 3},
     {"_jheem2_calculate_two_way_interaction_indices", (DL_FUNC) &_jheem2_calculate_two_way_interaction_indices, 5},
     {"_jheem2_calculate_three_way_interaction_indices", (DL_FUNC) &_jheem2_calculate_three_way_interaction_indices, 7},
@@ -429,12 +706,22 @@ static const R_CallMethodDef CallEntries[] = {
     {"_jheem2_do_add_or_set_two_way_interaction_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_or_set_two_way_interaction_alphas_to_arr, 8},
     {"_jheem2_do_add_or_set_three_way_interaction_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_or_set_three_way_interaction_alphas_to_arr, 10},
     {"_jheem2_do_add_or_set_four_way_interaction_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_or_set_four_way_interaction_alphas_to_arr, 12},
+    {"_jheem2_generate_transformation_matrix_indices", (DL_FUNC) &_jheem2_generate_transformation_matrix_indices, 3},
+    {"_jheem2_generate_transformation_matrix_row_oriented_indices", (DL_FUNC) &_jheem2_generate_transformation_matrix_row_oriented_indices, 3},
+    {"_jheem2_get_basic_likelihood_mean", (DL_FUNC) &_jheem2_get_basic_likelihood_mean, 4},
+    {"_jheem2_get_basic_likelihood_sigma", (DL_FUNC) &_jheem2_get_basic_likelihood_sigma, 7},
+    {"_jheem2_character_vectors_overlap", (DL_FUNC) &_jheem2_character_vectors_overlap, 2},
     {"_jheem2_sorted_vectors_overlap", (DL_FUNC) &_jheem2_sorted_vectors_overlap, 2},
     {"_jheem2_setdiff_sorted_vectors", (DL_FUNC) &_jheem2_setdiff_sorted_vectors, 2},
     {"_jheem2_union_sorted_vectors", (DL_FUNC) &_jheem2_union_sorted_vectors, 1},
+    {"_jheem2_intersect_sorted_vectors", (DL_FUNC) &_jheem2_intersect_sorted_vectors, 1},
+    {"_jheem2_interpolate_sorted_vectors", (DL_FUNC) &_jheem2_interpolate_sorted_vectors, 4},
+    {"_jheem2_get_nested_proportion_likelihood_components", (DL_FUNC) &_jheem2_get_nested_proportion_likelihood_components, 20},
     {"_jheem2_apply_ontology_mapping", (DL_FUNC) &_jheem2_apply_ontology_mapping, 5},
     {"_jheem2_get_ontology_mapping_matrix", (DL_FUNC) &_jheem2_get_ontology_mapping_matrix, 5},
     {"_jheem2_get_ontology_mapping_indices", (DL_FUNC) &_jheem2_get_ontology_mapping_indices, 4},
+    {"_jheem2_do_optimized_get", (DL_FUNC) &_jheem2_do_optimized_get, 5},
+    {"_jheem2_get_year_indices_for_optimized_info", (DL_FUNC) &_jheem2_get_year_indices_for_optimized_info, 4},
     {NULL, NULL, 0}
 };
 

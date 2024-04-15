@@ -530,6 +530,10 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
                 stop(paste0(error.prefix, "'data.manager' must be an R6 object with class 'jheem.data.manager'"))
             
+            private$i.version = version
+            private$i.sub.version = sub.version
+            private$i.location = location
+            
             private$i.parameters = instructions$parameters
             private$i.outcome.for.data = instructions$outcome.for.data
             private$i.denominator.outcome.for.sim = instructions$denominator.outcome.for.sim
@@ -826,12 +830,24 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                            private$i.n.lagged.obs)
             }
         },
+        get.location.mappings = function()
+        {
+            create.outcome.location.mapping(location.mappings = setNames(list(private$i.location), private$i.location),
+                                            outcome.name = private$i.outcome.for.data,
+                                            version = private$i.version,
+                                            location = private$i.location,
+                                            sub.version = private$i.sub.version)
+        },
         check = function() {
             browser()
         }
     ),
     
     private = list(
+        
+        i.version = NULL,
+        i.location = NULL,
+        i.sub.version = NULL,
         
         i.parameters = NULL,
         

@@ -742,6 +742,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             # browser()
             if (post.time.checkpoint.flag) print(paste0("Start time: ", Sys.time()))
             
+            private$i.location = location
+            private$i.version = version
+            private$i.sub.version = sub.version
+            
             private$i.parameters = instructions$parameters
             private$i.outcome.for.data = instructions$outcome.for.data
             private$i.denominator.outcome.for.data = instructions$denominator.outcome.for.data
@@ -1166,6 +1170,14 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             if (post.time.checkpoint.flag) print(paste0("End time: ", ptm))
             
         },
+        get.location.mappings = function()
+        {
+            create.outcome.location.mapping(location.mappings = setNames(list(unique(as.character(private$i.metadata$location))), private$i.location), # b/c is factor
+                                            outcome.name = private$i.outcome.for.data,
+                                            version = private$i.version,
+                                            location = private$i.location,
+                                            sub.version = private$i.sub.version)
+        },
         check = function() {
             browser()
         }
@@ -1194,6 +1206,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         i.obs.error = NULL,
         
         # OTHER
+        
+        i.location = NULL,
+        i.version = NULL,
+        i.sub.version = NULL,
         
         i.parameters = NULL,
         
