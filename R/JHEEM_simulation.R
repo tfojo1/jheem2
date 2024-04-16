@@ -1069,12 +1069,19 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                        replace.inf.values.with.zero = T,
                        summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                        interval.coverage = 0.95,
+                       mapping = NULL, # to do: put in the other get() method mentioned above (simset collection)
                        error.prefix = "Error getting simulation results: ",
                        debug=F)
         {
             if (debug) browser()
             if (check.consistency && (!is.character(output) || length(output) != 1 || !(output %in% c('value', 'numerator', 'denominator'))))
                 stop(paste0(error.prefix, "'output' must be one of 'value', 'numerator', or 'denominator'"))
+            
+            if (check.consistency && !is.null(mapping) && (!R6::is.R6(mapping) || !is(mapping, 'ontology.mapping')))
+                stop(paste0(error.prefix, "'mapping' must be null or an ontology mapping"))
+            
+            if (length(outcomes) > 1 && !is.null(mapping))
+                stop(paste0(error.prefix, "'mapping' must be null if more than one outcome is used"))
             
             # keep.dimensions will be the union of the incomplete dimensions in the outcome ontology and any dimension value dimensions
             if (is.null(keep.dimensions)) {
@@ -1090,6 +1097,13 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                            drop.single.outcome.dimension = drop.single.outcome.dimension,
                                            drop.single.sim.dimension = drop.single.sim.dimension,
                                            error.prefix = error.prefix)
+            # May be changed by mapping
+            if (!is.null(mapping)) {
+                dim.names.mapped.dimensions = dim.names[!(names(dim.names) %in% c('sim', 'outcome'))]
+                dim.names.mapped.dimensions = mapping$apply.to.dim.names(dim.names.mapped.dimensions)
+                dim.names[!(names(dim.names) %in% c('sim', 'outcome'))] = dim.names.mapped.dimensions
+            }
+            
             dimension.values = private$slowerFoo(dimension.values, ..., check.consistency = check.consistency, error.prefix=error.prefix)
             # dimension.values = private$process.dimension.values(dimension.values, ..., error.prefix=error.prefix)
             # if (drop.single.sim.dimension && self$n.sim==1)
@@ -1101,7 +1115,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             #     keep.dimensions = union(keep.dimensions, 'sim')
 
             rv = sapply(outcomes, function(outcome){
-                slowFoo(outcome, dimension.values, keep.dimensions, check.consistency, output, replace.inf.values.with.zero)
+                slowFoo(outcome, dimension.values, keep.dimensions, check.consistency, output, replace.inf.values.with.zero, mapping)
                 # scale = self$outcome.metadata[[outcome]]$scale
                 # numerator.needed = output %in% c('value', 'numerator')
                 # denominator.needed = scale.needs.denominator(scale) && output %in% c('value', 'denominator')
@@ -1397,7 +1411,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             save.simulation.set(simset = self, root.dir = root.dir)
         },
         # just for diagnostics, will be removed soon
-        slowFoo = function(outcome, dimension.values, keep.dimensions, check.consistency, output, replace.inf.values.with.zero) {
+        slowFoo = function(outcome, dimension.values, keep.dimensions, check.consistency, output, replace.inf.values.with.zero, mapping) {
             scale = self$outcome.metadata[[outcome]]$scale
             numerator.needed = output %in% c('value', 'numerator')
             denominator.needed = scale.needs.denominator(scale) && output %in% c('value', 'denominator')
@@ -1431,6 +1445,10 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             if (numerator.needed) numerator.data = array.access(numerator.data, dimension.values.this.outcome)
             if (denominator.needed) denominator.data = array.access(denominator.data, dimension.values.this.outcome)
+            
+            # Apply mapping
+            if (numerator.needed && !is.null(mapping)) numerator.data = mapping$apply(numerator.data)
+            if (denominator.needed && !is.null(mapping)) denominator.data = mapping$apply(denominator.data)
             
             # Aggregation
             if (numerator.needed) pre.agg.dimnames = dimnames(numerator.data)

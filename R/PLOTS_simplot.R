@@ -23,8 +23,7 @@ simplot <- function(...,
                     dimension.values = list(),
                     plot.which = c('both', 'sim.only', 'data.only')[1],
                     data.manager = get.default.data.manager(),
-                    style.manager = NULL) # pending style manager initializing correctly
-                    # style.manager = get.default.style.manager()) # will be an R6 object. will be mine!
+                    style.manager = get.default.style.manager()) # will be an R6 object. will be mine!
 {
     ### --- FEATURES TO ADD --- ###
     # - change y-axis from 'value' to the name of the outcome? Maybe not, since "value" is shared by all plots
@@ -163,7 +162,7 @@ simplot <- function(...,
     #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
 
     outcome.mappings = list() # note: not all outcomes will have corresponding data outcomes
-    
+    # browser()
     df.truth = NULL
     for (i in seq_along(outcomes.for.data))
     {
@@ -203,7 +202,12 @@ simplot <- function(...,
             outcome.mappings = c(outcome.mappings, list(NULL))
         }
     }
-
+    if (!is.null(df.truth)) {
+        # make whatever column corresponds to split by actually be called "split.by" and same for facet.by.
+        if (!is.null(split.by)) names(df.truth)[names(df.truth)==split.by] = "split.by"
+        if (!is.null(facet.by)) names(df.truth)[names(df.truth)==facet.by] = "facet.by"
+    }
+    
     names(outcome.mappings) = outcomes
 
     #-- STEP 3: MAKE A DATA FRAME WITH ALL THE SIMULATIONS' DATA --#
@@ -213,34 +217,39 @@ simplot <- function(...,
         for (outcome in outcomes) {
             
             # Determine the keep.dimensions we need from the sim$gets
-            extra.dimensions.needed.for.mapping = c()
-            if (plot.which != 'sim.only' && !is.null(outcome.mappings[[outcome]])) {
-                extra.dimensions.needed.for.mapping = setdiff(outcome.mappings[[outcome]]$from.dimensions, c(facet.by, split.by, 'year'))
-                keep = union(c('year', facet.by, split.by), extra.dimensions.needed.for.mapping)
-            }
-            else keep = c('year', facet.by, split.by)
-            
+            # extra.dimensions.needed.for.mapping = c()
+            # if (plot.which != 'sim.only' && !is.null(outcome.mappings[[outcome]])) {
+            #     extra.dimensions.needed.for.mapping = setdiff(outcome.mappings[[outcome]]$from.dimensions, c(facet.by, split.by, 'year'))
+            #     keep = union(c('year', facet.by, split.by), extra.dimensions.needed.for.mapping)
+            # }
+            # else keep = c('year', facet.by, split.by)
+            keep.dimensions = c('year', facet.by, split.by)
             for (i in seq_along(simset.list)) {
                 
                 simset = simset.list[[i]]
+                if (!is.null(outcome.mappings[[outcome]])) mapping.this.outcome = outcome.mappings[[outcome]]
+                else mapping.this.outcome = NULL
+                # browser()
                 simset.data.this.outcome = simset$get(outcomes = outcome,
                                                       dimension.values = dimension.values,
-                                                      keep.dimensions = keep,
-                                                      drop.single.outcome.dimension = T)
-                if (plot.which != 'sim.only' && !is.null(outcome.mappings[[outcome]])) {
-                    simset.data.mapped.this.outcome = tryCatch(
-                        {outcome.mappings[[outcome]]$apply(simset.data.this.outcome)},
-                        error = function(e) {NULL}
-                    )
-                } else simset.data.mapped.this.outcome = simset.data.this.outcome
+                                                      keep.dimensions = keep.dimensions,
+                                                      drop.single.outcome.dimension = T,
+                                                      mapping=mapping.this.outcome)
+                # if (plot.which != 'sim.only' && !is.null(outcome.mappings[[outcome]])) {
+                #     simset.data.mapped.this.outcome = tryCatch(
+                #         {outcome.mappings[[outcome]]$apply(simset.data.this.outcome)},
+                #         error = function(e) {NULL}
+                #     )
+                # } else simset.data.mapped.this.outcome = simset.data.this.outcome
                 
-                if (is.null(simset.data.mapped.this.outcome)) next
+                # if (is.null(simset.data.mapped.this.outcome)) next
+                if (is.null(simset.data.this.outcome)) next
                 
                 # Aggregate out the extra dimensions we may have gotten for the mapping
-                simset.data.mapped.this.outcome = apply(simset.data.mapped.this.outcome, setdiff(names(dim(simset.data.mapped.this.outcome)), extra.dimensions.needed.for.mapping), sum, na.rm=T)
+                # simset.data.mapped.this.outcome = apply(simset.data.mapped.this.outcome, setdiff(names(dim(simset.data.mapped.this.outcome)), extra.dimensions.needed.for.mapping), sum, na.rm=T)
                 
                 # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
-                one.df.sim.this.outcome = reshape2::melt(simset.data.mapped.this.outcome, na.rm = T)
+                one.df.sim.this.outcome = reshape2::melt(simset.data.this.outcome, na.rm = T)
                 one.df.sim.this.outcome = as.data.frame(lapply(one.df.sim.this.outcome, function(col) {
                     if (is.factor(col)) as.character(col)
                     else col
@@ -258,9 +267,13 @@ simplot <- function(...,
     }
     
     if (!is.null(df.sim)) {
+        # make whatever column corresponds to split by actually be called "split.by" and same for facet.by.
+        if (!is.null(split.by)) names(df.sim)[names(df.sim)==split.by] = "split.by"
+        if (!is.null(facet.by)) names(df.sim)[names(df.sim)==facet.by] = "facet.by"
+        
         df.sim$simset = factor(df.sim$simset)
         df.sim$sim = factor(df.sim$sim)
-        df.sim$groupid = paste0(df.sim$outcome, '_', df.sim$simset, '_', df.sim$sim, '_', df.sim[,split.by])
+        df.sim$groupid = paste0(df.sim$outcome, '_', df.sim$simset, '_', df.sim$sim, '_', df.sim$split.by)
         
         # break df.sim into two data frames, one for outcomes where the sim will be lines and the other for where it will be points
         groupids.with.one.member = setdiff(unique(df.sim$groupid), df.sim$groupid[which(duplicated(df.sim$groupid))])
@@ -270,23 +283,46 @@ simplot <- function(...,
     }
     
     
-    #- STEP 4: MAKE THE PLOT --#
+    #-- STEP 4: MAKE THE PLOT --#
     # browser()
     y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
     
     facet.formula = as.formula(paste0("~",
                                       paste0(c('outcome', facet.by), collapse='+')))
     
+    
+    #- Convert style manager choices into usable names -#
+    # linetype.sim.by = style.manager$linetype.sim.by
+    # if (linetype.sim.by == 'stratum') linetype.sim.by = split.by
+    # shade.data.by = style.manager$shade.data.by
+    # if (shade.data.by == 'stratum') shade.data.by = split.by
+    # shape.data.by = style.manager$shape.data.by
+    # if (shape.data.by == 'stratum') shape.data.by = split.by
+    # color.data.by = style.manager$color.data.by
+    # if (color.data.by == 'stratum') color.data.by = split.by
+    # color.sim.by = style.manager$color.sim.by
+    # if (color.sim.by == 'stratum') color.sim.by = split.by
+    # browser()
     rv = ggplot2::ggplot() + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma) + ggplot2::scale_color_discrete()
 
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
         if (!is.null(df.sim)) {
-            rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=simset, group=groupid, color=!!ggplot2::sym(split.by), alpha=alpha, linewidth=linewidth)) +
-                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=simset, color=!!ggplot2::sym(split.by)))
+            # rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year,y=value,group=groupid,
+            #                                                                               linetype = line.type.sim.by,
+            #                                                                               color = color.sim.by)) + # linewidth?? alpha??
+            #     ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
+            #                                                                               color = color.sim.by))
+            
+            
+            rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=style.manager$linetype.sim.by, group=groupid, color=split.by, alpha=alpha, linewidth=linewidth)) +
+                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=style.manager$shape.data.by, color=symsplit.by))
         }
         if (!is.null(df.truth))
-            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, color=!!ggplot2::sym(split.by), shape=ifelse(length(unique(location))==1, source, location)))
+            # rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,
+            #                                                           color=color.data.by,
+            #                                                           shape=shape.data.by))
+            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,color=split.by, shape=ifelse(length(unique(location))==1, source, location)))
     } else {
         if (!is.null(df.sim)) {
             rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=simset, group=groupid, alpha=alpha, linewidth=linewidth)) +
@@ -306,4 +342,4 @@ simplot <- function(...,
     if (!is.null(df.sim)) rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
     
     rv
-}
+    }
