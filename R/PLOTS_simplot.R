@@ -268,8 +268,8 @@ simplot <- function(...,
     
     if (!is.null(df.sim)) {
         # make whatever column corresponds to split by actually be called "split.by" and same for facet.by.
-        if (!is.null(split.by)) names(df.sim)[names(df.sim)==split.by] = "split.by"
-        if (!is.null(facet.by)) names(df.sim)[names(df.sim)==facet.by] = "facet.by"
+        if (!is.null(split.by)) df.sim["split.by"] = df.sim[split.by]
+        if (!is.null(facet.by)) df.sim["facet.by"] = df.sim[facet.by]
         
         df.sim$simset = factor(df.sim$simset)
         df.sim$sim = factor(df.sim$sim)
@@ -297,8 +297,10 @@ simplot <- function(...,
     # browser()
     y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
     
-    facet.formula = as.formula(paste0("~",
-                                      paste0(c('outcome', 'facet.by'), collapse='+')))
+    if (is.null(facet.by))
+        facet.formula = as.formula("~outcome")
+    else
+        facet.formula = as.formula("~outcome + facet.by")
 
     # browser()
     rv = ggplot2::ggplot() + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
@@ -321,9 +323,10 @@ simplot <- function(...,
         }
         if (!is.null(df.truth)) {
             rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,
-                                                                      color=color.data.by,
+                                                                      color=color.data.by, # fill
                                                                       shape=shape.data.by))
-            # rv = rv + ggplot2::scale_color_manual(values = style.manager$get.data.colors(length(unique(df.truth$color.data))))
+            # scale fill manual instead
+            rv = rv + ggplot2::scale_color_manual(values = style.manager$get.data.colors(length(unique(df.truth$color.data))))
             # rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,color=split.by, shape=ifelse(length(unique(location))==1, source, location)))
         }
             
@@ -341,6 +344,8 @@ simplot <- function(...,
             rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, shape = shape.data.by))
             # rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, shape=ifelse(length(unique(location))==1, source, location)))
     }
+    
+    # rv = rv + ggplot2::scale_color_manual(values = color.values)
     
     if (!is.null(facet.by) || length(outcomes) > 1) {
         rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y', )
