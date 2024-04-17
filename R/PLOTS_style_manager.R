@@ -3,8 +3,9 @@
 create.style.manager = function(color.sim.by = 'stratum',
                                 color.data.by = 'stratum',
                                 shade.data.by = 'location',
-                                linetype.sim.by = 'simulation',
+                                linetype.sim.by = 'simset',
                                 shape.data.by = 'source',
+                                shape.sim.by = 'simset',
                                 sim.palette = ggsci::pal_jama(),
                                 data.palette = ggsci::pal_jama(),
                                 linetypes = c("solid", "dashed", "dotted","dotdash"),
@@ -16,6 +17,7 @@ create.style.manager = function(color.sim.by = 'stratum',
                             shade.data.by = shade.data.by,
                             linetype.sim.by = linetype.sim.by,
                             shape.data.by = shape.data.by,
+                            shape.sim.by = shape.sim.by,
                             sim.palette = sim.palette,
                             data.palette = data.palette,
                             linetypes = linetypes,
@@ -67,6 +69,7 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
                               shade.data.by,
                               linetype.sim.by,
                               shape.data.by,
+                              shape.sim.by,
                               sim.palette,
                               data.palette,
                               linetypes,
@@ -79,6 +82,7 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
             private$i.color.data.by = color.data.by
             private$i.shade.data.by = shade.data.by
             private$i.shape.data.by = shape.data.by
+            private$i.shape.sim.by = shape.sim.by
             private$i.linetype.sim.by = linetype.sim.by
             
             private$i.sim.palette = sim.palette
@@ -131,7 +135,7 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
         
         color.sim.by = function(value)
         {
-            if (is.null(value))
+            if (missing(value))
                 private$i.color.sim.by
             else
                 stop("Cannot overwrite a style.manager's 'color.sim.by' - it is read only")
@@ -139,7 +143,7 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
         
         color.data.by = function(value)
         {
-            if (is.null(value))
+            if (missing(value))
                 private$i.color.data.by
             else
                 stop("Cannot overwrite a style.manager's 'color.sim.by' - it is read only")
@@ -147,7 +151,7 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
         
         shade.data.by = function(value)
         {
-            if (is.null(value))
+            if (missing(value))
                 private$i.shade.data.by
             else
                 stop("Cannot overwrite a style.manager's 'color.sim.by' - it is read only")
@@ -155,7 +159,7 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
         
         linetype.sim.by = function(value)
         {
-            if (is.null(value))
+            if (missing(value))
                 private$i.linetype.sim.by
             else
                 stop("Cannot overwrite a style.manager's 'color.sim.by' - it is read only")
@@ -163,10 +167,18 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
         
         shape.data.by = function(value)
         {
-            if (is.null(value))
+            if (missing(value))
                 private$i.shape.data.by
             else
                 stop("Cannot overwrite a style.manager's 'color.sim.by' - it is read only")
+        },
+        
+        shape.sim.by = function(value)
+        {
+            if (missing(value))
+                private$i.shape.sim.by
+            else
+                stop("Cannot overwrite a style.manager's 'shape.sim.by' - it is read only")
         }
     ),
     
@@ -177,6 +189,7 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
         i.shade.data.by = NULL,
         i.linetype.sim.by = NULL,
         i.shape.data.by = NULL,
+        i.shape.sim.by= NULL,
         
         i.sim.palette = NULL,
         i.data.palette = NULL,

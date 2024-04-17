@@ -51,6 +51,7 @@ Rcpp::sourceCpp('../jheem2/src/simulation_helpers.cpp')
 
 source('../jheem2/R/DATA_MANAGER_data_manager.R')
 source('../jheem2/R/PLOTS_simplot.R')
+source('../jheem2/R/PLOTS_style_manager.R')
 
 source('../jheem2/R/LIKELIHOODS_basic_likelihood.R')
 source('../jheem2/R/LIKELIHOODS_main.R')
