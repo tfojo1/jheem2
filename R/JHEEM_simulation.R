@@ -1089,19 +1089,29 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 keep.dimensions = union(incomplete.dimensions, names(dimension.values))
             }
             
-            dim.names = self$get.dim.names(outcomes = outcomes,
-                                           keep.dimensions = keep.dimensions,
-                                           dimension.values = dimension.values,
-                                           ...,
-                                           check.consistency = check.consistency,
-                                           drop.single.outcome.dimension = drop.single.outcome.dimension,
-                                           drop.single.sim.dimension = drop.single.sim.dimension,
-                                           error.prefix = error.prefix)
-            # May be changed by mapping
-            if (!is.null(mapping)) {
+            if (is.null(mapping))
+                dim.names = self$get.dim.names(outcomes = outcomes,
+                                               keep.dimensions = keep.dimensions,
+                                               dimension.values = dimension.values,
+                                               ...,
+                                               check.consistency = check.consistency,
+                                               drop.single.outcome.dimension = drop.single.outcome.dimension,
+                                               drop.single.sim.dimension = drop.single.sim.dimension,
+                                               error.prefix = error.prefix)
+            else {
+                dim.names = self$get.dim.names(outcomes = outcomes,
+                                               keep.dimensions = union(keep.dimensions, mapping$from.dimensions),
+                                               dimension.values = dimension.values,
+                                               ...,
+                                               check.consistency = check.consistency,
+                                               drop.single.outcome.dimension = drop.single.outcome.dimension,
+                                               drop.single.sim.dimension = drop.single.sim.dimension,
+                                               error.prefix = error.prefix)
+                
+                # There may be extra dimensions needed for the mapping (like sex is needed for risk) but these will aggregated out in the final product
                 dim.names.mapped.dimensions = dim.names[!(names(dim.names) %in% c('sim', 'outcome'))]
-                dim.names.mapped.dimensions = mapping$apply.to.dim.names(dim.names.mapped.dimensions)
-                dim.names[!(names(dim.names) %in% c('sim', 'outcome'))] = dim.names.mapped.dimensions
+                dim.names[!(names(dim.names) %in% c('sim', 'outcome'))] = mapping$apply.to.dim.names(dim.names.mapped.dimensions)
+                dim.names = dim.names[names(dim.names) %in% c(keep.dimensions, 'sim', 'outcome')]
             }
             
             dimension.values = private$slowerFoo(dimension.values, ..., check.consistency = check.consistency, error.prefix=error.prefix)
@@ -1463,8 +1473,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             }
             
             if (length(pre.agg.dimnames) > length(keep.dimensions)) {
-                if (numerator.needed) numerator.data = apply(numerator.data, c(keep.dimensions, 'sim'), sum)
-                if (denominator.needed) denominator.data = apply(denominator.data, c(keep.dimensions, 'sim'), sum)
+                if (numerator.needed) numerator.data = apply(numerator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
+                if (denominator.needed) denominator.data = apply(denominator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
             }
             
             if (output == 'numerator' || output == 'value' && !denominator.needed) output.array = numerator.data
