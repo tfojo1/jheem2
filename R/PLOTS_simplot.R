@@ -275,6 +275,11 @@ simplot <- function(...,
         df.sim$sim = factor(df.sim$sim)
         df.sim$groupid = paste0(df.sim$outcome, '_', df.sim$simset, '_', df.sim$sim, '_', df.sim$split.by)
         
+        df.sim['linetype.sim.by'] = df.sim[style.manager$linetype.sim.by]
+        df.sim['shape.sim.by'] = df.sim[style.manager$shape.sim.by]
+        if (style.manager$color.sim.by == 'stratum' && !is.null(split.by))
+            df.sim['color.sim.by'] = df.sim$split.by
+        
         # break df.sim into two data frames, one for outcomes where the sim will be lines and the other for where it will be points
         groupids.with.one.member = setdiff(unique(df.sim$groupid), df.sim$groupid[which(duplicated(df.sim$groupid))])
         df.sim$groupid_has_one_member = with(df.sim, groupid %in% groupids.with.one.member)
@@ -282,54 +287,59 @@ simplot <- function(...,
         df.sim.groupids.many.members = subset(df.sim, !groupid_has_one_member)
     }
     
+    if (!is.null(df.truth)) {
+        df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
+        if (style.manager$color.data.by == 'stratum' && !is.null(split.by))
+            df.truth[['color.data.by']] = df.truth$split.by
+    }
     
     #-- STEP 4: MAKE THE PLOT --#
     # browser()
     y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
     
     facet.formula = as.formula(paste0("~",
-                                      paste0(c('outcome', facet.by), collapse='+')))
-    
-    
-    #- Convert style manager choices into usable names -#
-    # linetype.sim.by = style.manager$linetype.sim.by
-    # if (linetype.sim.by == 'stratum') linetype.sim.by = split.by
-    # shade.data.by = style.manager$shade.data.by
-    # if (shade.data.by == 'stratum') shade.data.by = split.by
-    # shape.data.by = style.manager$shape.data.by
-    # if (shape.data.by == 'stratum') shape.data.by = split.by
-    # color.data.by = style.manager$color.data.by
-    # if (color.data.by == 'stratum') color.data.by = split.by
-    # color.sim.by = style.manager$color.sim.by
-    # if (color.sim.by == 'stratum') color.sim.by = split.by
+                                      paste0(c('outcome', 'facet.by'), collapse='+')))
+
     # browser()
-    rv = ggplot2::ggplot() + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma) + ggplot2::scale_color_discrete()
+    rv = ggplot2::ggplot() + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
 
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
         if (!is.null(df.sim)) {
-            # rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year,y=value,group=groupid,
-            #                                                                               linetype = line.type.sim.by,
-            #                                                                               color = color.sim.by)) + # linewidth?? alpha??
-            #     ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
-            #                                                                               color = color.sim.by))
+            rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year,y=value,group=groupid,
+                                                                                         linetype = linetype.sim.by,
+                                                                                         color = color.sim.by,
+                                                                                         alpha = alpha,
+                                                                                         linewidth = linewidth)) +
+                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
+                                                                                          color = color.sim.by,
+                                                                                          shape = shape.sim.by))
             
-            
-            rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=style.manager$linetype.sim.by, group=groupid, color=split.by, alpha=alpha, linewidth=linewidth)) +
-                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=style.manager$shape.data.by, color=symsplit.by))
+            rv = rv + ggplot2::scale_color_manual(values = style.manager$get.sim.colors(length(unique(df.sim$color.sim.by))))
+            # rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=style.manager$linetype.sim.by, group=groupid, color=split.by, alpha=alpha, linewidth=linewidth)) +
+            #     ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=style.manager$shape.data.by, color=split.by))
         }
-        if (!is.null(df.truth))
-            # rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,
-            #                                                           color=color.data.by,
-            #                                                           shape=shape.data.by))
-            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,color=split.by, shape=ifelse(length(unique(location))==1, source, location)))
+        if (!is.null(df.truth)) {
+            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,
+                                                                      color=color.data.by,
+                                                                      shape=shape.data.by))
+            # rv = rv + ggplot2::scale_color_manual(values = style.manager$get.data.colors(length(unique(df.truth$color.data))))
+            # rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,color=split.by, shape=ifelse(length(unique(location))==1, source, location)))
+        }
+            
     } else {
         if (!is.null(df.sim)) {
-            rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=simset, group=groupid, alpha=alpha, linewidth=linewidth)) +
-                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=simset))
+            rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, group=groupid,
+                                                                                         linetype = linetype.sim.by,
+                                                                                         alpha = alpha,
+                                                                                         linewidth = linewidth)) +
+                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=shape.sim.by))
+            # rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=simset, group=groupid, alpha=alpha, linewidth=linewidth)) +
+            #     ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=simset))
         }
         if (!is.null(df.truth))
-            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, shape=ifelse(length(unique(location))==1, source, location)))
+            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, shape = shape.data.by))
+            # rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, shape=ifelse(length(unique(location))==1, source, location)))
     }
     
     if (!is.null(facet.by) || length(outcomes) > 1) {
