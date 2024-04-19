@@ -3388,7 +3388,14 @@ JHEEM = R6::R6Class(
                     if (bkgd$functional.form$type == 'linear spline' && bkgd$functional.form$link$type=='identity' &&
                         element$functional.form.scale == element$scale) 
                         #If these conditions are true, we can just let the native interpolation take care of the in-between points
-                        functional.form.times = bkgd$functional.form$knot.times[bkgd$functional.form$knot.times>=from.time & bkgd$functional.form$knot.times<=to.time]
+                    {
+                        if (bkgd$functional.form$knot.times[1]>to.time)
+                            functional.form.times =bkgd$functional.form$knot.times[1]
+                        else if (bkgd$functional.form$knot.times[length(bkgd$functional.form$knot.times)]<from.time)
+                            functional.form.times =bkgd$functional.form$knot.times[length(bkgd$functional.form$knot.times)]
+                        else
+                            functional.form.times = bkgd$functional.form$knot.times[bkgd$functional.form$knot.times>=from.time & bkgd$functional.form$knot.times<=to.time]
+                    }
                     else
                         functional.form.times = ceiling(from.time):floor(to.time)
                 }
