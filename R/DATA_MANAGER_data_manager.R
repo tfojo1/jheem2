@@ -1098,67 +1098,66 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                             return.as.dimensions = T)
             put.dim.names = put.dim.names[stratification.dimensions]
 
+            ## ANDREW'S NEW LOGIC TO ACCOMMODATE MULTIPLE METRICS AND ENSURING ALIGNED DIMNAMES AMONG ALL
+            existing.dim.names.this.metric = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
+            data.already.present.this.metric = !is.null(existing.dim.names.this.metric)
 
-            # -> make new data elements
+            all.metric.names = names(private$i.data[[outcome]])
+            existing.dim.names = lapply(names(private$i.data[[outcome]]), function(metr) {
+                dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
+            })
+            names(existing.dim.names) = names(private$i.data[[outcome]])
+            if (length(existing.dim.names) > 0)
+                existing.dim.names = existing.dim.names[sapply(existing.dim.names, function(metr.dimnames) {!is.null(metr.dimnames)})]
+            metrics.with.data = names(existing.dim.names)
 
-            # # This metric might not have any data yet, but others may
-            # data.already.present = is.null(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
-            #
-            # if (data.already.present) existing.dim.names = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
-            # else {
-            #     existing.dim.names = NULL
-            #     for (met in names(private$i.data[[outocme]])) {
-            #         existing.dim.names = dimnames(private$i.data[[outcome]][[met]][[source]][[ontology.name]][[stratification]])
-            #     }
-            # }
+            data.already.present = length(existing.dim.names) > 0
 
-            existing.dim.names = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
-            data.already.present = !is.null(existing.dim.names)
+            # find aligning dimnames
+            dimnames.aligning.all.metrics = put.dim.names
+            if (data.already.present) {
+                dimnames.aligning.all.metrics = private$prepare.put.dim.names(do.call(outer.join.dim.names, c(existing.dim.names, list(put.dim.names))), ontology.name)
+            }
 
-            if (!data.already.present ||
-                !dim.names.are.subset(sub.dim.names = put.dim.names,
-                                      super.dim.names = existing.dim.names)
-            )
+            if (data.already.present && !dim.names.equal(put.dim.names, dimnames.aligning.all.metrics))
             {
-                # Backup old data, if needed
-                if (data.already.present)
-                {
-                    existing.data.and.metadata = lapply(data.element.names, function(name){
-                        private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]]
+                # Backup old data
+                existing.data.and.metadata = lapply(data.element.names, function(name) {
+                    data.this.element = lapply(metrics.with.data, function(metr) {
+                        private[[name]][[outcome]][[metr]][[source]][[ontology.name]][[stratification]]
                     })
-                    names(existing.data.and.metadata) = data.element.names
-                }
-
-                # Figure out the dimensions for the new data structures
-                if (data.already.present)
-                    new.dim.names = private$prepare.put.dim.names(outer.join.dim.names(existing.dim.names, put.dim.names),
-                                                                  ontology.name = ontology.name)
-                else
-                    new.dim.names = put.dim.names
-
-                # Update ontology
-                for (d in names(new.dim.names)) {
-                    private$i.ontologies[[ontology.name]][[d]] = sort(union(private$i.ontologies[[ontology.name]][[d]], new.dim.names[[d]]))
-                }
+                    names(data.this.element) = metrics.with.data
+                    return(data.this.element)
+                })
+                names(existing.data.and.metadata) = data.element.names
 
                 # Make the new (empty) data structures
-                private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]] =
-                    array(NaN, dim=sapply(new.dim.names, length), dimnames = new.dim.names)
+                for (name in data.element.names) {
+                    for (metr in metrics.with.data)
+                        private[[name]][[outcome]][[metr]][[source]][[ontology.name]][[stratification]] =
+                            array(NaN, dim=sapply(dimnames.aligning.all.metrics, length), dimnames = dimnames.aligning.all.metrics)
+                }
 
-                for (name in metadata.element.names)
-                {
+                # Overwrite the new structure with the old data
+                for (name in data.element.names) {
+                    for (metr in metrics.with.data) {
+                        array.access(private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]], existing.dim.names[[metr]]) =
+                            existing.data.and.metadata[[name]][[metr]]
+                    }
+                }
+            }
+            else if (!data.already.present)
+            {
+                # Make the new (empty) data structures
+                for (name in data.element.names) {
                     private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]] =
-                        array(NaN, dim=sapply(new.dim.names, length), dimnames = new.dim.names)
+                        array(NaN, dim=sapply(dimnames.aligning.all.metrics, length), dimnames = dimnames.aligning.all.metrics)
                 }
+            }
 
-                # Overwrite the new structure with the old data, if needed
-                if (data.already.present)
-                {
-                    for (name in data.element.names)
-                        array.access(private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]], existing.dim.names) =
-                            existing.data.and.metadata[[name]]
-
-                }
+            # Update ontology
+            for (d in names(dimnames.aligning.all.metrics)) {
+                private$i.ontologies[[ontology.name]][[d]] = sort(union(private$i.ontologies[[ontology.name]][[d]], dimnames.aligning.all.metrics[[d]]))
             }
 
             #-- Put the data and its metadata --#
@@ -1396,7 +1395,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
             target.from.arguments = target.ontology
-            if (debug) browser()
+            # if (debug) browser()
             if (is.null(target.ontology) || allow.mapping.from.target.ontology) {
                 target.ontology = private$get.universal.ontology(outcome = outcome,
                                                                  sources = sources,
@@ -1440,9 +1439,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             sources.successful.names = c()
 
             ## FOR THE FUTURE: DO A PRETEND PULL TO SEE WHAT ONTOLOGIES WE NEED, THEN POTENTIALLY REMAKE THE UNIVERSAL WITH ONLY THOSE
-            # if (debug) browser()
+            if (debug) browser()
             pre.processed.data = lapply(sources.used.names, function(source.name) {
-
                 source.ontology.names = names(private$i.data[[outcome]][[metric]][[source.name]])
                 if (is.null(from.ontology.names))
                     ontologies.used.names = source.ontology.names
@@ -1457,14 +1455,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     stratification.names = names(private$i.data[[outcome]][[metric]][[source.name]][[ont.name]])
 
                     for (strat in stratification.names) {
-
                         strat.data = private$i.data[[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
                         strat.dimensions = names(dim(strat.data))
                         strat.dimnames = as.ontology(dimnames(strat.data), incomplete.dimensions = intersect(incomplete.dimensions(ont), strat.dimensions))
 
                         if (all(is.na(strat.data))) next
 
-                        mapping.to.apply = get.ontology.mapping(strat.dimnames, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
+                        ### This step can take a VERY long time (~30 seconds) to fail on some outcomes and stratifications. We need to cache the result.
+                        mapping.to.apply = private$get.cached.target.to.target.mapping(outcome=outcome, ont.1=strat.dimnames, ont.2=target.ontology)
                         if (is.null(mapping.to.apply)) next
                         dimnames.for.apply = mapping.to.apply$apply.to.dim.names(strat.dimnames)
                         if (!setequal(names(dimnames.for.apply), union(keep.dimensions, dv.names))) next
@@ -1512,7 +1510,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             if (data.type == 'data') {
                                 data.to.process = strat.data
-                                function.to.apply = 'sum'
+                                function.to.apply = "sum" # function(x) {sum(x, na.rm=na.rm)}
                             }
                             else {
                                 data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
@@ -1590,7 +1588,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             else {
                                 mapped.data.by.type = mapping.to.apply$apply(data.to.process,
-                                                                             na.rm = na.rm,
+                                                                             na.rm = na.rm, # DOESN'T DO ANYTHING????
                                                                              to.dim.names = dimnames.for.apply,
                                                                              fun = function.to.apply)
                             }
@@ -1740,8 +1738,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     pulled.source.data = lapply(data.types, function(data.type) {
 
                         if (!is.null(pulled.source.data)) {
-                            # if (data.type == 'details') browser()
-                            if (debug) browser()
                             new.pulled.source.data.this.type = array(NA, sapply(new.source.data.dimnames, length), new.source.data.dimnames)
                             new.pulled.source.data.this.type[get.array.access.indices(new.source.data.dimnames, dimnames(pulled.source.data[[data.type]]))] = pulled.source.data[[data.type]]
                             pulled.data.na.mask = !is.na(pulled.ont.data[[data.type]])
@@ -2332,10 +2328,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]] =
                         setNames(list(new.target.to.target.ontology), key.for.cache)
                 }
+                if (is.null(new.target.to.target.ontology)) new.target.to.target.ontology = 'NULL'
                 private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[key.for.cache]] = new.target.to.target.ontology
             }
             #return
-            return (private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[key.for.cache]])
+            if (!is(private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[key.for.cache]], 'ontology.mapping')) return (NULL)
+            else return (private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[key.for.cache]])
         },
 
         get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, target.ontology = NULL, return.target.to.universal.mapping = T, debug = F)
