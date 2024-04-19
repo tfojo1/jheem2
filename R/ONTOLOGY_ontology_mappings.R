@@ -1662,17 +1662,46 @@ ONTOLOGY.MAPPING = R6::R6Class(
             if (!is.character(from.dimension) || length(from.dimension)!=1 || is.na(from.dimension))
                 stop("'from.dimension' must be a single, non-NA character value")
             
-            if (all(from.dimension!=self$from.dimensions))
-                stop("'from.dimension' ('", from.dimension, "') must be one of the ontology mapping's from.dimensions")
+            if (!is.character(to.dimension) || length(to.dimension)!=1 || is.na(to.dimension))
+                stop("'to.dimension' must be a single, non-NA character value")
+            
+            if (!is(self, 'identity.ontology.mapping'))
+            {
+                if (all(from.dimension!=self$from.dimensions))
+                    stop("'from.dimension' ('", from.dimension, "') must be one of the ontology mapping's from.dimensions")
+                
+                if (all(to.dimension!=self$to.dimensions))
+                    stop("'to.dimension' ('", to.dimension, "') must be one of the ontology mapping's to.dimensions")
+            }
+            
+            private$do.get.mapping.vector(from.values = from.values,
+                                          from.dimension = from.dimension,
+                                          to.dimension = to.dimension)
+        },
+        
+        get.reverse.mapping.vector = function(to.values=character(), from.dimension=self$from.dimensions[1], to.dimension=self$to.dimensions[1])
+        {
+            if (!is.character(to.values) || any(is.na(to.values)))
+                stop("'to.values' must be a character vector with no NA values")
+            
+            if (!is.character(from.dimension) || length(from.dimension)!=1 || is.na(from.dimension))
+                stop("'from.dimension' must be a single, non-NA character value")
             
             if (!is.character(to.dimension) || length(to.dimension)!=1 || is.na(to.dimension))
                 stop("'to.dimension' must be a single, non-NA character value")
             
-            if (all(to.dimension!=self$to.dimensions))
-                stop("'to.dimension' ('", to.dimension, "') must be one of the ontology mapping's to.dimensions")
+            if (!is(self, 'identity.ontology.mapping'))
+            {
+                if (all(from.dimension!=self$from.dimensions))
+                    stop("'from.dimension' ('", from.dimension, "') must be one of the ontology mapping's from.dimensions")
+                
+                if (all(to.dimension!=self$to.dimensions))
+                    stop("'to.dimension' ('", to.dimension, "') must be one of the ontology mapping's to.dimensions")
+            }
             
-            private$do.get.mapping.vector(from.dimension = from.dimension,
-                                          to.dimension = to.dimension)
+            private$do.get.reverse.mapping.vector(to.values = to.values,
+                                                  from.dimension = from.dimension,
+                                                  to.dimension = to.dimension)
         },
         
         get.reverse.mapping.indices = function(from.dim.names, to.dim.names, error.prefix='Cannot get mapping indices from ontology.mapping: ')
@@ -1830,6 +1859,11 @@ ONTOLOGY.MAPPING = R6::R6Class(
             stop("This subclass of 'ontology.mapping' is incompletely specified. The private 'do.get.mapping.vector' method must be implemented at the subclass level")     
         },
         
+        do.get.reverse.mapping.vector = function(to.values, from.dimension, to.dimension)
+        {
+            stop("This subclass of 'ontology.mapping' is incompletely specified. The private 'do.get.reverse.mapping.vector' method must be implemented at the subclass level")     
+        },
+        
         do.apply.to.dim.names.or.ontology = function(from.dim.names,
                                                      error.prefix)
         {
@@ -1938,6 +1972,13 @@ IDENTITY.ONTOLOGY.MAPPING = R6::R6Class(
             from.values = unique(from.values)
             names(from.values) = from.values
             from.values
+        },
+        
+        do.get.reverse.mapping.vector = function(to.values, from.dimension, to.dimension)
+        {
+            to.values = unique(to.values)
+            names(to.values) = to.values
+            to.values
         },
         
         do.apply.to.dim.names.or.ontology = function(from.dim.names,
@@ -2199,6 +2240,16 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
             
             rv = private$i.to.values[mask, to.dimension]
             names(rv) = private$i.from.values[mask, from.dimension]
+            
+            rv
+        },
+        
+        do.get.reverse.mapping.vector = function(to.values, from.dimension, to.dimension)
+        {
+            mask = !is.na(private$i.to.values)
+            
+            rv = private$i.from.values[mask, from.dimension]
+            names(rv) = private$i.to.values[mask, to.dimension]
             
             rv
         },
@@ -2547,10 +2598,25 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
             if (from.dimension != to.dimension)
                 stop("Cannot get a mapping vector from a combined ontology mapping unless from.dimension == to.dimension")
             
-            mapping = private$i.sub.mappings$get.mapping.vector(from.values, from.dimension=from.dimension, to.dimension=to.dimension)
+            mapping = private$i.sub.mappings[[1]]$get.mapping.vector(from.values, from.dimension=from.dimension, to.dimension=to.dimension)
             for (sub.mapping in private$i.sub.mappings[-1])
             {
-                mapping2 = sub.mappings$get.mapping.vector(mapping, from.dimension=from.dimension, to.dimension=to.dimension)
+                mapping2 = sub.mapping$get.mapping.vector(mapping, from.dimension=from.dimension, to.dimension=to.dimension)
+                mapping = mapping2[mapping]
+            }
+            
+            mapping
+        },
+        
+        do.get.reverse.mapping.vector = function(to.values, from.dimension, to.dimension)
+        {
+            if (from.dimension != to.dimension)
+                stop("Cannot get a reverse mapping vector from a combined ontology mapping unless from.dimension == to.dimension")
+            
+            mapping = private$i.sub.mappings[[length(private$i.sub.mappings)]]$get.reverse.mapping.vector(to.values, from.dimension=from.dimension, to.dimension=to.dimension)
+            for (sub.mapping in rev(private$i.sub.mappings)[-1])
+            {
+                mapping2 = sub.mapping$get.reverse.mapping.vector(mapping, from.dimension=from.dimension, to.dimension=to.dimension)
                 mapping = mapping2[mapping]
             }
             
