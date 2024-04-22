@@ -279,6 +279,7 @@ simplot <- function(...,
         df.sim['shape.sim.by'] = df.sim[style.manager$shape.sim.by]
         if (style.manager$color.sim.by == 'stratum' && !is.null(split.by))
             df.sim['color.sim.by'] = df.sim$split.by
+        else df.sim['color.sim.by'] = rep('none', nrow=df.sim)
         
         # break df.sim into two data frames, one for outcomes where the sim will be lines and the other for where it will be points
         groupids.with.one.member = setdiff(unique(df.sim$groupid), df.sim$groupid[which(duplicated(df.sim$groupid))])
@@ -290,7 +291,13 @@ simplot <- function(...,
     if (!is.null(df.truth)) {
         df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
         if (style.manager$color.data.by == 'stratum' && !is.null(split.by))
-            df.truth[['color.data.by']] = df.truth$split.by
+            df.truth['color.data.by'] = df.truth$split.by
+        else df.truth['color.data.by'] = rep('none', nrow(df.truth))
+        
+        # modify colors with shades
+        # for every color we have, we will then have as many shades of it as we have shade.by features
+        df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
+        df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['color.data.by'], df.truth['shade.data.by'], list(sep="__")))
     }
     
     #-- STEP 4: MAKE THE PLOT --#
@@ -301,9 +308,20 @@ simplot <- function(...,
         facet.formula = as.formula("~outcome")
     else
         facet.formula = as.formula("~outcome + facet.by")
+    # browser()
+    # determine colors as a named vector
+    # need one color per unique value in color "color.and.shade.data.by"
+    # first get one color per color.data.by
+    color.data.primary.colors = style.manager$get.data.colors(length(unique(df.truth$color.data.by)))
+    color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
+    names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$color.data.by), unique(df.truth$shade.data.by)), list(sep="__")))
+    color.sim.by = style.manager$get.sim.colors(length(unique(df.sim$color.sim.by)))
+    names(color.sim.by) = unique(df.sim$color.sim.by)
+    all.colors.for.scale = c(color.data.shaded.colors, color.sim.by)
 
     # browser()
     rv = ggplot2::ggplot() + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
+    rv = rv + ggplot2::scale_color_manual(values = all.colors.for.scale)
 
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
@@ -317,16 +335,15 @@ simplot <- function(...,
                                                                                           color = color.sim.by,
                                                                                           shape = shape.sim.by))
             
-            rv = rv + ggplot2::scale_color_manual(values = style.manager$get.sim.colors(length(unique(df.sim$color.sim.by))))
+            
             # rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=style.manager$linetype.sim.by, group=groupid, color=split.by, alpha=alpha, linewidth=linewidth)) +
             #     ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=style.manager$shape.data.by, color=split.by))
         }
         if (!is.null(df.truth)) {
             rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,
-                                                                      color=color.data.by, # fill
+                                                                      color=color.and.shade.data.by, # fill
                                                                       shape=shape.data.by))
             # scale fill manual instead
-            rv = rv + ggplot2::scale_color_manual(values = style.manager$get.data.colors(length(unique(df.truth$color.data))))
             # rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,color=split.by, shape=ifelse(length(unique(location))==1, source, location)))
         }
             
@@ -347,9 +364,7 @@ simplot <- function(...,
     
     # rv = rv + ggplot2::scale_color_manual(values = color.values)
     
-    if (!is.null(facet.by) || length(outcomes) > 1) {
-        rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y', )
-    }
+    rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y', )
     
     rv = rv +
         ggplot2::scale_alpha(guide='none') +
