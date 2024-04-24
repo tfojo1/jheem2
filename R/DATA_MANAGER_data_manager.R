@@ -932,9 +932,15 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix,
                             "'data' must have length > 0"))
             
-            do.check.values.for.model.scale(data, scale=outcome.info$metadata$scale,
-                                            variable.name.for.error = 'data',
-                                            error.prefix = error.prefix)
+            ###
+            if (metric %in% c('estimate', 'upper.bound', 'lower.bound'))
+                do.check.values.for.model.scale(data, scale=outcome.info$metadata$scale,
+                                                variable.name.for.error = 'data',
+                                                error.prefix = error.prefix)
+            else
+                do.check.values.for.model.scale(data, scale = 'non.negative.number',
+                                                variable.name.for.error = 'data',
+                                                error.prefix = error.prefix)
             
             if (is.array(data))
             {
@@ -1002,8 +1008,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # *metric* is one of 'estimate', 'upper.bound', 'lower.bound', or 'coefficient.of.variance' until more options are added
-            if (!is.character(metric) || length(metric) != 1 || !(metric %in% c('estimate', 'upper.bound', 'lower.bound', 'coefficient.of.variance')))
-                stop(paste0(error.prefix, "'metric' must be a character vector with value 'estimate', 'upper.bound', 'lower.bound' or 'coefficient.of.variance'"))
+            if (!is.character(metric) || length(metric) != 1 || !(metric %in% c('estimate', 'variance', 'standard.deviation', 'upper.bound', 'lower.bound', 'coefficient.of.variance')))
+                stop(paste0(error.prefix, "'metric' must be a character vector with value 'estimate', 'variance', 'standard.deviation', 'upper.bound', 'lower.bound' or 'coefficient.of.variance'"))
             
             # 4) *source* is
             #    a single, non-NA, non-empty character value
@@ -1318,6 +1324,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (!is.null(target.ontology) && is.null(keep.dimensions))
                 keep.dimensions = character(0)
             
+            outcome.info = private$i.outcome.info[[outcome]]
+            
             if (check.arguments) {
                 
                 # *outcome* is a single, non-NA character value
@@ -1325,16 +1333,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (!is.character(outcome) || length(outcome)!=1 || is.na(outcome) || nchar(outcome)==0)
                     stop(paste0(error.prefix, "'outcome' must be a single, non-empty, non-NA character value"))
                 
-                outcome.info = private$i.outcome.info[[outcome]]
+                
                 if (is.null(outcome.info))
                     stop(paste0(error.prefix, "'", outcome, "' is not a registered outcome."))
                 
-                # *metric* is one of 'estimate', 'upper.bound', 'lower.bound', or 'coefficient.of.variance' until more options are added
-                if (!is.character(metric) || length(metric) != 1 || !(metric %in% c('estimate', 'upper.bound', 'lower.bound', 'coefficient.of.variance')))
-                    stop(paste0(error.prefix, "'metric' must be a character vector with value 'estimate', 'upper.bound', 'lower.bound' or 'coefficient.of.variance'"))
+                # *metric* is one of 'estimate', 'upper.bound', 'lower.bound', or 'coefficient.of.variance' until more options are added #@ add variance and standard deviation
+                if (!is.character(metric) || length(metric) != 1 || !(metric %in% c('estimate', 'variance', 'standard.deviation', 'upper.bound', 'lower.bound', 'coefficient.of.variance')))
+                    stop(paste0(error.prefix, "'metric' must be a character vector with value 'estimate', 'variance', 'standard.deviation', 'upper.bound', 'lower.bound' or 'coefficient.of.variance'"))
                 
-                if (metric %in% c('upper.bound', 'lower.bound'))
-                    stop(paste0(error.prefix, "pulling with metric '", metric, "' is not yet supprted"))
+                # if (metric %in% c('upper.bound', 'lower.bound'))
+                #     stop(paste0(error.prefix, "pulling with metric '", metric, "' is not yet supprted"))
                 
                 # *keep.dimensions* is either NULL or a character vector with no NA values or repeats
                 if (!is.null(keep.dimensions) && (!is.character(keep.dimensions) || any(duplicated(keep.dimensions)) || anyNA(keep.dimensions)))
@@ -1390,7 +1398,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # Check if we have any data at all for this outcome!
-            if (is.null(private$i.data[[outcome]])) return (NULL)
+            if (is.null(private$i.data[[outcome]][[metric]])) return (NULL)
             
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
@@ -1511,6 +1519,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             if (data.type == 'data') {
                                 data.to.process = strat.data
                                 function.to.apply = "sum" # function(x) {sum(x, na.rm=na.rm)}
+                                if (metric == 'coefficient.of.variance') {
+                                    # cv = sd / mean, so sd = cv * mean. Need to convert back at the end.
+                                    # Get estimate directly (no need to pull since same ontology) and multiply what we have by it. May lose dimension values...
+                                    estimate.data.for.cv = private$i.data[[outcome]][['estimate']][[source.name]][[ont.name]][[strat]]
+                                    dimnames.in.common = get.dimension.values.overlap(dimnames(data.to.process, dimnames(estimate.data.for.cv)))
+                                    estimate.data.for.cv = array.access(estimate.data.for.cv, dimnames.in.common)
+                                    data.to.process = array.access(data.to.process, dimnames.in.common)
+                                    data.to.process = data.to.process * estimate.data.for.cv
+                                }
+                                if (metric %in% c('standard.deviation', 'coefficient.of.variance'))
+                                    data.to.process = data.to.process**2
                             }
                             else {
                                 data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
@@ -1542,7 +1561,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                               target.ontology = strat.dimnames,
                                                               allow.mapping.from.target.ontology = F,
                                                               from.ontology.names = NULL, # I suppose we have no choice since the same source could use different ontologies for its denominator
-                                                              na.rm = na.rm)
+                                                              na.rm = na.rm,
+                                                              check.arguments = F)
                                 if (is.null(denominator.array)) {
                                     source.lacks.denominator.data.flag <<- TRUE
                                     return (NULL)
@@ -1574,8 +1594,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 
                                 denominator.array = denom.to.data.mapping$apply(denominator.array, to.dim.names = dimnames(data.to.process))
                                 
+                                ## Where things get different depending on our metric
+                                # Estimates and confidence interval bounds: unmapped num equals data to process * denom array
+                                # Variance: unmapped num equals data to process * (denom array)^2
+                                # Sd dev: unmapped num equals (data to process)^2 * (denom array)^2
+                                
+                                if (metric %in% c('variance', 'standard.deviation', 'coefficient.of.variance')) denominator.array = denominator.array**2
+                                
                                 # Perform weighted average
                                 unmapped.numerator = data.to.process * denominator.array
+                                    
                                 mapped.numerator = mapping.to.apply$apply(unmapped.numerator,
                                                                           na.rm = na.rm,
                                                                           to.dim.names = dimnames.for.apply,
@@ -1591,6 +1619,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                              na.rm = na.rm, # DOESN'T DO ANYTHING????
                                                                              to.dim.names = dimnames.for.apply,
                                                                              fun = function.to.apply)
+                                if (metric %in% c('standard.deviation', 'coefficient.of.variance')) mapped.data.by.type = sqrt(mapped.data.by.type)
+                                if (metric == 'coefficient.of.variance') {
+                                    # we may have lost dimension values compared to what we started with
+                                    if (!dim.names.equal(dimnames(mapped.data.by.type), dimnames(estimate.data.for.cv))) {
+                                        dimnames.in.common = get.dimension.values.overlap(dimnames(mapped.data.by.type), dimnames(estimate.data.for.cv))
+                                        estimate.data.for.cv = array.access(estimate.data.for.cv, dimnames.in.common)
+                                        mapped.data.by.type = array.access(mapped.data.by.type, dimnames.in.common)
+                                        mapped.data.by.type = mapped.data.by.type / estimate.data.for.cv
+                                    }
+                                }
                             }
                             
                             if (data.type != 'data') {
@@ -1607,7 +1645,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         names(pulled.ont.data) = data.types
                         
                         # We might need to subset details or url if the 'data' was unexpectedly subset due to denominator data for a proportion having fewer years or locations
-                        if (outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion')) {
+                        if (outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion') || metric=='coefficient.of.variance') {
                             tryCatch(
                                 {if ('details' %in% data.types) pulled.ont.data[['details']] = array.access(pulled.ont.data[['details']], dimnames(pulled.ont.data[['data']]))},
                                 error=function(e) {browser()}
@@ -1634,6 +1672,22 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             if (length(pre.agg.dimnames) > length(keep.dimensions)) {
                                 post.agg.dimnames = pre.agg.dimnames[names(pre.agg.dimnames) %in% keep.dimensions]
                                 if (data.type == 'data') {
+                                    if (metric == 'coefficient.of.variance') {
+                                        # cv = sd / mean, so sd = cv * mean. Need to convert back at the end.
+                                        # This time we have to actually pull since we're in a different ontology by now
+                                        estimate.data.for.cv = self$pull(outcome = outcome,
+                                                                         metric = 'estimate',
+                                                                         keep.dimensions = names(pre.agg.dimnames),
+                                                                         dimension.values = dimension.values[names(dimension.values) %in% names(pre.agg.dimnames)],
+                                                                         target.ontology = target.ontology,
+                                                                         allow.mapping.from.target.ontology = F)
+                                        # TO DO: THE STUFF RELATING TO WHICH SOURCE WE USE FOR THIS PULL (PICK SAME OR USE ALL, THEN TAKE MEAN AFTERWARDS)
+                                        dimnames.in.common = get.dimension.values.overlap(dimnames(data.to.process, dimnames(estimate.data.for.cv)))
+                                        estimate.data.for.cv = array.access(estimate.data.for.cv, dimnames.in.common)
+                                        data.to.process = array.access(data.to.process, dimnames.in.common)
+                                        data.to.process = data.to.process * estimate.data.for.cv
+                                    }
+                                    if (metric %in% c('standard.deviation', 'coefficient.of.variance')) data.by.data.type = data.by.data.type**2
                                     scale = outcome.info[['metadata']][['scale']]
                                     if (scale %in% c('non.negative.number', 'number')) {
                                         data.by.data.type = apply(data.by.data.type, keep.dimensions, FUN = sum, na.rm = na.rm)
@@ -1683,6 +1737,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                             stop(paste0(error.prefix, 'bug in aggregation code: denominator array dimensions cannot be mapped to main data dimensions'))
                                         denominator.array = denom.to.data.mapping$apply(denominator.array, to.dim.names = dimnames(data.by.data.type)) # need this argument to ensure correct order
                                         
+                                        if (metric %in% c('variance', 'standard.deviation'))
+                                            denominator.array = denominator.array**2
+                                        
                                         # We should find totals by aggregating the denominator.array rather than pulling less stratified data
                                         # because less stratified data might not equal the sum of the more stratified data in denominator.array
                                         denominator.totals.array = apply(denominator.array, keep.dimensions, FUN = sum, na.rm=na.rm)
@@ -1698,6 +1755,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         data.by.data.type = data.by.data.type / denominator.totals.array
                                     } else if (scale == 'ratio') stop(paste0(error.prefix, scale, ' data cannot be aggregated'))
                                     else stop(paste0(error.prefix, 'aggregating ', scale, ' data is not yet implemented'))
+                                    if (metric %in% c('standard.deviation', 'coefficient.of.variance')) data.by.data.type = sqrt(data.by.data.type)
                                 } else {
                                     data.by.data.type = apply(data.by.data.type, keep.dimensions, function(x) {list(unique(unlist(x)))})
                                     dim(data.by.data.type) = sapply(post.agg.dimnames, length)
