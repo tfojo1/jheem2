@@ -23,17 +23,15 @@ simplot <- function(...,
                     dimension.values = list(),
                     plot.which = c('both', 'sim.only', 'data.only')[1],
                     data.manager = get.default.data.manager(),
-                    style.manager = get.default.style.manager()) # will be an R6 object. will be mine!
+                    style.manager = get.default.style.manager(),
+                    debug = F)
 {
     ### --- FEATURES TO ADD --- ###
     # - change y-axis from 'value' to the name of the outcome? Maybe not, since "value" is shared by all plots
-    # - allow changing color scheme for lines and points
-    # - replace outcome names on plot with the names from outcome metadata
     # - y labels, scale may be percentage or number with commas
-    # - for color schemes look at ggsci package palettes
     
     # -- VALIDATION -- #
-    
+    if (debug) browser()
     error.prefix = "Cannot generate simplot: "
     
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
@@ -289,9 +287,13 @@ simplot <- function(...,
     }
     
     if (!is.null(df.truth)) {
+        df.truth['location.types'] = locations::get.location.type(df.truth$location)
+        
         df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
         if (style.manager$color.data.by == 'stratum' && !is.null(split.by))
             df.truth['color.data.by'] = df.truth$split.by
+        else if (style.manager$color.data.by == 'location.type')
+            df.truth['color.data.by'] = df.truth['location.type']
         else df.truth['color.data.by'] = rep('none', nrow(df.truth))
         
         # modify colors with shades
@@ -312,16 +314,26 @@ simplot <- function(...,
     # determine colors as a named vector
     # need one color per unique value in color "color.and.shade.data.by"
     # first get one color per color.data.by
-    color.data.primary.colors = style.manager$get.data.colors(length(unique(df.truth$color.data.by)))
-    color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
-    names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$color.data.by), unique(df.truth$shade.data.by)), list(sep="__")))
-    color.sim.by = style.manager$get.sim.colors(length(unique(df.sim$color.sim.by)))
-    names(color.sim.by) = unique(df.sim$color.sim.by)
+    if (!is.null(df.truth)) {
+        color.data.primary.colors = style.manager$get.data.colors(length(unique(df.truth$color.data.by)))
+        color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
+        names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$color.data.by), unique(df.truth$shade.data.by)), list(sep="__")))
+    }
+    
+    if (!is.null(df.sim)) {
+        color.sim.by = style.manager$get.sim.colors(length(unique(df.sim$color.sim.by)))
+        names(color.sim.by) = unique(df.sim$color.sim.by)
+    }
+    
     all.colors.for.scale = c(color.data.shaded.colors, color.sim.by)
+    
+    # determine shapes as a named vector
+    shapes.for.data = style.manager$get.shapes(length(unique(df.truth$shape.data.by)))
 
     # browser()
     rv = ggplot2::ggplot() + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
     rv = rv + ggplot2::scale_color_manual(values = all.colors.for.scale)
+    rv = rv + ggplot2::scale_shape_manual(values = shapes.for.data)
 
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
@@ -341,7 +353,7 @@ simplot <- function(...,
         }
         if (!is.null(df.truth)) {
             rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,
-                                                                      color=color.and.shade.data.by, # fill
+                                                                      fill=color.and.shade.data.by, # fill
                                                                       shape=shape.data.by))
             # scale fill manual instead
             # rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,color=split.by, shape=ifelse(length(unique(location))==1, source, location)))
@@ -358,7 +370,7 @@ simplot <- function(...,
             #     ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=simset))
         }
         if (!is.null(df.truth))
-            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, shape = shape.data.by))
+            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, fill=color.and.shade.data.by, shape = shape.data.by))
             # rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, shape=ifelse(length(unique(location))==1, source, location)))
     }
     

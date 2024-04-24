@@ -1,7 +1,7 @@
 
 #'@export
 create.style.manager = function(color.sim.by = 'stratum',
-                                color.data.by = 'stratum',
+                                color.data.by = 'location.type', # change it to location type
                                 shade.data.by = 'location',
                                 linetype.sim.by = 'simset',
                                 shape.data.by = 'source',
