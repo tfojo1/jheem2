@@ -56,6 +56,9 @@ create.static.functional.form <- function(value,
 #'@param intercept,slope Arrays or scalar values representing the intercept and slope on the transformed scale
 #'@param parameters.is.on.transformed.scale Logical indicating whether the intercept and slope are already on the transformed scale at which alphas apply
 #'@param anchor.year The year at which the functional form evaluates to the intercept
+#'@param intercept.robust.intercept.linkto.negative,slope.robust.to.negative Whether intercept and slope should be allowed to be negative, even if a log or logit link is used (this is handled by letting the the alphas apply to the negative of the parameter, then negating it)
+#'@param intercept.link,slope.link The names of the transformations to the scale on which alphas are added to calculate the intercept and slope. One of "identity", "log", "logit". If NULL, inferred automatically from the link for the entire functional form
+#'@param intercept.min,intercept.max,slope.min,slope.max The min and max values to which intercept and slope can evaluate
 #'
 #'@seealso create.static.functional.form, create.log.linear.functional.form, create.logistic.linear.functional.form
 #'
@@ -66,6 +69,17 @@ create.linear.functional.form <- function(intercept,
                                           link = c('identity','log','logit')[1],
                                           min = NA,
                                           max = NA,
+                                          
+                                          intercept.link = NULL,
+                                          intercept.min = NA,
+                                          intercept.max = NA,
+                                          intercept.robust.to.negative = F,
+                                          
+                                          slope.link = intercept.link,
+                                          slope.min = NA,
+                                          slope.max = NA,
+                                          slope.robust.to.negative = F,
+                                          
                                           parameters.are.on.transformed.scale = T,
                                           overwrite.parameters.with.alphas = F,
                                           error.prefix = 'Cannot create linear functional.form: ')
@@ -76,6 +90,17 @@ create.linear.functional.form <- function(intercept,
                                link = link,
                                min = min,
                                max = max,
+                               
+                               intercept.link = intercept.link,
+                               intercept.min = intercept.min,
+                               intercept.max = intercept.max,
+                               intercept.robust.to.negative = intercept.robust.to.negative,
+                               
+                               slope.link = slope.link,
+                               slope.min = slope.min,
+                               slope.max = slope.max,
+                               slope.robust.to.negative = slope.robust.to.negative,
+                               
                                parameters.are.on.transformed.scale = parameters.are.on.transformed.scale,
                                overwrite.parameters.with.alphas = overwrite.parameters.with.alphas,
                                error.prefix = error.prefix)
@@ -149,7 +174,7 @@ create.logistic.linear.functional.form <- function(intercept,
 #'@param logistic.after.frac.of.span The fraction of the the total span (max - min) after which the model follows a logistic curve
 #'@param min,max The upper and lower limits to which the functional form can evaluate
 #'@param intercept.link,slope.link The names of the transformations to the scale on which alphas are added to calculate the intercept and slope. One of "identity", "log", "logit"
-#'@param intercept.min,intercept.max,slope.min,slope.max The min and max values to which intercept and slope van evaluate
+#'@param intercept.min,intercept.max,slope.min,slope.max The min and max values to which intercept and slope can evaluate
 #'
 #'@export
 create.logistic.tail.functional.form <- function(intercept,
@@ -163,10 +188,12 @@ create.logistic.tail.functional.form <- function(intercept,
                                                  intercept.link = 'logistic',
                                                  intercept.min = NA,
                                                  intercept.max = NA,
+                                                 intercept.robust.to.negative = F,
                                                  
                                                  slope.link = intercept.link,
                                                  slope.min = NA,
                                                  slope.max = NA,
+                                                 slope.robust.to.negative = F,
 
                                                  parameters.are.on.transformed.scale = F,
                                                  overwrite.parameters.with.alphas = F,
@@ -183,10 +210,12 @@ create.logistic.tail.functional.form <- function(intercept,
                                       intercept.link = intercept.link,
                                       intercept.min = intercept.min,
                                       intercept.max = intercept.max,
+                                      intercept.robust.to.negative = intercept.robust.to.negative,
                                       
                                       slope.link = slope.link,
                                       slope.min = slope.min,
                                       slope.max = slope.max,
+                                      slope.robust.to.negative = slope.robust.to.negative,
                                       
                                       parameters.are.on.transformed.scale = parameters.are.on.transformed.scale,
                                       overwrite.parameters.with.alphas = overwrite.parameters.with.alphas,
@@ -416,6 +445,7 @@ FUNCTIONAL.FORM = R6::R6Class(
                               future.slope.link,
                               alphas.are.additive, #either a single logical value or a named logical vector with the same names as betas
                               beta.links, #either a single value ('identity','log','logit','custom') or named character vector with the same names as betas
+                              negate.beta.masks = NULL, #either a single vlaue or a named list with the same names as betas. Each element is either NULL or a logical vector
                               alpha.links, #either a single value ('identity','log','logit','custom') or named character vector with the same names as betas
                               is.static,
                               error.prefix='') #whether the model is time-varying
@@ -444,6 +474,7 @@ FUNCTIONAL.FORM = R6::R6Class(
                 beta = betas[[beta.name]]
                 if (!is.numeric(beta) || length(beta)==0 || any(is.na(beta)))
                     stop(paste0(error.prefix, "'", beta.name, "' must be a non-NA, non-empty, numeric object"))
+                T
             })
             
             alpha.names = names(betas)
@@ -536,6 +567,44 @@ FUNCTIONAL.FORM = R6::R6Class(
                 beta.links = beta.links[alpha.names]
             }
             
+            #-- Check negate.beta.masks --#
+            if (is.null(negate.beta.masks) || is(negate.beta.masks, 'logical'))
+                negate.beta.masks = list(negate.beta.masks)
+            
+            if (!is.list(negate.beta.masks) || length(negate.beta.masks)==0)
+                stop(paste0(error.prefix, "'negate.beta.masks' for a functional.form ('",
+                            type, "') must be either a single NULL value or logical vector, or a list containing only NULL and/or logical vectors"))
+            
+            if (any(!sapply(negate.beta.masks, is.null) & !sapply(negate.beta.masks, is.logical)))
+                stop(paste0(error.prefix, "If 'negate.beta.masks' for a functional.form ('",
+                            type, "') is a list, it may contain ONLY NULL and/or logical vector values"))
+            
+            if (length(negate.beta.masks)==1)
+            {
+                if (!is.null(names(negate.beta.masks)) && length(betas)>1)
+                    stop(paste0("'negate.beta.masks' for a functional.form ('",
+                                type, "') must be either a single NULL value or logical vector or a named list of link objects with the same names as 'betas'"))
+                
+                negate.beta.masks = lapply(1:length(betas), function(i){negate.beta.masks[[1]]})
+                names(negate.beta.masks) = alpha.names
+            }
+            else
+            {
+                if (length(negate.beta.masks) != length(betas) || 
+                    !setequal(names(negate.beta.masks), alpha.names))
+                    stop(paste0(error.prefix, "'negate.beta.masks' for a functional.form ('",
+                                type, "') must be either NULL or a logical vector or a named list of NULL values and/or logical vectors with the same names as 'betas'"))
+                
+                negate.beta.masks = negate.beta.masks[alpha.names]
+            }
+            
+            sapply(alpha.names, function(name){
+                if (!is.null(negate.beta.masks[[name]]) && (!is.null(dimnames(betas[[name]])) || !is.null(dimnames(negate.beta.masks[[name]]))) &&
+                    !dim.names.equal(dimnames(betas[[name]]), dimnames(negate.beta.masks[[name]])))
+                    stop(paste0(error.prefix, "The values of 'negate.beta.masks' must have the same dimnames as the corresponding beta values"))
+                T
+            })
+            
             #-- Check alpha.links --#
             if (is(alpha.links, 'link'))
                 alpha.links = list(alpha.links)
@@ -581,6 +650,7 @@ FUNCTIONAL.FORM = R6::R6Class(
             private$i.future.slope.link = future.slope.link
             private$i.alphas.are.additive = alphas.are.additive
             private$i.beta.links = beta.links
+            private$i.negate.beta.masks = negate.beta.masks
             private$i.alpha.links = alpha.links
             private$i.is.static = is.static
         },
@@ -667,11 +737,19 @@ FUNCTIONAL.FORM = R6::R6Class(
             
             #-- Incorporate Alphas --#
             terms = lapply(self$alpha.names, function(name){
-                private$i.beta.links[[name]]$reverse.apply(
+                rv = private$i.beta.links[[name]]$reverse.apply(
                     incorporate.alphas(betas=private$i.betas[[name]],
                                        alphas=alphas[[name]],
                                        target.dim.names=dim.names,
                                        error.prefix=error.prefix))
+                
+                if (!is.null(private$i.negate.beta.masks[[name]]))
+                {
+                    negate.mask = private$i.negate.beta.masks[[name]][ alphas[[name]]$crunched$expand.beta.indices ]
+                    rv[negate.mask] = -rv[negate.mask]
+                }
+                
+                rv
             })
             names(terms) = self$alpha.names
             
@@ -819,6 +897,7 @@ FUNCTIONAL.FORM = R6::R6Class(
         i.beta.links = NULL,
         i.alpha.links = NULL,
         i.alphas.are.additive = NULL,
+        i.negate.beta.masks = NULL,
         
 
         do.project = function(terms,
@@ -924,6 +1003,14 @@ LINEAR.FUNCTIONAL.FORM = R6::R6Class(
                               link=c('identity','log','logistic')[1],
                               min = NA,
                               max = NA,
+                              intercept.link = NULL,
+                              intercept.min = NA,
+                              intercept.max = NA,
+                              intercept.robust.to.negative = F,
+                              slope.link = NULL,
+                              slope.min = NA,
+                              slope.max = NA,
+                              slope.robust.to.negative = F,
                               parameters.are.on.transformed.scale = T,
                               overwrite.parameters.with.alphas = F,
                               error.prefix = 'Cannot create linear functional.form: ')
@@ -941,25 +1028,95 @@ LINEAR.FUNCTIONAL.FORM = R6::R6Class(
                 stop(paste0(error.prefix, "'overwrite.parameters.with.alphas' must be a single, non-NA logical value"))
             
             #-- Set up alpha.links --#
-            if (overwrite.parameters.with.alphas)
+            beta.links = list()
+            alpha.links = list()
+            if (is.null(intercept.link))
             {
-                alpha.links = list(intercept = link,
-                                   slope = link$get.coefficient.link())
+                beta.links$intercept = get.link('identity')
+                if (overwrite.parameters.with.alphas)
+                {
+                    intercept.link = link
+                }
+                else
+                {
+                    intercept.link = link$get.coefficient.link()
+                }
             }
             else
             {
-                alpha.links = list(intercept = link$get.coefficient.link(),
-                                   slope = link$get.coefficient.link())
+                intercept.link = get.link(intercept.link, min=intercept.min, max=intercept.max)
+                beta.links$intercept = intercept.link
             }
+            
+            if (is.null(slope.link))
+            {
+                beta.links$slope = get.link('identity')
+                if (overwrite.parameters.with.alphas)
+                {
+                    slope.link = link$get.coefficient.link()
+                }
+                else
+                {
+                    slope.link = link$get.coefficient.link()
+                }
+            }
+            else
+            {
+                slope.link = get.link(slope.link, min=slope.min, max=slope.max)
+                beta.links$slope = slope.link
+            }
+            
+            parameter.links = list(intercept = intercept.link,
+                                   slope = slope.link)
+            
+            #-- Set up alpha.links --#
+            alpha.links = list(intercept=intercept.link, slope=slope.link)
+            if (overwrite.parameters.with.alphas)
+                alpha.links = lapply(alpha.links, function(l){l$get.coefficient.link()})
             
             #-- Check Intercept and Slope --#
             if (!parameters.are.on.transformed.scale)
             {
-                link$check.untransformed.values(intercept, variable.name.for.error = 'intercept', error.prefix=error.prefix)
+                # Check intercept
+                if (intercept.robust.to.negative && link$min==0)
+                {
+                    intercept.negate.mask = intercept < 0
+                    if (any(intercept.negate.mask))
+                        intercept[intercept.negate.mask] = -intercept[intercept.negate.mask]
+                    else
+                        intercept.negate.mask = NULL
+                }
+                else
+                {
+                    link$check.untransformed.values(intercept, variable.name.for.error = 'intercept', error.prefix=error.prefix)
+                    intercept.negate.mask = NULL
+                }
                 
                 intercept = link$apply(intercept)
-                slope = alpha.links$slope$apply(slope)
+                
+                # Check slope
+                slope.link = alpha.links$slope
+                if (slope.robust.to.negative && slope.link$min==0)
+                {
+                    slope.negate.mask = intercept < 0
+                    if (any(slope.negate.mask))
+                        slope[slope.negate.mask] = -slope[slope.negate.mask]
+                    else
+                        slope.negate.mask = NULL
+                }
+                else
+                {
+                    slope.link$check.untransformed.values(slope, variable.name.for.error = 'slope', error.prefix=error.prefix)
+                    slope.negate.mask = NULL
+                }
+                
+                slope = slope.link$apply(slope)
+                
+                negate.beta.masks = list(intercept = intercept.negate.mask,
+                                         slope = slope.negate.mask)
             }
+            else
+                negate.beta.masks = NULL
             
             betas = list(intercept = intercept,
                          slope = slope)
@@ -970,7 +1127,8 @@ LINEAR.FUNCTIONAL.FORM = R6::R6Class(
                              link = link,
                              future.slope.link = link$get.coefficient.link(),
                              alphas.are.additive = !overwrite.parameters.with.alphas,
-                             beta.links = get.link('identity'),
+                             beta.links = beta.links,
+                             negate.beta.masks = negate.beta.masks,
                              alpha.links = alpha.links, 
                              is.static = F,
                              error.prefix = error.prefix)
@@ -1024,10 +1182,12 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
                               intercept.link = 'logit',
                               intercept.min = NA,
                               intercept.max = NA,
+                              intercept.robust.to.negative = F,
                               
                               slope.link = 'log',
                               slope.min = NA,
                               slope.max = NA,
+                              slope.robust.to.negative = F,
                               
                               parameters.are.on.transformed.scale = T,
                               overwrite.parameters.with.alphas = F,
@@ -1073,16 +1233,46 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
             #-- Betas --#
             if (!parameters.are.on.transformed.scale)
             {
-                intercept.link$check.untransformed.values(intercept,
-                                                      variable.name.for.error='intercept',
-                                                      error.prefix=error.prefix)
+                # Check intercept
+                if (intercept.robust.to.negative && intercept.link$min==0)
+                {
+                    intercept.negate.mask = intercept < 0
+                    if (any(intercept.negate.mask))
+                        intercept[intercept.negate.mask] = -intercept[intercept.negate.mask]
+                    else
+                        intercept.negate.mask = NULL
+                }
+                else
+                {
+                    intercept.link$check.untransformed.values(intercept, variable.name.for.error = 'intercept', error.prefix=error.prefix)
+                    intercept.negate.mask = NULL
+                }
+                
                 intercept = intercept.link$apply(intercept)
                 
-                slope.link$check.untransformed.values(slope,
-                                                      variable.name.for.error='slope',
-                                                      error.prefix=error.prefix)
+                # Check slope
+                if (slope.robust.to.negative && slope.link$min==0)
+                {
+                    slope.negate.mask = slope < 0
+                    if (any(slope.negate.mask))
+                        slope[slope.negate.mask] = -slope[slope.negate.mask]
+                    else
+                        slope.negate.mask = NULL
+                }
+                else
+                {
+                    slope.link$check.untransformed.values(slope, variable.name.for.error = 'slope', error.prefix=error.prefix)
+                    slope.negate.mask = NULL
+                }
+                
                 slope = slope.link$apply(slope)
+                
+                negate.beta.masks = list(intercept = intercept.negate.mask,
+                                         slope = slope.negate.mask)
             }
+            else
+                negate.beta.masks = NULL
+
             betas = list(intercept = intercept, slope = slope)
             beta.links = list(intercept = intercept.link, slope = slope.link)
             
@@ -1100,6 +1290,7 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
                              future.slope.link = slope.link$get.coefficient.link(),
                              alphas.are.additive = !overwrite.parameters.with.alphas,
                              beta.links = beta.links,
+                             negate.beta.masks = negate.beta.masks,
                              alpha.links = alpha.links, 
                              is.static = F,
                              error.prefix = error.prefix)
@@ -1168,10 +1359,16 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
                 logistic.after.year[mask] = logistic.after.year.after.additional[mask]
             }
             
-            logistic.intercept = log(private$i.logistic.after.value - private$i.link$min) - 
-                log(private$i.link$max - private$i.logistic.after.value) -
-                logistic.slope.sans.additional * (pmin(logistic.after.year, future.slope.after.year) - private$i.anchor.year) -
-                logistic.slope.with.additional * pmax(0, logistic.after.year - future.slope.after.year)
+            logistic.intercept = rep(log(private$i.logistic.after.value - private$i.link$min) - 
+                log(private$i.link$max - private$i.logistic.after.value), length(logistic.slope.sans.additional))
+            
+            nonzero.logistic.slope.sans.additional = logistic.slope.sans.additional != 0
+            logistic.intercept[nonzero.logistic.slope.sans.additional] = logistic.intercept[nonzero.logistic.slope.sans.additional] -
+                logistic.slope.sans.additional[nonzero.logistic.slope.sans.additional] * (pmin(logistic.after.year[nonzero.logistic.slope.sans.additional], future.slope.after.year) - private$i.anchor.year)
+            
+            nonzero.logistic.slope.with.additional = logistic.slope.with.additional != 0
+            logistic.intercept[nonzero.logistic.slope.with.additional] = logistic.intercept[nonzero.logistic.slope.with.additional] -
+                logistic.slope.with.additional[nonzero.logistic.slope.with.additional] * pmax(0, logistic.after.year[nonzero.logistic.slope.with.additional] - future.slope.after.year)
             
             rv = lapply(years, function(year){
                 # Calculate the RV
@@ -1190,6 +1387,9 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
                 sub.rv[mask] = private$i.link$min + private$i.span / (1 + exp(-log.ors))
                 
                 sub.rv[sub.rv<private$i.link$min] = private$i.link$min
+                
+                if (any(is.na(sub.rv)))
+                    browser()
                 sub.rv
             })
             
