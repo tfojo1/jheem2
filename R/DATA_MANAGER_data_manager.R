@@ -263,7 +263,8 @@ put.data <- function(data.manager = get.default.data.manager(),
                      dimension.values,
                      url,
                      details,
-                     allow.na.to.overwrite=F)
+                     allow.na.to.overwrite=F,
+                     debug=F)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -276,7 +277,8 @@ put.data <- function(data.manager = get.default.data.manager(),
                      dimension.values=dimension.values,
                      url=url,
                      details=details,
-                     allow.na.to.overwrite=allow.na.to.overwrite)
+                     allow.na.to.overwrite=allow.na.to.overwrite,
+                     debug=F)
 }
 
 #'@title Put long-form data into a data manager
@@ -294,7 +296,8 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                dimension.values,
                                url,
                                details,
-                               allow.na.to.overwrite=F)
+                               allow.na.to.overwrite=F,
+                               debug=F)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -307,7 +310,8 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                dimension.values=dimension.values,
                                url=url,
                                details=details,
-                               allow.na.to.overwrite=allow.na.to.overwrite)
+                               allow.na.to.overwrite=allow.na.to.overwrite,
+                               debug=F)
 }
 
 #' #'@export
@@ -885,7 +889,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                        dimension.values,
                        url,
                        details,
-                       allow.na.to.overwrite=F)
+                       allow.na.to.overwrite=F,
+                       debug=F)
         {
             #------------------------#
             #-- Validate arguments --#
@@ -1062,7 +1067,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #--------------------------#
             #-- Hash url and details --#
             #--------------------------#
-            
+            if (debug) browser()
             url.hashed = paste0(sort(url), collapse='__')
             details.hashed = paste0(sort(details), collapse='__')
             if (url.hashed %in% private$i.url.list) url = which(private$i.url.list==url.hashed)
@@ -1205,7 +1210,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                  dimension.values,
                                  url,
                                  details,
-                                 allow.na.to.overwrite=F)
+                                 allow.na.to.overwrite=F,
+                                 debug=F)
         {
             #-- Initial validate arguments --#
             # *data* must be a 2d object with named columns
@@ -1288,7 +1294,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                          data = arr.data,
                          url = url,
                          details = details,
-                         allow.na.to.overwrite = allow.na.to.overwrite)
+                         allow.na.to.overwrite = allow.na.to.overwrite,
+                         debug=debug)
             }
         },
         
