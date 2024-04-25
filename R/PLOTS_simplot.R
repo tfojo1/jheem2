@@ -263,7 +263,7 @@ simplot <- function(...,
             
         }
     }
-    
+    # browser()
     if (!is.null(df.sim)) {
         # make whatever column corresponds to split by actually be called "split.by" and same for facet.by.
         if (!is.null(split.by)) df.sim["split.by"] = df.sim[split.by]
@@ -287,7 +287,7 @@ simplot <- function(...,
     }
     
     if (!is.null(df.truth)) {
-        df.truth['location.types'] = locations::get.location.type(df.truth$location)
+        df.truth['location.type'] = locations::get.location.type(df.truth$location)
         
         df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
         if (style.manager$color.data.by == 'stratum' && !is.null(split.by))
