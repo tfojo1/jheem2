@@ -299,7 +299,7 @@ simplot <- function(...,
         # modify colors with shades
         # for every color we have, we will then have as many shades of it as we have shade.by features
         df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
-        df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['color.data.by'], df.truth['shade.data.by'], list(sep="__")))
+        df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
     }
     
     #-- STEP 4: MAKE THE PLOT --#
@@ -317,7 +317,7 @@ simplot <- function(...,
     if (!is.null(df.truth)) {
         color.data.primary.colors = style.manager$get.data.colors(length(unique(df.truth$color.data.by)))
         color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
-        names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$color.data.by), unique(df.truth$shade.data.by)), list(sep="__")))
+        names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
     }
     
     if (!is.null(df.sim)) {
@@ -334,6 +334,8 @@ simplot <- function(...,
     rv = ggplot2::ggplot() + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
     rv = rv + ggplot2::scale_color_manual(values = all.colors.for.scale)
     rv = rv + ggplot2::scale_shape_manual(values = shapes.for.data)
+    rv = rv + ggplot2::scale_fill_manual(values = color.data.shaded.colors)
+    rv = rv + ggplot2::guides(fill = guide_legend("Shade legend", override.aes = list(shape = 21)))
 
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
