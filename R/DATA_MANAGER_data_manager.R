@@ -895,7 +895,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #------------------------#
             #-- Validate arguments --#
             #------------------------#
-            
             error.prefix = paste0("Unable to put data to data.manager '", private$i.name, "': ")
             # 1) *outcome* is a single, non-empty, non-NA character value
             #     Which corresponds to a registered outcome
@@ -1236,7 +1235,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                        dimension.values = dimension.values,
                                        data = data[data[['outcome']]==one.outcome,],
                                        url = url,
-                                       details = details)
+                                       details = details,
+                                       debug=debug)
                 }
             }
             else
