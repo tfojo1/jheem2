@@ -1066,7 +1066,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #--------------------------#
             #-- Hash url and details --#
             #--------------------------#
-            if (debug) browser()
+            
             url.hashed = paste0(sort(url), collapse='__')
             details.hashed = paste0(sort(details), collapse='__')
             if (url.hashed %in% private$i.url.list) url = which(private$i.url.list==url.hashed)
@@ -1107,14 +1107,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                             ontology.name = ontology.name,
                                                                             return.as.dimensions = T)
             put.dim.names = put.dim.names[stratification.dimensions]
-            
+            if (debug) browser()
             ## ANDREW'S NEW LOGIC TO ACCOMMODATE MULTIPLE METRICS AND ENSURING ALIGNED DIMNAMES AMONG ALL
             existing.dim.names.this.metric = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
             data.already.present.this.metric = !is.null(existing.dim.names.this.metric)
 
             all.metric.names = names(private$i.data[[outcome]])
             existing.dim.names = lapply(names(private$i.data[[outcome]]), function(metr) {
-                dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
+                dimnames(private$i.data[[outcome]][[metr]][[source]][[ontology.name]][[stratification]])
             })
             names(existing.dim.names) = names(private$i.data[[outcome]])
             if (length(existing.dim.names) > 0)
@@ -1141,9 +1141,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 })
                 names(existing.data.and.metadata) = data.element.names
                 
-                # Make the new (empty) data structures
+                # Make the new (empty) data structures... make it for this metric too, even if it's not one of the existing ones
                 for (name in data.element.names) {
-                    for (metr in metrics.with.data)
+                    for (metr in union(metrics.with.data, metric))
                         private[[name]][[outcome]][[metr]][[source]][[ontology.name]][[stratification]] =
                             array(NaN, dim=sapply(dimnames.aligning.all.metrics, length), dimnames = dimnames.aligning.all.metrics)
                 }
@@ -1151,7 +1151,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 # Overwrite the new structure with the old data
                 for (name in data.element.names) {
                     for (metr in metrics.with.data) {
-                        array.access(private[[name]][[outcome]][[metric]][[source]][[ontology.name]][[stratification]], existing.dim.names[[metr]]) =
+                        array.access(private[[name]][[outcome]][[metr]][[source]][[ontology.name]][[stratification]], existing.dim.names[[metr]]) =
                             existing.data.and.metadata[[name]][[metr]]
                     }
                 }
@@ -1177,7 +1177,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #@ then it calls fast.array.access with that array and the data dimnames and dimension.values
             #@ fast.array.access loops five times if five dimensions (location, year, age, risk, sex...) with lapply
             #@ within fast.array.access, subset.values is a list of length(dims) and each element has all the dim values
-            
+            # browser()
             overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]]),
                                                          dimension.values = c(dimnames(data), dimension.values))
             if (!allow.na.to.overwrite)
@@ -1279,7 +1279,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 
                 
                 arr.data = array(as.numeric(NA), dim=sapply(dim.names, length), dimnames=dim.names)
-                
                 for (i in 1:nrow(data))
                 {
                     array.access(arr.data, dimension.values = as.list(data[i,dimensions])) = data[i,'value']
