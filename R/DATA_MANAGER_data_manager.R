@@ -1453,7 +1453,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             sources.successful.names = c()
             
             ## FOR THE FUTURE: DO A PRETEND PULL TO SEE WHAT ONTOLOGIES WE NEED, THEN POTENTIALLY REMAKE THE UNIVERSAL WITH ONLY THOSE
-            if (debug) browser()
+            # if (debug) browser()
             pre.processed.data = lapply(sources.used.names, function(source.name) {
                 source.ontology.names = names(private$i.data[[outcome]][[metric]][[source.name]])
                 if (is.null(from.ontology.names))
@@ -1462,6 +1462,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     ontologies.used.names = intersect(source.ontology.names, from.ontology.names)
                 pulled.source.data = NULL
                 source.lacks.denominator.data.flag = FALSE
+                source.lacks.estimate.data.flag = FALSE
                 
                 for (ont.name in ontologies.used.names) {
                     pulled.ont.data = NULL
@@ -1528,8 +1529,41 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 if (metric == 'coefficient.of.variance') {
                                     # cv = sd / mean, so sd = cv * mean. Need to convert back at the end.
                                     # Get estimate directly (no need to pull since same ontology) and multiply what we have by it. May lose dimension values...
-                                    estimate.data.for.cv = private$i.data[[outcome]][['estimate']][[source.name]][[ont.name]][[strat]]
-                                    dimnames.in.common = get.dimension.values.overlap(dimnames(data.to.process, dimnames(estimate.data.for.cv)))
+                                    # decided against getting the estimate directly since we might not have it for this source but still want to try
+                                    # estimate.data.for.cv = private$i.data[[outcome]][['estimate']][[source.name]][[ont.name]][[strat]]
+                                    # if (is.null(estimate.data.for.cv)) next
+                                    
+                                    # Check if this source has data, otherwise use all available sources and apply mean over result, or give up.
+                                    if (source.name %in% names(private$i.data[[outcome]][['estimate']]))
+                                        estimate.source = source.name
+                                    else if (length(names(private$i.data[[outcome]][['estimate']]))>0)
+                                        estimate.source = names(private$i.data[[outcome]][['estimate']])
+                                    else {
+                                        source.lacks.estimate.data.flag <<- TRUE
+                                        return (NULL)
+                                    }
+
+                                    estimate.data.for.cv = self$pull(outcome = outcome,
+                                                                     metric = 'estimate',
+                                                                     source = estimate.source,
+                                                                     keep.dimensions = union(keep.dimensions, dv.names),
+                                                                     dimension.values = strat.dimnames,
+                                                                     target.ontology = target.ontology,
+                                                                     allow.mapping.from.target.ontology = F)
+                                    # TO DO: THE STUFF RELATING TO WHICH SOURCE WE USE FOR THIS PULL (PICK SAME OR USE ALL, THEN TAKE MEAN AFTERWARDS)
+
+                                    # If the estimate data came from only one source, we can remove the source so that it will match size of data
+                                    non.source.dimensions = names(dim(estimate.data.for.cv))[names(dim(estimate.data.for.cv))!='source']
+                                    if (dim(estimate.data.for.cv)['source'] == 1)
+                                        estimate.data.for.cv = array(estimate.data.for.cv,
+                                                                     dim = dim(estimate.data.for.cv)[non.source.dimensions],
+                                                                     dimnames = dimnames(estimate.data.for.cv)[non.source.dimensions]
+                                        )
+
+                                    # Otherwise, we need to take the mean across source
+                                    else estimate.data.for.cv = apply.robust(estimate.data.for.cv, non.source.dimensions, mean, na.rm=T)
+                                    
+                                    dimnames.in.common = get.dimension.values.overlap(dimnames(data.to.process), dimnames(estimate.data.for.cv))
                                     estimate.data.for.cv = array.access(estimate.data.for.cv, dimnames.in.common)
                                     data.to.process = array.access(data.to.process, dimnames.in.common)
                                     data.to.process = data.to.process * estimate.data.for.cv
@@ -1665,8 +1699,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         dimensions.to.drop = intersect(which(sapply(initial.dimnames, length) == 1), which(!(names(initial.dimnames) %in% keep.dimensions)))
                         
                         pulled.ont.data = lapply(data.types, function(data.type) {
-                            
+                            if (debug) browser()
                             if (source.lacks.denominator.data.flag) return (NULL)
+                            if (source.lacks.estimate.data.flag) return (NULL)
                             data.by.data.type = pulled.ont.data[[data.type]]
                             pre.agg.dimnames = initial.dimnames
                             if (length(dimensions.to.drop) > 0) {
@@ -1681,17 +1716,40 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     if (metric == 'coefficient.of.variance') {
                                         # cv = sd / mean, so sd = cv * mean. Need to convert back at the end.
                                         # This time we have to actually pull since we're in a different ontology by now
+                                        
+                                        # Check if this source has data, otherwise use all available sources and apply mean over result, or give up.
+                                        if (source.name %in% names(private$i.data[[outcome]][['estimate']]))
+                                            estimate.source = source.name
+                                        else if (length(names(private$i.data[[outcome]][['estimate']]))>0)
+                                            estimate.source = names(private$i.data[[outcome]][['estimate']])
+                                        else {
+                                            source.lacks.estimate.data.flag <<- TRUE
+                                            return (NULL)
+                                        }
+                                        
                                         estimate.data.for.cv = self$pull(outcome = outcome,
                                                                          metric = 'estimate',
+                                                                         source = estimate.source,
                                                                          keep.dimensions = names(pre.agg.dimnames),
                                                                          dimension.values = dimension.values[names(dimension.values) %in% names(pre.agg.dimnames)],
                                                                          target.ontology = target.ontology,
                                                                          allow.mapping.from.target.ontology = F)
                                         # TO DO: THE STUFF RELATING TO WHICH SOURCE WE USE FOR THIS PULL (PICK SAME OR USE ALL, THEN TAKE MEAN AFTERWARDS)
-                                        dimnames.in.common = get.dimension.values.overlap(dimnames(data.to.process, dimnames(estimate.data.for.cv)))
+                                        
+                                        # If the estimate data came from only one source, we can remove the source so that it will match size of data
+                                        non.source.dimensions = names(dim(estimate.data.for.cv))[names(dim(estimate.data.for.cv))!='source']
+                                        if (dim(estimate.data.for.cv)['source'] == 1)
+                                            estimate.data.for.cv = array(estimate.data.for.cv,
+                                                                         dim = dim(estimate.data.for.cv)[non.source.dimensions],
+                                                                         dimnames = dimnames(estimate.data.for.cv)[non.source.dimensions]
+                                            )
+                                        
+                                        # Otherwise, we need to take the mean across source
+                                        else estimate.data.for.cv = apply.robust(estimate.data.for.cv, non.source.dimensions, mean, na.rm=T)
+                                        dimnames.in.common = get.dimension.values.overlap(dimnames(data.by.data.type), dimnames(estimate.data.for.cv))
                                         estimate.data.for.cv = array.access(estimate.data.for.cv, dimnames.in.common)
-                                        data.to.process = array.access(data.to.process, dimnames.in.common)
-                                        data.to.process = data.to.process * estimate.data.for.cv
+                                        data.by.data.type = array.access(data.by.data.type, dimnames.in.common)
+                                        data.by.data.type = data.by.data.type * estimate.data.for.cv
                                     }
                                     if (metric %in% c('standard.deviation', 'coefficient.of.variance')) data.by.data.type = data.by.data.type**2
                                     scale = outcome.info[['metadata']][['scale']]
@@ -1743,8 +1801,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                             stop(paste0(error.prefix, 'bug in aggregation code: denominator array dimensions cannot be mapped to main data dimensions'))
                                         denominator.array = denom.to.data.mapping$apply(denominator.array, to.dim.names = dimnames(data.by.data.type)) # need this argument to ensure correct order
                                         
-                                        if (metric %in% c('variance', 'standard.deviation'))
-                                            denominator.array = denominator.array**2
+                                        if (metric %in% c('variance', 'standard.deviation', 'coefficient.of.variance')) denominator.array = denominator.array**2
                                         
                                         # We should find totals by aggregating the denominator.array rather than pulling less stratified data
                                         # because less stratified data might not equal the sum of the more stratified data in denominator.array
@@ -1761,7 +1818,33 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         data.by.data.type = data.by.data.type / denominator.totals.array
                                     } else if (scale == 'ratio') stop(paste0(error.prefix, scale, ' data cannot be aggregated'))
                                     else stop(paste0(error.prefix, 'aggregating ', scale, ' data is not yet implemented'))
-                                    if (metric %in% c('standard.deviation', 'coefficient.of.variance')) data.by.data.type = sqrt(data.by.data.type)
+                                    if (metric %in% c('standard.deviation', 'coefficient.of.variance')) {
+                                        data.by.data.type = sqrt(data.by.data.type)
+                                    }
+                                    if (metric == 'coefficient.of.variance') {
+                                        estimate.data.for.cv = self$pull(outcome = outcome,
+                                                                         metric = 'estimate',
+                                                                         source = estimate.source,
+                                                                         keep.dimensions = names(post.agg.dimnames),
+                                                                         dimension.values = dimension.values[names(dimension.values) %in% names(pre.agg.dimnames)],
+                                                                         target.ontology = target.ontology,
+                                                                         allow.mapping.from.target.ontology = F)
+                                        
+                                        # If the estimate data came from only one source, we can remove the source so that it will match size of data
+                                        non.source.dimensions = names(dim(estimate.data.for.cv))[names(dim(estimate.data.for.cv))!='source']
+                                        if (dim(estimate.data.for.cv)['source'] == 1)
+                                            estimate.data.for.cv = array(estimate.data.for.cv,
+                                                                         dim = dim(estimate.data.for.cv)[non.source.dimensions],
+                                                                         dimnames = dimnames(estimate.data.for.cv)[non.source.dimensions]
+                                            )
+                                        
+                                        # Otherwise, we need to take the mean across source
+                                        else estimate.data.for.cv = apply.robust(estimate.data.for.cv, non.source.dimensions, mean, na.rm=T)
+                                        dimnames.in.common = get.dimension.values.overlap(dimnames(data.by.data.type), dimnames(estimate.data.for.cv))
+                                        estimate.data.for.cv = array.access(estimate.data.for.cv, dimnames.in.common)
+                                        data.by.data.type = array.access(data.by.data.type, dimnames.in.common)
+                                        data.by.data.type = data.by.data.type / estimate.data.for.cv
+                                    }
                                 } else {
                                     data.by.data.type = apply(data.by.data.type, keep.dimensions, function(x) {list(unique(unlist(x)))})
                                     dim(data.by.data.type) = sapply(post.agg.dimnames, length)
