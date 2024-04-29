@@ -335,7 +335,7 @@ simplot <- function(...,
     rv = rv + ggplot2::scale_color_manual(values = all.colors.for.scale)
     rv = rv + ggplot2::scale_shape_manual(values = shapes.for.data)
     rv = rv + ggplot2::scale_fill_manual(values = color.data.shaded.colors)
-    rv = rv + ggplot2::guides(fill = guide_legend("Shade legend", override.aes = list(shape = 21)))
+    rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("Shade legend", override.aes = list(shape = 21)))
 
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
