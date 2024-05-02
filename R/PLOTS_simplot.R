@@ -314,26 +314,32 @@ simplot <- function(...,
     # determine colors as a named vector
     # need one color per unique value in color "color.and.shade.data.by"
     # first get one color per color.data.by
+    color.data.shaded.colors = NULL
+    color.sim.by = NULL
+    shapes.for.data = NULL
+    shapes.for.sim = NULL
     if (!is.null(df.truth)) {
         color.data.primary.colors = style.manager$get.data.colors(length(unique(df.truth$color.data.by)))
         color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
         names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
+        shapes.for.data = style.manager$get.shapes(length(unique(df.truth$shape.data.by)))
+        names(shapes.for.data) = unique(df.truth$shape.data.by)
     }
     
     if (!is.null(df.sim)) {
         color.sim.by = style.manager$get.sim.colors(length(unique(df.sim$color.sim.by)))
         names(color.sim.by) = unique(df.sim$color.sim.by)
+        shapes.for.sim = style.manager$get.shapes(length(unique(df.sim$shape.sim.by)))
+        names(shapes.for.sim) = unique(df.sim$shape.sim.by)
     }
     
     all.colors.for.scale = c(color.data.shaded.colors, color.sim.by)
+    all.shapes.for.scale = c(shapes.for.data, shapes.for.sim)
     
-    # determine shapes as a named vector
-    shapes.for.data = style.manager$get.shapes(length(unique(df.truth$shape.data.by)))
-
     # browser()
     rv = ggplot2::ggplot() + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
     rv = rv + ggplot2::scale_color_manual(values = all.colors.for.scale)
-    rv = rv + ggplot2::scale_shape_manual(values = shapes.for.data)
+    rv = rv + ggplot2::scale_shape_manual(values = all.shapes.for.scale)
     rv = rv + ggplot2::scale_fill_manual(values = color.data.shaded.colors)
     rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("Shade legend", override.aes = list(shape = 21)))
 
@@ -372,7 +378,7 @@ simplot <- function(...,
             #     ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=simset))
         }
         if (!is.null(df.truth))
-            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, fill=color.and.shade.data.by, shape = shape.data.by))
+            rv = rv + ggplot2::geom_point(data=df.truth, size=2, ggplot2::aes(x=year, y=value, fill=color.and.shade.data.by, shape = shape.data.by))
             # rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, shape=ifelse(length(unique(location))==1, source, location)))
     }
     
