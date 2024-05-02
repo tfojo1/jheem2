@@ -36,7 +36,7 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  correlation.different.sources = 0.3, 
                                                  correlation.same.source.different.details = 0.3,
                                                  observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
-                                                 measurement.error.coefficient.of.variance,
+                                                 # measurement.error.coefficient.of.variance,
                                                  error.variance.term=NULL,
                                                  error.variance.type=NULL,
                                                  weights = list(),
@@ -62,7 +62,7 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                                                   correlation.different.sources = correlation.different.sources,
                                                                   correlation.same.source.different.details = correlation.same.source.different.details,
                                                                   observation.correlation.form = observation.correlation.form,
-                                                                  measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
+                                                                  # measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
                                                                   error.variance.term = error.variance.term,
                                                                   error.variance.type = error.variance.type,
                                                                   weights = weights,
@@ -92,7 +92,7 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
                                                                           correlation.different.sources = 0.3,
                                                                           correlation.same.source.different.details = 0.3,
                                                                           observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
-                                                                          measurement.error.coefficient.of.variance,
+                                                                          # measurement.error.coefficient.of.variance,
                                                                           error.variance.term=NULL,
                                                                           error.variance.type=NULL,
                                                                           weights = list(),
@@ -118,7 +118,7 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
                                             correlation.different.sources = correlation.different.sources,
                                             correlation.same.source.different.details = correlation.same.source.different.details,
                                             observation.correlation.form = observation.correlation.form,
-                                            measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
+                                            # measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
                                             error.variance.term = error.variance.term,
                                             error.variance.type = error.variance.type,
                                             weights = weights,
@@ -141,7 +141,7 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
                                                                   correlation.different.sources = 0.3, 
                                                                   correlation.same.source.different.details = 0.3,
                                                                   observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
-                                                                  measurement.error.coefficient.of.variance,
+                                                                  # measurement.error.coefficient.of.variance,
                                                                   error.variance.term=NULL,
                                                                   error.variance.type=NULL,
                                                                   weights = list(),
@@ -167,7 +167,7 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
                                             correlation.different.sources = correlation.different.sources,
                                             correlation.same.source.different.details = correlation.same.source.different.details,
                                             observation.correlation.form = observation.correlation.form,
-                                            measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
+                                            # measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
                                             error.variance.term = error.variance.term,
                                             error.variance.type = error.variance.type,
                                             weights = weights,
@@ -202,7 +202,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               correlation.different.sources,
                               correlation.same.source.different.details,
                               observation.correlation.form,
-                              measurement.error.coefficient.of.variance,
+                              # measurement.error.coefficient.of.variance,
                               error.variance.term,
                               error.variance.type,
                               weights,
@@ -292,11 +292,21 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (length(observation.correlation.form) > 1 || !(observation.correlation.form %in% c('compound.symmetry', 'autoregressive.1')))
                 stop(paste0(error.prefix, "'observation.correlation.form' must be either 'compound.symmetry' or 'autoregressive.1'"))
             
-            # *measurement.error.coefficient.of.variance* must be a single numeric value between 0 and 1
-            if (!is.numeric(measurement.error.coefficient.of.variance) || length(measurement.error.coefficient.of.variance) > 1 || is.na(measurement.error.coefficient.of.variance) || measurement.error.coefficient.of.variance > 1 || measurement.error.coefficient.of.variance < 0)
-                stop(paste0(error.prefix, "'measurement.error.coefficient.of.variance' must be a numeric value between 0 and 1 inclusive"))
+            # # *measurement.error.coefficient.of.variance* must be a single numeric value between 0 and 1
+            # if (!is.numeric(measurement.error.coefficient.of.variance) || length(measurement.error.coefficient.of.variance) > 1 || is.na(measurement.error.coefficient.of.variance) || measurement.error.coefficient.of.variance > 1 || measurement.error.coefficient.of.variance < 0)
+            #     stop(paste0(error.prefix, "'measurement.error.coefficient.of.variance' must be a numeric value between 0 and 1 inclusive"))
             
-            # TO DO: VALIDATE ERROR.VARIANCE.TERM AND TYPE
+            # *error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', or 'data.ci'
+            if (!(error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.ci')))
+                stop(paste0(error.prefix, "'error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', or 'data.ci'"))
+            
+            if (error.variance.type %in% c('sd', 'variance', 'cv') && (!is.numeric(error.variance.term) || length(error.variance.term)!=1 || is.na(error.variance.term) || error.variance.term < 0))
+                stop(paste0(error.prefix, "'error.variance.term' must be a single, nonnegative, numeric value if 'error.variance.type' is one of 'sd', 'variance', or 'cv'"))
+            if (error.variance.type %in% c('data.sd', 'data.ci') && !is.null(error.variance.term))
+                stop(paste0(error.prefix, "'error.variance.term' must be NULL if 'error.variance.term' is one of 'data.sd' or 'data.ci'"))
+            
+            if (error.variance.type != 'cv')
+                stop(paste0(error.prefix, "only 'cv' is currently supported as an 'error.variance.type' for basic likelihoods"))
             
             # *weights* -- validated in the super$initialize
             
@@ -335,7 +345,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                                         correlation.different.sources = correlation.different.sources,
                                         correlation.same.source.different.details = correlation.same.source.different.details,
                                         observation.correlation.form = observation.correlation.form,
-                                        measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
+                                        # measurement.error.coefficient.of.variance = measurement.error.coefficient.of.variance,
                                         error.variance.term = error.variance.term,
                                         error.variance.type = error.variance.type)
             private$i.dimension.values = dimension.values # EXPERIMENTAL
@@ -759,7 +769,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                     private$i.parameters$observation.correlation.form == "autoregressive.1")
             # if we get measurement error sd from data, we'll need to have pulled it along with the regular data
             
-            measurement.error.sd = private$i.obs.vector * private$i.parameters$measurement.error.coefficient.of.variance
+            measurement.error.sd = private$i.obs.vector * private$i.parameters$error.variance.term
             
             private$i.measurement.error.covariance.matrix =
                 measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))

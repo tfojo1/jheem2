@@ -16,6 +16,19 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
     # --- VALIDATION --- #
     if (debug) browser()
     
+    # *data.manager*
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop(paste0(error.prefix, "'data.manager' must be an R6 object with class 'jheem.data.manager'"))
+    
+    # *dimensions* is a character vector with no NAs or duplicates, post conversion if NULL
+    if (is.null(dimensions)) dimensions = character(0)
+    if (!is.character(dimensions) || is.null(dimensions) || any(is.na(dimensions)) || any(duplicated(dimensions)))
+        stop(paste0(error.prefix, "'dimensions' must be NULL or a character vector containing no NAs or duplicates"))
+    
+    # *levels.of.stratification* is NULL or a numeric vector with no NAs or duplicates
+    if (!is.numeric(levels.of.stratification) || any(is.na(levels.of.stratification)) || any(duplicated(levels.of.stratification)) || any(sapply(levels.of.stratification, function(x) {x<0})))
+        stop(paste0(error.prefix, "'levels.of.stratification' must be NULL or an integer vector containing no NAs, duplicates, or nonnegative numbers"))
+    
     # --- so that I don't have to change the code very much to accommodate not having a sub.location.type or super.location.type, I'll set a default but just skip one or other of the loops later.
     lack.sub.location.type = is.null(sub.location.type)
     lack.super.location.type = is.null(super.location.type)
@@ -316,9 +329,13 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              correlation.different.sources = 0.3,
                                                              correlation.same.source.different.details = 0.3,
                                                              observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
-                                                             measurement.error.sd,
-                                                             denominator.measurement.error.cv = 0.05,
-                                                             n.multiplier.cv = 0.1,
+                                                             n.multiplier.cv = 0.1, # keeping this one
+                                                             
+                                                             p.error.variance.term=NULL,
+                                                             p.error.variance.type=NULL,
+                                                             n.error.variance.term=0.05, # placeholder
+                                                             n.error.variance.type='cv', # placeholder # same as old "denominator.measurement.error.cv"?
+                                                             
                                                              weights,
                                                              equalize.weight.by.year = T,
                                                              
@@ -352,9 +369,13 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                         correlation.different.sources = correlation.different.sources,
                                                         correlation.same.source.different.details = correlation.same.source.different.details,
                                                         observation.correlation.form = observation.correlation.form,
-                                                        measurement.error.sd = measurement.error.sd,
-                                                        denominator.measurement.error.cv = denominator.measurement.error.cv,
                                                         n.multiplier.cv = n.multiplier.cv,
+                                                        
+                                                        p.error.variance.term = p.error.variance.term,
+                                                        p.error.variance.type = p.error.variance.type,
+                                                        n.error.variance.term = n.error.variance.term,
+                                                        n.error.variance.type = n.error.variance.type,
+                                                        
                                                         weights = weights,
                                                         equalize.weight.by.year = equalize.weight.by.year,
                                                         partitioning.function = partitioning.function)
@@ -394,9 +415,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               correlation.different.sources,
                               correlation.same.source.different.details,
                               observation.correlation.form,
-                              measurement.error.sd,
-                              denominator.measurement.error.cv,
                               n.multiplier.cv,
+                              
+                              p.error.variance.term,
+                              p.error.variance.type,
+                              n.error.variance.term,
+                              n.error.variance.type,
+                              
                               weights,
                               equalize.weight.by.year,
                               partitioning.function)
@@ -464,6 +489,41 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (!is.numeric(redundant.location.threshold) || length(redundant.location.threshold)!=1 || is.na(redundant.location.threshold) || redundant.location.threshold < 0)
                 stop(paste0(error.prefix, "'redundant.location.threshold' must be a single, non-negative numeric value"))
             
+            # # *measurement.error.sd* must be NULL if *get.measurement.error.sd.from.data* is TRUE
+            # if (!is.null(measurement.error.sd) && get.measurement.error.sd.from.data)
+            #     stop(paste0(error.prefix, "'measurement.error.sd' must be NULL if 'get.measurement.error.sd.from.data' is TRUE"))
+            # if (get.measurement.error.sd.from.data) measurement.error.sd = 0 #placeholder
+            
+            # *p.error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', or 'data.ci'
+            if (!(p.error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.ci')))
+                stop(paste0(error.prefix, "'p.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', or 'data.ci'"))
+            
+            if (p.error.variance.type %in% c('sd', 'variance', 'cv') && (!is.numeric(p.error.variance.term) || length(p.error.variance.term)!=1 || is.na(p.error.variance.term) || p.error.variance.term < 0))
+                stop(paste0(error.prefix, "'p.error.variance.term' must be a single, nonnegative, numeric value if 'p.error.variance.type' is one of 'sd', 'variance', or 'cv'"))
+            if (p.error.variance.type %in% c('data.sd', 'data.variance', 'data.ci') && !is.null(p.error.variance.term))
+                stop(paste0(error.prefix, "'p.error.variance.term' must be NULL if 'p.error.variance.type' is one of 'data.sd', 'data.variance', or 'data.ci'"))
+            
+            if (p.error.variance.type %in% c('data.ci'))
+                stop(paste0(error.prefix, "'data.ci' is not yet supported as a 'p.error.variance.type'"))
+            
+            if (p.error.variance.type %in% c('data.sd', 'data.variance', 'data.ci'))
+                p.error.variance.term = 1
+            
+            # *n.error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', or 'data.ci'
+            if (!(n.error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.ci')))
+                stop(paste0(error.prefix, "'n.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', or 'data.ci'"))
+            
+            if (n.error.variance.type %in% c('sd', 'variance', 'cv') && (!is.numeric(n.error.variance.term) || length(n.error.variance.term)!=1 || is.na(n.error.variance.term) || n.error.variance.term < 0))
+                stop(paste0(error.prefix, "'n.error.variance.term' must be a single, nonnegative, numeric value if 'n.error.variance.type' is one of 'sd', 'variance', or 'cv'"))
+            if (n.error.variance.type %in% c('data.sd', 'data.variance', 'data.ci') && !is.null(n.error.variance.term))
+                stop(paste0(error.prefix, "'n.error.variance.term' must be NULL if 'n.error.variance.type' is one of 'data.sd', 'data.variance', or 'data.ci'"))
+            
+            if (n.error.variance.type %in% c('sd', 'variance', 'data.sd', 'data.variance', 'data.ci'))
+                stop(paste0(error.prefix, "only 'cv' is currently supported for 'n.error.variance.type'"))
+            
+            if (n.error.variance.type %in% c('data.sd', 'data.variance', 'data.ci'))
+                n.error.variance.term = 1
+            
             # *p.bias* constants, *correlation.multipliers*, *within.location* error correlations, *metalocation* correlations, *measurement.error.sd*, and *n.multiplier.cv* are all single numeric values with values between 0 and 1 inclusive
             between.negative.one.and.positive.one = list(p.bias.inside.location=p.bias.inside.location, 
                                                          p.bias.outside.location=p.bias.outside.location,
@@ -481,9 +541,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             
             non.negative.not.infinity = list(p.bias.sd.inside.location=p.bias.sd.inside.location,
                                              p.bias.sd.outside.location=p.bias.sd.outside.location,
-                                             measurement.error.sd=measurement.error.sd,
-                                             denominator.measurement.error.cv=denominator.measurement.error.cv,
-                                             n.multiplier.cv=n.multiplier.cv)
+                                             n.multiplier.cv=n.multiplier.cv,
+                                             p.error.variance.term=p.error.variance.term,
+                                             n.error.variance.term=n.error.variance.term)
             for (i in seq_along(non.negative.not.infinity)) {
                 if (!is.numeric(non.negative.not.infinity[[i]]) || length(non.negative.not.infinity[[i]]) > 1 || is.na(non.negative.not.infinity[[i]]) || non.negative.not.infinity[[i]] < 0 || non.negative.not.infinity[[i]] == Inf)
                     stop(paste0(error.prefix, "'", names(non.negative.not.infinity)[[i]], "' must be a single non-negative, non-infinite numeric value"))
@@ -527,15 +587,17 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                                         correlation.different.sources = correlation.different.sources,
                                         correlation.same.source.different.details = correlation.same.source.different.details,
                                         observation.correlation.form = observation.correlation.form,
-                                        measurement.error.sd = measurement.error.sd,
-                                        denominator.measurement.error.cv = denominator.measurement.error.cv,
                                         n.multiplier.cv = n.multiplier.cv,
                                         within.location.p.error.correlation = within.location.p.error.correlation,
                                         within.location.n.error.correlation = within.location.n.error.correlation,
                                         p.bias.inside.location = p.bias.inside.location,
                                         p.bias.outside.location = p.bias.outside.location,
                                         p.bias.sd.inside.location = p.bias.sd.inside.location,
-                                        p.bias.sd.outside.location = p.bias.sd.outside.location)
+                                        p.bias.sd.outside.location = p.bias.sd.outside.location,
+                                        p.error.variance.term = p.error.variance.term,
+                                        p.error.variance.type = p.error.variance.type,
+                                        n.error.variance.term = n.error.variance.term,
+                                        n.error.variance.type = n.error.variance.type)
             
             private$i.partitioning.function = partitioning.function
         }
@@ -553,7 +615,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'outcome.for.data' - it is read-only")
         },
-        
         denominator.outcome.for.data = function(value)
         {
             if (missing(value))
@@ -563,7 +624,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'denominator.outcome.for.data' - it is read-only")
         },
-        
         denominator.outcome.for.sim = function(value)
         {
             if (missing(value))
@@ -573,7 +633,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'denominator.outcome.for.sim' - it is read-only")
         },
-        
         outcome.for.n.multipliers = function(value)
         {
             if (missing(value))
@@ -583,7 +642,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'outcome.for.n.multipliers' - it is read-only")
         },
-        
         from.year = function(value)
         {
             if (missing(value))
@@ -611,7 +669,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'omit.years' - they are read-only")
         },
-        
         equalize.weight.by.year = function(value)
         {
             if (missing(value))
@@ -621,22 +678,21 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'equalize.weight.by.year' - it is read-only")
         },
-        
         parameters = function(value)
-            {
+        {
             if (missing(value)) {
                 private$i.parameters
             }
             else
-                stop("Cannot modify a jheem.basic.likelihood.instruction's 'parameters' - they are read-only")
+                stop("Cannot modify a jheem.likelihood.instruction's 'parameters' - they are read-only")
         },
         sources.to.use = function(value)
-            {
+        {
             if (missing(value)) {
                 private$i.sources.to.use
             }
             else
-                stop("Cannot modify a jheem.basic.likelihood.instruction's 'sources.to.use' - they are read-only")
+                stop("Cannot modify a jheem.likelihood.instruction's 'sources.to.use' - they are read-only")
         },
         redundant.location.threshold = function(value)
         {
@@ -701,7 +757,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         i.to.year = NULL,
         i.omit.years = NULL,
         i.equalize.weight.by.year = NULL,
-        
+        i.get.measurement.error.sd.from.data = NULL,
         
         i.parameters = NULL,
         i.sources.to.use = NULL,
@@ -732,7 +788,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                              location = location,
                              error.prefix = error.prefix)
             
-            post.time.checkpoint.flag = F
+            post.time.checkpoint.flag = T
             
             # Validate *data.manager*, a 'jheem.data.manager' object
             if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
@@ -842,12 +898,46 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                         stop(paste0(error.prefix, "no data was found for the stratification '", strat, "'"))
                     else next
                 }
-                n.stratifications.with.data = n.stratifications.with.data + 1
+                
                 one.mapping = attr(data, 'mapping')
+                one.details = attr(data, 'details')
+                
+                ## Pull measurement error coefficient of variance if needed
+                if (instructions$parameters$p.error.variance.type %in% c('data.sd', 'data.variance')) {
+                    metric.map = list(data.sd='sd', data.variance='variance')
+                    p.error.data = data.manager$pull(outcome = private$i.outcome.for.data,
+                                                     metric = metric.map[[private$i.parameters$p.error.variance.type]],
+                                                     sources = private$i.sources.to.use,
+                                                     keep.dimensions = keep.dimensions,
+                                                     dimension.values = list(year = as.character(years), location = all.locations),
+                                                     target.ontology = private$i.sim.ontology,
+                                                     allow.mapping.from.target.ontology = T)
+                    
+                    if (is.null(p.error.data)) {
+                        if (throw.error.if.no.data)
+                            stop(paste0(error.prefix, "no ", metric.map[[private$i.parameters$p.error.variance.type]], ", data was found for the stratification '", strat, "'"))
+                        else next
+                    }
+                    
+                    # find overlapping dimnames, limit both, then flip data to NA if cv for that value is NA
+                    common.dimnames = get.dimension.values.overlap(dimnames(data), dimnames(p.error.data))
+                    p.error.data = array.access(p.error.data, common.dimnames)
+                    data = array.access(data, common.dimnames)
+                    data[is.na(p.error.data)] = NA
+                    one.details = array.access(one.details, common.dimnames)
+                    
+                    one.p.error.data = as.numeric(p.error.data) # na masks will align perfectly with obs p mask
+                    one.p.error.data = one.p.error.data[!is.na(one.p.error.data)]
+                    
+                    if (instructions$parameters$p.error.variance.type == 'data.variance')
+                        one.p.error.data = sqrt(one.p.error.data)
+                    
+                    private$i.p.sd.vector = c(private$i.p.sd.vector, one.p.error.data)
+                }
+                n.stratifications.with.data = n.stratifications.with.data + 1
                 one.dimnames = dimnames(data)
                 one.locations = dimnames(data)$location
                 one.obs.p = as.numeric(data)
-                one.details = attr(data, 'details')
                 
                 one.remove.mask = is.na(one.obs.p)
                 one.obs.p = one.obs.p[!one.remove.mask]
@@ -1012,9 +1102,17 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                                                                     private$i.parameters$correlation.different.source,
                                                                                     private$i.parameters$correlation.same.source.different.details,
                                                                                     private$i.parameters$observation.correlation.form == "autoregressive.1")
-            private$i.obs.error = measurement.error.correlation.matrix * private$i.parameters$measurement.error.sd ^ 2 # this reflects our choice to make measurement error sd constant, not scaling with level of suppression (or other p)
+            if (private$i.parameters$p.error.variance.type %in% c('data.sd', 'data.variance')) {
+                measurement.error.sd.matrix = private$i.p.sd.vector %*% t(private$i.p.sd.vector)
+                private$i.obs.error = measurement.error.correlation.matrix * measurement.error.sd.matrix
+            } else if (private$i.parameters$p.error.variance.type == 'sd')
+                private$i.obs.error = measurement.error.correlation.matrix * private$i.parameters$p.error.variance.term ^ 2 # this reflects our choice to make measurement error sd constant, not scaling with level of suppression (or other p)
+            else if (private$i.parameters$p.error.variance.type == 'variance')
+                private$i.obs.error = measurement.error.correlation.matrix * private$i.parameters$p.error.variance.term
+            else if (private$i.parameters$p.error.variance.type == 'cv')
+                private$i.obs.error = measurement.error.correlation.matrix * (private$i.obs.p * private$i.parameters$p.error.variance.term)^2
             dim(private$i.obs.error) = c(n.obs, n.obs)
-            
+            # browser()
             # ------ THINGS THAT DEPEND ON OBSERVATION-LOCATIONS ------ #
             observation.locations = union(as.vector(unique(private$i.metadata$location)), location) #otherwise is factor
             n.obs.locations = length(observation.locations) # we have ensured the main location is always in here because it will be used for metalocations and therefore must be accounted for everywhere else too
@@ -1100,7 +1198,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                                                                   model.strata = model.strata, # can be NULL
                                                                                   data.manager = data.manager,
                                                                                   outcome = private$i.outcome.for.n.multipliers,
-                                                                                  years = years.with.data)
+                                                                                  years = years.with.data,
+                                                                                  error.prefix = error.prefix)
             
             private$i.year.metalocation.n.multiplier.sd = lapply(private$i.year.metalocation.n.multipliers, function(mult) {
                 mult * private$i.parameters$n.multiplier.cv
@@ -1122,7 +1221,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             # --- CONDITIONING --- #
             if (post.time.checkpoint.flag) print(paste0("Do conditioning: ", Sys.time()))
             private$i.obs.n.plus.conditioned.error.variances = lapply(1:n.strata, function(i) {
-                obs.n.variance = sapply(private$i.obs.n[[i]], function(x) {x * private$i.parameters$denominator.measurement.error.cv})
+                obs.n.variance = sapply(private$i.obs.n[[i]], function(x) {x * private$i.parameters$n.error.variance.term}) # HERE
                 year.mask = array(0, dim = c(n.years, length(locations.with.n.data), n.years, n.metalocations.for.conditioning))
                 for (y in 1:n.years) {
                     year.mask[y,,y,] = metalocation.info.for.conditioning.without.msa
@@ -1212,6 +1311,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         i.sub.version = NULL,
         
         i.parameters = NULL,
+        i.p.sd.vector = NULL,
         
         i.outcome.for.data = NULL,
         i.denominator.outcome.for.data = NULL,
@@ -1445,9 +1545,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                           metalocation.type = metalocation.type)
         },
         
-        get.n.multipliers = function(metalocation.to.minimal.component.map, metalocation.type, main.location, stratification, sim.ontology, model.strata, data.manager, outcome, years)
+        get.n.multipliers = function(metalocation.to.minimal.component.map, metalocation.type, main.location, stratification, sim.ontology, model.strata, data.manager, outcome, years, error.prefix)
         {
-            # browser()
             n.metalocations = length(metalocation.to.minimal.component.map)
             n.years = length(years)
             model.arr.dimnames = sim.ontology[names(sim.ontology) %in% c('year', stratification)]
@@ -1499,6 +1598,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     stratum.matrix = matrix(unlist(stratum.slice.by.metalocation), nrow = n.years, ncol = n.metalocations)
                 } )
             }
+            
+            # check for NAs
+            if (any(sapply(one.matrix.per.model.stratum, function(mat) {any(is.na(mat))})))
+                stop(paste0(error.prefix, "not enough data found for n-multipliers; consider restricting likelihood years"))
+            
+            return(one.matrix.per.model.stratum)
         },
         
         get.outcome.ratios = function(location.1, location.2, stratification, data.manager, outcome, years, universal.ontology, cache)
