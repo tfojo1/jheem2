@@ -149,6 +149,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             private$i.dimensions = dimensions
             
             # *levels.of.stratification* is NULL or a numeric vector with no NAs or duplicates
+            if (is.null(levels.of.stratification)) levels.of.stratification = 0
             if (!is.numeric(levels.of.stratification) || any(is.na(levels.of.stratification)) || any(duplicated(levels.of.stratification)) || any(sapply(levels.of.stratification, function(x) {x<0})))
                 stop(paste0(error.prefix, "'levels.of.stratification' must be NULL or an integer vector containing no NAs, duplicates, or nonnegative numbers"))
             private$i.stratifications = private$generate.stratifications(dimensions = dimensions,
