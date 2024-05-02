@@ -1409,7 +1409,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
             target.from.arguments = target.ontology
-            # if (debug) browser()
+            if (debug) browser()
             if (is.null(target.ontology) || allow.mapping.from.target.ontology) {
                 target.ontology = private$get.universal.ontology(outcome = outcome,
                                                                  sources = sources,
@@ -1425,9 +1425,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             })
             names(dimension.values) = dv.names
             resolved.dimension.values = resolve.ontology.dimension.values(target.ontology, dimension.values, error.prefix = error.prefix, throw.error.if.unresolvable = F)
-            if (is.null(resolved.dimension.values) && !is.null(dimension.values))
+            if ((is.null(resolved.dimension.values) || any(sapply(resolved.dimension.values, is.null))) && !is.null(dimension.values))
                 stop(paste0(error.prefix, "'dimension.values' cannot be resolved"))
-            
             
             # need.to.set.keep.dimensions.flag = is.null(keep.dimensions)
             if (is.null(keep.dimensions)) {
@@ -1514,7 +1513,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         
                         incompatible.mapped.stratification = F
                         data.types = union('data', append.attributes)
-                        
+                        if (debug) browser()
                         pulled.ont.data = lapply(data.types, function(data.type) {
                             if (incompatible.mapped.stratification) return (NULL)
                             if (!mapping.to.apply$can.apply.to.dim.names(from.dim.names = strat.dimnames,
@@ -1542,14 +1541,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         source.lacks.estimate.data.flag <<- TRUE
                                         return (NULL)
                                     }
-
+                                    
+                                    # pull with no target ontology because this has to mesh the strat dimnames as they are here, and we know they will
+                                    # But note that we will have to map this too, so that we can use it afterwards
                                     estimate.data.for.cv = self$pull(outcome = outcome,
                                                                      metric = 'estimate',
                                                                      source = estimate.source,
                                                                      keep.dimensions = union(keep.dimensions, dv.names),
-                                                                     dimension.values = strat.dimnames,
-                                                                     target.ontology = target.ontology,
-                                                                     allow.mapping.from.target.ontology = F)
+                                                                     dimension.values = strat.dimnames)
                                     # TO DO: THE STUFF RELATING TO WHICH SOURCE WE USE FOR THIS PULL (PICK SAME OR USE ALL, THEN TAKE MEAN AFTERWARDS)
 
                                     # If the estimate data came from only one source, we can remove the source so that it will match size of data
@@ -1567,6 +1566,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     estimate.data.for.cv = array.access(estimate.data.for.cv, dimnames.in.common)
                                     data.to.process = array.access(data.to.process, dimnames.in.common)
                                     data.to.process = data.to.process * estimate.data.for.cv
+                                    
                                 }
                                 if (metric %in% c('standard.deviation', 'coefficient.of.variance'))
                                     data.to.process = data.to.process**2
@@ -1661,13 +1661,19 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                              fun = function.to.apply)
                                 if (metric %in% c('standard.deviation', 'coefficient.of.variance')) mapped.data.by.type = sqrt(mapped.data.by.type)
                                 if (metric == 'coefficient.of.variance') {
+                                    # we must also map the estimate data
+                                    estimate.data.for.cv = mapping.to.apply$apply(estimate.data.for.cv,
+                                                                                  na.rm=na.rm,
+                                                                                  to.dim.names = dimnames.for.apply,
+                                                                                  fun = function.to.apply)
+                                    
                                     # we may have lost dimension values compared to what we started with
                                     if (!dim.names.equal(dimnames(mapped.data.by.type), dimnames(estimate.data.for.cv))) {
                                         dimnames.in.common = get.dimension.values.overlap(dimnames(mapped.data.by.type), dimnames(estimate.data.for.cv))
                                         estimate.data.for.cv = array.access(estimate.data.for.cv, dimnames.in.common)
                                         mapped.data.by.type = array.access(mapped.data.by.type, dimnames.in.common)
-                                        mapped.data.by.type = mapped.data.by.type / estimate.data.for.cv
                                     }
+                                    mapped.data.by.type = mapped.data.by.type / estimate.data.for.cv
                                 }
                             }
                             
