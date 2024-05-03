@@ -495,8 +495,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             # if (get.measurement.error.sd.from.data) measurement.error.sd = 0 #placeholder
             
             # *p.error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', or 'data.ci'
-            if (!(p.error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.ci')))
-                stop(paste0(error.prefix, "'p.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', or 'data.ci'"))
+            if (!(p.error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', 'data.ci')))
+                stop(paste0(error.prefix, "'p.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', or 'data.ci'"))
             
             if (p.error.variance.type %in% c('sd', 'variance', 'cv') && (!is.numeric(p.error.variance.term) || length(p.error.variance.term)!=1 || is.na(p.error.variance.term) || p.error.variance.term < 0))
                 stop(paste0(error.prefix, "'p.error.variance.term' must be a single, nonnegative, numeric value if 'p.error.variance.type' is one of 'sd', 'variance', or 'cv'"))
@@ -506,22 +506,22 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (p.error.variance.type %in% c('data.ci'))
                 stop(paste0(error.prefix, "'data.ci' is not yet supported as a 'p.error.variance.type'"))
             
-            if (p.error.variance.type %in% c('data.sd', 'data.variance', 'data.ci'))
+            if (p.error.variance.type %in% c('data.sd', 'data.variance', 'data.cv', 'data.ci'))
                 p.error.variance.term = 1
             
             # *n.error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', or 'data.ci'
-            if (!(n.error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.ci')))
-                stop(paste0(error.prefix, "'n.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', or 'data.ci'"))
+            if (!(n.error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', 'data.ci')))
+                stop(paste0(error.prefix, "'n.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', or 'data.ci'"))
             
             if (n.error.variance.type %in% c('sd', 'variance', 'cv') && (!is.numeric(n.error.variance.term) || length(n.error.variance.term)!=1 || is.na(n.error.variance.term) || n.error.variance.term < 0))
                 stop(paste0(error.prefix, "'n.error.variance.term' must be a single, nonnegative, numeric value if 'n.error.variance.type' is one of 'sd', 'variance', or 'cv'"))
             if (n.error.variance.type %in% c('data.sd', 'data.variance', 'data.ci') && !is.null(n.error.variance.term))
-                stop(paste0(error.prefix, "'n.error.variance.term' must be NULL if 'n.error.variance.type' is one of 'data.sd', 'data.variance', or 'data.ci'"))
+                stop(paste0(error.prefix, "'n.error.variance.term' must be NULL if 'n.error.variance.type' is one of 'data.sd', 'data.variance', 'data.cv', or 'data.ci'"))
             
-            if (n.error.variance.type %in% c('sd', 'variance', 'data.sd', 'data.variance', 'data.ci'))
+            if (n.error.variance.type %in% c('sd', 'variance', 'data.sd', 'data.variance', 'data.cv', 'data.ci'))
                 stop(paste0(error.prefix, "only 'cv' is currently supported for 'n.error.variance.type'"))
             
-            if (n.error.variance.type %in% c('data.sd', 'data.variance', 'data.ci'))
+            if (n.error.variance.type %in% c('data.sd', 'data.variance', 'data.cv', 'data.ci'))
                 n.error.variance.term = 1
             
             # *p.bias* constants, *correlation.multipliers*, *within.location* error correlations, *metalocation* correlations, *measurement.error.sd*, and *n.multiplier.cv* are all single numeric values with values between 0 and 1 inclusive
@@ -902,9 +902,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 one.mapping = attr(data, 'mapping')
                 one.details = attr(data, 'details')
                 
-                ## Pull measurement error coefficient of variance if needed
-                if (instructions$parameters$p.error.variance.type %in% c('data.sd', 'data.variance')) {
-                    metric.map = list(data.sd='sd', data.variance='variance')
+                ## Pull measurement error variance if needed
+                if (instructions$parameters$p.error.variance.type %in% c('data.sd', 'data.variance', 'data.cv')) {
+                    metric.map = list(data.sd='sd', data.variance='variance', data.cv='coefficient.of.variance')
                     p.error.data = data.manager$pull(outcome = private$i.outcome.for.data,
                                                      metric = metric.map[[private$i.parameters$p.error.variance.type]],
                                                      sources = private$i.sources.to.use,
@@ -923,6 +923,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     common.dimnames = get.dimension.values.overlap(dimnames(data), dimnames(p.error.data))
                     p.error.data = array.access(p.error.data, common.dimnames)
                     data = array.access(data, common.dimnames)
+                    
+                    if (instructions$parameters$p.error.variance.type == 'data.cv')
+                        p.error.data = data * p.error.data # sd = cv * mean
+                    
                     data[is.na(p.error.data)] = NA
                     one.details = array.access(one.details, common.dimnames)
                     
@@ -932,7 +936,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     if (instructions$parameters$p.error.variance.type == 'data.variance')
                         one.p.error.data = sqrt(one.p.error.data)
                     
-                    private$i.p.sd.vector = c(private$i.p.sd.vector, one.p.error.data)
+                    private$i.p.error.vector = c(private$i.p.error.vector, one.p.error.data)
                 }
                 n.stratifications.with.data = n.stratifications.with.data + 1
                 one.dimnames = dimnames(data)
@@ -1102,15 +1106,20 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                                                                     private$i.parameters$correlation.different.source,
                                                                                     private$i.parameters$correlation.same.source.different.details,
                                                                                     private$i.parameters$observation.correlation.form == "autoregressive.1")
-            if (private$i.parameters$p.error.variance.type %in% c('data.sd', 'data.variance')) {
-                measurement.error.sd.matrix = private$i.p.sd.vector %*% t(private$i.p.sd.vector)
+            # All forms of error will be converted to sd and then we use cov = corr * sd %*% t(sd), the last part sometimes being just sd squared
+            if (private$i.parameters$p.error.variance.type %in% c('data.sd', 'data.variance', 'data.cv')) {
+                # all have been converted to sd earlier, including data.cv
+                measurement.error.sd.matrix = private$i.p.error.vector %*% t(private$i.p.error.vector)
                 private$i.obs.error = measurement.error.correlation.matrix * measurement.error.sd.matrix
-            } else if (private$i.parameters$p.error.variance.type == 'sd')
+            }
+            else if (private$i.parameters$p.error.variance.type == 'sd')
                 private$i.obs.error = measurement.error.correlation.matrix * private$i.parameters$p.error.variance.term ^ 2 # this reflects our choice to make measurement error sd constant, not scaling with level of suppression (or other p)
             else if (private$i.parameters$p.error.variance.type == 'variance')
                 private$i.obs.error = measurement.error.correlation.matrix * private$i.parameters$p.error.variance.term
-            else if (private$i.parameters$p.error.variance.type == 'cv')
-                private$i.obs.error = measurement.error.correlation.matrix * (private$i.obs.p * private$i.parameters$p.error.variance.term)^2
+            else if (private$i.parameters$p.error.variance.type == 'cv') {
+                measurement.error.sd = private$i.obs.p * private$i.parameters$p.error.variance.term
+                private$i.obs.error = measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
+            }
             dim(private$i.obs.error) = c(n.obs, n.obs)
             # browser()
             # ------ THINGS THAT DEPEND ON OBSERVATION-LOCATIONS ------ #
@@ -1311,7 +1320,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         i.sub.version = NULL,
         
         i.parameters = NULL,
-        i.p.sd.vector = NULL,
+        i.p.error.vector = NULL,
         
         i.outcome.for.data = NULL,
         i.denominator.outcome.for.data = NULL,
