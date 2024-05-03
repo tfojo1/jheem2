@@ -1539,6 +1539,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
 
         calculate.quantity.dim.names.bottom.up = function(quantity, error.prefix)
         {
+            
             if (length(quantity$depends.on)==0)
                 return()
            
@@ -1613,17 +1614,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                                                                         aliases.1 = comp.dn.and.aliases$aliases,
                                                                         dim.names.2 = merged.with.applies.to.dn$dim.names,
                                                                         aliases.2 = merged.with.applies.to.dn$aliases)
-                    if (any(sapply(comp.dn.and.aliases$dim.names, length)==0))
-                        browser()
-                }
-                
-                if (any(sapply(comp.dn.and.aliases$dim.names, length)==0))
-                {
-                    stop(paste0("Cannot infer dim.names, bottom-up, for quantity ",
-                                quantity$get.original.name(wrt.version=self$version),
-                                " - the dim.names of the quantities it depends on (",
-                                collapse.with.and("'", comp$depends.on, "'"),
-                                ") do not overlap (their intersection is empty)"))
                 }
                 
                 # Save the component's max dim.names and aliases
@@ -1713,7 +1703,89 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                                                          dimension.aliases = final.dim.names.and.aliases$aliases,
                                                          error.prefix = paste0(error.prefix, "Cannot set aliases when calculating dimnames for quantity ", quantity$get.original.name(private$i.version), " - "))
             
+            #-- Strip out empty dimensions --#
+            
+            empty.dim.mask = sapply(final.dim.names.and.aliases$dim.names, length)==0
+            if (any(empty.dim.mask))
+            {
+                error.msg = private$remove.dimensions.from.quantity.max.dim.names(quantity, 
+                                                                                  to.remove = names(empty.dim.mask)[empty.dim.mask],
+                                                                                  error.prefix = paste0(error.prefix, "Cannot remove dimensions from quantity - "))
+                
+                if (!is.null(error.msg))
+                    stop(paste0("Cannot infer dim.names, bottom-up, for quantity ",
+                                quantity$get.original.name(wrt.version=self$version),
+                                " - the dim.names of the quantities it depends on (",
+                                collapse.with.and("'", comp$depends.on, "'"),
+                                ") do not overlap (their intersection is empty) and cannot be removed from the quantity's dependees"))
+            }
+            
             invisible(self)
+        },
+
+        # If fails, returns an error message saying why
+        remove.dimensions.from.quantity.max.dim.names = function(quantity, to.remove, error.prefix)
+        {
+            unable.to.remove.dimensions = intersect(names(quantity$required.dim.names),
+                                                    to.remove)
+            
+            if (length(unable.to.remove.dimensions)>0)
+                return(paste0("Cannot remove ",
+                              ifelse(length(unable.to.remove.dimensions)==1, "dimension ", "dimensions "),
+                              collapse.with.and("'", unable.to.remove.dimensions, "'"),
+                              " from quantity ", quantity$name, ". ",
+                              ifelse(length(unable.to.remove.dimensions)==1, 
+                                     "It is a required dimension", "They are required dimensions"),
+                ))
+            
+            
+            applies.to.dimensions = unique(unlist(
+                lapply(quantity$components, function(comp){
+                    names(comp$applies.to)
+                })
+            ))
+            
+            unable.to.remove.dimensions.2 = intersect(names(quantity$required.dim.names),
+                                                      applies.to.dimensions)
+            
+            if (length(unable.to.remove.dimensions.2)>0)
+                return(paste0("Cannot remove ",
+                              ifelse(length(unable.to.remove.dimensions.2)==1, "dimension ", "dimensions "),
+                              collapse.with.and("'", unable.to.remove.dimensions.2, "'"),
+                              " from quantity ", quantity$name, ". ",
+                              ifelse(length(unable.to.remove.dimensions.2)==1, 
+                                     "It is", "They are"),
+                              " used in 'applies.to'"
+                ))
+            
+            quantity$set.dim.names.and.dimension.aliases(
+                max.dim.names = quantity$max.dim.names[setdiff(names(quantity$max.dim.names),
+                                                               to.remove)],
+                max.dimensions = setdiff(quantity$max.dimensions, to.remove),
+                required.dim.names = quantity$required.dim.names,
+                dimension.aliases = quantity$dimension.aliases[setdiff(names(quantity$dimension.aliases),
+                                                                       to.remove)],
+                error.prefix = error.prefix
+            )
+            
+            non.function.components.mask = sapply(quantity$components, function(comp){
+                comp$value.type
+            }) != 'function'
+            
+            non.function.depends.on = unique(unlist(sapply(quantity$components[non.function.components.mask], function(comp){
+                comp$depends.on
+            })))
+            
+            for (dep.on in non.function.depends.on)
+            {
+                error.msg = private$remove.dimensions.from.quantity.max.dim.names(self$get.quantity(dep.on),
+                                                                                  to.remove = to.remove, 
+                                                                                  error.prefix = error.prefix)
+                if (!is.null(error.msg))
+                    return (error.msg)
+            }
+            
+            return (NULL)
         },
 
         incorporate.quantity.fixed.dimensions = function(quantity,
