@@ -1,6 +1,6 @@
-N.SIM = 50
-RUN.RPROF = T
-SOLVER.METHOD = 'DP5'
+N.SIM = 500
+RUN.RPROF = F
+SOLVER.METHOD = 'BS3'
 
 source('../jheem_analyses/applications/EHE/calibration_runs/ehe_register_calibrations.R')
 
@@ -8,7 +8,7 @@ print("STARTING PROFILING")
 
 set.jheem.root.directory('Q:test')
 LOCATION = BALTIMORE.MSA
-CALIBRATION.CODE.TO.RUN = 'testcal2' # CALIBRATION.CODE.POPULATION
+CALIBRATION.CODE.TO.RUN = paste0('calprof.', SOLVER.METHOD) # CALIBRATION.CODE.POPULATION
 
 par.names.pop = c("black.birth.rate.multiplier",
                   "hispanic.birth.rate.multiplier",
@@ -78,7 +78,7 @@ register.calibration.info(CALIBRATION.CODE.TO.RUN,
                           fixed.initial.parameter.values = c(global.trate=0.1), 
                           is.preliminary = T,
                           max.run.time.seconds = 10,
-                          solver.metadata = create.solver.metadata(method=SOLVER.METHOD),
+                          solver.metadata = create.solver.metadata(method=SOLVER.METHOD, rtol = 1e-06, atol = 1e-06),
                           description = "A quick run to get population parameters in the general vicinity"
 )
 
