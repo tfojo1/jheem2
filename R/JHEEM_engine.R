@@ -5506,14 +5506,15 @@ JHEEM = R6::R6Class(
                 
                 for (dep.on.outcome.name in numerator.depends.on.outcome.names)
                 {
+                    dep.on.dim.names = outcome$apply.dimension.aliases.to.dim.names(private$i.outcome.dim.names.sans.time[[dep.on.outcome.name]])
                     dim.names.from.outcomes = intersect.shared.dim.names(dim.names.from.outcomes,
-                                                                         private$i.outcome.dim.names.sans.time[[dep.on.outcome.name]])
+                                                                         dep.on.dim.names)
                 }
                 
                 dim.names = intersect.joined.dim.names(private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]], dim.names.from.outcomes)
                 for (dep.on.quantity.name in numerator.depends.on.quantity.names)
                 {
-                    quantity.dim.names = private$i.quantity.dim.names[[dep.on.quantity.name]]
+                    quantity.dim.names = outcome$apply.dimension.aliases.to.dim.names(private$i.quantity.dim.names[[dep.on.quantity.name]])
                     
                     # Make the dimensions for the quantity are a subset of the dimensions we got from outcomes
                     if (!is.null(dim.names.from.outcomes))
@@ -5795,18 +5796,19 @@ JHEEM = R6::R6Class(
                     
                     if (!is.null(outcome$denominator.outcome) && !outcome$value.is.numerator)
                     {
-                        raw.value = lapply(as.character(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(time){
+                        raw.value = lapply(1:length(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(i){
                                    
+                            time = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]][i])
                             collapsed.denominator = collapse.array.according.to.indices(arr = denominator[[time]],
                                                                                      small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.indices,
                                                                                      large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$large.indices,
                                                                                      small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.n)           
-                            raw.value[[time]] * collapsed.denominator
+                            raw.value[[i]] * collapsed.denominator
                                 
                         })
                         names(raw.value) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
                     }
-        
+                    
                     numerator = lapply(raw.value,
                                        collapse.array.according.to.indices,
                                        small.indices = private$i.outcome.indices[[outcome.name]]$collapse.numerator$small.indices,
@@ -5973,16 +5975,24 @@ JHEEM = R6::R6Class(
         # Depends on outcome.numerator.dim.names.sans.time
         calculate.outcome.indices.from.outcome = function(outcome.name, dep.on.outcome.name)
         {
+            specification = private$get.specification()
+            outcome = specification$get.outcome(outcome.name)
+            dep.on.dim.names = outcome$apply.dimension.aliases.to.dim.names(private$i.outcome.dim.names.sans.time[[dep.on.outcome.name]])
+            
             private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]] =
                 get.collapse.array.indices(small.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]],
-                                           large.arr.dim.names = private$i.outcome.dim.names.sans.time[[dep.on.outcome.name]])
+                                           large.arr.dim.names = dep.on.dim.names)
         },
 
         # Depends on outcome.numerator.dim.names.sans.time, quantity.dim.names
         calculate.outcome.indices.from.quantity = function(outcome.name, dep.on.quantity.name)
         {
+            specification = private$get.specification()
+            outcome = specification$get.outcome(outcome.name)
+            quantity.dim.names = outcome$apply.dimension.aliases.to.dim.names(private$i.quantity.dim.names[[dep.on.quantity.name]])
+            
             private$i.outcome.indices[[outcome.name]]$value.from.quantity[[dep.on.quantity.name]] =
-                get.expand.array.indices(to.expand.dim.names = private$i.quantity.dim.names[[dep.on.quantity.name]],
+                get.expand.array.indices(to.expand.dim.names = quantity.dim.names,
                                          target.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]])
         },
 
@@ -5996,19 +6006,20 @@ JHEEM = R6::R6Class(
             outcome = specification$get.outcome(outcome.name)
             if (!is.null(outcome$denominator.outcome))
             {
+                denominator.outcome.dim.names = outcome$apply.dimension.aliases.to.dim.names(private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]])
                 if (dim.names.are.subset(sub.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
-                                         super.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]]))
+                                         super.dim.names = denominator.outcome.dim.names))
                 {
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator =
                         get.collapse.array.indices(small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
-                                                   large.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]])
+                                                   large.arr.dim.names = denominator.outcome.dim.names)
                 }
                 else if (dim.names.are.subset(sub.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]],
-                                              super.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]]))
+                                              super.dim.names = denominator.outcome.dim.names))
                 {
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator =
                         get.collapse.array.indices(small.arr.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]],
-                                                large.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]])
+                                                large.arr.dim.names = denominator.outcome.dim.names)
                 }
                 else
                 {
@@ -6018,8 +6029,8 @@ JHEEM = R6::R6Class(
                          collapse.with.and("'", names(numerator.dim.names), "'"),
                          ") are NOT a subset of the dimnames of the denominator outcome '",
                          outcome$denominator.outcome, "' (with ",
-                         ifelse(length(denominator.dim.names)==1, "dimension ", "dimensions "),
-                         collapse.with.and("'", names(denominator.dim.names), "'"),
+                         ifelse(length(denominator.outcome.dim.names)==1, "dimension ", "dimensions "),
+                         collapse.with.and("'", names(denominator.outcome.dim.names), "'"),
                          ")",
                          ifelse(is.null(outcome$rename.dimension.values), "", " - either before or after renaming the outcome's dim.names"))
                 }
@@ -6027,10 +6038,9 @@ JHEEM = R6::R6Class(
                 if (!outcome$value.is.numerator)
                 {
                     numerator.dim.names = private$i.outcome.numerator.renamed.dim.names.sans.time[[outcome.name]]
-                    denominator.dim.names = private$i.outcome.dim.names.sans.time[[outcome$denominator.outcome]]
                     
                     if (!dim.names.are.subset(sub.dim.names = numerator.dim.names,
-                                              super.dim.names = denominator.dim.names))
+                                              super.dim.names = denominator.outcome.dim.names))
                     {
                         stop("Error in dimnames for outcomes: the *numerator* dimnames of outcome '",
                              outcome.name, "' (with ",
@@ -6038,15 +6048,15 @@ JHEEM = R6::R6Class(
                              collapse.with.and("'", names(numerator.dim.names), "'"),
                              ") are NOT a subset of the dimnames of the denominator outcome '",
                              outcome$denominator.outcome, "' (with ",
-                             ifelse(length(denominator.dim.names)==1, "dimension ", "dimensions "),
-                             collapse.with.and("'", names(denominator.dim.names), "'"),
+                             ifelse(length(denominator.outcome.dim.names)==1, "dimension ", "dimensions "),
+                             collapse.with.and("'", names(denominator.outcome.dim.names), "'"),
                              ")",
                              ifelse(is.null(outcome$rename.dimension.values), "", ". This probably has to do with the rename.dimension.values argument"))
                     }
                         
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator =
                         get.collapse.array.indices(small.arr.dim.names = numerator.dim.names,
-                                                large.arr.dim.names = denominator.dim.names)
+                                                large.arr.dim.names = denominator.outcome.dim.names)
                 }
             }
         },
