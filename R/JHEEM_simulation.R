@@ -1260,6 +1260,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                      calibration.code = private$i.calibration.code,
                                      intervention.code = private$i.intervention.code,
                                      run.metadata = private$i.run.metadata$subset(x),
+                                     solver.metadata = private$i.solver.metadata,
                                      is.degenerate = private$i.is.degenerate[x],
                                      finalize = private$i.finalized)
         },
