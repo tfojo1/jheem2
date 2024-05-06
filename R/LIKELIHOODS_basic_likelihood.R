@@ -928,10 +928,13 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
             sim.numerator.data = sim$optimized.get(private$i.optimized.get.instructions[["sim.num.instr"]])
             
+            # we use Poisson if we are neither a proportion nor have a denominator outcome for sim provided
+            # Rates are always Poisson because they are not bounded 0-1, and p(1-p) could go negative!
+            
             # if denom for sim is NULL, figure out if it's a proportion or not
             # if so, use a sim get requesting to get only the denominator
             use.poisson = is.null(private$i.denominator.outcome.for.sim) && !private$i.outcome.is.proportion
-            if (use.poisson) {
+            if (use.poisson && !private$i.outcome.is.rate) {
                 sim.denominator.data = numeric(0)
                 expanded.sim.denominator.data = numeric(0)# so as not to throw errors in cpp sigma
             } else {
@@ -940,7 +943,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             }
             
             # Re-purpose likelihood mean code to find aggregated N matrix (diagonal, so treated as vector)
-            if (private$i.outcome.is.proportion) {
+            if (private$i.outcome.is.proportion || private$i.outcome.is.rate) {
                 n.vector = get_basic_likelihood_mean(expanded.sim.denominator.data,
                                                      private$i.transformation.matrix.row.oriented.indices,
                                                      private$i.n.obs,
@@ -970,7 +973,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 sigma = sigma + private$i.inverse.multiplier.matrix.times.cov.mat * (sigma + mean %*% t(mean))
             }
             
-            if (private$i.outcome.is.proportion)
+            if (private$i.outcome.is.proportion || private$i.outcome.is.rate)
                 obs = private$i.obs.vector * n.vector
             else
                 obs = private$i.obs.vector
