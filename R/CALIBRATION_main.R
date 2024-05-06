@@ -409,8 +409,39 @@ assemble.simulations.from.calibration <- function(version,
     
     
     sim.indices = as.integer(mcmc@simulation.indices)
-    run.times = as.numeric(mcmc@run.times)
+    if (any(is.na(sim.indices))) # This is a patch to the error in the MCMC package code with propagating NA values
+    {
+        search.from = 1
+        sim.indices = sapply(1:length(mcmc@simulation.indices), function(i){
+            
+            params = mcmc@samples[1,i,]
+            if (any(is.na(params)))
+                return(search.from)
+            
+            for (j in search.from:length(mcmc@simulations))
+            {
+                if (all(mcmc@simulations[[j]]$params == params))
+                {
+                    search.from <<- j
+                    return (j)
+                }
+            }
+            
+            NA
+        })
+        
+        if (any(is.na(sim.indices)))
+            stop("Cannot assemble simulations from calibration - NAs were introduced in the MCMC package code and we cannot recover from this (despite trying)")
+    }
     
+    run.times = as.numeric(mcmc@run.times)#[sim.indices]
+    last.valid = run.times[1]
+    run.times = sapply(run.times, function(time){
+        if (!is.na(time))
+            last.valid = time
+        last.valid
+    })
+
     run.metadatas = lapply(1:length(sim.indices), function(i){
         r.meta = mcmc@simulations[[ sim.indices[i] ]]$run.metadata
         copy.run.metadata(r.meta, run.time = run.times[i] / mcmc@thin)

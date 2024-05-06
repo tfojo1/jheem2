@@ -29,6 +29,9 @@ copy.run.metadata <- function(metadata.to.copy,
                               postprocessing.time = metadata.to.copy$postprocessing.time,
                               n.trials = metadata.to.copy$n.trials)
 {
+    if (!is(metadata.to.copy, 'jheem.run.metadata'))
+        stop("Cannot copy run metadata: 'metadata.to.copy' must be a 'jheem.run.metadata' object")
+    
     dim.names = NULL
     if (is.null(dim.names))
         dim.names = dimnames(run.time)
