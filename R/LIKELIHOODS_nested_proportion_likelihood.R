@@ -279,6 +279,99 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
          n.out = ifelse(!lack.super.location.type, length(p.bias.out.msa), NA))
 }
 
+create.nested.proportion.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
+                                                                                      denominator.outcome.for.data, # is NEVER null here because we are working with proportions
+                                                                                      outcome.for.sim,
+                                                                                      denominator.outcome.for.sim = NULL, # if NULL, uses denominator data within the sim data
+                                                                                      outcome.for.n.multipliers = denominator.outcome.for.data,
+                                                                                      
+                                                                                      location.types, # test is c('county', 'state')
+                                                                                      minimum.geographic.resolution.type, # test with 'county' #metalocations MUST contain these
+                                                                                      maximum.locations.per.type = 3,
+                                                                                      
+                                                                                      dimensions = NULL, # this can be NULL because it's more intuitive to most users, but I'll change it to character(0) later
+                                                                                      levels.of.stratification = 0:length(dimensions), # default 0:length(dimensions)
+                                                                                      
+                                                                                      from.year = -Inf,
+                                                                                      to.year = Inf,
+                                                                                      omit.years = NULL,
+                                                                                      
+                                                                                      sources.to.use = NULL,
+                                                                                      redundant.location.threshold = 5,
+                                                                                      
+                                                                                      included.multiplier,
+                                                                                      included.multiplier.sd,
+                                                                                      included.multiplier.correlation=NULL,
+                                                                                      included.multiplier.correlation.structure=c('compound.symmetry', 'autoregressive.1')[1],
+                                                                                      
+                                                                                      p.bias.inside.location,
+                                                                                      p.bias.outside.location,
+                                                                                      p.bias.sd.inside.location,
+                                                                                      p.bias.sd.outside.location,
+                                                                                      
+                                                                                      within.location.p.error.correlation = 0.5,
+                                                                                      within.location.n.error.correlation = 0.5,
+                                                                                      
+                                                                                      correlation.different.locations = 0,
+                                                                                      correlation.different.years = 0.5,
+                                                                                      correlation.different.strata = 0.1,
+                                                                                      correlation.different.sources = 0.3,
+                                                                                      correlation.same.source.different.details = 0.3,
+                                                                                      observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
+                                                                                      n.multiplier.cv = 0.1, # keeping this one
+                                                                                      
+                                                                                      p.error.variance.term=NULL,
+                                                                                      p.error.variance.type=NULL,
+                                                                                      n.error.variance.term=0.05, # placeholder
+                                                                                      n.error.variance.type='cv', # placeholder # same as old "denominator.measurement.error.cv"?
+                                                                                      
+                                                                                      weights,
+                                                                                      equalize.weight.by.year = T,
+                                                                                      
+                                                                                      partitioning.function)
+{
+    JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
+                                                        denominator.outcome.for.data = denominator.outcome.for.data,
+                                                        outcome.for.sim = outcome.for.sim,
+                                                        denominator.outcome.for.sim = denominator.outcome.for.sim,
+                                                        outcome.for.n.multipliers = outcome.for.n.multipliers,
+                                                        location.types = location.types,
+                                                        minimum.geographic.resolution.type = minimum.geographic.resolution.type,
+                                                        maximum.locations.per.type = maximum.locations.per.type,
+                                                        dimensions = dimensions,
+                                                        levels.of.stratification = levels.of.stratification,
+                                                        from.year = from.year,
+                                                        to.year = to.year,
+                                                        omit.years = omit.years,
+                                                        sources.to.use = sources.to.use,
+                                                        redundant.location.threshold = redundant.location.threshold,
+                                                        included.multiplier=included.multiplier,
+                                                        included.multiplier.sd=included.multiplier.sd,
+                                                        included.multiplier.correlation=included.multiplier.correlation,
+                                                        included.multiplier.correlation.structure=included.multiplier.correlation.structure,
+                                                        p.bias.inside.location = p.bias.inside.location,
+                                                        p.bias.outside.location = p.bias.outside.location,
+                                                        p.bias.sd.inside.location = p.bias.sd.inside.location,
+                                                        p.bias.sd.outside.location = p.bias.sd.outside.location,
+                                                        within.location.p.error.correlation = within.location.p.error.correlation,
+                                                        within.location.n.error.correlation = within.location.n.error.correlation,
+                                                        correlation.different.locations = correlation.different.locations,
+                                                        correlation.different.years = correlation.different.years,
+                                                        correlation.different.strata = correlation.different.strata,
+                                                        correlation.different.sources = correlation.different.sources,
+                                                        correlation.same.source.different.details = correlation.same.source.different.details,
+                                                        observation.correlation.form = observation.correlation.form,
+                                                        n.multiplier.cv = n.multiplier.cv,
+                                                        
+                                                        p.error.variance.term = p.error.variance.term,
+                                                        p.error.variance.type = p.error.variance.type,
+                                                        n.error.variance.term = n.error.variance.term,
+                                                        n.error.variance.type = n.error.variance.type,
+                                                        
+                                                        weights = weights,
+                                                        equalize.weight.by.year = equalize.weight.by.year,
+                                                        partitioning.function = partitioning.function)
+}
 
 #'@inheritParams create.nested.proportion.likelihood.instructions
 #'@param location.types The types of the locations that contain or are contained by the model location.
@@ -357,6 +450,9 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                         omit.years = omit.years,
                                                         sources.to.use = sources.to.use,
                                                         redundant.location.threshold = redundant.location.threshold,
+                                                        included.multiplier=NULL,
+                                                        included.multiplier.sd=NULL,
+                                                        included.multiplier.correlation=NULL,
                                                         p.bias.inside.location = p.bias.inside.location,
                                                         p.bias.outside.location = p.bias.outside.location,
                                                         p.bias.sd.inside.location = p.bias.sd.inside.location,
@@ -403,6 +499,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               omit.years,
                               sources.to.use,
                               redundant.location.threshold,
+                              included.multiplier,
+                              included.multiplier.sd,
+                              included.multiplier.correlation,
+                              included.multiplier.correlation.structure=c('compound.symmetry', 'autoregressive.1')[1],
                               p.bias.inside.location,
                               p.bias.outside.location,
                               p.bias.sd.inside.location,
@@ -489,14 +589,36 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (!is.numeric(redundant.location.threshold) || length(redundant.location.threshold)!=1 || is.na(redundant.location.threshold) || redundant.location.threshold < 0)
                 stop(paste0(error.prefix, "'redundant.location.threshold' must be a single, non-negative numeric value"))
             
-            # # *measurement.error.sd* must be NULL if *get.measurement.error.sd.from.data* is TRUE
-            # if (!is.null(measurement.error.sd) && get.measurement.error.sd.from.data)
-            #     stop(paste0(error.prefix, "'measurement.error.sd' must be NULL if 'get.measurement.error.sd.from.data' is TRUE"))
-            # if (get.measurement.error.sd.from.data) measurement.error.sd = 0 #placeholder
+            # *included.multiplier* is NULL, a single numeric value, or a named numeric vector with names corresponding to years or year ranges.
+            if (!is.null(included.multiplier) &&
+                (!is.numeric(included.multiplier) || length(included.multiplier)!=1 || is.na(included.multiplier) || included.multiplier<=0) &&
+                (!is.numeric(included.multiplier) || is.null(names(included.multiplier)) || any(is.na(included.multiplier)) || any(included.multiplier<=0) || is.null(parse.year.names(names(included.multiplier)))))
+                stop(paste0(error.prefix, "'included.multiplier' must be one of: 1. NULL, 2. a single, non-NA, numeric value greater than 0, or 3. a named numeric vector with all values non-NA and greater than zero and names all corresponding to years or year ranges"))
+            
+            # *included.multiplier.sd* is NULL, a single numeric value, or a named numeric vector with the same names as *included.multiplier*.
+            if (!is.null(included.multiplier.sd) &&
+                (!is.numeric(included.multiplier.sd) || length(included.multiplier.sd)!= 1 || is.na(included.multiplier.sd) || included.multiplier.sd<=0) &&
+                (!is.numeric(included.multiplier.sd) || any(is.na(included.multiplier.sd)) || any(included.multiplier.sd<=0) || !identical(names(included.multiplier.sd), names(included.multiplier))))
+                stop(paste0(error.prefix, "'included.multiplier.sd' must be one of: 1. NULL, 2. a single, non-NA, numeric value greater than 0, or 3. a named numeric vector with all values non-NA and greater than zero and the same names as 'included.multiplier'"))
+            # and cannot be NULL if *included.multiplier* is not NULL
+            if (!is.null(included.multiplier) && is.null(included.multiplier.sd))
+                stop(paste0(error.prefix, "'included.multiplier.sd' cannot be NULL if 'included.multiplier' is not also NULL"))
+            
+            # *included.multiplier.correlation* is NULL or a single numeric value between 0 and 1.
+            if (!is.null(included.multiplier.correlation) &&
+                (!is.numeric(included.multiplier.correlation) || length(included.multiplier.correlation)!=1 || included.multiplier.correlation <=0 || included.multiplier.correlation >= 1))
+                stop(paste0(error.prefix, "'included.multiplier.correlation' must be NULL or a single numeric value between 0 and 1"))
+            # and cannot be NULL if *included.multiplier* is not NULL
+            if (!is.null(included.multiplier) && is.null(included.multiplier.correlation))
+                stop(paste0(error.prefix, "''included.multiplier.correlation' cannot be NULL if 'included.multiplier' is not also NULL"))
+            
+            # *included.multiplier.correlation.structure* is 'compound.symmetry' or 'autoregressive.1'
+            if (!is.character(included.multiplier.correlation.structure) || length(included.multiplier.correlation.structure)!=1 || !(included.multiplier.correlation.structure) %in% c('compound.symmetry', 'autoregressive.1'))
+                stop(paste0(error.prefix, "'included.multiplier.correlation.structure' must be either 'compound.symmetry' or 'autoregressive.1'"))
             
             # *p.error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', or 'data.ci'
-            if (!(p.error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.ci')))
-                stop(paste0(error.prefix, "'p.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', or 'data.ci'"))
+            if (!(p.error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', 'data.ci')))
+                stop(paste0(error.prefix, "'p.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', or 'data.ci'"))
             
             if (p.error.variance.type %in% c('sd', 'variance', 'cv') && (!is.numeric(p.error.variance.term) || length(p.error.variance.term)!=1 || is.na(p.error.variance.term) || p.error.variance.term < 0))
                 stop(paste0(error.prefix, "'p.error.variance.term' must be a single, nonnegative, numeric value if 'p.error.variance.type' is one of 'sd', 'variance', or 'cv'"))
@@ -506,22 +628,22 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (p.error.variance.type %in% c('data.ci'))
                 stop(paste0(error.prefix, "'data.ci' is not yet supported as a 'p.error.variance.type'"))
             
-            if (p.error.variance.type %in% c('data.sd', 'data.variance', 'data.ci'))
+            if (p.error.variance.type %in% c('data.sd', 'data.variance', 'data.cv', 'data.ci'))
                 p.error.variance.term = 1
             
             # *n.error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', or 'data.ci'
-            if (!(n.error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.ci')))
-                stop(paste0(error.prefix, "'n.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', or 'data.ci'"))
+            if (!(n.error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', 'data.ci')))
+                stop(paste0(error.prefix, "'n.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', or 'data.ci'"))
             
             if (n.error.variance.type %in% c('sd', 'variance', 'cv') && (!is.numeric(n.error.variance.term) || length(n.error.variance.term)!=1 || is.na(n.error.variance.term) || n.error.variance.term < 0))
                 stop(paste0(error.prefix, "'n.error.variance.term' must be a single, nonnegative, numeric value if 'n.error.variance.type' is one of 'sd', 'variance', or 'cv'"))
             if (n.error.variance.type %in% c('data.sd', 'data.variance', 'data.ci') && !is.null(n.error.variance.term))
-                stop(paste0(error.prefix, "'n.error.variance.term' must be NULL if 'n.error.variance.type' is one of 'data.sd', 'data.variance', or 'data.ci'"))
+                stop(paste0(error.prefix, "'n.error.variance.term' must be NULL if 'n.error.variance.type' is one of 'data.sd', 'data.variance', 'data.cv', or 'data.ci'"))
             
-            if (n.error.variance.type %in% c('sd', 'variance', 'data.sd', 'data.variance', 'data.ci'))
+            if (n.error.variance.type %in% c('sd', 'variance', 'data.sd', 'data.variance', 'data.cv', 'data.ci'))
                 stop(paste0(error.prefix, "only 'cv' is currently supported for 'n.error.variance.type'"))
             
-            if (n.error.variance.type %in% c('data.sd', 'data.variance', 'data.ci'))
+            if (n.error.variance.type %in% c('data.sd', 'data.variance', 'data.cv', 'data.ci'))
                 n.error.variance.term = 1
             
             # *p.bias* constants, *correlation.multipliers*, *within.location* error correlations, *metalocation* correlations, *measurement.error.sd*, and *n.multiplier.cv* are all single numeric values with values between 0 and 1 inclusive
@@ -581,7 +703,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             
             private$i.sources.to.use = sources.to.use
             private$i.redundant.location.threshold = redundant.location.threshold
-            private$i.parameters = list(correlation.different.locations = correlation.different.locations,
+            private$i.parameters = list(included.multiplier = included.multiplier,
+                                        included.multiplier.sd = included.multiplier.sd,
+                                        included.multiplier.correlation = included.multiplier.correlation,
+                                        included.multiplier.correlation.structure = included.multiplier.correlation.structure,correlation.different.locations = correlation.different.locations,
                                         correlation.different.years = correlation.different.years,
                                         correlation.different.strata = correlation.different.strata,
                                         correlation.different.sources = correlation.different.sources,
@@ -902,9 +1027,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 one.mapping = attr(data, 'mapping')
                 one.details = attr(data, 'details')
                 
-                ## Pull measurement error coefficient of variance if needed
-                if (instructions$parameters$p.error.variance.type %in% c('data.sd', 'data.variance')) {
-                    metric.map = list(data.sd='sd', data.variance='variance')
+                ## Pull measurement error variance if needed
+                if (instructions$parameters$p.error.variance.type %in% c('data.sd', 'data.variance', 'data.cv')) {
+                    metric.map = list(data.sd='sd', data.variance='variance', data.cv='coefficient.of.variance')
                     p.error.data = data.manager$pull(outcome = private$i.outcome.for.data,
                                                      metric = metric.map[[private$i.parameters$p.error.variance.type]],
                                                      sources = private$i.sources.to.use,
@@ -923,6 +1048,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     common.dimnames = get.dimension.values.overlap(dimnames(data), dimnames(p.error.data))
                     p.error.data = array.access(p.error.data, common.dimnames)
                     data = array.access(data, common.dimnames)
+                    
+                    if (instructions$parameters$p.error.variance.type == 'data.cv')
+                        p.error.data = data * p.error.data # sd = cv * mean
+                    
                     data[is.na(p.error.data)] = NA
                     one.details = array.access(one.details, common.dimnames)
                     
@@ -932,7 +1061,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     if (instructions$parameters$p.error.variance.type == 'data.variance')
                         one.p.error.data = sqrt(one.p.error.data)
                     
-                    private$i.p.sd.vector = c(private$i.p.sd.vector, one.p.error.data)
+                    private$i.p.error.vector = c(private$i.p.error.vector, one.p.error.data)
                 }
                 n.stratifications.with.data = n.stratifications.with.data + 1
                 one.dimnames = dimnames(data)
@@ -1102,15 +1231,20 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                                                                     private$i.parameters$correlation.different.source,
                                                                                     private$i.parameters$correlation.same.source.different.details,
                                                                                     private$i.parameters$observation.correlation.form == "autoregressive.1")
-            if (private$i.parameters$p.error.variance.type %in% c('data.sd', 'data.variance')) {
-                measurement.error.sd.matrix = private$i.p.sd.vector %*% t(private$i.p.sd.vector)
+            # All forms of error will be converted to sd and then we use cov = corr * sd %*% t(sd), the last part sometimes being just sd squared
+            if (private$i.parameters$p.error.variance.type %in% c('data.sd', 'data.variance', 'data.cv')) {
+                # all have been converted to sd earlier, including data.cv
+                measurement.error.sd.matrix = private$i.p.error.vector %*% t(private$i.p.error.vector)
                 private$i.obs.error = measurement.error.correlation.matrix * measurement.error.sd.matrix
-            } else if (private$i.parameters$p.error.variance.type == 'sd')
+            }
+            else if (private$i.parameters$p.error.variance.type == 'sd')
                 private$i.obs.error = measurement.error.correlation.matrix * private$i.parameters$p.error.variance.term ^ 2 # this reflects our choice to make measurement error sd constant, not scaling with level of suppression (or other p)
             else if (private$i.parameters$p.error.variance.type == 'variance')
                 private$i.obs.error = measurement.error.correlation.matrix * private$i.parameters$p.error.variance.term
-            else if (private$i.parameters$p.error.variance.type == 'cv')
-                private$i.obs.error = measurement.error.correlation.matrix * (private$i.obs.p * private$i.parameters$p.error.variance.term)^2
+            else if (private$i.parameters$p.error.variance.type == 'cv') {
+                measurement.error.sd = private$i.obs.p * private$i.parameters$p.error.variance.term
+                private$i.obs.error = measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
+            }
             dim(private$i.obs.error) = c(n.obs, n.obs)
             # browser()
             # ------ THINGS THAT DEPEND ON OBSERVATION-LOCATIONS ------ #
@@ -1240,6 +1374,40 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 dim(private$i.year.metalocation.to.year.condition.on.location.mapping) = c(1, length(private$i.year.metalocation.to.year.condition.on.location.mapping))
             
             # --- INVERSE VARIANCE WEIGHTS MATRIX --- #
+            
+            ## included multiplier to make inverse multiplier matrix times covariance matrix
+            if (!is.null(private$i.parameters$included.multiplier)) {
+                
+                if (!is.null(names(private$i.parameters$included.multiplier))) {
+                    
+                    if (any(!(private$i.metadata$year %in% names(private$i.parameters$included.multiplier))))
+                        stop(paste0(error.prefix, "all years values in data must have a corresponding 'included.multiplier'"))
+                    
+                    included.multiplier.vector = sapply(private$i.metadata$year, function(obs.year) {private$i.parameters$included.multiplier[obs.year]})
+                    included.multiplier.sd.vector = sapply(private$i.metadata$year, function(obs.year) {private$i.parameters$included.multiplier.sd[obs.year]})
+                }
+                else {
+                    included.multiplier.vector = rep(private$i.parameters$included.multiplier, n.obs)
+                    included.multiplier.sd.vector = rep(private$i.parameters$included.multiplier.sd, n.obs)
+                }
+                
+                inverse.multiplier.matrix = (1/included.multiplier.vector) %*% t(1/included.multiplier.vector)
+                
+                # AR.1 cannot be selected if we have year ranges because year ranges do not have distance measures
+                if (private$i.parameters$included.multiplier.correlation.form == "autoregressive.1" && any(is.year.range(private$i.metadata$year)))
+                    stop(paste0(error.prefix, "instructions cannot use 'autoregressive.1' for 'included.multiplier.correlation.form' since observations with year ranges were found"))
+                
+                multiplier.correlation.matrix = get_multiplier_correlation_matrix(rep(1, n.obs**2),
+                                                                                  n.obs,
+                                                                                  as.numeric(private$i.metadata$year),
+                                                                                  private$i.parameters$included.multiplier.correlation,
+                                                                                  private$i.parameters$included.multiplier.correlation.structure == "autoregressive.1")
+                multiplier.covariance.matrix = multiplier.correlation.matrix * included.multiplier.sd.vector %*% t(included.multiplier.sd.vector)
+                private$i.inverse.multiplier.matrix.times.cov.mat = inverse.multiplier.matrix * multiplier.covariance.matrix
+            }
+            ##
+            
+            
             private$i.metadata$stratum = as.character(private$i.metadata$stratum)
             if (post.time.checkpoint.flag) print(paste0("Generate inverse variance weights matrix: ", Sys.time()))
             private$i.inverse.variance.weights.matrix = generate.inverse.variance.weights.matrix(obs.vector = private$i.obs.p,
@@ -1311,7 +1479,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         i.sub.version = NULL,
         
         i.parameters = NULL,
-        i.p.sd.vector = NULL,
+        i.p.error.vector = NULL,
         
         i.outcome.for.data = NULL,
         i.denominator.outcome.for.data = NULL,
@@ -1329,6 +1497,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         i.sim.dimension.values = NULL,
         i.transformation.matrix = NULL,
         i.inverse.variance.weights.matrix = NULL,
+        i.inverse.multiplier.matrix.times.cov.mat = NULL,
         i.partitioning.function = NULL,
         
         do.compute = function(sim, log=T, check.consistency=T, debug=F)
@@ -1382,6 +1551,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             obs.vector = lik.components$obs.v
             
             sigma = sigma * private$i.inverse.variance.weights.matrix # inverse variance weights determined earlier...
+            
+            # Revise sigma if including multiplier
+            if (!is.null(private$i.inverse.multiplier.matrix.times.cov.mat)) {
+                sigma = sigma + private$i.inverse.multiplier.matrix.times.cov.mat * (sigma + mean %*% t(mean))
+            }
+            
             likelihood = mvtnorm::dmvnorm(obs.vector,
                                           mean = mean,
                                           sigma = sigma,
