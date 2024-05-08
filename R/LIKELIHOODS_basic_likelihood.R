@@ -591,9 +591,10 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 stop(paste0(error.prefix, private$i.denominator.for.sim, " is not a simulation outcome in this specification"))
 
             scale = sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$scale
-            if (!(scale %in% c('non.negative.number', 'number', 'proportion')))
-                stop(paste0(error.prefix, "'outcome.for.sim' must be a non.negative.number, number, or proportion"))
+            if (!(scale %in% c('non.negative.number', 'number', 'proportion', 'rate')))
+                stop(paste0(error.prefix, "'outcome.for.sim' must be a non.negative.number, number, rate, or proportion"))
             private$i.outcome.is.proportion = scale == 'proportion'
+            private$i.outcome.is.rate = scale == 'rate'
             
             if (private$i.outcome.is.proportion && is.null(private$i.denominator.outcome.for.sim)) {
                 private$i.denominator.outcome.for.sim = sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$denominator.outcome
@@ -897,6 +898,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         i.outcome.for.data = NULL,
         i.denominator.outcome.for.sim = NULL,
         i.outcome.is.proportion = NULL,
+        i.outcome.is.rate = NULL,
         i.data.to.use = NULL,
         
         i.optimized.get.instructions = NULL,
