@@ -22,6 +22,7 @@ simplot <- function(...,
                     facet.by = NULL,
                     dimension.values = list(),
                     plot.which = c('both', 'sim.only', 'data.only')[1],
+                    plot.year.lag.ratio = F,
                     data.manager = get.default.data.manager(),
                     style.manager = get.default.style.manager(),
                     debug = F)
@@ -56,6 +57,9 @@ simplot <- function(...,
     
     if (!(identical(plot.which, 'sim.only') || identical(plot.which, 'data.only') || identical(plot.which, 'both')))
         stop(paste0(error.prefix, "'plot.which' must be one of 'sim.only', 'data.only', or 'both'"))
+    
+    if (!identical(plot.year.lag.ratio, T) && !identical(plot.year.lag.ratio, F))
+        stop(paste0(error.prefix, "'plot.year.lag.ratio' must be either T or F"))
     
     #-- STEP 1: PRE-PROCESSING --#
     # Get a list out of ... where each element is one simset (or sim for now)
@@ -98,6 +102,10 @@ simplot <- function(...,
         else
             simset.list = simset.args
     }
+    
+    # if *plot.year.lag.ratio* is true, we can have only one outcome
+    if (plot.year.lag.ratio && length(outcomes)>1)
+        stop(paste0(error.prefix, "only one outcome can be used with 'plot.year.lag.ratio'"))
 
     # Now simset.list contains only simsets and lists containing only simsets. It needs to be just a single-level list of simsets now
     simset.list = unlist(simset.list, recursive = F)
@@ -205,7 +213,7 @@ simplot <- function(...,
         if (!is.null(split.by)) names(df.truth)[names(df.truth)==split.by] = "split.by"
         if (!is.null(facet.by)) names(df.truth)[names(df.truth)==facet.by] = "facet.by"
     }
-    
+    # browser()
     names(outcome.mappings) = outcomes
 
     #-- STEP 3: MAKE A DATA FRAME WITH ALL THE SIMULATIONS' DATA --#
@@ -262,9 +270,6 @@ simplot <- function(...,
             }
             
         }
-    }
-    # browser()
-    if (!is.null(df.sim)) {
         # make whatever column corresponds to split by actually be called "split.by" and same for facet.by.
         if (!is.null(split.by)) df.sim["split.by"] = df.sim[split.by]
         if (!is.null(facet.by)) df.sim["facet.by"] = df.sim[facet.by]
@@ -278,6 +283,67 @@ simplot <- function(...,
         if (style.manager$color.sim.by == 'stratum' && !is.null(split.by))
             df.sim['color.sim.by'] = df.sim$split.by
         else df.sim['color.sim.by'] = rep('none', nrow=df.sim)
+    }
+    
+    if (plot.year.lag.ratio) {
+        ## We will take log of values, then difference, then exponentiate result
+        if (!is.null(df.truth)) {
+            df.truth$value = log(df.truth$value)
+            if (!is.null(split.by)) {
+                if (!is.null(facet.by))
+                    df.truth[['stratum']] = do.call(paste, list(df.truth$split.by, df.truth$facet.by, sep="__"))
+                else
+                    df.truth[['stratum']] = df.truth$split.by
+            }
+            else if (!is.null(facet.by))
+                df.truth[['stratum']] = df.truth$facet.by
+            else df.truth[['stratum']] = rep(0, nrow(df.truth))
+            truth.lag.indices = generate_lag_matrix_indices(as.integer(as.factor(df.truth$year)),
+                                                            as.integer(as.factor(df.truth$location)),
+                                                            as.integer(as.factor(df.truth$stratum)),
+                                                            as.integer(as.factor(df.truth$source)),
+                                                            nrow(df.truth))
+            truth.n.lag.pairs = length(truth.lag.indices)/2
+            
+            truth.lag.values = apply_lag_to_vector(df.truth$value, truth.lag.indices, rep(0, truth.n.lag.pairs), truth.n.lag.pairs)
+            truth.rows.to.keep = truth.lag.indices[rep(c(T,F), truth.n.lag.pairs/2)]
+            df.truth = df.truth[truth.rows.to.keep,]
+            df.truth$value = exp(truth.lag.values)
+            
+            # Remove NAs or Infs generated in this process
+            df.truth = df.truth[!is.na(df.truth$value) & !is.infinite(df.truth$value),]
+        }
+        if (!is.null(df.sim)) {
+            df.sim$value = log(df.sim$value)
+            if (!is.null(split.by)) {
+                if (!is.null(facet.by))
+                    df.sim[['stratum']] = do.call(paste, list(df.sim$split.by, df.sim$facet.by, sep="__"))
+                else
+                    df.sim[['stratum']] = df.sim$split.by
+            }
+            else if (!is.null(facet.by))
+                df.sim[['stratum']] = df.sim$facet.by
+            else df.sim[['stratum']] = rep(0, nrow(df.sim))
+            # browser()
+            sim.lag.indices = generate_lag_matrix_indices(as.integer(as.factor(df.sim$year)),
+                                                          as.integer(as.factor(df.sim$sim)),
+                                                          as.integer(as.factor(df.sim$stratum)),
+                                                          as.integer(as.factor(df.sim$simset)),
+                                                          nrow(df.sim))
+            sim.n.lag.pairs = length(sim.lag.indices)/2
+            
+            sim.lag.values = apply_lag_to_vector(df.sim$value, sim.lag.indices, rep(0, sim.n.lag.pairs), sim.n.lag.pairs)
+            sim.rows.to.keep = sim.lag.indices[rep(c(T,F), sim.n.lag.pairs/2)]
+            df.sim = df.sim[sim.rows.to.keep,]
+            df.sim$value = exp(sim.lag.values)
+            
+            # Remove NAs or Infs generated in this process
+            df.sim = df.sim[!is.na(df.sim$value) & !is.infinite(df.sim$value),]
+        }
+    }
+    
+    if (!is.null(df.sim)) {
+        
         
         # break df.sim into two data frames, one for outcomes where the sim will be lines and the other for where it will be points
         groupids.with.one.member = setdiff(unique(df.sim$groupid), df.sim$groupid[which(duplicated(df.sim$groupid))])
@@ -337,11 +403,14 @@ simplot <- function(...,
     all.shapes.for.scale = c(shapes.for.data, shapes.for.sim)
     
     # browser()
-    rv = ggplot2::ggplot() + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
+    rv = ggplot2::ggplot()
     rv = rv + ggplot2::scale_color_manual(values = all.colors.for.scale)
     rv = rv + ggplot2::scale_shape_manual(values = all.shapes.for.scale)
     rv = rv + ggplot2::scale_fill_manual(values = color.data.shaded.colors)
     rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("Shade legend", override.aes = list(shape = 21)))
+    
+    if (!plot.year.lag.ratio) rv = rv + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
+    else rv = rv + ggplot2::scale_y_continuous(labels = scales::comma)
 
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
@@ -390,6 +459,8 @@ simplot <- function(...,
         ggplot2::scale_alpha(guide='none') +
         ggplot2::labs(y=y.label)
     if (!is.null(df.sim)) rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
+    
+    if (plot.year.lag.ratio) rv = rv + xlab("latter year")
     
     rv
     }
