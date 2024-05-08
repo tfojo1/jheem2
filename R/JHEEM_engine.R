@@ -5388,6 +5388,9 @@ JHEEM = R6::R6Class(
             
             outcome.numerators = lapply(outcome.names, function(outcome.name){
                 
+                print(outcome.name)
+                if (outcome.name=='sexual.transmission.rates')
+                    browser()
                 outcome = specification$get.outcome(outcome.name)
                 outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
                                       private$i.outcome.dim.names.sans.time[[outcome.name]])
@@ -5400,6 +5403,14 @@ JHEEM = R6::R6Class(
                     if (!is.null(prior.simulation.set))
                     {
                         prior.sim.numerator = prior.simulation.set$data$outcome.numerators[[outcome.name]]
+                        if (is.null(prior.sim.numerator))
+                            stop(paste0("Error in extending simulations: we expected the outcome '", outcome.name, "' to be present in the prior simulation, but it is not there. This likely means that the '",
+                                        self$version, "' specification has been changed since the original simulations were run. Try rerun.simulations() to update your old simulations to the new version of the specification"))
+                        if (!dim.names.equal(dimnames(prior.sim.numerator)[setdiff(names(dim(prior.sim.numerator)), 'year')],
+                                             outcome.dim.names[setdiff(names(outcome.dim.names), 'year')], match.order.of.dimensions = T, match.order.within.dimensions = T))
+                            stop(paste0("Error in extending simulations: the '", outcome.name, "' outcome in the prior simulation does not have the dimnames we expect. This likely means that the '",
+                                        self$version, "' specification has been changed since the original simulations were run. Try rerun.simulations() to update your old simulations to the new version of the specification"))
+                            
                         dim.names = c(dimnames(prior.sim.numerator)['year'],
                                       other = 'temp',
                                       dimnames(prior.sim.numerator)['sim'])

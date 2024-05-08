@@ -67,6 +67,66 @@ get.simulation.metadata <- function(version,
                             error.prefix=error.prefix)
 }
 
+#'@name Rerun a Simulation Set
+#'
+#'@inheritParams create.jheem.engine
+#'@param simset The JHEEM simulation set to re-run
+#'@param verbose Whether to print updates as simulations are run
+#'
+#'@details Helpful if the specification has changed
+#'
+#'@export
+rerun.simulations <- function(simset,
+                              max.run.time.seconds=Inf,
+                              verbose=T)
+{
+    if (!is(simset, 'jheem.simulation.set'))
+        stop("Cannot rerun.simulations: simset must be an object of class 'jheem.simulation.set'")
+    
+    specification = get.compiled.specification.for.version(simset$version)
+
+    if (verbose)
+        cat("Creating engine to re-run simulations...")
+        
+    engine = do.create.jheem.engine(version = simset$version,
+                                    sub.version = simset$sub.version,
+                                    location = simset$location,
+                                    start.year = specification$start.year,
+                                    end.year = simset$to.year,
+                                    max.run.time.seconds = simset$mmax.run.time.seconds,
+                                    prior.simulation.set = NULL,
+                                    keep.from.year = simset$from.year,
+                                    keep.to.year = simset$to.year,
+                                    intervention.code = simset$intervention.code,
+                                    calibration.code = simset$calibration.code,
+                                    solver.metadata = simset$solver.metadata,
+                                    finalize = T,
+                                    error.prefix = "Error re-running simulations: ")
+    if (verbose)
+        cat("done\n")
+    
+    update.every = ceiling(simset$n.sim/10)
+    new.sims = sapply(1:simset$n.sim, function(i){
+        
+        if (verbose && ((i-1) %% update.every)==0)
+        {
+            update.until = min(simset$n.sim, i+update.every-1)
+            cat("Re-running ",
+                ifelse(update.until==i, "simulation", "simulations"),
+                " ", i,
+                ifelse(update.every==i, "", 
+                       paste0(" to ", update.until)),
+                "...", sep='')
+        }
+        
+        engine$run(parameters = simset$parameters[,i])
+        
+        if (verbose && (i%%update.every==0 || i==simset$n.sim))
+            cat("done\n")
+    })
+    
+    join.simulation.sets(new.sims)
+}
 
 ##-----------------------------------------------------------##
 ##-----------------------------------------------------------##
