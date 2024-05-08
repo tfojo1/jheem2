@@ -93,7 +93,7 @@ rerun.simulations <- function(simset,
                                     location = simset$location,
                                     start.year = specification$start.year,
                                     end.year = simset$to.year,
-                                    max.run.time.seconds = simset$mmax.run.time.seconds,
+                                    max.run.time.seconds = simset$max.run.time.seconds,
                                     prior.simulation.set = NULL,
                                     keep.from.year = simset$from.year,
                                     keep.to.year = simset$to.year,
@@ -119,10 +119,12 @@ rerun.simulations <- function(simset,
                 "...", sep='')
         }
         
-        engine$run(parameters = simset$parameters[,i])
+        sim = engine$run(parameters = simset$parameters[,i])
         
         if (verbose && (i%%update.every==0 || i==simset$n.sim))
             cat("done\n")
+        
+        sim
     })
     
     join.simulation.sets(new.sims)
