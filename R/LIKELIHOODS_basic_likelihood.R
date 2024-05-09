@@ -23,7 +23,6 @@
 create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  outcome.for.sim,
                                                  denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute. OR, if outcome is proportion, rate, or time, use denominator within sim data
-                                                 data.to.use = NULL,
                                                  dimensions = character(0),
                                                  denominator.dimensions = dimensions,
                                                  dimension.values = NULL, # EXPERIMENTAL
@@ -42,40 +41,78 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  weights = list(),
                                                  equalize.weight.by.year = T)
 {
+    JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
+                                            outcome.for.sim = outcome.for.sim,
+                                            denominator.outcome.for.sim = denominator.outcome.for.sim,
+                                            outcome.value = NULL,
+                                            dimensions = dimensions,
+                                            denominator.dimensions = denominator.dimensions,
+                                            dimension.values = dimension.values, # EXPERIMENTAL
+                                            levels.of.stratification = levels.of.stratification,
+                                            from.year = from.year,
+                                            to.year = to.year,
+                                            omit.years = omit.years,
+                                            sources.to.use = sources.to.use,
+                                            included.multiplier=NULL,
+                                            included.multiplier.sd=NULL,
+                                            included.multiplier.correlation=NULL,
+                                            included.multiplier.correlation.structure=c('compound.symmetry', 'autoregressive.1')[1],
+                                            correlation.different.years = correlation.different.years,
+                                            correlation.different.strata = correlation.different.strata,
+                                            correlation.different.sources = correlation.different.sources,
+                                            correlation.same.source.different.details = correlation.same.source.different.details,
+                                            observation.correlation.form = observation.correlation.form,
+                                            error.variance.term = error.variance.term,
+                                            error.variance.type = error.variance.type,
+                                            weights = weights,
+                                            equalize.weight.by.year = equalize.weight.by.year)
     
-    create.basic.likelihood.instructions.with.included.multiplier(outcome.for.data = outcome.for.data,
-                                                                  outcome.for.sim = outcome.for.sim,
-                                                                  denominator.outcome.for.sim = denominator.outcome.for.sim,
-                                                                  data.to.use = data.to.use,
-                                                                  dimensions = dimensions,
-                                                                  denominator.dimensions = denominator.dimensions,
-                                                                  dimension.values = dimension.values, # EXPERIMENTAL
-                                                                  levels.of.stratification = levels.of.stratification,
-                                                                  from.year = from.year,
-                                                                  to.year = to.year,
-                                                                  omit.years = omit.years,
-                                                                  sources.to.use = sources.to.use,
-                                                                  included.multiplier=NULL,
-                                                                  included.multiplier.sd=NULL,
-                                                                  included.multiplier.correlation=NULL,
-                                                                  correlation.different.years = correlation.different.years,
-                                                                  correlation.different.strata = correlation.different.strata,
-                                                                  correlation.different.sources = correlation.different.sources,
-                                                                  correlation.same.source.different.details = correlation.same.source.different.details,
-                                                                  observation.correlation.form = observation.correlation.form,
-                                                                  error.variance.term = error.variance.term,
-                                                                  error.variance.type = error.variance.type,
-                                                                  weights = weights,
-                                                                  equalize.weight.by.year = equalize.weight.by.year
-        
-    )
-    
+}
+
+create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.for.sim,
+                                                                        denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute. OR, if outcome is proportion, rate, or time, use denominator within sim data
+                                                                        outcome.value,
+                                                                        from.year,
+                                                                        to.year,
+                                                                        omit.years = NULL,
+                                                                        correlation.different.years = 0.5,
+                                                                        observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
+                                                                        error.variance.term=NULL,
+                                                                        error.variance.type=NULL,
+                                                                        weights = list(),
+                                                                        equalize.weight.by.year = T)
+{
+    JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = NULL,
+                                            outcome.for.sim = outcome.for.sim,
+                                            denominator.outcome.for.sim = denominator.outcome.for.sim,
+                                            outcome.value = outcome.value,
+                                            dimensions = character(0),
+                                            denominator.dimensions = dimensions,
+                                            dimension.values = NULL, # EXPERIMENTAL
+                                            levels.of.stratification = NULL,
+                                            from.year = from.year,
+                                            to.year = to.year,
+                                            omit.years = omit.years,
+                                            sources.to.use = NULL,
+                                            included.multiplier=NULL,
+                                            included.multiplier.sd=NULL,
+                                            included.multiplier.correlation=NULL,
+                                            included.multiplier.correlation.structure=c('compound.symmetry', 'autoregressive.1')[1],
+                                            correlation.different.years = correlation.different.years,
+                                            correlation.different.strata = 0.1,
+                                            correlation.different.sources = 0.3,
+                                            correlation.same.source.different.details = 0.3,
+                                            observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
+                                            error.variance.term = error.variance.term,
+                                            error.variance.type = error.variance.type,
+                                            weights = weights,
+                                            equalize.weight.by.year = equalize.weight.by.year)
+
 }
 
 create.basic.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
                                                                           outcome.for.sim,
                                                                           denominator.outcome.for.sim=NULL,
-                                                                          data.to.use=NULL,
                                                                           dimensions = character(0),
                                                                           denominator.dimensions = dimensions,
                                                                           dimension.values = NULL, # EXPERIMENTAL
@@ -101,7 +138,7 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
                                             outcome.for.sim = outcome.for.sim,
                                             denominator.outcome.for.sim = denominator.outcome.for.sim,
-                                            data.to.use = data.to.use,
+                                            outcome.value = NULL,
                                             dimensions = dimensions,
                                             denominator.dimensions = denominator.dimensions,
                                             dimension.values = dimension.values, # EXPERIMENTAL
@@ -128,7 +165,6 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
 create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.data,
                                                                   outcome.for.sim,
                                                                   denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute. OR, if outcome is proportion, rate, or time, use denominator within sim data
-                                                                  data.to.use = NULL,
                                                                   dimensions = character(0),
                                                                   denominator.dimensions = dimensions,
                                                                   dimension.values = NULL, # EXPERIMENTAL
@@ -151,7 +187,7 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
                                             outcome.for.sim = outcome.for.sim,
                                             denominator.outcome.for.sim = denominator.outcome.for.sim,
-                                            data.to.use = data.to.use,
+                                            outcome.value = NULL,
                                             dimensions = dimensions,
                                             denominator.dimensions = denominator.dimensions,
                                             dimension.values = dimension.values, # EXPERIMENTAL
@@ -185,7 +221,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         initialize = function(outcome.for.data,
                               outcome.for.sim,
                               denominator.outcome.for.sim,
-                              data.to.use,
+                              outcome.value,
                               dimensions,
                               denominator.dimensions,
                               dimension.values, # EXPERIMENTAL
@@ -216,21 +252,21 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             
             # *outcome.for.sim* -- validated in the super$initialize
             
-            # *outcome.for.data* is a single character vector
-            if (!is.character(outcome.for.data) || length(outcome.for.data) > 1 || is.null(outcome.for.data) || is.na(outcome.for.data))
+            # *outcome.for.data* is a single character vector, or NULL if "outcome.value" is not NULL
+            if (!is.null(outcome.value) && (!is.character(outcome.for.data) || length(outcome.for.data) > 1 || is.null(outcome.for.data) || is.na(outcome.for.data)))
                 stop(paste0(error.prefix, "'outcome.for.data' must be a character vector of length 1"))
             
             # *denominator.outcome.for.sim* is NULL or a single character vector
             if (!is.null(denominator.outcome.for.sim) && (!is.character(denominator.outcome.for.sim) || length(denominator.outcome.for.sim) > 1 || is.na(denominator.outcome.for.sim)))
                 stop(paste0(error.prefix, "'denominator.outcome.for.sim' must be NULL or a character vector of length 1"))
             
-            # *data.to.use* must be NULL or a single numeric value
-            if (!is.null(data.to.use) && (!is.numeric(data.to.use) || length(data.to.use)!=1 || is.na(data.to.use)))
-                stop(paste0(error.prefix, "'data.to.use' must be NULL or a single numeric value"))
+            # *outcome.value* must be NULL or a single numeric value
+            if (!is.null(outcome.value) && (!is.numeric(outcome.value) || length(outcome.value)!=1 || is.na(outcome.value)))
+                stop(paste0(error.prefix, "'outcome.value' must be NULL or a single numeric value"))
             
-            # *data.to.use* must be NULL if *dimensions*, *denominator.dimensions*, *dimension.values*, or *levels.of.stratification* is not NULL/0
-            if (!is.null(data.to.use) && (length(dimensions)!=0 || length(denominator.dimensions)!=0 || !is.null(dimension.values) || (!is.null(levels.of.stratification) && levels.of.stratification==0)))
-                stop(paste0(error.prefix, "'data.to.use' cannot be used with arguments that imply stratification beyond totals-level"))
+            # *outcome.value* must be NULL if *dimensions*, *denominator.dimensions*, *dimension.values*, or *levels.of.stratification* is not NULL/0
+            if (!is.null(outcome.value) && (length(dimensions)!=0 || length(denominator.dimensions)!=0 || !is.null(dimension.values) || (!is.null(levels.of.stratification) && levels.of.stratification==0)))
+                stop(paste0(error.prefix, "'outcome.value' cannot be used with arguments that imply stratification beyond totals-level"))
             
             # *dimensions* -- validated in the super$initialize
             
@@ -254,9 +290,9 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                 stop(paste0(error.prefix, "'omit.years' must be NULL or an numeric vector containing no NAs or duplicates"))
             omit.years = as.integer(omit.years)
             
-            # *from.year* and *to.year* cannot be Inf/-Inf if *data.to.use* is being used
-            if (!is.null(data.to.use) && (from.year==-Inf || to.year==Inf))
-                stop(paste0(error.prefix, "'from.year' and 'to.year' must be define if 'data.to.use' is supplied"))
+            # *from.year* and *to.year* cannot be Inf/-Inf if *outcome.value* is being used
+            if (!is.null(outcome.value) && (from.year==-Inf || to.year==Inf))
+                stop(paste0(error.prefix, "'from.year' and 'to.year' must be define if 'outcome.value' is supplied"))
             
             # *sources.to.use* is NULL or a character vector containing no NAs or duplicates
             if (!is.null(sources.to.use) && (!is.character(sources.to.use) || any(is.na(sources.to.use)) || any(duplicated(sources.to.use))))
@@ -342,7 +378,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             
             private$i.outcome.for.data = outcome.for.data
             private$i.denominator.outcome.for.sim = denominator.outcome.for.sim
-            private$i.data.to.use = data.to.use
+            private$i.outcome.value = outcome.value
             private$i.from.year = from.year
             private$i.to.year = to.year
             private$i.omit.years = omit.years
@@ -422,12 +458,12 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'denominator.outcome.for.sim' - it is read-only")
         },
-        data.to.use = function(value)
+        outcome.value = function(value)
         {
             if (missing(value))
-                private$i.data.to.use
+                private$i.outcome.value
             else
-                stop("Cannot modify a jheem.likelihood.instruction's 'data.to.use' - it is read-only")
+                stop("Cannot modify a jheem.likelihood.instruction's 'outcome.value' - it is read-only")
         },
         from.year = function(value)
         {
@@ -519,7 +555,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
     private = list(
         i.outcome.for.data = NULL,
         i.denominator.outcome.for.sim = NULL,
-        i.data.to.use = NULL,
+        i.outcome.value = NULL,
         i.from.year = NULL,
         i.to.year = NULL,
         i.omit.years = NULL,
@@ -567,7 +603,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             private$i.parameters = instructions$parameters
             private$i.outcome.for.data = instructions$outcome.for.data
             private$i.denominator.outcome.for.sim = instructions$denominator.outcome.for.sim
-            private$i.data.to.use = instructions$data.to.use
+            private$i.outcome.value = instructions$outcome.value
             
             private$i.dimension.values = instructions$dimension.values # EXPERIMENTAL
             private$i.use.lognormal.approximation = instructions$use.lognormal.approximation
@@ -631,8 +667,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             }
 
             ## ---- PULL DATA ---- ##
-            if (!is.null(private$i.data.to.use)) {
-                private$i.obs.vector = rep(private$i.data.to.use, length(years)) # need input.data
+            if (!is.null(private$i.outcome.value)) {
+                private$i.obs.vector = rep(private$i.outcome.value, length(years)) # need input.data
                 private$i.details = rep('supplied', length(years))
                 private$i.metadata = data.frame(year=years, stratum='.TOTAL.', source='supplied') # need to get years
                 dimnames.list = list(list(year=as.character(years), source='supplied'))
@@ -899,7 +935,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         i.denominator.outcome.for.sim = NULL,
         i.outcome.is.proportion = NULL,
         i.outcome.is.rate = NULL,
-        i.data.to.use = NULL,
+        i.outcome.value = NULL,
         
         i.optimized.get.instructions = NULL,
 
