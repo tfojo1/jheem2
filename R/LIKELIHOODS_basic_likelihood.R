@@ -889,7 +889,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                                                       keep.dimensions = names(private$i.sim.required.dimnames),
                                                                                                                       dimension.values = private$i.sim.dimension.values,
                                                                                                                       drop.single.sim.dimension = T)
-            if (private$i.outcome.is.proportion) {
+            if (private$i.outcome.is.proportion || private$i.outcome.is.rate) {
                 if (is.null(private$i.denominator.outcome.for.sim))
                     private$i.optimized.get.instructions[['sim.denom.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
                                                                                                                                 keep.dimensions = names(private$i.denominator.required.dimnames),
@@ -902,13 +902,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                                                                  drop.single.sim.dimension = T)
             }
             
-            ## ---- APPLY LAG TO THE OBS VECTOR IF REQUESTED ---- ##
-            if (private$i.calculate.lagged.difference) {
-                private$i.obs.vector = apply_lag_to_vector(private$i.obs.vector,
-                                                           private$i.lagged.pairs,
-                                                           rep(0, private$i.n.lagged.obs),
-                                                           private$i.n.lagged.obs)
-            }
         },
         get.location.mappings = function()
         {
@@ -963,7 +956,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         
         do.compute = function(sim, log, check.consistency, debug)
         {
-            
             sim.numerator.data = sim$optimized.get(private$i.optimized.get.instructions[["sim.num.instr"]])
             
             # we use Poisson if we are neither a proportion nor have a denominator outcome for sim provided
@@ -985,14 +977,14 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 n.vector = get_basic_likelihood_mean(expanded.sim.denominator.data,
                                                      private$i.transformation.matrix.row.oriented.indices,
                                                      private$i.n.obs,
-                                                     n.vector = numeric(private$i.n.obs))
+                                                     numeric(private$i.n.obs))
             }
             
             # Warning! These don't throw an error when sim.numerator.data isn't long enough!
             mean = get_basic_likelihood_mean(sim.numerator.data,
                                              private$i.transformation.matrix.row.oriented.indices,
                                              private$i.n.obs,
-                                             mean = numeric(private$i.n.obs)
+                                             numeric(private$i.n.obs)
             )
             
             sigma = get_basic_likelihood_sigma(sim.numerator.data,
@@ -1027,11 +1019,14 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
             if (private$i.calculate.lagged.difference)
             {
+                obs = apply_lag_to_vector(obs,
+                                          private$i.lagged.pairs,
+                                          rep(0, private$i.n.lagged.obs),
+                                          private$i.n.obs)
                 mean = apply_lag_to_vector(mean,
                                            private$i.lagged.pairs,
                                            rep(0, private$i.n.lagged.obs),
                                            private$i.n.obs)
-                ## oops... sigma is coming back with negatives!!
                 sigma = apply_lag_to_matrix(sigma,
                                             private$i.lagged.pairs,
                                             rep(0, private$i.n.lagged.obs**2),
