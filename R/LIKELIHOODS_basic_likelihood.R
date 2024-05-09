@@ -736,7 +736,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
             ## ---- FIND REQUIRED DIMENSION VALUES, ETC. ---- ##
             corrected.sim.required.dimnames = private$i.sim.ontology[names(private$i.sim.ontology) %in% names(private$i.sim.required.dimnames)]
-            corrected.sim.required.dimnames$year = private$i.sim.required.dimnames$year
+            corrected.sim.required.dimnames$year = sort(private$i.sim.required.dimnames$year)
             private$i.sim.required.dimnames = corrected.sim.required.dimnames
             
             private$i.years = private$i.sim.required.dimnames[['year']]
@@ -1050,29 +1050,46 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         
         generate.transformation.matrix = function(dimnames.list, remove.mask.list, n.strats, sim.dimnames)
         {
+            # browser()
             transformation.matrix = NULL
             for (i in 1:n.strats) {
                 
                 one.dimnames = dimnames.list[[i]]
                 one.remove.mask = remove.mask.list[[i]]
                 
-                years.in.sim.and.stratification = get.range.robust.year.intersect(one.dimnames$year, sim.dimnames$year)
-                year.limited.dimnames = one.dimnames
-                year.limited.dimnames$year = years.in.sim.and.stratification
+                # "row year" means years as described by the data, which may year single years or ranges
+                # "column year" means years as described by the model, which is always single years
                 
-                one.mapping = get.ontology.mapping(from.ontology = sim.dimnames, to.ontology = year.limited.dimnames[names(year.limited.dimnames) != 'source'])
+                row.years.in.both.data.and.sim = get.range.robust.year.intersect(one.dimnames$year, sim.dimnames$year)
+                col.years.in.both.data.and.sim = get.range.robust.year.intersect(sim.dimnames$year, one.dimnames$year)
+                row.years.in.data.but.not.sim = setdiff(one.dimnames$year, row.years.in.both.data.and.sim)
+                col.years.in.sim.but.not.data = setdiff(sim.dimnames$year, col.years.in.both.data.and.sim)
+                
+                # we must add rows that we'll soon delete so that every column year has a row year/range to map to
+                row.years.for.initial.tmat = c(row.years.in.both.data.and.sim, col.years.in.sim.but.not.data)
+                
+                year.modified.dimnames = one.dimnames
+                year.modified.dimnames$year = row.years.for.initial.tmat
+                year.modified.dimnames.without.source = year.modified.dimnames[names(year.modified.dimnames) != 'source']
+                
+                one.mapping = get.ontology.mapping(from.ontology = sim.dimnames, to.ontology = year.modified.dimnames.without.source)
                 one.source.transformation.matrix = one.mapping$get.matrix(from.dim.names = sim.dimnames,
-                                                                          to.dim.names = year.limited.dimnames[names(year.limited.dimnames) != 'source'])
-
+                                                                          to.dim.names = year.modified.dimnames.without.source)
+                
+                # Remove rows for years not in this stratification
+                if (length(col.years.in.sim.but.not.data) > 0) {
+                    indices.for.years.not.present = get.array.access.indices(year.modified.dimnames.without.source, list(year=col.years.in.sim.but.not.data))
+                    one.source.transformation.matrix = one.source.transformation.matrix[-indices.for.years.not.present,]
+                }
+                
                 # Repeat the matrix for each source this stratification has
                 one.transformation.matrix = NULL
                 for (source in 1:length(one.dimnames$source)) one.transformation.matrix = rbind(one.transformation.matrix, one.source.transformation.matrix)
                 ncol.in.matrix = ncol(one.transformation.matrix)
                 
                 # Align the matrix rows with the one.remove.mask rows, which may have extra years, so that rows for sporadically missing data can be masked out
-                years.in.stratification.but.not.sim = setdiff(one.dimnames$year, years.in.sim.and.stratification)
-                if (length(years.in.stratification.but.not.sim) > 0) {
-                    indices.to.omit.from.one.remove.mask = get.array.access.indices(one.dimnames, list(year=years.in.stratification.but.not.sim))
+                if (length(row.years.in.data.but.not.sim) > 0) {
+                    indices.to.omit.from.one.remove.mask = get.array.access.indices(one.dimnames, list(year=row.years.in.data.but.not.sim))
                     new.one.remove.mask = one.remove.mask[-indices.to.omit.from.one.remove.mask]
                     one.transformation.matrix = one.transformation.matrix[!new.one.remove.mask,]
                 } else
