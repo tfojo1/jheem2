@@ -1254,6 +1254,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             locations.possibly.with.n.data = dimnames(data.manager$pull(outcome = private$i.denominator.outcome.for.data,
                                                                         keep.dimensions = c('year', 'location'), # used to also include the model.stratification in keep.dimensions, a sometimes impossible ask!
                                                                         dimension.values = list(location = setdiff(observation.locations, location), year = years.with.data)))$location
+            if (is.null(locations.possibly.with.n.data))
+                stop(paste0(error.prefix, "'", private$i.denominator.outcome.for.data, "' could not be found for the required observation locations"))
             if (post.time.checkpoint.flag) print(paste0("Calculate obs.n: ", Sys.time()))
             
             obs.n.info = private$get.obs.n(data.manager = data.manager,
@@ -1936,6 +1938,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             # Get obs.n.array with its missing data mask attached an attribute. Convert the mask to numeric so that at the end of partitioning, anything > 0 has a ancestral value that was missing
             obs.n.array = get.average(data.manager, stratification.for.n, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = T, cache=obs.n.cache) # Note: "stratification" may be character(0) if we only have totals
+            if (any(is.na(obs.n.array)))
+                stop(paste0(error.prefix, "'", outcome.for.n, "' data could not be found for all needed locations/years/dimensions."))
             data.ontology = as.ontology(dimnames(obs.n.array)[names(dim(obs.n.array))!='location'], incomplete.dimensions = c('year'))
             obs.n.mask.array = array(as.numeric(attr(obs.n.array, 'missing.data.mask')), dim(obs.n.array), dimnames(obs.n.array))
             
@@ -2085,12 +2089,28 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             k.minus.2.way.data = lapply(k.minus.2.way.stratifications, function(k.minus.2.way.stratification) {
                 lower.data = get.average(data.manager, k.minus.2.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames, cache=cache)
                 if (is.null(lower.data)) return (NULL)
+                missing.years = setdiff(top.level.dimnames$year, dimnames(lower.data)$year)
+                if (length(missing.years)>0) {
+                    dimnames.with.extra.years = dimnames(lower.data)
+                    dimnames.with.extra.years$year = top.level.dimnames$year
+                    lower.data.with.extra.years = array(NA, dim=sapply(dimnames.with.extra.years, length), dimnames.with.extra.years)
+                    array.access(lower.data.with.extra.years, dimnames(lower.data)) <- lower.data
+                    lower.data = lower.data.with.extra.years
+                }
                 expand.array(lower.data, top.level.dimnames[names(top.level.dimnames) %in% c('year', 'location', stratification)])
             })
             
             k.minus.1.way.data = lapply(k.minus.1.way.stratifications, function(k.minus.1.way.stratification) {
                 lower.data = get.average(data.manager, k.minus.1.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames, cache=cache)
                 if (is.null(lower.data)) return (NULL)
+                missing.years = setdiff(top.level.dimnames$year, dimnames(lower.data)$year)
+                if (length(missing.years)>0) {
+                    dimnames.with.extra.years = dimnames(lower.data)
+                    dimnames.with.extra.years$year = top.level.dimnames$year
+                    lower.data.with.extra.years = array(NA, dim=sapply(dimnames.with.extra.years, length), dimnames.with.extra.years)
+                    array.access(lower.data.with.extra.years, dimnames(lower.data)) <- lower.data
+                    lower.data = lower.data.with.extra.years
+                }
                 expand.array(lower.data, top.level.dimnames[names(top.level.dimnames) %in% c('year', 'location', stratification)])
             })
             
