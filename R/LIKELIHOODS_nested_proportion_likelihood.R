@@ -1938,8 +1938,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             # Get obs.n.array with its missing data mask attached an attribute. Convert the mask to numeric so that at the end of partitioning, anything > 0 has a ancestral value that was missing
             obs.n.array = get.average(data.manager, stratification.for.n, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = T, cache=obs.n.cache) # Note: "stratification" may be character(0) if we only have totals
-            if (any(is.na(obs.n.array)))
-                stop(paste0(error.prefix, "'", outcome.for.n, "' data could not be found for all needed locations/years/dimensions."))
             data.ontology = as.ontology(dimnames(obs.n.array)[names(dim(obs.n.array))!='location'], incomplete.dimensions = c('year'))
             obs.n.mask.array = array(as.numeric(attr(obs.n.array, 'missing.data.mask')), dim(obs.n.array), dimnames(obs.n.array))
             
@@ -1961,6 +1959,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 model.arr = aligning.mappings[[2]]$reverse.apply(obs.n.array.aligned)
                 model.mask.arr = aligning.mappings[[2]]$reverse.apply(obs.n.mask.array.aligned) # @AZ does this work??? verify with a test b/c is logical, not integer
                 # browser() ## ADDED FOR TODD
+                
+                if (any(is.na(model.arr)))
+                    stop(paste0("'", outcome.for.n, "' data could not be found for all needed locations/years/dimensions."))
+                
                 # use the partitioning function - VALIDATE THAT YOU GET AN ARRAY BACK WITH SAME DIMNAMES
                 partitioned.model.arr = partitioning.function(model.arr, version=version, location=location)
                 
