@@ -1148,11 +1148,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             private$i.obs.p = private$i.obs.p[!redundant.locations.mask]
             private$i.metadata = private$i.metadata[!redundant.locations.mask,]
             private$i.details = private$i.details[!redundant.locations.mask]
-
+            
             # The remove mask needs to be updated -- carefully -- because it is in reference to the state before removal and will be used later on for the transformation mapping matrix.
             # Since location is the second dimension after year in all the arrays pulled, n.years times n.locations is the size of a block repeated a certain number of times
             year.location.block.counts = sapply(dimnames.list, function(x) {prod(sapply(x, length)[!(names(x) %in% c('year', 'location'))])})
-            removed.locations.list = lapply(locations.list, function(x) {x %in% redundant.locations})
+            empty.locations = setdiff(unique(unlist(locations.list)), unique(private$i.metadata$location)) # just throwing these in instead of duplicating code
+            removed.locations.list = lapply(locations.list, function(x) {x %in% union(redundant.locations, empty.locations)})
             redundant.locations.full.size.mask = lapply(1:length(dimnames.list), function(i) {rep(rep(removed.locations.list[[i]], each=length(dimnames.list[[i]]$year)), year.location.block.counts[[i]])})
             
             # Now this shows which elements in each remove.mask.list element correspond to redundant locations. We remove them from the remove mask list and remove mask.
@@ -1160,7 +1161,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             locations.list = lapply(1:length(locations.list), function(i) {locations.list[[i]][!removed.locations.list[[i]]]})
 
             # Now the required dimnames may have their dimensions in the wrong order or their values in the wrong order. They may also lack some values from a complete dimension. Use the sim ontology to fix this.
-            private$i.sim.ontology$location = union(setdiff(private$i.sim.ontology$location, redundant.locations), location) # location MUST be here to ensure it counts as an obs location, even if no obs exist for it
+            private$i.sim.ontology$location = union(as.vector(unique(private$i.metadata$location)), location) # location MUST be here to ensure it counts as an obs location, even if no obs exist for it
             corrected.sim.required.dimnames = private$i.sim.ontology[names(private$i.sim.ontology) %in% names(private$i.sim.required.dimnames)]
             corrected.sim.required.dimnames$year = sort(private$i.sim.required.dimnames$year)
             private$i.sim.required.dimnames = corrected.sim.required.dimnames
@@ -1185,19 +1186,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             # Make sure sim keep dimensions has year because the sim$get relies on it later
             private$i.sim.keep.dimensions = union('year', names(private$i.sim.required.dimnames))
             
-            # What in the world was this for???
-            # private$i.sim.keep.dimensions = unique(unlist(lapply(mappings.list, function(mp) {
-            #     if (is.null(mp)) NULL
-            #     else mp$get.required.from.dimensions(data.keep.dimensions)
-            # })))
-            
             # Reorder -- everything should be in the order of the sim.ontology so that it aligns with the sim$get arrays later.
             private$i.sim.keep.dimensions = names(private$i.sim.ontology)[sort(sapply(private$i.sim.keep.dimensions, function(d) {which(names(private$i.sim.ontology) == d)}))]
-
+            # browser()
             # Generate transformation matrix
             if (post.time.checkpoint.flag) print(paste0("Generate transformation matrix: ", Sys.time()))
             private$i.transformation.matrix = generate.transformation.matrix.nested(dimnames.list, locations.list, remove.mask.list, n.stratifications.with.data, private$i.sim.required.dimnames, all.locations = private$i.sim.ontology$location)
-            
+            # browser()
             n.obs = length(private$i.obs.p)
             # years.with.data = get.range.robust.year.intersect(private$i.sim.required.dimnames$year, as.character(sort(unique(private$i.metadata$year))))
             years.with.data = private$i.sim.required.dimnames$year
@@ -1271,7 +1266,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             private$i.obs.n = obs.n.info$obs.n
             locations.with.n.data = obs.n.info$locations.with.n.data
             # missing stuff also stored in info
-            
+            # browser()
             obs.n.cv = NULL
             obs.n.variance.inflation.if.estimated = NULL
 
