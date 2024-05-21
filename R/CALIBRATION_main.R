@@ -167,8 +167,19 @@ set.up.calibration <- function(version,
             })
             
             # cov mat
-            initial.cov.mat[parameters.to.pull.cov.from.preceding,parameters.to.pull.cov.from.preceding] = initial.cov.mat[parameters.to.pull.cov.from.preceding,parameters.to.pull.cov.from.preceding] * (1-calibration.info$weight.to.preceding.variance.estimates) +
-                mcmc.summary$cov.mat[parameters.to.pull.cov.from.preceding,parameters.to.pull.cov.from.preceding] * calibration.info$weight.to.preceding.variance.estimates
+            parameters.with.na.initial.cov.mat.mask = is.na(diag(initial.cov.mat)[parameters.to.pull.cov.from.preceding])
+            parameters.to.pull.all.cov.from.preceding = parameters.to.pull.cov.from.preceding[parameters.with.na.initial.cov.mat.mask]
+            parameters.to.pull.weighted.cov.from.preceding = parameters.to.pull.cov.from.preceding[!parameters.with.na.initial.cov.mat.mask]
+            
+            initial.cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.weighted.cov.from.preceding] = initial.cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.weighted.cov.from.preceding] * (1-calibration.info$weight.to.preceding.variance.estimates) +
+                mcmc.summary$cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.weighted.cov.from.preceding] * calibration.info$weight.to.preceding.variance.estimates
+            initial.cov.mat[parameters.to.pull.all.cov.from.preceding,parameters.to.pull.all.cov.from.preceding] = 
+                mcmc.summary$cov.mat[parameters.to.pull.all.cov.from.preceding,parameters.to.pull.all.cov.from.preceding]
+            initial.cov.mat[parameters.to.pull.all.cov.from.preceding,parameters.to.pull.weighted.cov.from.preceding] = 
+                mcmc.summary$cov.mat[parameters.to.pull.all.cov.from.preceding,parameters.to.pull.weighted.cov.from.preceding]
+            initial.cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.all.cov.from.preceding] = 
+                mcmc.summary$cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.all.cov.from.preceding]
+            
             initial.cov.mat[parameters.to.pull.cov.from.preceding,other.parameters.for.cov] = initial.cov.mat[parameters.to.pull.cov.from.preceding,other.parameters.for.cov] = 0
             initial.cov.mat[other.parameters.for.cov, parameters.to.pull.cov.from.preceding] = initial.cov.mat[other.parameters.for.cov, parameters.to.pull.cov.from.preceding] = 0
             
@@ -221,10 +232,10 @@ set.up.calibration <- function(version,
     if (verbose)
         print(paste0(verbose.prefix, "Instantiate the likelihood..."))
 
-    likelihood = calibration.info$likelihood.instructions$instantiate.likelihood(version=version,
-                                                                                 location=location, 
-                                                                                 sub.version=sub.version,
-                                                                                 data.manager=calibration.info$data.manager)
+   likelihood = calibration.info$likelihood.instructions$instantiate.likelihood(version=version,
+                                                                               location=location,
+                                                                              sub.version=sub.version,
+                                                                             data.manager=calibration.info$data.manager)
 
     compute.likelihood <- function(sim) {
         likelihood$compute(sim=sim, log=T, check.consistency=F)
@@ -411,6 +422,7 @@ assemble.simulations.from.calibration <- function(version,
     sim.indices = as.integer(mcmc@simulation.indices)
     if (any(is.na(sim.indices))) # This is a patch to the error in the MCMC package code with propagating NA values
     {
+        print("Error in assembling simset - NAs introduced by MCMC package - we will try to recover")
         search.from = 1
         sim.indices = sapply(1:length(mcmc@simulation.indices), function(i){
             
