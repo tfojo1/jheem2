@@ -1145,6 +1145,9 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (length(outcomes) > 1 && !is.null(mapping))
                 stop(paste0(error.prefix, "'mapping' must be null if more than one outcome is used"))
             
+            if (!(identical(summary.type, 'individual.simulation') || identical(summary.type, 'mean.and.interval') || identical(summary.type, 'median.and.interval')))
+                stop(paste0(error.prefix, "'summary.type' must be one of 'individual.simulation', 'mean.and.interval', or 'median.and.interval'"))
+            
             # keep.dimensions will be the union of the incomplete dimensions in the outcome ontology and any dimension value dimensions
             if (is.null(keep.dimensions)) {
                 incomplete.dimensions = unique(unlist(lapply(outcomes, function(outcome) {incomplete.dimensions(self$outcome.ontologies[[outcome]])}))) # unshared incompletes will catch error below
@@ -1264,7 +1267,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (summary.type == 'mean.and.interval') {
                 alpha = (1-interval.coverage)/2
                 rv = apply(rv, setdiff(names(dim.names), 'sim'), function(x) {
-                    c(mean(x), quantile(x, probs=c(alpha, 1-alpha)))
+                    c(mean(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T))
                 })
                 new.dim.names = c(list(metric=c('mean', 'lower', 'upper')), dim.names[setdiff(names(dim.names), 'sim')])
                 dim(rv) = sapply(new.dim.names, length)
@@ -1273,7 +1276,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (summary.type == 'median.and.interval') {
                 alpha = (1-interval.coverage)/2
                 rv = apply(rv, setdiff(names(dim.names), 'sim'), function(x) {
-                    c(median(x), quantile(x, probs=c(alpha, 1-alpha)))
+                    c(median(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T))
                 })
                 new.dim.names = c(list(metric=c('mean', 'lower', 'upper')), dim.names[setdiff(names(dim.names), 'sim')])
                 dim(rv) = sapply(new.dim.names, length)
@@ -1549,7 +1552,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             }
             
             # add NAs for unused years so that this outcome's array can be mixed with the other outcomes' arrays
-            if (length(unused.years.this.outcome)>0) {
+            # don't do this if there's a mapping, since we can only have one outcome anyways, if there's a mapping
+            if (length(unused.years.this.outcome)>0 && is.null(mapping)) {
                 dimnames.with.all.years = dimnames(output.array)
                 dimnames.with.all.years$year = dimension.values$year
                 output.array.with.all.years = array(NA, sapply(dimnames.with.all.years, length), dimnames.with.all.years)
