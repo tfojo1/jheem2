@@ -1154,31 +1154,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 keep.dimensions = union(incomplete.dimensions, names(dimension.values))
             }
             
-            if (is.null(mapping))
-                dim.names = self$get.dim.names(outcomes = outcomes,
-                                               keep.dimensions = keep.dimensions,
-                                               dimension.values = dimension.values,
-                                               ...,
-                                               check.consistency = check.consistency,
-                                               drop.single.outcome.dimension = drop.single.outcome.dimension,
-                                               drop.single.sim.dimension = drop.single.sim.dimension,
-                                               error.prefix = error.prefix)
-            else {
-                dim.names = self$get.dim.names(outcomes = outcomes,
-                                               keep.dimensions = union(keep.dimensions, mapping$from.dimensions),
-                                               dimension.values = dimension.values,
-                                               ...,
-                                               check.consistency = check.consistency,
-                                               drop.single.outcome.dimension = drop.single.outcome.dimension,
-                                               drop.single.sim.dimension = drop.single.sim.dimension,
-                                               error.prefix = error.prefix)
-                
-                # There may be extra dimensions needed for the mapping (like sex is needed for risk) but these will aggregated out in the final product
-                dim.names.mapped.dimensions = dim.names[!(names(dim.names) %in% c('sim', 'outcome'))]
-                dim.names[!(names(dim.names) %in% c('sim', 'outcome'))] = mapping$apply.to.dim.names(dim.names.mapped.dimensions)
-                dim.names = dim.names[names(dim.names) %in% c(keep.dimensions, 'sim', 'outcome')]
-            }
-            
             dimension.values = private$slowerFoo(dimension.values, ..., check.consistency = check.consistency, error.prefix=error.prefix)
             # dimension.values = private$process.dimension.values(dimension.values, ..., error.prefix=error.prefix)
             # if (drop.single.sim.dimension && self$n.sim==1)
@@ -1189,7 +1164,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             # if (!drop.single.sim.dimension || self$n.sim > 1)
             #     keep.dimensions = union(keep.dimensions, 'sim')
 
-            rv = sapply(outcomes, function(outcome){
+            rv = lapply(outcomes, function(outcome){
                 slowFoo(outcome, dimension.values, keep.dimensions, check.consistency, output, replace.inf.values.with.zero, mapping)
                 # scale = self$outcome.metadata[[outcome]]$scale
                 # numerator.needed = output %in% c('value', 'numerator')
@@ -1261,25 +1236,27 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 # 
                 # output.array
             })
-
-            dim(rv) = sapply(dim.names, length)
-            dimnames(rv) = dim.names
+            
+            individual.dimnames = dimnames(rv[[1]]) # which might be all we have
+            rv = unlist(rv, recursive = FALSE)
+            dim(rv) = sapply(individual.dimnames, length)
+            dimnames(rv) = individual.dimnames
+            
+            # browser()
             if (summary.type == 'mean.and.interval') {
                 alpha = (1-interval.coverage)/2
-                rv = apply(rv, setdiff(names(dim.names), 'sim'), function(x) {
+                rv = apply(rv, setdiff(names(dim(rv)), 'sim'), function(x) {
                     c(mean(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T))
                 })
-                new.dim.names = c(list(metric=c('mean', 'lower', 'upper')), dim.names[setdiff(names(dim.names), 'sim')])
-                dim(rv) = sapply(new.dim.names, length)
+                new.dim.names = c(list(metric = c('mean', 'lower', 'upper')), dimnames(rv)[-1])
                 dimnames(rv) = new.dim.names
             }
             if (summary.type == 'median.and.interval') {
                 alpha = (1-interval.coverage)/2
-                rv = apply(rv, setdiff(names(dim.names), 'sim'), function(x) {
+                rv = apply(rv, setdiff(names(dim(rv)), 'sim'), function(x) {
                     c(median(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T))
                 })
-                new.dim.names = c(list(metric=c('mean', 'lower', 'upper')), dim.names[setdiff(names(dim.names), 'sim')])
-                dim(rv) = sapply(new.dim.names, length)
+                new.dim.names = c(list(metric = c('median', 'lower', 'upper')), dimnames(rv)[-1])
                 dimnames(rv) = new.dim.names
             }
             rv
@@ -1496,7 +1473,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             save.simulation.set(simset = self, root.dir = root.dir)
         },
         # just for diagnostics, will be removed soon
-        slowFoo = function(outcome, dimension.values, keep.dimensions, check.consistency, output, replace.inf.values.with.zero, mapping) {
+        slowFoo = function(outcome, dimension.values, keep.dimensions, check.consistency, output, replace.inf.values.with.zero, mapping)
+        {
             scale = self$outcome.metadata[[outcome]]$scale
             numerator.needed = output %in% c('value', 'numerator')
             denominator.needed = scale.needs.denominator(scale) && output %in% c('value', 'denominator')
@@ -1562,9 +1540,12 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             # add NAs for unused years so that this outcome's array can be mixed with the other outcomes' arrays
             # don't do this if there's a mapping, since we can only have one outcome anyways, if there's a mapping
-            if (length(unused.years.this.outcome)>0 && is.null(mapping)) {
+            if (length(unused.years.this.outcome)>0 && is.null(mapping)) { # 
                 dimnames.with.all.years = dimnames(output.array)
-                dimnames.with.all.years$year = dimension.values$year
+                if (!is.null(mapping)) {
+                    dimnames.with.all.years$year = c(dimnames.with.all.years$year, unused.years.this.outcome)
+                } 
+                else dimnames.with.all.years$year = dimension.values$year
                 output.array.with.all.years = array(NA, sapply(dimnames.with.all.years, length), dimnames.with.all.years)
                 output.array.with.all.years[get.array.access.indices(dimnames.with.all.years, dimnames(output.array))] = output.array
                 output.array=output.array.with.all.years
