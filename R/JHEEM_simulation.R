@@ -1361,8 +1361,17 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             if (keep < 1) keep = ceiling(self$n.sim * keep)
             
-            self$subset(1 : keep)
+            self$subset((self$n.sim - keep + 1) : self$n.sim) # Keep the LAST part, not the FIRST
             
+        },
+        
+        first.sim = function()
+        {
+            self$subset(1)
+        },
+        last.sim = function()
+        {
+            self$subste(self$n.sim)
         },
         
         get.engine = function(start.year = NULL,
