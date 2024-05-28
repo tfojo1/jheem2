@@ -365,6 +365,7 @@ simplot <- function(...,
     # first get one color per color.data.by
     color.data.shaded.colors = NULL # also used for summary ribbon color
     color.sim.by = NULL
+    color.ribbon.by = NULL
     shapes.for.data = NULL
     shapes.for.sim = NULL
     if (!is.null(df.truth)) {
@@ -395,13 +396,11 @@ simplot <- function(...,
         names(color.sim.by) = unique(df.sim$color.sim.by)
         shapes.for.sim = style.manager$get.shapes(length(unique(df.sim$shape.sim.by)))
         names(shapes.for.sim) = unique(df.sim$shape.sim.by)
-        
+        color.ribbon.by = ggplot2::alpha(color.sim.by, style.manager$alpha.ribbon)
         # if (summary.type != 'individual.simulation')
         #     color.data.shaded.colors = c(color.data.shaded.colors, color.sim.by) # because the scale_fill_manual will use this for all kinds of fill
     }
-    #@@@@
-    # all.colors.for.scale = c(color.data.shaded.colors, color.sim.by) #@
-    # all.colors.for.scale = all.colors.for.scale[!duplicated(all.colors.for.scale)]
+    
     all.shapes.for.scale = c(shapes.for.data, shapes.for.sim)
     
     # break df.sim into two data frames, one for outcomes where the sim will be lines and the other for where it will be points
@@ -416,14 +415,15 @@ simplot <- function(...,
     #-- STEP 5: MAKE THE PLOT --#
 
     rv = ggplot2::ggplot()
-    rv = rv + ggplot2::scale_color_manual(values = color.sim.by, guide="none")# all.colors.for.scale
+    rv = rv + ggplot2::scale_color_manual(name = "sim color", values = color.sim.by)# all.colors.for.scale
     rv = rv + ggplot2::scale_shape_manual(name = "data shape", values = all.shapes.for.scale)
     rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = color.sim.by) #@@
     # rv = rv + ggplot2::guides(linetype = ggplot2::guide_legend("sim linetype"))
     rv = rv + ggplot2::scale_linetype(name="sim linetype")
     
     if (!plot.year.lag.ratio) rv = rv + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
-    else rv = rv + ggplot2::scale_y_continuous(labels = scales::comma)
+    else
+        rv = rv + ggplot2::scale_y_continuous(labels = scales::comma)
     # browser()
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
@@ -431,21 +431,18 @@ simplot <- function(...,
             rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year,y=value,group=groupid,
                                                                                          linetype = linetype.sim.by,
                                                                                          color = color.sim.by,
-                                                                                         # alpha = alpha,
+                                                                                         alpha = alpha,
                                                                                          linewidth = linewidth)) +
                 ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
                                                                                           color = color.sim.by,
                                                                                           shape = shape.sim.by))
             if (summary.type != 'individual.simulation')
                 rv = rv + ggplot2::geom_ribbon(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value,group=groupid,
-                                                                                               # linetype = linetype.sim.by,
-                                                                                               color = color.sim.by,
                                                                                                fill = color.sim.by,
-                                                                                               alpha = alpha,
-                                                                                               # linewidth = linewidth,
-                                                                                               ymin = value.lower, # for ribbon
-                                                                                               ymax = value.upper)) # for ribbon
-            
+                                                                                               ymin = value.lower,
+                                                                                               ymax = value.upper),
+                                               alpha = style.manager$alpha.ribbon,
+                                               outline.type = 'full')
             
             # rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=style.manager$linetype.sim.by, group=groupid, color=split.by, alpha=alpha, linewidth=linewidth)) +
             #     ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=style.manager$shape.data.by, color=split.by))
@@ -462,22 +459,20 @@ simplot <- function(...,
             
     } else {
         if (!is.null(df.sim)) {
-            # rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, group=groupid,
-            #                                                                              linetype = linetype.sim.by,
-            #                                                                              alpha = alpha,
-            #                                                                              linewidth = linewidth)) +
-            #     ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
-            #                                                                               color = color.sim.by,
-            #                                                                               shape=shape.sim.by))
+            rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, group=groupid,
+                                                                                         linetype = linetype.sim.by,
+                                                                                         alpha = alpha,
+                                                                                         linewidth = linewidth)) +
+                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
+                                                                                          color = color.sim.by,
+                                                                                          shape=shape.sim.by))
             if (summary.type != 'individual.simulation') {
                 rv = rv + ggplot2::geom_ribbon(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value,group=groupid,
-                                                                                               # linetype = linetype.sim.by,
-                                                                                               color = color.sim.by,
                                                                                                fill = color.sim.by,
-                                                                                               alpha = alpha,
-                                                                                               # linewidth = linewidth,
-                                                                                               ymin = value.lower, # for ribbon
-                                                                                               ymax = value.upper)) # for ribbon
+                                                                                               ymin = value.lower,
+                                                                                               ymax = value.upper),
+                                               alpha = style.manager$alpha.ribbon,
+                                               outline.type = 'full')
                 # Remove the fill scale since we don't have more than one sim ribbon color
                 if (style.manager$color.sim.by == "stratum")
                     rv = rv + ggplot2::guides(fill = "none")
@@ -509,7 +504,8 @@ simplot <- function(...,
     rv = rv +
         ggplot2::scale_alpha(guide='none') +
         ggplot2::labs(y=y.label)
-    if (!is.null(df.sim)) rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
+    if (!is.null(df.sim))
+        rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
     
     if (plot.year.lag.ratio) rv = rv + xlab("latter year")
     # browser()

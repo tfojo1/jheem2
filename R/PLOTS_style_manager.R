@@ -10,7 +10,8 @@ create.style.manager = function(color.sim.by = 'stratum',
                                 data.palette = ggsci::pal_jama(),
                                 linetypes = c("solid", "dashed", "dotted","dotdash"),
                                 shapes = 21:25,
-                                shade.increment = -16)
+                                shade.increment = -16,
+                                alpha.ribbon = 0.2)
 {
     JHEEM.STYLE.MANAGER$new(color.sim.by = color.sim.by,
                             color.data.by = color.data.by,
@@ -22,7 +23,8 @@ create.style.manager = function(color.sim.by = 'stratum',
                             data.palette = data.palette,
                             linetypes = linetypes,
                             shapes = shapes,
-                            shade.increment = shade.increment)
+                            shade.increment = shade.increment,
+                            alpha.ribbon = alpha.ribbon)
 }
 
 #'@export
@@ -74,7 +76,8 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
                               data.palette,
                               linetypes,
                               shapes,
-                              shade.increment)
+                              shade.increment,
+                              alpha.ribbon)
         {
             # need to do error checking
             
@@ -90,6 +93,7 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
             private$i.linetypes = linetypes
             private$i.shapes = shapes
             private$i.shade.increment = shade.increment
+            private$i.alpha.ribbon = alpha.ribbon
         },
         
         get.sim.colors = function(n)
@@ -179,6 +183,14 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
                 private$i.shape.sim.by
             else
                 stop("Cannot overwrite a style.manager's 'shape.sim.by' - it is read only")
+        },
+        
+        alpha.ribbon = function(value)
+        {
+            if (missing(value))
+                private$i.alpha.ribbon
+            else
+                stop("Cannot overwrite a style.manager's 'alpha.ribbon' - it is read only")
         }
     ),
     
@@ -196,6 +208,7 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
         i.linetypes = NULL,
         i.shapes = NULL,
         i.shade.increment = NULL,
+        i.alpha.ribbon = NULL,
         
         do.get.from.vector = function(values, n)
         {
