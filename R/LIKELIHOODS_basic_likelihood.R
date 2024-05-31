@@ -839,7 +839,10 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                     private$i.parameters$observation.correlation.form == "autoregressive.1")
             # if we get measurement error sd from data, we'll need to have pulled it along with the regular data
             
-            measurement.error.sd = private$i.obs.vector * private$i.parameters$error.variance.term
+            if (private$i.use.lognormal.approximation)
+                measurement.error.sd = exp(private$i.obs.vector) * private$i.parameters$error.variance.term
+            else
+                measurement.error.sd = private$i.obs.vector * private$i.parameters$error.variance.term
             
             private$i.measurement.error.covariance.matrix =
                 measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
