@@ -92,7 +92,7 @@ interpolate.array <- function(arr,
                     desired.times = desired.times)
     })
     
-    dim.names = dimnames(arr)[other.dimensions]
+    dim.names = dimnames(arr)
     dim.names[[dimension]] = as.character(desired.times)
     dim(raw.interpolated) = sapply(dim.names, length)
     dimnames(raw.interpolated) = dim.names
