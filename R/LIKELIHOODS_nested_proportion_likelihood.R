@@ -757,7 +757,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                              location = location,
                              error.prefix = error.prefix)
             
-            post.time.checkpoint.flag = T
+            post.time.checkpoint.flag = F
             
             # Validate *data.manager*, a 'jheem.data.manager' object
             if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
