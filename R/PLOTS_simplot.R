@@ -489,12 +489,12 @@ simplot <- function(...,
                     rv = rv + ggplot2::guides(fill = "none")
             }
         }
-        if (!is.null(df.truth))
+        if (!is.null(df.truth)) {
             rv = rv + ggnewscale::new_scale_fill() + ggplot2::scale_fill_manual(values = color.data.shaded.colors)
             rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("data color", override.aes = list(shape = 21)))
             rv = rv + ggplot2::geom_point(data=df.truth, size=2, ggplot2::aes(x=year, y=value, fill=color.and.shade.data.by, shape = shape.data.by))
+        } 
     }
-    
     # If don't have a split.by, and thus only 1 color for sim, probably, then remove legend for it.
     if (style.manager$color.sim.by == 'stratum' && is.null(split.by))
         rv = rv + ggplot2::guides(color = "none")
