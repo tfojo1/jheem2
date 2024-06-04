@@ -46,6 +46,60 @@ interpolate <- function(values,
     })
 }
 
+interpolate.array <- function(arr,
+                              dimension = 'year',
+                              desired.times = NULL)
+{
+    if (!is.numeric(arr) || !is.array(arr))
+        stop("'arr' must be a numeric array")
+    
+    if (is.null(dimnames(arr)))
+        stop("'arr' must have dimnames set")
+    
+    if ((!is.character(dimension) &&!is.numeric(dimension)) ||
+        length(dimension)!=1 || is.na(dimension))
+        stop("'dimension' must be a single, non-NA character or numeric value")
+    
+    if (is.character(dimension))
+    {
+        if (all(names(dim(arr))!=dimension))
+            stop(paste0("The dimension '", dimension, "' is not present in 'arr'"))
+        
+        other.dimensions = setdiff(names(dim(arr)), dimension)
+    }
+    else if (is.numeric(dimension))
+    {
+        if (dimension < 1 || dimension > length(dim(arr)))
+            stop(paste0("dimension (", dimension, ") must be between 1 and ", length(dim(arr))))
+        
+        other.dimensions = setdiff(1:length(dim(arr)), dimension)
+    }
+    
+    times = suppressWarnings(as.numeric(dimnames(arr)[[dimension]]))
+    if (any(is.na(times)))
+        stop(paste0("dimnames(arr)[[", dimension, "]] cannot be interpreted as numbers"))
+    
+    if (is.null(desired.times))
+        desired.times = times
+    else if (!is.numeric(desired.times) || length(desired.times)==0 || any(is.na(desired.times)))
+        stop("'desired.times' must be a numeric vector with no NA values")
+    
+    raw.interpolated = apply(arr, other.dimensions, function(values){
+        if (all(is.na(values)))
+            stop("Cannot interpolate array - at least one margin contains all NA values")
+        interpolate(values = values[!is.na(values)], 
+                    value.times = times[!is.na(values)],
+                    desired.times = desired.times)
+    })
+    
+    dim.names = dimnames(arr)[other.dimensions]
+    dim.names[[dimension]] = as.character(desired.times)
+    dim(raw.interpolated) = sapply(dim.names, length)
+    dimnames(raw.interpolated) = dim.names
+    
+    apply(raw.interpolated, names(dim(arr)), function(x){x})
+}
+
 ##----------------------------##
 ##----------------------------##
 ##-- MISC STRING OPERATIONS --##
