@@ -87,7 +87,7 @@ create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.
                                             denominator.outcome.for.sim = denominator.outcome.for.sim,
                                             outcome.value = outcome.value,
                                             dimensions = character(0),
-                                            denominator.dimensions = dimensions,
+                                            denominator.dimensions = character(0),
                                             dimension.values = NULL, # EXPERIMENTAL
                                             levels.of.stratification = NULL,
                                             from.year = from.year,
@@ -352,8 +352,8 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (error.variance.type %in% c('data.sd', 'data.ci') && !is.null(error.variance.term))
                 stop(paste0(error.prefix, "'error.variance.term' must be NULL if 'error.variance.term' is one of 'data.sd' or 'data.ci'"))
             
-            if (error.variance.type != 'cv')
-                stop(paste0(error.prefix, "only 'cv' is currently supported as an 'error.variance.type' for basic likelihoods"))
+            # if (error.variance.type != 'cv')
+            #     stop(paste0(error.prefix, "only 'cv' is currently supported as an 'error.variance.type' for basic likelihoods"))
             
             # *weights* -- validated in the super$initialize
             
