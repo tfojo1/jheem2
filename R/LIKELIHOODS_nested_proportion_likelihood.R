@@ -914,7 +914,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 # If we have lognormal approximation on, we should transform the observations right now, after converting zeroes to NA so that they are ignored in the same ways.
                 if (private$i.use.lognormal.approximation) {
                     data[data==0]=NA
-                    data = log(data)
+                    # We do NOT log transform here, at instantiate time, because the fancy function during compute won't like it
                 }
                 
                 n.stratifications.with.data = n.stratifications.with.data + 1
@@ -1431,10 +1431,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             if (private$i.use.lognormal.approximation)
             {
+                obs.vector = log(obs.vector) # this happens at instantiate time for the basic likelihood but must happen now because the fancy function doesn't eat log transformed ingredients
                 mean.reciprocal = 1/mean
                 sigma = log(mean.reciprocal %*% t(mean.reciprocal) * sigma + 1)
                 mean = log(mean) - diag(sigma)/2
-                # obs should have been put on the log scale before this
             }
             
             if (private$i.calculate.lagged.difference)
@@ -1465,14 +1465,27 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                           checkSymmetry = F)
             
             if (debug) {
-                if (private$i.calculate.lagged.difference)
-                    # doesn't work yet
-                    lik.summary = cbind(obs.p=round(private$i.obs.p, 3), mean.p = round(mean/lik.components$obs.n, 3), sd.p = round(sqrt(diag(sigma))/lik.components$obs.n, 3))
-                else
-                    lik.summary = cbind(private$i.metadata, obs.p =round(private$i.obs.p, 3), mean.p = round(mean/lik.components$obs.n, 3), sd.p = round(sqrt(diag(sigma))/lik.components$obs.n, 3))
+                if (private$i.calculate.lagged.difference) {
+                    obs.n = lik.components$obs.n
+                    if (private$i.use.lognormal.approximation) {
+                        obs.n = log(obs.n)
+                    }
+                    obs.n = apply_lag_to_vector(obs.n,
+                                                private$i.lagged.pairs,
+                                                rep(0, private$i.n.lagged.obs),
+                                                private$i.n.obs)
+                    if (private$i.use.lognormal.approximation)
+                        lik.summary = cbind(obs.p=round(obs.vector, 3), mean.p = round(mean-obs.n, 3), sd.p = round(sqrt(diag(sigma))-obs.n, 3))
+                    else
+                        lik.summary = cbind(obs.p=round(obs.vector, 3), mean.p = round(mean/obs.n, 3), sd.p = round(sqrt(diag(sigma))/obs.n, 3))
+                }
+                else {
+                    obs.n = lik.components$obs.n
+                    lik.summary = cbind(private$i.metadata, obs.p =round(obs.vector, 3), mean.p = round(mean/obs.n, 3), sd.p = round(sqrt(diag(sigma))/obs.n, 3))
+                }
                 browser()
             }
-            likelihood
+            likelihood 
             
         },
         
