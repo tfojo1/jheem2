@@ -367,7 +367,11 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                 stop(paste0(error.prefix, "experimental 'dimension.values' argument must be NULL or a named list without 'year'"))
             
             #use.lognormal.approximation
+            if (!is.logical(use.lognormal.approximation) || length(use.lognormal.approximation)!=1 || is.na(use.lognormal.approximation))
+                stop(paste0(error.prefix, "'use.lognormal.approximation' must be a single logical value (T/F)"))
             #calculate.lagged.difference
+            if (!is.logical(calculate.lagged.difference) || length(calculate.lagged.difference)!=1 || is.na(calculate.lagged.difference))
+                stop(paste0(error.prefix, "'calculate.lagged.difference' must be a single logical value (T/F)"))
             
             super$initialize(outcome.for.sim = outcome.for.sim,
                              dimensions = dimensions,
@@ -415,7 +419,9 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                                              'outcome.for.sim',
                                              'denominator.outcome.for.sim',
                                              'from.year',
-                                             'to.year')
+                                             'to.year',
+                                             'use.lognormal.approximation',
+                                             'calculate.lagged.difference')
                     to.compare.setequal = c('sources.to.use',
                                             'omit.years',
                                             'denominator.dimensions')
@@ -699,17 +705,54 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                         else next
                     }
                     
-                    # If we have lognormal approximation on, we should transform the observations right now, after converting zeroes to NA so that they are ignored in the same ways.
-                    if (private$i.use.lognormal.approximation) {
-                        data[data==0]=NA
-                        data = log(data)
-                    }
-                    
                     n.stratifications.with.data = n.stratifications.with.data + 1
                     one.mapping = attr(data, 'mapping')
                     one.dimnames = dimnames(data)
                     one.obs.vector = as.numeric(data)
                     one.details = attr(data, 'details')
+                    
+                    ## Pull measurement error variance if needed
+                    if (instructions$parameters$error.variance.type %in% c('data.sd', 'data.variance', 'data.cv')) {
+                        metric.map = list(data.sd='sd', data.variance='variance', data.cv='coefficient.of.variance')
+                        error.data = data.manager$pull(outcome = private$i.outcome.for.data,
+                                                       metric = metric.map[[private$i.parameters$error.variance.type]],
+                                                       sources = private$i.sources.to.use,
+                                                       keep.dimensions = keep.dimensions,
+                                                       dimension.values = list(year = as.character(years), location = all.locations),
+                                                       target.ontology = private$i.sim.ontology,
+                                                       allow.mapping.from.target.ontology = T)
+                        
+                        if (is.null(error.data)) {
+                            if (throw.error.if.no.data)
+                                stop(paste0(error.prefix, "no ", metric.map[[private$i.parameters$error.variance.type]], ", data was found for the stratification '", strat, "'"))
+                            else next
+                        }
+                        
+                        # find overlapping dimnames, limit both, then flip data to NA if cv for that value is NA
+                        common.dimnames = get.dimension.values.overlap(dimnames(data), dimnames(error.data))
+                        error.data = array.access(error.data, common.dimnames)
+                        data = array.access(data, common.dimnames)
+                        
+                        if (instructions$parameters$error.variance.type == 'data.cv')
+                            error.data = data * error.data # sd = cv * mean ... Note that "data" has not been lognormal transformed yet, so we don't need to do exp(data)
+                        
+                        data[is.na(error.data)] = NA
+                        one.details = array.access(one.details, common.dimnames)
+                        
+                        one.error.data = as.numeric(error.data) # na masks will align perfectly with obs p mask
+                        one.error.data = one.error.data[!is.na(one.error.data)]
+                        
+                        if (instructions$parameters$error.variance.type == 'data.variance')
+                            one.error.data = sqrt(one.error.data)
+                        
+                        private$i.error.vector = c(private$i.error.vector, one.error.data)
+                    }
+                    
+                    # If we have lognormal approximation on, we should transform the observations right now, after converting zeroes to NA so that they are ignored in the same ways.
+                    if (private$i.use.lognormal.approximation) {
+                        data[data==0]=NA
+                        data = log(data)
+                    }
                     
                     # EXPERIMENTAL
                     one.dimension.values.remove.mask = rep(T, length(one.obs.vector)) # EXPERIMENTAL
@@ -839,10 +882,25 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                     private$i.parameters$observation.correlation.form == "autoregressive.1")
             # if we get measurement error sd from data, we'll need to have pulled it along with the regular data
             
-            measurement.error.sd = private$i.obs.vector * private$i.parameters$error.variance.term
+            # All forms of error will be converted to sd and then we use cov = corr * sd %*% t(sd), the last part sometimes being just sd squared
+            if (private$i.parameters$error.variance.type %in% c('data.sd', 'data.variance', 'data.cv')) {
+                # all have been converted to sd earlier, including data.cv
+                measurement.error.sd.matrix = private$i.error.vector %*% t(private$i.error.vector)
+                private$i.measurement.error.covariance.matrix = measurement.error.correlation.matrix * measurement.error.sd.matrix
+            }
+            else if (private$i.parameters$error.variance.type == 'sd')
+                private$i.measurement.error.covariance.matrix = measurement.error.correlation.matrix * private$i.parameters$error.variance.term ^ 2 # this reflects our choice to make measurement error sd constant, not scaling with level of suppression (or other p)
+            else if (private$i.parameters$error.variance.type == 'variance')
+                private$i.measurement.error.covariance.matrix = measurement.error.correlation.matrix * private$i.parameters$error.variance.term
+            else if (private$i.parameters$error.variance.type == 'cv') {
+                if (private$i.use.lognormal.approximation)
+                    measurement.error.sd = exp(private$i.obs.vector) * private$i.parameters$error.variance.term
+                else
+                    measurement.error.sd = private$i.obs.vector * private$i.parameters$error.variance.term
+                private$i.measurement.error.covariance.matrix = measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
+            }
+            # dim(private$i.obs.error) = c(n.obs, n.obs) #I don't have to do this, do I?
             
-            private$i.measurement.error.covariance.matrix =
-                measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
             
             ## included multiplier to make inverse multiplier matrix times covariance matrix
             if (!is.null(private$i.parameters$included.multiplier)) {

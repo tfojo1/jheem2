@@ -1582,6 +1582,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 
                 loc.denominators = sapply(locations.this.type, function(loc) {
                     contained.locs = unlist(locations::get.location.code(locations::get.contained.locations(loc, minimum.geographic.resolution.type), minimum.geographic.resolution.type))
+                    if (is.null(contained.locs)) return(NULL)
                     overlapping.contained.locs = intersect(contained.locs, main.contained.locs)
                     denom.totals = data.manager$pull(outcome=private$i.denominator.outcome.for.data, keep.dimensions = 'year', dimension.values = list(location=overlapping.contained.locs))
                     if (is.null(denom.totals)) return(NULL)

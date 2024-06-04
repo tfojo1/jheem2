@@ -22,6 +22,7 @@ simplot <- function(...,
                     facet.by = NULL,
                     dimension.values = list(),
                     plot.which = c('both', 'sim.only', 'data.only')[1],
+                    summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                     plot.year.lag.ratio = F,
                     data.manager = get.default.data.manager(),
                     style.manager = get.default.style.manager(),
@@ -57,6 +58,9 @@ simplot <- function(...,
     
     if (!(identical(plot.which, 'sim.only') || identical(plot.which, 'data.only') || identical(plot.which, 'both')))
         stop(paste0(error.prefix, "'plot.which' must be one of 'sim.only', 'data.only', or 'both'"))
+    
+    if (!(identical(summary.type, 'individual.simulation') || identical(summary.type, 'mean.and.interval') || identical(summary.type, 'median.and.interval')))
+        stop(paste0(error.prefix, "'summary.type' must be one of 'individual.simulation', 'mean.and.interval', or 'median.and.interval'"))
     
     if (!identical(plot.year.lag.ratio, T) && !identical(plot.year.lag.ratio, F))
         stop(paste0(error.prefix, "'plot.year.lag.ratio' must be either T or F"))
@@ -209,9 +213,24 @@ simplot <- function(...,
         }
     }
     if (!is.null(df.truth)) {
-        # make whatever column corresponds to split by actually be called "split.by" and same for facet.by.
-        if (!is.null(split.by)) names(df.truth)[names(df.truth)==split.by] = "split.by"
+        # make whatever column corresponds to split by actually be called "stratum" and same for facet.by.
+        if (!is.null(split.by)) names(df.truth)[names(df.truth)==split.by] = "stratum"
         if (!is.null(facet.by)) names(df.truth)[names(df.truth)==facet.by] = "facet.by"
+        
+        # if there is no 'stratum' because no split, then we should fill it with ""
+        if (!('stratum' %in% names(df.truth))) df.truth['stratum'] = rep('', nrow(df.truth))
+        
+        # sort the split.by column alphabetically so that when we assign colors, it will be the same for sim.
+        if (!is.null(split.by))
+            df.truth = df.truth[order(df.truth$stratum),]
+        
+        # make some other columns
+        df.truth['location.type'] = locations::get.location.type(df.truth$location)
+        df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
+        df.truth['color.data.by'] = df.truth[style.manager$color.data.by]
+        df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
+        df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
+        
     }
     # browser()
     names(outcome.mappings) = outcomes
@@ -222,13 +241,6 @@ simplot <- function(...,
     if (plot.which != 'data.only') {
         for (outcome in outcomes) {
             
-            # Determine the keep.dimensions we need from the sim$gets
-            # extra.dimensions.needed.for.mapping = c()
-            # if (plot.which != 'sim.only' && !is.null(outcome.mappings[[outcome]])) {
-            #     extra.dimensions.needed.for.mapping = setdiff(outcome.mappings[[outcome]]$from.dimensions, c(facet.by, split.by, 'year'))
-            #     keep = union(c('year', facet.by, split.by), extra.dimensions.needed.for.mapping)
-            # }
-            # else keep = c('year', facet.by, split.by)
             keep.dimensions = c('year', facet.by, split.by)
             for (i in seq_along(simset.list)) {
                 
@@ -240,19 +252,10 @@ simplot <- function(...,
                                                       dimension.values = dimension.values,
                                                       keep.dimensions = keep.dimensions,
                                                       drop.single.outcome.dimension = T,
-                                                      mapping=mapping.this.outcome)
-                # if (plot.which != 'sim.only' && !is.null(outcome.mappings[[outcome]])) {
-                #     simset.data.mapped.this.outcome = tryCatch(
-                #         {outcome.mappings[[outcome]]$apply(simset.data.this.outcome)},
-                #         error = function(e) {NULL}
-                #     )
-                # } else simset.data.mapped.this.outcome = simset.data.this.outcome
+                                                      mapping=mapping.this.outcome,
+                                                      summary.type = summary.type)
                 
-                # if (is.null(simset.data.mapped.this.outcome)) next
                 if (is.null(simset.data.this.outcome)) next
-                
-                # Aggregate out the extra dimensions we may have gotten for the mapping
-                # simset.data.mapped.this.outcome = apply(simset.data.mapped.this.outcome, setdiff(names(dim(simset.data.mapped.this.outcome)), extra.dimensions.needed.for.mapping), sum, na.rm=T)
                 
                 # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
                 one.df.sim.this.outcome = reshape2::melt(simset.data.this.outcome, na.rm = T)
@@ -264,36 +267,49 @@ simplot <- function(...,
                 one.df.sim.this.outcome['simset'] = i
                 one.df.sim.this.outcome['outcome'] = outcome
                 one.df.sim.this.outcome['linewidth'] = 1/sqrt(simset$n.sim) # have style manager create this later?
-                one.df.sim.this.outcome['alpha'] = 20 * one.df.sim.this.outcome['linewidth'] # same comment as above
+                one.df.sim.this.outcome['alpha'] = one.df.sim.this.outcome['linewidth'] # same comment as above; USED to be 20 * this
                 
                 df.sim = rbind(df.sim, one.df.sim.this.outcome)
             }
-            
         }
-        # make whatever column corresponds to split by actually be called "split.by" and same for facet.by.
-        if (!is.null(split.by)) df.sim["split.by"] = df.sim[split.by]
+        
+        # Pivot wider to convert column "metric" to columns "value.mean", "value.lower", "value.upper" or such
+        if (summary.type != 'individual.simulation') {
+            df.sim = reshape(df.sim, direction='wide', idvar=names(df.sim)[!(names(df.sim) %in% c('metric', 'value'))], timevar='metric')
+            if (!is.null(df.sim[['value.mean']])) df.sim$value = df.sim$value.mean
+            if (!is.null(df.sim[['value.median']])) df.sim$value = df.sim$value.median
+        }
+            
+        
+        
+        # make whatever column corresponds to split by actually be called "stratum" and same for facet.by.
+        if (!is.null(split.by)) df.sim["stratum"] = df.sim[split.by]
         if (!is.null(facet.by)) df.sim["facet.by"] = df.sim[facet.by]
+        
+        # if we don't have a 'stratum' col because no split, make an empty one
+        if (!('stratum' %in% names(df.sim))) df.sim['stratum'] = rep('', nrow(df.sim))
         
         df.sim$simset = factor(df.sim$simset)
         df.sim$sim = factor(df.sim$sim)
-        df.sim$groupid = paste0(df.sim$outcome, '_', df.sim$simset, '_', df.sim$sim, '_', df.sim$split.by)
+        df.sim$groupid = paste0(df.sim$outcome, '_', df.sim$simset, '_', df.sim$sim, '_', df.sim$stratum)
         
         df.sim['linetype.sim.by'] = df.sim[style.manager$linetype.sim.by]
         df.sim['shape.sim.by'] = df.sim[style.manager$shape.sim.by]
-        if (style.manager$color.sim.by == 'stratum' && !is.null(split.by))
-            df.sim['color.sim.by'] = df.sim$split.by
-        else df.sim['color.sim.by'] = rep('none', nrow=df.sim)
+        df.sim['color.sim.by'] = df.sim[style.manager$color.sim.by]
+        
+        # sort split by alphabetically to line it up with df.truth when colors are picked
+        if (!is.null(split.by))
+            df.sim = df.sim[order(df.sim$stratum),]
     }
     
+    ## YEAR LAG RATIO
     if (plot.year.lag.ratio) {
         ## We will take log of values, then difference, then exponentiate result
         if (!is.null(df.truth)) {
             df.truth$value = log(df.truth$value)
             if (!is.null(split.by)) {
                 if (!is.null(facet.by))
-                    df.truth[['stratum']] = do.call(paste, list(df.truth$split.by, df.truth$facet.by, sep="__"))
-                else
-                    df.truth[['stratum']] = df.truth$split.by
+                    df.truth[['stratum']] = do.call(paste, list(df.truth$stratum, df.truth$facet.by, sep="__"))
             }
             else if (!is.null(facet.by))
                 df.truth[['stratum']] = df.truth$facet.by
@@ -317,9 +333,7 @@ simplot <- function(...,
             df.sim$value = log(df.sim$value)
             if (!is.null(split.by)) {
                 if (!is.null(facet.by))
-                    df.sim[['stratum']] = do.call(paste, list(df.sim$split.by, df.sim$facet.by, sep="__"))
-                else
-                    df.sim[['stratum']] = df.sim$split.by
+                    df.sim[['stratum']] = do.call(paste, list(df.sim$stratum, df.sim$facet.by, sep="__"))
             }
             else if (!is.null(facet.by))
                 df.sim[['stratum']] = df.sim$facet.by
@@ -342,76 +356,91 @@ simplot <- function(...,
         }
     }
     
+    #-- STEP 4: PREPARE PLOT COLORS, SHADES, SHAPES, ETC. --#
+
+    ## COLORS
+    color.sim.by = NULL
+    color.data.primary.colors = NULL
+    
+    sim.color.groups = sort(unique(df.sim$color.sim.by))
+    data.color.groups = sort(unique(df.truth$color.data.by))
+    
+    # if coloring by the same thing, use the same palette (defaulting to SIM's palette) unless one is missing
+    if (style.manager$color.sim.by == style.manager$color.data.by) {
+        all.color.groups = sort(union(sim.color.groups, data.color.groups))
+        
+        if (!is.null(df.sim))
+            all.colors = style.manager$get.sim.colors(length(all.color.groups))
+        else if (!is.null(df.truth))
+            all.colors = style.manager$get.data.colors(length(all.color.groups))
+        else
+            all.colors = NULL # doesn't matter?
+        
+        names(all.colors) = all.color.groups
+        color.sim.by = all.colors[sim.color.groups]
+        color.data.primary.colors = all.colors[data.color.groups]
+    }
+    
+    # otherwise, assign colors individually
+    else {
+        if (!is.null(df.sim)) {
+            color.sim.by = style.manager$get.sim.colors(length(sim.color.groups))
+            names(color.sim.by) = sim.color.groups
+        }
+        if (!is.null(df.truth)) {
+            color.data.primary.colors = style.manager$get.data.colors(length(data.color.groups))
+            names(color.data.primary.colors) = data.color.groups
+        }
+    }
+    
+    ## RIBBON COLOR
+    color.ribbon.by = NULL
     if (!is.null(df.sim)) {
-        
-        
-        # break df.sim into two data frames, one for outcomes where the sim will be lines and the other for where it will be points
+        color.ribbon.by = ggplot2::alpha(color.sim.by, style.manager$alpha.ribbon)
+    }
+    
+    ## SHADES FOR DATA
+    color.data.shaded.colors = NULL
+    if (!is.null(df.truth)) {
+    color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
+    names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
+    }
+    
+    ## SHAPES
+    shapes.for.data = NULL
+    shapes.for.sim = NULL
+    if (!is.null(df.truth)) {
+        shapes.for.data = style.manager$get.shapes(length(unique(df.truth$shape.data.by)))
+        names(shapes.for.data) = unique(df.truth$shape.data.by)
+    }
+    if (!is.null(df.sim)) {
+        shapes.for.sim = style.manager$get.shapes(length(unique(df.sim$shape.sim.by)))
+        names(shapes.for.sim) = unique(df.sim$shape.sim.by)
+    }
+    all.shapes.for.scale = c(shapes.for.data, shapes.for.sim)
+    
+    ## GROUPS
+    # break df.sim into two data frames, one for outcomes where the sim will be lines and the other for where it will be points
+    if (!is.null(df.sim)) {
         groupids.with.one.member = setdiff(unique(df.sim$groupid), df.sim$groupid[which(duplicated(df.sim$groupid))])
         df.sim$groupid_has_one_member = with(df.sim, groupid %in% groupids.with.one.member)
         df.sim.groupids.one.member = subset(df.sim, groupid_has_one_member)
         df.sim.groupids.many.members = subset(df.sim, !groupid_has_one_member)
     }
     
-    if (!is.null(df.truth)) {
-        df.truth['location.type'] = locations::get.location.type(df.truth$location)
-        
-        df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
-        if (style.manager$color.data.by == 'stratum' && !is.null(split.by))
-            df.truth['color.data.by'] = df.truth$split.by
-        else if (style.manager$color.data.by == 'location.type')
-            df.truth['color.data.by'] = df.truth['location.type']
-        else df.truth['color.data.by'] = rep('none', nrow(df.truth))
-        
-        # modify colors with shades
-        # for every color we have, we will then have as many shades of it as we have shade.by features
-        df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
-        df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
-    }
     
-    #-- STEP 4: MAKE THE PLOT --#
-    # browser()
-    y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
-    
-    if (is.null(facet.by))
-        facet.formula = as.formula("~outcome")
-    else
-        facet.formula = as.formula("~outcome + facet.by")
-    # browser()
-    # determine colors as a named vector
-    # need one color per unique value in color "color.and.shade.data.by"
-    # first get one color per color.data.by
-    color.data.shaded.colors = NULL
-    color.sim.by = NULL
-    shapes.for.data = NULL
-    shapes.for.sim = NULL
-    if (!is.null(df.truth)) {
-        color.data.primary.colors = style.manager$get.data.colors(length(unique(df.truth$color.data.by)))
-        color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
-        names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
-        shapes.for.data = style.manager$get.shapes(length(unique(df.truth$shape.data.by)))
-        names(shapes.for.data) = unique(df.truth$shape.data.by)
-    }
-    
-    if (!is.null(df.sim)) {
-        color.sim.by = style.manager$get.sim.colors(length(unique(df.sim$color.sim.by)))
-        names(color.sim.by) = unique(df.sim$color.sim.by)
-        shapes.for.sim = style.manager$get.shapes(length(unique(df.sim$shape.sim.by)))
-        names(shapes.for.sim) = unique(df.sim$shape.sim.by)
-    }
-    
-    all.colors.for.scale = c(color.data.shaded.colors, color.sim.by)
-    all.shapes.for.scale = c(shapes.for.data, shapes.for.sim)
-    
-    # browser()
+    #-- STEP 5: MAKE THE PLOT --#
+
     rv = ggplot2::ggplot()
-    rv = rv + ggplot2::scale_color_manual(values = all.colors.for.scale)
-    rv = rv + ggplot2::scale_shape_manual(values = all.shapes.for.scale)
-    rv = rv + ggplot2::scale_fill_manual(values = color.data.shaded.colors)
-    rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("Shade legend", override.aes = list(shape = 21)))
+    rv = rv + ggplot2::scale_color_manual(name = "sim color", values = color.sim.by)
+    rv = rv + ggplot2::scale_shape_manual(name = "data shape", values = all.shapes.for.scale)
+    rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = color.sim.by)
+    rv = rv + ggplot2::scale_linetype(name="sim linetype")
     
     if (!plot.year.lag.ratio) rv = rv + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
-    else rv = rv + ggplot2::scale_y_continuous(labels = scales::comma)
-
+    else
+        rv = rv + ggplot2::scale_y_continuous(labels = scales::comma)
+    # browser()
     # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
     if (!is.null(split.by)) {
         if (!is.null(df.sim)) {
@@ -423,17 +452,20 @@ simplot <- function(...,
                 ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
                                                                                           color = color.sim.by,
                                                                                           shape = shape.sim.by))
-            
-            
-            # rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=style.manager$linetype.sim.by, group=groupid, color=split.by, alpha=alpha, linewidth=linewidth)) +
-            #     ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=style.manager$shape.data.by, color=split.by))
+            if (summary.type != 'individual.simulation')
+                rv = rv + ggplot2::geom_ribbon(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value,group=groupid,
+                                                                                               fill = color.sim.by,
+                                                                                               ymin = value.lower,
+                                                                                               ymax = value.upper),
+                                               alpha = style.manager$alpha.ribbon,
+                                               outline.type = 'full')
         }
         if (!is.null(df.truth)) {
+            rv = rv + ggnewscale::new_scale_fill() + ggplot2::scale_fill_manual(values = color.data.shaded.colors)
+            rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("data color", override.aes = list(shape = 21)))
             rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,
                                                                       fill=color.and.shade.data.by, # fill
                                                                       shape=shape.data.by))
-            # scale fill manual instead
-            # rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,color=split.by, shape=ifelse(length(unique(location))==1, source, location)))
         }
             
     } else {
@@ -442,25 +474,45 @@ simplot <- function(...,
                                                                                          linetype = linetype.sim.by,
                                                                                          alpha = alpha,
                                                                                          linewidth = linewidth)) +
-                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=shape.sim.by))
-            # rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, linetype=simset, group=groupid, alpha=alpha, linewidth=linewidth)) +
-            #     ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value, shape=simset))
+                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
+                                                                                          color = color.sim.by,
+                                                                                          shape=shape.sim.by))
+            if (summary.type != 'individual.simulation') {
+                rv = rv + ggplot2::geom_ribbon(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value,group=groupid,
+                                                                                               fill = color.sim.by,
+                                                                                               ymin = value.lower,
+                                                                                               ymax = value.upper),
+                                               alpha = style.manager$alpha.ribbon,
+                                               outline.type = 'full')
+                # Remove the fill scale since we don't have more than one sim ribbon color
+                if (style.manager$color.sim.by == "stratum")
+                    rv = rv + ggplot2::guides(fill = "none")
+            }
         }
         if (!is.null(df.truth))
+            rv = rv + ggnewscale::new_scale_fill() + ggplot2::scale_fill_manual(values = color.data.shaded.colors)
+            rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("data color", override.aes = list(shape = 21)))
             rv = rv + ggplot2::geom_point(data=df.truth, size=2, ggplot2::aes(x=year, y=value, fill=color.and.shade.data.by, shape = shape.data.by))
-            # rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, shape=ifelse(length(unique(location))==1, source, location)))
     }
     
-    # rv = rv + ggplot2::scale_color_manual(values = color.values)
+    # If don't have a split.by, and thus only 1 color for sim, probably, then remove legend for it.
+    if (style.manager$color.sim.by == 'stratum' && is.null(split.by))
+        rv = rv + ggplot2::guides(color = "none")
     
+    if (is.null(facet.by))
+        facet.formula = as.formula("~outcome")
+    else
+        facet.formula = as.formula("~outcome + facet.by")
     rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y', )
     
+    y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
     rv = rv +
         ggplot2::scale_alpha(guide='none') +
         ggplot2::labs(y=y.label)
-    if (!is.null(df.sim)) rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
+    if (!is.null(df.sim))
+        rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
     
     if (plot.year.lag.ratio) rv = rv + xlab("latter year")
-    
+    # browser()
     rv
     }
