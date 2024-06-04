@@ -1,284 +1,4 @@
 
-#'@param data.manager The name of the data manager
-#'@param dimensions
-#'@param levels.of.stratification
-#'@param outcome.for.p
-#'@param outcome.for.n
-#'@param sub.location.type Can be NULL
-#'@param super.location.type Can be NULL
-#'@param main.location.type
-#'@param minimum.sample.size
-#'
-#'@export
-get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensions, levels.of.stratification, outcome.for.p, outcome.for.n, sub.location.type, super.location.type, main.location.type = 'CBSA', minimum.sample.size = 12, main.location.type.p.source=NULL, sub.location.type.p.source=NULL, super.location.type.p.source=NULL, main.location.type.n.source=NULL, sub.location.type.n.source=NULL, super.location.type.n.source=NULL, debug=F)
-{
-    error.prefix = "Error getting p bias estimates: "
-    # --- VALIDATION --- #
-    if (debug) browser()
-    
-    # *data.manager*
-    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
-        stop(paste0(error.prefix, "'data.manager' must be an R6 object with class 'jheem.data.manager'"))
-    
-    # *dimensions* is a character vector with no NAs or duplicates, post conversion if NULL
-    if (is.null(dimensions)) dimensions = character(0)
-    if (!is.character(dimensions) || is.null(dimensions) || any(is.na(dimensions)) || any(duplicated(dimensions)))
-        stop(paste0(error.prefix, "'dimensions' must be NULL or a character vector containing no NAs or duplicates"))
-    
-    # *levels.of.stratification* is NULL or a numeric vector with no NAs or duplicates
-    if (!is.numeric(levels.of.stratification) || any(is.na(levels.of.stratification)) || any(duplicated(levels.of.stratification)) || any(sapply(levels.of.stratification, function(x) {x<0})))
-        stop(paste0(error.prefix, "'levels.of.stratification' must be NULL or an integer vector containing no NAs, duplicates, or nonnegative numbers"))
-    
-    # --- so that I don't have to change the code very much to accommodate not having a sub.location.type or super.location.type, I'll set a default but just skip one or other of the loops later.
-    lack.sub.location.type = is.null(sub.location.type)
-    lack.super.location.type = is.null(super.location.type)
-    if (lack.sub.location.type) sub.location.type = 'county'
-    if (lack.super.location.type) super.location.type = 'state'
-    
-    # 0. Prepare stratifications using the same method the likelihood code does, only NULL is better for level 0 than ""
-    levels.of.stratification = as.integer(levels.of.stratification)
-    if (is.null(levels.of.stratification)) levels.of.stratification = 0
-    stratifications = list()
-    for (level in levels.of.stratification)
-    {
-        if (level == 0) stratifications = c(stratifications, list(NULL))
-        else stratifications = c(stratifications, combn(dimensions, level, simplify = F))
-    }
-    
-    # 1. Find locations with data in the data manager
-    locations.with.p.data = data.manager$get.locations.with.data(outcome = outcome.for.p)
-    locations.with.p.and.n.data = intersect(locations.with.p.data, data.manager$get.locations.with.data(outcome = outcome.for.n))
-    
-    # 2. Determine which are MSAs
-    location.types.p = locations::get.location.type(locations.with.p.data)
-    location.types.p.and.n = locations::get.location.type(locations.with.p.and.n.data)
-    msas.p = names(location.types.p[location.types.p == toupper(main.location.type)])
-    msas.p.and.n = names(location.types.p.and.n[location.types.p.and.n == toupper(main.location.type)])
-    if (length(msas.p)==0)
-        stop(paste0(error.prefix, "no locations of type '", main.location.type, "' with '", outcome.for.p, "' data found"))
-    if (length(msas.p.and.n)==0)
-        stop(paste0(error.prefix, "no locations of type '", main.location.type, "' with both '", outcome.for.p, "' and '", outcome.for.n, "' data found"))
-    
-    # 3. Make a list of MSAs and their sub-locations (p) and super locations (n and p) that have data; scrap MSAs with nothing
-    if (!lack.sub.location.type) {
-        main.subs.p = lapply(msas.p, function(msa) {intersect(locations::get.contained.locations(msa, sub.location.type, return.list = F), locations.with.p.data)})
-        names(main.subs.p) = msas.p
-        main.subs.p = main.subs.p[lengths(main.subs.p) > 0]
-        all.relevant.subs.p = unique(unlist(main.subs.p))
-        if (is.null(all.relevant.subs.p))
-            stop(paste0(error.prefix, "no locations of type '", sub.location.type, "' with '", outcome.for.p, "' data found"))
-    }
-    if (!lack.super.location.type) {
-        main.supers.p.and.n = lapply(msas.p.and.n, function(msa) {intersect(locations::get.containing.locations(msa, super.location.type, return.list = F), locations.with.p.and.n.data)})
-        names(main.supers.p.and.n) = msas.p.and.n
-        main.supers.p.and.n = main.supers.p.and.n[lengths(main.supers.p.and.n) > 0]
-        all.relevant.supers.p.and.n = unique(unlist(main.supers.p.and.n))
-        if (is.null(all.relevant.supers.p.and.n))
-            stop(paste0(error.prefix, "no locations of type '", super.location.type, "' with both '", outcome.for.p, "' and '", outcome.for.n, "' data found"))
-    }
-    
-    # 4. Generate an inside-msa p-bias sample by looping across each stratification
-    if (!lack.sub.location.type)
-        p.bias.in.msa = unlist(lapply(stratifications, function(stratification)
-        {
-            # 4a. Pull msa data. Make sure only one source is present because more than one source will make it ambiguous what values will match what. We're already expecting to have different sources for main and sub data.
-            main.data = data.manager$pull(outcome = outcome.for.p,
-                                          sources = main.location.type.p.source,
-                                          keep.dimensions = c('year', 'location', stratification),
-                                          dimension.values = list(location = names(main.subs.p)),
-                                          debug = F)#identical(stratification, "risk"))
-            if (is.null(main.data)) return(NULL)
-            
-            # 4b. Use the msa data to prepare a target ontology for the sub-location data.
-            if (dim(main.data)[['source']] > 1)
-                stop(paste0(error.prefix, main.location.type, " '", outcome.for.p, "' data from more than one source found. Please specify a single source to use in 'main.location.type.p.source'"))
-            new.dimnames = dimnames(main.data)[names(dimnames(main.data)) != 'source']
-            main.data = array(main.data, sapply(new.dimnames, length), new.dimnames)
-            main.data.ontology = as.ontology(dimnames(main.data), incomplete.dimensions = c('year', 'location'))
-            main.data.ontology$location = union(main.data.ontology$location, all.relevant.subs.p) #used to just use all.relevant.subs.p, but then a mapping can't be found because the universal will be only MSAs due to LHD ontology determining uni's location dimension.
-            main.years = main.data.ontology$year
-            
-            # 4c. Pull sub-location data with the main data's ontology as a target. NOTE: IF SUB-LEVEL DATA EXISTS FOR MULTIPLE ONTOLOGIES, ONLY THE FIRST ONTOLOGY'S DATA WILL BE PULLED
-            sub.data = data.manager$pull(outcome=outcome.for.p,
-                                         sources = sub.location.type.p.source,
-                                         keep.dimensions = c('year', 'location', stratification),
-                                         dimension.values = list(location = all.relevant.subs.p, year = main.years),
-                                         target.ontology = main.data.ontology,
-                                         allow.mapping.from.target.ontology = T,
-                                         debug=F)
-            if (is.null(sub.data)) return(NULL)
-            mp = attr(sub.data, 'mapping')
-            if (dim(sub.data)[['source']] > 1)
-                stop(paste0(error.prefix, sub.location.type, " '", outcome.for.p, "' data from more than one source found. Please specify a single source to use in 'sub.location.type.p.source'"))
-            new.dimnames = dimnames(sub.data)[names(dimnames(sub.data)) != 'source']
-            sub.data = array(sub.data, sapply(new.dimnames, length), new.dimnames)
-            
-            # 4d. Determine which MSAs and their sub-locations are present in this stratification's data
-            msas.with.data.this.stratification.mask = names(main.subs.p) %in% dimnames(main.data)$location
-            msas.with.data.this.stratification = names(main.subs.p)[msas.with.data.this.stratification.mask]
-            main.subs.this.stratification = lapply(main.subs.p[msas.with.data.this.stratification.mask], function(main.subs) {
-                main.subs[main.subs %in% dimnames(sub.data)$location]
-            })
-            main.subs.this.stratification = main.subs.this.stratification[lengths(main.subs.this.stratification) > 0]
-            if (length(main.subs.this.stratification) == 0) return(NULL)
-            
-            # 4e. Map the msa data to the ontology of the sub data.
-            align.on.dimnames = dimnames(sub.data)
-            align.on.dimnames$location = dimnames(main.data)$location
-            aligned.main.data = mp$apply(main.data, to.dim.names = align.on.dimnames)
-            
-            # 4f. Get a p-bias vector for each MSA that has data in this stratification and return the collection
-            p.bias.vector = unlist(lapply(1:length(main.subs.this.stratification), function(i) {
-                
-                # 4f.1 Get a slice of the data array for the MSA and another for its sub-locations.
-                main.slice = aligned.main.data[get.array.access.indices(dimnames(aligned.main.data), dimension.values = list(location = names(main.subs.this.stratification)[[i]]))]
-                subs.slice = sub.data[get.array.access.indices(dimnames(sub.data), dimension.values = list(location = main.subs.this.stratification[[i]]))]
-                main.slice.dimnames = dimnames(aligned.main.data)[names(dimnames(aligned.main.data)) != 'location']
-                subs.slice.dimnames = c(main.slice.dimnames, list(location = main.subs.this.stratification[[i]]))
-                main.slice = array(main.slice, dim = sapply(main.slice.dimnames, length), dimnames = main.slice.dimnames)
-                
-                # 4f.2 Expand the MSA slice to be the same size as the subs slice
-                expanded.main.array = expand.array(main.slice, target.dim.names = subs.slice.dimnames)
-                
-                # 4f.3 Take the difference at each position between sub-location and MSA and return as a vector -- this forms part of our in-msa p-bias sample
-                p.bias.vector.for.this.msa = as.vector(subs.slice - expanded.main.array)
-                p.bias.vector.for.this.msa[!is.na(p.bias.vector.for.this.msa)]
-                
-            }))
-        }))
-    else p.bias.in.msa = NA
-    
-    # 5. Generate an outside-msa p-bias sample by looping across each stratification
-    if (!lack.super.location.type)
-        p.bias.out.msa = unlist(lapply(stratifications, function(stratification)
-        {
-            # browser()
-            # 5a. Pull msa *p* data. Use it to make a target ontology for the msa *n* data pull. This assumes that the different outcomes can have the same ontology, which they'd have to if they are a matching numerator/denominator pair.
-            main.p.data = data.manager$pull(outcome = outcome.for.p,
-                                            sources = main.location.type.p.source,
-                                            keep.dimensions = c('year', 'location', stratification),
-                                            dimension.values = list(location = names(main.supers.p.and.n)))
-            if (is.null(main.p.data)) return(NULL)
-            if (dim(main.p.data)[['source']] > 1)
-                stop(paste0(error.prefix, main.location.type, " '", outcome.for.p, "' data from more than one source found. Please specify a single source to use in 'main.location.type.p.source'")) # SHOULD HAVE BEEN CAUGHT ALREADY
-            new.dimnames = dimnames(main.p.data)[names(dimnames(main.p.data)) != 'source']
-            main.p.data = array(main.p.data, sapply(new.dimnames, length), new.dimnames)
-            main.p.data.ontology = as.ontology(dimnames(main.p.data), incomplete.dimensions = c('year', 'location'))
-            main.p.years = main.p.data.ontology$year
-            
-            # 5b. Pull msa *n* data. Use it to make a target ontology for the super *p* data pull.
-            main.n.data = data.manager$pull(outcome = outcome.for.n,
-                                            sources = main.location.type.n.source,
-                                            keep.dimensions = c('year', 'location', stratification),
-                                            dimension.values = list(location = names(main.supers.p.and.n), year = main.p.years),
-                                            target.ontology = main.p.data.ontology,
-                                            allow.mapping.from.target.ontology = T)
-            if (is.null(main.n.data)) return(NULL)
-            mp.main.p.to.main.n = attr(main.n.data, 'mapping')
-            if (dim(main.n.data)[['source']] > 1)
-                stop(paste0(error.prefix, main.location.type, " '", outcome.for.n, "' data from more than one source found. Please specify a single source to use in 'main.location.type.n.source'"))
-            new.dimnames = dimnames(main.n.data)[names(dimnames(main.n.data)) != 'source']
-            main.n.data = array(main.n.data, sapply(new.dimnames, length), new.dimnames)
-            main.n.data.ontology = as.ontology(dimnames(main.n.data), incomplete.dimensions = c('year', 'location'))
-            main.n.data.ontology$location = union(main.n.data.ontology$location, all.relevant.supers.p.and.n)
-            main.n.years = main.n.data.ontology$year
-            
-            # 5c. Pull super-location *p* data. Use it to make a target ontology for the super *n* data pull.
-            super.p.data = data.manager$pull(outcome = outcome.for.p,
-                                             sources = super.location.type.p.source,
-                                             keep.dimensions = c('year', 'location', stratification),
-                                             dimension.values = list(location = all.relevant.supers.p.and.n, year = main.n.years),
-                                             target.ontology = main.n.data.ontology,
-                                             allow.mapping.from.target.ontology = T)
-            if (is.null(super.p.data)) return(NULL)
-            if (dim(super.p.data)[['source']] > 1)
-                stop(paste0(error.prefix, super.location.type, " '", outcome.for.p, "' data from more than one source found. Please specify a single source to use in 'super.location.type.p.source'"))
-            mp.main.n.to.super.p = attr(super.p.data, 'mapping')
-            new.dimnames = dimnames(super.p.data)[names(dimnames(super.p.data)) != 'source']
-            super.p.data = array(super.p.data, sapply(new.dimnames, length), new.dimnames)
-            super.p.data.ontology = as.ontology(dimnames(super.p.data), incomplete.dimensions = c('year', 'location'))
-            super.p.years = super.p.data.ontology$year
-            # browser()
-            # 5d. Pull super-location *n* data.
-            super.n.data = data.manager$pull(outcome = outcome.for.n,
-                                             sources = super.location.type.n.source,
-                                             keep.dimensions = c('year', 'location', stratification),
-                                             dimension.values = list(location = all.relevant.supers.p.and.n, year = super.p.years),
-                                             target.ontology = super.p.data.ontology,
-                                             allow.mapping.from.target.ontology = T)
-            if (is.null(super.n.data)) return(NULL)
-            if (dim(super.n.data)[['source']] > 1)
-                stop(paste0(error.prefix, super.location.type, " '", outcome.for.n, "' data from more than one source found. Please specify a single source to use in 'super.location.type.n.source'"))
-            mp.super.p.to.super.n = attr(super.n.data, 'mapping')
-            new.dimnames = dimnames(super.n.data)[names(dimnames(super.n.data)) != 'source']
-            super.n.data = array(super.n.data, sapply(new.dimnames, length), new.dimnames)
-            
-            # 5e. Align all four datasets by mapping main.p.data to main.n.data, then both of them to super.p.data, then all three of them to super.n.data. Then rename them for ease of reading.
-            main.p.data = mp.main.p.to.main.n$apply(main.p.data)
-            main.p.data = mp.main.n.to.super.p$apply(main.p.data)
-            main.p.data = mp.super.p.to.super.n$apply(main.p.data)
-            
-            main.n.data = mp.main.n.to.super.p$apply(main.n.data)
-            main.n.data = mp.super.p.to.super.n$apply(main.n.data)
-            
-            super.p.data = mp.super.p.to.super.n$apply(super.p.data)
-            
-            # 5d. Determine which MSAs and their super-locations are present in all of this stratification's data
-            mains.with.data.this.stratification.mask = names(main.supers.p.and.n) %in% intersect(dimnames(main.p.data)$location, dimnames(main.n.data)$location)
-            mains.with.data.this.stratification = names(main.supers.p.and.n)[mains.with.data.this.stratification.mask]
-            main.supers.this.stratification = lapply(main.supers.p.and.n[mains.with.data.this.stratification.mask], function(main.supers) {
-                main.supers[main.supers %in% intersect(dimnames(super.p.data)$location, dimnames(super.n.data)$location)]
-            })
-            names(main.supers.this.stratification) = mains.with.data.this.stratification
-            main.supers.this.stratification = main.supers.this.stratification[lengths(main.supers.this.stratification) > 0]
-            if (length(main.supers.this.stratification) == 0) return(NULL)
-            common.years = intersect(dimnames(main.p.data)$year, intersect(dimnames(main.n.data)$year, intersect(dimnames(super.p.data)$year, dimnames(super.n.data)$year)))
-            
-            # 5f. Get a p-bias vector for each MSA that has data in this stratification and return the collection
-            p.bias.vector = unlist(lapply(1:length(main.supers.this.stratification), function(i) {
-                # 5f.1 Get a slices of the n and p data arrays for the MSA and others for its super-locations. Make sure they have the same *years* (TO GENERALIZE, MAKE THIS ANY INCOMPLETE DIMENSIONS IN THE ONTOLOGY).
-                main.p.slice = main.p.data[get.array.access.indices(dimnames(main.p.data), dimension.values = list(year=common.years, location = names(main.supers.this.stratification)[[i]]))]
-                supers.p.slice = super.p.data[get.array.access.indices(dimnames(super.p.data), dimension.values = list(year=common.years, location = main.supers.this.stratification[[i]]))]
-                main.n.slice = main.n.data[get.array.access.indices(dimnames(main.n.data), dimension.values = list(year=common.years, location = names(main.supers.this.stratification)[[i]]))]
-                supers.n.slice = super.n.data[get.array.access.indices(dimnames(super.n.data), dimension.values = list(year=common.years, location = main.supers.this.stratification[[i]]))]
-                
-                main.p.slice.dimnames = dimnames(main.p.data)[names(dimnames(main.p.data)) != 'location']
-                main.p.slice.dimnames$year = common.years
-                supers.p.slice.dimnames = c(main.p.slice.dimnames, list(location = main.supers.this.stratification[[i]]))
-                supers.p.slice.dimnames$year = common.years
-                main.n.slice.dimnames = dimnames(main.n.data)[names(dimnames(main.n.data)) != 'location']
-                main.n.slice.dimnames$year = common.years
-                supers.n.slice.dimnames = c(main.n.slice.dimnames, list(location = main.supers.this.stratification[[i]]))
-                supers.n.slice.dimnames$year = common.years
-                
-                main.p.slice = array(main.p.slice, dim = sapply(main.p.slice.dimnames, length), dimnames = main.p.slice.dimnames)
-                main.n.slice = array(main.n.slice, dim = sapply(main.n.slice.dimnames, length), dimnames = main.n.slice.dimnames)
-                
-                # 5f.2 Expand the MSA slices to be the same size as the supers slices
-                expanded.main.p.array = expand.array(main.p.slice, target.dim.names = supers.p.slice.dimnames)
-                expanded.main.n.array = expand.array(main.n.slice, target.dim.names = supers.n.slice.dimnames)
-                
-                # 5f.3 Perform a calculation at each position between super-location and MSA and return as a vector -- this forms part of our out-of-msa p-bias sample
-                p.bias.vector.for.this.msa = as.vector((supers.p.slice * supers.n.slice - expanded.main.p.array * expanded.main.n.array) / (supers.n.slice - expanded.main.n.array) - expanded.main.p.array) # can get divide by 0, making Inf
-                
-                p.bias.vector.for.this.msa[!is.na(p.bias.vector.for.this.msa) & !is.infinite(p.bias.vector.for.this.msa)]
-            }))
-        }))
-    else p.bias.out.msa = NA
-    
-    # 6. Return the mean and standard deviation of the in-msa and out-of-msa samples. Note that this next needs to be processed via metalocation type and made into a list of matrices by model stratum.
-    if (!lack.sub.location.type && length(p.bias.in.msa) < minimum.sample.size)
-        stop(paste0(error.prefix, "not enough samples found for p.bias.in.msa"))
-    if (!lack.super.location.type && length(p.bias.out.msa) < minimum.sample.size)
-        stop(paste0(error.prefix, "not enough samples found for p.bias.out.msa"))
-    list(in.mean = mean(p.bias.in.msa),
-         out.mean = mean(p.bias.out.msa),
-         in.sd = sd(p.bias.in.msa),
-         out.sd = sd(p.bias.out.msa),
-         n.in = ifelse(!lack.sub.location.type, length(p.bias.in.msa), NA),
-         n.out = ifelse(!lack.super.location.type, length(p.bias.out.msa), NA))
-}
-
 create.nested.proportion.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
                                                                                       denominator.outcome.for.data, # is NEVER null here because we are working with proportions
                                                                                       outcome.for.sim,
@@ -370,7 +90,100 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
                                                         
                                                         weights = weights,
                                                         equalize.weight.by.year = equalize.weight.by.year,
-                                                        partitioning.function = partitioning.function)
+                                                        partitioning.function = partitioning.function,
+                                                        use.lognormal.approximation = F,
+                                                        calculate.lagged.difference = F)
+}
+
+create.time.lagged.comparison.nested.proportion.likelihood.instructions <- function(outcome.for.data,
+                                                                                    denominator.outcome.for.data, # is NEVER null here because we are working with proportions
+                                                                                    outcome.for.sim,
+                                                                                    denominator.outcome.for.sim = NULL, # if NULL, uses denominator data within the sim data
+                                                                                    outcome.for.n.multipliers = denominator.outcome.for.data,
+                                                                                    
+                                                                                    location.types, # test is c('county', 'state')
+                                                                                    minimum.geographic.resolution.type, # test with 'county' #metalocations MUST contain these
+                                                                                    maximum.locations.per.type = 3,
+                                                                                    
+                                                                                    dimensions = NULL, # this can be NULL because it's more intuitive to most users, but I'll change it to character(0) later
+                                                                                    levels.of.stratification = 0:length(dimensions), # default 0:length(dimensions)
+                                                                                    
+                                                                                    from.year = -Inf,
+                                                                                    to.year = Inf,
+                                                                                    omit.years = NULL,
+                                                                                    
+                                                                                    sources.to.use = NULL,
+                                                                                    redundant.location.threshold = 5,
+                                                                                    
+                                                                                    p.bias.inside.location,
+                                                                                    p.bias.outside.location,
+                                                                                    p.bias.sd.inside.location,
+                                                                                    p.bias.sd.outside.location,
+                                                                                    
+                                                                                    within.location.p.error.correlation = 0.5,
+                                                                                    within.location.n.error.correlation = 0.5,
+                                                                                    
+                                                                                    correlation.different.locations = 0,
+                                                                                    correlation.different.years = 0.5,
+                                                                                    correlation.different.strata = 0.1,
+                                                                                    correlation.different.sources = 0.3,
+                                                                                    correlation.same.source.different.details = 0.3,
+                                                                                    observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
+                                                                                    n.multiplier.cv = 0.1, # keeping this one
+                                                                                    
+                                                                                    p.error.variance.term=NULL,
+                                                                                    p.error.variance.type=NULL,
+                                                                                    n.error.variance.term=0.05, # placeholder
+                                                                                    n.error.variance.type='cv', # placeholder # same as old "denominator.measurement.error.cv"?
+                                                                                    
+                                                                                    weights,
+                                                                                    equalize.weight.by.year = T,
+                                                                                    
+                                                                                    partitioning.function,
+                                                                                    use.lognormal.approximation = T) # only change compared to generic
+{
+    JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
+                                                        denominator.outcome.for.data = denominator.outcome.for.data,
+                                                        outcome.for.sim = outcome.for.sim,
+                                                        denominator.outcome.for.sim = denominator.outcome.for.sim,
+                                                        outcome.for.n.multipliers = outcome.for.n.multipliers,
+                                                        location.types = location.types,
+                                                        minimum.geographic.resolution.type = minimum.geographic.resolution.type,
+                                                        maximum.locations.per.type = maximum.locations.per.type,
+                                                        dimensions = dimensions,
+                                                        levels.of.stratification = levels.of.stratification,
+                                                        from.year = from.year,
+                                                        to.year = to.year,
+                                                        omit.years = omit.years,
+                                                        sources.to.use = sources.to.use,
+                                                        redundant.location.threshold = redundant.location.threshold,
+                                                        included.multiplier=NULL,
+                                                        included.multiplier.sd=NULL,
+                                                        included.multiplier.correlation=NULL,
+                                                        p.bias.inside.location = p.bias.inside.location,
+                                                        p.bias.outside.location = p.bias.outside.location,
+                                                        p.bias.sd.inside.location = p.bias.sd.inside.location,
+                                                        p.bias.sd.outside.location = p.bias.sd.outside.location,
+                                                        within.location.p.error.correlation = within.location.p.error.correlation,
+                                                        within.location.n.error.correlation = within.location.n.error.correlation,
+                                                        correlation.different.locations = correlation.different.locations,
+                                                        correlation.different.years = correlation.different.years,
+                                                        correlation.different.strata = correlation.different.strata,
+                                                        correlation.different.sources = correlation.different.sources,
+                                                        correlation.same.source.different.details = correlation.same.source.different.details,
+                                                        observation.correlation.form = observation.correlation.form,
+                                                        n.multiplier.cv = n.multiplier.cv,
+                                                        
+                                                        p.error.variance.term = p.error.variance.term,
+                                                        p.error.variance.type = p.error.variance.type,
+                                                        n.error.variance.term = n.error.variance.term,
+                                                        n.error.variance.type = n.error.variance.type,
+                                                        
+                                                        weights = weights,
+                                                        equalize.weight.by.year = equalize.weight.by.year,
+                                                        partitioning.function = partitioning.function,
+                                                        use.lognormal.approximation = use.lognormal.approximation, # changed vs generic
+                                                        calculate.lagged.difference = T) # changed vs generic
 }
 
 #'@inheritParams create.nested.proportion.likelihood.instructions
@@ -474,7 +287,9 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                         
                                                         weights = weights,
                                                         equalize.weight.by.year = equalize.weight.by.year,
-                                                        partitioning.function = partitioning.function)
+                                                        partitioning.function = partitioning.function,
+                                                        use.lognormal.approximation = F,
+                                                        calculate.lagged.difference = F)
     
 }
 
@@ -524,7 +339,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               
                               weights,
                               equalize.weight.by.year,
-                              partitioning.function)
+                              partitioning.function,
+                              use.lognormal.approximation,
+                              calculate.lagged.difference)
         {
             
             error.prefix = paste0('Error creating nested proportion likelihood instructions: ')
@@ -683,6 +500,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (!is.function(partitioning.function) || length(formals(partitioning.function)) != 3 || names(formals(partitioning.function))[[1]] != 'arr' || names(formals(partitioning.function))[[2]] != 'version' || names(formals(partitioning.function))[[3]] != 'location')
                 stop(paste0(error.prefix, "'partitioning.function' must be a function with only three arguments: 'arr', 'version', and 'location'"))
             
+            #use.lognormal.approximation
+            if (!is.logical(use.lognormal.approximation) || length(use.lognormal.approximation)!=1 || is.na(use.lognormal.approximation))
+                stop(paste0(error.prefix, "'use.lognormal.approximation' must be a single logical value (T/F)"))
+            #calculate.lagged.difference
+            if (!is.logical(calculate.lagged.difference) || length(calculate.lagged.difference)!=1 || is.na(calculate.lagged.difference))
+                stop(paste0(error.prefix, "'calculate.lagged.difference' must be a single logical value (T/F)"))
+            
             # PROCESSING #
             omit.years = as.integer(omit.years)
             
@@ -725,6 +549,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                                         n.error.variance.type = n.error.variance.type)
             
             private$i.partitioning.function = partitioning.function
+            private$i.use.lognormal.approximation = use.lognormal.approximation
+            private$i.calculate.lagged.difference = calculate.lagged.difference
         }
         
     ),
@@ -863,6 +689,22 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             }
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'partitioning.function' - it is read-only")
+        },
+        use.lognormal.approximation = function(value)
+        {
+            if (missing(value)) {
+                private$i.use.lognormal.approximation
+            }
+            else
+                stop("Cannot modify a jheem.basic.likelihood.instruction's 'use.lognormal.approximation' - it is read-only")
+        },
+        calculate.lagged.difference = function(value)
+        {
+            if (missing(value)) {
+                private$i.calculate.lagged.difference
+            }
+            else
+                stop("Cannot modify a jheem.basic.likelihood.instruction's 'calculate.lagged.difference' - it is read-only")
         }
         
         
@@ -888,7 +730,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         i.sources.to.use = NULL,
         i.redundant.location.threshold = NULL,
         
-        i.partitioning.function = NULL
+        i.partitioning.function = NULL,
+        i.use.lognormal.approximation = NULL,
+        i.calculate.lagged.difference = NULL
     )
 )
 
@@ -913,7 +757,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                              location = location,
                              error.prefix = error.prefix)
             
-            post.time.checkpoint.flag = F
+            post.time.checkpoint.flag = T
             
             # Validate *data.manager*, a 'jheem.data.manager' object
             if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
@@ -937,6 +781,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             private$i.within.location.p.error.correlation = private$i.parameters$within.location.p.error.correlation
             private$i.within.location.n.error.correlation = private$i.parameters$within.location.n.error.correlation
+            
+            private$i.use.lognormal.approximation = instructions$use.lognormal.approximation
+            private$i.calculate.lagged.difference = instructions$calculate.lagged.difference
             
             
             # Find years we have data for. Note: this does not guarantee that we'll have data for *our* locations, especially since we don't know what counties they'll be made up of yet.
@@ -1063,6 +910,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     
                     private$i.p.error.vector = c(private$i.p.error.vector, one.p.error.data)
                 }
+                
+                # If we have lognormal approximation on, we should transform the observations right now, after converting zeroes to NA so that they are ignored in the same ways.
+                if (private$i.use.lognormal.approximation) {
+                    data[data==0]=NA
+                    data = log(data)
+                }
+                
                 n.stratifications.with.data = n.stratifications.with.data + 1
                 one.dimnames = dimnames(data)
                 one.locations = dimnames(data)$location
@@ -1132,7 +986,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 # data.keep.dimensions = union(data.keep.dimensions, keep.dimensions) # Why do I do this?? Maybe I don't need a dimension?
                 
             }
-            if (length(private$i.obs.p)==0) stop(paste0(error.prefix, "no data was found for any stratification"))
+            private$i.n.obs = length(private$i.obs.p)
+            if (private$i.n.obs==0) stop(paste0(error.prefix, "no data was found for any stratification"))
             
             if (post.time.checkpoint.flag) print(paste0("Finish pulling: ", Sys.time()))
 
@@ -1188,15 +1043,31 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             # Reorder -- everything should be in the order of the sim.ontology so that it aligns with the sim$get arrays later.
             private$i.sim.keep.dimensions = names(private$i.sim.ontology)[sort(sapply(private$i.sim.keep.dimensions, function(d) {which(names(private$i.sim.ontology) == d)}))]
-            # browser()
+            
+            # years.with.data = get.range.robust.year.intersect(private$i.sim.required.dimnames$year, as.character(sort(unique(private$i.metadata$year))))
+            years.with.data = private$i.sim.required.dimnames$year
+            n.years = length(years.with.data)
+            private$i.obs.year.index = sapply(private$i.metadata$year, function(y) {which(years.with.data == y)})
+            
+            ## ---- GENERATE LAGGED PAIRS IF REQUESTED ---- ##
+            if (private$i.calculate.lagged.difference) {
+                private$i.metadata$year = suppressWarnings(as.numeric(private$i.metadata$year))
+                if (any(is.na(private$i.metadata$year)))
+                    stop(paste0(error.prefix, "'calculate.lagged.difference' can only be used with single-year data points"))
+                private$i.lagged.pairs = generate_lag_matrix_indices(private$i.metadata$year,# check if valid -- no year ranges, please!
+                                                                     as.integer(as.factor(private$i.metadata$location)), # location not used for basic likelihoods but is available for nested prop likelihoods
+                                                                     as.integer(as.factor(private$i.metadata$stratum)),
+                                                                     as.integer(as.factor(private$i.metadata$source)),
+                                                                     private$i.n.obs)
+                if (length(private$i.lagged.pairs)==0)
+                    stop(paste0(error.prefix, "no data found for lagged-year pairs"))
+                private$i.n.lagged.obs = length(private$i.lagged.pairs)/2
+            }
+            
             # Generate transformation matrix
             if (post.time.checkpoint.flag) print(paste0("Generate transformation matrix: ", Sys.time()))
             private$i.transformation.matrix = generate.transformation.matrix.nested(dimnames.list, locations.list, remove.mask.list, n.stratifications.with.data, private$i.sim.required.dimnames, all.locations = private$i.sim.ontology$location)
             # browser()
-            n.obs = length(private$i.obs.p)
-            # years.with.data = get.range.robust.year.intersect(private$i.sim.required.dimnames$year, as.character(sort(unique(private$i.metadata$year))))
-            years.with.data = private$i.sim.required.dimnames$year
-            n.years = length(years.with.data)
             
             # data frame of model strata, unless we only have totals
             model.stratification = private$i.sim.keep.dimensions[!(private$i.sim.keep.dimensions %in% c('year', 'location'))]
@@ -1208,13 +1079,11 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 model.strata = expand.grid(private$i.sim.ontology[names(private$i.sim.ontology) %in% model.stratification])
                 n.strata = nrow(model.strata)
             }
-            # browser()
-            private$i.obs.year.index = sapply(private$i.metadata$year, function(y) {which(years.with.data == y)})
             
             if (post.time.checkpoint.flag) print(paste0("Generate measurement error correlation matrix: ", Sys.time()))
             
-            measurement.error.correlation.matrix = get_obs_error_correlation_matrix(rep(1, n.obs**2),
-                                                                                    n.obs,
+            measurement.error.correlation.matrix = get_obs_error_correlation_matrix(rep(1, private$i.n.obs**2),
+                                                                                    private$i.n.obs,
                                                                                     as.numeric(private$i.metadata$location),
                                                                                     as.numeric(private$i.metadata$year),
                                                                                     as.numeric(private$i.metadata$stratum),
@@ -1240,7 +1109,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 measurement.error.sd = private$i.obs.p * private$i.parameters$p.error.variance.term
                 private$i.obs.error = measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
             }
-            dim(private$i.obs.error) = c(n.obs, n.obs)
+            dim(private$i.obs.error) = c(private$i.n.obs, private$i.n.obs)
             # browser()
             # ------ THINGS THAT DEPEND ON OBSERVATION-LOCATIONS ------ #
             observation.locations = union(as.vector(unique(private$i.metadata$location)), location) #otherwise is factor
@@ -1272,7 +1141,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
 
             # The T matrix is currently in dimensions responses x year-location-stratum
             # Now, split it into responses x year x location x stratum
-            dim(private$i.transformation.matrix) = c(n.obs, n.years, n.obs.locations, n.strata)
+            dim(private$i.transformation.matrix) = c(private$i.n.obs, n.years, n.obs.locations, n.strata)
             
             if (post.time.checkpoint.flag) print(paste0("Generate year loc stratum to obs mapping: ", Sys.time()))
             
@@ -1282,7 +1151,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 dim(stratum.transformation.array) = dim(stratum.transformation.array)[c(T,T,T,F)]
                 
                 # flatten year and location to a matrix
-                dim(stratum.transformation.array) = c(n.obs, n.years * n.obs.locations)
+                dim(stratum.transformation.array) = c(private$i.n.obs, n.years * n.obs.locations)
                 stratum.transformation.array
             })
             
@@ -1384,8 +1253,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     included.multiplier.sd.vector = sapply(private$i.metadata$year, function(obs.year) {private$i.parameters$included.multiplier.sd[obs.year]})
                 }
                 else {
-                    included.multiplier.vector = rep(private$i.parameters$included.multiplier, n.obs)
-                    included.multiplier.sd.vector = rep(private$i.parameters$included.multiplier.sd, n.obs)
+                    included.multiplier.vector = rep(private$i.parameters$included.multiplier, private$i.n.obs)
+                    included.multiplier.sd.vector = rep(private$i.parameters$included.multiplier.sd, private$i.n.obs)
                 }
                 
                 inverse.multiplier.matrix = (1/included.multiplier.vector) %*% t(1/included.multiplier.vector)
@@ -1394,8 +1263,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 if (private$i.parameters$included.multiplier.correlation.form == "autoregressive.1" && any(is.year.range(private$i.metadata$year)))
                     stop(paste0(error.prefix, "instructions cannot use 'autoregressive.1' for 'included.multiplier.correlation.form' since observations with year ranges were found"))
                 
-                multiplier.correlation.matrix = get_multiplier_correlation_matrix(rep(1, n.obs**2),
-                                                                                  n.obs,
+                multiplier.correlation.matrix = get_multiplier_correlation_matrix(rep(1, private$i.n.obs**2),
+                                                                                  private$i.n.obs,
                                                                                   as.numeric(private$i.metadata$year),
                                                                                   private$i.parameters$included.multiplier.correlation,
                                                                                   private$i.parameters$included.multiplier.correlation.structure == "autoregressive.1")
@@ -1497,6 +1366,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         i.inverse.multiplier.matrix.times.cov.mat = NULL,
         i.partitioning.function = NULL,
         
+        i.n.obs = NULL,
+        i.n.lagged.obs = NULL,
+        i.use.lognormal.approximation = NULL,
+        i.calculate.lagged.difference = NULL,
+        i.lagged.pairs = NULL,
+        
         do.compute = function(sim, log=T, check.consistency=T, debug=F)
         {
             sim.p = sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])
@@ -1554,6 +1429,35 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 sigma = sigma + private$i.inverse.multiplier.matrix.times.cov.mat * (sigma + mean %*% t(mean))
             }
             
+            if (private$i.use.lognormal.approximation)
+            {
+                mean.reciprocal = 1/mean
+                sigma = log(mean.reciprocal %*% t(mean.reciprocal) * sigma + 1)
+                mean = log(mean) - diag(sigma)/2
+                # obs should have been put on the log scale before this
+            }
+            
+            if (private$i.calculate.lagged.difference)
+            {
+                obs.vector = apply_lag_to_vector(obs.vector,
+                                                 private$i.lagged.pairs,
+                                                 rep(0, private$i.n.lagged.obs),
+                                                 private$i.n.obs)
+                mean = apply_lag_to_vector(mean,
+                                           private$i.lagged.pairs,
+                                           rep(0, private$i.n.lagged.obs),
+                                           private$i.n.obs)
+                sigma = apply_lag_to_matrix(sigma,
+                                            private$i.lagged.pairs,
+                                            rep(0, private$i.n.lagged.obs**2),
+                                            private$i.n.obs)
+                dim(sigma) = c(private$i.n.lagged.obs, private$i.n.lagged.obs)
+                # mean = private$i.lag.matrix %*% mean
+                # sigma = private$i.lag.matrix %*% sigma %*% private$i.transposed.lag.matrix # there is a more efficient way to do this if we know there are only two non-zero elements per row in lag matrix
+                
+                #to do at instantiate time: obs = private$i.lag.matrix %*% obs
+            }
+            
             likelihood = mvtnorm::dmvnorm(obs.vector,
                                           mean = mean,
                                           sigma = sigma,
@@ -1561,7 +1465,11 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                           checkSymmetry = F)
             
             if (debug) {
-                output.summary = cbind(private$i.metadata, obs.p = round(private$i.obs.p, 3), mean.p = round(mean/lik.components$obs.n, 3), sd.p = round(sqrt(diag(sigma))/lik.components$obs.n, 3))
+                if (private$i.calculate.lagged.difference)
+                    # doesn't work yet
+                    lik.summary = cbind(obs.p=round(private$i.obs.p, 3), mean.p = round(mean/lik.components$obs.n, 3), sd.p = round(sqrt(diag(sigma))/lik.components$obs.n, 3))
+                else
+                    lik.summary = cbind(private$i.metadata, obs.p =round(private$i.obs.p, 3), mean.p = round(mean/lik.components$obs.n, 3), sd.p = round(sqrt(diag(sigma))/lik.components$obs.n, 3))
                 browser()
             }
             likelihood
@@ -1916,7 +1824,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             rep(list(matrix.each.stratum), n.strata)
         },
         
-        get.obs.n = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, sim.ontology, model.strata, partitioning.function, version, location)
+        get.obs.n = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, sim.ontology, model.strata, partitioning.function, version, location, error.prefix)
         {
             # browser()
             
@@ -1933,7 +1841,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             obs.n.cache = new.env()
             
             # Get obs.n.array with its missing data mask attached an attribute. Convert the mask to numeric so that at the end of partitioning, anything > 0 has a ancestral value that was missing
-            obs.n.array = get.average(data.manager, stratification.for.n, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = T, cache=obs.n.cache) # Note: "stratification" may be character(0) if we only have totals
+            obs.n.array = get.average(data.manager, stratification.for.n, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = T, cache=obs.n.cache, error.prefix=error.prefix) # Note: "stratification" may be character(0) if we only have totals
             data.ontology = as.ontology(dimnames(obs.n.array)[names(dim(obs.n.array))!='location'], incomplete.dimensions = c('year'))
             obs.n.mask.array = array(as.numeric(attr(obs.n.array, 'missing.data.mask')), dim(obs.n.array), dimnames(obs.n.array))
             
@@ -2001,8 +1909,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             list(obs.n = one.matrix.per.stratum, locations.with.n.data = locations.with.all.data, estimated.values = was.missing.arr)
         },
         
-        # hard code female msm as not needed so we can stop if it is NA?
-        get.average = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames = NULL, cache)
+        # hard code female msm as not needed so we can stop if it is NA? -> never implemented
+        get.average = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames = NULL, cache, error.prefix)
         {
             
             ### check if this is cached. If so, use it and return. If not, set it at the end.
@@ -2054,6 +1962,14 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     # problem: dimnames(data) has single years but complete.array has year ranges
                     data = complete.array
                 }
+                
+                ## NEW: If were at top or 1-way and a stratum is missing at most 30% of its data, interpolate NAs across years
+                if (length(stratification)<=1 && any(is.na(data))) {
+                    # check if any stratum is missing more than 30% of its data
+                    if (any(apply(is.na(data), names(dim(data))[names(dim(data))!='year'], function(x) {sum(x)/length(x) >= 0.3})))
+                        stop(paste0(error.prefix, "more than 30% of ", outcome.for.n, " data is missing for at least one location and stratum in stratification '", paste(c('year', 'location', stratification), collapse="__"), "'"))
+                    data = interpolate.array(data)
+                }
             }
             
             if (is.top.level) top.level.dimnames = dimnames(data)
@@ -2085,7 +2001,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             # if we lack data for certain years... could be an issue... should add years in I think
             # if (identical(stratification, c('risk', 'race'))) browser()
             k.minus.2.way.data = lapply(k.minus.2.way.stratifications, function(k.minus.2.way.stratification) {
-                lower.data = get.average(data.manager, k.minus.2.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames, cache=cache)
+                lower.data = get.average(data.manager, k.minus.2.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames, cache=cache, error.prefix=error.prefix)
                 if (is.null(lower.data)) return (NULL)
                 missing.years = setdiff(top.level.dimnames$year, dimnames(lower.data)$year)
                 if (length(missing.years)>0) {
@@ -2099,7 +2015,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             })
             
             k.minus.1.way.data = lapply(k.minus.1.way.stratifications, function(k.minus.1.way.stratification) {
-                lower.data = get.average(data.manager, k.minus.1.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames, cache=cache)
+                lower.data = get.average(data.manager, k.minus.1.way.stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames, cache=cache, error.prefix=error.prefix)
                 if (is.null(lower.data)) return (NULL)
                 missing.years = setdiff(top.level.dimnames$year, dimnames(lower.data)$year)
                 if (length(missing.years)>0) {
@@ -2188,6 +2104,287 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         }
     )
 )
+
+
+#'@param data.manager The name of the data manager
+#'@param dimensions
+#'@param levels.of.stratification
+#'@param outcome.for.p
+#'@param outcome.for.n
+#'@param sub.location.type Can be NULL
+#'@param super.location.type Can be NULL
+#'@param main.location.type
+#'@param minimum.sample.size
+#'
+#'@export
+get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensions, levels.of.stratification, outcome.for.p, outcome.for.n, sub.location.type, super.location.type, main.location.type = 'CBSA', minimum.sample.size = 12, main.location.type.p.source=NULL, sub.location.type.p.source=NULL, super.location.type.p.source=NULL, main.location.type.n.source=NULL, sub.location.type.n.source=NULL, super.location.type.n.source=NULL, debug=F)
+{
+    error.prefix = "Error getting p bias estimates: "
+    # --- VALIDATION --- #
+    if (debug) browser()
+    
+    # *data.manager*
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop(paste0(error.prefix, "'data.manager' must be an R6 object with class 'jheem.data.manager'"))
+    
+    # *dimensions* is a character vector with no NAs or duplicates, post conversion if NULL
+    if (is.null(dimensions)) dimensions = character(0)
+    if (!is.character(dimensions) || is.null(dimensions) || any(is.na(dimensions)) || any(duplicated(dimensions)))
+        stop(paste0(error.prefix, "'dimensions' must be NULL or a character vector containing no NAs or duplicates"))
+    
+    # *levels.of.stratification* is NULL or a numeric vector with no NAs or duplicates
+    if (!is.numeric(levels.of.stratification) || any(is.na(levels.of.stratification)) || any(duplicated(levels.of.stratification)) || any(sapply(levels.of.stratification, function(x) {x<0})))
+        stop(paste0(error.prefix, "'levels.of.stratification' must be NULL or an integer vector containing no NAs, duplicates, or nonnegative numbers"))
+    
+    # --- so that I don't have to change the code very much to accommodate not having a sub.location.type or super.location.type, I'll set a default but just skip one or other of the loops later.
+    lack.sub.location.type = is.null(sub.location.type)
+    lack.super.location.type = is.null(super.location.type)
+    if (lack.sub.location.type) sub.location.type = 'county'
+    if (lack.super.location.type) super.location.type = 'state'
+    
+    # 0. Prepare stratifications using the same method the likelihood code does, only NULL is better for level 0 than ""
+    levels.of.stratification = as.integer(levels.of.stratification)
+    if (is.null(levels.of.stratification)) levels.of.stratification = 0
+    stratifications = list()
+    for (level in levels.of.stratification)
+    {
+        if (level == 0) stratifications = c(stratifications, list(NULL))
+        else stratifications = c(stratifications, combn(dimensions, level, simplify = F))
+    }
+    
+    # 1. Find locations with data in the data manager
+    locations.with.p.data = data.manager$get.locations.with.data(outcome = outcome.for.p)
+    locations.with.p.and.n.data = intersect(locations.with.p.data, data.manager$get.locations.with.data(outcome = outcome.for.n))
+    
+    # 2. Determine which are MSAs
+    location.types.p = locations::get.location.type(locations.with.p.data)
+    location.types.p.and.n = locations::get.location.type(locations.with.p.and.n.data)
+    msas.p = names(location.types.p[location.types.p == toupper(main.location.type)])
+    msas.p.and.n = names(location.types.p.and.n[location.types.p.and.n == toupper(main.location.type)])
+    if (length(msas.p)==0)
+        stop(paste0(error.prefix, "no locations of type '", main.location.type, "' with '", outcome.for.p, "' data found"))
+    if (length(msas.p.and.n)==0)
+        stop(paste0(error.prefix, "no locations of type '", main.location.type, "' with both '", outcome.for.p, "' and '", outcome.for.n, "' data found"))
+    
+    # 3. Make a list of MSAs and their sub-locations (p) and super locations (n and p) that have data; scrap MSAs with nothing
+    if (!lack.sub.location.type) {
+        main.subs.p = lapply(msas.p, function(msa) {intersect(locations::get.contained.locations(msa, sub.location.type, return.list = F), locations.with.p.data)})
+        names(main.subs.p) = msas.p
+        main.subs.p = main.subs.p[lengths(main.subs.p) > 0]
+        all.relevant.subs.p = unique(unlist(main.subs.p))
+        if (is.null(all.relevant.subs.p))
+            stop(paste0(error.prefix, "no locations of type '", sub.location.type, "' with '", outcome.for.p, "' data found"))
+    }
+    if (!lack.super.location.type) {
+        main.supers.p.and.n = lapply(msas.p.and.n, function(msa) {intersect(locations::get.containing.locations(msa, super.location.type, return.list = F), locations.with.p.and.n.data)})
+        names(main.supers.p.and.n) = msas.p.and.n
+        main.supers.p.and.n = main.supers.p.and.n[lengths(main.supers.p.and.n) > 0]
+        all.relevant.supers.p.and.n = unique(unlist(main.supers.p.and.n))
+        if (is.null(all.relevant.supers.p.and.n))
+            stop(paste0(error.prefix, "no locations of type '", super.location.type, "' with both '", outcome.for.p, "' and '", outcome.for.n, "' data found"))
+    }
+    
+    # 4. Generate an inside-msa p-bias sample by looping across each stratification
+    if (!lack.sub.location.type)
+        p.bias.in.msa = unlist(lapply(stratifications, function(stratification)
+        {
+            # 4a. Pull msa data. Make sure only one source is present because more than one source will make it ambiguous what values will match what. We're already expecting to have different sources for main and sub data.
+            main.data = data.manager$pull(outcome = outcome.for.p,
+                                          sources = main.location.type.p.source,
+                                          keep.dimensions = c('year', 'location', stratification),
+                                          dimension.values = list(location = names(main.subs.p)),
+                                          debug = F)#identical(stratification, "risk"))
+            if (is.null(main.data)) return(NULL)
+            
+            # 4b. Use the msa data to prepare a target ontology for the sub-location data.
+            if (dim(main.data)[['source']] > 1)
+                stop(paste0(error.prefix, main.location.type, " '", outcome.for.p, "' data from more than one source found. Please specify a single source to use in 'main.location.type.p.source'"))
+            new.dimnames = dimnames(main.data)[names(dimnames(main.data)) != 'source']
+            main.data = array(main.data, sapply(new.dimnames, length), new.dimnames)
+            main.data.ontology = as.ontology(dimnames(main.data), incomplete.dimensions = c('year', 'location'))
+            main.data.ontology$location = union(main.data.ontology$location, all.relevant.subs.p) #used to just use all.relevant.subs.p, but then a mapping can't be found because the universal will be only MSAs due to LHD ontology determining uni's location dimension.
+            main.years = main.data.ontology$year
+            
+            # 4c. Pull sub-location data with the main data's ontology as a target. NOTE: IF SUB-LEVEL DATA EXISTS FOR MULTIPLE ONTOLOGIES, ONLY THE FIRST ONTOLOGY'S DATA WILL BE PULLED
+            sub.data = data.manager$pull(outcome=outcome.for.p,
+                                         sources = sub.location.type.p.source,
+                                         keep.dimensions = c('year', 'location', stratification),
+                                         dimension.values = list(location = all.relevant.subs.p, year = main.years),
+                                         target.ontology = main.data.ontology,
+                                         allow.mapping.from.target.ontology = T,
+                                         debug=F)
+            if (is.null(sub.data)) return(NULL)
+            mp = attr(sub.data, 'mapping')
+            if (dim(sub.data)[['source']] > 1)
+                stop(paste0(error.prefix, sub.location.type, " '", outcome.for.p, "' data from more than one source found. Please specify a single source to use in 'sub.location.type.p.source'"))
+            new.dimnames = dimnames(sub.data)[names(dimnames(sub.data)) != 'source']
+            sub.data = array(sub.data, sapply(new.dimnames, length), new.dimnames)
+            
+            # 4d. Determine which MSAs and their sub-locations are present in this stratification's data
+            msas.with.data.this.stratification.mask = names(main.subs.p) %in% dimnames(main.data)$location
+            msas.with.data.this.stratification = names(main.subs.p)[msas.with.data.this.stratification.mask]
+            main.subs.this.stratification = lapply(main.subs.p[msas.with.data.this.stratification.mask], function(main.subs) {
+                main.subs[main.subs %in% dimnames(sub.data)$location]
+            })
+            main.subs.this.stratification = main.subs.this.stratification[lengths(main.subs.this.stratification) > 0]
+            if (length(main.subs.this.stratification) == 0) return(NULL)
+            
+            # 4e. Map the msa data to the ontology of the sub data.
+            align.on.dimnames = dimnames(sub.data)
+            align.on.dimnames$location = dimnames(main.data)$location
+            aligned.main.data = mp$apply(main.data, to.dim.names = align.on.dimnames)
+            
+            # 4f. Get a p-bias vector for each MSA that has data in this stratification and return the collection
+            p.bias.vector = unlist(lapply(1:length(main.subs.this.stratification), function(i) {
+                
+                # 4f.1 Get a slice of the data array for the MSA and another for its sub-locations.
+                main.slice = aligned.main.data[get.array.access.indices(dimnames(aligned.main.data), dimension.values = list(location = names(main.subs.this.stratification)[[i]]))]
+                subs.slice = sub.data[get.array.access.indices(dimnames(sub.data), dimension.values = list(location = main.subs.this.stratification[[i]]))]
+                main.slice.dimnames = dimnames(aligned.main.data)[names(dimnames(aligned.main.data)) != 'location']
+                subs.slice.dimnames = c(main.slice.dimnames, list(location = main.subs.this.stratification[[i]]))
+                main.slice = array(main.slice, dim = sapply(main.slice.dimnames, length), dimnames = main.slice.dimnames)
+                
+                # 4f.2 Expand the MSA slice to be the same size as the subs slice
+                expanded.main.array = expand.array(main.slice, target.dim.names = subs.slice.dimnames)
+                
+                # 4f.3 Take the difference at each position between sub-location and MSA and return as a vector -- this forms part of our in-msa p-bias sample
+                p.bias.vector.for.this.msa = as.vector(subs.slice - expanded.main.array)
+                p.bias.vector.for.this.msa[!is.na(p.bias.vector.for.this.msa)]
+                
+            }))
+        }))
+    else p.bias.in.msa = NA
+    
+    # 5. Generate an outside-msa p-bias sample by looping across each stratification
+    if (!lack.super.location.type)
+        p.bias.out.msa = unlist(lapply(stratifications, function(stratification)
+        {
+            # browser()
+            # 5a. Pull msa *p* data. Use it to make a target ontology for the msa *n* data pull. This assumes that the different outcomes can have the same ontology, which they'd have to if they are a matching numerator/denominator pair.
+            main.p.data = data.manager$pull(outcome = outcome.for.p,
+                                            sources = main.location.type.p.source,
+                                            keep.dimensions = c('year', 'location', stratification),
+                                            dimension.values = list(location = names(main.supers.p.and.n)))
+            if (is.null(main.p.data)) return(NULL)
+            if (dim(main.p.data)[['source']] > 1)
+                stop(paste0(error.prefix, main.location.type, " '", outcome.for.p, "' data from more than one source found. Please specify a single source to use in 'main.location.type.p.source'")) # SHOULD HAVE BEEN CAUGHT ALREADY
+            new.dimnames = dimnames(main.p.data)[names(dimnames(main.p.data)) != 'source']
+            main.p.data = array(main.p.data, sapply(new.dimnames, length), new.dimnames)
+            main.p.data.ontology = as.ontology(dimnames(main.p.data), incomplete.dimensions = c('year', 'location'))
+            main.p.years = main.p.data.ontology$year
+            
+            # 5b. Pull msa *n* data. Use it to make a target ontology for the super *p* data pull.
+            main.n.data = data.manager$pull(outcome = outcome.for.n,
+                                            sources = main.location.type.n.source,
+                                            keep.dimensions = c('year', 'location', stratification),
+                                            dimension.values = list(location = names(main.supers.p.and.n), year = main.p.years),
+                                            target.ontology = main.p.data.ontology,
+                                            allow.mapping.from.target.ontology = T)
+            if (is.null(main.n.data)) return(NULL)
+            mp.main.p.to.main.n = attr(main.n.data, 'mapping')
+            if (dim(main.n.data)[['source']] > 1)
+                stop(paste0(error.prefix, main.location.type, " '", outcome.for.n, "' data from more than one source found. Please specify a single source to use in 'main.location.type.n.source'"))
+            new.dimnames = dimnames(main.n.data)[names(dimnames(main.n.data)) != 'source']
+            main.n.data = array(main.n.data, sapply(new.dimnames, length), new.dimnames)
+            main.n.data.ontology = as.ontology(dimnames(main.n.data), incomplete.dimensions = c('year', 'location'))
+            main.n.data.ontology$location = union(main.n.data.ontology$location, all.relevant.supers.p.and.n)
+            main.n.years = main.n.data.ontology$year
+            
+            # 5c. Pull super-location *p* data. Use it to make a target ontology for the super *n* data pull.
+            super.p.data = data.manager$pull(outcome = outcome.for.p,
+                                             sources = super.location.type.p.source,
+                                             keep.dimensions = c('year', 'location', stratification),
+                                             dimension.values = list(location = all.relevant.supers.p.and.n, year = main.n.years),
+                                             target.ontology = main.n.data.ontology,
+                                             allow.mapping.from.target.ontology = T)
+            if (is.null(super.p.data)) return(NULL)
+            if (dim(super.p.data)[['source']] > 1)
+                stop(paste0(error.prefix, super.location.type, " '", outcome.for.p, "' data from more than one source found. Please specify a single source to use in 'super.location.type.p.source'"))
+            mp.main.n.to.super.p = attr(super.p.data, 'mapping')
+            new.dimnames = dimnames(super.p.data)[names(dimnames(super.p.data)) != 'source']
+            super.p.data = array(super.p.data, sapply(new.dimnames, length), new.dimnames)
+            super.p.data.ontology = as.ontology(dimnames(super.p.data), incomplete.dimensions = c('year', 'location'))
+            super.p.years = super.p.data.ontology$year
+            # browser()
+            # 5d. Pull super-location *n* data.
+            super.n.data = data.manager$pull(outcome = outcome.for.n,
+                                             sources = super.location.type.n.source,
+                                             keep.dimensions = c('year', 'location', stratification),
+                                             dimension.values = list(location = all.relevant.supers.p.and.n, year = super.p.years),
+                                             target.ontology = super.p.data.ontology,
+                                             allow.mapping.from.target.ontology = T)
+            if (is.null(super.n.data)) return(NULL)
+            if (dim(super.n.data)[['source']] > 1)
+                stop(paste0(error.prefix, super.location.type, " '", outcome.for.n, "' data from more than one source found. Please specify a single source to use in 'super.location.type.n.source'"))
+            mp.super.p.to.super.n = attr(super.n.data, 'mapping')
+            new.dimnames = dimnames(super.n.data)[names(dimnames(super.n.data)) != 'source']
+            super.n.data = array(super.n.data, sapply(new.dimnames, length), new.dimnames)
+            
+            # 5e. Align all four datasets by mapping main.p.data to main.n.data, then both of them to super.p.data, then all three of them to super.n.data. Then rename them for ease of reading.
+            main.p.data = mp.main.p.to.main.n$apply(main.p.data)
+            main.p.data = mp.main.n.to.super.p$apply(main.p.data)
+            main.p.data = mp.super.p.to.super.n$apply(main.p.data)
+            
+            main.n.data = mp.main.n.to.super.p$apply(main.n.data)
+            main.n.data = mp.super.p.to.super.n$apply(main.n.data)
+            
+            super.p.data = mp.super.p.to.super.n$apply(super.p.data)
+            
+            # 5d. Determine which MSAs and their super-locations are present in all of this stratification's data
+            mains.with.data.this.stratification.mask = names(main.supers.p.and.n) %in% intersect(dimnames(main.p.data)$location, dimnames(main.n.data)$location)
+            mains.with.data.this.stratification = names(main.supers.p.and.n)[mains.with.data.this.stratification.mask]
+            main.supers.this.stratification = lapply(main.supers.p.and.n[mains.with.data.this.stratification.mask], function(main.supers) {
+                main.supers[main.supers %in% intersect(dimnames(super.p.data)$location, dimnames(super.n.data)$location)]
+            })
+            names(main.supers.this.stratification) = mains.with.data.this.stratification
+            main.supers.this.stratification = main.supers.this.stratification[lengths(main.supers.this.stratification) > 0]
+            if (length(main.supers.this.stratification) == 0) return(NULL)
+            common.years = intersect(dimnames(main.p.data)$year, intersect(dimnames(main.n.data)$year, intersect(dimnames(super.p.data)$year, dimnames(super.n.data)$year)))
+            
+            # 5f. Get a p-bias vector for each MSA that has data in this stratification and return the collection
+            p.bias.vector = unlist(lapply(1:length(main.supers.this.stratification), function(i) {
+                # 5f.1 Get a slices of the n and p data arrays for the MSA and others for its super-locations. Make sure they have the same *years* (TO GENERALIZE, MAKE THIS ANY INCOMPLETE DIMENSIONS IN THE ONTOLOGY).
+                main.p.slice = main.p.data[get.array.access.indices(dimnames(main.p.data), dimension.values = list(year=common.years, location = names(main.supers.this.stratification)[[i]]))]
+                supers.p.slice = super.p.data[get.array.access.indices(dimnames(super.p.data), dimension.values = list(year=common.years, location = main.supers.this.stratification[[i]]))]
+                main.n.slice = main.n.data[get.array.access.indices(dimnames(main.n.data), dimension.values = list(year=common.years, location = names(main.supers.this.stratification)[[i]]))]
+                supers.n.slice = super.n.data[get.array.access.indices(dimnames(super.n.data), dimension.values = list(year=common.years, location = main.supers.this.stratification[[i]]))]
+                
+                main.p.slice.dimnames = dimnames(main.p.data)[names(dimnames(main.p.data)) != 'location']
+                main.p.slice.dimnames$year = common.years
+                supers.p.slice.dimnames = c(main.p.slice.dimnames, list(location = main.supers.this.stratification[[i]]))
+                supers.p.slice.dimnames$year = common.years
+                main.n.slice.dimnames = dimnames(main.n.data)[names(dimnames(main.n.data)) != 'location']
+                main.n.slice.dimnames$year = common.years
+                supers.n.slice.dimnames = c(main.n.slice.dimnames, list(location = main.supers.this.stratification[[i]]))
+                supers.n.slice.dimnames$year = common.years
+                
+                main.p.slice = array(main.p.slice, dim = sapply(main.p.slice.dimnames, length), dimnames = main.p.slice.dimnames)
+                main.n.slice = array(main.n.slice, dim = sapply(main.n.slice.dimnames, length), dimnames = main.n.slice.dimnames)
+                
+                # 5f.2 Expand the MSA slices to be the same size as the supers slices
+                expanded.main.p.array = expand.array(main.p.slice, target.dim.names = supers.p.slice.dimnames)
+                expanded.main.n.array = expand.array(main.n.slice, target.dim.names = supers.n.slice.dimnames)
+                
+                # 5f.3 Perform a calculation at each position between super-location and MSA and return as a vector -- this forms part of our out-of-msa p-bias sample
+                p.bias.vector.for.this.msa = as.vector((supers.p.slice * supers.n.slice - expanded.main.p.array * expanded.main.n.array) / (supers.n.slice - expanded.main.n.array) - expanded.main.p.array) # can get divide by 0, making Inf
+                
+                p.bias.vector.for.this.msa[!is.na(p.bias.vector.for.this.msa) & !is.infinite(p.bias.vector.for.this.msa)]
+            }))
+        }))
+    else p.bias.out.msa = NA
+    
+    # 6. Return the mean and standard deviation of the in-msa and out-of-msa samples. Note that this next needs to be processed via metalocation type and made into a list of matrices by model stratum.
+    if (!lack.sub.location.type && length(p.bias.in.msa) < minimum.sample.size)
+        stop(paste0(error.prefix, "not enough samples found for p.bias.in.msa"))
+    if (!lack.super.location.type && length(p.bias.out.msa) < minimum.sample.size)
+        stop(paste0(error.prefix, "not enough samples found for p.bias.out.msa"))
+    list(in.mean = mean(p.bias.in.msa),
+         out.mean = mean(p.bias.out.msa),
+         in.sd = sd(p.bias.in.msa),
+         out.sd = sd(p.bias.out.msa),
+         n.in = ifelse(!lack.sub.location.type, length(p.bias.in.msa), NA),
+         n.out = ifelse(!lack.super.location.type, length(p.bias.out.msa), NA))
+}
 
 ##-- For the Hand-Off to the CPP Function --##
 ##   get_nested_proportion_likelihood_components()
