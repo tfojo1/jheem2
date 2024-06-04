@@ -247,13 +247,12 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               calculate.lagged.difference=F)
         {
             
-            
             error.prefix = paste0('Error creating basic likelihood instructions: ')
             
             # *outcome.for.sim* -- validated in the super$initialize
             
             # *outcome.for.data* is a single character vector, or NULL if "outcome.value" is not NULL
-            if (!is.null(outcome.value) && (!is.character(outcome.for.data) || length(outcome.for.data) > 1 || is.null(outcome.for.data) || is.na(outcome.for.data)))
+            if (is.null(outcome.value) && (!is.character(outcome.for.data) || length(outcome.for.data) > 1 || is.null(outcome.for.data) || is.na(outcome.for.data)))
                 stop(paste0(error.prefix, "'outcome.for.data' must be a character vector of length 1"))
             
             # *denominator.outcome.for.sim* is NULL or a single character vector
