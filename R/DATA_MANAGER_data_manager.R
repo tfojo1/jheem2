@@ -1129,7 +1129,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 dimnames.aligning.all.metrics = private$prepare.put.dim.names(do.call(outer.join.dim.names, c(existing.dim.names, list(put.dim.names))), ontology.name)
             }
             
-            if (data.already.present && !dim.names.equal(put.dim.names, dimnames.aligning.all.metrics))
+            if (data.already.present && !dim.names.equal(existing.dim.names, dimnames.aligning.all.metrics))
             {
                 # Backup old data
                 existing.data.and.metadata = lapply(data.element.names, function(name) {
