@@ -707,7 +707,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                     n.stratifications.with.data = n.stratifications.with.data + 1
                     one.mapping = attr(data, 'mapping')
                     one.dimnames = dimnames(data)
-                    one.obs.vector = as.numeric(data)
                     one.details = attr(data, 'details')
                     
                     ## Pull measurement error variance if needed
@@ -747,11 +746,13 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                         private$i.error.vector = c(private$i.error.vector, one.error.data)
                     }
                     
-                    # If we have lognormal approximation on, we should transform the observations right now, after converting zeroes to NA so that they are ignored in the same ways.
+                    # If we have lognormal approximation on, we should remove observations that are 0.
                     if (private$i.use.lognormal.approximation) {
                         data[data==0]=NA
-                        data = log(data)
                     }
+                    
+                    # By this point, "data" may have had multiple entries converted to NA.
+                    one.obs.vector = as.numeric(data)
                     
                     # EXPERIMENTAL
                     one.dimension.values.remove.mask = rep(T, length(one.obs.vector)) # EXPERIMENTAL
@@ -945,6 +946,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             private$i.optimized.get.instructions[["sim.num.instr"]] = sim.metadata$prepare.optimized.get.instructions(outcomes = private$i.outcome.for.sim,
                                                                                                                       keep.dimensions = names(private$i.sim.required.dimnames),
                                                                                                                       dimension.values = private$i.sim.dimension.values,
+                                                                                                                      output = 'numerator',
                                                                                                                       drop.single.sim.dimension = T)
             if (private$i.outcome.is.proportion || private$i.outcome.is.rate) {
                 if (is.null(private$i.denominator.outcome.for.sim))
@@ -1071,7 +1073,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 mean.reciprocal = 1/mean
                 sigma = log(mean.reciprocal %*% t(mean.reciprocal) * sigma + 1)
                 mean = log(mean) - diag(sigma)/2
-                # obs should have been put on the log scale before this
+                obs = log(obs)
             }
             
             if (private$i.calculate.lagged.difference)
