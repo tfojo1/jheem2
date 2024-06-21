@@ -1,5 +1,4 @@
 
-
 #'@param ... One or more of either (1) jheem.simulation objects or (2) jheem.simset objects or (3) lists containing only jheem.simulation or jheem.simset objects
 #'@param outcomes A character vector of which simulation outcomes to plot
 #'@param split.by AZ: at most one dimension
@@ -16,7 +15,7 @@
 #'
 #'@export
 simplot <- function(...,
-                    outcomes = NULL,
+                    outcomes=NULL,
                     corresponding.data.outcomes = NULL,
                     split.by = NULL,
                     facet.by = NULL,
@@ -24,20 +23,52 @@ simplot <- function(...,
                     plot.which = c('both', 'sim.only', 'data.only')[1],
                     summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                     plot.year.lag.ratio = F,
+                    n.facet.rows = NULL,
                     data.manager = get.default.data.manager(),
                     style.manager = get.default.style.manager(),
                     debug = F)
 {
-    ### --- FEATURES TO ADD --- ###
-    # - change y-axis from 'value' to the name of the outcome? Maybe not, since "value" is shared by all plots
-    # - y labels, scale may be percentage or number with commas
-    
+    prepared.plot.data = prepare.plot(...,
+                                      outcomes=outcomes,
+                                      corresponding.data.outcomes = corresponding.data.outcomes,
+                                      split.by=split.by,
+                                      facet.by=facet.by,
+                                      dimension.values=dimension.values,
+                                      plot.which=plot.which,
+                                      summary.type=summary.type,
+                                      plot.year.lag.ratio=plot.year.lag.ratio,
+                                      data.manager=data.manager,
+                                      debug=debug)
+    execute.simplot(prepared.plot.data,
+                    outcomes=outcomes,
+                    split.by=split.by,
+                    facet.by=facet.by,
+                    plot.which=plot.which,
+                    summary.type=summary.type,
+                    plot.year.lag.ratio=plot.year.lag.ratio,
+                    n.facet.rows=n.facet.rows,
+                    style.manager=style.manager,
+                    debug=debug)
+}
+
+prepare.plot <- function(...,
+                         outcomes=NULL,
+                         corresponding.data.outcomes = NULL,
+                         split.by = NULL,
+                         facet.by = NULL,
+                         dimension.values = list(),
+                         plot.which = c('both', 'sim.only', 'data.only')[1],
+                         summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
+                         plot.year.lag.ratio = F,
+                         data.manager = get.default.data.manager(),
+                         debug = F)
+{
     # -- VALIDATION -- #
     if (debug) browser()
     error.prefix = "Cannot generate simplot: "
     
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
-    stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
     # *split.by* is NULL or a single, non-NA character vector
     if (!is.null(split.by) && (!is.character(split.by) || length(split.by) > 1 || is.na(split.by)))
@@ -110,7 +141,7 @@ simplot <- function(...,
     # if *plot.year.lag.ratio* is true, we can have only one outcome
     if (plot.year.lag.ratio && length(outcomes)>1)
         stop(paste0(error.prefix, "only one outcome can be used with 'plot.year.lag.ratio'"))
-
+    
     # Now simset.list contains only simsets and lists containing only simsets. It needs to be just a single-level list of simsets now
     simset.list = unlist(simset.list, recursive = F)
     
@@ -170,7 +201,7 @@ simplot <- function(...,
     # browser()
     
     #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
-
+    
     outcome.mappings = list() # note: not all outcomes will have corresponding data outcomes
     # browser()
     df.truth = NULL
@@ -223,20 +254,11 @@ simplot <- function(...,
         # sort the split.by column alphabetically so that when we assign colors, it will be the same for sim.
         if (!is.null(split.by))
             df.truth = df.truth[order(df.truth$stratum),]
-        
-        # make some other columns
-        df.truth['location.type'] = locations::get.location.type(df.truth$location)
-        df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
-        df.truth['color.data.by'] = df.truth[style.manager$color.data.by]
-        df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
-        df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
-        
     }
-    # browser()
     names(outcome.mappings) = outcomes
-
-    #-- STEP 3: MAKE A DATA FRAME WITH ALL THE SIMULATIONS' DATA --#
-
+    
+    #-- STEP 3: MAKE A DATA FRAME WITH THE SIMULATION DATA --#
+    
     df.sim = NULL
     if (plot.which != 'data.only') {
         for (outcome in outcomes) {
@@ -279,7 +301,7 @@ simplot <- function(...,
             if (!is.null(df.sim[['value.mean']])) df.sim$value = df.sim$value.mean
             if (!is.null(df.sim[['value.median']])) df.sim$value = df.sim$value.median
         }
-            
+        
         
         
         # make whatever column corresponds to split by actually be called "stratum" and same for facet.by.
@@ -292,10 +314,6 @@ simplot <- function(...,
         df.sim$simset = factor(df.sim$simset)
         df.sim$sim = factor(df.sim$sim)
         df.sim$groupid = paste0(df.sim$outcome, '_', df.sim$simset, '_', df.sim$sim, '_', df.sim$stratum)
-        
-        df.sim['linetype.sim.by'] = df.sim[style.manager$linetype.sim.by]
-        df.sim['shape.sim.by'] = df.sim[style.manager$shape.sim.by]
-        df.sim['color.sim.by'] = df.sim[style.manager$color.sim.by]
         
         # sort split by alphabetically to line it up with df.truth when colors are picked
         if (!is.null(split.by))
@@ -356,8 +374,46 @@ simplot <- function(...,
         }
     }
     
-    #-- STEP 4: PREPARE PLOT COLORS, SHADES, SHAPES, ETC. --#
+    #-- PACKAGE AND RETURN --#
+    y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
+    
+    return(list(df.sim=df.sim, df.truth=df.truth, details=list(y.label=y.label)))
+}
 
+execute.simplot <- function(prepared.plot.data,
+                            outcomes,
+                            split.by,
+                            facet.by,
+                            plot.which,
+                            summary.type,
+                            plot.year.lag.ratio,
+                            n.facet.rows,
+                            data.manager,
+                            style.manager,
+                            debug)
+{
+    #-- UNPACK DATA --#
+    df.sim=prepared.plot.data$df.sim
+    df.truth=prepared.plot.data$df.truth
+    y.label = prepared.plot.data$details$y.label
+    
+    #-- PREPARE PLOT COLORS, SHADES, SHAPES, ETC. --#
+    
+    if (!is.null(df.sim)) {
+        df.sim['linetype.sim.by'] = df.sim[style.manager$linetype.sim.by]
+        df.sim['shape.sim.by'] = df.sim[style.manager$shape.sim.by]
+        df.sim['color.sim.by'] = df.sim[style.manager$color.sim.by]
+    }
+    
+    if (!is.null(df.truth)) {
+        # make some other columns
+        df.truth['location.type'] = locations::get.location.type(df.truth$location)
+        df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
+        df.truth['color.data.by'] = df.truth[style.manager$color.data.by]
+        df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
+        df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
+    }
+    
     ## COLORS
     color.sim.by = NULL
     color.data.primary.colors = NULL
@@ -402,8 +458,8 @@ simplot <- function(...,
     ## SHADES FOR DATA
     color.data.shaded.colors = NULL
     if (!is.null(df.truth)) {
-    color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
-    names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
+        color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
+        names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
     }
     
     ## SHAPES
@@ -428,9 +484,8 @@ simplot <- function(...,
         df.sim.groupids.many.members = subset(df.sim, !groupid_has_one_member)
     }
     
+    #-- MAKE THE PLOT --#
     
-    #-- STEP 5: MAKE THE PLOT --#
-
     rv = ggplot2::ggplot()
     rv = rv + ggplot2::scale_color_manual(name = "sim color", values = color.sim.by)
     rv = rv + ggplot2::scale_shape_manual(name = "data shape", values = all.shapes.for.scale)
@@ -467,7 +522,7 @@ simplot <- function(...,
                                                                       fill=color.and.shade.data.by, # fill
                                                                       shape=shape.data.by))
         }
-            
+        
     } else {
         if (!is.null(df.sim)) {
             rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, group=groupid,
@@ -499,13 +554,16 @@ simplot <- function(...,
     if (style.manager$color.sim.by == 'stratum' && is.null(split.by))
         rv = rv + ggplot2::guides(color = "none")
     
+    #-- FACET --#
     if (is.null(facet.by))
         facet.formula = as.formula("~outcome")
     else
         facet.formula = as.formula("~outcome + facet.by")
-    rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y', )
+    if (!is.null(n.facet.rows))
+        rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y', nrow=n.facet.rows)
+    else
+        rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y')
     
-    y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
     rv = rv +
         ggplot2::scale_alpha(guide='none') +
         ggplot2::labs(y=y.label)
@@ -515,4 +573,4 @@ simplot <- function(...,
     if (plot.year.lag.ratio) rv = rv + xlab("latter year")
     # browser()
     rv
-    }
+}
