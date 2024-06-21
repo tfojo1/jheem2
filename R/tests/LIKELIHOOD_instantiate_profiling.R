@@ -1,8 +1,8 @@
 
 source('../jheem_analyses/applications/EHE/ehe_specification.R')
-source('../jheem_analyses/applications/EHE/calibration_runs/ehe_register_calibrations.R')
+source('../jheem_analyses/applications/EHE/ehe_likelihoods.R')
 
-N.ITER = 2
+N.ITER = 1
 R.PROF = T
 
 print(paste0("Starting likelihood instantiation profiling for ", N.ITER, " times"))
@@ -16,6 +16,7 @@ start.time = as.numeric(Sys.time())
 for (i in 1:N.ITER)
 {
     print(paste0("Instantiating ", i, " of ", N.ITER))
+ #   lik = suppression.likelihood.instructions$instantiate.likelihood('ehe', "C.12580")
   lik = two.way.transmission.pop.aids.idu.likelihood.instructions$instantiate.likelihood('ehe', "C.12580")
 }
 

@@ -552,3 +552,31 @@ RObject get_ontology_mapping_indices(List src_dim_names,
                                         false,
                                         true));
 }
+
+// [[Rcpp::export]]
+IntegerVector do_get_reverse_indices_from_forward(List forward_indices,
+                                                  int n_from)
+{
+    int n_forward = forward_indices.length();
+    
+    IntegerVector rv(n_from);
+    for (int to_index=0; to_index<n_from; to_index++)
+    {
+        bool still_missing = true;
+        for (int i=0; still_missing && i<n_forward; i++)
+        {
+            IntegerVector forward_i = forward_indices[i];
+            for (int j=0; j<forward_i.length(); j++)
+            {
+                if (forward_i[j] == (to_index+1))
+                {
+                    rv[to_index] = i+1;
+                    still_missing = false;
+                    break;
+                }
+            }
+        }
+    }
+    
+    return (rv);
+}

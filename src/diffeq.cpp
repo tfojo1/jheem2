@@ -635,6 +635,22 @@ if (debug)
     double* scratch4 = scratch3 + n_uninfected;
     
     
+    //------------------------------------//
+    //-- ENFORCE INFECTED/UNINFECED >=0 --//
+    //------------------------------------//
+    
+    for (int i=0; i<n_uninfected; i++)
+    {
+        if (uninfected[i] < 0)
+            uninfected[i] = 0;
+    }
+    
+    for (int i=0; i<n_infected; i++)
+    {
+        if (infected[i] < 0)
+            infected[i] = 0;
+    }
+    
     //------------//
     //-- BIRTHS --//
     //------------//

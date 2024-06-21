@@ -768,6 +768,7 @@ FUNCTIONAL.FORM = R6::R6Class(
             }
             
             #-- Call the sub-function --#
+
             private$do.project(terms = terms,
                                years = years,
                                future.slope = future.slope,
@@ -1316,6 +1317,44 @@ LOGISTIC.TAIL.FUNCTIONAL.FORM = R6::R6Class(
                               check.consistency,
                               error.prefix)
         {
+            if (future.slope.after.year==-Inf)
+                stop(paste0(error.prefix, "For a logistic.tail functional form, future.slope.after.year cannot be -Inf"))
+            
+            slope = pmax(0, terms$slope)
+            if (is.null(future.slope) || future.slope.after.year==Inf)
+                slope.with.future = slope
+            else
+            {
+                slope.with.future = pmax(0, private$i.beta.links$slope$reverse.apply(
+                    private$i.beta.links$slope$apply(slope) + future.slope
+                ))
+            }
+            
+            rv = do_project_logistic_tail(intercept = terms$intercept,
+                                          slope = slope,
+                                          slope_with_future = slope.with.future,
+                                          future_slope = future.slope,
+                                          future_slope_after_year = future.slope.after.year,
+                                          span = private$i.span,
+                                          min = private$i.link$min,
+                                          max = private$i.link$max,
+                                          logistic_after_value = private$i.logistic.after.value,
+                                          anchor_year = private$i.anchor.year,
+                                          years = years)
+            names(rv) = as.character(years)
+            
+            rv
+        },
+        
+        # keeping this unused function in here because it makes the cpp easier to read
+        OLD.do.project = function(terms,
+                              years,
+                              future.slope,
+                              future.slope.after.year,
+                              dim.names,
+                              check.consistency,
+                              error.prefix)
+        {
             # Convert from logit scale
             # intercept = model$min.proportion + model$p.span / (1+exp(-terms$intercept)) 
             # slope = model$min.proportion + model$p.span / (1+exp(-terms$slope))
@@ -1515,7 +1554,7 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             { 
                 knot.values = lapply(knot.names, function(knot.name){
                     knot.link$check.untransformed.values(knot.values[[knot.name]],
-                                                         variable.name.for.error = paste0("values for knot '", knot, "'"),
+                                                         variable.name.for.error = paste0("values for knot '", knot.name, "'"),
                                                          error.prefix = error.prefix)
                     
                     knot.link$apply(knot.values[[knot.name]])

@@ -1131,7 +1131,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                            model.strata = model.strata, # may be NULL
                                            partitioning.function = private$i.partitioning.function,
                                            version = version,
-                                           location = location)
+                                           location = location,
+                                           error.prefix = error.prefix)
             private$i.obs.n = obs.n.info$obs.n
             locations.with.n.data = obs.n.info$locations.with.n.data
             # missing stuff also stored in info
@@ -1979,9 +1980,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 ## NEW: If were at top or 1-way and a stratum is missing at most 30% of its data, interpolate NAs across years
                 if (length(stratification)<=1 && any(is.na(data))) {
                     # check if any stratum is missing more than 30% of its data
-                    if (any(apply(is.na(data), names(dim(data))[names(dim(data))!='year'], function(x) {sum(x)/length(x) >= 0.3})))
-                        stop(paste0(error.prefix, "more than 30% of ", outcome.for.n, " data is missing for at least one location and stratum in stratification '", paste(c('year', 'location', stratification), collapse="__"), "'"))
-                    data = interpolate.array(data)
+            #        if (any(apply(is.na(data), names(dim(data))[names(dim(data))!='year'], function(x) {sum(x)/length(x) >= 0.3})))
+            #            stop(paste0(error.prefix, "more than 30% of ", outcome.for.n, " data is missing for at least one location and stratum in stratification '", paste(c('year', 'location', stratification), collapse="__"), "'"))
+             #       data = interpolate.array(data)
                 }
             }
             
