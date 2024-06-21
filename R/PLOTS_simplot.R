@@ -388,8 +388,7 @@ execute.simplot <- function(prepared.plot.data,
                             summary.type,
                             plot.year.lag.ratio,
                             n.facet.rows,
-                            data.manager,
-                            style.manager,
+                            style.manager=get.default.style.manager(),
                             debug)
 {
     #-- UNPACK DATA --#
