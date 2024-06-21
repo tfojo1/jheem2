@@ -381,15 +381,15 @@ prepare.plot <- function(...,
 }
 
 execute.simplot <- function(prepared.plot.data,
-                            outcomes,
-                            split.by,
-                            facet.by,
-                            plot.which,
-                            summary.type,
-                            plot.year.lag.ratio,
-                            n.facet.rows,
+                            outcomes=NULL,
+                            split.by=NULL,
+                            facet.by=NULL,
+                            plot.which=c('both', 'sim.only', 'data.only')[1],
+                            summary.type=c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
+                            plot.year.lag.ratio=F,
+                            n.facet.rows=NULL,
                             style.manager=get.default.style.manager(),
-                            debug)
+                            debug=F)
 {
     #-- UNPACK DATA --#
     df.sim=prepared.plot.data$df.sim
