@@ -1158,13 +1158,13 @@ get.outcome.value.from.ode.output <- function(outcome.name,
     if (outcome$is.cumulative)
     {
         rv = lapply(cols, function(j){
-            ode.results$values[rows,j+1] - ode.results$values[rows,j]
+            pmax(ode.results$values[rows,j+1] - ode.results$values[rows,j],0)
         })
     }
     else
     {
         rv = lapply(cols, function(j){
-            ode.results$values[rows,j]
+            pmax(ode.results$values[rows,j],0)
         })
     }
     

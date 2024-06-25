@@ -614,7 +614,7 @@ DIFFEQR.ENGINE = NULL
 create.solver.metadata = function(method = 'DP5',
                                   package = NULL,
                                   atol = 1e-02,
-                                  rtol = 1e-04)
+                                  rtol = 1e-03)
 {
     SOLVER.METADATA$new(method = method,
                         package = package,
@@ -703,6 +703,26 @@ SOLVER.METADATA = R6::R6Class(
                     }
                     else
                     {
+                        # if ( t >1980)
+                        # {
+                        #     args = list(state = x,
+                        #                 time = t,
+                        #                 settings = diffeq.settings,
+                        #                 quantities_info = diffeq.settings$quantities.info,
+                        #                 quantity_scratch_vector = diffeq.settings$quantity_scratch_vector,
+                        #                 scratch_vector = diffeq.settings$scratch.vector,
+                        #                 natality_info = diffeq.settings$natality.info,
+                        #                 mortality_info = diffeq.settings$mortality.info,
+                        #                 transitions_info = diffeq.settings$transitions.info,
+                        #                 infections_info = diffeq.settings$infections.info,
+                        #                 remission_info = diffeq.settings$remission.info,
+                        #                 fixed_strata_info = diffeq.settings$fixed.strata.info,
+                        #                 population_trackers = diffeq.settings$population_trackers)
+                        #     save(args,
+                        #          file = 'R/local_testing/diffeq_test_args.Rdata'
+                        #          )
+                        #     stop("Ending here for now")
+                        # }
                         compute_dx(state = x,
                                    time = t,
                                    settings = diffeq.settings,
@@ -1403,7 +1423,11 @@ JHEEM = R6::R6Class(
                              type = 'jheem',
                              error.prefix = error.prefix)
             
-            private$set.up()
+            
+            #@kernel refactor - for now, we'll create a new one. Eventually, we will take one
+            specification.kernel = get.compiled.specification.for.version(version)$get.specification.kernel(private$i.location)
+            
+            private$set.up(specification.kernel)
         },
         
         
@@ -1445,9 +1469,9 @@ JHEEM = R6::R6Class(
             #        check.consistency = check.consistency)
             
             if (is.null(prior.simulation.set))
-                ordered.quantity.names = specification$ordered.quantity.names
+                ordered.quantity.names = private$i.specification.kernel$ordered.quantity.names
             else
-                ordered.quantity.names = specification$ordered.quantity.names.except.initial.population
+                ordered.quantity.names = private$i.specification.kernel$ordered.quantity.names.except.initial.population
 
             sapply(ordered.quantity.names, calculate.quantity.value,
                    check.consistency = check.consistency)
@@ -1611,6 +1635,7 @@ JHEEM = R6::R6Class(
                                 "Cannot set value for element '", element.name,
                                 "' - value must be a numeric object"))
                 
+                #@kernel refactor - going to need to strip out element stuff
                 verify.dim.names.for.quantity(dim.names = dimnames(value),
                                               quantity = private$get.specification()$get.quantity(element.name.to.modify),
                                               variable.name.for.error = "the dimnames of 'value'",
@@ -1802,7 +1827,7 @@ JHEEM = R6::R6Class(
             if (!foreground$is.anchored)
             {
                 foreground = foreground$anchor(location = self$location,
-                                               specification.metadata = self$specification.metadata, 
+                                               specification.metadata = private$i.specification.kernel$get.specification.metadata(private$i.sub.version), 
                                                quantity.dim.names = private$i.quantity.max.dim.names[[quantity.name]],
                                                error.prefix = error.prefix)
             }
@@ -1832,8 +1857,8 @@ JHEEM = R6::R6Class(
             
             #-- Set static to false on this quantity and its dependent quantities and outcomes --#
             private$i.quantity.is.static[quantity.name] = F
-            private$i.quantity.is.static[specification$get.dependent.quantity.names(quantity.name)] = F
-            private$i.outcome.non.cumulative.is.static[specification$get.non.cumulative.dependent.outcome.names(quantity.name)] = F
+            private$i.quantity.is.static[private$i.specification.kernel$get.dependent.quantity.names(quantity.name)] = F
+            private$i.outcome.non.cumulative.is.static[private$i.specification.kernel$get.non.cumulative.dependent.outcome.names(quantity.name)] = F
             
             
             #-- Clear dim.names --#
@@ -2718,6 +2743,9 @@ JHEEM = R6::R6Class(
         ##----------------------##
         ##----------------------##
         
+        #-- Specification Kernel --#
+        i.specification.kernel = NULL,
+        
         #-- Element names/backgrounds --#
         i.element.names = NULL,
         i.element.backgrounds = NULL,
@@ -2883,100 +2911,106 @@ JHEEM = R6::R6Class(
         ##-- SET UP --##
         ##------------##
         
-        set.up = function()
+        set.up = function(specification.kernel)
         {
+            private$i.specification.kernel = specification.kernel
+            
             private$i.checked.model.settings = JHEEM.MODEL.SETTINGS$new(self, check.consistency = T)
             private$i.unchecked.model.settings = JHEEM.MODEL.SETTINGS$new(self, check.consistency = F)
             
             specification = get.compiled.specification.for.version(private$i.version)
+            specification.metadata = private$i.specification.kernel$get.specification.metadata(private$i.sub.version)
             
             # Finalize max.dim.names and applies.to for quantities and components
-            private$i.quantity.max.dim.names = lapply(specification$quantities, function(quantity){
-                self$specification.metadata$apply.aliases(quantity$max.dim.names,
+            private$i.quantity.max.dim.names = lapply(private$i.specification.kernel$quantity.kernels, function(quantity){
+                specification.metadata$apply.aliases(quantity$max.dim.names,
                                                            error.prefix=paste0("Error finalizing max.dim.names for model quantity ", 
-                                                                               quantity$get.original.name(specification$version)))
+                                                                               quantity$original.name))
             })
             
-            private$i.quantity.required.dim.names = lapply(specification$quantities, function(quantity){
-                self$specification.metadata$apply.aliases(quantity$required.dim.names,
+            private$i.quantity.required.dim.names = lapply(private$i.specification.kernel$quantity.kernels, function(quantity){
+                specification.metadata$apply.aliases(quantity$required.dim.names,
                                                            error.prefix=paste0("Error finalizing required.dim.names for model quantity ", 
-                                                                               quantity$get.original.name(specification$version)))
+                                                                               quantity$original.name))
             })
             
-            private$i.quantity.component.max.dim.names = lapply(specification$quantities, function(quantity){
-                lapply(quantity$components, function(comp){
-                    self$specification.metadata$apply.aliases(comp$max.dim.names,
-                                                               error.prefix=paste0("Error finalizing max.dim.names for the ",
-                                                                                   get.ordinal(i-1), " subset of model quantity ", 
-                                                                                   quantity$get.original.name(specification$version)))
-                    # ^ Should never trigger an error on the first component since it is the same as the quantity dim.names calculated above
-                })
+            private$i.quantity.component.max.dim.names = lapply(private$i.specification.kernel$quantity.kernels, function(quantity){
+                if (length(quantity$components)==0)
+                    NULL
+                else
+                    lapply(1:length(quantity$components), function(i){
+                        comp = quantity$components[[i]]
+                        specification.metadata$apply.aliases(comp$max.dim.names,
+                                                                   error.prefix=paste0("Error finalizing max.dim.names for the ",
+                                                                                       get.ordinal(i-1), " subset of model quantity ", 
+                                                                                       quantity$original.name))
+                        # ^ Should never trigger an error on the first component since it is the same as the quantity dim.names calculated above
+                    })
             })
             
-            private$i.quantity.component.applies.to = lapply(specification$quantities, function(quantity){
-                lapply(quantity$components, function(comp){
-                    self$specification.metadata$apply.aliases(comp$applies.to,
-                                                               error.prefix=paste0("Error finalizing applies.to for the ",
-                                                                                   get.ordinal(i-1), " subset of model quantity ", 
-                                                                                   quantity$get.original.name(specification$version)))
-                    # ^ Should never trigger an error on the first component since applies.to is NULL for the first component
-                })
+            private$i.quantity.component.applies.to = lapply(private$i.specification.kernel$quantity.kernels, function(quantity){
+                if (length(quantity$components)==0)
+                    NULL
+                else
+                    lapply(1:length(quantity$components), function(i){
+                        comp = quantity$components[[i]]
+                        self$specification.metadata$apply.aliases(comp$applies.to,
+                                                                   error.prefix=paste0("Error finalizing applies.to for the ",
+                                                                                       get.ordinal(i-1), " subset of model quantity ", 
+                                                                                       quantity$original.name))
+                        # ^ Should never trigger an error on the first component since applies.to is NULL for the first component
+                    })
             })
             
             # Set up the element backgrounds
-            private$i.element.backgrounds = lapply(specification$element.names, function(elem.name){
-                elem = specification$get.quantity(elem.name)
-                bkgd = elem$get.element.background(specification.metadata = self$specification.metadata,
-                                                   error.prefix = paste0("Error creating JHEEM for version '", private$i.version, "' and location '", private$i.location, "': "))
+            private$i.element.backgrounds = lapply(private$i.specification.kernel$element.backgrounds, function(bkgd){
+                # elem = specification$get.quantity(elem.name)
+                # bkgd = elem$get.element.background(specification.metadata = self$specification.metadata,
+                #                                    error.prefix = paste0("Error creating JHEEM for version '", private$i.version, "' and location '", private$i.location, "': "))
                 
                 if (!is.null(bkgd$functional.form))
                 {
                     bkgd$functional.form.alphas = lapply(bkgd$functional.form$alpha.names, 
                                                          create.functional.form.alphas,
                                                          functional.form = bkgd$functional.form,
-                                                         maximum.dim.names = private$i.quantity.max.dim.names[[elem.name]],
+                                                         maximum.dim.names = private$i.quantity.max.dim.names[[bkgd$name]],
                                                          check.consistency = T,
-                                                         error.prefix = paste0("Error creating alphas object for model element '", elem.name, "': "))
+                                                         error.prefix = paste0("Error creating alphas object for model element '", bkgd$name, "': "))
                     names(bkgd$functional.form.alphas) = bkgd$functional.form$alpha.names
                 }
                 
                 bkgd
             })
-            names(private$i.element.backgrounds) = private$i.element.names = specification$element.names
+            private$i.element.names = private$i.specification.kernel$element.names
             
-            private$i.element.name.mappings = specification$element.name.mappings
+            private$i.element.name.mappings = private$i.specification.kernel$element.name.mappings
             
             # Figure out if quantities are static
-            private$i.quantity.is.static = rep(F, length(specification$quantity.names))
-            names(private$i.quantity.is.static) = specification$quantity.names
-            
-            private$i.quantity.is.static[specification$element.names] = sapply(private$i.element.backgrounds[specification$element.names], function(bkgd){
+            private$i.quantity.is.static = rep(F, length(private$i.specification.kernel$quantity.names))
+            names(private$i.quantity.is.static) = private$i.specification.kernel$quantity.names
+            private$i.quantity.is.static[private$i.specification.kernel$element.names] = sapply(private$i.element.backgrounds[private$i.specification.kernel$element.names], function(bkgd){
                 bkgd$is.static
             })
             
-            non.element.quantity.names = setdiff(specification$quantity.names, specification$element.names)
+            non.element.quantity.names = setdiff(private$i.specification.kernel$quantity.names, private$i.specification.kernel$element.names)
             private$i.quantity.is.static[non.element.quantity.names] = sapply(non.element.quantity.names, function(quantity.name){
-                all(private$i.quantity.is.static[specification$get.dependee.element.names(quantity.name)])
+                all(private$i.quantity.is.static[private$i.specification.kernel$get.dependee.element.names(quantity.name)])
             })
             
             # Figure out if outcomes' non-cumulative parts are static
             private$i.outcome.non.cumulative.is.static = logical()
-            sapply(specification$outcome.names, 
+            sapply(private$i.specification.kernel$outcome.names, 
                    private$calculate.outcome.non.cumulative.is.static,
                    specification = specification)
             
             # Set up outcome dim.names
-            private$i.outcome.dim.names.sans.time = lapply(specification$outcome.names, function(outcome.name){
-                outcome = specification$get.outcome(outcome.name)
+            private$i.outcome.dim.names.sans.time = lapply(private$i.specification.kernel$outcome.kernels, function(outcome){
                 specification.metadata$apply.aliases(outcome$dim.names, error.prefix=paste0("Error setting up dim.names for outcome '", outcome$name, "': "))
             })
-            names(private$i.outcome.dim.names.sans.time) = specification$outcome.names
             
-            private$i.outcome.unrenamed.dim.names.sans.time = lapply(specification$outcome.names, function(outcome.name){
-                outcome = specification$get.outcome(outcome.name)
+            private$i.outcome.unrenamed.dim.names.sans.time = lapply(private$i.specification.kernel$outcome.kernels, function(outcome){
                 specification.metadata$apply.aliases(outcome$unrenamed.dim.names, error.prefix=paste0("Error setting up unrenamed.dim.names for outcome '", outcome$name, "': "))
             })
-            names(private$i.outcome.unrenamed.dim.names.sans.time) = specification$outcome.names
             
             # Set up dim.names list holders
             private$i.quantity.dim.names = list()
@@ -3017,13 +3051,13 @@ JHEEM = R6::R6Class(
             
             # Import the default parameters
             private$i.parameters = numeric()
-            private$i.parameters[names(specification$default.parameter.values)] = specification$default.parameter.values
+            private$i.parameters[names(private$i.specification.kernel$default.parameter.values)] = private$i.specification.kernel$default.parameter.values
 
             private$i.parameter.names.for.foregrounds = numeric()
             private$i.dependent.foreground.ids.for.parameters = list()
             
             # Import the foregrounds
-            for (frgd in specification$foregrounds)
+            for (frgd in private$i.specification.kernel$foregrounds)
             {
                 self$set.quantity.foreground(foreground = frgd,
                                              check.consistency = T)
@@ -3035,10 +3069,6 @@ JHEEM = R6::R6Class(
             
             # Clear the i.has.been.crunched flag
             private$i.has.been.crunched = F
-            
-            # Re-process any instructions
-            for (instr in private$i.instructions)
-                private$execute.instruction(instr)
             
             # Going to need to do something about foregrounds here
         },
@@ -4034,7 +4064,7 @@ JHEEM = R6::R6Class(
             # Figure out what times values are missing for
             if (is.null(private$i.quantity.value.times[[quantity.name]]))
                 private$calculate.quantity.value.times(quantity.name)
-            required.times = as.character(private$i.quantity.value.times[[quantity.name]])
+           # required.times = as.character(private$i.quantity.value.times[[quantity.name]])
             
             if (private$i.quantity.is.static[quantity.name])
             {
@@ -4193,7 +4223,7 @@ JHEEM = R6::R6Class(
                             if (comp$value.type!='function' &&
                                 (length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
                                  is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) )
-                                calculate.quantity.component.dim.names(quantity, component.index=i)
+                                private$calculate.quantity.component.dim.names(quantity, component.index=i)
                             
                             #-- Bind the depends-on quantities --#
                             if (is.after.time)
@@ -4274,6 +4304,11 @@ JHEEM = R6::R6Class(
                                 browser()
                             
                             #-- Package up the value --#
+                            
+                            
+                            if (any(is.na(value)))
+                                browser()
+                            
                             component.values[[i]] = value
                         }
 
@@ -4641,12 +4676,11 @@ JHEEM = R6::R6Class(
                             
                             comp = quantity$components[[i]]
                             
-                            if (comp$value.type == 'numeric' || length(comp$depends.on)==0)
+                            non.static.depends.on = comp$depends.on[!private$i.quantity.is.static[comp$depends.on]]
+                            if (comp$value.type == 'numeric' || length(non.static.depends.on)==0)
                                 T
                             else 
                             {
-                                non.static.depends.on = comp$depends.on[!private$i.quantity.is.static[comp$depends.on]]
-                                
                                 dep.on.masks = lapply(non.static.depends.on, function(dep.on){
                                     
                                     dep.on.mask = NULL
@@ -5086,6 +5120,7 @@ JHEEM = R6::R6Class(
             
             # Access indices
             # (what indices into the quantity value to access for this component's applies.to)
+
             if (!is.null(quantity$components[[component.index]]$applies.to))
                 private$i.quantity.mapping.indices[[quantity.name]]$components.access[[component.index]] =
                     get.array.access.indices(arr.dim.names = private$i.quantity.dim.names[[quantity.name]],
