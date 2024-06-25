@@ -1,13 +1,13 @@
-N.SIM = 500
-RUN.RPROF = F
-SOLVER.METHOD = 'BS3'
+N.SIM = 50
+RUN.RPROF = T
+SOLVER.METHOD = 'DP5'
 
 source('../jheem_analyses/applications/EHE/calibration_runs/ehe_register_calibrations.R')
 
 print("STARTING PROFILING")
 
 set.jheem.root.directory('Q:test')
-LOCATION = BALTIMORE.MSA
+LOCATION = 'C.12580'
 CALIBRATION.CODE.TO.RUN = paste0('calprof.', SOLVER.METHOD) # CALIBRATION.CODE.POPULATION
 
 par.names.pop = c("black.birth.rate.multiplier",
@@ -63,22 +63,23 @@ par.names.pop = c("black.birth.rate.multiplier",
                   "age4.migration.multiplier.time.1",
                   "age4.migration.multiplier.time.2",
                   "age5.migration.multiplier.time.1",
-                  "age5.migration.multiplier.time.2"
+                  "age5.migration.multiplier.time.2",
+                  "global.trate"
 )
 
 
 
 register.calibration.info(CALIBRATION.CODE.TO.RUN,
-                          likelihood.instructions = joint.pop.migration.likelihood.instructions,
+                          likelihood.instructions = joint.pop.migration.total.trans.likelihood.instructions,
                           data.manager = SURVEILLANCE.MANAGER,
                           end.year = 2030, 
                           parameter.names = par.names.pop,
                           n.iter = N.SIM,
                           thin = 5, 
-                          fixed.initial.parameter.values = c(global.trate=0.1), 
+                          fixed.initial.parameter.values = c(global.trate=0.02), 
                           is.preliminary = T,
                           max.run.time.seconds = 10,
-                          solver.metadata = create.solver.metadata(method=SOLVER.METHOD, rtol = 1e-06, atol = 1e-06),
+                     #     solver.metadata = create.solver.metadata(method=SOLVER.METHOD, rtol = 1e-06, atol = 1e-06),
                           description = "A quick run to get population parameters in the general vicinity"
 )
 

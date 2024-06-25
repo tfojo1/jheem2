@@ -17,7 +17,9 @@ for (i in 1:N.ITER)
 {
     print(paste0("Instantiating ", i, " of ", N.ITER))
  #   lik = suppression.likelihood.instructions$instantiate.likelihood('ehe', "C.12580")
-  lik = two.way.transmission.pop.aids.idu.likelihood.instructions$instantiate.likelihood('ehe', "C.12580")
+ #   lik = two.way.transmission.pop.aids.idu.likelihood.instructions$instantiate.likelihood('ehe', "C.12580")
+    lik = FULL.likelihood.instructions.with.covid$instantiate.likelihood('ehe', "C.12580")
+  
 }
 
 end.time = as.numeric(Sys.time())
