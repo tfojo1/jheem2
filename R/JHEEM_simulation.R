@@ -1348,7 +1348,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         },
         last.sim = function()
         {
-            self$subste(self$n.sim)
+            self$subset(self$n.sim)
         },
         
         get.engine = function(start.year = NULL,
@@ -1653,6 +1653,9 @@ JHEEM.SIMULATION.SET = R6::R6Class(
     ),
     
     private = list(
+        
+        i.specification.kernel = NULL,
+        
         i.data = NULL,
         i.run.metadata = NULL,
         
