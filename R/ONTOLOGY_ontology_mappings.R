@@ -359,7 +359,50 @@ do.register.mapping <- function(mapping)
         ONTOLOGY.MAPPING.MANAGER$sorted.mappings.by.from.dimension[[d]] = sorted.mappings
     }
     
-    # clear cached mappings
+    #-- Calculate linkages across dimensions --#
+    
+    for (d1 in mapping$from.dimensions)
+    {
+        if (is.null(ONTOLOGY.MAPPING.MANAGER$from.dimensions.directly.linked.by.mappings[[d1]]))
+            ONTOLOGY.MAPPING.MANAGER$from.dimensions.directly.linked.by.mappings[[d1]] = d1
+        
+        # direct linkages
+        for (d2 in mapping$from.dimensions)
+        {
+            if (d1 != d2)
+            {
+                ONTOLOGY.MAPPING.MANAGER$from.dimensions.directly.linked.by.mappings[[d1]] = 
+                    union(ONTOLOGY.MAPPING.MANAGER$from.dimensions.directly.linked.by.mappings[[d1]], d2)
+            }
+        }
+    }
+    
+    
+    # direct linkages
+    for (d in mapping$from.dimensions)
+    {
+        if (is.null(ONTOLOGY.MAPPING.MANAGER$from.dimensions.linked.by.mappings[[d]]))
+            ONTOLOGY.MAPPING.MANAGER$from.dimensions.linked.by.mappings[[d]] = d
+        
+        dimensions.to.add = setdiff(mapping$from.dimensions,
+                                    ONTOLOGY.MAPPING.MANAGER$from.dimensions.linked.by.mappings[[d]])
+        
+        while (length(dimensions.to.add)>0)
+        {
+            ONTOLOGY.MAPPING.MANAGER$from.dimensions.linked.by.mappings[[d]] = union(
+                ONTOLOGY.MAPPING.MANAGER$from.dimensions.linked.by.mappings[[d]],
+                dimensions.to.add
+            )
+            
+            dimensions.linked.to.added.dimensions = unlist(
+                ONTOLOGY.MAPPING.MANAGER$from.dimensions.linked.by.mappings[[dimensions.to.add]]
+            )
+            dimensions.to.add = setdiff(dimensions.linked.to.added.dimensions,
+                                        ONTOLOGY.MAPPING.MANAGER$from.dimensions.linked.by.mappings[[d]])
+        }
+    }
+    
+    #-- Clear cached mappings --#
     ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings=list()
     ONTOLOGY.MAPPING.MANAGER$cached.two.way.mappings=list()
 }
@@ -832,226 +875,230 @@ do.get.ontology.mapping <- function(from.ontology,
     # race and then ethnicity have a lot of choices, put those last
     # for year, we often have to allow.non.overlapping.incomplete.dimensions, so put that last if allow.non.overlapping.incomplete.dimensions
     
-    if (any(dimensions.out.of.alignment=='age'))
-        dimensions.out.of.alignment = union('age', dimensions.out.of.alignment)
+    n.mappings.per.dimensions.out.of.alignment = sapply(dimensions.out.of.alignment, function(d){
+        sum(
+            sapply(ONTOLOGY.MAPPING.MANAGER$sorted.mappings.by.from.dimension[union(d, 
+                                                                                    ONTOLOGY.MAPPING.MANAGER$from.dimensions.linked.by.mappings[[d]])], length)
+        )
+    })
+    order.dimensions.out.of.alignment = order(n.mappings.per.dimensions.out.of.alignment)
     
-    race.dimension.mask = dimensions.out.of.alignment=='race'
-    if (any(race.dimension.mask))
-        dimensions.out.of.alignment = c(dimensions.out.of.alignment[!race.dimension.mask], 'race')
-    
-    ethnicity.dimension.mask = dimensions.out.of.alignment=='ethnicity'
-    if (any(ethnicity.dimension.mask))
-        dimensions.out.of.alignment = c(dimensions.out.of.alignment[!ethnicity.dimension.mask], 'ethnicity')
-    
-    year.dimension.mask = dimensions.out.of.alignment=='year'
-    if (allow.non.overlapping.incomplete.dimensions && any(year.dimension.mask))
-        dimensions.out.of.alignment = union(dimensions.out.of.alignment[!year.dimension.mask], 'year')
-    
-    for (d in dimensions.out.of.alignment)
+    for (d.out.of.alignment in dimensions.out.of.alignment[order.dimensions.out.of.alignment])
     {
-        if (is.null(mappings.to.try$viable.mappings[[d]]))
+        dimensions.to.try = intersect(from.dimensions,
+                                      union(d.out.of.alignment,
+                                            ONTOLOGY.MAPPING.MANAGER$from.dimensions.linked.by.mappings[[d.out.of.alignment]]))
+        for (d in dimensions.to.try)
         {
-            mappings.to.try$viable.mappings[[d]] = list('drop')
-        }
-        
-        #for (try.index in 1:length(mappings.to.try$viable.mappings[[d]]))
-        while (length(mappings.to.try$viable.mappings[[d]])>0)
-        {
-            try.modification = F
-            mapping = orig.mapping = mappings.to.try$viable.mappings[[d]][[1]]
-            mappings.to.try$viable.mappings[[d]] = mappings.to.try$viable.mappings[[d]][-1]
-            
-            if (is.character(mapping))
+            #for (try.index in 1:length(mappings.to.try$viable.mappings[[d]]))
+            while (length(mappings.to.try$viable.mappings[[d]])>0)
             {
-                if (mapping=='drop')
-                {        
-                    try.modification = from.out.of.alignment.mask[d] && from.dimensions.are.complete[d] &&
-                        # this next line speeds us up, but could conceivably be wrong if we need to drop a dimension, then add it back with a mapping
-                        !any(to.dimensions==d)
-                }
-                else if (mapping=='other')
+                try.modification = F
+                mapping = orig.mapping = mappings.to.try$viable.mappings[[d]][[1]]
+                mappings.to.try$viable.mappings[[d]] = mappings.to.try$viable.mappings[[d]][-1]
+                
+                if (is.character(mapping))
                 {
-                    if (other.catchall.mapping.applies(from.values=from.ontology[[d]],
-                                                       to.values=to.ontology[[d]]))
-                    {
-                        mapping = create.other.catchall.ontology.mapping(dimension=d,
-                                                                         from.values=from.ontology[[d]],
-                                                                         to.values=to.ontology[[d]])
-                        try.modification = T
+                    if (mapping=='drop')
+                    {        
+                        try.modification = from.out.of.alignment.mask[d] && from.dimensions.are.complete[d] &&
+                            # this next line speeds us up, but could conceivably be wrong if we need to drop a dimension, then add it back with a mapping
+                            !any(to.dimensions==d)
                     }
-                }
-                else if (mapping=='age')
-                {
-                    if (any(dimensions.out.of.alignment == 'age') &&
-                        !is.null(from.ontology[['age']]) &&
-                        !is.null(to.ontology[['age']]))
+                    else if (mapping=='other')
                     {
-                        mapping = create.age.ontology.mapping(from.values=from.ontology[['age']],
-                                                              to.values=to.ontology[['age']],
-                                                              allow.incomplete.span.of.infinite.age.range = T,
-                                                              allow.partial.to.parsing = !to.dimensions.are.complete['age'],
-                                                              require.map.all.to = to.dimensions.are.complete['age'])
-                        
-                        try.modification = !is.null(mapping)
-                    }
-                }
-                else if (mapping=='year')
-                {
-                    if (any(dimensions.out.of.alignment == 'year') &&
-                        !is.null(from.ontology[['year']]) &&
-                        !is.null(to.ontology[['year']]))
-                    {
-                        mapping = create.year.ontology.mapping(from.values=from.ontology[['year']],
-                                                               to.values=to.ontology[['year']],
-                                                               require.map.all.to = to.dimensions.are.complete['year'])
-                        
-                        try.modification = !is.null(mapping)
-                    }
-                }
-            }
-            else
-            {
-                is.reverse.of.used.mapping = as.logical(sapply(used.mappings, function(other.mapping){
-                    mapping$is.reverse.of(other.mapping)
-                }))
-                
-                try.modification = !any(is.reverse.of.used.mapping) &&
-                    length(intersect(mapping$from.dimensions, dimensions.out.of.alignment)) > 0 && #== length(dimensions.out.of.alignment)
-                    mapping$can.apply.to.ontology(from.ontology,
-                                                  thorough.validation=F,
-                                                  error.prefix=error.prefix)
-                # not sure the first condition above is totally correct
-                # ie, do we apply the mapping only if it only involves all dimensions out of alignment (what == length(dimensions.out.of.alignment)
-                # or do we apply the mapping if it involves at least one dimension out of alignment (what >0 would give us)
-            }
-            
-            if (try.modification)
-            {
-                #-- Store our viable/failed mappings before we update them in case we need to roll back --#
-                pre.try.viable.mappings.for.d = mappings.to.try$viable.mappings[[d]]
-                pre.try.failed.mappings.for.d = mappings.to.try$failed.mappings[[d]]
-                
-                is.drop = is.character(mapping)
-                
-                #-- Apply the mapping --#
-                if (is.drop) # it is a drop the dimension
-                {
-                    if (DEBUG.ONTOLOGY.MAPPINGS)
-                        print(paste0(debug.prefix, "Try dropping '", d, "'"))
-                    
-                    post.try.from.ontology = from.ontology[from.dimensions != d]
-                    post.try.used.mappings = used.mappings
-                }
-                else
-                {
-                    # Update the ontology if we were to apply this mapping
-                    post.try.from.ontology = mapping$apply.to.ontology(from.ontology,
-                                                                       error.prefix = error.prefix)
-                    
-                    # Add to the the used mappings we are tracking
-                    post.try.used.mappings = c(used.mappings, list(mapping))
-                }
-                
-                #-- Before we recurse using this mapping,
-                #--  if it does not perfectly set up its to.dimensions,
-                #--  try some other mappings first
-                
-                if (!is.character(orig.mapping)) #otherwise, we know the mapping worked or we should have dropped the dimension
-                {
-                    still.out.of.alignment.mask = is.out.of.alignment(from.dimensions = mapping$to.dimensions,
-                                                                     to.dimensions = to.dimensions,
-                                                                     from.ontology = post.try.from.ontology,
-                                                                     to.ontology = to.ontology,
-                                                                     from.dimensions.are.complete = is_complete(post.try.from.ontology),
-                                                                     to.dimensions.are.complete = to.dimensions.are.complete,
-                                                                     get.two.way.alignment = get.two.way.alignment,
-                                                                     is.for.two.way = is.for.two.way,
-                                                                     try.allowing.non.overlapping.incomplete.dimensions = try.allowing.non.overlapping.incomplete.dimensions)
-                    
-                    if (all(still.out.of.alignment.mask))
-                    {
-                        other.mappings = do.get.ontology.mapping(from.ontology = from.ontology,
-                                                                 to.ontology = to.ontology,
-                                                                 required.dimensions = required.dimensions,
-                                                                 required.dim.names = required.dim.names,
-                                                                 get.two.way.alignment = get.two.way.alignment,
-                                                                 is.for.two.way = is.for.two.way,
-                                                                 allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions,
-                                                                 try.allowing.non.overlapping.incomplete.dimensions = try.allowing.non.overlapping.incomplete.dimensions,
-                                                                 used.mappings = used.mappings,
-                                                                 mappings.to.try = mappings.to.try,
-                                                                 search.depth = search.depth)
-                        
-                        if (!is.null(other.mappings)) # we succeeded (without using this mapping) and we're done! Return what we got and go home
+                        if (other.catchall.mapping.applies(from.values=from.ontology[[d]],
+                                                           to.values=to.ontology[[d]]))
                         {
-                            return(other.mappings)
+                            mapping = create.other.catchall.ontology.mapping(dimension=d,
+                                                                             from.values=from.ontology[[d]],
+                                                                             to.values=to.ontology[[d]])
+                            try.modification = T
+                        }
+                    }
+                    else if (mapping=='age')
+                    {
+                        if (any(dimensions.out.of.alignment == 'age') &&
+                            !is.null(from.ontology[['age']]) &&
+                            !is.null(to.ontology[['age']]))
+                        {
+                            mapping = create.age.ontology.mapping(from.values=from.ontology[['age']],
+                                                                  to.values=to.ontology[['age']],
+                                                                  allow.incomplete.span.of.infinite.age.range = T,
+                                                                  allow.partial.to.parsing = !to.dimensions.are.complete['age'],
+                                                                  require.map.all.to = to.dimensions.are.complete['age'])
+                            
+                            try.modification = !is.null(mapping)
+                        }
+                    }
+                    else if (mapping=='year')
+                    {
+                        if (any(dimensions.out.of.alignment == 'year') &&
+                            !is.null(from.ontology[['year']]) &&
+                            !is.null(to.ontology[['year']]))
+                        {
+                            mapping = create.year.ontology.mapping(from.values=from.ontology[['year']],
+                                                                   to.values=to.ontology[['year']],
+                                                                   require.map.all.to = to.dimensions.are.complete['year'])
+                            
+                            try.modification = !is.null(mapping)
                         }
                     }
                 }
-                
-                #-- Go ahead and recurse using this mapping --#
-                
-                # Mark previously failed mappings for the modified dimensions as now viable
-                if (!is.drop)
+                else
                 {
-                    if (DEBUG.ONTOLOGY.MAPPINGS)
-                        print(paste0(debug.prefix, "Try mapping '", mapping$name, "'"))
+                    is.reverse.of.used.mapping = as.logical(sapply(used.mappings, function(other.mapping){
+                        mapping$is.reverse.of(other.mapping)
+                    }))
                     
-                    if (length(mapping$to.dimensions)==1 && length(mapping$from.dimensions)==1 &&
-                        mapping$to.dimensions == mapping$from.dimensions)
+                    try.modification = !any(is.reverse.of.used.mapping) &&
+                        length(intersect(mapping$from.dimensions, dimensions.out.of.alignment)) > 0 && #== length(dimensions.out.of.alignment)
+                        mapping$can.apply.to.ontology(from.ontology,
+                                                      thorough.validation=F,
+                                                      error.prefix=error.prefix)
+                    # not sure the first condition above is totally correct
+                    # ie, do we apply the mapping only if it only involves all dimensions out of alignment (what == length(dimensions.out.of.alignment)
+                    # or do we apply the mapping if it involves at least one dimension out of alignment (what >0 would give us)
+                }
+                
+                if (try.modification)
+                {
+                    #-- Store our viable/failed mappings before we update them in case we need to roll back --#
+                    pre.try.viable.mappings.for.d = mappings.to.try$viable.mappings[[d]]
+                    pre.try.failed.mappings.for.d = mappings.to.try$failed.mappings[[d]]
+                    
+                    is.drop = is.character(mapping)
+                    
+                    #-- Apply the mapping --#
+                    if (is.drop) # it is a drop the dimension
                     {
-                        # we don't need to re-try dropping 'd'
-                        drop.mask = sapply(mappings.to.try$failed.mappings[[d]], function(mp){
-                            is.character(mp) && mp=='drop'
-                        })
+                        if (DEBUG.ONTOLOGY.MAPPINGS)
+                            print(paste0(debug.prefix, "Try dropping '", d, "'"))
                         
-                        mappings.to.try$viable.mappings[[d]] = c(mappings.to.try$failed.mappings[[d]][!drop.mask],
-                                                                 mappings.to.try$viable.mappings[[d]])
-                        mappings.to.try$failed.mappings[[d]] = mappings.to.try$failed.mappings[[d]][drop.mask]
+                        post.try.from.ontology = from.ontology[from.dimensions != d]
+                        post.try.used.mappings = used.mappings
                     }
                     else
                     {
-                        mappings.to.try$viable.mappings[[d]] = c(mappings.to.try$failed.mappings[[d]],
-                                                                 mappings.to.try$viable.mappings[[d]])
-                        mappings.to.try$failed.mappings[[d]] = list()
+                        # Update the ontology if we were to apply this mapping
+                        post.try.from.ontology = mapping$apply.to.ontology(from.ontology,
+                                                                           error.prefix = error.prefix)
+                        
+                        # Add to the the used mappings we are tracking
+                        post.try.used.mappings = c(used.mappings, list(mapping))
                     }
-                }
-                
-                additional.mappings = do.get.ontology.mapping(from.ontology = post.try.from.ontology,
-                                                              to.ontology = to.ontology,
-                                                              required.dimensions = required.dimensions,
-                                                              required.dim.names = required.dim.names,
-                                                              get.two.way.alignment = get.two.way.alignment,
-                                                              is.for.two.way = is.for.two.way,
-                                                              allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions,
-                                                              try.allowing.non.overlapping.incomplete.dimensions = try.allowing.non.overlapping.incomplete.dimensions,
-                                                              used.mappings = post.try.used.mappings,
-                                                              mappings.to.try = mappings.to.try,
-                                                              search.depth = search.depth + 1)
-                
-                if (!is.null(additional.mappings)) # we succeeded and we're done! Append and go home
-                {
-                    if (is.character(mapping))
-                        to.add = list()
-                    else
-                        to.add = list(mapping)
                     
-                    return(list(from=c(to.add, additional.mappings$from),
-                                to=additional.mappings$to))
+                    #-- Before we recurse using this mapping,
+                    #--  if it does not perfectly set up its to.dimensions,
+                    #--  try some other mappings first
+                    
+                    if (!is.character(orig.mapping)) #otherwise, we know the mapping worked or we should have dropped the dimension
+                    {
+                        still.out.of.alignment.mask = is.out.of.alignment(from.dimensions = mapping$to.dimensions,
+                                                                         to.dimensions = to.dimensions,
+                                                                         from.ontology = post.try.from.ontology,
+                                                                         to.ontology = to.ontology,
+                                                                         from.dimensions.are.complete = is_complete(post.try.from.ontology),
+                                                                         to.dimensions.are.complete = to.dimensions.are.complete,
+                                                                         get.two.way.alignment = get.two.way.alignment,
+                                                                         is.for.two.way = is.for.two.way,
+                                                                         try.allowing.non.overlapping.incomplete.dimensions = try.allowing.non.overlapping.incomplete.dimensions)
+                        
+                        if (all(still.out.of.alignment.mask))
+                        {
+                            other.mappings = do.get.ontology.mapping(from.ontology = from.ontology,
+                                                                     to.ontology = to.ontology,
+                                                                     required.dimensions = required.dimensions,
+                                                                     required.dim.names = required.dim.names,
+                                                                     get.two.way.alignment = get.two.way.alignment,
+                                                                     is.for.two.way = is.for.two.way,
+                                                                     allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions,
+                                                                     try.allowing.non.overlapping.incomplete.dimensions = try.allowing.non.overlapping.incomplete.dimensions,
+                                                                     used.mappings = used.mappings,
+                                                                     mappings.to.try = mappings.to.try,
+                                                                     search.depth = search.depth)
+                            
+                            if (!is.null(other.mappings)) # we succeeded (without using this mapping) and we're done! Return what we got and go home
+                            {
+                                return(other.mappings)
+                            }
+                        }
+                    }
+                    
+                    #-- Go ahead and recurse using this mapping --#
+                    
+                    # Mark previously failed mappings for the modified dimensions as now viable
+                    if (!is.drop)
+                    {
+                        if (DEBUG.ONTOLOGY.MAPPINGS)
+                            print(paste0(debug.prefix, "Try mapping '", mapping$name, "'"))
+                        
+                        if (length(mapping$to.dimensions)==1 && length(mapping$from.dimensions)==1 &&
+                            mapping$to.dimensions == mapping$from.dimensions)
+                        {
+                            # we don't need to re-try dropping 'd'
+                            drop.mask = sapply(mappings.to.try$failed.mappings[[d]], function(mp){
+                                is.character(mp) && mp=='drop'
+                            })
+                            
+                            mappings.to.try$viable.mappings[[d]] = c(mappings.to.try$failed.mappings[[d]][!drop.mask],
+                                                                     mappings.to.try$viable.mappings[[d]])
+                            mappings.to.try$failed.mappings[[d]] = mappings.to.try$failed.mappings[[d]][drop.mask]
+                        }
+                        else
+                        {
+                            mappings.to.try$viable.mappings[[d]] = c(mappings.to.try$failed.mappings[[d]],
+                                                                     mappings.to.try$viable.mappings[[d]])
+                            mappings.to.try$failed.mappings[[d]] = list()
+                        }
+                    }
+                    
+                    additional.mappings = do.get.ontology.mapping(from.ontology = post.try.from.ontology,
+                                                                  to.ontology = to.ontology,
+                                                                  required.dimensions = required.dimensions,
+                                                                  required.dim.names = required.dim.names,
+                                                                  get.two.way.alignment = get.two.way.alignment,
+                                                                  is.for.two.way = is.for.two.way,
+                                                                  allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions,
+                                                                  try.allowing.non.overlapping.incomplete.dimensions = try.allowing.non.overlapping.incomplete.dimensions,
+                                                                  used.mappings = post.try.used.mappings,
+                                                                  mappings.to.try = mappings.to.try,
+                                                                  search.depth = search.depth + 1)
+                    
+                    if (!is.null(additional.mappings)) # we succeeded and we're done! Append and go home
+                    {
+                        if (is.character(mapping))
+                            to.add = list()
+                        else
+                            to.add = list(mapping)
+                        
+                        return(list(from=c(to.add, additional.mappings$from),
+                                    to=additional.mappings$to))
+                    }
+                    
+                    
+                    #-- If we get here, we tried and failed --#
+                    
+                    # Roll back the viable/failed mappings
+                    mappings.to.try$viable.mappings[[d]] = pre.try.viable.mappings.for.d
+                    mappings.to.try$failed.mappings[[d]] = pre.try.failed.mappings.for.d
                 }
                 
+                #-- If we get here, either we didn't try or we tried and failed --#
                 
-                #-- If we get here, we tried and failed --#
-                
-                # Roll back the viable/failed mappings
-                mappings.to.try$viable.mappings[[d]] = pre.try.viable.mappings.for.d
-                mappings.to.try$failed.mappings[[d]] = pre.try.failed.mappings.for.d
+                # Add to failed mappings
+                mappings.to.try$failed.mappings[[d]] = c(mappings.to.try$failed.mappings[[d]], list(orig.mapping))
             }
-            
-            #-- If we get here, either we didn't try or we tried and failed --#
-            
-            # Add to failed mappings
-            mappings.to.try$failed.mappings[[d]] = c(mappings.to.try$failed.mappings[[d]], list(orig.mapping))
+        }
+        
+        #-- If we get here, we didn't find any mappings that could align dimension d.out.of.alignment, and it is still out of alignment --#
+        #   And unless we can move on to a two-way alignment or allow incomplete dimensions to be non-overlapping, we never will get it aligned
+        if (!get.two.way.alignment &&
+            (from.dimensions.are.complete[d.out.of.alignment] || try.allowing.non.overlapping.incomplete.dimensions || !allow.non.overlapping.incomplete.dimensions))
+        {
+            if (DEBUG.ONTOLOGY.MAPPINGS)
+                print(paste0(debug.prefix, "Cannot find any mappings that align '", d.out.of.alignment, "' - giving up here"))
+            return (NULL)
         }
     }
          
@@ -1609,6 +1656,8 @@ ONTOLOGY.MAPPING.MANAGER$mappings=list()
 ONTOLOGY.MAPPING.MANAGER$sorted.mappings.by.from.dimension=list()
 ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings=list()
 ONTOLOGY.MAPPING.MANAGER$cached.two.way.mappings=list()
+ONTOLOGY.MAPPING.MANAGER$from.dimensions.directly.linked.by.mappings=list()
+ONTOLOGY.MAPPING.MANAGER$from.dimensions.linked.by.mappings=list()
 
 
 ##-----------------------##
@@ -2080,7 +2129,7 @@ ONTOLOGY.MAPPING = R6::R6Class(
         
         check.can.apply = function(from.dim.names, 
                                     to.dim.names,
-                                   thorough.validation,
+                                   thorough.validation = T,
                                     throw.errors,
                                     error.prefix)
         {
@@ -2959,7 +3008,7 @@ initial.check.can.apply <- function(mapping,
                                     to.dim.names,
                                     throw.errors,
                                     error.prefix,
-                                    thorough.validation)
+                                    thorough.validation = T)
 {
     # Make sure they are valid dimnames 
     #  (this will also be true if from.dim.names is an ontology)
