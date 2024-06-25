@@ -1074,7 +1074,7 @@ register.transmission <- function(specification,
                                   transmissibility.value,
                                   new.infection.proportions.value,
                                   tag = 'transmission',
-                                  all.new.infections.into.compartments=character(),
+                                  all.new.infections.into.compartments=list(),
                                   from.applies.to=list(),
                                   to.applies.to=list(),
                                   transmission.applies.to=list(),
@@ -1796,7 +1796,7 @@ QUANTITY.SUBSET.APPLY.FUNCTIONS = c('overwrite','add','subtract','multiply','div
 ALLOWED.MODEL.QUANTITY.VALUE.EXPRESSION.FUNCTIONS = c("+","-","*","/","(","log","exp","sqrt")
 ALLOWED.MODEL.OUTCOME.VALUE.EXPRESSION.FUNCTIONS = c("+","-","*","/","(","log","exp","sqrt")
 
-MIN.FUNCTIONAL.FORM.FROM.YEAR = 1970
+MIN.FUNCTIONAL.FORM.FROM.YEAR = 1960
 MAX.FUNCTIONAL.FORM.FROM.YEAR.OFFSET.FROM.CURRENT.YEAR = 50
 
 ALLOWED.GROUPS = c('infected', 'uninfected')
@@ -2432,7 +2432,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                          transmissibility.value,
                                          new.infection.proportions.value,
                                          tag=NULL,
-                                         all.new.infections.into.compartments = character(),
+                                         all.new.infections.into.compartments = list(),
                                          from.applies.to=list(),
                                          to.applies.to=list(),
                                          transmission.applies.to=list(),
@@ -5648,7 +5648,7 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
             private$i.ontology.name.for.mechanism = ontology.name.for.mechanism
             private$i.required.sub.ontology.name.for.mechanism = required.sub.ontology.name.for.mechanism
             private$i.applies.to.name.for.mechanism = applies.to.name.for.mechanism
-            private$i.into.comparments.name.for.mechanism = into.compartments.name.for.mechanism
+            private$i.into.compartments.name.for.mechanism = into.compartments.name.for.mechanism
             private$i.alias.suffix.for.mechanism = alias.suffix.for.mechanism
             private$i.additional.member.names = additional.member.names
             private$i.register.function.name = register.function.name
@@ -5711,21 +5711,21 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
             }
             
             # Validate into.compartments
-            for (into.comparments.name in private$i.into.compartments.names)
+            for (into.compartments.name in private$i.into.compartments.names)
             {
-                if (all(names(args) != into.comparments.name))
-                    stop(paste0(error.prefix, "Missing value for '", into.comparments.name, "'"))
+                if (all(names(args) != into.compartments.name))
+                    stop(paste0(error.prefix, "Missing value for '", into.compartments.name, "'"))
                 
-                into.compartments.val = args[[into.comparments.name]]
+                into.compartments.val = args[[into.compartments.name]]
                 
                 check.dimension.values.valid(into.compartments.val,
-                                             variable.name.for.error = into.compartments.val, 
+                                             variable.name.for.error = into.compartments.name, 
                                              allow.empty = T, 
                                              error.prefix = error.prefix)
                 
                 too.long = sapply(into.compartments.val, length) > 1
                 if (any(too.long))
-                    stop(paste0(error.prefix, "'", into.comparments.name, "' can only contain length-one vectors (ie, each element of the list is a single value)"))
+                    stop(paste0(error.prefix, "'", into.compartments.name, "' can only contain length-one vectors (ie, each element of the list is a single value)"))
                 
                 if (!is.null(private$i.into.compartments.suffix))
                 {
@@ -5739,14 +5739,14 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
                     
                     names(into.compartments.val)[missing.suffix] = paste0(names(into.compartments.val)[missing.suffix], suffix)
                     
-                    args[[into.comparments.name]] = into.compartments.val
+                    args[[into.compartments.name]] = into.compartments.val
                 }
             }
             
             # Make sure into.compartments don't overlap dimensions with applies.to
-            for (mechanism.type in names(private$i.into.comparments.name.for.mechanism))
+            for (mechanism.type in names(private$i.into.compartments.name.for.mechanism))
             {
-                into.compartments.name = private$i.into.comparments.name.for.mechanism[mechanism.type]
+                into.compartments.name = private$i.into.compartments.name.for.mechanism[mechanism.type]
                 into.compartments.val = args[[into.compartments.name]]
                 
                 applies.to.name = private$i.applies.to.name.for.mechanism[mechanism.type]
@@ -5807,26 +5807,26 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
                         ont = ontologies[[ont.name]]
                         
                         #-- Validate and Resolve into.compartments --#
-                        if (!is.na(private$i.into.comparments.name.for.mechanism[mechanism.type]))
+                        if (!is.na(private$i.into.compartments.name.for.mechanism[mechanism.type]))
                         {
-                            into.compartments = comp[[ private$i.into.comparments.name.for.mechanism[mechanism.type] ]]
+                            into.compartments = comp[[ private$i.into.compartments.name.for.mechanism[mechanism.type] ]]
                             if (length(into.compartments)>0)
                             {
                                 into.compartments = do.resolve.dimension.values(dimension.values = into.compartments,
                                                                                 aliases = aliases,
                                                                                 ontology = ont,
                                                                                 unresolved.alias.names = unresolved.alias.names,
-                                                                                variable.name.for.error = paste0(private$i.into.comparments.name.for.mechanism[mechanism.type], " for '", mechanism.type, "' of ", comp$name),
+                                                                                variable.name.for.error = paste0(private$i.into.compartments.name.for.mechanism[mechanism.type], " for '", mechanism.type, "' of ", comp$name),
                                                                                 ontology.name.for.error = paste0("the ontology ('", ont.name, "')"),
                                                                                 error.prefix = error.prefix)
                                 # Make sure they are length 1 after resolving
                                 too.long.mask = sapply(into.compartments, length)>1
                                 if (any(too.long.mask))
-                                    stop(paste0(error.prefix, "'", private$i.into.comparments.name.for.mechanism[mechanism.type], "' for '", mechanism.type,
+                                    stop(paste0(error.prefix, "'", private$i.into.compartments.name.for.mechanism[mechanism.type], "' for '", mechanism.type,
                                                 "' of ", comp$name, " can only contain single values, but after resolving aliases, some elements of the list contain more than one value"))
                                 
                                 # Store
-                                comp[[ private$i.into.comparments.name.for.mechanism[mechanism.type] ]] = into.compartments
+                                comp[[ private$i.into.compartments.name.for.mechanism[mechanism.type] ]] = into.compartments
                              
                                 ont = ont[setdiff(names(ont), names(into.compartments))]
                                 ont.name = paste0(ont.name, " after excluding ", paste0(names(into.compartments), collapse='/'))
@@ -5947,7 +5947,7 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
             rv = lapply(private$i.mechanism.types, function(mechanism.type){
                        
                 applies.to = private$get.applies.to.for.mechanism(mechanism.type, comp=comp, specification=specification)
-                into.compartments = comp[[ private$i.into.comparments.name.for.mechanism[mechanism.type] ]]
+                into.compartments = comp[[ private$i.into.compartments.name.for.mechanism[mechanism.type] ]]
  
                 if (length(intersect(names(applies.to), names(into.compartments)))>0)
                     stop(paste0("Unable to merge applies.to and into.compartments for mechanism '",
@@ -6155,7 +6155,7 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
         i.ontology.name.for.mechanism = NULL,
         i.required.sub.ontology.name.for.mechanism = NULL,
         i.applies.to.name.for.mechanism = NULL,
-        i.into.comparments.name.for.mechanism = NULL,
+        i.into.compartments.name.for.mechanism = NULL,
         i.alias.suffix.for.mechanism = NULL,
         
         i.additional.member.names = NULL,
@@ -6224,7 +6224,7 @@ CORE.COMPONENT.SCHEMA = R6::R6Class(
         
         get.exclude.ontology.dimensions.for.mechanism = function(mechanism.type, comp, specification)
         {
-            rv = names(comp[[ private$i.into.comparments.name.for.mechanism[mechanism.type] ]])
+            rv = names(comp[[ private$i.into.compartments.name.for.mechanism[mechanism.type] ]])
             rv = rv[!is.na(rv)]
             rv
         },

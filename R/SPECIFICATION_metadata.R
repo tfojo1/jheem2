@@ -11,7 +11,18 @@
 #'
 #'@export
 get.specification.metadata <- function(version, location, sub.version=NULL,
-                                       error.prefix = NULL)
+                                       error.prefix = '')
+{
+    do.get.specification.metadata(version = version,
+                                  location = location,
+                                  sub.version = sub.version,
+                                  error.prefix = error.prefix)
+}
+
+# An internal helper
+# formulated here to avoid name clashes with R6 methods (eg, specification.kernel also has a $get.specification.metadata method)
+do.get.specification.metadata <- function(version, location, sub.version=NULL,
+                                       error.prefix = '')
 {
     if (is.null(error.prefix))
         error.prefix = paste0("Error deriving the specification-metadata for '", version, "' and location '", location, "': ")
