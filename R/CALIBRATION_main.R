@@ -570,11 +570,13 @@ get.calibration.info <- function(code, throw.error.if.missing=T, error.prefix=''
 
 
 prepare.mcmc.summary <- function(version,
-                                  location,
-                                  calibration.code,
-                                  root.dir,
+                                 location,
+                                 calibration.code,
+                                 root.dir,
+                                 parameter.scales,
                                  get.one.set.of.parameters = T,
-                                  error.prefix = '')
+                                 burn.fraction = 0.5,
+                                 error.prefix = '')
 {
     dir = file.path(get.calibration.dir(version=version,
                                         location=location,
@@ -625,8 +627,71 @@ prepare.mcmc.summary <- function(version,
     
     #-- Prepare the parameter values --#
     
+    sample.mean = NULL
+    sample.cov = NULL
+    n.samples = NULL
+
+samples = NULL
+    
     if (!get.one.set.of.parameters)
-        stop("We have not yet implemented getting multiple parameters")
+    {
+        # Figure out which chunks we are going to use
+        chunks.to.use = (1:global.control@n.chunks)[(1:global.control@n.chunks)/global.control@n.chunks>burn.fraction]
+        hypothetical.chunk.files = unlist(lapply(1:global.control@n.chains, function(chain){
+            file.path(paste0("chain_", chain),
+                      paste0("chain", chain, "_chunk", chunks.to.use, ".Rdata"))
+        }))
+        chunk.files = chunk.files[sapply(file.path(dir, hypothetical.chunk.files), file.exists)]
+        
+        if (length(chunk.files)/length(hypothetical.chunk.files) < 1)
+            stop("Cannot prepare MCMC summary - we have not finished the sampling for the prior calibration")
+        
+        # Iterate through each chunk and use to calculate sample mean and covariance    
+        for (chunk.file in chunk.files)
+        {
+            # Calculate the mean and covariance of the new samples
+            new.samples = mcmc@samples
+            n.new.samples = prod(dim(new.samples)) / dim(new.samples)['variable']
+            
+            new.samples = sapply(dimnames(new.samples)$variable, function(var.name){
+                values = new.samples[,,var.name]
+                scale = parameter.scales[var.name]
+                if (scale=='identity')
+                    values
+                else if (scale=='log')
+                    log(values)
+                else if (scale=='logit')
+                    log(values) - log(1-values)
+                else
+                    stop(paste0("Don't know what to do with scale = '", scale, "'"))
+            })
+            
+            mean.new.samples = colMeans(new.samples)
+            cov.new.samples = cov(new.samples)
+samples = rbind(samples, new.samples)
+            
+            # Incorporate into the overall mean and cov mat
+            if (is.null(sample.mean))
+            {
+                sample.mean = mean.new.samples
+                sample.cov = cov.new.samples
+                n.samples = n.new.samples
+            }
+            else
+            {
+                old.n = n.samples
+                old.mean = sample.mean
+                old.cov = sample.cov
+                n.samples = old.n + n.new.samples
+                
+                sample.mean = old.n/n.samples * old.mean + n.new.samples/n.samples * mean.new.samples
+                sample.cov = 1/(n.samples-1) *
+                    ( (old.n-1) * old.cov + old.n * old.mean %*% t(old.mean) +
+                      (n.new.samples-1) * cov.new.samples + n.new.samples * mean.new.samples %*% t(mean.new.samples) - 
+                      n.samples * sample.mean %*% t(sample.mean) )
+            }
+        }
+    }
     
     all.transformed.parameter.values = sapply(chain.controls, function(ctrl){
         ctrl@chain.state@mean.transformed.parameters
@@ -656,7 +721,11 @@ prepare.mcmc.summary <- function(version,
         transformed.parameter.values = transformed.parameter.values,
         cov.mat = cov.mat,
         initial.scaling.parameters = initial.scaling.parameters,
-        parameter.names = names(transformed.parameter.values)
+        parameter.names = names(transformed.parameter.values),
+        sample.mean = sample.mean,
+        sample.cov = sample.cov,
+        
+samples = samples
     )
 }
 
@@ -671,11 +740,14 @@ prepare.mcmc.summary <- function(version,
 get.distribution.variable.transformation = function(dist, unknown.value)
 {
     if (is(dist, "Joint_Independent_Distributions"))
-        unlist(lapply(dist@subdistributions, 
+        rv = unlist(lapply(dist@subdistributions, 
                       get.distribution.variable.transformation, 
                       unknown.value = unknown.value))
     else if (is.null(dist@transformation))
-        rep(unknown.value, dist@n.var)
+        rv = rep(unknown.value, dist@n.var)
     else
-        rep(dist@transformation@name, dist@n.var)
+        rv = rep(dist@transformation@name, dist@n.var)
+    
+    names(rv) = dist@var.names
+    rv
 }
