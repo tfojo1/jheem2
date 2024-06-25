@@ -431,11 +431,10 @@ get.ontology.mapping <- function(from.ontology,
     from.ontology = derive.ontology(from.ontology, var.name.for.error = "'from.ontology'", error.prefix = "Error in get.ontology.mapping(): ")
     to.ontology = derive.ontology(to.ontology, var.name.for.error = "'to.ontology'", error.prefix = "Error in get.ontology.mapping(): ")
  
-  #  rv = ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings[[hash.ontology(from.ontology)]][[hash.ontology((to.ontology))]]
-    rv = NULL
+    rv = ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings[[hash.ontology(from.ontology)]][[hash.ontology((to.ontology))]]
     if (is.null(rv) || DEBUG.ONTOLOGY.MAPPINGS)
     {
-start.time = as.numeric(Sys.time())
+#start.time = as.numeric(Sys.time())
         #-- Call the sub-function --#
         mappings = do.get.ontology.mapping(from.ontology = from.ontology,
                                            to.ontology = to.ontology,
@@ -446,22 +445,22 @@ start.time = as.numeric(Sys.time())
         
         #-- Package up and cache --#
         rv = combine.ontology.mappings(mappings[[1]])
-end.time = as.numeric(Sys.time())
-TRACKED.CALLS <<- c(TRACKED.CALLS,
-                    list(
-                        list(time = end.time-start.time,
-                             from.ontology = from.ontology,
-                             to.ontology = to.ontology,
-                             success = !is.null(rv),
-                             result = rv)
-                    ))
-  #      ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings[[hash.ontology(from.ontology)]][[hash.ontology((to.ontology))]] = rv
+# end.time = as.numeric(Sys.time())
+# TRACKED.CALLS <<- c(TRACKED.CALLS,
+#                     list(
+#                         list(time = end.time-start.time,
+#                              from.ontology = from.ontology,
+#                              to.ontology = to.ontology,
+#                              success = !is.null(rv),
+#                              result = rv)
+#                     ))
+        ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings[[hash.ontology(from.ontology)]][[hash.ontology((to.ontology))]] = rv
     }
     
     
     rv
 }
-TRACKED.CALLS = list()
+#TRACKED.CALLS = list()
 
 #'@title Get a Pair of Ontology Mappings that Aligns two Data Elements
 #'
@@ -494,7 +493,7 @@ get.mappings.to.align.ontologies <- function(ontology.1,
 
     if (is.null(rv) || DEBUG.ONTOLOGY.MAPPINGS)
     {
-start.time = as.numeric(Sys.time())
+# start.time = as.numeric(Sys.time())
         #-- Call the sub-function --#
         mappings = do.get.ontology.mapping(from.ontology = ontology.1,
                                            to.ontology = ontology.2,
@@ -511,15 +510,15 @@ start.time = as.numeric(Sys.time())
                       mapping.from.2 = combine.ontology.mappings(mappings[[2]]) )
         
         ONTOLOGY.MAPPING.MANAGER$cached.two.way.mappings[[hash.ontology(ontology.1)]][[hash.ontology((ontology.2))]] = rv
-end.time = as.numeric(Sys.time())
-TRACKED.CALLS <<- c(TRACKED.CALLS,
-                    list(
-                        list(time = end.time-start.time,
-                             ontology.1 = ontology.1,
-                             ontology.2 = ontology.2,
-                             success = !is.null(rv),
-                             result = rv)
-                    ))
+# end.time = as.numeric(Sys.time())
+# TRACKED.CALLS <<- c(TRACKED.CALLS,
+#                     list(
+#                         list(time = end.time-start.time,
+#                              ontology.1 = ontology.1,
+#                              ontology.2 = ontology.2,
+#                              success = !is.null(rv),
+#                              result = rv)
+#                     ))
     }
     
     rv
@@ -890,6 +889,11 @@ do.get.ontology.mapping <- function(from.ontology,
                                             ONTOLOGY.MAPPING.MANAGER$from.dimensions.linked.by.mappings[[d.out.of.alignment]]))
         for (d in dimensions.to.try)
         {
+            if (is.null(mappings.to.try$viable.mappings[[d]]))
+            {
+                mappings.to.try$viable.mappings[[d]] = list('drop')
+            }
+            
             #for (try.index in 1:length(mappings.to.try$viable.mappings[[d]]))
             while (length(mappings.to.try$viable.mappings[[d]])>0)
             {
