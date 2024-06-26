@@ -1316,6 +1316,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         ...)
         {
             # if (debug) browser()
+            time.keep = F
+            total.time = Sys.time()
             error.prefix = paste0("Cannot pull '", outcome, "' data from the data manager: ")
             # *extra dimensions* are an alternative to 'dimension.values' and must pass the same checks if used
             extra.dimension.values = list(...)
@@ -1404,7 +1406,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # Check if we have any data at all for this outcome!
-            if (is.null(private$i.data[[outcome]][[metric]])) return (NULL)
+            if (is.null(private$i.data[[outcome]][[metric]])) {
+                if (timekeep && metric=='estimate' && is.null(sources)) {
+                    if (!is.null(TIME.KEEPER$total)) TIME.KEEPER$total = TIME.KEEPER$total + Sys.time() - total.time
+                    else TIME.KEEPER$total = Sys.time() - total.time
+                }
+                
+                return (NULL)
+            }
             
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
@@ -1450,6 +1459,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 sources.used.names = sources
             sources.successful.names = c()
             
+            if (time.keep && metric=='estimate' && is.null(sources)) {
+                if (!is.null(TIME.KEEPER$before.lapply)) TIME.KEEPER$before.lapply = TIME.KEEPER$before.lapply + Sys.time() - total.time
+                else TIME.KEEPER$before.lapply = Sys.time() - total.time
+            }
+            lapply.time = Sys.time()
+            
             ## FOR THE FUTURE: DO A PRETEND PULL TO SEE WHAT ONTOLOGIES WE NEED, THEN POTENTIALLY REMAKE THE UNIVERSAL WITH ONLY THOSE
             # if (debug) browser()
             pre.processed.data = lapply(sources.used.names, function(source.name) {
@@ -1468,17 +1483,39 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     stratification.names = names(private$i.data[[outcome]][[metric]][[source.name]][[ont.name]])
                     
                     for (strat in stratification.names) {
+                        initial.strat.time = Sys.time()
                         strat.data = private$i.data[[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
                         strat.dimensions = names(dim(strat.data))
                         strat.dimnames = as.ontology(dimnames(strat.data), incomplete.dimensions = intersect(incomplete.dimensions(ont), strat.dimensions))
-                        
+                        if (time.keep && metric=='estimate' && is.null(sources)) {
+                            if (!is.null(TIME.KEEPER$initial.strat)) TIME.KEEPER$initial.strat = TIME.KEEPER$initial.strat + Sys.time() - initial.strat.time
+                            else TIME.KEEPER$initial.strat = Sys.time() - initial.strat.time
+                        }
                         if (all(is.na(strat.data))) next
                         
                         ### This step can take a VERY long time (~30 seconds) to fail on some outcomes and stratifications. We need to cache the result.
+                        mta.time = Sys.time()
                         mapping.to.apply = get.ontology.mapping(strat.dimnames, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
-                        if (is.null(mapping.to.apply)) next
+                        if (time.keep && metric=='estimate' && is.null(sources)) {
+                            if (!is.null(TIME.KEEPER$getting.mta)) TIME.KEEPER$getting.mta = TIME.KEEPER$getting.mta + Sys.time() - mta.time
+                            else TIME.KEEPER$getting.mta = Sys.time() - mta.time
+                        }
+                        phase.one.time = Sys.time()
+                        if (is.null(mapping.to.apply)) {
+                            if (time.keep && metric=='estimate' && is.null(sources)) {
+                                if (!is.null(TIME.KEEPER$phase.one)) TIME.KEEPER$phase.one = TIME.KEEPER$phase.one + Sys.time() - phase.one.time
+                                else TIME.KEEPER$phase.one = Sys.time() - phase.one.time
+                            }
+                            next
+                        }
                         dimnames.for.apply = mapping.to.apply$apply.to.dim.names(strat.dimnames)
-                        if (!setequal(names(dimnames.for.apply), union(keep.dimensions, dv.names))) next
+                        if (!setequal(names(dimnames.for.apply), union(keep.dimensions, dv.names))) {
+                            if (time.keep && metric=='estimate' && is.null(sources)) {
+                                if (!is.null(TIME.KEEPER$phase.one)) TIME.KEEPER$phase.one = TIME.KEEPER$phase.one + Sys.time() - phase.one.time
+                                else TIME.KEEPER$phase.one = Sys.time() - phase.one.time
+                            }
+                            next
+                        }
                         
                         # Check that the mapped stratification won't aggregate illegally due to missing some values in an incomplete dimension that will be aggregated (since it is in dimension.values but not keep.dimensions)
                         missing.dimension.values.for.aggregated.dimension = F
@@ -1491,7 +1528,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 }
                             }
                         }
-                        if (missing.dimension.values.for.aggregated.dimension) next
+                        if (missing.dimension.values.for.aggregated.dimension) {
+                            if (time.keep && metric=='estimate' && is.null(sources)) {
+                                if (!is.null(TIME.KEEPER$phase.one)) TIME.KEEPER$phase.one = TIME.KEEPER$phase.one + Sys.time() - phase.one.time
+                                else TIME.KEEPER$phase.one = Sys.time() - phase.one.time
+                            }
+                            next
+                        }
                         
                         # Insert dimension.values
                         
@@ -1507,12 +1550,22 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             dimnames.for.apply[[d]] = replacement
                         }
-                        if (dimension.has.no.intersection) next
+                        if (dimension.has.no.intersection) {
+                            if (debug) {
+                                if (!is.null(TIME.KEEPER$phase.one)) TIME.KEEPER$phase.one = TIME.KEEPER$phase.one + Sys.time() - phase.one.time
+                                else TIME.KEEPER$phase.one = Sys.time() - phase.one.time
+                            }
+                            next
+                        }
                         # Apply mapping
                         
                         incompatible.mapped.stratification = F
                         data.types = union('data', append.attributes)
-                        if (debug) browser()
+                        if (time.keep && metric=='estimate' && is.null(sources)) {
+                            if (!is.null(TIME.KEEPER$phase.one)) TIME.KEEPER$phase.one = TIME.KEEPER$phase.one + Sys.time() - phase.one.time
+                            else TIME.KEEPER$phase.one = Sys.time() - phase.one.time
+                        }
+                        phase.two.time = Sys.time()
                         pulled.ont.data = lapply(data.types, function(data.type) {
                             if (incompatible.mapped.stratification) return (NULL)
                             if (!mapping.to.apply$can.apply.to.dim.names(from.dim.names = strat.dimnames,
@@ -1686,12 +1739,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             mapped.data.by.type
                         })
+                        if (time.keep && metric=='estimate' && is.null(sources)) {
+                            if (!is.null(TIME.KEEPER$phase.two)) TIME.KEEPER$phase.two = TIME.KEEPER$phase.two + Sys.time() - phase.two.time
+                            else TIME.KEEPER$phase.two = Sys.time() - phase.two.time
+                        }
                         if (incompatible.mapped.stratification) {
                             pulled.ont.data = NULL
                             next
                         }
                         names(pulled.ont.data) = data.types
-                        
+                        phase.three.time = Sys.time()
                         # We might need to subset details or url if the 'data' was unexpectedly subset due to denominator data for a proportion having fewer years or locations
                         if (outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion') || metric=='coefficient.of.variance') {
                             tryCatch(
@@ -1866,8 +1923,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             data.by.data.type
                         }) # end of lapply for data.types
                         # if (debug) browser()
+                        if (time.keep && metric=='estimate' && is.null(sources)) {
+                            if (!is.null(TIME.KEEPER$phase.three)) TIME.KEEPER$phase.three = TIME.KEEPER$phase.three + Sys.time() - phase.three.time
+                            else TIME.KEEPER$phase.three = Sys.time() - phase.three.time
+                        }
+                        phase.four.time = Sys.time()
                         if (all(is.na(pulled.ont.data[[1]]))) {
                             pulled.ont.data = NULL
+                            if (time.keep && metric=='estimate' && is.null(sources)) {
+                                if (!is.null(TIME.KEEPER$phase.four)) TIME.KEEPER$phase.four = TIME.KEEPER$phase.four + Sys.time() - phase.four.time
+                                else TIME.KEEPER$phase.four = Sys.time() - phase.four.time
+                            }
                             next
                         }
                         names(pulled.ont.data) = data.types
@@ -1878,13 +1944,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             # keep.dimensions <<- keep.dimensions
                             # need.to.set.keep.dimensions.flag <<- FALSE
                         }
+                        if (time.keep && metric=='estimate' && is.null(sources)) {
+                            if (!is.null(TIME.KEEPER$phase.four)) TIME.KEEPER$phase.four = TIME.KEEPER$phase.four + Sys.time() - phase.four.time
+                            else TIME.KEEPER$phase.four = Sys.time() - phase.four.time
+                        }
                         break
                         
                     } # end of loop for stratification
                     if (source.lacks.denominator.data.flag) break
                     
                     if (all(is.na(pulled.ont.data))) next
-                    
+                    phase.five.time = Sys.time()
                     # Integrate ontology's pulled data into the source's pulled data -- they should all be in the same (universal) ontology and therefore compatible
                     new.source.data.dimnames = dimnames(pulled.ont.data[[1]])
                     if (!is.null(pulled.source.data)) {
@@ -1907,12 +1977,21 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     })
                     names(pulled.source.data) = data.types
                     pulled.source.data <<- pulled.source.data
+                    if (time.keep && metric=='estimate' && is.null(sources)) {
+                        if (!is.null(TIME.KEEPER$phase.five)) TIME.KEEPER$phase.five = TIME.KEEPER$phase.five + Sys.time() - phase.five.time
+                        else TIME.KEEPER$phase.five = Sys.time() - phase.five.time
+                    }
                     
                 }  # end of loop for ontology
                 pulled.source.data
             }) # end of lapply for sources
             # we have a list (one element per source) of lists (one element per data type, i.e. 'data', 'url', or 'details')
             # repackage this to be a data array with 'url', 'details' and possibly a mapping as attributes
+            if (time.keep && metric=='estimate' && is.null(sources)) {
+                if (!is.null(TIME.KEEPER$lapply)) TIME.KEEPER$lapply = TIME.KEEPER$lapply + Sys.time() - lapply.time
+                else TIME.KEEPER$lapply = Sys.time() - lapply.time
+            }
+            after.lapply.time = Sys.time()
             post.processed.data = NULL
             if (debug) browser()
             # Some sources may have returned NULL above and should be removed.
@@ -1973,6 +2052,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     
                 }
                 if (return.mapping.flag) attr(post.processed.data, 'mapping') = target.to.universal.mapping
+            }
+            if (time.keep && metric=='estimate' && is.null(sources)) {
+                if (!is.null(TIME.KEEPER$after.lapply)) TIME.KEEPER$after.lapply = TIME.KEEPER$after.lapply + Sys.time() - after.lapply.time
+                else TIME.KEEPER$after.lapply = Sys.time() - after.lapply.time
+            }
+            if (time.keep && metric=='estimate' && is.null(sources)) {
+                if (!is.null(TIME.KEEPER$total)) TIME.KEEPER$total = TIME.KEEPER$total + Sys.time() - total.time
+                else TIME.KEEPER$total = Sys.time() - total.time
             }
             post.processed.data
         },
