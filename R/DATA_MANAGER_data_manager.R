@@ -1441,8 +1441,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Reduce target to needed dimensions and find a mapping
             if (!is.null(keep.dimensions)) target.ontology = target.ontology[names(target.ontology) %in% union(keep.dimensions, names(dimension.values))]
-            # if (return.mapping.flag) target.to.universal.mapping = get.ontology.mapping(target.from.arguments, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
-            if (return.mapping.flag) target.to.universal.mapping = private$get.cached.target.to.target.mapping(outcome=outcome, ont.1=target.from.arguments, ont.2=target.ontology, allow.non.overlapping.incomplete.dimensions = T)
+            if (return.mapping.flag) target.to.universal.mapping = get.ontology.mapping(target.from.arguments, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
             
             # If sources is NULL, use all the sources from the outcome
             if (is.null(sources))
@@ -1476,7 +1475,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         if (all(is.na(strat.data))) next
                         
                         ### This step can take a VERY long time (~30 seconds) to fail on some outcomes and stratifications. We need to cache the result.
-                        mapping.to.apply = private$get.cached.target.to.target.mapping(outcome=outcome, ont.1=strat.dimnames, ont.2=target.ontology)
+                        mapping.to.apply = get.ontology.mapping(strat.dimnames, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
                         if (is.null(mapping.to.apply)) next
                         dimnames.for.apply = mapping.to.apply$apply.to.dim.names(strat.dimnames)
                         if (!setequal(names(dimnames.for.apply), union(keep.dimensions, dv.names))) next
@@ -1640,6 +1639,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 # Sd dev: unmapped num equals (data to process)^2 * (denom array)^2
                                 
                                 if (metric %in% c('variance', 'standard.deviation', 'coefficient.of.variance')) denominator.array = denominator.array**2
+                                
+                                # Note that if some of data.to.process is NA when the denominator array isn't, we don't want the denominator to have contributions the numerator won't have
+                                denominator.array[is.na(data.to.process)]=NA
                                 
                                 # Perform weighted average
                                 unmapped.numerator = data.to.process * denominator.array
@@ -2401,10 +2403,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         i.parent.source.info = NULL,
         i.ontologies = NULL,
         
-        i.cached.universal.ontologies = NULL,
-        i.cached.target.to.universal.mappings = NULL,
-        i.cached.target.to.target.mappings = NULL,
-        
         ##------------------------------##
         ##-- Private Member Functions --##
         ##------------------------------##
@@ -2445,101 +2443,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             rv
         },
         
-        get.cached.target.to.target.mapping = function(outcome, ont.1, ont.2, sources=NULL, from.ontology.names=NULL, allow.non.overlapping.incomplete.dimensions = T, debug=F)
-        {
-            if (debug) browser()
-            # hash inputs
-            if (is.null(sources)) sources.for.cache = 'all' else sources.for.cache = paste0(sort(sources), collapse='__')
-            if (is.null(from.ontology.names)) ontologies.for.cache = 'all' else ontologies.for.cache = paste0(sort(from.ontology.names), collapse='__')
-            ont.1.dimensions = sort(names(ont.1))
-            ont.1.collapsed.dimension.values = sapply(ont.1.dimensions, function(d) {
-                paste0(sort(ont.1[[d]]), collapse='__')
-            })
-            ont.2.dimensions = sort(names(ont.2))
-            ont.2.collapsed.dimension.values = sapply(ont.2.dimensions, function(d) {
-                paste0(sort(ont.2[[d]]), collapse='__')
-            })
-            key.for.cache = paste0("ont1:", ont.1.dimensions, "=<", ont.1.collapsed.dimension.values, ">", "ont2:", ont.2.dimensions, "=<", ont.2.collapsed.dimension.values, ">", "allow.non.overlapping:", allow.non.overlapping.incomplete.dimensions, collapse='__')
-            
-            # check if already exists
-            already.exists = outcome %in% names(private$i.cached.target.to.target.mappings) &&
-                sources.for.cache %in% names(private$i.cached.target.to.target.mappings[[outcome]]) &&
-                ontologies.for.cache %in% names(private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]]) &&
-                key.for.cache %in% names(private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]])
-            # if not exists, create and store
-            if (!already.exists) {
-                new.target.to.target.ontology = get.ontology.mapping(ont.1, ont.2, allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions)
-                if (!(outcome %in% names(private$i.cached.target.to.target.mappings))) {
-                    private$i.cached.target.to.target.mappings[[outcome]] =
-                        setNames(list(setNames(list(setNames(list(new.target.to.target.ontology), key.for.cache)), ontologies.for.cache)), sources.for.cache)
-                }
-                else if (!(sources.for.cache %in% names(private$i.cached.target.to.target.mappings[[outcome]]))) {
-                    private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]] =
-                        setNames(list(setNames(list(new.target.to.target.ontology), key.for.cache)), ontologies.for.cache)
-                }
-                else if (!(ontologies.for.cache %in% names(private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]]))) {
-                    private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]] =
-                        setNames(list(new.target.to.target.ontology), key.for.cache)
-                }
-                if (is.null(new.target.to.target.ontology)) new.target.to.target.ontology = 'NULL'
-                private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[key.for.cache]] = new.target.to.target.ontology
-            }
-            #return
-            if (!is(private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[key.for.cache]], 'ontology.mapping')) return (NULL)
-            else return (private$i.cached.target.to.target.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[key.for.cache]])
-        },
-        
         get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, target.ontology = NULL, return.target.to.universal.mapping = T, debug = F)
-        {
-            if (debug) browser()
-            # hash inputs
-            if (is.null(sources)) sources.for.cache = 'all' else sources.for.cache = paste0(sort(sources), collapse='__')
-            if (is.null(from.ontology.names)) ontologies.for.cache = 'all' else ontologies.for.cache = paste0(sort(from.ontology.names), collapse='__')
-            if (is.null(target.ontology)) target.ontology.for.cache = 'none'
-            else {
-                target.dimensions = sort(names(target.ontology))
-                collapsed.dimension.values = sapply(target.dimensions, function(d) {
-                    paste0(sort(target.ontology[[d]]), collapse='__')
-                })
-                target.ontology.for.cache = paste0(target.dimensions, "=<", collapsed.dimension.values, ">", collapse='__')
-            }
-            # check if exists already
-            already.exists = outcome %in% names(private$i.cached.universal.ontologies) &&
-                sources.for.cache %in% names(private$i.cached.universal.ontologies[[outcome]]) &&
-                ontologies.for.cache %in% names(private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]]) &&
-                target.ontology.for.cache %in% names(private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]][[ontologies.for.cache]])
-            # if not exists, create and store
-            if (!already.exists) {
-                new.universal.ontology = private$do.get.universal.ontology(outcome, sources, from.ontology.names, target.ontology, return.target.to.universal.mapping = T, debug)
-                if (!(outcome %in% names(private$i.cached.universal.ontologies))) {
-                    private$i.cached.universal.ontologies[[outcome]] =
-                        setNames(list(setNames(list(setNames(list(new.universal.ontology), target.ontology.for.cache)), ontologies.for.cache)), sources.for.cache)
-                    private$i.cached.target.to.universal.mappings[[outcome]] =
-                        setNames(list(setNames(list(setNames(list(attr(new.universal.ontology, 'target.to.universal.mapping')), target.ontology.for.cache)), ontologies.for.cache)), sources.for.cache)
-                }
-                else if (!(sources.for.cache %in% names(private$i.cached.universal.ontologies[[outcome]]))) {
-                    private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]] =
-                        setNames(list(setNames(list(new.universal.ontology), target.ontology.for.cache)), ontologies.for.cache)
-                    private$i.cached.target.to.universal.mappings[[outcome]][[sources.for.cache]] =
-                        setNames(list(setNames(list(attr(new.universal.ontology, 'target.to.universal.mapping')), target.ontology.for.cache)), ontologies.for.cache)
-                }
-                else if (!(ontologies.for.cache %in% names(private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]]))) {
-                    private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]][[ontologies.for.cache]] =
-                        setNames(list(new.universal.ontology), target.ontology.for.cache)
-                    private$i.cached.target.to.universal.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]] =
-                        setNames(list(attr(new.universal.ontology, 'target.to.universal.mapping')), target.ontology.for.cache)
-                }
-                private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[target.ontology.for.cache]] = new.universal.ontology
-                private$i.cached.target.to.universal.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[target.ontology.for.cache]] = attr(new.universal.ontology, 'target.to.universal.mapping')
-            }
-            # return
-            returned.ontology = private$i.cached.universal.ontologies[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[target.ontology.for.cache]]
-            if (return.target.to.universal.mapping)
-                attr(returned.ontology, 'target.to.universal.mapping') = private$i.cached.target.to.universal.mappings[[outcome]][[sources.for.cache]][[ontologies.for.cache]][[target.ontology.for.cache]]
-            return(returned.ontology)
-        },
-        
-        do.get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, target.ontology = NULL, return.target.to.universal.mapping = T, debug = F)
         {
             if (debug) browser()
             onts = self$get.ontologies.for.outcome(outcome, sources)
