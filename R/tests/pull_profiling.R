@@ -21,7 +21,7 @@ if (DO.RPROF)
 {
     Rprof(NULL)
     summ = summaryRprof()
-    
+}
 
 run.time = as.numeric(end.time) - as.numeric(start.time)
 print(paste0("Done - took ", round(run.time/60,1), " minutes"))
@@ -37,5 +37,3 @@ TIME.KEEPER$initial.strat
 
 # time in the main lapply
 TIME.KEEPER$lapply
-
-}
