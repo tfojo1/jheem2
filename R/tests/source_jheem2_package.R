@@ -42,6 +42,7 @@ source('../jheem2/R/JHEEM_diffeq_interface.R')
 source('../jheem2/R/JHEEM_engine.R')
 source('../jheem2/R/SPECIFICATION_metadata.R')
 Rcpp::sourceCpp('../jheem2/src/engine_helpers.cpp')
+Rcpp::sourceCpp('../jheem2/src/calculate_quantity_background_value.cpp')
 Rcpp::sourceCpp('../jheem2/src/diffeq.cpp')
 
 source('../jheem2/R/JHEEM_run_metadata.R')
