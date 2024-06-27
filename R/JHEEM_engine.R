@@ -4170,6 +4170,62 @@ JHEEM = R6::R6Class(
         calculate.quantity.background.value = function(quantity.name, missing.times,
                                                        depth, check.consistency)
         {
+            
+            missing.times = as.character(missing.times)
+            specification.metadata = self$specification.metadata
+            error.prefix = paste0("Error calculating background value for quantity '", quantity.name, "': ")
+            quantity = private$get.specification()$get.quantity(quantity.name)
+            
+            calculated.values = do_calculate_quantity_background_value(quantity = quantity,
+                                                                       missing_times = missing.times,
+                                                                       specification_metadata = private$i.specification.kernel$get.specification.metadata(private$i.sub.version),
+                                                                       location = private$i.location,
+                                                                       engine = private,
+                                                                       check_consistency = check.consistency,
+                                                                       error_prefix = error.prefix)
+             
+            if (is.character(calculated.values)) # there was an error
+            {
+                stop(paste0(error.prefix, paste0(calculated.values, collapse='')))
+            }
+
+            # private$OLD.calculate.quantity.background.value(quantity.name,
+            #                                                 missing.times = missing.times,
+            #                                                 depth = depth,
+            #                                                 check.consistency = check.consistency)
+            # to.compare.to = list(
+            #     quantity.values = private$i.quantity.values[[quantity.name]][missing.times],
+            #     quantity.after.values = private$i.quantity.after.values[[quantity.name]][missing.times]
+            # )
+# 
+#             identical.mask = sapply(1:length(missing.times), function(i){
+#                 identical(as.numeric(calculated.values$quantity.values[[i]]),
+#                            as.numeric(to.compare.to$quantity.values[[i]]))
+#             })
+#             if (any(!identical.mask))
+#                 browser()
+#             
+#             # missing.times[!identical.mask]
+#             # z = (1:length(identical.mask))[!identical.mask]
+#             # i = z[1]
+#             
+#             if (any(!sapply(1:length(missing.times), function(i){
+#                 identical(as.numeric(calculated.values$quantity.after.values[[i]]),
+#                           as.numeric(to.compare.to$quantity.after.values[[i]]))
+#             })))
+#                 browser()
+            
+            private$i.quantity.values[[quantity.name]][missing.times] = calculated.values$quantity.values
+            private$i.quantity.after.values[[quantity.name]][missing.times] = calculated.values$quantity.after.values
+            
+            return (self)
+        },
+
+        # we're keeping this one around, even though we don't use it,
+        # in case we need to debug the Rcpp version
+        OLD.calculate.quantity.background.value = function(quantity.name, missing.times,
+                                                       depth, check.consistency)
+        {
 # all.start = Sys.time()
             missing.times = as.character(missing.times)
             specification.metadata = self$specification.metadata
@@ -5103,7 +5159,8 @@ JHEEM = R6::R6Class(
         calculate.quantity.component.expand.access.indices = function(quantity, component.index)
         {
             quantity.name = quantity$name
-   
+   # print(paste0("Called calculate.quantity.component.expand.access.indices('", quantity.name, "', ", component.index, ")"))
+   # print(paste0("   BEFORE call, length(private$i.quantity.mapping.indices) = ", length(private$i.quantity.mapping.indices)))
             # Expand indices
             # (what indices expand to the subset of the quantity value that this component applies to)
             expand.to.dim.names = private$i.quantity.dim.names[[quantity.name]]
@@ -5129,6 +5186,7 @@ JHEEM = R6::R6Class(
             # Save the dim.names that we used to construct these indices (in case we have to change later)
             private$i.quantity.mapping.indices[[quantity.name]]$based.on.dim.names = private$i.quantity.dim.names[[quantity.name]]
             
+    # print(paste0("After call, length(private$i.quantity.mapping.indices) = ", length(private$i.quantity.mapping.indices)))
             # Done
             invisible(self)
         },

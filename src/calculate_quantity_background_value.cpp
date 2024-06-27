@@ -55,7 +55,7 @@ bool dim_names_are_equal(RObject dim_names_1,
 }
 
 // [[Rcpp::export]]
-RObject do_calculate_quantity_background_value(List quantity,
+RObject do_calculate_quantity_background_value(Environment quantity,
                                                CharacterVector missing_times,
                                                Environment specification_metadata,
                                                CharacterVector location,
@@ -134,7 +134,7 @@ RObject do_calculate_quantity_background_value(List quantity,
                 NumericVector component_values[n_components];
                 for (int c=0; c<n_components; c++)
                 {
-                    List comp = components[c];
+                    Environment comp = components[c];
                     List bindings = bindings_for_component[c];
                     
         // Rcout << "c = " << c << "\n";
@@ -327,7 +327,7 @@ RObject do_calculate_quantity_background_value(List quantity,
                 
                 for (int c=0; c<n_components; c++)
                 {
-                    List comp = components[c];
+                    Environment comp = components[c];
                     NumericVector comp_value = component_values[c];
                     
                     //-- Recalculate the indices if we need to --//
