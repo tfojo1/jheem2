@@ -52,7 +52,7 @@ Rcpp::sourceCpp('../jheem2/src/calculate_quantity_background_value.cpp')
 Rcpp::sourceCpp('../jheem2/src/diffeq.cpp')
 
 source('../jheem2/R/JHEEM_run_metadata.R')
-source('../jheem2/R/JHEEM_specification_kernel.R')
+source('../jheem2/R/JHEEM_kernel.R')
 source('../jheem2/R/JHEEM_simulation.R')
 source('../jheem2/R/JHEEM_simset_collection.R')
 Rcpp::sourceCpp('../jheem2/src/simulation_helpers.cpp')

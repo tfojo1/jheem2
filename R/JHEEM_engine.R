@@ -1425,10 +1425,10 @@ JHEEM = R6::R6Class(
             
             
             #@kernel refactor - for now, we'll create a new one. Eventually, we will take one
-            specification.kernel = get.compiled.specification.for.version(version)$get.specification.kernel(private$i.location)
+            kernel = get.compiled.specification.for.version(version)$get.jheem.kernel(private$i.location)
             
-           # save(specification.kernel, file='size_check/test_spec_kernel.Rdata')
-            private$set.up(specification.kernel)
+           # save(kernel, file='size_check/test_spec_kernel.Rdata')
+            private$set.up(kernel)
         },
         
         
@@ -1469,9 +1469,9 @@ JHEEM = R6::R6Class(
             #        check.consistency = check.consistency)
             
             if (is.null(prior.simulation.set))
-                ordered.quantity.names = private$i.specification.kernel$ordered.quantity.names
+                ordered.quantity.names = private$i.kernel$ordered.quantity.names
             else
-                ordered.quantity.names = private$i.specification.kernel$ordered.quantity.names.except.initial.population
+                ordered.quantity.names = private$i.kernel$ordered.quantity.names.except.initial.population
 
             sapply(ordered.quantity.names, calculate.quantity.value,
                    check.consistency = check.consistency)
@@ -1637,7 +1637,7 @@ JHEEM = R6::R6Class(
                 
                 #@kernel refactor - going to need to strip out element stuff
                 verify.dim.names.for.quantity(dim.names = dimnames(value),
-                                              quantity = private$i.specification.kernel$get.quantity.kernel(element.name.to.modify),
+                                              quantity = private$i.kernel$get.quantity.kernel(element.name.to.modify),
                                               variable.name.for.error = "the dimnames of 'value'",
                                               error.prefix = paste0(error.prefix, "Cannot set value for element '", element.name, "' - "),
                                               wrt.version = self$version)
@@ -1825,7 +1825,7 @@ JHEEM = R6::R6Class(
             if (!foreground$is.anchored)
             {
                 foreground = foreground$anchor(location = self$location,
-                                               specification.metadata = private$i.specification.kernel$get.specification.metadata(private$i.sub.version), 
+                                               specification.metadata = private$i.kernel$get.specification.metadata(private$i.sub.version), 
                                                quantity.dim.names = private$i.quantity.max.dim.names[[quantity.name]],
                                                error.prefix = error.prefix)
             }
@@ -1855,8 +1855,8 @@ JHEEM = R6::R6Class(
             
             #-- Set static to false on this quantity and its dependent quantities and outcomes --#
             private$i.quantity.is.static[quantity.name] = F
-            private$i.quantity.is.static[private$i.specification.kernel$get.dependent.quantity.names(quantity.name)] = F
-            private$i.outcome.non.cumulative.is.static[private$i.specification.kernel$get.non.cumulative.dependent.outcome.names(quantity.name)] = F
+            private$i.quantity.is.static[private$i.kernel$get.dependent.quantity.names(quantity.name)] = F
+            private$i.outcome.non.cumulative.is.static[private$i.kernel$get.non.cumulative.dependent.outcome.names(quantity.name)] = F
             
             
             #-- Clear dim.names --#
@@ -1933,12 +1933,12 @@ JHEEM = R6::R6Class(
                     model.settings = private$i.unchecked.model.settings
                 
                 # For calibrated parameters
-                if (!is.null(private$i.specification.kernel$calibrated.parameter.names) && 
-                    any_overlap_character(changed.parameter.names, private$i.specification.kernel$calibrated.parameter.names))
+                if (!is.null(private$i.kernel$calibrated.parameter.names) && 
+                    any_overlap_character(changed.parameter.names, private$i.kernel$calibrated.parameter.names))
                 {
                     if (check.consistency)
                     {
-                        missing.parameters = setdiff(private$i.specification.kernel$calibrated.parameter.names,
+                        missing.parameters = setdiff(private$i.kernel$calibrated.parameter.names,
                                                      names(parameters))
                         if (length(missing.parameters)>0)
                         {
@@ -1955,7 +1955,7 @@ JHEEM = R6::R6Class(
                     else
                         parameters.to.pass = parameters
                     
-                    private$i.specification.kernel$calibrated.parameters.apply.function(model.settings = model.settings,
+                    private$i.kernel$calibrated.parameters.apply.function(model.settings = model.settings,
                                                                                   parameters = parameters.to.pass)
                     
                     if (check.consistency)
@@ -1963,12 +1963,12 @@ JHEEM = R6::R6Class(
                 }
     
                 # For sampled parameters
-                if (!is.null(private$i.specification.kernel$sampled.parameter.names) &&
-                    any_overlap_character(changed.parameter.names, private$i.specification.kernel$sampled.parameter.names))
+                if (!is.null(private$i.kernel$sampled.parameter.names) &&
+                    any_overlap_character(changed.parameter.names, private$i.kernel$sampled.parameter.names))
                 {
                     if (check.consistency)
                     {
-                        missing.parameters = setdiff(private$i.specification.kernel$sampled.parameter.names, 
+                        missing.parameters = setdiff(private$i.kernel$sampled.parameter.names, 
                                                      names(parameters))
                         if (length(missing.parameters)>0)
                         {
@@ -1985,7 +1985,7 @@ JHEEM = R6::R6Class(
                     else
                         parameters.to.pass = parameters
                     
-                    private$i.specification.kernel$sampled.parameters.apply.function(model.settings = model.settings,
+                    private$i.kernel$sampled.parameters.apply.function(model.settings = model.settings,
                                                                                parameters = parameters.to.pass)
                     
                     if (check.consistency)
@@ -2743,7 +2743,7 @@ JHEEM = R6::R6Class(
         ##----------------------##
         
         #-- Specification Kernel --#
-        i.specification.kernel = NULL,
+        i.kernel = NULL,
         
         #-- Element names/backgrounds --#
         i.element.names = NULL,
@@ -2910,29 +2910,29 @@ JHEEM = R6::R6Class(
         ##-- SET UP --##
         ##------------##
         
-        set.up = function(specification.kernel)
+        set.up = function(kernel)
         {
-            private$i.specification.kernel = specification.kernel
+            private$i.kernel = kernel
             
             private$i.checked.model.settings = JHEEM.MODEL.SETTINGS$new(self, check.consistency = T)
             private$i.unchecked.model.settings = JHEEM.MODEL.SETTINGS$new(self, check.consistency = F)
             
-            specification.metadata = private$i.specification.kernel$get.specification.metadata(private$i.sub.version)
+            specification.metadata = private$i.kernel$get.specification.metadata(private$i.sub.version)
             
             # Finalize max.dim.names and applies.to for quantities and components
-            private$i.quantity.max.dim.names = lapply(private$i.specification.kernel$quantity.kernels, function(quantity){
+            private$i.quantity.max.dim.names = lapply(private$i.kernel$quantity.kernels, function(quantity){
                 specification.metadata$apply.aliases(quantity$max.dim.names,
                                                            error.prefix=paste0("Error finalizing max.dim.names for model quantity ", 
                                                                                quantity$original.name))
             })
             
-            private$i.quantity.required.dim.names = lapply(private$i.specification.kernel$quantity.kernels, function(quantity){
+            private$i.quantity.required.dim.names = lapply(private$i.kernel$quantity.kernels, function(quantity){
                 specification.metadata$apply.aliases(quantity$required.dim.names,
                                                            error.prefix=paste0("Error finalizing required.dim.names for model quantity ", 
                                                                                quantity$original.name))
             })
             
-            private$i.quantity.component.max.dim.names = lapply(private$i.specification.kernel$quantity.kernels, function(quantity){
+            private$i.quantity.component.max.dim.names = lapply(private$i.kernel$quantity.kernels, function(quantity){
                 if (length(quantity$components)==0)
                     NULL
                 else
@@ -2946,7 +2946,7 @@ JHEEM = R6::R6Class(
                     })
             })
             
-            private$i.quantity.component.applies.to = lapply(private$i.specification.kernel$quantity.kernels, function(quantity){
+            private$i.quantity.component.applies.to = lapply(private$i.kernel$quantity.kernels, function(quantity){
                 if (length(quantity$components)==0)
                     NULL
                 else
@@ -2961,7 +2961,7 @@ JHEEM = R6::R6Class(
             })
             
             # Set up the element backgrounds
-            private$i.element.backgrounds = lapply(private$i.specification.kernel$element.backgrounds, function(bkgd){
+            private$i.element.backgrounds = lapply(private$i.kernel$element.backgrounds, function(bkgd){
                 # elem = specification$get.quantity(elem.name)
                 # bkgd = elem$get.element.background(specification.metadata = self$specification.metadata,
                 #                                    error.prefix = paste0("Error creating JHEEM for version '", private$i.version, "' and location '", private$i.location, "': "))
@@ -2979,33 +2979,33 @@ JHEEM = R6::R6Class(
                 
                 bkgd
             })
-            private$i.element.names = private$i.specification.kernel$element.names
+            private$i.element.names = private$i.kernel$element.names
             
-            private$i.element.name.mappings = private$i.specification.kernel$element.name.mappings
+            private$i.element.name.mappings = private$i.kernel$element.name.mappings
             
             # Figure out if quantities are static
-            private$i.quantity.is.static = rep(F, length(private$i.specification.kernel$quantity.names))
-            names(private$i.quantity.is.static) = private$i.specification.kernel$quantity.names
-            private$i.quantity.is.static[private$i.specification.kernel$element.names] = sapply(private$i.element.backgrounds[private$i.specification.kernel$element.names], function(bkgd){
+            private$i.quantity.is.static = rep(F, length(private$i.kernel$quantity.names))
+            names(private$i.quantity.is.static) = private$i.kernel$quantity.names
+            private$i.quantity.is.static[private$i.kernel$element.names] = sapply(private$i.element.backgrounds[private$i.kernel$element.names], function(bkgd){
                 bkgd$is.static
             })
             
-            non.element.quantity.names = setdiff(private$i.specification.kernel$quantity.names, private$i.specification.kernel$element.names)
+            non.element.quantity.names = setdiff(private$i.kernel$quantity.names, private$i.kernel$element.names)
             private$i.quantity.is.static[non.element.quantity.names] = sapply(non.element.quantity.names, function(quantity.name){
-                all(private$i.quantity.is.static[private$i.specification.kernel$get.dependee.element.names(quantity.name)])
+                all(private$i.quantity.is.static[private$i.kernel$get.dependee.element.names(quantity.name)])
             })
             
             # Figure out if outcomes' non-cumulative parts are static
             private$i.outcome.non.cumulative.is.static = logical()
-            sapply(private$i.specification.kernel$outcome.names, 
+            sapply(private$i.kernel$outcome.names, 
                    private$calculate.outcome.non.cumulative.is.static)
             
             # Set up outcome dim.names
-            private$i.outcome.dim.names.sans.time = lapply(private$i.specification.kernel$outcome.kernels, function(outcome){
+            private$i.outcome.dim.names.sans.time = lapply(private$i.kernel$outcome.kernels, function(outcome){
                 specification.metadata$apply.aliases(outcome$dim.names, error.prefix=paste0("Error setting up dim.names for outcome '", outcome$name, "': "))
             })
             
-            private$i.outcome.unrenamed.dim.names.sans.time = lapply(private$i.specification.kernel$outcome.kernels, function(outcome){
+            private$i.outcome.unrenamed.dim.names.sans.time = lapply(private$i.kernel$outcome.kernels, function(outcome){
                 specification.metadata$apply.aliases(outcome$unrenamed.dim.names, error.prefix=paste0("Error setting up unrenamed.dim.names for outcome '", outcome$name, "': "))
             })
             
@@ -3048,13 +3048,13 @@ JHEEM = R6::R6Class(
             
             # Import the default parameters
             private$i.parameters = numeric()
-            private$i.parameters[names(private$i.specification.kernel$default.parameter.values)] = private$i.specification.kernel$default.parameter.values
+            private$i.parameters[names(private$i.kernel$default.parameter.values)] = private$i.kernel$default.parameter.values
 
             private$i.parameter.names.for.foregrounds = numeric()
             private$i.dependent.foreground.ids.for.parameters = list()
             
             # Import the foregrounds
-            for (frgd in private$i.specification.kernel$foregrounds)
+            for (frgd in private$i.kernel$foregrounds)
             {
                 self$set.quantity.foreground(foreground = frgd,
                                              check.consistency = T)
@@ -3074,13 +3074,13 @@ JHEEM = R6::R6Class(
         {
             if (is.na(private$i.outcome.non.cumulative.is.static[outcome.name]))
             {
-                outcome = private$i.specification.kernel$get.outcome.kernel(outcome.name)
+                outcome = private$i.kernel$get.outcome.kernel(outcome.name)
                 
-                if (outcome$is.intrinsic || !all(private$i.quantity.is.static[private$i.specification.kernel$get.outcome.dependee.element.names(outcome.name)]))
+                if (outcome$is.intrinsic || !all(private$i.quantity.is.static[private$i.kernel$get.outcome.dependee.element.names(outcome.name)]))
                     private$i.outcome.non.cumulative.is.static[outcome.name] = F
                 else
                 {
-                    depends.on.outcome.names = setdiff(private$i.specification.kernel$get.outcome.non.cumulative.dependendee.outcome.names(outcome.name),
+                    depends.on.outcome.names = setdiff(private$i.kernel$get.outcome.non.cumulative.dependendee.outcome.names(outcome.name),
                                                        outcome.name)
                     
                     sapply(depends.on.outcome.names, 
@@ -3134,9 +3134,9 @@ JHEEM = R6::R6Class(
                 private$i.run.to.time = end.year+1
             
                 #-- Clear times (for all elements/quantities) --#
-                private$clear.element.background.self.times(private$i.specification.kernel$element.names)
-                private$clear.quantity.foreground.self.times(private$i.specification.kernel$quantity.names)
-                private$clear.outcome.value.times.to.calculate(private$i.specification.kernel$outcome.names)
+                private$clear.element.background.self.times(private$i.kernel$element.names)
+                private$clear.quantity.foreground.self.times(private$i.kernel$quantity.names)
+                private$clear.outcome.value.times.to.calculate(private$i.kernel$outcome.names)
             }
             
             #-- KEEP years: Error Checks --#
@@ -3185,7 +3185,7 @@ JHEEM = R6::R6Class(
                 private$i.keep.to.time = keep.to.year
                 
                 #-- Clear times (for all elements/quantities) --#
-                private$clear.outcome.value.times(private$i.specification.kernel$outcome.names)
+                private$clear.outcome.value.times(private$i.kernel$outcome.names)
             }
             
             #-- Done --#
@@ -3275,13 +3275,13 @@ JHEEM = R6::R6Class(
             else
             {
                 # Pull the top-level quantities that depend on this, and make sure their self-times are calculated
-                top.level.quantities = private$i.specification.kernel$get.dependent.top.level.quantity.names(quantity.name)
+                top.level.quantities = private$i.kernel$get.dependent.top.level.quantity.names(quantity.name)
                 dynamic.top.level.quantities = top.level.quantities[ !private$i.quantity.is.static[top.level.quantities] ]
                 null.top.level.times.mask = as.logical(sapply(private$i.top.level.self.times[dynamic.top.level.quantities], is.null))
                 sapply(dynamic.top.level.quantities[null.top.level.times.mask], private$calculate.top.level.self.times)
                 
                 # Pull the outcomes that have a non-cumulative dependency on this, and make sure their self-times are calculated
-                outcomes = private$i.specification.kernel$get.non.cumulative.dependent.outcome.names(quantity.name)
+                outcomes = private$i.kernel$get.non.cumulative.dependent.outcome.names(quantity.name)
                 dynamic.outcomes = outcomes[ !private$i.outcome.non.cumulative.is.static[outcomes] ]
                 null.outcome.times.mask = as.logical(sapply(private$i.outcome.non.cumulative.self.times[dynamic.outcomes], is.null))
                 sapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
@@ -3357,14 +3357,14 @@ JHEEM = R6::R6Class(
             # Clear top-level self-times for top-level quantities that depend on this element
             # Clear top-level value-may-not-apply times for top-level quantities that depend on this element
             
-            top.level.quantities = private$i.specification.kernel$get.dependent.top.level.quantity.names(element.names)
+            top.level.quantities = private$i.kernel$get.dependent.top.level.quantity.names(element.names)
             dynamic.top.level.quantities = top.level.quantities[ !private$i.quantity.is.static[top.level.quantities] ]
             private$clear.top.level.self.times(dynamic.top.level.quantities)
             private$clear.top.level.value.may.not.apply.times(dynamic.top.level.quantities)
             
             # Clear outcome non-cumulative self-times for outcomes that have a non-cumulative dependency on this element
             # Clear outcome non-cumulative value-may-not-apply times for outcomes that have a non-cumulative dependency on this element
-            outcomes = private$i.specification.kernel$get.non.cumulative.dependent.outcome.names(element.names)
+            outcomes = private$i.kernel$get.non.cumulative.dependent.outcome.names(element.names)
             dynamic.outcomes = outcomes[ !private$i.outcome.non.cumulative.is.static[outcomes] ]
             private$clear.outcome.non.cumulative.self.times(dynamic.outcomes)
             private$clear.outcome.value.may.not.apply.non.cumulative.times(dynamic.outcomes)
@@ -3399,7 +3399,7 @@ JHEEM = R6::R6Class(
                 
                 if (ceiling(to.time) >= floor(from.time))
                 {
-                    element = private$i.specification.kernel$get.quantity.kernel(bkgd$name)
+                    element = private$i.kernel$get.quantity.kernel(bkgd$name)
                     
                     if (bkgd$functional.form$type == 'linear spline' && bkgd$functional.form$link$type=='identity' &&
                         element$functional.form.scale == element$scale) 
@@ -3435,7 +3435,7 @@ JHEEM = R6::R6Class(
                 bkgd$ramp.interpolated.times = NULL
             else
             {
-                element = private$i.specification.kernel$get.quantity.kernel(bkgd$name)
+                element = private$i.kernel$get.quantity.kernel(bkgd$name)
                 # bkgd$ramp.interpolated.times = element$calculate.ramp.interpolated.times(ramp.times = bkgd$ramp.times,
                 #                                                                          functional.form.from.time = bkgd$functional.form.from.time)
                 if (element$all.ramp.applications.identity)
@@ -3469,7 +3469,7 @@ JHEEM = R6::R6Class(
                 bkgd$taper.interpolated.times = NULL
             else
             {
-                element = private$i.specification.kernel$get.quantity.kernel(bkgd$name)
+                element = private$i.kernel$get.quantity.kernel(bkgd$name)
                 # bkgd$taper.interpolated.times = element$calculate.taper.interpolated.times(taper.times = bkgd$taper.times,
                 #                                                                            functional.form.to.time = bkgd$functional.form.to.time)
                 if (element$all.taper.applications.identity)
@@ -3556,14 +3556,14 @@ JHEEM = R6::R6Class(
             private$i.quantity.self.after.times[[quantity.names]] = NULL
                 
             # Clear the top-level-quantity self-times for top-level quantities that depend on this one
-            top.level.quantities = private$i.specification.kernel$get.dependent.top.level.quantity.names(quantity.names)
+            top.level.quantities = private$i.kernel$get.dependent.top.level.quantity.names(quantity.names)
             dynamic.top.level.quantities = top.level.quantities[ !private$i.quantity.is.static[top.level.quantities] ]
             private$clear.top.level.self.times(dynamic.top.level.quantities)
             private$clear.top.level.value.may.not.apply.times(dynamic.top.level.quantities)
             
             # Clear outcome non-cumulative self-times for outcomes that have a non-cumulative dependency on this quantity
             # Clear outcome non-cumulative value-may-not-apply times for outcomes that have a non-cumulative dependency on this quantity
-            outcomes = private$i.specification.kernel$get.non.cumulative.dependent.outcome.names(quantity.names)
+            outcomes = private$i.kernel$get.non.cumulative.dependent.outcome.names(quantity.names)
             dynamic.outcomes = outcomes[ !private$i.outcome.non.cumulative.is.static[outcomes] ]
             private$clear.outcome.non.cumulative.self.times(dynamic.outcomes)
             private$clear.outcome.value.may.not.apply.non.cumulative.times(dynamic.outcomes)
@@ -3588,13 +3588,13 @@ JHEEM = R6::R6Class(
             else
             {
                 # Pull the elements this depends on, and make sure their background self times are calculated
-                dependee.elements = private$i.specification.kernel$get.dependee.element.names(top.level.name)
+                dependee.elements = private$i.kernel$get.dependee.element.names(top.level.name)
                 dynamic.dependee.elements = dependee.elements[ !private$i.quantity.is.static[dependee.elements] ]
                 null.dependee.element.times.mask = as.logical(sapply(private$i.element.background.self.times[dynamic.dependee.elements], is.null))
                 sapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
                 
                 # Pull the quantities this depends on, and make sure their foreground self times are calculated
-                dependee.quantities = private$i.specification.kernel$get.dependee.quantity.names(top.level.name)
+                dependee.quantities = private$i.kernel$get.dependee.quantity.names(top.level.name)
                 dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
                 null.dependee.quantity.times.mask = as.logical(sapply(private$i.quantity.foreground.self.times[dynamic.dependee.quantities], is.null))
                 sapply(dynamic.dependee.quantities[null.dependee.quantity.times.mask], private$calculate.quantity.foreground.self.times)
@@ -3630,7 +3630,7 @@ JHEEM = R6::R6Class(
             private$i.top.level.self.times[top.level.names] = NULL
             
             # Clear value.times for dependee.quantities
-            dependee.quantities = private$i.specification.kernel$get.dependee.quantity.names(top.level.names)
+            dependee.quantities = private$i.kernel$get.dependee.quantity.names(top.level.names)
             dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
             private$clear.quantity.value.times(dynamic.dependee.quantities)
             
@@ -3654,21 +3654,21 @@ JHEEM = R6::R6Class(
             else
             {
                 # Pull the elements this depends on, and make sure their background self times are calculated
-                dependee.elements = private$i.specification.kernel$get.outcome.dependee.element.names(outcome.name)
+                dependee.elements = private$i.kernel$get.outcome.dependee.element.names(outcome.name)
                 dynamic.dependee.elements = dependee.elements[ !private$i.quantity.is.static[dependee.elements] ]
                 null.dependee.element.times.mask = as.logical(sapply(private$i.element.background.self.times[dynamic.dependee.elements], is.null))
                 sapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
                 
                 # Pull the quantities this depends on, and make sure their foreground self times are calculated
-                dependee.quantities = private$i.specification.kernel$get.outcome.dependee.quantity.names(outcome.name)
+                dependee.quantities = private$i.kernel$get.outcome.dependee.quantity.names(outcome.name)
                 dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
                 null.dependee.quantity.times.mask = as.logical(sapply(private$i.quantity.foreground.self.times[dynamic.dependee.quantities], is.null))
                 sapply(dynamic.dependee.quantities[null.dependee.quantity.times.mask], private$calculate.quantity.foreground.self.times)
                 
                 # If this has a non-cumulative dependency on any intrinsic outcome, include all the run times
-                dependee.outcomes = private$i.specification.kernel$get.outcome.non.cumulative.dependendee.outcome.names(outcome.name)
+                dependee.outcomes = private$i.kernel$get.outcome.non.cumulative.dependendee.outcome.names(outcome.name)
                 dependee.outcomes.are.intrinsic = sapply(dependee.outcomes, function(dep.on.outcome.name){
-                    private$i.specification.kernel$get.outcome.kernel(dep.on.outcome.name)$is.intrinsic
+                    private$i.kernel$get.outcome.kernel(dep.on.outcome.name)$is.intrinsic
                 })
                 if (any(dependee.outcomes.are.intrinsic))
                     intrinsic.times = private$i.run.from.time:private$i.run.to.time
@@ -3698,7 +3698,7 @@ JHEEM = R6::R6Class(
             private$clear.outcome.non.cumulative.value.times(outcome.names)
             
             # Clear value.times for dependee.quantities
-            dependee.quantities = private$i.specification.kernel$get.outcome.dependee.quantity.names(outcome.names)
+            dependee.quantities = private$i.kernel$get.outcome.dependee.quantity.names(outcome.names)
             dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
             private$clear.quantity.value.times(dynamic.dependee.quantities)
             
@@ -3749,13 +3749,13 @@ JHEEM = R6::R6Class(
                     private$calculate.quantity.value.times(quantity.name)
                 
                 # Pull the top-level quantities that depend on this, and make sure their value-may-not-apply times are calculated
-                top.level.quantities = private$i.specification.kernel$get.dependent.top.level.quantity.names(quantity.name)
+                top.level.quantities = private$i.kernel$get.dependent.top.level.quantity.names(quantity.name)
                 dynamic.top.level.quantities = top.level.quantities[ !private$i.quantity.is.static[top.level.quantities] ]
                 null.top.level.times.mask = as.logical(sapply(private$i.top.level.value.may.not.apply.times[dynamic.top.level.quantities], is.null))
                 sapply(dynamic.top.level.quantities[null.top.level.times.mask], private$calculate.top.level.value.may.not.apply.times)
                 
                 # Pull the outcomes that depend on this, and make sure their value-may-not-apply times are calculated
-                outcomes = private$i.specification.kernel$get.non.cumulative.dependent.outcome.names(quantity.name)
+                outcomes = private$i.kernel$get.non.cumulative.dependent.outcome.names(quantity.name)
                 dynamic.outcomes = outcomes[ !private$i.outcome.non.cumulative.is.static[outcomes] ]
                 null.outcome.times.mask = as.logical(sapply(private$i.outcome.value.may.not.apply.non.cumulative.times[dynamic.outcomes], is.null))
                 sapply(outcomes[null.outcome.times.mask], private$calculate.outcome.value.may.not.apply.non.cumulative.times)
@@ -3797,7 +3797,7 @@ JHEEM = R6::R6Class(
                     private$calculate.quantity.value.times(top.level.name)
                 
                 # Pull the elements this depends on, and make sure their background self times are calculated
-                dependee.elements = private$i.specification.kernel$get.dependee.element.names(top.level.name)
+                dependee.elements = private$i.kernel$get.dependee.element.names(top.level.name)
                 dynamic.dependee.elements = dependee.elements[ !private$i.quantity.is.static[dependee.elements] ]
                 null.dependee.element.times.mask = as.logical(sapply(private$i.element.background.self.times[dynamic.dependee.elements], is.null))
                 sapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
@@ -3819,7 +3819,7 @@ JHEEM = R6::R6Class(
             private$i.top.level.value.may.not.apply.times[top.level.names] = NULL
             
             # Clear quantity.value.all.applies.times for all quantities that these top-level quantities depend on
-            dependee.quantities = private$i.specification.kernel$get.dependee.quantity.names(top.level.names)
+            dependee.quantities = private$i.kernel$get.dependee.quantity.names(top.level.names)
             dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
             private$clear.quantity.value.all.applies.times(dynamic.dependee.quantities)
             
@@ -3846,7 +3846,7 @@ JHEEM = R6::R6Class(
                     private$calculate.outcome.non.cumulative.value.times(outcome.name)
                 
                 # Pull the elements this depends on, and make sure their background self times are calculated
-                dependee.elements = private$i.specification.kernel$get.outcome.dependee.element.names(outcome.name)
+                dependee.elements = private$i.kernel$get.outcome.dependee.element.names(outcome.name)
                 dynamic.dependee.elements = dependee.elements[ !private$i.quantity.is.static[dependee.elements] ]
                 null.dependee.element.times.mask = as.logical(sapply(private$i.element.background.self.times[dynamic.dependee.elements], is.null))
                 sapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
@@ -3869,7 +3869,7 @@ JHEEM = R6::R6Class(
             private$i.outcome.value.may.not.apply.non.cumulative.times[outcome.names] = NULL
             
             # Clear quantity.value.all.applies.times for all quantities that these top-level quantities depend on
-            dependee.quantities = private$i.specification.kernel$get.outcome.dependee.quantity.names(outcome.names)
+            dependee.quantities = private$i.kernel$get.outcome.dependee.quantity.names(outcome.names)
             dynamic.dependee.quantities = dependee.quantities[ !private$i.quantity.is.static[dependee.quantities] ]
             private$clear.quantity.value.all.applies.times(dynamic.dependee.quantities)
             
@@ -3891,7 +3891,7 @@ JHEEM = R6::R6Class(
             else
             {
                 # Pull the outcomes that have a non-cumulative dependency on this, and make sure their self-times are calculated
-                outcomes = private$i.specification.kernel$get.outcome.non.cumulative.dependent.outcome.names(outcome.name)
+                outcomes = private$i.kernel$get.outcome.non.cumulative.dependent.outcome.names(outcome.name)
                 dynamic.outcomes = outcomes[ !private$i.outcome.non.cumulative.is.static[outcomes] ]
                 null.outcome.times.mask = as.logical(sapply(private$i.outcome.non.cumulative.self.times[dynamic.outcomes], is.null))
                 sapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
@@ -4001,7 +4001,7 @@ JHEEM = R6::R6Class(
                                                     to.time.for.cumulative,
                                                     calculate.non.cumulative.times)
         {
-            outcome = private$i.specification.kernel$get.outcome.kernel(outcome.name)
+            outcome = private$i.kernel$get.outcome.kernel(outcome.name)
             if (!calculate.non.cumulative.times && 
                 (outcome$is.cumulative || outcome$is.intrinsic))
             {
@@ -4077,7 +4077,7 @@ JHEEM = R6::R6Class(
             # If missing values, calculate them
             if (length(missing.times)>0)
             {
-                quantity = private$i.specification.kernel$get.quantity.kernel(quantity.name)
+                quantity = private$i.kernel$get.quantity.kernel(quantity.name)
                 
                 #-- For debugging --#
                 # if (is.element.name(quantity.name))
@@ -4171,11 +4171,11 @@ JHEEM = R6::R6Class(
             missing.times = as.character(missing.times)
             specification.metadata = self$specification.metadata
             error.prefix = paste0("Error calculating background value for quantity '", quantity.name, "': ")
-            quantity = private$i.specification.kernel$get.quantity.kernel(quantity.name)
+            quantity = private$i.kernel$get.quantity.kernel(quantity.name)
             
             calculated.values = do_calculate_quantity_background_value(quantity = quantity,
                                                                        missing_times = missing.times,
-                                                                       specification_metadata = private$i.specification.kernel$get.specification.metadata(private$i.sub.version),
+                                                                       specification_metadata = private$i.kernel$get.specification.metadata(private$i.sub.version),
                                                                        location = private$i.location,
                                                                        engine = private,
                                                                        check_consistency = check.consistency,
@@ -4229,7 +4229,7 @@ JHEEM = R6::R6Class(
             error.prefix = "Error calculating background value for quantity: "
             
             #-- Fill in missing values --#
-            quantity = private$i.specification.kernel$get.quantity.kernel(quantity.name)
+            quantity = private$i.kernel$get.quantity.kernel(quantity.name)
             
             #-- Make sure the dependee quantities are all calculated --#
             # Not doing this anymore to avoid redundant calls
@@ -4461,7 +4461,7 @@ JHEEM = R6::R6Class(
         calculate.element.background.value = function(element.name, missing.times, check.consistency)
         {
             char.times = as.character(missing.times)
-            element = private$i.specification.kernel$get.quantity.kernel(element.name)
+            element = private$i.kernel$get.quantity.kernel(element.name)
             
             if (is.null(private$i.quantity.dim.names[[element.name]]))
                 private$calculate.quantity.dim.names(element)
@@ -4806,7 +4806,7 @@ JHEEM = R6::R6Class(
         calculate.quantity.background.value.applies.masks = function(quantity.name, missing.times)
         {
             # Pull the quantity
-            quantity = private$i.specification.kernel$get.quantity.kernel(quantity.name)
+            quantity = private$i.kernel$get.quantity.kernel(quantity.name)
             
             char.times = as.character(missing.times)
             
@@ -5421,7 +5421,7 @@ JHEEM = R6::R6Class(
         # times == NULL --> clear all values
         clear.dependent.values = function(quantity.name, clear.after.time=-Inf, clear.before.time=Inf)
         {
-            to.clear = private$i.specification.kernel$get.dependent.quantity.names(quantity.name) #a quantity is defined to always depend on itself
+            to.clear = private$i.kernel$get.dependent.quantity.names(quantity.name) #a quantity is defined to always depend on itself
 
             if (clear.after.time == -Inf && clear.before.time == Inf)
             {
@@ -5453,7 +5453,7 @@ JHEEM = R6::R6Class(
         clear.dependent.value.applies.masks = function(quantity.name, clear.after.time=-Inf, clear.before.time=Inf)
         {
             to.clear = c(quantity.name, 
-                         private$i.specification.kernel$get.dependent.quantity.names(quantity.name))
+                         private$i.kernel$get.dependent.quantity.names(quantity.name))
             
             if (clear.after.time == -Inf && clear.before.time == Inf)
             {
@@ -5490,8 +5490,8 @@ JHEEM = R6::R6Class(
         clear.dependent.on.quantity.dim.names = function(quantity.name)
         {
             # Clear the dimensions of quantity *components* that depend on this quantity's dim.names
-            sapply(private$i.specification.kernel$get.dependent.quantity.names(quantity.name), function(dependent.name){
-                dependent.quantity = private$i.specification.kernel$get.quantity.kernel(dependent.name)
+            sapply(private$i.kernel$get.dependent.quantity.names(quantity.name), function(dependent.name){
+                dependent.quantity = private$i.kernel$get.quantity.kernel(dependent.name)
                 sapply(1:dependent.quantity$n.components, function(i){
                     if (any(dependent.quantity$components[[i]]$depends.on==quantity.name))
                         private$i.quantity.component.dim.names[[dependent.name]][[i]] = NULL
@@ -5503,8 +5503,8 @@ JHEEM = R6::R6Class(
             private$i.quantity.mapping.indices[[quantity.name]]$components.access = list()
             
             # Clear depends on mappings for quantity components that depend on this quantity
-            sapply(private$i.specification.kernel$get.dependent.quantity.names(quantity.name), function(dependent.name){
-                dependent.quantity = private$i.specification.kernel$get.quantity.kernel(dependent.name)
+            sapply(private$i.kernel$get.dependent.quantity.names(quantity.name), function(dependent.name){
+                dependent.quantity = private$i.kernel$get.quantity.kernel(dependent.name)
                 sapply(1:dependent.quantity$n.components, function(i){
                     if (any(dependent.quantity$components[[i]]$depends.on==quantity.name))
                         private$i.quantity.mapping.indices[[dependent.on]]$components.depends.on[[component.index]][[quantity.name]] = NULL
@@ -5527,7 +5527,7 @@ JHEEM = R6::R6Class(
         clear.dependent.on.quantity.component.dim.names = function(quantity.name, component.index)
         {
             # Clear the dim.names of quantities that depend on this quantity component's dim.names
-            private$i.quantity.dim.names[private$i.specification.kernel$get.dependent.quantity.names(quantity.name)] = NULL
+            private$i.quantity.dim.names[private$i.kernel$get.dependent.quantity.names(quantity.name)] = NULL
             
             # Clear expand and access mappings that use this quantity component
             private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[component.index]] = NULL
@@ -5608,7 +5608,7 @@ JHEEM = R6::R6Class(
                                             prior.sim.index,
                                             is.degenerate)
         {
-            outcome.names = private$i.specification.kernel$get.outcome.names.for.sub.version(private$i.sub.version)
+            outcome.names = private$i.kernel$get.outcome.names.for.sub.version(private$i.sub.version)
             
             for (outcome.name in outcome.names)
             {
@@ -5631,7 +5631,7 @@ JHEEM = R6::R6Class(
                 # print(outcome.name)
                 # if (outcome.name=='sexual.transmission.rates')
                 #     browser()
-                outcome = private$i.specification.kernel$get.outcome.kernel(outcome.name)
+                outcome = private$i.kernel$get.outcome.kernel(outcome.name)
                 outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
                                       private$i.outcome.dim.names.sans.time[[outcome.name]])
                 
@@ -5688,7 +5688,7 @@ JHEEM = R6::R6Class(
                     NULL
                 else
                 {
-                    outcome = private$i.specification.kernel$get.outcome.kernel(outcome.name)
+                    outcome = private$i.kernel$get.outcome.kernel(outcome.name)
                     outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
                                           private$i.outcome.dim.names.sans.time[[outcome.name]])
                     
@@ -5744,13 +5744,13 @@ JHEEM = R6::R6Class(
         # Depends on quantity.dim.names for quantities which this outcome has a direct, non.cumulative dependency on
         derive.outcome.numerator.dim.names.sans.time = function(outcome.name)
         {
-            outcome = private$i.specification.kernel$get.outcome.kernel(outcome.name)
+            outcome = private$i.kernel$get.outcome.kernel(outcome.name)
             if (outcome$is.intrinsic || outcome$is.dynamic)
                 dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]]
             else
             {
-                numerator.depends.on.outcome.names = private$i.specification.kernel$get.outcome.numerator.direct.dependee.outcome.names(outcome.name)
-                numerator.depends.on.quantity.names = private$i.specification.kernel$get.outcome.direct.dependee.quantity.names(outcome.name)
+                numerator.depends.on.outcome.names = private$i.kernel$get.outcome.numerator.direct.dependee.outcome.names(outcome.name)
+                numerator.depends.on.quantity.names = private$i.kernel$get.outcome.direct.dependee.quantity.names(outcome.name)
                 
                 dim.names.from.outcomes = NULL
                 
@@ -5805,7 +5805,7 @@ JHEEM = R6::R6Class(
 
         clear.outcome.dependencies.on.quantity.dim.names = function(quantity.names)
         {
-            dependent.outcome.names = private$i.specification.kernel$get.direct.dependent.outcome.numerator.names(quantity.names)
+            dependent.outcome.names = private$i.kernel$get.direct.dependent.outcome.numerator.names(quantity.names)
                 
             # clear the indices
             private$i.outcome.indices[[dependent.outcome.names]] = list()
@@ -5824,7 +5824,7 @@ JHEEM = R6::R6Class(
             if (is.null(private$i.outcome.numerators[[outcome.name]]))
             {
                 #-- Initial Set-Up --#
-                outcome = private$i.specification.kernel$get.outcome.kernel(outcome.name)
+                outcome = private$i.kernel$get.outcome.kernel(outcome.name)
                 outcome.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]]
                 
                 #-- Calculate the times --#
@@ -5835,7 +5835,7 @@ JHEEM = R6::R6Class(
                 {
                     
                     #-- Calculate the values for all dependent outcomes --#
-                    depends.on.outcomes = private$i.specification.kernel$get.outcome.direct.dependee.outcome.names(outcome.name)
+                    depends.on.outcomes = private$i.kernel$get.outcome.direct.dependee.outcome.names(outcome.name)
                     for (dep.on.outcome in depends.on.outcomes)
                     {
                         if (is.null(private$i.outcome.numerators[[dep.on.outcome]]))
@@ -5867,10 +5867,10 @@ JHEEM = R6::R6Class(
                         if (is.null(private$i.outcome.non.cumulative.value.times[[outcome.name]]))
                             private$calculate.outcome.non.cumulative.value.times(outcome.name)
                         
-                        all.dependee.outcomes.are.cumulative = all(as.logical(vapply(private$i.specification.kernel$get.outcome.numerator.direct.dependee.outcome.names(outcome.name), function(dep.on.outcome.name){
-                            private$i.specification.kernel$get.outcome.kernel(dep.on.outcome.name)$is.cumulative
+                        all.dependee.outcomes.are.cumulative = all(as.logical(vapply(private$i.kernel$get.outcome.numerator.direct.dependee.outcome.names(outcome.name), function(dep.on.outcome.name){
+                            private$i.kernel$get.outcome.kernel(dep.on.outcome.name)$is.cumulative
                         }, FUN.VALUE = logical(1))))
-                        all.dependee.quantities.are.static = all(private$i.quantity.is.static[private$i.specification.kernel$get.outcome.direct.dependee.quantity.names(outcome.name)])
+                        all.dependee.quantities.are.static = all(private$i.quantity.is.static[private$i.kernel$get.outcome.direct.dependee.quantity.names(outcome.name)])
                         
                         if (all.dependee.outcomes.are.cumulative && all.dependee.quantities.are.static)
 #                        if (length(private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]])==0)
@@ -5888,8 +5888,8 @@ JHEEM = R6::R6Class(
     
                         
                         #-- Map the bindings for dependee OUTCOMES to a list --#
-                        bindings.of.outcomes = lapply(private$i.specification.kernel$get.outcome.numerator.direct.dependee.outcome.names(outcome.name), function(dep.on.outcome.name){
-                            dep.on.outcome = private$i.specification.kernel$get.outcome.kernel(dep.on.outcome.name)
+                        bindings.of.outcomes = lapply(private$i.kernel$get.outcome.numerator.direct.dependee.outcome.names(outcome.name), function(dep.on.outcome.name){
+                            dep.on.outcome = private$i.kernel$get.outcome.kernel(dep.on.outcome.name)
                             
                             if (is.null(private$i.outcome.non.cumulative.value.times[[dep.on.outcome.name]]))
                                 private$calculate.outcome.non.cumulative.value.times(dep.on.outcome.name)
@@ -5965,10 +5965,10 @@ JHEEM = R6::R6Class(
                             names(dep.on.outcome.values) = char.times.to.pull
                             dep.on.outcome.values
                         })
-                        names(bindings.of.outcomes) = private$i.specification.kernel$get.outcome.numerator.direct.dependee.outcome.names(outcome.name)
+                        names(bindings.of.outcomes) = private$i.kernel$get.outcome.numerator.direct.dependee.outcome.names(outcome.name)
                         
                         #-- Map the bindings for dependee QUANTITIES to a list --#
-                        bindings.of.quantities = lapply(private$i.specification.kernel$get.outcome.direct.dependee.quantity.names(outcome.name), function(dep.on.quantity.name){
+                        bindings.of.quantities = lapply(private$i.kernel$get.outcome.direct.dependee.quantity.names(outcome.name), function(dep.on.quantity.name){
                             
                             if (is.null(private$i.outcome.indices[[outcome.name]]$value.from.quantity[[dep.on.quantity.name]]))
                                 private$calculate.outcome.indices.from.quantity(outcome.name = outcome.name, dep.on.quantity.name = dep.on.quantity.name)
@@ -6012,7 +6012,7 @@ JHEEM = R6::R6Class(
                             names(quantity.values) = char.times.to.pull
                             quantity.values
                         })
-                        names(bindings.of.quantities) = private$i.specification.kernel$get.outcome.direct.dependee.quantity.names(outcome.name)
+                        names(bindings.of.quantities) = private$i.kernel$get.outcome.direct.dependee.quantity.names(outcome.name)
                         
                         bindings = c(bindings.of.outcomes, bindings.of.quantities)
                         
@@ -6122,7 +6122,7 @@ JHEEM = R6::R6Class(
         calculate.outcome.non.cumulative.value.applies.masks = function(outcome.name)
         {
             # Pull the quantity
-            outcome = private$i.specification.kernel$get.outcome.kernel(outcome.name)
+            outcome = private$i.kernel$get.outcome.kernel(outcome.name)
             
             if (is.null(private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]]))
                 private$calculate.outcome.value.times.to.calculate(outcome.name)
@@ -6132,8 +6132,8 @@ JHEEM = R6::R6Class(
             
             n.times = length(private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]])
             
-            dependee.outcome.names = private$i.specification.kernel$get.outcome.non.cumulative.direct.dependendee.outcome.names(outcome.name)
-            dependee.quantity.names = private$i.specification.kernel$get.outcome.direct.dependee.quantity.names(outcome.name)
+            dependee.outcome.names = private$i.kernel$get.outcome.non.cumulative.direct.dependendee.outcome.names(outcome.name)
+            dependee.quantity.names = private$i.kernel$get.outcome.direct.dependee.quantity.names(outcome.name)
             
             calculate.dependee.outcome.mask = as.logical(sapply(private$i.outcome.non.cumulative.value.applies.masks[dependee.outcome.names], is.null))
             sapply(dependee.outcome.names[calculate.dependee.outcome.mask], 
@@ -6221,7 +6221,7 @@ JHEEM = R6::R6Class(
         # Depends on outcome.numerator.dim.names.sans.time
         calculate.outcome.indices.from.outcome = function(outcome.name, dep.on.outcome.name)
         {
-            outcome = private$i.specification.kernel$get.outcome.kernel(outcome.name)
+            outcome = private$i.kernel$get.outcome.kernel(outcome.name)
             dep.on.dim.names = apply.outcome.dimension.aliases.to.dim.names(outcome,
                                                                             private$i.outcome.dim.names.sans.time[[dep.on.outcome.name]])
             
@@ -6233,7 +6233,7 @@ JHEEM = R6::R6Class(
         # Depends on outcome.numerator.dim.names.sans.time, quantity.dim.names
         calculate.outcome.indices.from.quantity = function(outcome.name, dep.on.quantity.name)
         {
-            outcome = private$i.specification.kernel$get.outcome.kernel(outcome.name)
+            outcome = private$i.kernel$get.outcome.kernel(outcome.name)
             quantity.dim.names = apply.outcome.dimension.aliases.to.dim.names(outcome,
                                                                               private$i.quantity.dim.names[[dep.on.quantity.name]])
             
@@ -6249,7 +6249,7 @@ JHEEM = R6::R6Class(
                 get.collapse.array.indices(small.arr.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]],
                                            large.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]])
             
-            outcome = private$i.specification.kernel$get.outcome.kernel(outcome.name)
+            outcome = private$i.kernel$get.outcome.kernel(outcome.name)
             if (!is.null(outcome$denominator.outcome))
             {
                 denominator.outcome.dim.names = apply.outcome.dimension.aliases.to.dim.names(outcome,

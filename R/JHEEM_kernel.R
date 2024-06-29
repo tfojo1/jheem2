@@ -1,10 +1,10 @@
 
-#-- A SPECIFICATION.KERNEL is all the data from a specification object necessary to run one engine in a location
+#-- A JHEEM.KERNEL is all the data from a specification object necessary to run one engine in a location
 #--  as well as to run interventions on a simulation
 #-- These get saved independently of the specification code, and can live on in simulation objects
 
-SPECIFICATION.KERNEL = R6::R6Class(
-    'jheem.specification.kernel',
+JHEEM.KERNEL = R6::R6Class(
+    'jheem.kernel',
     portable = F,
     
     public = list(
@@ -154,6 +154,8 @@ SPECIFICATION.KERNEL = R6::R6Class(
                     dimension.aliases = outcome$dimension.aliases,
                     dimension.alias.suffix = outcome$dimension.alias.suffix,
                     
+                    
+                    
                     calculate.values = outcome$get.calculate.values.function(parent.environment = self,
                                                                              error.prefix = error.prefix)
                 )
@@ -189,6 +191,26 @@ SPECIFICATION.KERNEL = R6::R6Class(
                                                                                       fn.name.for.error = "The sampled parameters apply function",
                                                                                       error.prefix = error.prefix)
             }
+            
+            #-- Core Components --#
+            
+            dynamic.outcome.names = names(private$i.outcome.kernels)[sapply(private$i.outcome.kernels, function(outcome){outcome$is.dynamic})]
+            dynamic.outcomes = sapply(dynamic.outcome.names, specification$get.outcome)
+            
+            private$i.core.components = lapply(specification$core.components, function(comp){
+                
+                # Pull mechanism types
+                comp$mechanism.types = comp$schema$mechanism.types
+
+                # Figure out which dynamic outcomes apply
+                outcome.applies.to.comp = sapply(dynamic.outcomes, comp$schema$dynamic.tracker.involves.component, comp=comp)
+                comp$outcome.names.that.apply = dynamic.outcome.names[outcome.applies.to.comp]
+                
+                # Get rid of the schema so we don't inadvertently save its environment
+                comp$schema = NULL
+                
+                comp
+            })
             
             #-- Misc --#
             private$i.default.parameter.values = specification$default.parameter.values
@@ -486,6 +508,9 @@ SPECIFICATION.KERNEL = R6::R6Class(
         
         i.outcome.names.for.sub.version = NULL,
         i.outcome.names.for.null.sub.version = NULL,
+        
+        #-- Core Components --#
+        i.core.components = NULL,
         
         #-- Parameter Mappings --#
         i.calibrated.parameter.names = NULL,

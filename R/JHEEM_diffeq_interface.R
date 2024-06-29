@@ -32,13 +32,13 @@ create.diffeq.settings <- function(jheem, error.prefix)
     specification = get.compiled.specification.for.version(jheem$version)
     outcomes = lapply(specification$outcome.names, specification$get.outcome)
     names(outcomes) = specification$outcome.names
-    outcome.is.dynamic.or.intrinsic.mask = sapply(outcomes, is, 'dynamic.model.outcome') | sapply(outcomes, is, 'intrinsic.model.outcome')
+    outcome.is.dynamic.or.intrinsic.mask = sapply(outcomes, function(outcome){outcome$is.dynamic}) | sapply(outcomes, function(outcome){outcome$is.intrinsic})
     settings$outcomes = outcomes[outcome.is.dynamic.or.intrinsic.mask]
     settings$outcome.dim.names = lapply(settings$outcomes, function(outcome){
         settings$specification.metadata$apply.aliases(outcome$dim.names, error.prefix=error.prefix)
     })
     
-    dynamic.outcomes = settings$outcomes[sapply(settings$outcomes, is, 'dynamic.model.outcome')]
+    dynamic.outcomes = settings$outcomes[sapply(settings$outcomes, function(outcome){outcome$is.dynamic})]
     
     settings$outcome.names.by.core.component = lapply(settings$core.components, function(components){
         lapply(components, function(comp){

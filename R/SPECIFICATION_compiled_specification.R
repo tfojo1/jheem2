@@ -102,27 +102,27 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         ##-- PUBLIC to the JHEEM.ENGINE CLASS --##
         ##--------------------------------------##
         
-        get.specification.kernel = function(location)
+        get.jheem.kernel = function(location)
         {
-            SPECIFICATION.KERNEL$new(version = private$i.version,
-                                     location = location,
-                                     
-                                     specification = self,
-                                     
-                                     dependent.quantity.names = private$i.dependent.quantity.names,
-                                     dependee.element.names = private$i.dependee.element.names,
-                                     dependee.quantity.names = private$i.dependee.quantity.names,
-                                     dependent.top.level.quantity.names = private$i.dependent.top.level.quantity.names,
-                                     non.cumulative.dependent.outcome.names = private$i.non.cumulative.dependent.outcome.names,
-                                     outcome.dependee.element.names = private$i.outcome.dependee.element.names,
-                                     outcome.dependee.quantity.names = private$i.outcome.dependee.quantity.names,
-                                     outcome.non.cumulative.dependendee.outcome.names = private$i.outcome.non.cumulative.dependendee.outcome.names,
-                                     outcome.non.cumulative.direct.dependendee.outcome.names = private$i.outcome.non.cumulative.direct.dependendee.outcome.names,
-                                     outcome.non.cumulative.dependent.outcome.names = private$i.outcome.non.cumulative.dependent.outcome.names,
-                                     outcome.direct.dependee.outcome.names = private$i.outcome.direct.dependee.outcome.names,
-                                     outcome.numerator.direct.dependee.outcome.names = private$i.outcome.numerator.direct.dependee.outcome.names,
-                                     direct.dependent.outcome.numerator.names = private$i.direct.dependent.outcome.numerator.names,
-                                     outcome.direct.dependee.quantity.names = private$i.outcome.direct.dependee.quantity.names)
+            JHEEM.KERNEL$new(version = private$i.version,
+                             location = location,
+                             
+                             specification = self,
+                             
+                             dependent.quantity.names = private$i.dependent.quantity.names,
+                             dependee.element.names = private$i.dependee.element.names,
+                             dependee.quantity.names = private$i.dependee.quantity.names,
+                             dependent.top.level.quantity.names = private$i.dependent.top.level.quantity.names,
+                             non.cumulative.dependent.outcome.names = private$i.non.cumulative.dependent.outcome.names,
+                             outcome.dependee.element.names = private$i.outcome.dependee.element.names,
+                             outcome.dependee.quantity.names = private$i.outcome.dependee.quantity.names,
+                             outcome.non.cumulative.dependendee.outcome.names = private$i.outcome.non.cumulative.dependendee.outcome.names,
+                             outcome.non.cumulative.direct.dependendee.outcome.names = private$i.outcome.non.cumulative.direct.dependendee.outcome.names,
+                             outcome.non.cumulative.dependent.outcome.names = private$i.outcome.non.cumulative.dependent.outcome.names,
+                             outcome.direct.dependee.outcome.names = private$i.outcome.direct.dependee.outcome.names,
+                             outcome.numerator.direct.dependee.outcome.names = private$i.outcome.numerator.direct.dependee.outcome.names,
+                             direct.dependent.outcome.numerator.names = private$i.direct.dependent.outcome.numerator.names,
+                             outcome.direct.dependee.quantity.names = private$i.outcome.direct.dependee.quantity.names)
         },
         
         get.quantity = function(name)
