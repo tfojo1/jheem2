@@ -3,6 +3,11 @@
 #   library(jheem2)
 # For testing
 
+if (!exists("JHEEM2.FUNCTION.NAMES"))
+    JHEEM2.FUNCTION.NAMES = character()
+
+PRE.SOURCE.JHEEM2.FUNCTION.NAMES = names(get(".GlobalEnv"))[sapply(get(".GlobalEnv"), is.function)]
+
 source("../jheem2/R/FILE_MANAGER_file_manager.R")
 
 
@@ -13,6 +18,7 @@ source('../jheem2/R/HELPERS_misc_helpers.R')
 source('../jheem2/R/HELPERS_dim_names_helpers.R')
 source('../jheem2/R/HELPERS_array_helpers.R')
 source('../jheem2/R/HELPERS_age_year_helpers.R')
+source('../jheem2/R/HELPERS_bundle_function.R')
 Rcpp::sourceCpp('../jheem2/src/array_helpers.cpp')
 
 source('../jheem2/R/ONTOLOGY_ontology.R')
@@ -68,6 +74,9 @@ Rcpp::sourceCpp('../jheem2/src/nested_proportion_likelihood.cpp')
 source("../jheem2/R/CALIBRATION_main.R")
 
 
-
 Rcpp::sourceCpp('../jheem2/src/misc_helpers.cpp')
 Rcpp::sourceCpp('../jheem2/src/lag_matrix.cpp')
+
+JHEEM2.FUNCTION.NAMES = union(JHEEM2.FUNCTION.NAMES,
+                              setdiff(names(get(".GlobalEnv"))[sapply(get(".GlobalEnv"), is.function)],
+                                      PRE.SOURCE.JHEEM2.FUNCTION.NAMES))

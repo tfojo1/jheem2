@@ -299,3 +299,20 @@ List interpolate_sorted_vectors(NumericVector v1,
     List rv = List::create(Named("interpolated") = interpolated , _["indicators"] = indicators);
     return (rv);
 }
+
+
+// [[Rcpp::export]]
+bool any_overlap_character(CharacterVector c1,
+                           CharacterVector c2)
+{
+    for (int i=0; i<c1.length(); i++)
+    {
+        for (int j=0; j<c2.length(); j++)
+        {
+            if (c1[i]==c2[j])
+                return (true);
+        }
+    }
+    
+    return (false);
+}

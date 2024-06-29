@@ -252,7 +252,9 @@ create.criteria.based.intervention <- function(base.intervention,
                                                parameter.scales,
                                                initial.parameter.values,
                                                max.iterations,
-                                               n.iterations.after.satisfying.criteria = 10,
+                                               n.iterations.after.satisfying.criteria = 5,
+                                               max.iterations.first.sim = max.iterations,
+                                               n.iterations.after.satisfying.criteria.first.sim = ceiling(max.iterations.first.sim/2),
                                                max.failure.rate = 0,
                                                code=NULL, 
                                                name=NULL, 
@@ -266,6 +268,8 @@ create.criteria.based.intervention <- function(base.intervention,
                                     initial.parameter.values = initial.parameter.values,
                                     max.iterations = max.iterations,
                                     n.iterations.after.satisfying.criteria = n.iterations.after.satisfying.criteria,
+                                    max.iterations.first.sim = max.iterations.first.sim,
+                                    n.iterations.after.satisfying.criteria.first.sim = n.iterations.after.satisfying.criteria.first.sim,
                                     max.failure.rate = max.failure.rate,
                                     code = code,
                                     name = name,
@@ -832,6 +836,8 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
                               initial.parameter.values,
                               max.iterations,
                               n.iterations.after.satisfying.criteria,
+                              max.iterations.first.sim,
+                              n.iterations.after.satisfying.criteria.first.sim,
                               max.failure.rate,
                               code=NULL, 
                               name=NULL, 
@@ -910,15 +916,24 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
             # n.iterations.after.satisfying.criteria
             if (!is.numeric(n.iterations.after.satisfying.criteria) || length(n.iterations.after.satisfying.criteria)!=1 || is.na(n.iterations.after.satisfying.criteria))
                 stop(paste0(error.prefix, "'n.iterations.after.satisfying.criteria' must be a single, non-NA numeric value"))
-            if (any(n.iterations.after.satisfying.criteria<0))
+            if (n.iterations.after.satisfying.criteria<0)
                 stop(paste0(error.prefix, "'n.iterations.after.satisfying.criteria' must be >= 0"))
+            
+            if (!is.numeric(n.iterations.after.satisfying.criteria.first.sim) || length(n.iterations.after.satisfying.criteria.first.sim)!=1 || is.na(n.iterations.after.satisfying.criteria.first.sim))
+                stop(paste0(error.prefix, "'n.iterations.after.satisfying.criteria.first.sim' must be a single, non-NA numeric value"))
+            if (n.iterations.after.satisfying.criteria.first.sim<0)
+                stop(paste0(error.prefix, "'n.iterations.after.satisfying.criteria.first.sim' must be >= 0"))
             
             # max.iterations
             if (!is.numeric(max.iterations) || length(max.iterations)!=1 || is.na(max.iterations))
                 stop(paste0(error.prefix, "'max.iterations' must be a single, non-NA numeric value"))
-            
             if (max.iterations < n.iterations.after.satisfying.criteria)
                 stop(paste0(error.prefix, "'max.iterations' (", max.iterations, ") cannot be less than 'n.iterations.after.satisfying.criteria' (", n.iterations.after.satisfying.criteria, ")"))
+            
+            if (!is.numeric(max.iterations.first.sim) || length(max.iterations.first.sim)!=1 || is.na(max.iterations.first.sim))
+                stop(paste0(error.prefix, "'max.iterations.first.sim' must be a single, non-NA numeric value"))
+            if (max.iterations.first.sim < n.iterations.after.satisfying.criteria.first.sim)
+                stop(paste0(error.prefix, "'max.iterations.first.sim' (", max.iterations.first.sim, ") cannot be less than 'n.iterations.after.satisfying.criteria.first.sim' (", n.iterations.after.satisfying.criteria.first.sim, ")"))
             
             # max.failure.rate
             if (!is.numeric(max.failure.rate) || length(max.failure.rate)!=1 || is.na(max.failure.rate))
@@ -938,10 +953,10 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
             private$i.initial.parameter.values = initial.parameter.values
             private$i.n.iterations.after.satisfying.criteria = n.iterations.after.satisfying.criteria
             private$i.max.iterations = max.iterations
+            private$i.n.iterations.after.satisfying.criteria.first.sim = n.iterations.after.satisfying.criteria.first.sim
+            private$i.max.iterations.first.sim = max.iterations.first.sim
             private$i.max.failure.rate = max.failure.rate
             private$i.draw.parameters.from.previous.sims = draw.parameters.from.previous.sims
-            
-            private$i.method = "Nelder-Mead"
             
         },
         
@@ -989,6 +1004,8 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
         
         i.n.iterations.after.satisfying.criteria = NULL,
         i.max.iterations = NULL,
+        i.n.iterations.after.satisfying.criteria.first.sim = NULL,
+        i.max.iterations.first.sim = NULL,
         i.max.failure.rate = NULL,
         i.method = NULL,
         
@@ -1028,7 +1045,7 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
         {
             error.prefix = "Cannot run criteria-based intervention: "
             
-            #-- Pull Initial Values --#
+            #-- STEP 1: Pull Initial Values --#
             if (private$i.draw.parameters.from.previous.sims && 
                 !is.null(private$i.previous.parameter.values))
             {
@@ -1073,94 +1090,170 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 }
             }
             
+            initial.values = initial.values[private$i.parameters.to.vary]
+            
+            
+            #-- STEP 2: Set up run function for MCMC Optimization --#
+            
+            # Control variables to be modified from within the MCMC using <<-
+            mcmc.best.log.likelihood = -Inf
+            mcmc.best.sim = NULL
+            target.acceptance.rate = 0.25
+            if (sim.index==1)
+            {
+                first.mcmc.max.iterations = private$i.max.iterations.first.sim
+                second.mcmc.iterations = private$i.n.iterations.after.satisfying.criteria.first.sim
+            }
+            else
+            {
+                first.mcmc.max.iterations = private$i.max.iterations
+                second.mcmc.iterations = private$i.n.iterations.after.satisfying.criteria
+            }
+            sim = NULL
+            
+            # runs the sim, saves it if appropriate
+            fn = function(par){
+                
+                if (mcmc.iteration >= mcmc.max.iterations ||
+                    (is.first.mcmc && !is.null(mcmc.best.sim)))
+                {
+                    as.numeric(runif(1)<target.acceptance.rate)
+                }
+                else
+                {
+                    mcmc.iteration <<- mcmc.iteration + 1
+                    
+                    parameters[private$i.parameters.to.vary] = par
+                    
+                    if (verbose)
+                        base::print(paste0("Iteration ", mcmc.iteration, ": ", paste0(private$i.parameters.to.vary, " = ", round(parameters[private$i.parameters.to.vary], 4), collapse=', ')))
+                    
+                    
+                    sim <<- engine$run(parameters = parameters,
+                                       prior.sim.index = sim.index)
+                    
+                    criteria.satisfied = all(sapply(private$i.completion.criteria, function(criterion){
+                        criterion$is.satisfied(sim, iteration = mcmc.iteration)
+                    }))
+                    
+                    sub.liks =  sapply(private$i.completion.criteria, function(criterion){
+                        criterion$score.sim(sim = sim, 
+                                            iteration = mcmc.iteration, 
+                                            verbose = verbose,
+                                            as.log.likelihood = T)
+                    })
+                    lik = sum(sub.liks)
+                    
+                    if (mcmc.iteration==1 && any(sub.liks==-Inf))
+                        stop(paste0(error.prefix, "The ", 
+                                    ifelse(length(private$i.parametrs.to.vary)==1, "initial value", "initial set of values"),
+                                    " for parameters.to.vary (",
+                                    collapse.with.and("'", private$i.parameters.to.vary, "'"),
+                                    ") is SO far from a solution that the ",
+                                    ifelse(sum(sub.liks==-Inf)==1, "criterion score", "criteria scores"),
+                                    " for ",
+                                    collapse.with.and("'", sapply(private$i.completion.criteria[sub.liks==-Inf], function(cr){cr$descriptor}), "'"),
+                                    ifelse(sum(sub.liks==-Inf)==1, " evaluates", " evaluate"),
+                                    " to infinity - pick ",
+                                    ifelse(length(private$i.parametrs.to.vary)==1, "a better starting value",
+                                           "better starting values")))
+                    
+                    if (verbose)
+                        base::print(paste0("   --> log-likelihood = ", round(lik,3),
+                                           ", ?satified = ", criteria.satisfied))
+                    
+                    if (criteria.satisfied)
+                    {
+                        if (is.null(mcmc.best.sim))
+                        {
+                            optim.max.iterations <<- min(optim.max.iterations,
+                                                         optim.iteration + private$i.n.iterations.after.satisfying.criteria)
+                        }
+                        
+                        if (lik > mcmc.best.log.likelihood)
+                        {
+                            mcmc.best.sim <<- sim
+                            mcmc.best.log.likelihood <<- lik
+                        }
+                    }
+                    
+                    lik
+                }
+            }
+            
+            #-- STEP 3: Run first MCMC to get to a point that satisfies the criteria --#
+            
+            mcmc.iteration = 0
+            mcmc.max.iterations = first.mcmc.max.iterations
+            is.first.mcmc = T
+            
+            #-- STEP 4: Run a second MCMC to optimize within range that satisfies criteria --#
+            
+            # don't reset the iterations counter
+            mcmc.max.iterations = Inf
+            is.first.mcmc = F
+            
+            #-- STEP 5: Save The Results for Future Sim Iterations --#
+            
             if (private$i.draw.parameters.from.previous.sims)
                 private$i.previous.parameter.values = cbind(private$i.previous.parameter.values, parameters[private$i.parameters.to.vary])
             
-            initial.values = initial.values[private$i.parameters.to.vary]
-
+            
+            private$i.
+            
+            
+            
+            
             
             #-- Run optimization until criteria satisfied (or until we have to give up) --#
+          
+            initial.cov.mat = matrix(0, nrow=length(initial.values), ncol=length(initial.values))
+            diag(initial.cov.mat) = initial.values/10
+            initial.scaling.parameters = list(all=2.38^2/length(initial.values))
             
-            transformed.current.parameters = transform.to.unbounded.scale(initial.values, scales = private$i.parameter.scales)
+            ctrl = bayesian.simulations::create.adaptive.blockwise.metropolis.control(
+                
+                var.names = private$i.parameters.to.vary,
+                simulation.function = fn,
+                log.prior.distribution = function(...){1},
+                log.likelihood = function(x){x}, # saves the data manager in here!
+                burn = 0,
+                thin = 1,
+                var.blocks = list(all=private$i.parameters.to.vary),
+                reset.adaptive.scaling.update.after = 0,
+                transformations = sapply(private$i.parameter.scales, function(scale){
+                        tsfx = MODEL.SCALE.INFO[[scale]]$unbounded.transformation$type
+                        if (tsfx=='logistic')
+                            'logit'
+                        else
+                            tsfx
+                    }),
+                
+                initial.covariance.mat = initial.cov.mat,
+                initial.scaling.parameters = initial.scaling.parameters,
+                
+                target.acceptance.probability = 0.25,
+                
+                n.iter.before.use.adaptive.covariance = 0,
+                adaptive.covariance.base.update = 0.2,
+                adaptive.covariance.update.prior.iter = 1,
+                adaptive.covariance.update.decay = 0.5,
+                adaptive.scaling = 'componentwise',
+                adaptive.scaling.base.update = 1,
+                adaptive.scaling.update.prior.iter= 1,
+                adaptive.scaling.update.decay = 0.5
+            )
             
-            # Variables to be modified from within optim
-            optim.best.score = Inf
-            optim.iteration = 0
-            optim.best.sim = NULL
-            optim.max.iterations = private$i.max.iterations
-            sim = NULL
+            # we don't need to save the result
+            # fn() uses the <<- operator to save our best
+            x = bayesian.simulations::run.mcmc(control = ctrl,
+                                               n.iter = private$i.max.iterations,
+                                               starting.values = initial.values,
+                                               update.detail = 'none',
+                                               update.frequency = 1,
+                                               cache.frequency = NA)
             
-            # don't need to save the result
-            # we are going to grab it out with the <<- operator
-            suppressWarnings(optim(par = transformed.current.parameters,
-                  fn = function(par){
-                      
-                      if (optim.iteration >= optim.max.iterations)
-                          -Inf
-                      else
-                      {
-                          optim.iteration <<- optim.iteration + 1
-                          
-                          parameters[private$i.parameters.to.vary] = transform.from.unbounded.scale(par, private$i.parameter.scales)
-                          
-                          if (verbose)
-                              base::print(paste0("Iteration ", optim.iteration, ": ", paste0(private$i.parameters.to.vary, " = ", round(parameters[private$i.parameters.to.vary], 4), collapse=', ')))
-                          
-                          
-                          sim <<- engine$run(parameters = parameters,
-                                             prior.sim.index = sim.index)
-           
-                          criteria.satisfied = all(sapply(private$i.completion.criteria, function(criterion){
-                                  criterion$is.satisfied(sim, iteration = optim.iteration)
-                              }))
-                          
-                          sub.scores =  sapply(private$i.completion.criteria, function(criterion){
-                              criterion$score.sim(sim=sim, iteration = optim.iteration, verbose=verbose)
-                          })
-                          score = sum(sub.scores)
-                          
-                          if (optim.iteration==1 && any(sub.scores==Inf))
-                              stop(paste0(error.prefix, "The ", 
-                                          ifelse(length(private$i.parametrs.to.vary)==1, "initial value", "initial set of values"),
-                                          " for parameters.to.vary (",
-                                          collapse.with.and("'", private$i.parameters.to.vary, "'"),
-                                          ") is SO far from a solution that the ",
-                                          ifelse(sum(sub.scores==Inf)==1, "criterion score", "criteria scores"),
-                                          " for ",
-                                          collapse.with.and("'", sapply(private$i.completion.criteria[sub.scores==Inf], function(cr){cr$descriptor}), "'"),
-                                          ifelse(sum(sub.scores==Inf)==1, " evaluates", " evaluate"),
-                                          " to infinity - pick ",
-                                          ifelse(length(private$i.parametrs.to.vary)==1, "a better starting value",
-                                                 "better starting values")))
-                          
-                          if (verbose)
-                              base::print(paste0("   --> score = ", round(score,3),
-                                                 ", ?satified = ", criteria.satisfied))
-                           
-                          if (criteria.satisfied)
-                          {
-                              if (is.null(optim.best.sim))
-                              {
-                                  optim.max.iterations <<- min(optim.max.iterations,
-                                                         optim.iteration + private$i.n.iterations.after.satisfying.criteria)
-                              }
-                              
-                              if (score < optim.best.score)
-                              {
-                                  optim.best.sim <<- sim
-                                  optim.best.score <<- score
-                              }
-                          }
-                          
-                          if (optim.iteration >= optim.max.iterations)
-                              -Inf
-                          else
-                              score
-                      }
-                  },
-                  method = private$i.method,
-                  control = list(maxit=private$i.max.iterations)))
-            
+            #-- Process the result --#
             if (is.null(optim.best.sim))
             {
                 private$i.n.failures = private$i.n.failures + 1
@@ -1209,7 +1302,7 @@ JHEEM.INTERVENTION.CRITERION = R6::R6Class(
             stop("is.satisfied() for a jheem.intervention.criterion must be implemented at the subclass level")
         },
         
-        score.sim = function(sim, iteration, verbose)
+        score.sim = function(sim, iteration, verbose, as.log.likelihood)
         {
             stop("score.sim() for a jheem.intervention.criterion must be implemented at the subclass level")
         },
@@ -1390,24 +1483,29 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             rv
         },
         
-        score.sim = function(sim, iteration, verbose)
+        score.sim = function(sim, iteration, verbose, as.log.likelihood=T)
         {
+            P.IN.RANGE = 0.9999
+            
+            #-- Prep the bounds --#
             pre.transformed.sim.value = sim.value = private$get.sim.value(sim)
             low = private$i.min.acceptable.value[1]
             high = private$i.max.acceptable.value[1]
             scale = sim$outcome.metadata[[private$i.outcome]]$scale
-            mid = pre.transformed.mid = (high + low) / 2
+            #mid = pre.transformed.mid = (high + low) / 2
             
-            is.in.range = sim.value >= low & sim.value <= high
+            above.range = sim.value > high
+            below.range = sim.value < low
+            is.in.range = !above.range & !below.range
             
-            # Transform to unbounded scale            
+            #-- Transform to unbounded scale --#        
             sim.value = transform.to.unbounded.scale(sim.value, scale)
             low = transform.to.unbounded.scale(low, scale)
             high = transform.to.unbounded.scale(high, scale)
             target = transform.to.unbounded.scale(private$i.target.value, scale)
             mid = (high + low) / 2
             
-            # Figure out our SD
+            #-- Figure out our SDs --#
             # base.of.sd = c(private$i.target.value, target, pre.transformed.mid, mid) #putting four things in here helps protect us against getting an sd of zero
             base.of.sd = abs(c(target, mid)) #putting two things in here helps protect us against getting an sd of zero
             base.of.sd = base.of.sd[base.of.sd != 0]
@@ -1429,35 +1527,111 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                     stop(paste0("we haven't implemented scoring for metric ", private$i.score.metric))
             }
             
+            log.f.continuous = dnorm(sim.value, target, sd.for.score, log=T)
+            log.f.in.or.out.of.range = log(P.IN.RANGE) * is.in.range + log(1-P.IN.RANGE) * !is.in.range
             
-            # Calculate a score that applies if we are out of range
-            min.out.of.range.score = min(1/dnorm(c(low, high), mean=mid, sd=sd.for.score))
-            
-            score.out.of.range = 1/dnorm(sim.value, mean=mid, sd=sd.for.score)
-            score.out.of.range[is.in.range] = min.out.of.range.score
-            
-            # Calculate the score that applies if we are in range
-            max.in.range.score = max(1/dnorm(c(low, high), mean=target, sd=sd.for.score))
-            
-            score.in.range = 1/dnorm(sim.value, mean=target, sd=sd.for.score)
-            score.in.range[!is.in.range] = max.in.range.score
-            
-            out.of.range.score.weight = 1
-            
-            scores = score.out.of.range ^ out.of.range.score.weight + score.in.range
-            
-            if (private$i.aggregate.scores.as=='sum')
-                score = sum(scores)
-            else
-                score = mean(scores)
-            
-            score = score * private$i.score.weight
+            log.f = log.f.continuous + log.f.in.or.out.of.range
             
             if (verbose)
                 base::print(paste0("   ", private$i.outcome, " = ", round(pre.transformed.sim.value,3),
-                                   " (score = ", round(score, 3), ")"))
+                                   " (p = ", round(exp(log.f), 3), ")"))
             
-            score
+            if (as.log.likelihood)
+                log.f
+            else
+                exp(-log.f)
+        },
+        
+        OLD.score.sim = function(sim, iteration, verbose, as.log.likelihood=T)
+        {
+            OUT.OF.RANGE.WEIGHT = 3
+            IN.RANGE.WEIGHT = 1
+            
+            #-- Prep the bounds --#
+            pre.transformed.sim.value = sim.value = private$get.sim.value(sim)
+            low = private$i.min.acceptable.value[1]
+            high = private$i.max.acceptable.value[1]
+            scale = sim$outcome.metadata[[private$i.outcome]]$scale
+            #mid = pre.transformed.mid = (high + low) / 2
+            
+            above.range = sim.value > high
+            below.range = sim.value < low
+            is.in.range = !above.range & !below.range
+            
+            #-- Transform to unbounded scale --#        
+            sim.value = transform.to.unbounded.scale(sim.value, scale)
+            low = transform.to.unbounded.scale(low, scale)
+            high = transform.to.unbounded.scale(high, scale)
+            target = transform.to.unbounded.scale(private$i.target.value, scale)
+            mid = (high + low) / 2
+            
+            #-- Figure out our SDs --#
+            # base.of.sd = c(private$i.target.value, target, pre.transformed.mid, mid) #putting four things in here helps protect us against getting an sd of zero
+            base.of.sd = abs(c(target, mid)) #putting two things in here helps protect us against getting an sd of zero
+            base.of.sd = base.of.sd[base.of.sd != 0]
+            if (length(base.of.sd)==0)
+            {
+                base.of.sd = abs(c(private$i.target.value, pre.transformed.mid))
+                base.of.sd = base.of.sd[base.of.sd != 0]
+            }
+            
+            if (length(base.of.sd)==0)
+                sd.for.score = 0.1
+            else
+            {
+                if (private$i.score.metric=='normal.with.coefficient.of.variance')
+                    sd.for.score = mean(base.of.sd * private$i.coefficient.of.variance)
+                else if (private$i.score.metric=='normal.with.sqrt.sd')
+                    sd.for.score = mean(sqrt(base.of.sd))
+                else
+                    stop(paste0("we haven't implemented scoring for metric ", private$i.score.metric))
+            }
+            
+            in.range.sd = sd.for.score / sqrt(IN.RANGE.WEIGHT)
+            out.of.range.sd = sd.for.score / sqrt(OUT.OF.RANGE.WEIGHT)
+            
+            #-- Fundamentally, the likelihood we are calculating here is a two-way mixture:
+            #   p = 1/2 * p_in_range + 1/2 * p_out_of_range
+            #   where
+            #   p_in_range = dnorm(sim.value, target, in.range.sd)
+            # 
+            #   p_out_of_range = dnorm(sim.value, mid, out.of.range.sd) IF sim.value < low OR sim.value > high
+            #                    dnorm(low, mid, out.of.range.df) IF low < sim.value < high NB, since mid is centered between low and high, dnorm(low, ...) = dnorm(high, ...)
+            
+            #-- Calculate a log p that applies if we are out of range --#
+            max.out.of.range.log.p = dnorm(low, mean=mid, sd=out.of.range.sd, log=T) 
+                # because this distribution is centered at the mid between low and high, this = dnorm(high, ...)
+
+            log.p.out.of.range = dnorm(sim.value, mean=mid, sd=out.of.range.sd, log=T)
+            log.p.out.of.range[is.in.range] = max.out.of.range.log.p
+
+            #-- Calculate the log p's that applies if we are in range --#
+            # min.below.range.log.p = dnorm(low, mean=target, sd=in.range.sd, log=T)
+            # min.above.range.log.p = dnorm(high, mean=target, sd=in.range.sd, log=T)
+
+            log.p.in.range = dnorm(sim.value, mean=target, sd=in.range.sd, log=T)
+            # log.p.in.range[above.range] = max.above.range.log.p
+            # log.p.in.range[below.range] = max.below.range.log.p
+            
+            # log sum exp to combine p in range and p out of range
+            max.log.p.component = pmax(log.p.out.of.range,
+                                       log.p.in.range)
+            
+            combined.log.p = 0.5 * # multiply by 0.5 because it's a mixture of two p's, each with weight 0.5
+                max.log.p.component + log(exp(log.p.out.of.range - max.log.p.component) + 
+                                          exp(log.p.in.range - max.log.p.component))
+            
+            log.p = sum(combined.log.p)
+
+
+            if (verbose)
+                base::print(paste0("   ", private$i.outcome, " = ", round(pre.transformed.sim.value,3),
+                                   " (p = ", round(exp(log.p), 3), ")"))
+            
+            if (as.log.likelihood)
+                log.p
+            else
+                exp(-log.p)
         },
         
         equals = function(other)

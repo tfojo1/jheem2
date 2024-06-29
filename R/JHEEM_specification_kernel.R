@@ -29,6 +29,8 @@ SPECIFICATION.KERNEL = R6::R6Class(
                               direct.dependent.outcome.numerator.names,
                               outcome.direct.dependee.quantity.names)
         {
+            error.prefix = paste0("Error creating '", version, "' specification kernel for '", location, "': ")
+            
             # We're not going to error check these
             private$i.version = version
             private$i.location = location
@@ -63,18 +65,57 @@ SPECIFICATION.KERNEL = R6::R6Class(
             private$i.direct.dependent.outcome.numerator.names = direct.dependent.outcome.numerator.names
             private$i.outcome.direct.dependee.quantity.names = outcome.direct.dependee.quantity.names
             
-            # Quantity Stuff
+            #-- Quantity Stuff --#
             private$i.ordered.quantity.names = specification$ordered.quantity.names
             private$i.ordered.quantity.names.except.initial.population = specification$ordered.quantity.names.except.initial.population
             
             
             private$i.quantity.kernels = lapply(specification$quantities, function(quantity){
                 
-                list(original.name = quantity$get.original.name(private$i.version),
-                     max.dim.names = quantity$max.dim.names,
-                     required.dim.names = quantity$required.dim.names,
-                     components = quantity$components
-                     )
+                list(
+                    name = quantity$name,
+                    depends.on = quantity$depends.on,
+                    
+                    original.name = quantity$get.original.name(private$i.version),
+                    max.dim.names = quantity$max.dim.names,
+                    required.dim.names = quantity$required.dim.names,
+                    
+                    functional.form.scale = quantity$functional.form.scale,
+                    scale = quantity$scale,
+                    
+                    ramp.value.application = quantity$ramp.value.application,
+                    all.ramp.applications.identity = quantity$all.ramp.applications.identity,
+                    ramp.interpolate.links = quantity$ramp.interpolate.links,
+                    
+                    taper.value.application = quantity$taper.value.application,
+                    all.taper.applications.identity = quantity$all.taper.applications.identity,
+                    taper.interpolate.links = quantity$taper.interpolate.links,
+                    
+                    n.components = quantity$n.components,
+                    components = lapply(quantity$components, function(comp){
+                        
+                        kernel = list(
+                            max.dim.names = comp$max.dim.names,
+                            applies.to = comp$applies.to,
+                            value.type = comp$value.type,
+                            depends.on = comp$depends.on,
+                            apply.function = comp$apply.function,
+                            reversed.dimension.alias.mapping = comp$reversed.dimension.alias.mapping,
+                            reversed.aliases = comp$reversed.aliases,
+                            
+                            evaluate = comp$get.evaluate.function(parent.environment = self,
+                                                                  error.prefix = error.prefix)
+                        )
+                        
+                        if (comp$value.type == 'function')
+                            kernel$value.function.name = comp$value$value.function.name
+                        
+                        if (comp$value.type == 'numeric')
+                            kernel$value.dim.names = dimnames(comp$value)
+                        
+                        kernel
+                    })
+                 )
                 
             })
             
@@ -86,26 +127,85 @@ SPECIFICATION.KERNEL = R6::R6Class(
             names(private$i.element.backgrounds) = private$i.element.names = specification$element.names
             private$i.element.name.mappings = specification$element.name.mappings
             
-            # Outcome Stuff
+            #-- Outcome Stuff --#
             private$i.outcome.kernels = lapply(specification$outcome.names, function(outcome.name){
-                
                 outcome = specification$get.outcome(outcome.name)
                 
                 list(
                     name = outcome$name,
+                    
+                    is.intrinsic = outcome$is.intrinsic,
+                    is.dynamic = outcome$is.dynamic,
+                    is.cumulative = outcome$is.cumulative,
+                    
+                    from.year = outcome$from.year,
+                    to.year = outcome$to.year,
+                    
                     dim.names = outcome$dim.names,
-                    unrenamed.dim.names = outcome$unrenamed.dim.names
+                    unrenamed.dim.names = outcome$unrenamed.dim.names,
+                    
+                    depends.on = outcome$depends.on,
+                    
+                    denominator.outcome = outcome$denominator.outcome,
+                    value.is.numerator = outcome$value.is.numerator,
+                    subset.dimension.values = outcome$subset.dimension.values,
+                    rename.dimension.values = outcome$rename.dimension.values,
+                    
+                    dimension.aliases = outcome$dimension.aliases,
+                    dimension.alias.suffix = outcome$dimension.alias.suffix,
+                    
+                    calculate.values = outcome$get.calculate.values.function(parent.environment = self,
+                                                                             error.prefix = error.prefix)
                 )
             })
             names(private$i.outcome.kernels) = specification$outcome.names
             
+            private$i.outcome.names.for.null.sub.version = specification$get.outcome.names.for.sub.version(NULL)
+            private$i.outcome.names.for.sub.version = lapply(specification$sub.versions, specification$get.outcome.names.for.sub.version)
+            names(private$i.outcome.names.for.sub.version) = specification$sub.versions
+            
             #-- Foregrounds --#
             private$i.foregrounds = specification$foregrounds
+            
+            #-- Parameter Mapping --#
+            calibrated.parameters.distribution = get.parameters.distribution.for.version(private$i.version, type='calibrated')
+            if (!is.null(calibrated.parameters.distribution))
+            {
+                private$i.calibrated.parameter.names = calibrated.parameters.distribution@var.names
+                calibrated.parameters.apply.fn = get.parameters.apply.function.for.version(private$i.version, type='calibrated')
+                private$i.calibrated.parameters.apply.function = bundle.function.and.dependees(calibrated.parameters.apply.fn,
+                                                                                               parent.environment = self,
+                                                                                         fn.name.for.error = "The calibrated parameters apply function",
+                                                                                         error.prefix = error.prefix)
+            }
+                      
+            sampled.parameters.distribution = get.parameters.distribution.for.version(private$i.version, type='sampled')
+            if (!is.null(sampled.parameters.distribution))
+            {
+                private$i.sampled.parameter.names = sampled.parameters.distribution@var.names
+                sampled.parameters.apply.fn = get.parameters.apply.function.for.version(private$i.version, type='sampled')
+                private$i.sampled.parameters.apply.function = bundle.function.and.dependees(sampled.parameters.apply.fn,
+                                                                                            parent.environment = self,
+                                                                                      fn.name.for.error = "The sampled parameters apply function",
+                                                                                      error.prefix = error.prefix)
+            }
             
             #-- Misc --#
             private$i.default.parameter.values = specification$default.parameter.values
             
             # Some more stuff here
+            
+            # for (elem.name in names(private))
+            # {
+            #     print(elem.name)
+            #     x = private[[elem.name]]
+            #     save(x, file=paste0("size_check/", elem.name, ".Rdata"))
+            # }
+            # env = environment(private$i.calibrated.parameters.apply.function)
+            # save(env, file = "size_check/env.Rdata")
+            # save(self, file = 'size_check/kernel.Rdata')
+            # 
+            # browser()
         },
         
         get.quantity = function(quantity.name)
@@ -116,6 +216,11 @@ SPECIFICATION.KERNEL = R6::R6Class(
         get.quantity.kernel = function(quantity.name)
         {
             private$i.quantity.kernels[[quantity.name]]
+        },
+        
+        get.outcome.kernel = function(outcome.name)
+        {
+            private$i.outcome.kernels[[outcome.name]]  
         },
         
         get.specification.metadata = function(sub.version)
@@ -203,6 +308,14 @@ SPECIFICATION.KERNEL = R6::R6Class(
         get.outcome.direct.dependee.quantity.names = function(outcome.names)
         {
             unlist(private$i.outcome.direct.dependee.quantity.names[outcome.names])
+        },
+        
+        get.outcome.names.for.sub.version = function(sub.version)
+        {
+            if (is.null(sub.version))
+                private$i.outcome.names.for.null.sub.version
+            else
+                private$i.outcome.names.for.sub.version[[sub.version]]
         }
     ),
     
@@ -285,7 +398,7 @@ SPECIFICATION.KERNEL = R6::R6Class(
             if (missing(value))
                 private$i.outcome.kernels
             else
-                stop("Cannot modify a specification kernel's outcome.kernels - they are read-only")
+                stop("Cannot modify a specification kernel's outcomes - they are read-only")
         },
         
         outcome.names = function(value)
@@ -310,6 +423,38 @@ SPECIFICATION.KERNEL = R6::R6Class(
                 names(private$i.foregrounds)
             else
                 stop("Cannot modify a specification kernel's foregrounds - they are read-only")
+        },
+        
+        calibrated.parameter.names = function(value)
+        {
+            if (missing(value))
+                private$i.calibrated.parameter.names
+            else
+                stop("Cannot modify a specification kernel's calibrated.parameter.names - they are read-only")
+        },
+        
+        sampled.parameter.names = function(value)
+        {
+            if (missing(value))
+                private$i.sampled.parameter.names
+            else
+                stop("Cannot modify a specification kernel's sampled.parameter.names - they are read-only")
+        },
+        
+        calibrated.parameters.apply.function = function(value)
+        {
+            if (missing(value))
+                private$i.calibrated.parameters.apply.function
+            else
+                stop("Cannot modify a specification kernel's calibrated.parameters.apply.function - they are read-only")
+        },
+        
+        sampled.parameters.apply.function = function(value)
+        {
+            if (missing(value))
+                private$i.sampled.parameters.apply.function
+            else
+                stop("Cannot modify a specification kernel's sampled.parameters.apply.function - they are read-only")
         }
     ),
     
@@ -338,6 +483,16 @@ SPECIFICATION.KERNEL = R6::R6Class(
         
         #-- Outcome Stuff --#
         i.outcome.kernels = NULL,
+        
+        i.outcome.names.for.sub.version = NULL,
+        i.outcome.names.for.null.sub.version = NULL,
+        
+        #-- Parameter Mappings --#
+        i.calibrated.parameter.names = NULL,
+        i.sampled.parameter.names = NULL,
+        
+        i.calibrated.parameters.apply.function = NULL,
+        i.sampled.parameters.apply.function = NULL,
         
         #-- Misc --#
         i.default.parameter.values = NULL,

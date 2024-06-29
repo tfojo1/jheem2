@@ -4575,158 +4575,158 @@ MODEL.ELEMENT = R6::R6Class(
             rv
         },
         
-        calculate.ramp.values = function(ramp.values,
-                                         ramp.times,
-                                         first.functional.form.value,
-                                         functional.form.from.time)
-        {
-            times = ramp.times
-            if (i.ramp.value.application=='absolute')
-            {
-                if (length(dim(first.functional.form.value))==0)
-                    rv = as.list(ramp.values)
-                else
-                    rv = lapply(ramp.values, function(val){
-                        array(val, dim=dim(first.functional.form.value), dimnames=dimnames(first.functional.form.value))
-                    })
-            }
-            else
-            {
-                if (i.all.ramp.applications.identity)
-                {
-                    rv = lapply(ramp.values, function(val){
-                        val * first.functional.form.value
-                    })
-                }
-                else
-                {
-                    n.segments = length(ramp.times)
-                    times = c(ramp.times, functional.form.from.time)
-                    
-                    multipliers = unlist(sapply(1:n.segments, function(i){
-                        interpolate.times = times[i]:times[i+1]
-                        interpolate.times = interpolate.times[-length(interpolate.times)]
-                        
-                        if (private$i.ramp.interpolate.links[i]=='log')
-                            exp(interpolate(values=log(ramp.values[i:(i+1)]),
-                                            value.times=times[i:(i+1)],
-                                            desired.times = interpolate.times))
-                        else if (private$i.ramp.interpolate.links[i]=='exp')
-                            log(interpolate(values=exp(ramp.values[i:(i+1)]),
-                                            value.times=times[i:(i+1)],
-                                            desired.times = interpolate.times))
-                        else #identity
-                            ramp.values[i]
-                    }))
-                    
-                    rv = lapply(multipliers, function(mult){
-                        mult * first.functional.form.value
-                    })
-                    times = calculate.ramp.interpolated.times(ramp.times, functional.form.from.time)
-                }
-            }
-            
-            names(rv) = as.character(times)
-            rv
-        },
+        # calculate.ramp.values = function(ramp.values,
+        #                                  ramp.times,
+        #                                  first.functional.form.value,
+        #                                  functional.form.from.time)
+        # {
+        #     times = ramp.times
+        #     if (i.ramp.value.application=='absolute')
+        #     {
+        #         if (length(dim(first.functional.form.value))==0)
+        #             rv = as.list(ramp.values)
+        #         else
+        #             rv = lapply(ramp.values, function(val){
+        #                 array(val, dim=dim(first.functional.form.value), dimnames=dimnames(first.functional.form.value))
+        #             })
+        #     }
+        #     else
+        #     {
+        #         if (i.all.ramp.applications.identity)
+        #         {
+        #             rv = lapply(ramp.values, function(val){
+        #                 val * first.functional.form.value
+        #             })
+        #         }
+        #         else
+        #         {
+        #             n.segments = length(ramp.times)
+        #             times = c(ramp.times, functional.form.from.time)
+        #             
+        #             multipliers = unlist(sapply(1:n.segments, function(i){
+        #                 interpolate.times = times[i]:times[i+1]
+        #                 interpolate.times = interpolate.times[-length(interpolate.times)]
+        #                 
+        #                 if (private$i.ramp.interpolate.links[i]=='log')
+        #                     exp(interpolate(values=log(ramp.values[i:(i+1)]),
+        #                                     value.times=times[i:(i+1)],
+        #                                     desired.times = interpolate.times))
+        #                 else if (private$i.ramp.interpolate.links[i]=='exp')
+        #                     log(interpolate(values=exp(ramp.values[i:(i+1)]),
+        #                                     value.times=times[i:(i+1)],
+        #                                     desired.times = interpolate.times))
+        #                 else #identity
+        #                     ramp.values[i]
+        #             }))
+        #             
+        #             rv = lapply(multipliers, function(mult){
+        #                 mult * first.functional.form.value
+        #             })
+        #             times = calculate.ramp.interpolated.times(ramp.times, functional.form.from.time)
+        #         }
+        #     }
+        #     
+        #     names(rv) = as.character(times)
+        #     rv
+        # },
+        # 
+        # calculate.taper.value = function(taper.values,
+        #                                  taper.times,
+        #                                  last.functional.form.value,
+        #                                  functional.form.to.time)
+        # {
+        #     times = taper.times
+        #     if (i.taper.value.application=='absolute')
+        #     {
+        #         if (length(dim(first.functional.form.value))==0)
+        #             rv = as.list(taper.values)
+        #         else
+        #             rv = lapply(taper.values, function(val){
+        #                 array(val, dim=dim(last.functional.form.value), dimnames=dimnames(last.functional.form.value))
+        #             })
+        #     }
+        #     else
+        #     {
+        #         if (i.all.taper.applications.identity)
+        #         {
+        #             rv = lapply(taper.values, function(val){
+        #                 val * last.functional.form.value
+        #             })
+        #         }
+        #         else
+        #         {
+        #             n.segments = length(taper.times)
+        #             times = c(functional.form.to.time, taper.times)
+        #             
+        #             multipliers = unlist(sapply(1:n.segments, function(i){
+        #                 interpolate.times = times[i+1]:times[i]
+        #                 interpolate.times = rev(interpolate.times[-1])
+        #                 
+        #                 if (private$i.taper.interpolate.links[i]=='log')
+        #                     exp(interpolate(values=log(taper.values[i:(i+1)]),
+        #                                     value.times=times[i:(i+1)],
+        #                                     desired.times = interpolate.times))
+        #                 else if (private$i.taper.interpolate.links[i]=='exp')
+        #                     log(interpolate(values=exp(taper.values[i:(i+1)]),
+        #                                     value.times=times[i:(i+1)],
+        #                                     desired.times = interpolate.times))
+        #                 else #identity
+        #                     taper.values[i]
+        #             }))
+        #             
+        #             rv = lapply(multipliers, function(mult){
+        #                 mult * last.functional.form.value
+        #             })
+        #             times = calculate.taper.interpolated.times(taper.times, functiona.form.to.time)
+        #         }
+        #     }
+        #     
+        #     names(rv) = as.character(times)
+        #     rv
+        # },
         
-        calculate.taper.value = function(taper.values,
-                                         taper.times,
-                                         last.functional.form.value,
-                                         functional.form.to.time)
-        {
-            times = taper.times
-            if (i.taper.value.application=='absolute')
-            {
-                if (length(dim(first.functional.form.value))==0)
-                    rv = as.list(taper.values)
-                else
-                    rv = lapply(taper.values, function(val){
-                        array(val, dim=dim(last.functional.form.value), dimnames=dimnames(last.functional.form.value))
-                    })
-            }
-            else
-            {
-                if (i.all.taper.applications.identity)
-                {
-                    rv = lapply(taper.values, function(val){
-                        val * last.functional.form.value
-                    })
-                }
-                else
-                {
-                    n.segments = length(taper.times)
-                    times = c(functional.form.to.time, taper.times)
-                    
-                    multipliers = unlist(sapply(1:n.segments, function(i){
-                        interpolate.times = times[i+1]:times[i]
-                        interpolate.times = rev(interpolate.times[-1])
-                        
-                        if (private$i.taper.interpolate.links[i]=='log')
-                            exp(interpolate(values=log(taper.values[i:(i+1)]),
-                                            value.times=times[i:(i+1)],
-                                            desired.times = interpolate.times))
-                        else if (private$i.taper.interpolate.links[i]=='exp')
-                            log(interpolate(values=exp(taper.values[i:(i+1)]),
-                                            value.times=times[i:(i+1)],
-                                            desired.times = interpolate.times))
-                        else #identity
-                            taper.values[i]
-                    }))
-                    
-                    rv = lapply(multipliers, function(mult){
-                        mult * last.functional.form.value
-                    })
-                    times = calculate.taper.interpolated.times(taper.times, functiona.form.to.time)
-                }
-            }
-            
-            names(rv) = as.character(times)
-            rv
-        },
-        
-        calculate.ramp.interpolated.times = function(ramp.times,
-                                                     functional.form.from.time)
-        {
-            if (i.all.ramp.applications.identity)
-                ramp.times
-            else
-            {
-                times = c(ramp.times, functional.form.from.time)
-                n.segments = length(ramp.times)
-                unlist(sapply(1:n.segments, function(i){
-                    if (private$i.ramp.interpolate.links[i]=='identity')
-                        times[i]
-                    else #not identity
-                    {
-                        rv = times[i]:times[i+1]
-                        rv[-length(rv)]
-                    }
-                }))
-            }
-        },
-        
-        calculate.taper.interpolated.times = function(taper.times,
-                                         functional.form.to.time)
-        {
-            if (i.all.taper.applications.identity)
-                taper.times
-            else
-            {
-                times = c(functional.form.to.time, taper.times)
-                n.segments = length(taper.times)
-                unlist(sapply(1:n.segments, function(i){
-                    if (private$i.taper.interpolate.links[i]=='identity')
-                        times[i]
-                    else #not identity
-                    {
-                        rv = times[i+1]:times[i]
-                        rev(rv[-1])
-                    }
-                }))
-            }
-        },
-        
+        # calculate.ramp.interpolated.times = function(ramp.times,
+        #                                              functional.form.from.time)
+        # {
+        #     if (i.all.ramp.applications.identity)
+        #         ramp.times
+        #     else
+        #     {
+        #         times = c(ramp.times, functional.form.from.time)
+        #         n.segments = length(ramp.times)
+        #         unlist(sapply(1:n.segments, function(i){
+        #             if (private$i.ramp.interpolate.links[i]=='identity')
+        #                 times[i]
+        #             else #not identity
+        #             {
+        #                 rv = times[i]:times[i+1]
+        #                 rv[-length(rv)]
+        #             }
+        #         }))
+        #     }
+        # },
+        # 
+        # calculate.taper.interpolated.times = function(taper.times,
+        #                                  functional.form.to.time)
+        # {
+        #     if (i.all.taper.applications.identity)
+        #         taper.times
+        #     else
+        #     {
+        #         times = c(functional.form.to.time, taper.times)
+        #         n.segments = length(taper.times)
+        #         unlist(sapply(1:n.segments, function(i){
+        #             if (private$i.taper.interpolate.links[i]=='identity')
+        #                 times[i]
+        #             else #not identity
+        #             {
+        #                 rv = times[i+1]:times[i]
+        #                 rev(rv[-1])
+        #             }
+        #         }))
+        #     }
+        # },
+        # 
         may.be.static = function()
         {
             !is.null(private$i.value) || !is.null(private$i.get.value.function.wrapper) ||
@@ -4761,8 +4761,55 @@ MODEL.ELEMENT = R6::R6Class(
                 length(private$i.taper.scale)
             else
                 stop("Cannot modify a model.quantity's 'taper.scale' value - it is read-only")
-        }
+        },
         
+        ramp.value.application = function(value)
+        {
+            if (missing(value))
+                length(private$i.ramp.value.application)
+            else
+                stop("Cannot modify a model.element's 'ramp.value.application' value - it is read-only")
+        },
+        
+        all.ramp.applications.identity = function(value)
+        {
+            if (missing(value))
+                length(private$i.all.ramp.applications.identity)
+            else
+                stop("Cannot modify a model.element's 'all.ramp.applications.identity' value - it is read-only")
+        },
+        
+        ramp.interpolate.links = function(value)
+        {
+            if (missing(value))
+                length(private$i.ramp.interpolate.links)
+            else
+                stop("Cannot modify a model.element's 'ramp.interpolate.links' value - it is read-only")
+        },
+        
+        taper.value.application = function(value)
+        {
+            if (missing(value))
+                length(private$i.taper.value.application)
+            else
+                stop("Cannot modify a model.element's 'taper.value.application' value - it is read-only")
+        },
+        
+        all.taper.applications.identity = function(value)
+        {
+            if (missing(value))
+                length(private$i.all.taper.applications.identity)
+            else
+                stop("Cannot modify a model.element's 'all.taper.applications.identity' value - it is read-only")
+        },
+        
+        taper.interpolate.links = function(value)
+        {
+            if (missing(value))
+                length(private$i.taper.interpolate.links)
+            else
+                stop("Cannot modify a model.element's 'taper.interpolate.links' value - it is read-only")
+        }
     ),
         
     private = list(
@@ -7330,7 +7377,8 @@ MODEL.OUTCOME = R6::R6Class(
                             " not present in the calculated dimnames for the outcome"))
             }
             
-            renamed.dim.names = do.rename.dim.names(dim.names,
+            renamed.dim.names = do.rename.dim.names(outcome = self,
+                                                    dim.names,
                                                     rename.dimension.values = private$i.rename.dimension.values,
                                                     error.prefix = paste0(error.prefix, "Error renaming outcome's dimnames - "))
             
@@ -7345,7 +7393,8 @@ MODEL.OUTCOME = R6::R6Class(
                                                                                  all.outcomes = all.outcomes,
                                                                                  error.prefix = error.prefix,
                                                                                  set = F)
-                    denominator.dim.names = self$apply.dimension.aliases.to.dim.names(denominator.dim.names)
+                    denominator.dim.names = apply.outcome.dimension.aliases.to.dim.names(self,
+                                                                                         denominator.dim.names)
       
                     # A lot of work below into printing a useful error message
                     if (!dim.names.are.subset(sub.dim.names=renamed.dim.names, super.dim.names=denominator.dim.names))
@@ -7419,7 +7468,8 @@ MODEL.OUTCOME = R6::R6Class(
                         #             ", on which the outcome depends, cannot be inferred from the model specification"))
                     }
                     
-                    quant.max.dim.names = self$apply.dimension.aliases.to.dim.names(quant$max.dim.names)
+                    quant.max.dim.names = apply.outcome.dimension.aliases.to.dim.names(self,
+                                                                                       quant$max.dim.names)
                     extra.dimensions.in.quantity = setdiff(names(quant.max.dim.names), names(max.dim.names))
                     if (length(extra.dimensions.in.quantity)>0)
                         stop(paste0(error.prefix,
@@ -7464,6 +7514,7 @@ MODEL.OUTCOME = R6::R6Class(
             renamed.dim.names
         },
         
+        
         create.top.level.references = function(specification, all.outcomes, error.prefix)
         {
             dep.on.quantity.names = setdiff(union(self$depends.on.quantities,
@@ -7505,62 +7556,63 @@ MODEL.OUTCOME = R6::R6Class(
             })
         },
         
-        calculate.value.and.denominator = function(outcome.values.and.denominators,
-                                                   dynamic.and.intrinsic.numerators,
-                                                   quantity.values,
-                                                   quantity.after.values,
-                                                   quantity.times)
+        # calculate.value.and.denominator = function(outcome.values.and.denominators,
+        #                                            dynamic.and.intrinsic.numerators,
+        #                                            quantity.values,
+        #                                            quantity.after.values,
+        #                                            quantity.times)
+        # {
+        #     value = private$calculate.value(outcome.values.and.denominators,
+        #                             dynamic.and.intrinsic.numerators,
+        #                             quantity.values,
+        #                             quantity.after.values,
+        #                             quantity.times)
+        #     
+        #     if (is.null(private$i.denominator.outcome))
+        #         denominator.value = NULL
+        #     else
+        #         private$calculate.denominator.value(outcome.values.and.denominators,
+        #                                             dynamic.and.intrinsic.numerators,
+        #                                             quantity.values,
+        #                                             quantity.after.values,
+        #                                             quantity.times)
+        #     
+        #     # Expand years if we need to
+        #     # Expand 
+        # },
+        
+        # here for now until we replace outcomes with outcome.kernels in the engine code
+        calculate.values = function(desired.times,
+                                    bindings,
+                                    binding.times,
+                                    cumulative.interval = 1,
+                                    error.prefix)
         {
-            value = private$calculate.value(outcome.values.and.denominators,
-                                    dynamic.and.intrinsic.numerators,
-                                    quantity.values,
-                                    quantity.after.values,
-                                    quantity.times)
-            
-            if (is.null(private$i.denominator.outcome))
-                denominator.value = NULL
-            else
-                private$calculate.denominator.value(outcome.values.and.denominators,
-                                                    dynamic.and.intrinsic.numerators,
-                                                    quantity.values,
-                                                    quantity.after.values,
-                                                    quantity.times)
-            
-            # Expand years if we need to
-            # Expand 
+            fn = get.calculate.values.function(self, error.prefix='error in temp get.calculate.values.function')
+            fn(desired.times,
+               bindings,
+               binding.times,
+               cumulative.interval,
+               error.prefix)
         },
         
-        calculate.value = function(times, bindings, error.prefix='')
+        get.calculate.values.function = function(parent.environment,
+                                                 error.prefix)
         {
-            stop(paste0(error.prefix, "calculate.value() is not implemented for this ", self$descriptor))
-        },
-        
-        apply.dimension.aliases.to.dim.names = function(dim.names)
-        {
-            if (!is.null(dim.names))
+            env = new.env(parent = parent.environment)
+            env$descriptor = self$descriptor
+            
+            fn = function(desired.times,
+                          bindings,
+                          binding.times,
+                          cumulative.interval = 1,
+                          error.prefix)
             {
-                if (!is.null(private$i.dimension.alias.suffix))
-                {
-                    suffix.to.match = paste0(".", private$i.dimension.alias.suffix)
-                    mask = substr(names(dim.names), 
-                                  nchar(names(dim.names))-nchar(suffix.to.match)+1,
-                                  nchar(names(dim.names))) == suffix.to.match
-                    
-                    names(dim.names)[mask] = substr(names(dim.names)[mask],
-                                                    1,
-                                                    nchar(names(dim.names)[mask])-nchar(suffix.to.match))
-                }
-                
-                if (!is.null(private$i.dimension.aliases))
-                {
-                    to.overwrite = intersect(names(private$i.dimension.aliases),
-                                             names(dim.names))
-                    
-                    names(dim.names)[to.overwrite] = private$i.dimension.aliases[to.overwrite]
-                }
-            }            
+                stop(paste0(error.prefix, "calculate.values does not apply for this ", descriptor, " - the logic of engine code should not result in this getting called"))
+            }
             
-            dim.names
+            environment(fn) = env
+            fn
         }
     ),
     
@@ -7713,6 +7765,14 @@ MODEL.OUTCOME = R6::R6Class(
                 stop(paste0("Cannot modify a model outcome's 'is.intrinsic' - it is read-only"))
         },
         
+        is.dynamic = function(value)
+        {
+            if (missing(value))
+                F
+            else
+                stop(paste0("Cannot modify a model outcome's 'is.dynamic' - it is read-only"))
+        },
+        
         keep.dimensions = function(value)
         {
             if (missing(value))
@@ -7815,6 +7875,22 @@ MODEL.OUTCOME = R6::R6Class(
                 private$i.value.is.numerator
             else
                 stop(paste0("Cannot modify a model outcome's 'value.is.numerator' - it is read-only"))
+        },
+        
+        dimension.alias.suffix = function(value)
+        {
+            if (missing(value))
+                private$i.dimension.alias.suffix
+            else
+                stop(paste0("Cannot modify a model outcome's 'dimension.alias.suffix' - it is read-only"))
+        },
+        
+        dimension.aliases = function(value)
+        {
+            if (missing(value))
+                private$i.dimension.aliases
+            else
+                stop(paste0("Cannot modify a model outcome's 'dimension.aliases' - they are read-only"))
         }
     ),
     
@@ -7910,7 +7986,7 @@ MODEL.OUTCOME = R6::R6Class(
                 dep.on.dim.names = dep.on$derive.dim.names(specification = specification,
                                                            all.outcomes = all.outcomes,
                                                            error.prefix = error.prefix)
-                dep.on.dim.names = self$apply.dimension.aliases.to.dim.names(dep.on.dim.names)
+                dep.on.dim.names = apply.outcome.dimension.aliases.to.dim.names(self, dep.on.dim.names)
                 rv = intersect.shared.dim.names(rv, dep.on.dim.names)
             }
             
@@ -7920,7 +7996,7 @@ MODEL.OUTCOME = R6::R6Class(
 
             for (quant in dep.on.quantities)
             {
-                quant.max.dim.names = self$apply.dimension.aliases.to.dim.names(quant$max.dim.names)
+                quant.max.dim.names = apply.outcome.dimension.aliases.to.dim.names(self, quant$max.dim.names)
                 if (!is.null(quant$max.dim.names))
                     rv = intersect.joined.dim.names(rv, quant.max.dim.names)
             }
@@ -7968,9 +8044,10 @@ MODEL.OUTCOME = R6::R6Class(
 )
 
 # A helper for actualizing the rename
-do.rename.dim.names <- function(dim.names,
-                                rename.dimension.values,
-                                error.prefix)
+do.rename.dim.names <- function(outcome,
+                               dim.names,
+                               rename.dimension.values,
+                               error.prefix)
 {
     if (is.null(dim.names))
         NULL
@@ -7987,7 +8064,7 @@ do.rename.dim.names <- function(dim.names,
                 {
                     stop(paste0(error.prefix,
                                 "The rename.dimension.values argument for the outcome '",
-                                self$get.original.name(specification$version), 
+                                outcome$get.original.name(specification$version), 
                                 "' references ",
                                 ifelse(length(missing.rename.values)==1, "value ", "value "),
                                 collapse.with.and("'", missing.rename.values, "'"),
@@ -8004,6 +8081,34 @@ do.rename.dim.names <- function(dim.names,
         names(renamed.dim.names) = names(dim.names)
         renamed.dim.names
     }
+}
+
+apply.outcome.dimension.aliases.to.dim.names = function(outcome, dim.names)
+{
+    if (!is.null(dim.names))
+    {
+        if (!is.null(outcome$dimension.alias.suffix))
+        {
+            suffix.to.match = paste0(".", outcome$dimension.alias.suffix)
+            mask = substr(names(dim.names), 
+                          nchar(names(dim.names))-nchar(suffix.to.match)+1,
+                          nchar(names(dim.names))) == suffix.to.match
+            
+            names(dim.names)[mask] = substr(names(dim.names)[mask],
+                                            1,
+                                            nchar(names(dim.names)[mask])-nchar(suffix.to.match))
+        }
+        
+        if (!is.null(outcome$dimension.aliases))
+        {
+            to.overwrite = intersect(names(outcome$dimension.aliases),
+                                     names(dim.names))
+            
+            names(dim.names)[to.overwrite] = outcome$dimension.aliases[to.overwrite]
+        }
+    }            
+    
+    dim.names
 }
 
 INTRINSIC.MODEL.OUTCOME = R6::R6Class(
@@ -8385,6 +8490,14 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
                 private$i.dynamic.quantity.name
             else
                 stop(paste0("Cannot modify a model outcome's 'trackable.type' - it is read-only"))
+        },
+        
+        is.dynamic = function(value)
+        {
+            if (missing(value))
+                T
+            else
+                stop(paste0("Cannot modify a model outcome's 'is.dynamic' - it is read-only"))
         }
     ),
     
@@ -8668,149 +8781,158 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                 private$i.value.to.integrate = mapping[private$i.value.to.integrate]
         },
         
-        calculate.values = function(desired.times,
-                                    bindings,
-                                    binding.times,
-                                    cumulative.interval = 1,
-                                    error.prefix)
+        get.calculate.values.function = function(parent.environment,
+                                                 error.prefix)
         {
-            # Process Times
-            first.desired.time = desired.times[1]
-            last.desired.time = desired.times[length(desired.times)]
+            env = new.env(parent = parent.environment)
+            env$value.to.integrate = private$i.value.to.integrate
+            env$multiply.by = private$i.multiply.by
             
-            n.binding.times = length(binding.times)
-            mask = binding.times[-1] > (first.desired.time + 1 - cumulative.interval) & 
-                binding.times[-n.binding.times] < (last.desired.time + 1)
-#                binding.times[-1] != binding.times[-n.binding.times] - can't have this condition - we will ignore step changes if we do
-            
-            n.intervals = sum(mask)
-            
-            t0.all = binding.times[-n.binding.times][mask]
-            t1.all = binding.times[-1][mask]
-            
-            # Process integrand into slopes
-            integrand = bindings[[private$i.value.to.integrate]]
-            n.integrand = length(integrand)
-            
-            if (n.integrand>1)
+            fn = function(desired.times,
+                          bindings,
+                          binding.times,
+                          cumulative.interval = 1,
+                          error.prefix)
             {
-                v0.all = integrand[-n.binding.times][mask]
-                v1.all = integrand[-1][mask]
+                # Process Times
+                first.desired.time = desired.times[1]
+                last.desired.time = desired.times[length(desired.times)]
                 
-                # indexed [time, stratum]
-                m.all = t(sapply(1:n.intervals, function(i){
-                    (v1.all[[i]] - v0.all[[i]]) / (t1.all[i] - t0.all[i])
-                }))
-                dim(m.all) = c(n.intervals, length(m.all)/n.intervals)
+                n.binding.times = length(binding.times)
+                mask = binding.times[-1] > (first.desired.time + 1 - cumulative.interval) & 
+                    binding.times[-n.binding.times] < (last.desired.time + 1)
+    #                binding.times[-1] != binding.times[-n.binding.times] - can't have this condition - we will ignore step changes if we do
                 
-                b.all = t(sapply(1:n.intervals, function(i){
-                    v0.all[[i]]
-                }))
-                dim(b.all) = c(n.intervals, length(b.all)/n.intervals)
-            }
-            
-            if (is.null(private$i.multiply.by))
-                n.multiplier = 0
-            else
-            {
-                multiplier = bindings[[private$i.multiply.by]]
-                n.multiplier = length(multiplier)
+                n.intervals = sum(mask)
                 
-                if (n.multiplier>1)
+                t0.all = binding.times[-n.binding.times][mask]
+                t1.all = binding.times[-1][mask]
+                
+                # Process integrand into slopes
+                integrand = bindings[[value.to.integrate]]
+                n.integrand = length(integrand)
+                
+                if (n.integrand>1)
                 {
-                    mult0.all = multiplier[-n.binding.times][mask]
-                    mult1.all = multiplier[-1][mask]
+                    v0.all = integrand[-n.binding.times][mask]
+                    v1.all = integrand[-1][mask]
                     
                     # indexed [time, stratum]
-                    m2.all = t(sapply(1:n.intervals, function(i){
-                        (mult1.all[[i]] - mult0.all[[i]]) / (t1.all[i] - t0.all[i])
+                    m.all = t(sapply(1:n.intervals, function(i){
+                        (v1.all[[i]] - v0.all[[i]]) / (t1.all[i] - t0.all[i])
                     }))
-                    dim(m2.all) = c(n.intervals, length(m2.all)/n.intervals)
+                    dim(m.all) = c(n.intervals, length(m.all)/n.intervals)
                     
-                    b2.all = t(sapply(1:n.intervals, function(i){
-                        mult0.all[[i]]
+                    b.all = t(sapply(1:n.intervals, function(i){
+                        v0.all[[i]]
                     }))
-                    dim(b2.all) = c(n.intervals, length(b2.all)/n.intervals)
+                    dim(b.all) = c(n.intervals, length(b.all)/n.intervals)
                 }
-            }
-            
-            if (n.multiplier==0 && n.integrand==1)
-            {
-                val = integrand[[1]] * cumulative.interval
-                rv = lapply(desired.times, function(time){val})
-            }
-            else if (n.multiplier==1 && n.integrand==1)
-            {
-                val = integrand[[1]] * multplier[[1]] * cumulative.interval
-                rv = lapply(desired.times, function(time){val})
-            }
-            else if (n.multiplier<=1)
-            {
-                if (n.multiplier==0)
-                    mult = 1
-                else
-                    mult = multiplier[[1]]
                 
-                rv = lapply(desired.times, function(time){
+                if (is.null(multiply.by))
+                    n.multiplier = 0
+                else
+                {
+                    multiplier = bindings[[multiply.by]]
+                    n.multiplier = length(multiplier)
                     
-                    last.integrate.to.time = time + 1
-                    first.integrate.from.time = last.integrate.to.time - cumulative.interval
+                    if (n.multiplier>1)
+                    {
+                        mult0.all = multiplier[-n.binding.times][mask]
+                        mult1.all = multiplier[-1][mask]
+                        
+                        # indexed [time, stratum]
+                        m2.all = t(sapply(1:n.intervals, function(i){
+                            (mult1.all[[i]] - mult0.all[[i]]) / (t1.all[i] - t0.all[i])
+                        }))
+                        dim(m2.all) = c(n.intervals, length(m2.all)/n.intervals)
+                        
+                        b2.all = t(sapply(1:n.intervals, function(i){
+                            mult0.all[[i]]
+                        }))
+                        dim(b2.all) = c(n.intervals, length(b2.all)/n.intervals)
+                    }
+                }
+                
+                if (n.multiplier==0 && n.integrand==1)
+                {
+                    val = integrand[[1]] * cumulative.interval
+                    rv = lapply(desired.times, function(time){val})
+                }
+                else if (n.multiplier==1 && n.integrand==1)
+                {
+                    val = integrand[[1]] * multplier[[1]] * cumulative.interval
+                    rv = lapply(desired.times, function(time){val})
+                }
+                else if (n.multiplier<=1)
+                {
+                    if (n.multiplier==0)
+                        mult = 1
+                    else
+                        mult = multiplier[[1]]
                     
-                    sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
-                    
-                    b = b.all[sub.mask,,drop=F]
-                    m = m.all[sub.mask,,drop=F]
-                    
-                    t0 = pmax(first.integrate.from.time, t0.all[sub.mask]) - t0.all[sub.mask]
-                    t1 = pmin(t1.all[sub.mask], last.integrate.to.time) - t0.all[sub.mask]
-                    
-                    mult * colSums(m/2*t1^2 + b*t1 - m/2*t0^2 - b*t0)
-                })
+                    rv = lapply(desired.times, function(time){
+                        
+                        last.integrate.to.time = time + 1
+                        first.integrate.from.time = last.integrate.to.time - cumulative.interval
+                        
+                        sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
+                        
+                        b = b.all[sub.mask,,drop=F]
+                        m = m.all[sub.mask,,drop=F]
+                        
+                        t0 = pmax(first.integrate.from.time, t0.all[sub.mask]) - t0.all[sub.mask]
+                        t1 = pmin(t1.all[sub.mask], last.integrate.to.time) - t0.all[sub.mask]
+                        
+                        mult * colSums(m/2*t1^2 + b*t1 - m/2*t0^2 - b*t0)
+                    })
+                }
+                else if (n.integrand==1)
+                {
+                    rv = lapply(desired.times, function(time){
+                        
+                        last.integrate.to.time = time + 1
+                        first.integrate.from.time = last.integrate.to.time - cumulative.interval
+                        
+                        sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
+                        
+                        b2 = b2.all[sub.mask,,drop=F]
+                        m2 = m2.all[sub.mask,,drop=F]
+                        
+                        t0 = pmax(first.integrate.from.time, t0.all[sub.mask]) - t0.all[sub.mask]
+                        t1 = pmin(t1.all[sub.mask], last.integrate.to.time) - t0.all[sub.mask]
+                        
+                        integrand[[1]] * colSums(m2/2*t1^2 + b2*t1 - m2/2*t0^2 - b2*t0)
+                    })
+                }
+                else # both n.multiplier and n.integrand are >1
+                {
+                    rv = lapply(desired.times, function(time){
+                        
+                        last.integrate.to.time = time + 1
+                        first.integrate.from.time = last.integrate.to.time - cumulative.interval
+                        
+                        sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
+                        
+                        b = b.all[sub.mask,,drop=F]
+                        m = m.all[sub.mask,,drop=F]
+                        
+                        b2 = b2.all[sub.mask,,drop=F]
+                        m2 = m2.all[sub.mask,,drop=F]
+                        
+                        t0 = pmax(first.integrate.from.time, t0.all[sub.mask]) - t0.all[sub.mask]
+                        t1 = pmin(t1.all[sub.mask], last.integrate.to.time) - t0.all[sub.mask]
+                        
+                        colSums(m*m2/3*t1^3 + (b*m2+b2*m)/2*t1^2 + b*b2*t1 -
+                                    m*m2/3*t0^3 - (b*m2+b2*m)/2*t0^2 - b*b2*t0)
+                    })
+                }
+                
+                rv
             }
-            else if (n.integrand==1)
-            {
-                rv = lapply(desired.times, function(time){
-                    
-                    last.integrate.to.time = time + 1
-                    first.integrate.from.time = last.integrate.to.time - cumulative.interval
-                    
-                    sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
-                    
-                    b2 = b2.all[sub.mask,,drop=F]
-                    m2 = m2.all[sub.mask,,drop=F]
-                    
-                    t0 = pmax(first.integrate.from.time, t0.all[sub.mask]) - t0.all[sub.mask]
-                    t1 = pmin(t1.all[sub.mask], last.integrate.to.time) - t0.all[sub.mask]
-                    
-                    integrand[[1]] * colSums(m2/2*t1^2 + b2*t1 - m2/2*t0^2 - b2*t0)
-                })
-            }
-            else # both n.multiplier and n.integrand are >1
-            {
-                rv = lapply(desired.times, function(time){
-                    
-                    last.integrate.to.time = time + 1
-                    first.integrate.from.time = last.integrate.to.time - cumulative.interval
-                    
-                    sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
-                    
-                    b = b.all[sub.mask,,drop=F]
-                    m = m.all[sub.mask,,drop=F]
-                    
-                    b2 = b2.all[sub.mask,,drop=F]
-                    m2 = m2.all[sub.mask,,drop=F]
-                    
-                    t0 = pmax(first.integrate.from.time, t0.all[sub.mask]) - t0.all[sub.mask]
-                    t1 = pmin(t1.all[sub.mask], last.integrate.to.time) - t0.all[sub.mask]
-                    
-                    colSums(m*m2/3*t1^3 + (b*m2+b2*m)/2*t1^2 + b*b2*t1 -
-                                m*m2/3*t0^3 - (b*m2+b2*m)/2*t0^2 - b*b2*t0)
-                })
-            }
-            
-            rv
+            environment(fn) = env
+            fn
         }
-        
     ),
     
     active = list(
@@ -8981,30 +9103,42 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
             private$i.value = private$i.value$clone(deep=T)
         },
         
-        calculate.values = function(desired.times,
+        get.calculate.values.function = function(parent.environment,
+                                                 error.prefix)
+        {
+            env = new.env(parent = parent.environment)
+            env$evaluate.function = private$i.value$get.evaluate.function(parent.environment = env,
+                                                                          error.prefix = error.prefix)
+            env$outcome.name = private$i.outcome$name
+            
+            fn = function(desired.times,
                                     bindings,
                                     binding.times,
                                     cumulative.interval = 1,
                                     error.prefix)
-        {
-            rv = lapply(1:length(desired.times), function(i){
-                bindings.for.time = lapply(bindings, function(b){
-                    if (length(b)==1)
-                        b[[1]]
-                    else
-                        b[[i]]
+            {
+                rv = lapply(1:length(desired.times), function(i){
+                    bindings.for.time = lapply(bindings, function(b){
+                        if (length(b)==1)
+                            b[[1]]
+                        else
+                            b[[i]]
+                    })
+                    names(bindings.for.time) = names(bindings)
+                    
+                    evaluate.function(bindings = bindings.for.time,
+                                      error.prefix = paste0(error.prefix, 
+                                                            "Error calculating value for time ", 
+                                                            desired.times[i], " for outcome '",
+                                                            outcome.name, "' - "))
                 })
-                names(bindings.for.time) = names(bindings)
                 
-                private$i.value$evaluate(bindings = bindings.for.time,
-                                         error.prefix = paste0(error.prefix, 
-                                                               "Error calculating value for time ", 
-                                                               desired.times[i], " for outcome '",
-                                                               outcome$name, "' - "))
-            })
+                names(rv) = as.character(desired.times)
+                rv
+            }
             
-            names(rv) = as.character(desired.times)
-            rv
+            environment(fn) = env
+            fn
         }
     ),
     
@@ -9156,92 +9290,104 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
             super$compile(specification, error.prefix)
         },
         
-        calculate.values = function(desired.times,
-                                    bindings,
-                                    binding.times,
-                                    cumulative.interval = 1,
-                                    error.prefix)
+        get.calculate.values.function = function(parent.environment,
+                                                 error.prefix)
         {
-            rates = super$calculate.values(desired.times = binding.times,
-                                           bindings = bindings,
-                                           binding.times = binding.times,
-                                           cumulative.interval = cumulative.interval,
-                                           error.prefix = error.prefix)
+            env = new.env(parent = parent.environment)
+            env$super.calculate.values.function = super$get.calculate.values.function(parent.environment = parent.environment,
+                                                                                      error.prefix = error.prefix)
+            env$calculate.proportion.leaving = private$i.calculate.proportion.leaving
             
-            n.binding.times = length(binding.times)
-            
-            if (n.binding.times==1)
+            fn = function(desired.times,
+                          bindings,
+                          binding.times,
+                          cumulative.interval = 1,
+                          error.prefix)
             {
-                r = rates[[1]]
+                rates = super.calculate.values.function(desired.times = binding.times,
+                                                        bindings = bindings,
+                                                        binding.times = binding.times,
+                                                        cumulative.interval = cumulative.interval,
+                                                        error.prefix = error.prefix)
                 
-                if (private$i.calculate.proportion.leaving)
-                    val = 1 - exp(-r * t)
-                else
-                    val = exp(-r * t)
+                n.binding.times = length(binding.times)
                 
-                rv = lapply(desired.times, function(time){val})
-            }
-            else
-            {
-                first.desired.time = desired.times[1]
-                last.desired.time = desired.times[length(desired.times)]
-                
-                mask = binding.times[-1] > (first.desired.time + 1 - cumulative.interval) & 
-                    binding.times[-n.binding.times] < (last.desired.time + 1)
-
-                n.intervals = sum(mask)
-                r0.all = rates[-n.binding.times][mask]
-                r1.all = rates[-1][mask]
-                
-                t0.all = binding.times[-n.binding.times][mask]
-                t1.all = binding.times[-1][mask]
-                
-                # indexed [time, stratum]
-                m.all = t(sapply(1:n.intervals, function(i){
-                    (r1.all[[i]] - r0.all[[i]]) / (t1.all[i] - t0.all[i])
-                }))
-                dim(m.all) = c(n.intervals, length(m.all)/n.intervals)
-                
-                b.all = t(sapply(1:n.intervals, function(i){
-                    r0.all[[i]]
-                }))
-                dim(b.all) = c(n.intervals, length(b.all)/n.intervals)
-                
-                rv = lapply(desired.times, function(time){
+                if (n.binding.times==1)
+                {
+                    r = rates[[1]]
                     
-                    last.integrate.to.time = time + 1
-                    first.integrate.from.time = last.integrate.to.time - cumulative.interval
-                    
-                    sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
-                    
-                    b = b.all[sub.mask,,drop=F]
-                    m = m.all[sub.mask,,drop=F]
-                    
-                    t0 = pmax(first.integrate.from.time, t0.all[sub.mask]) - t0.all[sub.mask]
-                    t1 = pmin(t1.all[sub.mask], last.integrate.to.time) - t0.all[sub.mask]
-                    
-                    # The solution to the diffeq:
-                    #   dPt / dt = -(mt + b) * Pt
-                    #   is
-                    #   Pt = P0 * exp(-(mt)^2/2 + bt))
-                    p.remaining.by.interval = exp(-(m*t1^2/2 + b*t1)) / exp(-(m*t0^2/2 + b*t0))
-                    
-                    # This was the prior code - a mistake
-                  #  p.remaining.by.interval = (m * t1 * exp(-m*t1^2/2) + exp(-b*t1)) /
-                  #      (m * t0 * exp(-m*t0^2/2) + exp(-b*t0))
-                    
-                    p.remaining = apply(p.remaining.by.interval, 2, prod)
-                    
-                    
-                    if (private$i.calculate.proportion.leaving)
-                        1 - p.remaining
+                    if (calculate.proportion.leaving)
+                        val = 1 - exp(-r * t)
                     else
-                        p.remaining
-                })
+                        val = exp(-r * t)
+                    
+                    rv = lapply(desired.times, function(time){val})
+                }
+                else
+                {
+                    first.desired.time = desired.times[1]
+                    last.desired.time = desired.times[length(desired.times)]
+                    
+                    mask = binding.times[-1] > (first.desired.time + 1 - cumulative.interval) & 
+                        binding.times[-n.binding.times] < (last.desired.time + 1)
+    
+                    n.intervals = sum(mask)
+                    r0.all = rates[-n.binding.times][mask]
+                    r1.all = rates[-1][mask]
+                    
+                    t0.all = binding.times[-n.binding.times][mask]
+                    t1.all = binding.times[-1][mask]
+                    
+                    # indexed [time, stratum]
+                    m.all = t(sapply(1:n.intervals, function(i){
+                        (r1.all[[i]] - r0.all[[i]]) / (t1.all[i] - t0.all[i])
+                    }))
+                    dim(m.all) = c(n.intervals, length(m.all)/n.intervals)
+                    
+                    b.all = t(sapply(1:n.intervals, function(i){
+                        r0.all[[i]]
+                    }))
+                    dim(b.all) = c(n.intervals, length(b.all)/n.intervals)
+                    
+                    rv = lapply(desired.times, function(time){
+                        
+                        last.integrate.to.time = time + 1
+                        first.integrate.from.time = last.integrate.to.time - cumulative.interval
+                        
+                        sub.mask = t0.all < last.integrate.to.time & t1.all > first.integrate.from.time
+                        
+                        b = b.all[sub.mask,,drop=F]
+                        m = m.all[sub.mask,,drop=F]
+                        
+                        t0 = pmax(first.integrate.from.time, t0.all[sub.mask]) - t0.all[sub.mask]
+                        t1 = pmin(t1.all[sub.mask], last.integrate.to.time) - t0.all[sub.mask]
+                        
+                        # The solution to the diffeq:
+                        #   dPt / dt = -(mt + b) * Pt
+                        #   is
+                        #   Pt = P0 * exp(-(mt)^2/2 + bt))
+                        p.remaining.by.interval = exp(-(m*t1^2/2 + b*t1)) / exp(-(m*t0^2/2 + b*t0))
+                        
+                        # This was the prior code - a mistake
+                      #  p.remaining.by.interval = (m * t1 * exp(-m*t1^2/2) + exp(-b*t1)) /
+                      #      (m * t0 * exp(-m*t0^2/2) + exp(-b*t0))
+                        
+                        p.remaining = apply(p.remaining.by.interval, 2, prod)
+                        
+                        
+                        if (calculate.proportion.leaving)
+                            1 - p.remaining
+                        else
+                            p.remaining
+                    })
+                }
+                
+                names(rv) = as.character(desired.times)
+                rv
             }
             
-            names(rv) = as.character(desired.times)
-            rv
+            environment(fn) = env
+            fn
         }
     ),
     
@@ -10146,6 +10292,11 @@ verify.dim.names.for.quantity <- function(dim.names,
                                           wrt.version,
                                           component.index=1)
 {
+    if (is.null(quantity$original.name))
+        original.name = quantity$get.original.name(wrt.version)
+    else
+        original.name = quantity$original.name
+    
     if (is.null(quantity$max.dim.names))
     {}
     else if (length(quantity$max.dim.names)==0)
@@ -10153,7 +10304,7 @@ verify.dim.names.for.quantity <- function(dim.names,
         if (length(dim.names)!=0)
             stop(paste0(error.prefix,
                         ifelse(component.index==1, '', paste0("The ", get.ordinal(component.index-1), " subset of ")),
-                        quantity$get.original.name(wrt.version),
+                        original.name,
                         " can only accept scalar values, but ",
                         variable.name.for.error,
                         " are not empty (they include ",
@@ -10172,7 +10323,7 @@ verify.dim.names.for.quantity <- function(dim.names,
                         variable.name.for.error, " for ",
                         ifelse(component.index==1, '', paste0("the ", get.ordinal(component.index-1), " subset of ")),
                         "model quantity ",
-                        quantity$get.original.name(wrt.version),
+                        original.name,
                         ", which expects dimensions ",
                         collapse.with.and("'", names(quantity$max.dim.names), "'")))
         
@@ -10185,7 +10336,7 @@ verify.dim.names.for.quantity <- function(dim.names,
                         variable.name.for.error, " does not match expected dimnames for ",
                         ifelse(component.index==1, '', paste0("the ", get.ordinal(component.index-1), " subset of ")),
                         "model quantity ",
-                        quantity$get.original.name(wrt.version), " for ",
+                        original.name, " for ",
                         ifelse(sum(mismatched.dimensions)==1, "dimension ", "dimensions "), ":\n",
                         paste0(sapply(names(dim.names)[mismatched.dimensions], function(d){
                             paste0("- Dimension '", d, "' expects values ", 

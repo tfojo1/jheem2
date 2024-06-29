@@ -177,6 +177,101 @@ EVALUATABLE.VALUE = R6::R6Class(
             invisible(self)
         },
         
+        get.evaluate.function = function(parent.environment, error.prefix)
+        {
+            env = new.env(parent = parent.environment)
+            
+            if (private$i.value.type=='numeric')
+            {
+                env$value = private$i.value
+                if (!is.na(private$i.na.replacement))
+                    env$value[is.na(env$value)] = private$i.na.replacement
+                
+                fn = function(bindings, error.prefix)
+                {
+                    value
+                }
+            }
+            else if (private$i.value.type=='character')
+            {
+                env$value = private$i.value
+                if (is.na(private$i.na.replacement))
+                {
+                    fn = function(bindings, error.prefix)
+                    {
+                        rv = bindings[[value]]
+                        names(rv) = NULL
+                        rv
+                    }
+                }
+                else
+                {
+                    env$na.replacement = private$i.na.replacement
+                    fn = function(bindings, error.prefix)
+                    {
+                        rv = bindings[[value]]
+                        names(rv) = NULL
+                        rv[is.na(rv)] = na.replacement
+                        rv
+                    }
+                }
+            }
+            else if (private$i.value.type=='expression')
+            {
+                env$value = private$i.value
+                if (is.na(private$i.na.replacement))
+                {
+                    fn = function(bindings, error.prefix)
+                    {
+                        base::eval(value, envir=bindings)
+                    }
+                }
+                else
+                {
+                    env$na.replacement = private$i.na.replacement
+                    fn = function(bindings, error.prefix)
+                    {
+                        rv = base::eval(value, envir=bindings)
+                        rv[is.na(rv)] = na.replacement
+                        rv
+                    }
+                }
+            }
+            else if (private$i.value.type=='function')
+            {
+                
+                env$execute.function = private$i.value$get.execute.function(parent.environment = env,
+                                                                            error.prefix = error.prefix)
+                env$na.replacement = private$i.na.replacement
+                env$depends.on.to.binding.name = private$i.depends.on.to.binding.name
+                
+                fn = function(bindings, error.prefix)
+                {
+                    if (length(bindings)>0 && !is.null(names(bindings)))
+                    {
+                        names(bindings) = sapply(names(bindings), function(name){
+                            if (any(name==names(depends.on.to.binding.name)))
+                                depends.on.to.binding.name[name]
+                            else
+                                name
+                        })
+                    }
+                    
+                    rv = execute.function(bindings = bindings)
+                    if (!is.na(na.replacement))
+                        rv[is.na(rv)] = na.replacement
+                    rv
+                }
+            }
+            else
+                stop(paste0(error.prefix,
+                            "Invalid value.type for an 'evaluatable.value': '", 
+                            private$i.value.type, "'"))
+            
+            environment(fn) = env
+            fn
+        },
+        
         evaluate = function(bindings, error.prefix)
         {
             if (private$i.value.type=='numeric')
@@ -198,7 +293,7 @@ EVALUATABLE.VALUE = R6::R6Class(
                 {
                     names(bindings) = sapply(names(bindings), function(name){
                         if (any(name==names(private$i.depends.on.to.binding.name)))
-                            private$private$i.depends.on.to.binding.name[name]
+                            private$i.depends.on.to.binding.name[name]
                         else
                             name
                     })
@@ -500,6 +595,76 @@ FUNCTION.WRAPPER = R6::R6Class(
             private$i.missing.argument.names = missing.arg.names
                   
             private$i.throw.error.if.missing.arguments = throw.error.if.missing.arguments.at.execute
+        },
+        
+        get.execute.function = function(parent.environment, error.prefix)
+        {
+            env = new.env(parent = parent.environment)
+            env$internal.function = bundle.function.and.dependees(fn = private$i.fn,
+                                                        parent.environment = env,
+                                                        fn.name.for.error = private$i.fn.name,
+                                                        error.prefix = error.prefix)
+    
+            env$supplied.argument.values = private$i.supplied.argument.values
+            env$argument.names = private$i.argument.names
+            env$throw.error.if.missing.arguments = private$i.throw.error.if.missing.arguments
+            env$argument.names.without.default = private$i.argument.names.without.default
+            env$fn.name = private$i.fn.name
+            
+            fn = function(bindings, ..., error.prefix='')
+            {
+                #-- Validate ... (must be named) --#
+                dot.dot.dot = list(...)
+                if (length(dot.dot.dot)>0 && is.null(names(dot.dot.dot)))
+                    stop(paste0(error.prefix, "The ... arguments passed to execute() must be named"))
+                
+                #-- Validate bindings (must be a named list) --#
+                if (!missing(bindings) && length(bindings)>0)
+                {
+                    if (!is.list(bindings))
+                        stop(paste0(error.prefix, "'bindings' passed to execute() must be a list"))
+                    if (is.null(names(bindings)))
+                        stop(paste0(error.prefix, "'bindings' passed to execute() must be a NAMED list"))
+                }
+                
+                #-- Set up args list --#
+                args = supplied.argument.values
+                
+                if (any(argument.names=='...'))
+                    dot.dot.dot.names.to.include = names(dot.dot.dot)
+                else
+                    dot.dot.dot.names.to.include = intersect(names(dot.dot.dot), argument.names)
+                
+                args[dot.dot.dot.names.to.include] = dot.dot.dot[dot.dot.dot.names.to.include]
+                
+                if (!missing(bindings) && length(bindings)>0)
+                {
+                    if (any(argument.names=='...'))
+                        binding.names.to.include = names(bindings)
+                    else
+                        binding.names.to.include = intersect(names(bindings), argument.names)
+                    
+                    args[binding.names.to.include] = bindings[binding.names.to.include]
+                }
+                
+                #-- Check for missing arguments --#
+                if (throw.error.if.missing.arguments)
+                {
+                    missing.arguments = setdiff(argument.names.without.default, union('...', names(args)))
+                    if (length(missing.arguments)>0)
+                        stop(paste0(error.prefix,
+                                    "Cannot execute function '", fn.name, "' - missing ",
+                                    ifelse(length(missing.arguments)==1, "argument", "arguments"),
+                                    " ", collapse.with.and("'", missing.arguments, "'")))
+                }
+                
+                #-- Call the function --#
+                do.call(what=internal.function,
+                        args=args)
+            }
+            
+            environment(fn) = env
+            fn
         },
         
         execute = function(bindings, ..., error.prefix='')
