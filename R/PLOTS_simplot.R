@@ -340,7 +340,7 @@ prepare.plot <- function(...,
             truth.n.lag.pairs = length(truth.lag.indices)/2
             
             truth.lag.values = apply_lag_to_vector(df.truth$value, truth.lag.indices, rep(0, truth.n.lag.pairs), truth.n.lag.pairs)
-            truth.rows.to.keep = truth.lag.indices[rep(c(T,F), truth.n.lag.pairs/2)]
+            truth.rows.to.keep = truth.lag.indices[rep(c(T,F), truth.n.lag.pairs)]
             df.truth = df.truth[truth.rows.to.keep,]
             df.truth$value = exp(truth.lag.values)
             
@@ -365,7 +365,7 @@ prepare.plot <- function(...,
             sim.n.lag.pairs = length(sim.lag.indices)/2
             
             sim.lag.values = apply_lag_to_vector(df.sim$value, sim.lag.indices, rep(0, sim.n.lag.pairs), sim.n.lag.pairs)
-            sim.rows.to.keep = sim.lag.indices[rep(c(T,F), sim.n.lag.pairs/2)]
+            sim.rows.to.keep = sim.lag.indices[rep(c(T,F), sim.n.lag.pairs)]
             df.sim = df.sim[sim.rows.to.keep,]
             df.sim$value = exp(sim.lag.values)
             
@@ -569,7 +569,7 @@ execute.simplot <- function(prepared.plot.data,
     if (!is.null(df.sim))
         rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
     
-    if (plot.year.lag.ratio) rv = rv + xlab("latter year")
+    if (plot.year.lag.ratio) rv = rv + ggplot2::xlab("latter year")
     # browser()
     rv
 }
