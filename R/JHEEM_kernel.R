@@ -281,16 +281,16 @@ JHEEM.KERNEL = R6::R6Class(
             private$i.default.parameter.values = specification$default.parameter.values
             
             # Some more stuff here
-            
-            for (elem.name in names(private))
-            {
-                print(elem.name)
-                x = private[[elem.name]]
-                save(x, file=paste0("size_check/", elem.name, ".Rdata"))
-            }
-            env = environment(private$i.calibrated.parameters.apply.function)
-            save(env, file = "size_check/env.Rdata")
-            save(self, file = 'size_check/kernel.Rdata')
+            # 
+            # for (elem.name in names(private))
+            # {
+            #     print(elem.name)
+            #     x = private[[elem.name]]
+            #     save(x, file=paste0("size_check/", elem.name, ".Rdata"))
+            # }
+            # env = environment(private$i.calibrated.parameters.apply.function)
+            # save(env, file = "size_check/env.Rdata")
+            # save(self, file = 'size_check/kernel.Rdata')
             # 
             # browser()
         },
