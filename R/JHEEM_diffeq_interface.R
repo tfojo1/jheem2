@@ -8,43 +8,43 @@ DIFFEQ.GROUP.INDICES = c(
 )
 
 
-create.diffeq.settings <- function(jheem, error.prefix)
+create.diffeq.settings <- function(jheem, 
+                                   kernel,
+                                   error.prefix)
 {
     #-- Set up the Overall Structure --#
     settings = list()
     
     #-- Pull the Specification and Metadata --#
-    settings$specification.metadata = jheem$specification.metadata
-    settings$specification = get.compiled.specification.for.version(settings$specification.metadata$version)
+    settings$kernel = kernel
+#    settings$specification = get.compiled.specification.for.version(settings$specification.metadata$version)
     
     #-- Set up Ontologies --#
-    settings$ontologies = lapply(settings$specification$ontologies, 
-                                 settings$specification.metadata$apply.aliases,
-                                 error.prefix=error.prefix)
+    settings$ontologies = kernel$ontologies
     
     #-- Set up Core Components --#
-    settings$core.components = compile.and.sort.core.components.for.location(specification = settings$specification,
-                                                                             specification.metadata = settings$specification.metadata,
-                                                                             ontologies = settings$ontologies,
-                                                                             error.prefix = error.prefix)
+    # settings$core.components = compile.and.sort.core.components.for.location(specification = settings$specification,
+    #                                                                          specification.metadata = settings$specification.metadata,
+    #                                                                          ontologies = settings$ontologies,
+    #                                                                          error.prefix = error.prefix)
+    settings$core.components = kernel$core.components
 
     #-- Pull Dynamic Outcomes --#
-    specification = get.compiled.specification.for.version(jheem$version)
-    outcomes = lapply(specification$outcome.names, specification$get.outcome)
-    names(outcomes) = specification$outcome.names
+    outcome.names = kernel$get.outcome.names.for.sub.version(jheem$sub.version)
+    outcomes = lapply(outcome.names, kernel$get.outcome.kernel)
+    names(outcomes) = outcome.names
+    
     outcome.is.dynamic.or.intrinsic.mask = sapply(outcomes, function(outcome){outcome$is.dynamic}) | sapply(outcomes, function(outcome){outcome$is.intrinsic})
     settings$outcomes = outcomes[outcome.is.dynamic.or.intrinsic.mask]
     settings$outcome.dim.names = lapply(settings$outcomes, function(outcome){
-        settings$specification.metadata$apply.aliases(outcome$dim.names, error.prefix=error.prefix)
+        outcome$dim.names
     })
     
     dynamic.outcomes = settings$outcomes[sapply(settings$outcomes, function(outcome){outcome$is.dynamic})]
     
     settings$outcome.names.by.core.component = lapply(settings$core.components, function(components){
         lapply(components, function(comp){
-            
-            outcome.applies.to.comp = sapply(dynamic.outcomes, comp$schema$dynamic.tracker.involves.component, comp=comp)
-            names(dynamic.outcomes)[outcome.applies.to.comp]
+            intersect(outcome.names, comp$outcome.names.that.apply)
         })
     })
     
@@ -107,8 +107,8 @@ create.diffeq.settings <- function(jheem, error.prefix)
     settings$indices.for.initial.state.quantity = list()
     
     #-- Prepare Need-to-change storage --#
-    settings$quantity.dim.names.have.changed = rep(T, length(settings$specification$quantity.names))
-    names(settings$quantity.dim.names.have.changed) = settings$specification$quantity.names
+    settings$quantity.dim.names.have.changed = rep(T, length(settings$kernel$quantity.names))
+    names(settings$quantity.dim.names.have.changed) = settings$kernel$quantity.names
     
     #-- Set up Dependency Tracking and Skeleton Core Component Info --#
     
@@ -117,7 +117,7 @@ create.diffeq.settings <- function(jheem, error.prefix)
     
     settings$core.component.dependencies = lapply(settings$core.components, function(core.comp){
         lapply(core.comp, function(comp){
-            unlist(comp[comp$schema$mechanism.types])
+            unlist(comp[comp$mechanism.types])
         })
     })
     
@@ -143,9 +143,9 @@ prepare.diffeq.settings <- function(settings,
     #   (depends on whether there is a prior sim or not)
     
     if (is.null(prior.simulation.set))
-        top.level.quantity.names = settings$specification$top.level.quantity.names
+        top.level.quantity.names = settings$kernel$top.level.quantity.names
     else
-        top.level.quantity.names = settings$specification$top.level.quantity.names.except.initial.population
+        top.level.quantity.names = settings$kernel$top.level.quantity.names.except.initial.population
 
     settings$quantity.indices = 1:length(top.level.quantity.names) - 1
     names(settings$quantity.indices) = top.level.quantity.names
@@ -246,7 +246,7 @@ prepare.initial.state <- function(settings,
             # Update the indices if dim.names have changed
             if (settings$need.to.update$initial.population[i])
             {
-                required.ontology = settings$specification$ontologies[[comp$group]]
+                required.ontology = settings$kernel$ontologies[[comp$group]]
                 
                 # Make sure no dimensions are missing
                 missing.dimensions = setdiff(names(required.ontology)[sapply(required.ontology, length)>1],
@@ -923,7 +923,7 @@ prepare.fixed.strata.info <- function(settings, quantity.dim.names,
 {
     if (is.null(settings$fixed.strata.info))
     {
-        settings$fixed.strata.info = lapply(settings$specification$fixed.strata.info, function(fixed.info){
+        settings$fixed.strata.info = lapply(settings$kernel$fixed.strata.info, function(fixed.info){
             
             infected.ontology = settings$ontologies$infected
             uninfected.ontology = settings$ontologies$uninfected
@@ -1006,7 +1006,7 @@ prepare.quantities.info <- function(settings,
     quantity.names = names(settings$quantity.indices)
     
     need.to.update = any(settings$quantity.dim.names.have.changed[quantity.names])
-    
+ 
     if (need.to.update)
     {
         #-- Calculate the scratch sizes needed for each quantity --#

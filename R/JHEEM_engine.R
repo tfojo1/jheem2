@@ -3062,6 +3062,7 @@ JHEEM = R6::R6Class(
             
             # Set up the diffeq settings
             private$i.diffeq.settings = create.diffeq.settings(jheem = self,
+                                                               kernel = private$i.kernel,
                                                                error.prefix = paste0("Error creating diffeq settings for JHEEM for version '", private$i.version, "' and location '", private$i.location, "': "))
             
             # Clear the i.has.been.crunched flag

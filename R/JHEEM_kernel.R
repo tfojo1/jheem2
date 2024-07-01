@@ -69,6 +69,9 @@ JHEEM.KERNEL = R6::R6Class(
             private$i.ordered.quantity.names = specification$ordered.quantity.names
             private$i.ordered.quantity.names.except.initial.population = specification$ordered.quantity.names.except.initial.population
             
+            private$i.top.level.quantity.names = specification$top.level.quantity.names
+            private$i.top.level.quantity.names.except.initial.population = specification$top.level.quantity.names.except.initial.population
+            
             
             private$i.quantity.kernels = lapply(specification$quantities, function(quantity){
                 
@@ -77,8 +80,8 @@ JHEEM.KERNEL = R6::R6Class(
                     depends.on = quantity$depends.on,
                     
                     original.name = quantity$get.original.name(private$i.version),
-                    max.dim.names = quantity$max.dim.names,
-                    required.dim.names = quantity$required.dim.names,
+                    max.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(quantity$max.dim.names, error.prefix=error.prefix),
+                    required.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(quantity$required.dim.names, error.prefix = error.prefix),
                     
                     functional.form.scale = quantity$functional.form.scale,
                     scale = quantity$scale,
@@ -141,7 +144,7 @@ JHEEM.KERNEL = R6::R6Class(
                     from.year = outcome$from.year,
                     to.year = outcome$to.year,
                     
-                    dim.names = outcome$dim.names,
+                    dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$dim.names, error.prefix = error.prefix),
                     unrenamed.dim.names = outcome$unrenamed.dim.names,
                     
                     depends.on = outcome$depends.on,
@@ -154,8 +157,13 @@ JHEEM.KERNEL = R6::R6Class(
                     dimension.aliases = outcome$dimension.aliases,
                     dimension.alias.suffix = outcome$dimension.alias.suffix,
                     
+                    # For diffeq settings
+                    dynamic.quantity.name = outcome$dynamic.quantity.name,
+                    multiply.by = outcome$multiply.by,
+                    groups = outcome$groups,
+                    trackable.type = outcome$trackable.type,
                     
-                    
+                    # The calculate function
                     calculate.values = outcome$get.calculate.values.function(parent.environment = self,
                                                                              error.prefix = error.prefix)
                 )
@@ -192,25 +200,42 @@ JHEEM.KERNEL = R6::R6Class(
                                                                                       error.prefix = error.prefix)
             }
             
+            #-- Ontologies --#
+            
+            private$i.ontologies = lapply(specification$ontologies, 
+                                           private$i.specification.metadata.for.null.sub.version$apply.aliases,
+                                           error.prefix=error.prefix)
+            
             #-- Core Components --#
             
             dynamic.outcome.names = names(private$i.outcome.kernels)[sapply(private$i.outcome.kernels, function(outcome){outcome$is.dynamic})]
             dynamic.outcomes = sapply(dynamic.outcome.names, specification$get.outcome)
             
-            private$i.core.components = lapply(specification$core.components, function(comp){
-                
-                # Pull mechanism types
-                comp$mechanism.types = comp$schema$mechanism.types
-
-                # Figure out which dynamic outcomes apply
-                outcome.applies.to.comp = sapply(dynamic.outcomes, comp$schema$dynamic.tracker.involves.component, comp=comp)
-                comp$outcome.names.that.apply = dynamic.outcome.names[outcome.applies.to.comp]
-                
-                # Get rid of the schema so we don't inadvertently save its environment
-                comp$schema = NULL
-                
-                comp
+            sorted.components = compile.and.sort.core.components.for.location(specification = specification,
+                                                                              specification.metadata = private$i.specification.metadata.for.null.sub.version,
+                                                                              ontologies = private$i.ontologies,
+                                                                              error.prefix = error.prefix)
+            
+            private$i.core.components = lapply(sorted.components, function(comps){
+                lapply(comps, function(comp){
+                    
+                    # Pull mechanism types
+                    comp$mechanism.types = comp$schema$mechanism.types
+                    
+                    # Figure out which dynamic outcomes apply
+                    outcome.applies.to.comp = sapply(dynamic.outcomes, comp$schema$dynamic.tracker.involves.component, comp=comp)
+                    comp$outcome.names.that.apply = dynamic.outcome.names[outcome.applies.to.comp]
+                    
+                    # Get rid of the schema so we don't inadvertently save its environment
+                    comp$schema = NULL
+                    
+                    comp
+                })
             })
+            
+            #-- Diffeq Settings --#
+            
+            private$i.fixed.strata.info = specification$fixed.strata.info
             
             #-- Misc --#
             private$i.default.parameter.values = specification$default.parameter.values
@@ -375,6 +400,22 @@ JHEEM.KERNEL = R6::R6Class(
                 stop("Cannot modify a specification kernel's ordered.quantity.names.except.initial.population - they are read-only")
         },
         
+        top.level.quantity.names = function(value)
+        {
+            if (missing(value))
+                private$i.top.level.quantity.names
+            else
+                stop("Cannot modify a specification kernel's top.level.quantity.names - they are read-only")
+        },
+        
+        top.level.quantity.names.except.initial.population = function(value)
+        {
+            if (missing(value))
+                private$i.top.level.quantity.names.except.initial.population
+            else
+                stop("Cannot modify a specification kernel's top.level.quantity.names.except.initial.population - they are read-only")
+        },
+        
         quantity.kernels = function(value)
         {
             if (missing(value))
@@ -477,6 +518,30 @@ JHEEM.KERNEL = R6::R6Class(
                 private$i.sampled.parameters.apply.function
             else
                 stop("Cannot modify a specification kernel's sampled.parameters.apply.function - they are read-only")
+        },
+        
+        ontologies = function(value)
+        {
+            if (missing(value))
+                private$i.ontologies
+            else
+                stop("Cannot modify a specification kernel's ontologies - they are read-only")
+        },
+        
+        core.components = function(value)
+        {
+            if (missing(value))
+                private$i.core.components
+            else
+                stop("Cannot modify a specification kernel's core.components - they are read-only")
+        },
+        
+        fixed.strata.info = function(value)
+        {
+            if (missing(value))
+                private$i.fixed.strata.info
+            else
+                stop("Cannot modify a specification kernel's fixed.strata.info - they are read-only")
         }
     ),
     
@@ -495,6 +560,9 @@ JHEEM.KERNEL = R6::R6Class(
         i.ordered.quantity.names = NULL,
         i.ordered.quantity.names.except.initial.population = NULL,
         
+        i.top.level.quantity.names = NULL,
+        i.top.level.quantity.names.except.initial.population = NULL,
+        
         i.quantity.kernels = NULL,
         i.element.names = NULL,
         i.element.backgrounds = NULL,
@@ -508,6 +576,9 @@ JHEEM.KERNEL = R6::R6Class(
         
         i.outcome.names.for.sub.version = NULL,
         i.outcome.names.for.null.sub.version = NULL,
+        
+        #-- Ontologies --#
+        i.ontologies = NULL,
         
         #-- Core Components --#
         i.core.components = NULL,
@@ -536,6 +607,9 @@ JHEEM.KERNEL = R6::R6Class(
         i.outcome.direct.dependee.outcome.names = NULL,
         i.outcome.numerator.direct.dependee.outcome.names = NULL,
         i.direct.dependent.outcome.numerator.names = NULL,
-        i.outcome.direct.dependee.quantity.names = NULL
+        i.outcome.direct.dependee.quantity.names = NULL,
+        
+        #-- Diffeq Settings --#
+        i.fixed.strata.info = NULL
     )
 )
