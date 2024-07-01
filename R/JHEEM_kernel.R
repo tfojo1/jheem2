@@ -75,50 +75,76 @@ JHEEM.KERNEL = R6::R6Class(
             
             private$i.quantity.kernels = lapply(specification$quantities, function(quantity){
                 
-                list(
-                    name = quantity$name,
-                    depends.on = quantity$depends.on,
+                quantity.kernel = private$copy.r6.to.list(quantity, light=T)
+                
+                quantity.kernel$original.name = quantity$get.original.name(private$i.version)
+                quantity.kernel$max.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(quantity$max.dim.names, error.prefix=error.prefix)
+                quantity.kernel$required.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(quantity$required.dim.names, error.prefix = error.prefix)
+
+                quantity.kernel$components = lapply(quantity$components, function(comp){
                     
-                    original.name = quantity$get.original.name(private$i.version),
-                    max.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(quantity$max.dim.names, error.prefix=error.prefix),
-                    required.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(quantity$required.dim.names, error.prefix = error.prefix),
+                    comp.kernel = private$copy.r6.to.list(comp, light=T)
                     
-                    functional.form.scale = quantity$functional.form.scale,
-                    scale = quantity$scale,
+                    comp.kernel$max.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(comp$max.dim.names, error.prefix=error.prefix)
+                    comp.kernel$applies.to = private$i.specification.metadata.for.null.sub.version$apply.aliases(comp$applies.to, error.prefix=error.prefix)
                     
-                    ramp.value.application = quantity$ramp.value.application,
-                    all.ramp.applications.identity = quantity$all.ramp.applications.identity,
-                    ramp.interpolate.links = quantity$ramp.interpolate.links,
+                    if (comp$value.type == 'function')
+                        comp.kernel$value.function.name = comp$value$value.function.name
+
+                    if (comp$value.type == 'numeric')
+                        comp.kernel$value.dim.names = dimnames(comp$value)
                     
-                    taper.value.application = quantity$taper.value.application,
-                    all.taper.applications.identity = quantity$all.taper.applications.identity,
-                    taper.interpolate.links = quantity$taper.interpolate.links,
-                    
-                    n.components = quantity$n.components,
-                    components = lapply(quantity$components, function(comp){
-                        
-                        kernel = list(
-                            max.dim.names = comp$max.dim.names,
-                            applies.to = comp$applies.to,
-                            value.type = comp$value.type,
-                            depends.on = comp$depends.on,
-                            apply.function = comp$apply.function,
-                            reversed.dimension.alias.mapping = comp$reversed.dimension.alias.mapping,
-                            reversed.aliases = comp$reversed.aliases,
-                            
-                            evaluate = comp$get.evaluate.function(parent.environment = self,
-                                                                  error.prefix = error.prefix)
-                        )
-                        
-                        if (comp$value.type == 'function')
-                            kernel$value.function.name = comp$value$value.function.name
-                        
-                        if (comp$value.type == 'numeric')
-                            kernel$value.dim.names = dimnames(comp$value)
-                        
-                        kernel
-                    })
-                 )
+                    comp.kernel$evaluate = comp$get.evaluate.function(parent.environment = self,
+                                                                      error.prefix = error.prefix)
+                    comp.kernel
+                })
+                
+                quantity.kernel
+                
+                # list(
+                #     name = quantity$name,
+                #     depends.on = quantity$depends.on,
+                #     
+                #     original.name = quantity$get.original.name(private$i.version),
+                #     max.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(quantity$max.dim.names, error.prefix=error.prefix),
+                #     required.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(quantity$required.dim.names, error.prefix = error.prefix),
+                #     
+                #     functional.form.scale = quantity$functional.form.scale,
+                #     scale = quantity$scale,
+                #     
+                #     ramp.value.application = quantity$ramp.value.application,
+                #     all.ramp.applications.identity = quantity$all.ramp.applications.identity,
+                #     ramp.interpolate.links = quantity$ramp.interpolate.links,
+                #     
+                #     taper.value.application = quantity$taper.value.application,
+                #     all.taper.applications.identity = quantity$all.taper.applications.identity,
+                #     taper.interpolate.links = quantity$taper.interpolate.links,
+                #     
+                #     n.components = quantity$n.components,
+                #     components = lapply(quantity$components, function(comp){
+                #         
+                #         kernel = list(
+                #             max.dim.names = comp$max.dim.names,
+                #             applies.to = comp$applies.to,
+                #             value.type = comp$value.type,
+                #             depends.on = comp$depends.on,
+                #             apply.function = comp$apply.function,
+                #             reversed.dimension.alias.mapping = comp$reversed.dimension.alias.mapping,
+                #             reversed.aliases = comp$reversed.aliases,
+                #             
+                #             evaluate = comp$get.evaluate.function(parent.environment = self,
+                #                                                   error.prefix = error.prefix)
+                #         )
+                #         
+                #         if (comp$value.type == 'function')
+                #             kernel$value.function.name = comp$value$value.function.name
+                #         
+                #         if (comp$value.type == 'numeric')
+                #             kernel$value.dim.names = dimnames(comp$value)
+                #         
+                #         kernel
+                #     })
+                #  )
                 
             })
             
@@ -134,39 +160,51 @@ JHEEM.KERNEL = R6::R6Class(
             private$i.outcome.kernels = lapply(specification$outcome.names, function(outcome.name){
                 outcome = specification$get.outcome(outcome.name)
                 
-                list(
-                    name = outcome$name,
-                    
-                    is.intrinsic = outcome$is.intrinsic,
-                    is.dynamic = outcome$is.dynamic,
-                    is.cumulative = outcome$is.cumulative,
-                    
-                    from.year = outcome$from.year,
-                    to.year = outcome$to.year,
-                    
-                    dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$dim.names, error.prefix = error.prefix),
-                    unrenamed.dim.names = outcome$unrenamed.dim.names,
-                    
-                    depends.on = outcome$depends.on,
-                    
-                    denominator.outcome = outcome$denominator.outcome,
-                    value.is.numerator = outcome$value.is.numerator,
-                    subset.dimension.values = outcome$subset.dimension.values,
-                    rename.dimension.values = outcome$rename.dimension.values,
-                    
-                    dimension.aliases = outcome$dimension.aliases,
-                    dimension.alias.suffix = outcome$dimension.alias.suffix,
-                    
-                    # For diffeq settings
-                    dynamic.quantity.name = outcome$dynamic.quantity.name,
-                    multiply.by = outcome$multiply.by,
-                    groups = outcome$groups,
-                    trackable.type = outcome$trackable.type,
-                    
-                    # The calculate function
-                    calculate.values = outcome$get.calculate.values.function(parent.environment = self,
-                                                                             error.prefix = error.prefix)
-                )
+                outcome.kernel = private$copy.r6.to.list(outcome, light=T)
+                
+                outcome.kernel$dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$dim.names, error.prefix = error.prefix)
+                outcome.kernel$unrenamed.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$unrenamed.dim.names, error.prefix = error.prefix)
+                
+                outcome.kernel$subset.dimension.values = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$subset.dimension.values, error.prefix = error.prefix)
+                
+                outcome.kernel$calculate.values = outcome$get.calculate.values.function(parent.environment = self,
+                                                                                        error.prefix = error.prefix)
+                
+                outcome.kernel
+                # 
+                # list(
+                #     name = outcome$name,
+                #     
+                #     is.intrinsic = outcome$is.intrinsic,
+                #     is.dynamic = outcome$is.dynamic,
+                #     is.cumulative = outcome$is.cumulative,
+                #     
+                #     from.year = outcome$from.year,
+                #     to.year = outcome$to.year,
+                #     
+                #     dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$dim.names, error.prefix = error.prefix),
+                #     unrenamed.dim.names = outcome$unrenamed.dim.names,
+                #     
+                #     depends.on = outcome$depends.on,
+                #     
+                #     denominator.outcome = outcome$denominator.outcome,
+                #     value.is.numerator = outcome$value.is.numerator,
+                #     subset.dimension.values = outcome$subset.dimension.values,
+                #     rename.dimension.values = outcome$rename.dimension.values,
+                #     
+                #     dimension.aliases = outcome$dimension.aliases,
+                #     dimension.alias.suffix = outcome$dimension.alias.suffix,
+                #     
+                #     # For diffeq settings
+                #     dynamic.quantity.name = outcome$dynamic.quantity.name,
+                #     multiply.by = outcome$multiply.by,
+                #     groups = outcome$groups,
+                #     trackable.type = outcome$trackable.type,
+                #     
+                #     # The calculate function
+                #     calculate.values = outcome$get.calculate.values.function(parent.environment = self,
+                #                                                              error.prefix = error.prefix)
+                # )
             })
             names(private$i.outcome.kernels) = specification$outcome.names
             
@@ -610,6 +648,26 @@ JHEEM.KERNEL = R6::R6Class(
         i.outcome.direct.dependee.quantity.names = NULL,
         
         #-- Diffeq Settings --#
-        i.fixed.strata.info = NULL
+        i.fixed.strata.info = NULL,
+        
+        #-- Helper Function --#
+        copy.r6.to.list = function(obj, light=T)
+        {
+            obj.names = names(obj)
+            
+            rv = lapply(obj.names, function(name){
+                obj[[name]]
+            })
+            names(rv) = obj.names
+            
+            if (light)
+            {
+                rv = rv[sapply(rv, function(elem){
+                    !is.function(elem) & !is.environment(elem)
+                })]
+            }
+            
+            rv
+        }
     )
 )
