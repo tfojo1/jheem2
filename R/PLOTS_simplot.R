@@ -20,6 +20,7 @@ simplot <- function(...,
                     split.by = NULL,
                     facet.by = NULL,
                     dimension.values = list(),
+                    target.ontology = NULL,
                     plot.which = c('both', 'sim.only', 'data.only')[1],
                     summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                     plot.year.lag.ratio = F,
@@ -34,6 +35,7 @@ simplot <- function(...,
                                       split.by=split.by,
                                       facet.by=facet.by,
                                       dimension.values=dimension.values,
+                                      target.ontology=target.ontology,
                                       plot.which=plot.which,
                                       summary.type=summary.type,
                                       plot.year.lag.ratio=plot.year.lag.ratio,
@@ -57,6 +59,7 @@ prepare.plot <- function(...,
                          split.by = NULL,
                          facet.by = NULL,
                          dimension.values = list(),
+                         target.ontology = NULL,
                          plot.which = c('both', 'sim.only', 'data.only')[1],
                          summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                          plot.year.lag.ratio = F,
@@ -86,6 +89,11 @@ prepare.plot <- function(...,
     
     if (!is.null(facet.by) && 'year' %in% facet.by)
         stop(paste0(error.prefix, "'facet.by' cannot contain 'year'"))
+
+    if (!is.null(target.ontology) &&
+        !is.ontology(target.ontology) &&
+        !(is.list(target.ontology) && all(sapply(target.ontology, function(x) {is.ontology((x))})) && !is.null(names(target.ontology))))
+        stop(paste0(error.prefix, "'target.ontology' must be NULL, an ontology, or a list of ontologies with outcomes as names"))
     
     if (!(identical(plot.which, 'sim.only') || identical(plot.which, 'data.only') || identical(plot.which, 'both')))
         stop(paste0(error.prefix, "'plot.which' must be one of 'sim.only', 'data.only', or 'both'"))
@@ -179,6 +187,7 @@ prepare.plot <- function(...,
     })
     
     outcome.ontologies = lapply(outcomes, function(outcome) {
+        if (is.null(target.ontology) || FALSE)
         outcome.ontology = NULL
         i = 1
         while (i <= length(simset.list)) {
@@ -211,19 +220,40 @@ prepare.plot <- function(...,
         {
             outcome.data = tryCatch(
                 {
-                    result = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                               dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
-                                               keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
-                                               target.ontology = outcome.ontologies[[i]],
-                                               allow.mapping.from.target.ontology = T,
-                                               na.rm=T,
-                                               debug=F)
+                    if (!is.null(target.ontology) && !is.list(target.ontology))
+                        result = data.manager$pull(outcome = outcomes.for.data[[i]],
+                                                   dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                                   keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
+                                                   target.ontology = target.ontology,
+                                                   allow.mapping.from.target.ontology = F,
+                                                   na.rm=T,
+                                                   debug=F)
+                    else if (is.list(target.ontology) && outcomes.for.data[[i]] %in% names(target.ontology))
+                        result = data.manager$pull(outcome = outcomes.for.data[[i]],
+                                                   dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                                   keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
+                                                   target.ontology = target.ontology[[outcomes.for.data[[i]]]],
+                                                   allow.mapping.from.target.ontology = F,
+                                                   na.rm=T,
+                                                   debug=F)
+                    else
+                        result = data.manager$pull(outcome = outcomes.for.data[[i]],
+                                                   dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                                   keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
+                                                   target.ontology = outcome.ontologies[[i]],
+                                                   allow.mapping.from.target.ontology = T,
+                                                   na.rm=T,
+                                                   debug=F)
+                    
                 },
                 error = function(e) {
                     NULL
                 }
             )
-            outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
+            if (!is.null(attr(outcome.data, 'mapping')))
+                outcome.mappings = c(outcome.mappings, list(attr(outcome.data, 'mapping')))
+            else
+                outcome.mappings = c(outcome.mappings, list(NULL))
             if (!is.null(outcome.data)) {
                 
                 # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
@@ -267,7 +297,9 @@ prepare.plot <- function(...,
             for (i in seq_along(simset.list)) {
                 
                 simset = simset.list[[i]]
-                if (!is.null(outcome.mappings[[outcome]])) mapping.this.outcome = outcome.mappings[[outcome]]
+                if (!is.null(outcome.mappings[[outcome]])) mapping.this.outcome = outcome.mappings[[outcome]] # case when target ontology is NULL or is a list but doesn't include this outcome
+                else if (is.list(target.ontology)) mapping.this.outcome = get.ontology.mapping(outcome.ontologies[[i]], target.ontology[[outcome]])
+                else if (!is.null(target.ontology)) mapping.this.outcome = get.ontology.mapping(outcome.ontologies[[i]], target.ont)
                 else mapping.this.outcome = NULL
                 # browser()
                 simset.data.this.outcome = simset$get(outcomes = outcome,
