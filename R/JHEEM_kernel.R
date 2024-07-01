@@ -162,6 +162,7 @@ JHEEM.KERNEL = R6::R6Class(
                 
                 outcome.kernel = private$copy.r6.to.list(outcome, light=T)
                 
+                outcome.kernel$ontology = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$ontology, error.prefix = error.prefix)
                 outcome.kernel$dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$dim.names, error.prefix = error.prefix)
                 outcome.kernel$unrenamed.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$unrenamed.dim.names, error.prefix = error.prefix)
                 
@@ -207,6 +208,7 @@ JHEEM.KERNEL = R6::R6Class(
                 # )
             })
             names(private$i.outcome.kernels) = specification$outcome.names
+            
             
             private$i.outcome.names.for.null.sub.version = specification$get.outcome.names.for.sub.version(NULL)
             private$i.outcome.names.for.sub.version = lapply(specification$sub.versions, specification$get.outcome.names.for.sub.version)
@@ -273,22 +275,22 @@ JHEEM.KERNEL = R6::R6Class(
             
             #-- Diffeq Settings --#
             
-            private$i.fixed.strata.info = specification$fixed.strata.info
+            private$i.fixed.strata.info = private$copy.r6.to.list(specification$fixed.strata.info, light=T)
             
             #-- Misc --#
             private$i.default.parameter.values = specification$default.parameter.values
             
             # Some more stuff here
             
-            # for (elem.name in names(private))
-            # {
-            #     print(elem.name)
-            #     x = private[[elem.name]]
-            #     save(x, file=paste0("size_check/", elem.name, ".Rdata"))
-            # }
-            # env = environment(private$i.calibrated.parameters.apply.function)
-            # save(env, file = "size_check/env.Rdata")
-            # save(self, file = 'size_check/kernel.Rdata')
+            for (elem.name in names(private))
+            {
+                print(elem.name)
+                x = private[[elem.name]]
+                save(x, file=paste0("size_check/", elem.name, ".Rdata"))
+            }
+            env = environment(private$i.calibrated.parameters.apply.function)
+            save(env, file = "size_check/env.Rdata")
+            save(self, file = 'size_check/kernel.Rdata')
             # 
             # browser()
         },
@@ -661,13 +663,15 @@ JHEEM.KERNEL = R6::R6Class(
             names(rv) = obj.names
             
             if (light)
-            {
-                rv = rv[sapply(rv, function(elem){
-                    !is.function(elem) & !is.environment(elem)
-                })]
-            }
+                rv = rv[!sapply(rv, private$contains.environment.or.function)]
             
             rv
+        },
+        
+        contains.environment.or.function = function(elem)
+        {
+            is.environment(elem) || is.function(elem) ||
+                (is.list(elem) && any(vapply(elem, private$contains.environment.or.function, FUN.VALUE = logical(1))))
         }
     )
 )
