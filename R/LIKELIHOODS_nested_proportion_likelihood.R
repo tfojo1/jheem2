@@ -1304,7 +1304,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             if (post.time.checkpoint.flag) print(paste0("End time: ", ptm))
             
         },
-        get.location.mappings = function()
+        get.outcome.location.mapping = function()
         {
             create.outcome.location.mapping(location.mappings = setNames(list(unique(as.character(private$i.metadata$location))), private$i.location), # b/c is factor
                                             outcome.name = private$i.outcome.for.data,

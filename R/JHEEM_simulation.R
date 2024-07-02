@@ -1325,7 +1325,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (keep < 1) keep = ceiling(self$n.sim * keep)
             if (is.null(n)) n = self$n.sim / keep
             
-            self$subset(ceiling(self$n.sim - n * (0 : (keep - 1))))
+            self$subset(ceiling(self$n.sim - n * ((keep - 1) : 0)))
             
         },
         

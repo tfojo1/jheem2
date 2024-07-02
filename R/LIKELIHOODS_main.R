@@ -579,6 +579,18 @@ JHEEM.LIKELIHOOD = R6::R6Class(
         }
     ),
     
+    active = list(
+        outcome.for.sim = function(value)
+        {
+            if (missing(value))
+            {
+                private$i.outcome.for.sim
+            }
+            else
+                stop("Cannot modify a jheem.likelihood.instruction's 'outcome.for.sim' - it is read-only")
+        }
+    ),
+    
     private = list(
         i.check.consistency.flag = NULL,
         i.years = NULL,

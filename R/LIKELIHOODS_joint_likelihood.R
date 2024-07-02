@@ -145,10 +145,16 @@ JHEEM.JOINT.LIKELIHOOD = R6::R6Class(
                                              throw.error.if.no.data=throw.error.if.no.data,
                                              error.prefix=error.prefix)
             })
-            names(private$i.sub.likelihoods) = sapply(instructions$sub.instructions, function(instr) {
-                instr$outcome.for.sim
+            names(private$i.sub.likelihoods) = sapply(private$i.sub.likelihoods, function(lik) {
+                lik$outcome.for.sim
             })
             private$i.sub.likelihoods
+        },
+        
+        get.outcome.location.mapping = function()
+        {
+            sub.lik.mappings = lapply(private$i.sub.likelihoods, function(sub.lik) {sub.lik$get.outcome.location.mapping()})
+            join.outcome.location.mappings(sub.lik.mappings)
         },
         
         compute.piecewise = function(sim, log=T, check.consistency=T, debug=F)
@@ -157,7 +163,8 @@ JHEEM.JOINT.LIKELIHOOD = R6::R6Class(
             return(sub.values = sapply(private$i.sub.likelihoods, function(like) {
                 like$compute(sim, log=log, check.consistency=check.consistency, debug=debug)
             }))
-        }
+        },
+        check = function() {browser()}
         
     ),
     
