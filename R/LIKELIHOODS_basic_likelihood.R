@@ -962,7 +962,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             }
             
         },
-        get.location.mappings = function()
+        get.outcome.location.mapping = function()
         {
             create.outcome.location.mapping(location.mappings = setNames(list(private$i.location), private$i.location),
                                             outcome.name = private$i.outcome.for.data,
