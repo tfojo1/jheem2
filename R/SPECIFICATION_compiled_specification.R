@@ -104,6 +104,11 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         
         get.jheem.kernel = function(location)
         {
+            if (!locations::is.location.valid(location))
+                stop(paste0("'", location, "' is not a recognized location code"))
+            
+            location = locations::sanitize(location)
+            
             JHEEM.KERNEL$new(version = private$i.version,
                              location = location,
                              

@@ -360,7 +360,7 @@ SIMULATION.METADATA = R6::R6Class(
             # Pull outcome ontologies and metadata from the specification
             
             specification = get.compiled.specification.for.version(version)
-            specification.metadata = self$specification.metadata
+            specification.metadata = do.get.specification.metadata(specification, location)
             
             private$i.metadata$outcome.ontologies = list()
             private$i.metadata$outcome.metadata = list()

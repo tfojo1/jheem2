@@ -3,6 +3,13 @@
 #--  as well as to run interventions on a simulation
 #-- These get saved independently of the specification code, and can live on in simulation objects
 
+# Internal to the package
+get.jheem.kernel <- function(version, location)
+{
+    specification = get.compiled.specification.for.version(version)
+    specification$get.jheem.kernel(location = location)
+}
+
 JHEEM.KERNEL = R6::R6Class(
     'jheem.kernel',
     portable = F,
@@ -37,19 +44,15 @@ JHEEM.KERNEL = R6::R6Class(
             private$i.created.date = Sys.Date()
             private$i.created.time = Sys.time()
             
-            #-- Specification Metadata --#
-            private$i.specification.metadata.for.null.sub.version = do.get.specification.metadata(version = version,
-                                                                                                  location = location,
-                                                                                                  sub.version = NULL)
-            private$i.specification.metadata.for.sub.version = lapply(specification$sub.versions, function(sub.version){
-                do.get.specification.metadata(version = version,
-                                              location = location,
-                                              sub.version = sub.version)
-            })
-            names(private$i.specification.metadata.for.sub.version) = specification$sub.versions
+            #-- Some simple pulls from the specification --#
+            private$i.sub.versions = specification$sub.versions
             
-            
-            # Dependency data structures
+            #-- Get the specification metadata --#
+            private$i.specification.metadata = SPECIFICATION.METADATA$new(specification=specification,
+                                                                          location=location,
+                                                                          error.prefix=error.prefix)
+
+            #-- Dependency data structures --#
             private$i.dependent.quantity.names = dependent.quantity.names
             private$i.dependee.element.names = dependee.element.names
             private$i.dependee.quantity.names = dependee.quantity.names
@@ -78,15 +81,15 @@ JHEEM.KERNEL = R6::R6Class(
                 quantity.kernel = private$copy.r6.to.list(quantity, light=T)
                 
                 quantity.kernel$original.name = quantity$get.original.name(private$i.version)
-                quantity.kernel$max.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(quantity$max.dim.names, error.prefix=error.prefix)
-                quantity.kernel$required.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(quantity$required.dim.names, error.prefix = error.prefix)
+                quantity.kernel$max.dim.names = private$i.specification.metadata$apply.aliases(quantity$max.dim.names, error.prefix=error.prefix)
+                quantity.kernel$required.dim.names = private$i.specification.metadata$apply.aliases(quantity$required.dim.names, error.prefix = error.prefix)
 
                 quantity.kernel$components = lapply(quantity$components, function(comp){
                     
                     comp.kernel = private$copy.r6.to.list(comp, light=T)
                     
-                    comp.kernel$max.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(comp$max.dim.names, error.prefix=error.prefix)
-                    comp.kernel$applies.to = private$i.specification.metadata.for.null.sub.version$apply.aliases(comp$applies.to, error.prefix=error.prefix)
+                    comp.kernel$max.dim.names = private$i.specification.metadata$apply.aliases(comp$max.dim.names, error.prefix=error.prefix)
+                    comp.kernel$applies.to = private$i.specification.metadata$apply.aliases(comp$applies.to, error.prefix=error.prefix)
                     
                     if (comp$value.type == 'function')
                         comp.kernel$value.function.name = comp$value$value.function.name
@@ -106,8 +109,8 @@ JHEEM.KERNEL = R6::R6Class(
                 #     depends.on = quantity$depends.on,
                 #     
                 #     original.name = quantity$get.original.name(private$i.version),
-                #     max.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(quantity$max.dim.names, error.prefix=error.prefix),
-                #     required.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(quantity$required.dim.names, error.prefix = error.prefix),
+                #     max.dim.names = private$i.specification.metadata$apply.aliases(quantity$max.dim.names, error.prefix=error.prefix),
+                #     required.dim.names = private$i.specification.metadata$apply.aliases(quantity$required.dim.names, error.prefix = error.prefix),
                 #     
                 #     functional.form.scale = quantity$functional.form.scale,
                 #     scale = quantity$scale,
@@ -150,8 +153,8 @@ JHEEM.KERNEL = R6::R6Class(
             
             private$i.element.backgrounds = lapply(specification$element.names, function(elem.name){
                 elem = specification$get.quantity(elem.name)
-                elem$get.element.background(specification.metadata = private$i.specification.metadata.for.null.sub.version,
-                                                   error.prefix = paste0("Error creating specification kernel for version '", private$i.version, "' and location '", private$i.location, "': "))
+                elem$get.element.background(specification.metadata = private$i.specification.metadata,
+                                            error.prefix = paste0("Error creating specification kernel for version '", private$i.version, "' and location '", private$i.location, "': "))
             })
             names(private$i.element.backgrounds) = private$i.element.names = specification$element.names
             private$i.element.name.mappings = specification$element.name.mappings
@@ -162,11 +165,11 @@ JHEEM.KERNEL = R6::R6Class(
                 
                 outcome.kernel = private$copy.r6.to.list(outcome, light=T)
                 
-                outcome.kernel$ontology = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$ontology, error.prefix = error.prefix)
-                outcome.kernel$dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$dim.names, error.prefix = error.prefix)
-                outcome.kernel$unrenamed.dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$unrenamed.dim.names, error.prefix = error.prefix)
+                outcome.kernel$ontology = private$i.specification.metadata$apply.aliases(outcome$ontology, error.prefix = error.prefix)
+                outcome.kernel$dim.names = private$i.specification.metadata$apply.aliases(outcome$dim.names, error.prefix = error.prefix)
+                outcome.kernel$unrenamed.dim.names = private$i.specification.metadata$apply.aliases(outcome$unrenamed.dim.names, error.prefix = error.prefix)
                 
-                outcome.kernel$subset.dimension.values = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$subset.dimension.values, error.prefix = error.prefix)
+                outcome.kernel$subset.dimension.values = private$i.specification.metadata$apply.aliases(outcome$subset.dimension.values, error.prefix = error.prefix)
                 
                 outcome.kernel$calculate.values = outcome$get.calculate.values.function(parent.environment = self,
                                                                                         error.prefix = error.prefix)
@@ -183,7 +186,7 @@ JHEEM.KERNEL = R6::R6Class(
                 #     from.year = outcome$from.year,
                 #     to.year = outcome$to.year,
                 #     
-                #     dim.names = private$i.specification.metadata.for.null.sub.version$apply.aliases(outcome$dim.names, error.prefix = error.prefix),
+                #     dim.names = private$i.specification.metadata$apply.aliases(outcome$dim.names, error.prefix = error.prefix),
                 #     unrenamed.dim.names = outcome$unrenamed.dim.names,
                 #     
                 #     depends.on = outcome$depends.on,
@@ -243,7 +246,7 @@ JHEEM.KERNEL = R6::R6Class(
             #-- Ontologies --#
             
             private$i.ontologies = lapply(specification$ontologies, 
-                                           private$i.specification.metadata.for.null.sub.version$apply.aliases,
+                                           private$i.specification.metadata$apply.aliases,
                                            error.prefix=error.prefix)
             
             #-- Core Components --#
@@ -252,7 +255,7 @@ JHEEM.KERNEL = R6::R6Class(
             dynamic.outcomes = sapply(dynamic.outcome.names, specification$get.outcome)
             
             sorted.components = compile.and.sort.core.components.for.location(specification = specification,
-                                                                              specification.metadata = private$i.specification.metadata.for.null.sub.version,
+                                                                              specification.metadata = private$i.specification.metadata,
                                                                               ontologies = private$i.ontologies,
                                                                               error.prefix = error.prefix)
             
@@ -280,8 +283,6 @@ JHEEM.KERNEL = R6::R6Class(
             #-- Misc --#
             private$i.default.parameter.values = specification$default.parameter.values
             
-            # Some more stuff here
-            # 
             # for (elem.name in names(private))
             # {
             #     print(elem.name)
@@ -294,12 +295,7 @@ JHEEM.KERNEL = R6::R6Class(
             # 
             # browser()
         },
-        
-        get.quantity = function(quantity.name)
-        {
-            
-        },
-        
+
         get.quantity.kernel = function(quantity.name)
         {
             private$i.quantity.kernels[[quantity.name]]
@@ -308,22 +304,6 @@ JHEEM.KERNEL = R6::R6Class(
         get.outcome.kernel = function(outcome.name)
         {
             private$i.outcome.kernels[[outcome.name]]  
-        },
-        
-        get.specification.metadata = function(sub.version)
-        {
-            if (is.null(sub.version))
-                private$i.specification.metadata.for.null.sub.version
-            else
-            {
-                if (all(sub.version != names(private$i.specification.metadata.for.sub.version)))
-                    stop(paste0("The specfication kernel for ",
-                                private$i.version, " (created on ",
-                                private$i.created.date,
-                                ") does not include sub.version '", sub.version, "'"))
-                
-                private$i.specification.metadata.for.sub.version[[sub.version]]
-            }
         },
         
         # Get dependency functions
@@ -422,6 +402,22 @@ JHEEM.KERNEL = R6::R6Class(
                 private$i.location
             else
                 stop("Cannot modify a specification kernel's location - it is read-only")
+        },
+        
+        sub.versions = function(value)
+        {
+            if (missing(value))
+                private$i.sub.versions
+            else
+                stop("Cannot modify a specification kernel's sub.versions -they are read-only")
+        },
+        
+        specification.metadata = function(value)
+        {
+            if (missing(value))
+                private$i.specification.metadata
+            else
+                stop("Cannot modify a specification kernel's specification.metadata - it is read-only")
         },
         
         ordered.quantity.names = function(value)
@@ -582,6 +578,69 @@ JHEEM.KERNEL = R6::R6Class(
                 private$i.fixed.strata.info
             else
                 stop("Cannot modify a specification kernel's fixed.strata.info - they are read-only")
+        },
+        
+        aliases = function(value)
+        {
+            if (missing(value))
+                private$i.aliases
+            else
+                stop("Cannot modify a specification kernel's aliases - they are read-only")
+        },
+        dim.names = function(value)
+        {
+            if (missing(value))
+                private$i.dim.names
+            else
+                stop("Cannot modify a specification kernel's dim.names - they are read-only")
+        },
+        
+        dimensions = function(value)
+        {
+            if (missing(value))
+                names(private$i.dim.names)
+            else
+                stop("Cannot modify a specification kernel's dimensions - they are read-only")
+        },
+        
+        n.ages = function(value)
+        {
+            if (missing(value))
+                length(private$i.age.upper.bounds)
+            else
+                stop("Cannot modify a specification kernel's n.ages - it is read-only") 
+        },
+        
+        age.spans = function(value)
+        {
+            if (missing(value))
+                private$i.age.upper.bounds - private$i.age.lower.bounds
+            else
+                stop("Cannot modify a specification kernel's age.spans - they are read-only")
+        },
+        
+        age.lower.bounds = function(value)
+        {
+            if (missing(value))
+                private$i.age.lower.bounds
+            else
+                stop("Cannot modify a specification kernel's age.lower.bounds - they are read-only")
+        },
+        
+        age.upper.bounds = function(value)
+        {
+            if (missing(value))
+                private$i.age.upper.bounds
+            else
+                stop("Cannot modify a specification kernel's age.upper.bounds - they are read-only")
+        },
+        
+        age.endpoints = function(value)
+        {
+            if (missing(value))
+                private$i.age.endpoints
+            else
+                stop("Cannot modify a specification kernel's age.endpoints - they are read-only")
         }
     ),
     
@@ -593,8 +652,19 @@ JHEEM.KERNEL = R6::R6Class(
         i.created.date = NULL,
         i.created.time = NULL,
         
-        i.specification.metadata.for.null.sub.version = NULL,
-        i.specification.metadata.for.sub.version = NULL,
+        i.sub.versions = NULL,
+        
+        i.dim.names = NULL,
+        i.specification.metadata = NULL,
+        
+        #-- Aliases --#
+        i.aliases = NULL,
+        i.categorized.aliases = NULL,
+        
+        #-- Age Stuff --#
+        i.age.lower.bounds = NULL,
+        i.age.upper.bounds = NULL,
+        i.age.endpoints = NULL,
         
         #-- Quantity Stuff --#
         i.ordered.quantity.names = NULL,
@@ -649,8 +719,11 @@ JHEEM.KERNEL = R6::R6Class(
         i.direct.dependent.outcome.numerator.names = NULL,
         i.outcome.direct.dependee.quantity.names = NULL,
         
-        #-- Diffeq Settings --#
+        #-- Fixed Strata Info --#
         i.fixed.strata.info = NULL,
+
+        
+        #-- Diffeq Settings Helpers --#
         
         #-- Helper Function --#
         copy.r6.to.list = function(obj, light=T)

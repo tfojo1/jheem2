@@ -10,49 +10,42 @@
 #'@details A specification.metadata object contains metadata, such as dim.names of quantities, for a specification
 #'
 #'@export
-get.specification.metadata <- function(version, location, sub.version=NULL,
+get.specification.metadata <- function(version, location,
                                        error.prefix = '')
 {
-    do.get.specification.metadata(version = version,
+    specification = get.compiled.specification.for.version(version)
+    do.get.specification.metadata(specification = specification,
                                   location = location,
-                                  sub.version = sub.version,
                                   error.prefix = error.prefix)
 }
 
 # An internal helper
 # formulated here to avoid name clashes with R6 methods (eg, specification.kernel also has a $get.specification.metadata method)
-do.get.specification.metadata <- function(version, location, sub.version=NULL,
-                                       error.prefix = '')
+do.get.specification.metadata <- function(specification,
+                                          location,
+                                          error.prefix = '')
 {
     if (is.null(error.prefix))
         error.prefix = paste0("Error deriving the specification-metadata for '", version, "' and location '", location, "': ")
     
-    SPECIFICATION.METADATA$new(version=version,
+    SPECIFICATION.METADATA$new(specification=specification,
                                location=location,
-                               sub.version=sub.version,
                                error.prefix=error.prefix)
 }
 
 SPECIFICATION.METADATA = R6::R6Class(
     'specification.metadata',
-    inherit = JHEEM.ENTITY,
     portable = F,
     
     public = list(
         
-        initialize = function(version,
+        initialize = function(specification,
                               location,
-                              sub.version,
                               error.prefix)
         {
-            #-- Call the superclass constructor --#
-            super$initialize(version = version,
-                             sub.version = sub.version,
-                             location = location,
-                             type = "Specification Metadata",
-                             error.prefix = error.prefix)
-            
-            specification = get.compiled.specification.for.version(version)
+            #-- Store Basic Information --#
+            private$i.version = specification$version
+            private$i.location = location
             private$i.specification.iteration = specification$iteration
             
             #-- Pull and resolve aliases --#
@@ -126,7 +119,7 @@ SPECIFICATION.METADATA = R6::R6Class(
                 NULL
             else if (is.character(dim.names))
             {
-                substitute.aliases.into.vector(dim.names, aliases = private$i.aliases)
+                private$substitute.aliases.into.vector(dim.names, aliases = private$i.aliases)
             }
             else if (is.ontology(dim.names))
             {
@@ -152,7 +145,7 @@ SPECIFICATION.METADATA = R6::R6Class(
                     
                     rv = lapply(names(dim.names), function(d){
                         if (length(private$i.categorized.aliases[[d]])>0 && is.character(dim.names[[d]]))
-                            substitute.aliases.into.vector(dim.names[[d]], aliases=private$i.categorized.aliases[[d]])
+                            private$substitute.aliases.into.vector(dim.names[[d]], aliases=private$i.categorized.aliases[[d]])
                         else
                             dim.names[[d]]
                     })
@@ -166,6 +159,22 @@ SPECIFICATION.METADATA = R6::R6Class(
     ),
     
     active = list(
+        
+        version = function(value)
+        {
+            if (missing(value))
+                private$i.version
+            else
+                stop("Cannot modify 'version' for a specification.info object - it is read-only")
+        },
+        
+        location = function(value)
+        {
+            if (missing(value))
+                private$i.location
+            else
+                stop("Cannot modify 'location' for a specification.info object - it is read-only")
+        },
         
         specification.iteration = function(value)
         {
@@ -243,6 +252,8 @@ SPECIFICATION.METADATA = R6::R6Class(
     
     private = list(
         
+        i.version = NULL,
+        i.location = NULL,
         i.specification.iteration = NULL,
         
         i.dim.names = NULL,
@@ -253,23 +264,32 @@ SPECIFICATION.METADATA = R6::R6Class(
         i.age.upper.bounds = NULL,
         i.age.endpoints = NULL,
         
-        get.current.code.iteration = function()
+        
+        #-- Alias Helpers --#
+        
+        # here so we don't have to pull functions from the global environment when we save
+        substitute.aliases.into.vector = function(values, aliases)
         {
-            JHEEM.CODE.ITERATION
+            unique(as.character(unlist(sapply(values, function(val){
+                if (any(val==names(aliases)))
+                    aliases[[val]]
+                else
+                    val
+            }))))
         }
         
     )
 )
 
-apply.categorized.aliases <- function(dim.names, aliases)
-{
-    rv = lapply(names(dim.names), function(d){
-        if (length(aliases)[[d]]>0)
-            substitute.aliases.into.vector(dim.names[[d]], aliases=aliases[[d]])
-        else
-            dim.names[[d]]
-    })
-    
-    names(rv) = names(dim.names)
-    rv
-}
+# apply.categorized.aliases <- function(dim.names, aliases)
+# {
+#     rv = lapply(names(dim.names), function(d){
+#         if (length(aliases)[[d]]>0)
+#             substitute.aliases.into.vector(dim.names[[d]], aliases=aliases[[d]])
+#         else
+#             dim.names[[d]]
+#     })
+#     
+#     names(rv) = names(dim.names)
+#     rv
+# }

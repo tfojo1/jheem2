@@ -41,8 +41,8 @@ set.element.value <- function(model.settings,
 #'@param element.name The name of the model element whose functional form we wish to modify
 #'@param alpha.name The name of the functional form parameter that we want to set alphas for
 #'@param values A numeric vector of values (either a single value applied to all dimension values OR a vector of the same length as applies.to.dimension.values)
-#'@param applies.to.dimension.values Either a vector (character or integer) or a list where each element is either a single character value or single integer value. Must have the same length as values, indicating the compartment to which each value in values applies
-#'@param dimensions The dimensions to which values in applies.to.dimension.values apply. Can be either (1) a character vector with the same length as applies.to.dimension.values with the corresponding dimension for each value, (2) a single character value - a dimension that applies to all values, or (3) NULL, in which case the dimensions are inferred for applies.to.dimension.values (this is computationally slower)
+#'@param applies.to.dimension.values A character vector of values within the given dimension to which the alphas should apply
+#'@param dimension The dimension to which values in applies.to.dimension.values apply
 #'
 #'@family Functions to create and modify model settings
 #'
@@ -51,19 +51,19 @@ set.element.functional.form.main.effect.alphas <- function(model.settings,
                                                            element.name,
                                                            alpha.name,
                                                            values,
+                                                           dimension,
                                                            applies.to.dimension.values=names(values),
-                                                           dimensions=names(applies.to.dimension.values),
                                                            wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.main.effect.alphas(element.name = element.name,
-                                                                alpha.name = alpha.name,
-                                                                values = values,
-                                                                applies.to.dimension.values = applies.to.dimension.values,
-                                                                dimensions = dimensions,
-                                                                wrt.version = wrt.version)
+                                                                  alpha.name = alpha.name,
+                                                                  values = values,
+                                                                  applies.to.dimension.values = applies.to.dimension.values,
+                                                                  dimension = dimension,
+                                                                  wrt.version = wrt.version)
 }
 
 #'@title Set Interaction Alpha Values for a Functional Form for a Model Element
@@ -72,7 +72,7 @@ set.element.functional.form.main.effect.alphas <- function(model.settings,
 #'
 #'@inheritParams set.element.functional.form.main.effect.alphas
 #'@param value A single numeric value, which will apply to every combination of applies.to.dimension.values which are from different dimensions
-#'@param applies.to.dimension.values Either a vector (character or integer) or a list where each element is either a single character value or single integer value, indicating the compartments to which value applies
+#'@param applies.to.dimension.values Either a character vector where each element is either a character vector. Must be named with the dimension to which each dimension value applies
 #'
 #'@family Functions to create and modify a model settings
 #'
@@ -81,19 +81,17 @@ set.element.functional.form.interaction.alphas <- function(model.settings,
                                                            element.name,
                                                            alpha.name,
                                                            value,
-                                                           applies.to.dimension.values=names(values),
-                                                           dimensions=names(applies.to.dimension.values),
+                                                           applies.to.dimension.values,
                                                            wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.interaction.alphas(element.name = element.name,
-                                                                alpha.name = alpha.name,
-                                                                value = value,
-                                                                applies.to.dimension.values = applies.to.dimension.values,
-                                                                dimensions = dimensions,
-                                                                wrt.version = wrt.version)
+                                                                  alpha.name = alpha.name,
+                                                                  value = value,
+                                                                  applies.to.dimension.values = applies.to.dimension.values,
+                                                                  wrt.version = wrt.version)
 }
 
 #'@title Set the Times From and To Which the Functional Form Determines a Model Element's Value
@@ -380,12 +378,15 @@ set.element.functional.form.alphas.from.parameters <- function(model.settings,
     else
     {
         # Push the main effect values to the settings
-        model.settings$set.element.functional.form.main.effect.alphas(element.name = element.name,
-                                                                    alpha.name = alpha.name,
-                                                                    values = parameter.values,
-                                                                    applies.to.dimension.values = parameter.dim.values,
-                                                                    dimensions = parameter.dimensions,
-                                                                    wrt.version = wrt.version)
+        for (d in unique(parameter.dimensions))
+        {
+            model.settings$set.element.functional.form.main.effect.alphas(element.name = element.name,
+                                                                        alpha.name = alpha.name,
+                                                                        values = parameter.values[parameter.dimensions==d],
+                                                                        applies.to.dimension.values = parameter.dim.values[parameter.dimensions==d],
+                                                                        dimension = d,
+                                                                        wrt.version = wrt.version)
+        }
     }
     
     
@@ -455,16 +456,16 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
         set.element.functional.form.main.effect.alphas = function(element.name,
                                                                   alpha.name,
                                                                   values,
+                                                                  dimension,
                                                                   applies.to.dimension.values=names(values),
-                                                                  dimensions=names(applies.to.dimension.values),
                                                                   wrt.version = self$version)
         {
             private$i.jheem$set.element.functional.form.main.effect.alphas(element.name = element.name,
-                                                                            alpha.name = alpha.name,
-                                                                            values = values,
-                                                                            applies.to.dimension.values = applies.to.dimension.values,
-                                                                            dimensions = dimensions,
-                                                                            check.consistency = private$i.check.consistency,
+                                                                           alpha.name = alpha.name,
+                                                                           values = values,
+                                                                           dimension = dimension,
+                                                                           applies.to.dimension.values = applies.to.dimension.values,
+                                                                           check.consistency = private$i.check.consistency,
                                                                            wrt.version = wrt.version)
         },
         
@@ -472,15 +473,13 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                                                   alpha.name,
                                                                   value,
                                                                   applies.to.dimension.values=names(values),
-                                                                  dimensions=names(applies.to.dimension.values),
                                                                   wrt.version = self$version)
         {
             private$i.jheem$set.element.functional.form.interaction.alphas(element.name = element.name,
-                                                                            alpha.name = alpha.name,
-                                                                            value = value,
-                                                                            applies.to.dimension.values = applies.to.dimension.values,
-                                                                            dimensions = dimensions,
-                                                                            check.consistency = private$i.check.consistency,
+                                                                           alpha.name = alpha.name,
+                                                                           value = value,
+                                                                           applies.to.dimension.values = applies.to.dimension.values,
+                                                                           check.consistency = private$i.check.consistency,
                                                                            wrt.version = wrt.version)
         },
         
@@ -575,6 +574,14 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
     ),
     
     active = list(
+        
+        specification.metadata = function(value)
+        {
+            if (missing(value))
+                private$i.jheem$specification.metadata
+            else
+                stop("Cannot modify a model.setting's specification.metadata - it is read-only")
+        }
         
     ),
     
@@ -1444,11 +1451,6 @@ JHEEM = R6::R6Class(
                           prior.sim.index,
                           check.consistency = !self$has.been.crunched())
         {
-            # If the specification has changed since we last crunched/set-up, reset
-            specification = get.specification.for.version(private$i.version)
-            if (specification$iteration != self$specification.metadata$specification.iteration)
-                private$set.up()
-            
             # Set the times
             set.run.years(start.year = start.year,
                           end.year = end.year,
@@ -1675,8 +1677,8 @@ JHEEM = R6::R6Class(
         set.element.functional.form.main.effect.alphas = function(element.name,
                                                                   alpha.name,
                                                                   values,
+                                                                  dimension,
                                                                   applies.to.dimension.values=names(values),
-                                                                  dimensions=names(applies.to.dimension.values),
                                                                   check.consistency = !self$has.been.crunched(),
                                                                   wrt.version = self$version)
         {
@@ -1725,7 +1727,7 @@ JHEEM = R6::R6Class(
             #-- Set it --#
             private$i.element.backgrounds[[element.name.to.modify]]$functional.form.alphas[[alpha.name]] = 
                 set.alpha.main.effect.values(private$i.element.backgrounds[[element.name.to.modify]]$functional.form.alphas[[alpha.name]],
-                                             dimensions = dimensions,
+                                             dimension = dimension,
                                              dimension.values = applies.to.dimension.values,
                                              values = values,
                                              check.consistency = check.consistency,
@@ -1736,11 +1738,10 @@ JHEEM = R6::R6Class(
         },
         
         set.element.functional.form.interaction.alphas = function(element.name,
-                                                                   alpha.name,
-                                                                   value,
-                                                                   applies.to.dimension.values=names(values),
-                                                                   dimensions=names(applies.to.dimension.values),
-                                                                   check.consistency = !self$has.been.crunched(),
+                                                                  alpha.name,
+                                                                  value,
+                                                                  applies.to.dimension.values,
+                                                                  check.consistency = !self$has.been.crunched(),
                                                                   wrt.version = self$version)
         {
             #-- Check Arguments --#
@@ -1793,7 +1794,6 @@ JHEEM = R6::R6Class(
             
             private$i.element.backgrounds[[element.name.to.modify]]$functional.form.alphas[[alpha.name]] = 
                 set.alpha.interaction.value(private$i.element.backgrounds[[element.name.to.modify]]$functional.form.alphas[[alpha.name]],
-                                            dimensions = dimensions,
                                             dimension.values = applies.to.dimension.values,
                                             value = value,
                                             check.consistency = check.consistency,
@@ -1825,7 +1825,7 @@ JHEEM = R6::R6Class(
             if (!foreground$is.anchored)
             {
                 foreground = foreground$anchor(location = self$location,
-                                               specification.metadata = private$i.kernel$get.specification.metadata(private$i.sub.version), 
+                                               specification.metadata = private$i.kernel$specification.metadata, 
                                                quantity.dim.names = private$i.quantity.max.dim.names[[quantity.name]],
                                                error.prefix = error.prefix)
             }
@@ -2012,7 +2012,7 @@ JHEEM = R6::R6Class(
                 # Check that we used all the parameters
                 if (check.consistency)
                 {
-                    unused.parameters = setdiff(names(parameters), used.parameter.names)
+                    unused.parameters = setdiff(changed.parameter.names, used.parameter.names)
                     if (length(unused.parameters)>0)
                     {
                         unused.parameters.matching.non.static.elements = intersect(unused.parameters, non.static.element.names.in.parameters)
@@ -2730,6 +2730,14 @@ JHEEM = R6::R6Class(
                 names(private$i.parameters)
             else
                 stop("Cannot modify a JHEEM engine's 'parameter.names' - they are read-only")
+        },
+        
+        specification.metadata = function(value)
+        {
+            if (missing(value))
+                private$i.kernel$specification.metadata
+            else
+                stop("Cannot modify a jheem's specification.metadata - it is read-only")
         }
         
     ),
@@ -2917,19 +2925,13 @@ JHEEM = R6::R6Class(
             private$i.checked.model.settings = JHEEM.MODEL.SETTINGS$new(self, check.consistency = T)
             private$i.unchecked.model.settings = JHEEM.MODEL.SETTINGS$new(self, check.consistency = F)
             
-            specification.metadata = private$i.kernel$get.specification.metadata(private$i.sub.version)
-            
             # Finalize max.dim.names and applies.to for quantities and components
             private$i.quantity.max.dim.names = lapply(private$i.kernel$quantity.kernels, function(quantity){
-                specification.metadata$apply.aliases(quantity$max.dim.names,
-                                                           error.prefix=paste0("Error finalizing max.dim.names for model quantity ", 
-                                                                               quantity$original.name))
+                quantity$max.dim.names
             })
             
             private$i.quantity.required.dim.names = lapply(private$i.kernel$quantity.kernels, function(quantity){
-                specification.metadata$apply.aliases(quantity$required.dim.names,
-                                                           error.prefix=paste0("Error finalizing required.dim.names for model quantity ", 
-                                                                               quantity$original.name))
+                quantity$required.dim.names
             })
             
             private$i.quantity.component.max.dim.names = lapply(private$i.kernel$quantity.kernels, function(quantity){
@@ -2938,10 +2940,7 @@ JHEEM = R6::R6Class(
                 else
                     lapply(1:length(quantity$components), function(i){
                         comp = quantity$components[[i]]
-                        specification.metadata$apply.aliases(comp$max.dim.names,
-                                                                   error.prefix=paste0("Error finalizing max.dim.names for the ",
-                                                                                       get.ordinal(i-1), " subset of model quantity ", 
-                                                                                       quantity$original.name))
+                        comp$max.dim.names
                         # ^ Should never trigger an error on the first component since it is the same as the quantity dim.names calculated above
                     })
             })
@@ -2952,10 +2951,7 @@ JHEEM = R6::R6Class(
                 else
                     lapply(1:length(quantity$components), function(i){
                         comp = quantity$components[[i]]
-                        self$specification.metadata$apply.aliases(comp$applies.to,
-                                                                   error.prefix=paste0("Error finalizing applies.to for the ",
-                                                                                       get.ordinal(i-1), " subset of model quantity ", 
-                                                                                       quantity$original.name))
+                        comp$applies.to
                         # ^ Should never trigger an error on the first component since applies.to is NULL for the first component
                     })
             })
@@ -2963,7 +2959,7 @@ JHEEM = R6::R6Class(
             # Set up the element backgrounds
             private$i.element.backgrounds = lapply(private$i.kernel$element.backgrounds, function(bkgd){
                 # elem = specification$get.quantity(elem.name)
-                # bkgd = elem$get.element.background(specification.metadata = self$specification.metadata,
+                # bkgd = elem$get.element.background(specification.metadata = private$i.kernel$specification.metadata,
                 #                                    error.prefix = paste0("Error creating JHEEM for version '", private$i.version, "' and location '", private$i.location, "': "))
                 
                 if (!is.null(bkgd$functional.form))
@@ -3002,11 +2998,11 @@ JHEEM = R6::R6Class(
             
             # Set up outcome dim.names
             private$i.outcome.dim.names.sans.time = lapply(private$i.kernel$outcome.kernels, function(outcome){
-                specification.metadata$apply.aliases(outcome$dim.names, error.prefix=paste0("Error setting up dim.names for outcome '", outcome$name, "': "))
+                outcome$dim.names
             })
             
             private$i.outcome.unrenamed.dim.names.sans.time = lapply(private$i.kernel$outcome.kernels, function(outcome){
-                specification.metadata$apply.aliases(outcome$unrenamed.dim.names, error.prefix=paste0("Error setting up unrenamed.dim.names for outcome '", outcome$name, "': "))
+                outcome$unrenamed.dim.names
             })
             
             # Set up dim.names list holders
@@ -4170,13 +4166,12 @@ JHEEM = R6::R6Class(
         {
             
             missing.times = as.character(missing.times)
-            specification.metadata = self$specification.metadata
             error.prefix = paste0("Error calculating background value for quantity '", quantity.name, "': ")
             quantity = private$i.kernel$get.quantity.kernel(quantity.name)
             
             calculated.values = do_calculate_quantity_background_value(quantity = quantity,
                                                                        missing_times = missing.times,
-                                                                       specification_metadata = private$i.kernel$get.specification.metadata(private$i.sub.version),
+                                                                       specification_metadata = private$i.kernel$specification.metadata,
                                                                        location = private$i.location,
                                                                        engine = private,
                                                                        check_consistency = check.consistency,
@@ -4226,7 +4221,6 @@ JHEEM = R6::R6Class(
         {
 # all.start = Sys.time()
             missing.times = as.character(missing.times)
-            specification.metadata = self$specification.metadata
             error.prefix = "Error calculating background value for quantity: "
             
             #-- Fill in missing values --#
@@ -4249,7 +4243,7 @@ JHEEM = R6::R6Class(
                 names(depends.on.has.after) = quantity$depends.on
                 any.depends.on.has.after = any(depends.on.has.after)
                 
-                bindings = list(specification.metadata = specification.metadata,
+                bindings = list(specification.metadata = private$i.kernel$specification.metadata,
                                 location = private$i.location)
                 
                 for (is.after.time in c(F,T))
