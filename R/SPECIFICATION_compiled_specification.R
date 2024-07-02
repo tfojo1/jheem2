@@ -1446,7 +1446,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             required.dim.names = list()
             ref.sources = character()
             
-            
             #-- Pull from top-level references --#
             for (ref in private$get.references.that.refer.to(quantity$name))
             {
@@ -1475,6 +1474,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 
                 ref.sources = c(ref.sources, ref$source)
             }
+            
             
             #-- Pull from parent quantity.components --#
             for (comp in private$get.quantity.components.that.depend.on(quantity$name))
@@ -1573,7 +1573,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
 
         calculate.quantity.dim.names.bottom.up = function(quantity, error.prefix)
         {
-            
             if (length(quantity$depends.on)==0)
                 return()
            

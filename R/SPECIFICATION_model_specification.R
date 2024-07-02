@@ -8106,6 +8106,17 @@ apply.outcome.dimension.aliases.to.dim.names = function(outcome, dim.names)
             
             names(dim.names)[to.overwrite] = outcome$dimension.aliases[to.overwrite]
         }
+        
+        tabled.dimensions = table(names(dim.names))
+        if (max(tabled.dimensions)>1)
+        {
+            duplicate.dimensions = names(tabled.dimensions)[tabled.dimensions>1]
+            stop(paste0("After apply dimension aliases to the dimnames of outcome '", outcome$name,
+                        "', ",
+                        ifelse(length(duplicate.dimensions)==1, "dimension ", "dimensions "),
+                        collapse.with.and("'", duplicate.dimensions, "'"),
+                        " appear more than once in the dimnames."))
+        }
     }            
     
     dim.names
