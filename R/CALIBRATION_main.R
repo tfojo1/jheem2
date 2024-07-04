@@ -246,7 +246,9 @@ set.up.calibration <- function(version,
     if (verbose)
         print(paste0(verbose.prefix, "Setting up the engine..."))
     
-    engine = do.create.jheem.engine(version=version, location=location, 
+    jheem.kernel = get.jheem.kernel(version, location=clocation)
+    
+    engine = do.create.jheem.engine(jheem.kernel = jheem.kernel,
                                     sub.version = sub.version,
                                     start.year = NULL, #will set start.year to the version's start.year
                                     end.year = calibration.info$end.year, 
