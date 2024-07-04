@@ -63,7 +63,7 @@ get.simulation.metadata <- function(version,
     
     SIMULATION.METADATA$new(jheem.kernel.or.specification = specification,
                             specification.metadata = specification.metadata,
-                            location=location,
+                            sub.version = sub.version,
                             outcome.location.mapping = NULL,
                             from.year=from.year,
                             to.year=to.year,
@@ -315,14 +315,14 @@ SIMULATION.METADATA = R6::R6Class(
                               years.can.be.missing = T,
                               error.prefix)
         {
-            if (!is(jheem.kernel.or.specification, 'jheem.kernel') && 
-                !is(jheem.kernel.or.specification, 'jheem.compiled.specification'))
-                stop(paste0(error.prefix, "'jheem.kernel' must be an object of class jheem.kernel or jheem.compiled.specification"))
+            # if (!is(jheem.kernel.or.specification, 'jheem.kernel') && 
+            #     !is(jheem.kernel.or.specification, 'jheem.compiled.specification'))
+            #     stop(paste0(error.prefix, "'jheem.kernel' must be an object of class jheem.kernel or jheem.compiled.specification"))
             
             #-- Call the superclass constructor --#
             super$initialize(version = jheem.kernel.or.specification$version,
                              sub.version = sub.version,
-                             location = jheem.kernel.or.specification$location,
+                             location = specification.metadata$location,
                              type = type,
                              error.prefix = error.prefix)
             
@@ -1299,8 +1299,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             })
             new.parameters = private$i.data$parameters[,x,drop=F]
             
-            JHEEM.SIMULATION.SET$new(version = self$version,
-                                     location = self$location,
+            JHEEM.SIMULATION.SET$new(jheem.kernel = self$jheem.kernel,
                                      sub.version = self$sub.version,
                                      outcome.numerators = new.outcome.numerators,
                                      outcome.denominators = new.outcome.denominators,
