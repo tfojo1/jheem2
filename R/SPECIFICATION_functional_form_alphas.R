@@ -177,6 +177,8 @@ set.alpha.main.effect.values <- function(alphas,
     if (any(is.na(dimension.values)))
         stop(paste0(error.prefix, "'dimension.values' cannot contain NA values"))
     
+    dimension.values = as.list(dimension.values)
+    
     if (check.consistency)
     {
         if (!is.null(alphas$maximum.dim.names))
@@ -268,7 +270,9 @@ set.alpha.main.effect.values <- function(alphas,
         length.before.adding = length(alphas$main.effects[[dimension]]$values)
         
         # Store the values
-        alphas$main.effects[[dimension]]$values[dimension.values] = values
+        value.names = as.character(dimension.values)
+        alphas$main.effects[[dimension]]$values[value.names] = values
+        alphas$main.effects[[dimension]]$dimension.values[value.names] = dimension.values
         
         # If we added any value for a new dimension.value, clear the crunched indices
         if (length(alphas$main.effects[[dimension]]$values) != length.before.adding)
@@ -294,7 +298,7 @@ set.alpha.interaction.value <- function(alphas,
 
     #-- Transform the value --#
     alphas$link$check.untransformed.values(value, variable.name.for.error='value', error.prefix=paste0(error.prefix, "'value' for alphas do not match expected scale - "))
-    values = alphas$link$apply(value)
+    value = alphas$link$apply(value)
     
     #-- Validate dimension values --#
     
@@ -320,6 +324,8 @@ set.alpha.interaction.value <- function(alphas,
     }
     else
         stop(error.prefix, "'dimension.values' must be either a character vector or a list containing only character vectors")
+    
+    dimension.values = as.list(dimension.values)
     
     # Identify the dimensions involved here
     unique.dimensions = unique(dimensions)
