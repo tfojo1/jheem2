@@ -869,8 +869,10 @@ create.jheem.engine <- function(version,
                                 max.run.time.seconds = Inf,
                                 solver.metadata = create.solver.metadata())
 {
-    do.create.jheem.engine(version = version,
-                           location = location,
+    jheem.kernel = create.jheem.kernel(version = version,
+                                       location = location)
+    
+    do.create.jheem.engine(jheem.kernel = jheem.kernel,
                            end.year = end.year,
                            sub.version = sub.version,
                            max.run.time.seconds = max.run.time.seconds,
@@ -878,8 +880,7 @@ create.jheem.engine <- function(version,
 }
 
 # This function is internal to the package
-do.create.jheem.engine <- function(version,
-                                   location,
+do.create.jheem.engine <- function(jheem.kernel,
                                    start.year = NULL,
                                    end.year,
                                    solver.metadata,
@@ -897,9 +898,8 @@ do.create.jheem.engine <- function(version,
     if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
         stop("Cannot create JHEEM Engine: 'error.prefix' must be a single, non-NA character value")
 
-    jheem = JHEEM$new(version = version,
+    jheem = JHEEM$new(jheem.kernel = jheem.kernel,
                       sub.version = sub.version,
-                      location = location,
                       error.prefix = error.prefix)
     
     JHEEM.ENGINE$new(jheem = jheem,
@@ -1421,21 +1421,20 @@ JHEEM = R6::R6Class(
         ##-- CONSTRUCTOR --##
         ##-----------------##
         
-        initialize = function(version, sub.version, location, error.prefix = "Cannot create JHEEM Instance: ")
+        initialize = function(jheem.kernel, sub.version, error.prefix = "Cannot create JHEEM Instance: ")
         {
+            if (!is(jheem.kernel, 'jheem.kernel'))
+                stop(paste0(error.prefix, "'jheem.kernel' must be an object of class jheem.kernel"))
+            
             # Call the superclass constructor
-            super$initialize(version = version,
+            super$initialize(version = jheem.kernel$version,
                              sub.version = sub.version,
-                             location = location,
+                             location = jheem.kernel$location,
                              type = 'jheem',
                              error.prefix = error.prefix)
             
-            
-            #@kernel refactor - for now, we'll create a new one. Eventually, we will take one
-            kernel = get.compiled.specification.for.version(version)$get.jheem.kernel(private$i.location)
-            
-           # save(kernel, file='size_check/test_spec_kernel.Rdata')
-            private$set.up(kernel)
+            # save(kernel, file='size_check/test_spec_kernel.Rdata')
+            private$set.up(jheem.kernel)
         },
         
         
@@ -1582,9 +1581,8 @@ JHEEM = R6::R6Class(
                 run.metadata = append.run.metadata(prior.simulation.set$run.metadata$subset(prior.sim.index),
                                                    run.metadata)
             
-            sim = create.single.simulation(version = private$i.version,
+            sim = create.single.simulation(jheem.kernel = private$i.kernel,
                                            sub.version = private$i.sub.version,
-                                           location = private$i.location,
                                            from.year = private$i.keep.from.time,
                                            to.year = private$i.keep.to.time,
                                            outcome.numerators = outcome.numerators.and.denominators$numerators,

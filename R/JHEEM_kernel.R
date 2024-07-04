@@ -4,7 +4,7 @@
 #-- These get saved independently of the specification code, and can live on in simulation objects
 
 # Internal to the package
-get.jheem.kernel <- function(version, location)
+create.jheem.kernel <- function(version, location)
 {
     specification = get.compiled.specification.for.version(version)
     specification$get.jheem.kernel(location = location)
@@ -174,6 +174,8 @@ JHEEM.KERNEL = R6::R6Class(
                 outcome.kernel$calculate.values = outcome$get.calculate.values.function(parent.environment = self,
                                                                                         error.prefix = error.prefix)
                 
+                outcome.kernel$metadata = outcome$metadata
+                
                 outcome.kernel
                 # 
                 # list(
@@ -278,7 +280,9 @@ JHEEM.KERNEL = R6::R6Class(
             
             #-- Diffeq Settings --#
             
-            private$i.fixed.strata.info = private$copy.r6.to.list(specification$fixed.strata.info, light=T)
+            private$i.fixed.strata.info = lapply(specification$fixed.strata.info,
+                                                 private$copy.r6.to.list, 
+                                                 light=T)
             
             #-- Misc --#
             private$i.default.parameter.values = specification$default.parameter.values
@@ -291,7 +295,8 @@ JHEEM.KERNEL = R6::R6Class(
             # }
             # env = environment(private$i.calibrated.parameters.apply.function)
             # save(env, file = "size_check/env.Rdata")
-            # save(self, file = 'size_check/kernel.Rdata')
+             # save(self, file = 'size_check/kernel.Rdata')
+             # stop('stop here')
             # 
             # browser()
         },

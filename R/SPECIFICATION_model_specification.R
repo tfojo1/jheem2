@@ -8108,7 +8108,7 @@ apply.outcome.dimension.aliases.to.dim.names = function(outcome, dim.names)
         }
         
         tabled.dimensions = table(names(dim.names))
-        if (max(tabled.dimensions)>1)
+        if (length(dim.names)>0 && max(tabled.dimensions)>1)
         {
             duplicate.dimensions = names(tabled.dimensions)[tabled.dimensions>1]
             stop(paste0("After apply dimension aliases to the dimnames of outcome '", outcome$name,

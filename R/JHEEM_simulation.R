@@ -58,9 +58,13 @@ get.simulation.metadata <- function(version,
                                     sub.version = NULL,
                                     error.prefix = paste0("Error deriving the simulation-metadata for '", version, "' and location '", location, "': "))
 {
-    SIMULATION.METADATA$new(version=version,
-                            sub.version=sub.version,
+    specification = get.compiled.specification.for.version(version)
+    specification.metadata = do.get.specification.metadata(specification, location, error.prefix = error.prefix)
+    
+    SIMULATION.METADATA$new(jheem.kernel.or.specification = specification,
+                            specification.metadata = specification.metadata,
                             location=location,
+                            outcome.location.mapping = NULL,
                             from.year=from.year,
                             to.year=to.year,
                             n.sim = n.sim,
@@ -87,10 +91,12 @@ rerun.simulations <- function(simset,
 
     if (verbose)
         cat("Creating engine to re-run simulations...")
-        
-    engine = do.create.jheem.engine(version = simset$version,
+    
+    jheem.kernel = create.jheem.kernel(version = version,
+                                       location = location)
+    
+    engine = do.create.jheem.engine(jheem.kernel = jheem.kernel,
                                     sub.version = simset$sub.version,
-                                    location = simset$location,
                                     start.year = specification$start.year,
                                     end.year = simset$to.year,
                                     max.run.time.seconds = simset$max.run.time.seconds,
@@ -104,6 +110,8 @@ rerun.simulations <- function(simset,
                                     error.prefix = "Error re-running simulations: ")
     if (verbose)
         cat("done\n")
+    
+    print("We need to implement re-running the intervention here too")
     
     update.every = ceiling(simset$n.sim/10)
     new.sims = sapply(1:simset$n.sim, function(i){
@@ -136,9 +144,8 @@ rerun.simulations <- function(simset,
 ##-----------------------------------------------------------##
 ##-----------------------------------------------------------##
 
-create.single.simulation <- function(version,
+create.single.simulation <- function(jheem.kernel,
                                      sub.version,
-                                     location,
                                      outcome.numerators, # no sim dimension
                                      outcome.denominators, # no sim dimension
                                      parameters,
@@ -163,9 +170,8 @@ create.single.simulation <- function(version,
     })
     parameters = matrix(parameters, ncol=1, dimnames=list(parameter=names(parameters), sim=NULL)) # used to say "parameters.indexed.by.sim = list('1'=parameters)" but I don't think I need the character number there. When simsets are joined, the index is meaningless anyways
     
-    JHEEM.SIMULATION.SET$new(version = version,
+    JHEEM.SIMULATION.SET$new(jheem.kernel = jheem.kernel,
                              sub.version = sub.version,
-                             location = location,
                              outcome.numerators = outcome.numerators.with.sim.dimension,
                              outcome.denominators = outcome.denominators.with.sim.dimension,
                              parameters = parameters,
@@ -194,9 +200,8 @@ derive.degenerate.simulation <- function(sim)
         denom
     })
     
-    create.single.simulation(version = sim$version,
+    create.single.simulation(jheem.kernel = sim$jheem.kernel,
                              sub.version = sim$sub.version,
-                             location = sim$location,
                              outcome.numerators = outcome.numerators,
                              outcome.denominators = outcome.denominators,
                              parameters = sim$parameters,
@@ -264,9 +269,8 @@ join.simulation.sets <- function(..., finalize=T, run.metadata=NULL)
     
     intervention.code = sample.simset$intervention.code
     
-    JHEEM.SIMULATION.SET$new(version = sample.simset$version,
+    JHEEM.SIMULATION.SET$new(jheem.kernel = sample.simset$jheem.kernel,
                              sub.version = sample.simset$sub.version,
-                             location = sample.simset$location,
                              outcome.numerators = combined.outcome.numerators,
                              outcome.denominators = combined.outcome.denominators,
                              parameters = combined.parameters,
@@ -300,9 +304,10 @@ SIMULATION.METADATA = R6::R6Class(
     
     public = list(
         
-        initialize = function(version,
+        initialize = function(jheem.kernel.or.specification,
+                              specification.metadata,
                               sub.version,
-                              location,
+                              outcome.location.mapping,
                               from.year = NULL,
                               to.year = NULL,
                               n.sim = 1,
@@ -310,10 +315,14 @@ SIMULATION.METADATA = R6::R6Class(
                               years.can.be.missing = T,
                               error.prefix)
         {
+            if (!is(jheem.kernel.or.specification, 'jheem.kernel') && 
+                !is(jheem.kernel.or.specification, 'jheem.compiled.specification'))
+                stop(paste0(error.prefix, "'jheem.kernel' must be an object of class jheem.kernel or jheem.compiled.specification"))
+            
             #-- Call the superclass constructor --#
-            super$initialize(version = version,
+            super$initialize(version = jheem.kernel.or.specification$version,
                              sub.version = sub.version,
-                             location = location,
+                             location = jheem.kernel.or.specification$location,
                              type = type,
                              error.prefix = error.prefix)
             
@@ -355,19 +364,19 @@ SIMULATION.METADATA = R6::R6Class(
             # n.sim must be an integer greater than 0.
             if (!is.numeric(n.sim) || length(n.sim)!=1 || is.na(n.sim) || n.sim%%1!=0)
                 stop(paste0(error.prefix, "'n.sim' must be a whole number greater than zero"))
-            private$i.n.sim = n.sim
+            private$i.metadata$n.sim = n.sim
             
             # Pull outcome ontologies and metadata from the specification
-            
-            specification = get.compiled.specification.for.version(version)
-            specification.metadata = do.get.specification.metadata(specification, location)
             
             private$i.metadata$outcome.ontologies = list()
             private$i.metadata$outcome.metadata = list()
             
-            for (outcome.name in specification$get.outcome.names.for.sub.version(private$i.sub.version))
+            for (outcome.name in jheem.kernel.or.specification$get.outcome.names.for.sub.version(private$i.sub.version))
             {
-                outcome = specification$get.outcome(outcome.name)
+                if (is(jheem.kernel.or.specification, 'jheem.kernel'))
+                    outcome = jheem.kernel.or.specification$get.outcome.kernel(outcome.name)
+                else
+                    outcome = jheem.kernel.or.specification$get.outcome(outcome.name)
                 if (outcome$save)
                 {
                     if (outcome$is.cumulative && !is.null(private$i.metadata$from.year) && !is.null(private$i.metadata$to.year))
@@ -393,8 +402,12 @@ SIMULATION.METADATA = R6::R6Class(
                     else
                         years.for.ont = NULL
                     
-                    ont = c(ontology(year=years.for.ont, incomplete.dimensions = 'year'),
-                            specification.metadata$apply.aliases(outcome$ontology, error.prefix = error.prefix))
+                    if (is(jheem.kernel.or.specification, 'jheem.kernel'))
+                        base.ont = outcome$ontology
+                    else
+                        base.ont = specification.metadata$apply.aliases(outcome$ontology, error.prefix=error.prefix)
+                    
+                    ont = c(ontology(year=years.for.ont, incomplete.dimensions = 'year'), base.ont)
                     private$i.metadata$outcome.ontologies[[outcome$name]] = ont
                     
                     private$i.metadata$outcome.metadata[[outcome$name]] = MODEL.OUTCOME.METADATA$new(outcome.metadata = outcome$metadata,
@@ -659,7 +672,7 @@ SIMULATION.METADATA = R6::R6Class(
         n.sim = function(value)
         {
             if (missing(value))
-                private$i.n.sim
+                private$i.metadata$n.sim
             else
                 stop("Cannot modify a simulation.set's 'n.sim' - it is read-only")
         }
@@ -668,7 +681,6 @@ SIMULATION.METADATA = R6::R6Class(
     private = list(
         
         i.metadata = NULL,
-        i.n.sim = NULL, # Now all simsets with this metadata must have the same n.sim!
         
         get.current.code.iteration = function()
         {
@@ -910,9 +922,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
     portable = F,
     
     public = list(
-        initialize = function(version, # needs a subversion
+        initialize = function(jheem.kernel,
                               sub.version,
-                              location,
                               outcome.numerators, # now must have sim dimension
                               outcome.denominators, # now must have sim dimension
                               parameters,
@@ -929,20 +940,18 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                               error.prefix = "Error constructing simulation")
         {
             #-- Call the superclass constructor --#
-            super$initialize(version = version,
+            super$initialize(jheem.kernel.or.specification = jheem.kernel,
+                             specification.metadata = jheem.kernel$specification.metadata,
                              sub.version = sub.version,
-                             location = location,
                              type = "Simulation",
+                             outcome.location.mapping = outcome.location.mapping,
                              years.can.be.missing = F,
                              from.year = from.year,
                              to.year = to.year,
                              n.sim = n.sim,
                              error.prefix = error.prefix)
             
-            #-- Check engine if it is not NULL --#
-            
-            # We have decided never to store an engine - going to be dangerous if saving
-          #  private$i.engine = engine
+            private$i.jheem.kernel = jheem.kernel
             
             # I have not yet written the validation code
             
@@ -1000,7 +1009,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             if (finalize)
             {
-                private$i.seed = round(runif(1, 0, .Machine$integer.max))
+                private$i.metadata$seed = round(runif(1, 0, .Machine$integer.max))
                 
                 sampled.parameters.distribution = get.parameters.distribution.for.version(version, type='sampled')
                 
@@ -1058,13 +1067,13 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                   outcome.denominators = outcome.denominators,
                                   parameters = parameters)
     
-            private$i.solver.metadata = solver.metadata        
-            private$i.run.metadata = run.metadata
-            private$i.intervention.code = intervention.code
-            private$i.calibration.code = calibration.code
+            private$i.metadata$solver.metadata = solver.metadata        
+            private$i.metadata$run.metadata = run.metadata
+            private$i.metadata$intervention.code = intervention.code
+            private$i.metadata$calibration.code = calibration.code
             
-            private$i.is.degenerate = is.degenerate
-            private$i.finalized = finalize
+            private$i.metadata$is.degenerate = is.degenerate
+            private$i.metadata$finalized = finalize
             
             #-- Update the ontologies for non-cumulative, non-intrinsic outcomes --#
             for (outcome.name in self$outcomes)
@@ -1093,9 +1102,9 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         print = function(...)
         {
-            base::print(paste0(ifelse(private$i.n.sim==1, 
+            base::print(paste0(ifelse(private$i.metadata$n.sim==1, 
                                       'A single JHEEM simulation', 
-                                      paste0("A set of ", private$i.n.sim, " JHEEM simulations")),
+                                      paste0("A set of ", private$i.metadata$n.sim, " JHEEM simulations")),
                                ", from ", self$from.year, " to ", self$to.year, 
                                ", for model version '", private$i.version, "' and location '", private$i.location, "'",
                                ifelse(is.null(self$intervention.code), '',
@@ -1113,9 +1122,9 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             optimized.get.instructions$do.get(outcome.numerators = private$i.data$outcome.numerators,
                                               outcome.denominators = private$i.data$outcome.denominators,
-                                              n.sim = private$i.n.sim,
-                                              sim.from.year = self$from.year,
-                                              sim.to.year = self$to.year,
+                                              n.sim = private$i.metadata$n.sim,
+                                              sim.from.year = private$i.metadata$from.year,
+                                              sim.to.year = private$i.metadata$to.year,
                                               error.prefix = error.prefix)
         },
         
@@ -1299,12 +1308,12 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                      from.year = self$from.year,
                                      to.year = self$to.year,
                                      n.sim = new.n.sim,
-                                     calibration.code = private$i.calibration.code,
-                                     intervention.code = private$i.intervention.code,
-                                     run.metadata = private$i.run.metadata$subset(x),
-                                     solver.metadata = private$i.solver.metadata,
-                                     is.degenerate = private$i.is.degenerate[x],
-                                     finalize = private$i.finalized)
+                                     calibration.code = private$i.metadata$calibration.code,
+                                     intervention.code = private$i.metadata$intervention.code,
+                                     run.metadata = private$i.metadata$run.metadata$subset(x),
+                                     solver.metadata = private$i.metadata$solver.metadata,
+                                     is.degenerate = private$i.metadata$is.degenerate[x],
+                                     finalize = private$i.metadata$finalized)
         },
         
         # n: keeps every nth (rounding DOWN) sim counting backwards from the last sim
@@ -1326,7 +1335,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (is.null(n)) n = self$n.sim / keep
             
             self$subset(ceiling(self$n.sim - n * ((keep - 1) : 0)))
-            
         },
         
         # keep: may be fraction or a number to keep (to stay consistent with simset$thin arguments)
@@ -1339,13 +1347,13 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (keep < 1) keep = ceiling(self$n.sim * keep)
             
             self$subset((self$n.sim - keep + 1) : self$n.sim) # Keep the LAST part, not the FIRST
-            
         },
         
         first.sim = function()
         {
             self$subset(1)
         },
+        
         last.sim = function()
         {
             self$subset(self$n.sim)
@@ -1375,7 +1383,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (is.null(keep.to.year))
                 keep.to.year = end.year
             
-            if (!identical(intervention.code, private$i.intervention.code))
+            if (!identical(intervention.code, self$intervention.code))
             {
                 # Check the new intervention code
                 new.intervention = get.intervention.from.code(intervention.code, throw.error.if.missing=F)
@@ -1410,9 +1418,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 }
             }
             
-            engine = do.create.jheem.engine(version = private$i.version,
+            engine = do.create.jheem.engine(jheem.engine = private$i.jheem.engine,
                                             sub.version = private$i.sub.version,
-                                            location = private$i.location,
                                             start.year = start.year,
                                             end.year = end.year,
                                             max.run.time.seconds = max.run.time.seconds,
@@ -1420,8 +1427,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                             keep.from.year = keep.from.year,
                                             keep.to.year = keep.to.year,
                                             intervention.code = intervention.code,
-                                            calibration.code = private$i.calibration.code,
-                                            solver.metadata = private$i.solver.metadata,
+                                            calibration.code = self$calibration.code,
+                                            solver.metadata = self$solver.metadata,
                                             finalize = T,
                                             error.prefix = error.prefix)
         },
@@ -1440,10 +1447,10 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                     max.run.time.seconds = max.run.time.seconds,
                                     keep.from.year = keep.from.year,
                                     keep.to.year = keep.to.year,
-                                    intervention.code = private$i.code,
+                                    intervention.code = self$intervention.code,
                                     error.prefix = "Cannot get JHEEM Engine from simulation set")
             
-            sim.list = lapply(1:private$i.n.sim, function(i){
+            sim.list = lapply(1:private$i.metadata$n.sim, function(i){
                 engine$run(parameters = private$i.parameters[,i],
                            prior.sim.index = i)
             })
@@ -1453,14 +1460,14 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         get.intervention = function()
         {
-            if (!is.null(private$i.intervention.code))
+            if (!is.null(self$intervention.code))
             {
-                rv = get.intervention.from.code(private$i.intervention.code, throw.error.if.missing=F)
+                rv = get.intervention.from.code(selfintervention.code, throw.error.if.missing=F)
                 if (is.null(rv))
                     stop(paste0("The simulation set has a registered intervention code of '",
-                                private$i.intervention.code, "' but no intervention has been registered for that code in this R session",
-                                ifelse(is.intervention.code.temporary(private$i.intervention.code),
-                                       paste0("('", private$i.intervention.code, "' was a temporary code created for a one-off intervention that was not formally registered with a code)"),
+                                self$intervention.code, "' but no intervention has been registered for that code in this R session",
+                                ifelse(is.intervention.code.temporary(selfintervention.code),
+                                       paste0("('", selfintervention.code, "' was a temporary code created for a one-off intervention that was not formally registered with a code)"),
                                        "")))
                 rv
             }
@@ -1578,7 +1585,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         {
             if (missing(value))
             {
-                if (private$i.n.sim==1)
+                if (private$i.metadata$n.sim==1)
                     private$i.data$parameters[,1]
                 else
                     stop("The 'params' field is only available for single-simulation sets (ie, when nsim==1)")
@@ -1598,7 +1605,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         solver.metadata = function(value)
         {
             if (missing(value))
-                private$i.solver.metadata
+                private$i.metadata$solver.metadata
             else
                 stop("Cannot modify a simulation.set's 'solver.metadata' - it is read-only")
         },
@@ -1606,7 +1613,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         run.metadata = function(value)
         {
             if (missing(value))
-                private$i.run.metadata
+                private$i.metadata$run.metadata
             else
                 stop("Cannot modify a simulation.set's 'run.metadata' - it is read-only")
         },
@@ -1614,7 +1621,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         calibration.code = function(value)
         {
             if (missing(value))
-                private$i.calibration.code
+                private$i.metadata$calibration.code
             else
                 stop("Cannot modify a simulation.set's 'calibration.code' - it is read-only")
         },
@@ -1622,7 +1629,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         intervention.code = function(value)
         {
             if (missing(value))
-                private$i.intervention.code
+                private$i.metadata$intervention.code
             else
                 stop("Cannot modify a simulation.set's 'intervention.code' - it is read-only")
         },
@@ -1630,7 +1637,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         is.degenerate = function(value)
         {
             if (missing(value))
-                private$i.is.degenerate
+                private$i.metadata$is.degenerate
             else
                 stop("Cannot modify a simulation.set's 'is.degenerate' - it is read-only")
         },
@@ -1638,7 +1645,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         seed = function(value) #get's a random seed for this simulation set
         {
             if (missing(value))
-                private$i.seed
+                private$i.metadata$seed
             else
                 stop("Cannot modify a simulation.set's 'seed' - it is read-only")
         },
@@ -1646,32 +1653,34 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         is.finalized = function(value)
         {
             if (missing(value))
-                private$i.finalized
+                private$i.metadata$finalized
             else
                 stop("Cannot modify a simulation.set's 'is.finalized' - it is read-only")
+        },
+        
+        jheem.kernel = function(value)
+        {
+            if (missing(value))
+                private$i.jheem.kernel
+            else
+                stop("Cannot modify a simulation.set's 'jheem.kernel' - it is read-only")
         }
     ),
     
     private = list(
         
-        i.specification.kernel = NULL,
-        
+        i.jheem.kernel = NULL,
         i.data = NULL,
-        i.run.metadata = NULL,
+        #i.run.metadata = NULL,
+        #i.solver.metadata = NULL,
+        # and i.metadata is in the parent sim.metadata object
         
-        # i.numerators = NULL,
-        # i.denominators = NULL,
-        # i.parameters = NULL,
+        # i.calibration.code = NULL,
+        # i.intervention.code = NULL,
+        # i.is.degenerate = NULL,
+        # i.finalized = NULL,
+        # i.seed = NULL,
         
-        i.calibration.code = NULL,
-        i.intervention.code = NULL,
-        
-        i.is.degenerate = NULL,
-        i.finalized = NULL,
-        
-        i.solver.metadata = NULL,
-        
-        i.seed = NULL,
         # just for diagnostics, will be removed soon
         slowerFoo = function(dimension.values, ..., check.consistency, error.prefix) {
             private$process.dimension.values(dimension.values, ..., check.consistency = check.consistency, error.prefix=error.prefix)
