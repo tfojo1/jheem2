@@ -246,7 +246,7 @@ set.up.calibration <- function(version,
     if (verbose)
         print(paste0(verbose.prefix, "Setting up the engine..."))
     
-    jheem.kernel = create.jheem.kernel(version, location=clocation)
+    jheem.kernel = create.jheem.kernel(version=version, location=location)
     
     engine = do.create.jheem.engine(jheem.kernel = jheem.kernel,
                                     sub.version = sub.version,
