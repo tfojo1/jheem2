@@ -1307,6 +1307,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                      from.year = self$from.year,
                                      to.year = self$to.year,
                                      n.sim = new.n.sim,
+                                     outcome.location.mapping = private$i.metadata$outcome.location.mapping,
                                      calibration.code = private$i.metadata$calibration.code,
                                      intervention.code = private$i.metadata$intervention.code,
                                      run.metadata = private$i.metadata$run.metadata$subset(x),
