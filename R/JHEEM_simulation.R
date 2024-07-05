@@ -61,14 +61,15 @@ get.simulation.metadata <- function(version,
     specification = get.compiled.specification.for.version(version)
     specification.metadata = do.get.specification.metadata(specification, location, error.prefix = error.prefix)
     
-    SIMULATION.METADATA$new(jheem.kernel.or.specification = specification,
-                            specification.metadata = specification.metadata,
-                            sub.version = sub.version,
-                            outcome.location.mapping = NULL,
-                            from.year=from.year,
-                            to.year=to.year,
-                            n.sim = n.sim,
-                            error.prefix=error.prefix)
+    SIMULATION.METADATA$new(
+        make.simulation.metadata.field(jheem.kernel.or.specification = specification,
+                                       specification.metadata = specification.metadata,
+                                       sub.version = sub.version,
+                                       outcome.location.mapping = NULL,
+                                       from.year=from.year,
+                                       to.year=to.year,
+                                       n.sim = n.sim,
+                                       error.prefix=error.prefix))
 }
 
 #'@name Rerun a Simulation Set
@@ -170,7 +171,7 @@ create.single.simulation <- function(jheem.kernel,
     })
     parameters = matrix(parameters, ncol=1, dimnames=list(parameter=names(parameters), sim=NULL)) # used to say "parameters.indexed.by.sim = list('1'=parameters)" but I don't think I need the character number there. When simsets are joined, the index is meaningless anyways
     
-    JHEEM.SIMULATION.SET$new(jheem.kernel = jheem.kernel,
+    do.create.simulation.set(jheem.kernel = jheem.kernel,
                              sub.version = sub.version,
                              outcome.numerators = outcome.numerators.with.sim.dimension,
                              outcome.denominators = outcome.denominators.with.sim.dimension,
@@ -269,7 +270,7 @@ join.simulation.sets <- function(..., finalize=T, run.metadata=NULL)
     
     intervention.code = sample.simset$intervention.code
     
-    JHEEM.SIMULATION.SET$new(jheem.kernel = sample.simset$jheem.kernel,
+    do.create.simulation.set(jheem.kernel = sample.simset$jheem.kernel,
                              sub.version = sample.simset$sub.version,
                              outcome.numerators = combined.outcome.numerators,
                              outcome.denominators = combined.outcome.denominators,
@@ -297,6 +298,119 @@ join.simulation.sets <- function(..., finalize=T, run.metadata=NULL)
 ##-----------------------##
 
 
+make.simulation.metadata.field <- function(jheem.kernel.or.specification,
+                                           specification.metadata,
+                                           sub.version,
+                                           outcome.location.mapping,
+                                           from.year = NULL,
+                                           to.year = NULL,
+                                           n.sim = 1,
+                                           type = "Simulation Metadata",
+                                           years.can.be.missing = T,
+                                           error.prefix)
+{
+    # Validate from.year, to.year
+    if (!is.logical(years.can.be.missing) || length(years.can.be.missing)!=1 || is.na(years.can.be.missing))
+        stop(paste0(error.prefix, "'years.can.be.missing' must be a single, non-NA logical value"))
+    
+    if (is.null(from.year))
+    {
+        if (!years.can.be.missing)
+            stop(paste0(error.prefix, "'from.year' and 'to.year' must both be specified (ie, non-NULL)"))
+        
+        if (!is.null(to.year))
+            stop(paste0(error.prefix, "'to.year' cannot be set if 'from.year' is NULL"))
+    }
+    else
+    {
+        if (is.null(to.year))
+        {
+            if (years.can.be.missing)
+                stop(paste0(error.prefix, "'from.year' cannot be set if 'to.year' is NULL"))
+            else
+                stop(paste0(error.prefix, "'from.year' and 'to.year' must both be specified (ie, non-NULL)"))
+        }
+        
+        if(!is.numeric(from.year) || length(from.year)!=1 || is.na(from.year))
+            stop(paste0(error.prefix, "'from.year' must be a single, non-NA numeric value"))
+        
+        if(!is.numeric(to.year) || length(to.year)!=1 || is.na(to.year))
+            stop(paste0(error.prefix, "'to.year' must be a single, non-NA numeric value"))
+        
+        if (from.year > to.year)
+            stop(paste0(error.prefix, "'from.year' (", from.year, ") must be BEFORE 'to.year' (", to.year, ")"))
+    }
+    
+    metadata = list(from.year = from.year,
+                              to.year = to.year)
+    
+    # n.sim must be an integer greater than 0.
+    if (!is.numeric(n.sim) || length(n.sim)!=1 || is.na(n.sim) || n.sim%%1!=0)
+        stop(paste0(error.prefix, "'n.sim' must be a whole number greater than zero"))
+    metadata$n.sim = n.sim
+    
+    # Pull outcome ontologies and metadata from the specification
+    
+    metadata$outcome.ontologies = list()
+    metadata$outcome.metadata = list()
+    
+    for (outcome.name in jheem.kernel.or.specification$get.outcome.names.for.sub.version(sub.version))
+    {
+        if (is(jheem.kernel.or.specification, 'jheem.kernel'))
+            outcome = jheem.kernel.or.specification$get.outcome.kernel(outcome.name)
+        else
+            outcome = jheem.kernel.or.specification$get.outcome(outcome.name)
+        if (outcome$save)
+        {
+            if (outcome$is.cumulative && !is.null(metadata$from.year) && !is.null(metadata$to.year))
+            {
+                from.year = max(metadata$from.year, outcome$from.year)
+                to.year = min(metadata$to.year, outcome$to.year)
+                
+                if (to.year>=from.year)
+                    years.for.ont = as.character(from.year:to.year)
+                else
+                    years.for.ont = character()
+            }
+            else if (outcome$is.intrinsic && !is.null(metadata$from.year) && !is.null(metadata$to.year))
+            {
+                from.year = max(metadata$from.year, outcome$from.year)
+                to.year = min(metadata$to.year+1, outcome$to.year)
+                
+                if (to.year>=from.year)
+                    years.for.ont = as.character(from.year:to.year)
+                else
+                    years.for.ont = character()
+            }
+            else
+                years.for.ont = NULL
+            
+            if (is(jheem.kernel.or.specification, 'jheem.kernel'))
+                base.ont = outcome$ontology
+            else
+                base.ont = specification.metadata$apply.aliases(outcome$ontology, error.prefix=error.prefix)
+            
+            ont = c(ontology(year=years.for.ont, incomplete.dimensions = 'year'), base.ont)
+            metadata$outcome.ontologies[[outcome$name]] = ont
+            
+            metadata$outcome.metadata[[outcome$name]] = MODEL.OUTCOME.METADATA$new(outcome.metadata = outcome$metadata,
+                                                                                             is.cumulative = outcome$is.cumulative,
+                                                                                             is.intrinsic = outcome$is.intrinsic,
+                                                                                             corresponding.observed.outcome = outcome$corresponding.data.outcome)
+        }
+    }
+    
+    # Pull in the outcome location mapping
+    if (is.null(outcome.location.mapping))
+        metadata$outcome.location.mapping = outcome.location.mapping = NULL
+    else if (!is(outcome.location.mapping, 'outcome.location.mapping'))
+        stop(paste0(error.prefix, "'outcome.location.mapping' must be an object of class 'outcome.location.mapping'"))
+    else
+        metadata$outcome.location.mapping = outcome.location.mapping
+    
+}
+
+
 SIMULATION.METADATA = R6::R6Class(
     'simulation.metadata',
     inherit = JHEEM.ENTITY,
@@ -304,15 +418,11 @@ SIMULATION.METADATA = R6::R6Class(
     
     public = list(
         
-        initialize = function(jheem.kernel.or.specification,
-                              specification.metadata,
+        initialize = function(version,
+                              location,
                               sub.version,
-                              outcome.location.mapping,
-                              from.year = NULL,
-                              to.year = NULL,
-                              n.sim = 1,
+                              metadata,
                               type = "Simulation Metadata",
-                              years.can.be.missing = T,
                               error.prefix)
         {
             # if (!is(jheem.kernel.or.specification, 'jheem.kernel') && 
@@ -320,112 +430,15 @@ SIMULATION.METADATA = R6::R6Class(
             #     stop(paste0(error.prefix, "'jheem.kernel' must be an object of class jheem.kernel or jheem.compiled.specification"))
             
             #-- Call the superclass constructor --#
-            super$initialize(version = jheem.kernel.or.specification$version,
+            super$initialize(version = version,
                              sub.version = sub.version,
-                             location = specification.metadata$location,
+                             location = location,
                              type = type,
                              error.prefix = error.prefix)
             
-            # Validate from.year, to.year
-            if (!is.logical(years.can.be.missing) || length(years.can.be.missing)!=1 || is.na(years.can.be.missing))
-                stop(paste0(error.prefix, "'years.can.be.missing' must be a single, non-NA logical value"))
-            
-            if (is.null(from.year))
-            {
-                if (!years.can.be.missing)
-                    stop(paste0(error.prefix, "'from.year' and 'to.year' must both be specified (ie, non-NULL)"))
-                
-                if (!is.null(to.year))
-                    stop(paste0(error.prefix, "'to.year' cannot be set if 'from.year' is NULL"))
-            }
-            else
-            {
-                if (is.null(to.year))
-                {
-                    if (years.can.be.missing)
-                        stop(paste0(error.prefix, "'from.year' cannot be set if 'to.year' is NULL"))
-                    else
-                        stop(paste0(error.prefix, "'from.year' and 'to.year' must both be specified (ie, non-NULL)"))
-                }
-                
-                if(!is.numeric(from.year) || length(from.year)!=1 || is.na(from.year))
-                    stop(paste0(error.prefix, "'from.year' must be a single, non-NA numeric value"))
-                
-                if(!is.numeric(to.year) || length(to.year)!=1 || is.na(to.year))
-                    stop(paste0(error.prefix, "'to.year' must be a single, non-NA numeric value"))
-                
-                if (from.year > to.year)
-                    stop(paste0(error.prefix, "'from.year' (", from.year, ") must be BEFORE 'to.year' (", to.year, ")"))
-            }
-            
-            private$i.metadata = list(from.year = from.year,
-                                      to.year = to.year)
-            
-            # n.sim must be an integer greater than 0.
-            if (!is.numeric(n.sim) || length(n.sim)!=1 || is.na(n.sim) || n.sim%%1!=0)
-                stop(paste0(error.prefix, "'n.sim' must be a whole number greater than zero"))
-            private$i.metadata$n.sim = n.sim
-            
-            # Pull outcome ontologies and metadata from the specification
-            
-            private$i.metadata$outcome.ontologies = list()
-            private$i.metadata$outcome.metadata = list()
-            
-            for (outcome.name in jheem.kernel.or.specification$get.outcome.names.for.sub.version(private$i.sub.version))
-            {
-                if (is(jheem.kernel.or.specification, 'jheem.kernel'))
-                    outcome = jheem.kernel.or.specification$get.outcome.kernel(outcome.name)
-                else
-                    outcome = jheem.kernel.or.specification$get.outcome(outcome.name)
-                if (outcome$save)
-                {
-                    if (outcome$is.cumulative && !is.null(private$i.metadata$from.year) && !is.null(private$i.metadata$to.year))
-                    {
-                        from.year = max(private$i.metadata$from.year, outcome$from.year)
-                        to.year = min(private$i.metadata$to.year, outcome$to.year)
-                        
-                        if (to.year>=from.year)
-                            years.for.ont = as.character(from.year:to.year)
-                        else
-                            years.for.ont = character()
-                    }
-                    else if (outcome$is.intrinsic && !is.null(private$i.metadata$from.year) && !is.null(private$i.metadata$to.year))
-                    {
-                        from.year = max(private$i.metadata$from.year, outcome$from.year)
-                        to.year = min(private$i.metadata$to.year+1, outcome$to.year)
-                        
-                        if (to.year>=from.year)
-                            years.for.ont = as.character(from.year:to.year)
-                        else
-                            years.for.ont = character()
-                    }
-                    else
-                        years.for.ont = NULL
-                    
-                    if (is(jheem.kernel.or.specification, 'jheem.kernel'))
-                        base.ont = outcome$ontology
-                    else
-                        base.ont = specification.metadata$apply.aliases(outcome$ontology, error.prefix=error.prefix)
-                    
-                    ont = c(ontology(year=years.for.ont, incomplete.dimensions = 'year'), base.ont)
-                    private$i.metadata$outcome.ontologies[[outcome$name]] = ont
-                    
-                    private$i.metadata$outcome.metadata[[outcome$name]] = MODEL.OUTCOME.METADATA$new(outcome.metadata = outcome$metadata,
-                                                                                                     is.cumulative = outcome$is.cumulative,
-                                                                                                     is.intrinsic = outcome$is.intrinsic,
-                                                                                                     corresponding.observed.outcome = outcome$corresponding.data.outcome)
-                }
-            }
-            
-            # Pull in the outcome location mapping
-            if (is.null(outcome.location.mapping))
-                private$i.metadata$outcome.location.mapping = outcome.location.mapping = NULL
-            else if (!is(outcome.location.mapping, 'outcome.location.mapping'))
-                stop(paste0(error.prefix, "'outcome.location.mapping' must be an object of class 'outcome.location.mapping'"))
-            else
-                private$i.metadata$outcome.location.mapping = outcome.location.mapping
-                
+            private$i.metadata = metadata
         },
+        
         # Returns the dimnames that the results of a call to simulation$get will have
         # It's arguments mirror simulation$get
         get.dim.names = function(outcomes,
@@ -915,6 +928,211 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
     )
 )
 
+##----------------------------##
+##-- SIMULATION SET Objects --##
+##----------------------------##
+
+#'@name Load a Simulation Set
+#'
+#'@param file The file containing the saved simulation set
+#'
+#'@export
+load.simulation.set <- function(file)
+{
+    x = load(file)
+    if (length(x)!=1)
+        stop("Error loading simset: the file to load must have only one object saved in it")
+    
+    simset = load(x[1])
+    if (!is(simset, 'jheem.simulation.set'))
+        stop("Error loading simset: the file to load does not contain a jheem.simulation.set object")
+    
+    copy.simulation.set(simset)
+}
+
+#'@name Make a copy of a Simulation Set
+#'
+#'@param simset The simulation.set object to copy
+#'
+#'@export
+copy.simulation.set <- function(simset)
+{
+    if (!is(simset, 'jheem.simulation.set'))
+        stop("Error copying simset: 'simset' must be a jheem.simulation.set object")
+    
+    JHEEM.SIMULATION.SET$new(jheem.kernel = simset$jheem.kernel,
+                             data = simset$data,
+                             metadata = simset$metadata,
+                             sub.version = simset$sub.version,
+                             error.prefix = "Error loading simulation")
+}
+
+do.create.simulation.set <- function(jheem.kernel,
+                                     sub.version,
+                                     outcome.numerators, # now must have sim dimension
+                                     outcome.denominators, # now must have sim dimension
+                                     parameters,
+                                     from.year,
+                                     to.year,
+                                     n.sim,
+                                     solver.metadata,
+                                     run.metadata,
+                                     intervention.code,
+                                     calibration.code,
+                                     outcome.location.mapping,
+                                     is.degenerate = NULL,
+                                     finalize, #a logical - should we add sampled parameters?
+                                     error.prefix = "Error constructing simulation")
+{
+    metadata = make.simulation.metadata.field(jheem.kernel.or.specification = jheem.kernel,
+                                              specification.metadata = jheem.kernel$specification.metadata,
+                                              sub.version = sub.version,
+                                              outcome.location.mapping = outcome.location.mapping,
+                                              from.year = from.year,
+                                              to.year = to.year,
+                                              n.sim = n.sim,
+                                              error.prefix = error.prefix)
+    
+    # I have not yet written the validation code
+    
+    #-- Validate outcome data --#
+    
+    # Make sure all expected outcomes are present
+    # - Numerators for all
+    # - Denominators unless the type is number or non.negative.number
+    # Make sure they are numeric arrays with dimensions that match the ontology
+    # browser()
+    # if (!setequal(names(outcome.numerators), self$outcomes))
+    #     stop(paste0(error.prefix, "'outcome.numerators' must have an array for each outcome expected for this version and location"))
+    # if (!setequal(names(outcome.denominators) != self$outcomes))
+    #     stop(paste0(error.prefix, "'outcome.denominators' must have an array for each outcome expected for this version and location"))
+    # if (any(sapply(outcome.numerators, function(arr) {!is.numeric(arr) || !is.array(array())})))
+    #     stop(paste0(error.prefix, "'outcome.numerators' must contain only numeric arrays"))
+    # if (any(sapply(outcome.denominators, function(arr) {!is.numeric(arr) || !is.array(arr)})))
+    #     stop(paste0(error.prefix, "'outcome.denominators' must contain only numeric arrays"))
+    # 
+    # if (any(sapply(names(outcome.numerators), function(outcome) {
+    #     any(sapply(names(dim(outcome.numerators[[outcome]])), function(d) {
+    #         !setequal(dimnames(outcome.numerators[[outcome]])[[d]], self$outcome.ontologies[[outcome]][[d]]) # will years mess this up?
+    #     }))
+    # })))
+    #     stop(paste0(error.prefix, "each array in 'outcome.numerators' must have dimensions matching its outcome's ontology"))
+    # 
+    # if (any(sapply(names(outcome.denominators), function(outcome) {
+    #     any(sapply(names(dim(outcome.denominators[[outcome]])), function(d) {
+    #         !setequal(dimnames(outcome.denominators[[outcome]])[[d]], self$outcome.ontologies[[outcome]][[d]])
+    #     }))
+    # })))
+    #     stop(paste0(error.prefix, "each array in 'outcome.denominators' must have dimensions matching its outcome's ontology"))
+    
+    #-- Validate parameters --#
+    
+    # should be a matrix with one row for each sim
+    # dimnames(parameters)[[1]] must be set
+    if (!is.matrix(parameters) || !is.numeric(parameters))
+        stop(paste0(error.prefix, "'parameters' must be a numeric matrix"))
+    if (any(is.na(parameters)))
+        stop(paste0(error.prefix, "'parameters' cannot contain any NA values"))
+    if (is.null(dimnames(parameters)) || is.null(dimnames(parameters)[[1]]) || any(is.na(dimnames(parameters)[[1]])) || any(nchar(dimnames(parameters)[[1]])==0))
+        stop(paste0(error.prefix, "'parameters' must have dimnames set for its rows (dimension 1), and those names cannot be NA or empty strings"))
+    tabled.parameter.names = table(dimnames(parameters)[[1]])
+    if (any(tabled.parameter.names>1))
+        stop(paste0(error.prefix, "the parameter names, as given by dimnames(parameters)[[1]], must be UNIQUE. ",
+                    ifelse(sum(tabled.parameter.names>1)==1, "The parameter ", "Parameters "),
+                    collapse.with.and("'", names(tabled.parameter.names[tabled.parameter.names>1]), "'"),
+                    ifelse(sum(tabled.parameter.names>1)==1, " appears", " appear"),
+                    " more than once."))
+    
+    #-- If we are going to finalize: --#
+    #   - Add a random seed to base future numbers on
+    #   - Generate sampled parameters
+    
+    if (finalize)
+    {
+        metadata$seed = round(runif(1, 0, .Machine$integer.max))
+        
+        sampled.parameters.distribution = get.parameters.distribution.for.version(version, type='sampled')
+        
+        
+        if (!is.null(sampled.parameters.distribution))
+        {
+            parameter.names = dimnames(parameters)[[1]]
+            sampled.parameters.to.generate = setdiff(sampled.parameters.distribution@var.names,
+                                                     parameter.names)
+            
+            if (length(sampled.parameters.to.generate)>0)
+            {
+                reset.seed = round(runif(1, 0, .Machine$integer.max))
+                set.seed(seed)
+                
+                new.parameters = generate.random.samples(sampled.parameters.to.generate, n=n.sim)
+                set.seed(reset.seed) # this keeps our code from always setting to the same seed  
+                
+                parameters = rbind(t(new.parameters[,sampled.parameters.to.generate,drop=F]))
+            }
+        }
+    }
+    
+    
+    # let's standardize the dimnames here
+    dimnames(parameters) = list(parameter = dimnames(parameters)[[1]],
+                                sim = as.character(1:n.sim))
+    
+    #-- Update the outcome metadata's years for each of the non-cumulative outcomes --#
+    
+    # Validate run.metadata
+    if (!is(run.metadata, 'jheem.run.metadata'))
+        stop(paste0(error.prefix, "'run.metadata' must be an object of class 'jheem.run.metadata'"))
+    
+    # Validate solver.metadata
+    if (!is(solver.metadata, 'solver.metadata'))
+        stop(paste0(error.prefix, "'solver.metadata' must be an object of class 'solver.metadata'"))
+    
+    # Validate intervention.code
+    if (!is.null(intervention.code))
+    {
+        if (!is.character(intervention.code) || length(intervention.code)!=1 || is.na(intervention.code))
+            stop(paste0(error.prefix, "'intervention.code' must be a single, non-NA character value"))
+    }
+    
+    # Validate calibration.code
+    if (!is.null(calibration.code))
+    {
+        if (!is.character(calibration.code) || length(calibration.code)!=1 || is.na(calibration.code))
+            stop(paste0(error.prefix, "'calibration.code' must be a single, non-NA character value"))
+    }
+    
+    #-- Store data --#
+    data = list(outcome.numerators = outcome.numerators,
+                          outcome.denominators = outcome.denominators,
+                          parameters = parameters)
+    
+    metadata$solver.metadata = solver.metadata        
+    metadata$run.metadata = run.metadata
+    metadata$intervention.code = intervention.code
+    metadata$calibration.code = calibration.code
+    
+    metadata$is.degenerate = is.degenerate
+    metadata$finalized = finalize
+    
+    #-- Update the ontologies for non-cumulative, non-intrinsic outcomes --#
+    outcomes = names(metadata$outcome.ontologies)
+    for (outcome.name in outcomes)
+    {
+        metadata = metadata$outcome.metadata[[outcome.name]]
+        if (!metadata$is.cumulative && !metadata$is.intrinsic)
+        {
+            metadata$outcome.ontologies[[outcome.name]]$year = dimnames(outcome.numerators[[outcome.name]])$year
+        }
+    }
+    
+    JHEEM.SIMULATION.SET$new(jheem.kernel = jheem.kernel,
+                             data = data,
+                             metadata = metadata,
+                             sub.version = sub.version,
+                             error.prefix = error.prefix)
+}
+
 JHEEM.SIMULATION.SET = R6::R6Class(
     'jheem.simulation.set',
     inherit = SIMULATION.METADATA,
@@ -923,167 +1141,22 @@ JHEEM.SIMULATION.SET = R6::R6Class(
     
     public = list(
         initialize = function(jheem.kernel,
+                              data,
+                              metadata,
                               sub.version,
-                              outcome.numerators, # now must have sim dimension
-                              outcome.denominators, # now must have sim dimension
-                              parameters,
-                              from.year,
-                              to.year,
-                              n.sim,
-                              solver.metadata,
-                              run.metadata,
-                              intervention.code,
-                              calibration.code,
-                              outcome.location.mapping,
-                              is.degenerate = NULL,
-                              finalize, #a logical - should we add sampled parameters?
                               error.prefix = "Error constructing simulation")
         {
             #-- Call the superclass constructor --#
-            super$initialize(jheem.kernel.or.specification = jheem.kernel,
-                             specification.metadata = jheem.kernel$specification.metadata,
+            super$initialize(version = jheem.kernel$version,
+                             location = jheem.kernel$location,
                              sub.version = sub.version,
-                             type = "Simulation",
-                             outcome.location.mapping = outcome.location.mapping,
-                             years.can.be.missing = F,
-                             from.year = from.year,
-                             to.year = to.year,
-                             n.sim = n.sim,
+                             metadata = metadata,
+                             type = "Simulation Metadata",
                              error.prefix = error.prefix)
             
+            private$i.data = data
             private$i.jheem.kernel = jheem.kernel
             
-            # I have not yet written the validation code
-            
-            #-- Validate outcome data --#
-            
-            # Make sure all expected outcomes are present
-            # - Numerators for all
-            # - Denominators unless the type is number or non.negative.number
-            # Make sure they are numeric arrays with dimensions that match the ontology
-            # browser()
-            # if (!setequal(names(outcome.numerators), self$outcomes))
-            #     stop(paste0(error.prefix, "'outcome.numerators' must have an array for each outcome expected for this version and location"))
-            # if (!setequal(names(outcome.denominators) != self$outcomes))
-            #     stop(paste0(error.prefix, "'outcome.denominators' must have an array for each outcome expected for this version and location"))
-            # if (any(sapply(outcome.numerators, function(arr) {!is.numeric(arr) || !is.array(array())})))
-            #     stop(paste0(error.prefix, "'outcome.numerators' must contain only numeric arrays"))
-            # if (any(sapply(outcome.denominators, function(arr) {!is.numeric(arr) || !is.array(arr)})))
-            #     stop(paste0(error.prefix, "'outcome.denominators' must contain only numeric arrays"))
-            # 
-            # if (any(sapply(names(outcome.numerators), function(outcome) {
-            #     any(sapply(names(dim(outcome.numerators[[outcome]])), function(d) {
-            #         !setequal(dimnames(outcome.numerators[[outcome]])[[d]], self$outcome.ontologies[[outcome]][[d]]) # will years mess this up?
-            #     }))
-            # })))
-            #     stop(paste0(error.prefix, "each array in 'outcome.numerators' must have dimensions matching its outcome's ontology"))
-            # 
-            # if (any(sapply(names(outcome.denominators), function(outcome) {
-            #     any(sapply(names(dim(outcome.denominators[[outcome]])), function(d) {
-            #         !setequal(dimnames(outcome.denominators[[outcome]])[[d]], self$outcome.ontologies[[outcome]][[d]])
-            #     }))
-            # })))
-            #     stop(paste0(error.prefix, "each array in 'outcome.denominators' must have dimensions matching its outcome's ontology"))
-            
-            #-- Validate parameters --#
-            
-            # should be a matrix with one row for each sim
-            # dimnames(parameters)[[1]] must be set
-            if (!is.matrix(parameters) || !is.numeric(parameters))
-                stop(paste0(error.prefix, "'parameters' must be a numeric matrix"))
-            if (any(is.na(parameters)))
-                stop(paste0(error.prefix, "'parameters' cannot contain any NA values"))
-            if (is.null(dimnames(parameters)) || is.null(dimnames(parameters)[[1]]) || any(is.na(dimnames(parameters)[[1]])) || any(nchar(dimnames(parameters)[[1]])==0))
-                stop(paste0(error.prefix, "'parameters' must have dimnames set for its rows (dimension 1), and those names cannot be NA or empty strings"))
-            tabled.parameter.names = table(dimnames(parameters)[[1]])
-            if (any(tabled.parameter.names>1))
-                stop(paste0(error.prefix, "the parameter names, as given by dimnames(parameters)[[1]], must be UNIQUE. ",
-                            ifelse(sum(tabled.parameter.names>1)==1, "The parameter ", "Parameters "),
-                            collapse.with.and("'", names(tabled.parameter.names[tabled.parameter.names>1]), "'"),
-                            ifelse(sum(tabled.parameter.names>1)==1, " appears", " appear"),
-                            " more than once."))
-            
-            #-- If we are going to finalize: --#
-            #   - Add a random seed to base future numbers on
-            #   - Generate sampled parameters
-            
-            if (finalize)
-            {
-                private$i.metadata$seed = round(runif(1, 0, .Machine$integer.max))
-                
-                sampled.parameters.distribution = get.parameters.distribution.for.version(version, type='sampled')
-                
-                
-                if (!is.null(sampled.parameters.distribution))
-                {
-                    parameter.names = dimnames(parameters)[[1]]
-                    sampled.parameters.to.generate = setdiff(sampled.parameters.distribution@var.names,
-                                                             parameter.names)
-                    
-                    if (length(sampled.parameters.to.generate)>0)
-                    {
-                        reset.seed = round(runif(1, 0, .Machine$integer.max))
-                        set.seed(self$seed)
-                        
-                        new.parameters = generate.random.samples(sampled.parameters.to.generate, n=n.sim)
-                        set.seed(reset.seed) # this keeps our code from always setting to the same seed  
-                        
-                        parameters = rbind(t(new.parameters[,sampled.parameters.to.generate,drop=F]))
-                    }
-                }
-            }
-            
-        
-            # let's standardize the dimnames here
-            dimnames(parameters) = list(parameter = dimnames(parameters)[[1]],
-                                        sim = as.character(1:n.sim))
-            
-            #-- Update the outcome metadata's years for each of the non-cumulative outcomes --#
-            
-            # Validate run.metadata
-            if (!is(run.metadata, 'jheem.run.metadata'))
-                stop(paste0(error.prefix, "'run.metadata' must be an object of class 'jheem.run.metadata'"))
-            
-            # Validate solver.metadata
-            if (!is(solver.metadata, 'solver.metadata'))
-                stop(paste0(error.prefix, "'solver.metadata' must be an object of class 'solver.metadata'"))
-            
-            # Validate intervention.code
-            if (!is.null(intervention.code))
-            {
-                if (!is.character(intervention.code) || length(intervention.code)!=1 || is.na(intervention.code))
-                    stop(paste0(error.prefix, "'intervention.code' must be a single, non-NA character value"))
-            }
-
-            # Validate calibration.code
-            if (!is.null(calibration.code))
-            {
-                if (!is.character(calibration.code) || length(calibration.code)!=1 || is.na(calibration.code))
-                    stop(paste0(error.prefix, "'calibration.code' must be a single, non-NA character value"))
-            }
-            
-            #-- Store data --#
-            private$i.data = list(outcome.numerators = outcome.numerators,
-                                  outcome.denominators = outcome.denominators,
-                                  parameters = parameters)
-    
-            private$i.metadata$solver.metadata = solver.metadata        
-            private$i.metadata$run.metadata = run.metadata
-            private$i.metadata$intervention.code = intervention.code
-            private$i.metadata$calibration.code = calibration.code
-            
-            private$i.metadata$is.degenerate = is.degenerate
-            private$i.metadata$finalized = finalize
-            
-            #-- Update the ontologies for non-cumulative, non-intrinsic outcomes --#
-            for (outcome.name in self$outcomes)
-            {
-                metadata = private$i.metadata$outcome.metadata[[outcome.name]]
-                if (!metadata$is.cumulative && !metadata$is.intrinsic)
-                {
-                    private$i.metadata$outcome.ontologies[[outcome.name]]$year = dimnames(outcome.numerators[[outcome.name]])$year
-                }
-            }
             
             #-- Make Active Bindings with the Names of Outcomes --#
             outcomes.to.bind = setdiff(self$outcomes, names(self))
@@ -1299,7 +1372,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             })
             new.parameters = private$i.data$parameters[,x,drop=F]
             
-            JHEEM.SIMULATION.SET$new(jheem.kernel = self$jheem.kernel,
+            do.create.simulation.set(jheem.kernel = self$jheem.kernel,
                                      sub.version = self$sub.version,
                                      outcome.numerators = new.outcome.numerators,
                                      outcome.denominators = new.outcome.denominators,

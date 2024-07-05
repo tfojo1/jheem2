@@ -474,8 +474,7 @@ JHEEM.INTERVENTION = R6::R6Class(
             if (!sim$is.finalized)
                 stop(paste0(error.prefix, "Cannot run interventions on a simulation set that has not been finalized"))
             
-            self$validate(version = sim$version,
-                          location = sim$location,
+            self$validate(jheem.kernel = sim$jheem.kernel,
                           sub.version = sim$sub.version,
                           simulation.metadata = get.simulation.metadata(version = sim$version,
                                                                         location = sim$location,
@@ -551,44 +550,33 @@ JHEEM.INTERVENTION = R6::R6Class(
             stop("The method 'get.intervention.foregrounds' must be implemented in a descendant class of jheem.intervention")
         },
         
-        validate = function(version,
-                            location, 
+        validate = function(jheem.kernel,
                             sub.version = NULL,
                             simulation.metadata = NULL)
         {
     #        if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
     #            stop("Error in intervention$check.can.apply(): 'error.prefix' must be a single, non-NA character vector")
-            error.prefix = paste0("Intervention cannot apply to '", version, "' specification: ")
+            error.prefix = paste0("Intervention cannot apply to '", jheem.kernel$version, "' specification instance in this simulation: ")
             
-            specification = get.compiled.specification.for.version(version)
             foregrounds = self$get.intervention.foregrounds()
             
             foreground.quantities = sapply(foregrounds, function(frgd){frgd$quantity.name})
-            invalid.foreground.quantities = setdiff(foreground.quantities, specification$quantity.names)
+            invalid.foreground.quantities = setdiff(foreground.quantities, jheem.kernel$quantity.names)
             if (length(invalid.foreground.quantities)>0)
                 stop(paste0(error.prefix, collapse.with.and("'", invalid.foreground.quantities, "'"),
                             ifelse(length(invalid.foreground.quantities)==1, " is not a model quantity", " are not model quantities"),
-                            " defined in the '", version, "' specification"))
+                            " defined in the '", jheem.kernel$version, "' specification instance in this simulation"))
             
-            if (!is.null(location))
+            specification.metadata = jheem.kernel$specification.metadata
+            
+            # Use this function for its error checking
+            for (frgd in foregrounds)
             {
-                specification.metadata = get.specification.metadata(version=version, location=location, sub.version=sub.version)
-                
-                # Use this function for its error checking
-                for (frgd in foregrounds)
-                {
-                    for (tpop in frgd$target.populations)
-                        tpop$render.population.mask(specification.metadata, error.prefix=error.prefix)
-                }
+                for (tpop in frgd$target.populations)
+                    tpop$render.population.mask(specification.metadata, error.prefix=error.prefix)
             }
             
-            if (is.null(simulation.metadata) && !is.null(location))
-                simulation.metadata = get.simulation.metadata(version = version,
-                                                              location = location,
-                                                              sub.version = sub.version)
-            
-            private$do.validate(version = version,
-                                location = location,
+            private$do.validate(jheem.kernel,
                                 sub.version = sub.version,
                                 simulation.metadata = simulation.metadata,
                                 error.prefix = error.prefix)
@@ -654,8 +642,7 @@ JHEEM.INTERVENTION = R6::R6Class(
 #            stop("The method 'is.equal.to' must be implemented in a descendant class of jheem.intervention")
         },
 
-        do.validate = function(version,
-                               location,
+        do.validate = function(jheem.kernel,
                                sub.version,
                                simulation.metadata,
                                error.prefix)
@@ -773,7 +760,7 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
             private$i.foregrounds = private$i.foregrounds[order(names(private$i.foregrounds))]
         },
         
-        get.description = function(model.specification)
+        get.description = function(jheem.kernel)
         {
             stop("need to implement")
         },
@@ -1272,16 +1259,15 @@ CRITERIA.BASED.INTERVENTION = R6::R6Class(
             optim.best.sim
         },
         
-        do.validate = function(version,
-                               location, 
+        do.validate = function(jheem.kernel,
                                sub.version = NULL,
                                simulation.metadata = NULL,
                                error.prefix = '')
         {
             for (criterion in private$i.completion.criteria)
-                criterion$validate(version = version,
+                criterion$validate(jheem.kernel = jheem.kernel,
                                    sub.version = sub.version,
-                                   simulation.metadata,
+                                   simulation.metadata = simulation.metadata,
                                    error.prefix = error.prefix)
         }
     )
@@ -1307,7 +1293,7 @@ JHEEM.INTERVENTION.CRITERION = R6::R6Class(
             stop("score.sim() for a jheem.intervention.criterion must be implemented at the subclass level")
         },
         
-        validate = function(version,
+        validate = function(jheem.kernel,
                             sub.version = NULL,
                             simulation.metadata = NULL,
                             error.prefix = '')
@@ -1639,7 +1625,7 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             stop('need to implement equals for outcome-based criterion')
         },
         
-        validate = function(version,
+        validate = function(jheem.kernel,
                             sub.version = NULL,
                             simulation.metadata = NULL,
                             error.prefix = '')
@@ -1649,11 +1635,10 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             
             error.prefix = paste0(error.prefix, "Invalid criterion for '", private$i.outcome, "' - ")
             
-            specification = get.compiled.specification.for.version(version)
-            outcome = specification$get.outcome(private$i.outcome)
+            outcome = jheem.kernel$get.outcome.kernel(private$i.outcome)
             
             if (is.null(outcome))
-                stop(paste0(error.prefix, "'", private$i.outcome, "' is not a registered outcome for the '", version, "' specification"))
+                stop(paste0(error.prefix, "'", private$i.outcome, "' is not a registered outcome for the '", jheem.kernel$version, "' specification instance in this simulation"))
             
             if (!is.null(outcome$sub.versions) && !is.null(sub.version) && all(outcome$sub.versions!=sub.version))
                 stop(paste0(error.prefix, "'", private$i.outcome, "' is not a registered outcome for sub-version '", sub.version, 
@@ -1663,13 +1648,13 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             if (length(invalid.stratify.dimensions)>0)
                 stop(paste0(error.prefix, collapse.with.and("'", invalid.stratify.dimensions, "'"),
                             ifelse(length(invalid.stratify.dimensions)==1, " is not a dimension of", " are not dimensions of"),
-                            " the '", private$i.outcome, "' outcome in the '", version, "' specification - and so cannot be used to stratify the outcome for the criterion"))
+                            " the '", private$i.outcome, "' outcome in the '", jheem.kernel$version, "' specification instance in this simulation - and so cannot be used to stratify the outcome for the criterion"))
             
             invalid.dimension.value.dimensions = setdiff(names(private$i.dimension.values), c(outcome$keep.dimensions, 'year'))
             if (length(invalid.dimension.value.dimensions)>0)
                 stop(paste0(error.prefix, collapse.with.and("'", invalid.dimension.value.dimensions, "'"),
                             ifelse(length(invalid.dimension.value.dimensions)==1, " is not a dimension of", " are not dimensions of"),
-                            " the '", private$i.outcome, "' outcome in the '", version, "' specification - and so cannot be used to specify dimension values of the criterion"))
+                            " the '", private$i.outcome, "' outcome in the '", jheem.kernel$version, "' specification instance in this simulation - and so cannot be used to specify dimension values of the criterion"))
             
             if (!is.null(simulation.metadata))
             {
@@ -1687,7 +1672,7 @@ JHEEM.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                             stop(paste0(error.prefix, collapse.with.and("'", invalid.values, "'"),
                                         ifelse(length(invalid.values)==1, " is not a valid value", " are valid values"),
                                         " in the '", d, "' dimension of outcome '", private$i.outcome, 
-                                        "' in the '", version, "' specification - and so cannot be used as dimension values in the criterion"))
+                                        "' in the '", specification.metadata$version, "' specification instance in this simulation - and so cannot be used as dimension values in the criterion"))
                     }
                 }
             }
