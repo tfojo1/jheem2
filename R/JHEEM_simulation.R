@@ -92,8 +92,8 @@ rerun.simulations <- function(simset,
     if (verbose)
         cat("Creating engine to re-run simulations...")
     
-    jheem.kernel = create.jheem.kernel(version = version,
-                                       location = location)
+    jheem.kernel = create.jheem.kernel(version = simset$version,
+                                       location = simset$location)
     
     engine = do.create.jheem.engine(jheem.kernel = jheem.kernel,
                                     sub.version = simset$sub.version,
