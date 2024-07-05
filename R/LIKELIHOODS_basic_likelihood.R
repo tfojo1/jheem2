@@ -1046,10 +1046,21 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                              numeric(private$i.n.obs)
             )
             
+            if (private$i.outcome.is.proportion || private$i.outcome.is.rate)
+            {
+                obs = private$i.obs.vector * n.vector
+                measurement.error.cov.mat = n.vector %*% t(n.vector) * private$i.measurement.error.covariance.matrix
+            }
+            else
+            {
+                obs = private$i.obs.vector
+                measurement.error.cov.mat = private$i.measurement.error.covariance.matrix
+            }
+            
             sigma = get_basic_likelihood_sigma(sim.numerator.data,
                                                expanded.sim.denominator.data,
                                                private$i.transformation.matrix.indices,
-                                               private$i.measurement.error.covariance.matrix,
+                                               measurement.error.cov.mat,
                                                private$i.n.obs,
                                                sigma = numeric(private$i.n.obs ^ 2), # maybe define before this?
                                                use.poisson
@@ -1061,11 +1072,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             if (!is.null(private$i.inverse.multiplier.matrix.times.cov.mat)) {
                 sigma = sigma + private$i.inverse.multiplier.matrix.times.cov.mat * (sigma + mean %*% t(mean))
             }
-            
-            if (private$i.outcome.is.proportion || private$i.outcome.is.rate)
-                obs = private$i.obs.vector * n.vector
-            else
-                obs = private$i.obs.vector
             
 
             if (private$i.use.lognormal.approximation)
