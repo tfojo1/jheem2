@@ -1326,6 +1326,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             individual.dimnames = dimnames(rv[[1]]) # which might be all we have
             rv = unlist(rv, recursive = FALSE)
+            browser()
             dim(rv) = sapply(individual.dimnames, length)
             dimnames(rv) = individual.dimnames
             
@@ -1496,7 +1497,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 }
             }
             
-            engine = do.create.jheem.engine(jheem.engine = private$i.jheem.engine,
+            engine = do.create.jheem.engine(jheem.kernel = private$i.jheem.kernel,
                                             sub.version = private$i.sub.version,
                                             start.year = start.year,
                                             end.year = end.year,
