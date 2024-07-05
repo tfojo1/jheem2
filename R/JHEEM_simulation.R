@@ -61,15 +61,19 @@ get.simulation.metadata <- function(version,
     specification = get.compiled.specification.for.version(version)
     specification.metadata = do.get.specification.metadata(specification, location, error.prefix = error.prefix)
     
-    SIMULATION.METADATA$new(
-        make.simulation.metadata.field(jheem.kernel.or.specification = specification,
-                                       specification.metadata = specification.metadata,
-                                       sub.version = sub.version,
-                                       outcome.location.mapping = NULL,
-                                       from.year=from.year,
-                                       to.year=to.year,
-                                       n.sim = n.sim,
-                                       error.prefix=error.prefix))
+    SIMULATION.METADATA$new(version = version,
+                            location = location,
+                            sub.version = sub.version,
+                            metadata =  make.simulation.metadata.field(jheem.kernel.or.specification = specification,
+                                                                       specification.metadata = specification.metadata,
+                                                                       sub.version = sub.version,
+                                                                       outcome.location.mapping = NULL,
+                                                                       from.year=from.year,
+                                                                       to.year=to.year,
+                                                                       n.sim = n.sim,
+                                                                       error.prefix=error.prefix),
+                            type = "Simulation Metadata",
+                            error.prefix = error.prefix)
 }
 
 #'@name Rerun a Simulation Set
@@ -408,6 +412,7 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
     else
         metadata$outcome.location.mapping = outcome.location.mapping
     
+    metadata
 }
 
 
@@ -1119,8 +1124,8 @@ do.create.simulation.set <- function(jheem.kernel,
     outcomes = names(metadata$outcome.ontologies)
     for (outcome.name in outcomes)
     {
-        metadata = metadata$outcome.metadata[[outcome.name]]
-        if (!metadata$is.cumulative && !metadata$is.intrinsic)
+        outcome.metadata = metadata$outcome.metadata[[outcome.name]]
+        if (!outcome.metadata$is.cumulative && !outcome.metadata$is.intrinsic)
         {
             metadata$outcome.ontologies[[outcome.name]]$year = dimnames(outcome.numerators[[outcome.name]])$year
         }
