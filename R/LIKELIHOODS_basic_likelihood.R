@@ -1103,19 +1103,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 #to do at instantiate time: obs = private$i.lag.matrix %*% obs
             }
             
-            # if (private$i.outcome.is.proportion)
-            #     likelihood = mvtnorm::dmvnorm(private$i.obs.vector * n.vector,
-            #                                   mean = mean,
-            #                                   sigma = matrix(sigma, nrow=length(private$i.obs.vector), ncol=length(private$i.obs.vector)),
-            #                                   log=T,
-            #                                   checkSymmetry = F)
-            # else
-            #     likelihood = mvtnorm::dmvnorm(private$i.obs.vector,
-            #                                   mean = mean,
-            #                                   sigma = matrix(sigma, nrow=length(private$i.obs.vector), ncol=length(private$i.obs.vector)),
-            #                                   log=T,
-            #                                   checkSymmetry = F)
-            
             likelihood = mvtnorm::dmvnorm(obs,
                                           mean = mean,
                                           sigma = sigma,
@@ -1126,8 +1113,10 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             if (debug) {
                 if (private$i.calculate.lagged.difference)
                     lik.summary = cbind(obs=obs, mean=mean, sd=sqrt(diag(sigma)))
+                else if (!is.null(n.vector))
+                    lik.summary = cbind(private$i.metadata, obs=obs/n.vector, mean/n.vector, sd=sqrt(diag(sigma))/n.vector)
                 else
-                    lik.summary = cbind(private$i.metadata, obs=private$i.obs.vector, mean, sd=sqrt(diag(sigma)))
+                    lik.summary = cbind(private$i.metadata, obs=obs, mean, sd=sqrt(diag(sigma)))
                 browser()
             } 
             return(likelihood)
