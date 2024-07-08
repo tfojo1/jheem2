@@ -829,10 +829,10 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
             ## ---- GENERATE LAGGED PAIRS IF REQUESTED ---- ##
             if (private$i.calculate.lagged.difference) {
-                private$i.metadata$year = suppressWarnings(as.numeric(private$i.metadata$year))
-                if (any(is.na(private$i.metadata$year)))
+                year.for.lag = suppressWarnings(as.numeric(private$i.metadata$year))
+                if (any(is.na(year.for.lag)))
                     stop(paste0(error.prefix, "'calculate.lagged.difference' can only be used with single-year data points"))
-                private$i.lagged.pairs = generate_lag_matrix_indices(private$i.metadata$year,# check if valid -- no year ranges, please!
+                private$i.lagged.pairs = generate_lag_matrix_indices(year.for.lag,# check if valid -- no year ranges, please!
                                                                      rep(0, nrow(private$i.metadata)), # location not used for basic likelihoods but is available for nested prop likelihoods
                                                                      as.integer(as.factor(private$i.metadata$stratum)),
                                                                      as.integer(as.factor(private$i.metadata$source)),
@@ -840,6 +840,9 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 if (length(private$i.lagged.pairs)==0)
                     stop(paste0(error.prefix, "no data found for lagged-year pairs"))
                 private$i.n.lagged.obs = length(private$i.lagged.pairs)/2
+                
+                # Keep only the latter years for each pair
+                private$i.metadata.for.lag = private$i.metadata[private$i.lagged.pairs[rep(c(T,F), private$i.n.lagged.obs)] + 1, ]
             }
             # browser()
             ## ---- GENERATE TRANSFORMATION MATRIX ---- ##
@@ -899,8 +902,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                     measurement.error.sd = private$i.obs.vector * private$i.parameters$error.variance.term
                 private$i.measurement.error.covariance.matrix = measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
             }
-            # dim(private$i.obs.error) = c(n.obs, n.obs) #I don't have to do this, do I?
-            
             
             ## included multiplier to make inverse multiplier matrix times covariance matrix
             if (!is.null(private$i.parameters$included.multiplier)) {
@@ -1012,6 +1013,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         i.use.lognormal.approximation = NULL,
         i.calculate.lagged.difference = NULL,
         i.lagged.pairs = NULL,
+        i.metadata.for.lag = NULL,
         
         do.compute = function(sim, log, check.consistency, debug)
         {
@@ -1112,7 +1114,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                         
             if (debug) {
                 if (private$i.calculate.lagged.difference)
-                    lik.summary = cbind(obs=obs, mean=mean, sd=sqrt(diag(sigma)))
+                    lik.summary = cbind(private$i.metadata.for.lag, obs=obs, mean=mean, sd=sqrt(diag(sigma)))
                 else if (!is.null(n.vector))
                     lik.summary = cbind(private$i.metadata, obs=obs/n.vector, mean/n.vector, sd=sqrt(diag(sigma))/n.vector)
                 else
