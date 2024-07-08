@@ -146,6 +146,10 @@ prepare.plot <- function(...,
             simset.list = simset.args
     }
     
+    # *corresponding.data.outcomes' is NULL or a vector with outcomes as names
+    if (!is.null(corresponding.data.outcomes) && (!is.character(corresponding.data.outcomes) || any(is.na(corresponding.data.outcomes)) || is.null(names(corresponding.data.outcomes)) || !all(names(corresponding.data.outcomes) %in% outcomes)))
+        stop(paste0(error.prefix, "'corresponding.data.outcomes' must be NULL or a character vector with outcomes as names and all of those outcomes specified in either the 'outcomes' argument or in '...'"))
+    
     # if *plot.year.lag.ratio* is true, we can have only one outcome
     if (plot.year.lag.ratio && length(outcomes)>1)
         stop(paste0(error.prefix, "only one outcome can be used with 'plot.year.lag.ratio'"))
@@ -171,7 +175,6 @@ prepare.plot <- function(...,
     # sims do not all have each outcome because of sub-versions
     
     # likelihoods need to share their outcome for sim and data, and think about what joint likelihoods. One simulation has one (usually joint) likelihood (instructions)
-    # browser()
     outcomes.for.data = sapply(outcomes, function(outcome) {
         if (outcome %in% names(corresponding.data.outcomes))
             return(corresponding.data.outcomes[[outcome]])
@@ -185,6 +188,19 @@ prepare.plot <- function(...,
         }
         corresponding.observed.outcome
     })
+    
+    outcome.display.names = list()
+    for (outcome in outcomes) {
+        display.name = outcome
+        i = 1
+        while (i <= length(simset.list)) {
+            if (outcome %in% names(simset.list[[i]]$outcome.metadata)) {
+                display.name = simset.list[[i]]$outcome.metadata[[outcome]]$display.name
+                break
+            } else i = i + 1
+        }
+        outcome.display.names[outcome] = display.name
+    }
     
     outcome.ontologies = lapply(outcomes, function(outcome) {
         if (is.null(target.ontology) || FALSE)
@@ -265,6 +281,7 @@ prepare.plot <- function(...,
                 
                 corresponding.outcome = names(outcomes.for.data)[[i]]
                 one.df.outcome['outcome'] = corresponding.outcome
+                one.df.outcome['outcome.display.name'] = outcome.display.names[corresponding.outcome]
                 df.truth = rbind(df.truth, one.df.outcome)
             }
         }
@@ -323,6 +340,9 @@ prepare.plot <- function(...,
                 one.df.sim.this.outcome['linewidth'] = 1/sqrt(simset$n.sim) # have style manager create this later?
                 one.df.sim.this.outcome['alpha'] = one.df.sim.this.outcome['linewidth'] # same comment as above; USED to be 20 * this
                 
+                # Make a "outcome.long.name" column so that the facet.by can present it instead of the short name
+                one.df.sim.this.outcome['outcome.display.name'] = simset.list[[i]]$outcome.metadata[[outcome]]$display.name
+                
                 df.sim = rbind(df.sim, one.df.sim.this.outcome)
             }
         }
@@ -333,8 +353,6 @@ prepare.plot <- function(...,
             if (!is.null(df.sim[['value.mean']])) df.sim$value = df.sim$value.mean
             if (!is.null(df.sim[['value.median']])) df.sim$value = df.sim$value.median
         }
-        
-        
         
         # make whatever column corresponds to split by actually be called "stratum" and same for facet.by.
         if (!is.null(split.by)) df.sim["stratum"] = df.sim[split.by]
@@ -587,9 +605,9 @@ execute.simplot <- function(prepared.plot.data,
     
     #-- FACET --#
     if (is.null(facet.by))
-        facet.formula = as.formula("~outcome")
+        facet.formula = as.formula("~outcome.display.name")
     else
-        facet.formula = as.formula("~outcome + facet.by")
+        facet.formula = as.formula("~outcome.display.name + facet.by")
     if (!is.null(n.facet.rows))
         rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y', nrow=n.facet.rows)
     else
