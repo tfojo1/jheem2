@@ -50,6 +50,7 @@ source('../jheem2/R/SPECIFICATION_metadata.R')
 Rcpp::sourceCpp('../jheem2/src/engine_helpers.cpp')
 Rcpp::sourceCpp('../jheem2/src/calculate_quantity_background_value.cpp')
 Rcpp::sourceCpp('../jheem2/src/diffeq.cpp')
+Rcpp::sourceCpp('../jheem2/src/outcomes.cpp')
 
 source('../jheem2/R/JHEEM_run_metadata.R')
 source('../jheem2/R/JHEEM_kernel.R')

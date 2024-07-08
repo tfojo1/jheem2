@@ -149,48 +149,123 @@ rerun.simulations <- function(simset,
 ##-----------------------------------------------------------##
 ##-----------------------------------------------------------##
 
-create.single.simulation <- function(jheem.kernel,
-                                     sub.version,
-                                     outcome.numerators, # no sim dimension
-                                     outcome.denominators, # no sim dimension
-                                     parameters,
-                                     from.year,
-                                     to.year,
-                                     intervention.code,
-                                     calibration.code,
-                                     outcome.location.mapping,
-                                     solver.metadata,
-                                     run.metadata,
-                                     finalize,
-                                     is.degenerate)
-{
-    outcome.numerators.with.sim.dimension = lapply(outcome.numerators, function(arr) {
-        new.dimnames = c(dimnames(arr), sim=1)
-        array(arr, dim=sapply(new.dimnames, length), new.dimnames)
-    })
-    outcome.denominators.with.sim.dimension = lapply(outcome.denominators, function(arr) {
-        if (is.null(arr)) return(arr)
-        new.dimnames = c(dimnames(arr), sim=1)
-        array(arr, dim=sapply(new.dimnames, length), new.dimnames)
-    })
-    parameters = matrix(parameters, ncol=1, dimnames=list(parameter=names(parameters), sim=NULL)) # used to say "parameters.indexed.by.sim = list('1'=parameters)" but I don't think I need the character number there. When simsets are joined, the index is meaningless anyways
+SINGLE.SIMULATION.MAKER = R6::R6Class(
+    'single.simulation.maker',
     
-    do.create.simulation.set(jheem.kernel = jheem.kernel,
-                             sub.version = sub.version,
-                             outcome.numerators = outcome.numerators.with.sim.dimension,
-                             outcome.denominators = outcome.denominators.with.sim.dimension,
-                             parameters = parameters,
-                             from.year = from.year,
-                             to.year = to.year,
-                             n.sim = 1,
-                             intervention.code = intervention.code,
-                             calibration.code = calibration.code,
-                             outcome.location.mapping = outcome.location.mapping,
-                             solver.metadata = solver.metadata,
-                             run.metadata = run.metadata,
-                             finalize = finalize,
-                             is.degenerate = is.degenerate)
-}
+    public = list(
+        
+        initialize = function(jheem.kernel,
+                              sub.version,
+                              from.year,
+                              to.year,
+                              solver.metadata,
+                              intervention.code,
+                              calibration.code,
+                              outcome.location.mapping,
+                              error.prefix)
+        {
+            private$i.jheem.kernel = jheem.kernel
+            
+            private$i.metadata = make.simulation.metadata.field(jheem.kernel.or.specification = jheem.kernel,
+                                                                specification.metadata = jheem.kernel$specification.metadata,
+                                                                sub.version = sub.version,
+                                                                outcome.location.mapping = outcome.location.mapping,
+                                                                from.year = from.year,
+                                                                to.year = to.year,
+                                                                n.sim = 1,
+                                                                solver.metadata = solver.metadata,
+                                                                intervention.code = intervention.code,
+                                                                calibration.code = calibration.code,
+                                                                error.prefix = error.prefix)
+        },
+        
+        make.simulation = function(outcome.numerators, # now must have sim dimension
+                                   outcome.denominators, # now must have sim dimension
+                                   parameters,
+                                   run.metadata,
+                                   is.degenerate,
+                                   finalize,
+                                   error.prefix)
+        {
+            outcome.numerators.with.sim.dimension = lapply(outcome.numerators, function(arr) {
+                new.dimnames = c(dimnames(arr), sim=1)
+                #array(arr, dim=sapply(new.dimnames, length), new.dimnames)
+                
+                dim(arr) = sapply(new.dimnames, length)
+                dimnames(arr) = new.dimnames
+                arr
+            })
+            outcome.denominators.with.sim.dimension = lapply(outcome.denominators, function(arr) {
+                if (is.null(arr)) return(arr)
+                new.dimnames = c(dimnames(arr), sim=1)
+                #array(arr, dim=sapply(new.dimnames, length), new.dimnames)
+                
+                dim(arr) = sapply(new.dimnames, length)
+                dimnames(arr) = new.dimnames
+                arr
+            })
+            parameters = matrix(parameters, ncol=1, dimnames=list(parameter=names(parameters), sim=NULL)) # used to say "parameters.indexed.by.sim = list('1'=parameters)" but I don't think I need the character number there. When simsets are joined, the index is meaningless anyways
+            
+            do.create.simulation.set.from.metadata(metadata = private$i.metadata,
+                                                   jheem.kernel = private$i.jheem.kernel,
+                                                   outcome.numerators = outcome.numerators.with.sim.dimension,
+                                                   outcome.denominators = outcome.denominators.with.sim.dimension,
+                                                   parameters = parameters,
+                                                   run.metadata = run.metadata,
+                                                   is.degenerate = is.degenerate,
+                                                   finalize = finalize,
+                                                   error.prefix = error.prefix)
+        }
+    ),
+    
+    private = list(
+        i.jheem.kernel = NULL,
+        i.metadata = NULL   
+    )
+)
+
+# create.single.simulation <- function(jheem.kernel,
+#                                      sub.version,
+#                                      outcome.numerators, # no sim dimension
+#                                      outcome.denominators, # no sim dimension
+#                                      parameters,
+#                                      from.year,
+#                                      to.year,
+#                                      intervention.code,
+#                                      calibration.code,
+#                                      outcome.location.mapping,
+#                                      solver.metadata,
+#                                      run.metadata,
+#                                      finalize,
+#                                      is.degenerate)
+# {
+#     outcome.numerators.with.sim.dimension = lapply(outcome.numerators, function(arr) {
+#         new.dimnames = c(dimnames(arr), sim=1)
+#         array(arr, dim=sapply(new.dimnames, length), new.dimnames)
+#     })
+#     outcome.denominators.with.sim.dimension = lapply(outcome.denominators, function(arr) {
+#         if (is.null(arr)) return(arr)
+#         new.dimnames = c(dimnames(arr), sim=1)
+#         array(arr, dim=sapply(new.dimnames, length), new.dimnames)
+#     })
+#     parameters = matrix(parameters, ncol=1, dimnames=list(parameter=names(parameters), sim=NULL)) # used to say "parameters.indexed.by.sim = list('1'=parameters)" but I don't think I need the character number there. When simsets are joined, the index is meaningless anyways
+#     
+#     do.create.simulation.set(jheem.kernel = jheem.kernel,
+#                              sub.version = sub.version,
+#                              outcome.numerators = outcome.numerators.with.sim.dimension,
+#                              outcome.denominators = outcome.denominators.with.sim.dimension,
+#                              parameters = parameters,
+#                              from.year = from.year,
+#                              to.year = to.year,
+#                              n.sim = 1,
+#                              intervention.code = intervention.code,
+#                              calibration.code = calibration.code,
+#                              outcome.location.mapping = outcome.location.mapping,
+#                              solver.metadata = solver.metadata,
+#                              run.metadata = run.metadata,
+#                              finalize = finalize,
+#                              is.degenerate = is.degenerate)
+# }
 
 derive.degenerate.simulation <- function(sim)
 {
@@ -309,6 +384,9 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
                                            from.year = NULL,
                                            to.year = NULL,
                                            n.sim = 1,
+                                           solver.metadata = NULL,
+                                           intervention.code = NULL,
+                                           calibration.code = NULL,
                                            type = "Simulation Metadata",
                                            years.can.be.missing = T,
                                            error.prefix)
@@ -411,6 +489,29 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
         stop(paste0(error.prefix, "'outcome.location.mapping' must be an object of class 'outcome.location.mapping'"))
     else
         metadata$outcome.location.mapping = outcome.location.mapping
+    
+    
+    # Validate solver.metadata
+    if (!is.null(solver.metadata) && !is(solver.metadata, 'solver.metadata'))
+        stop(paste0(error.prefix, "'solver.metadata' must be an object of class 'solver.metadata'"))
+    
+    # Validate intervention.code
+    if (!is.null(intervention.code))
+    {
+        if (!is.character(intervention.code) || length(intervention.code)!=1 || is.na(intervention.code))
+            stop(paste0(error.prefix, "'intervention.code' must be a single, non-NA character value"))
+    }
+    
+    # Validate calibration.code
+    if (!is.null(calibration.code))
+    {
+        if (!is.character(calibration.code) || length(calibration.code)!=1 || is.na(calibration.code))
+            stop(paste0(error.prefix, "'calibration.code' must be a single, non-NA character value"))
+    }
+
+    metadata$solver.metadata = solver.metadata        
+    metadata$intervention.code = intervention.code
+    metadata$calibration.code = calibration.code
     
     metadata
 }
@@ -693,6 +794,30 @@ SIMULATION.METADATA = R6::R6Class(
                 private$i.metadata$n.sim
             else
                 stop("Cannot modify a simulation.set's 'n.sim' - it is read-only")
+        },
+        
+        solver.metadata = function(value)
+        {
+            if (missing(value))
+                private$i.metadata$solver.metadata
+            else
+                stop("Cannot modify a simulation.set's 'solver.metadata' - it is read-only")
+        },
+        
+        calibration.code = function(value)
+        {
+            if (missing(value))
+                private$i.metadata$calibration.code
+            else
+                stop("Cannot modify a simulation.set's 'calibration.code' - it is read-only")
+        },
+        
+        intervention.code = function(value)
+        {
+            if (missing(value))
+                private$i.metadata$intervention.code
+            else
+                stop("Cannot modify a simulation.set's 'intervention.code' - it is read-only")
         }
     ),
     
@@ -996,57 +1121,62 @@ do.create.simulation.set <- function(jheem.kernel,
                                               from.year = from.year,
                                               to.year = to.year,
                                               n.sim = n.sim,
+                                              solver.metadata = solver.metadata,
+                                              intervention.code = intervention.code,
+                                              calibration.code = calibration.code,
                                               error.prefix = error.prefix)
+    
+    do.create.simulation.set.from.metadata(metadata = metadata,
+                                           jheem.kernel = jheem.kernel,
+                                           outcome.numerators = outcome.numerators,
+                                           outcome.denominators = outcome.denominators,
+                                           parameters = parameters,
+                                           run.metadata = run.metadata,
+                                           is.degenerate = is.degenerate,
+                                           finalize = finalize,
+                                           error.prefix = error.prefix)
+}
+
+do.create.simulation.set.from.metadata <- function(metadata,
+                                                   jheem.kernel,
+                                                   outcome.numerators,
+                                                   outcome.denominators,
+                                                   parameters,
+                                                   run.metadata,
+                                                   is.degenerate,
+                                                   finalize,
+                                                   error.prefix)
+{
     
     # I have not yet written the validation code
     
-    #-- Validate outcome data --#
-    
-    # Make sure all expected outcomes are present
-    # - Numerators for all
-    # - Denominators unless the type is number or non.negative.number
-    # Make sure they are numeric arrays with dimensions that match the ontology
-    # browser()
-    # if (!setequal(names(outcome.numerators), self$outcomes))
-    #     stop(paste0(error.prefix, "'outcome.numerators' must have an array for each outcome expected for this version and location"))
-    # if (!setequal(names(outcome.denominators) != self$outcomes))
-    #     stop(paste0(error.prefix, "'outcome.denominators' must have an array for each outcome expected for this version and location"))
-    # if (any(sapply(outcome.numerators, function(arr) {!is.numeric(arr) || !is.array(array())})))
-    #     stop(paste0(error.prefix, "'outcome.numerators' must contain only numeric arrays"))
-    # if (any(sapply(outcome.denominators, function(arr) {!is.numeric(arr) || !is.array(arr)})))
-    #     stop(paste0(error.prefix, "'outcome.denominators' must contain only numeric arrays"))
-    # 
-    # if (any(sapply(names(outcome.numerators), function(outcome) {
-    #     any(sapply(names(dim(outcome.numerators[[outcome]])), function(d) {
-    #         !setequal(dimnames(outcome.numerators[[outcome]])[[d]], self$outcome.ontologies[[outcome]][[d]]) # will years mess this up?
-    #     }))
-    # })))
-    #     stop(paste0(error.prefix, "each array in 'outcome.numerators' must have dimensions matching its outcome's ontology"))
-    # 
-    # if (any(sapply(names(outcome.denominators), function(outcome) {
-    #     any(sapply(names(dim(outcome.denominators[[outcome]])), function(d) {
-    #         !setequal(dimnames(outcome.denominators[[outcome]])[[d]], self$outcome.ontologies[[outcome]][[d]])
-    #     }))
-    # })))
-    #     stop(paste0(error.prefix, "each array in 'outcome.denominators' must have dimensions matching its outcome's ontology"))
-    
+
     #-- Validate parameters --#
     
     # should be a matrix with one row for each sim
     # dimnames(parameters)[[1]] must be set
-    if (!is.matrix(parameters) || !is.numeric(parameters))
-        stop(paste0(error.prefix, "'parameters' must be a numeric matrix"))
-    if (any(is.na(parameters)))
-        stop(paste0(error.prefix, "'parameters' cannot contain any NA values"))
-    if (is.null(dimnames(parameters)) || is.null(dimnames(parameters)[[1]]) || any(is.na(dimnames(parameters)[[1]])) || any(nchar(dimnames(parameters)[[1]])==0))
-        stop(paste0(error.prefix, "'parameters' must have dimnames set for its rows (dimension 1), and those names cannot be NA or empty strings"))
-    tabled.parameter.names = table(dimnames(parameters)[[1]])
-    if (any(tabled.parameter.names>1))
-        stop(paste0(error.prefix, "the parameter names, as given by dimnames(parameters)[[1]], must be UNIQUE. ",
-                    ifelse(sum(tabled.parameter.names>1)==1, "The parameter ", "Parameters "),
-                    collapse.with.and("'", names(tabled.parameter.names[tabled.parameter.names>1]), "'"),
-                    ifelse(sum(tabled.parameter.names>1)==1, " appears", " appear"),
-                    " more than once."))
+    # if (!is.matrix(parameters) || !is.numeric(parameters))
+    #     stop(paste0(error.prefix, "'parameters' must be a numeric matrix"))
+    # if (any(is.na(parameters)))
+    #     stop(paste0(error.prefix, "'parameters' cannot contain any NA values"))
+    # if (is.null(dimnames(parameters)) || is.null(dimnames(parameters)[[1]]) || any(is.na(dimnames(parameters)[[1]])) || any(nchar(dimnames(parameters)[[1]])==0))
+    #     stop(paste0(error.prefix, "'parameters' must have dimnames set for its rows (dimension 1), and those names cannot be NA or empty strings"))
+    # tabled.parameter.names = table(dimnames(parameters)[[1]])
+    # if (any(tabled.parameter.names>1))
+    #     stop(paste0(error.prefix, "the parameter names, as given by dimnames(parameters)[[1]], must be UNIQUE. ",
+    #                 ifelse(sum(tabled.parameter.names>1)==1, "The parameter ", "Parameters "),
+    #                 collapse.with.and("'", names(tabled.parameter.names[tabled.parameter.names>1]), "'"),
+    #                 ifelse(sum(tabled.parameter.names>1)==1, " appears", " appear"),
+    #                 " more than once."))
+    
+    
+    #-- Store data --#
+    data = list(outcome.numerators = outcome.numerators,
+                outcome.denominators = outcome.denominators,
+                parameters = parameters,
+                run.metadata = run.metadata,
+                is.degenerate = is.degenerate,
+                finalized = finalize)
     
     #-- If we are going to finalize: --#
     #   - Add a random seed to base future numbers on
@@ -1054,10 +1184,8 @@ do.create.simulation.set <- function(jheem.kernel,
     
     if (finalize)
     {
-        metadata$seed = round(runif(1, 0, .Machine$integer.max))
-        
+        data$seed = round(runif(1, 0, .Machine$integer.max))
         sampled.parameters.distribution = get.parameters.distribution.for.version(version, type='sampled')
-        
         
         if (!is.null(sampled.parameters.distribution))
         {
@@ -1070,7 +1198,7 @@ do.create.simulation.set <- function(jheem.kernel,
                 reset.seed = round(runif(1, 0, .Machine$integer.max))
                 set.seed(seed)
                 
-                new.parameters = generate.random.samples(sampled.parameters.to.generate, n=n.sim)
+                new.parameters = generate.random.samples(sampled.parameters.to.generate, n=metadata$n.sim)
                 set.seed(reset.seed) # this keeps our code from always setting to the same seed  
                 
                 parameters = rbind(t(new.parameters[,sampled.parameters.to.generate,drop=F]))
@@ -1078,48 +1206,11 @@ do.create.simulation.set <- function(jheem.kernel,
         }
     }
     
-    
     # let's standardize the dimnames here
     dimnames(parameters) = list(parameter = dimnames(parameters)[[1]],
-                                sim = as.character(1:n.sim))
+                                sim = as.character(1:metadata$n.sim))
     
     #-- Update the outcome metadata's years for each of the non-cumulative outcomes --#
-    
-    # Validate run.metadata
-    if (!is(run.metadata, 'jheem.run.metadata'))
-        stop(paste0(error.prefix, "'run.metadata' must be an object of class 'jheem.run.metadata'"))
-    
-    # Validate solver.metadata
-    if (!is(solver.metadata, 'solver.metadata'))
-        stop(paste0(error.prefix, "'solver.metadata' must be an object of class 'solver.metadata'"))
-    
-    # Validate intervention.code
-    if (!is.null(intervention.code))
-    {
-        if (!is.character(intervention.code) || length(intervention.code)!=1 || is.na(intervention.code))
-            stop(paste0(error.prefix, "'intervention.code' must be a single, non-NA character value"))
-    }
-    
-    # Validate calibration.code
-    if (!is.null(calibration.code))
-    {
-        if (!is.character(calibration.code) || length(calibration.code)!=1 || is.na(calibration.code))
-            stop(paste0(error.prefix, "'calibration.code' must be a single, non-NA character value"))
-    }
-    
-    #-- Store data --#
-    data = list(outcome.numerators = outcome.numerators,
-                          outcome.denominators = outcome.denominators,
-                          parameters = parameters)
-    
-    metadata$solver.metadata = solver.metadata        
-    metadata$run.metadata = run.metadata
-    metadata$intervention.code = intervention.code
-    metadata$calibration.code = calibration.code
-    
-    metadata$is.degenerate = is.degenerate
-    metadata$finalized = finalize
-    
     #-- Update the ontologies for non-cumulative, non-intrinsic outcomes --#
     outcomes = names(metadata$outcome.ontologies)
     for (outcome.name in outcomes)
@@ -1134,7 +1225,7 @@ do.create.simulation.set <- function(jheem.kernel,
     JHEEM.SIMULATION.SET$new(jheem.kernel = jheem.kernel,
                              data = data,
                              metadata = metadata,
-                             sub.version = sub.version,
+                             sub.version = metadata$sub.version,
                              error.prefix = error.prefix)
 }
 
@@ -1326,7 +1417,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             individual.dimnames = dimnames(rv[[1]]) # which might be all we have
             rv = unlist(rv, recursive = FALSE)
-            browser()
             dim(rv) = sapply(individual.dimnames, length)
             dimnames(rv) = individual.dimnames
             
@@ -1386,13 +1476,13 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                      from.year = self$from.year,
                                      to.year = self$to.year,
                                      n.sim = new.n.sim,
-                                     outcome.location.mapping = private$i.metadata$outcome.location.mapping,
-                                     calibration.code = private$i.metadata$calibration.code,
-                                     intervention.code = private$i.metadata$intervention.code,
-                                     run.metadata = private$i.metadata$run.metadata$subset(x),
-                                     solver.metadata = private$i.metadata$solver.metadata,
-                                     is.degenerate = private$i.metadata$is.degenerate[x],
-                                     finalize = private$i.metadata$finalized)
+                                     outcome.location.mapping = self$outcome.location.mapping,
+                                     calibration.code = self$calibration.code,
+                                     intervention.code = self$intervention.code,
+                                     run.metadata = self$run.metadata$subset(x),
+                                     solver.metadata = self$solver.metadata,
+                                     is.degenerate = self$is.degenerate[x],
+                                     finalize = self$is.finalized)
         },
         
         # n: keeps every nth (rounding DOWN) sim counting backwards from the last sim
@@ -1681,60 +1771,36 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 stop("Cannot modify a simulation.set's 'data' - it is read-only")
         },
         
-        solver.metadata = function(value)
-        {
-            if (missing(value))
-                private$i.metadata$solver.metadata
-            else
-                stop("Cannot modify a simulation.set's 'solver.metadata' - it is read-only")
-        },
-        
-        run.metadata = function(value)
-        {
-            if (missing(value))
-                private$i.metadata$run.metadata
-            else
-                stop("Cannot modify a simulation.set's 'run.metadata' - it is read-only")
-        },
-        
-        calibration.code = function(value)
-        {
-            if (missing(value))
-                private$i.metadata$calibration.code
-            else
-                stop("Cannot modify a simulation.set's 'calibration.code' - it is read-only")
-        },
-        
-        intervention.code = function(value)
-        {
-            if (missing(value))
-                private$i.metadata$intervention.code
-            else
-                stop("Cannot modify a simulation.set's 'intervention.code' - it is read-only")
-        },
-        
         is.degenerate = function(value)
         {
             if (missing(value))
-                private$i.metadata$is.degenerate
+                private$i.data$is.degenerate
             else
                 stop("Cannot modify a simulation.set's 'is.degenerate' - it is read-only")
-        },
-        
-        seed = function(value) #get's a random seed for this simulation set
-        {
-            if (missing(value))
-                private$i.metadata$seed
-            else
-                stop("Cannot modify a simulation.set's 'seed' - it is read-only")
         },
         
         is.finalized = function(value)
         {
             if (missing(value))
-                private$i.metadata$finalized
+                private$i.data$finalized
             else
                 stop("Cannot modify a simulation.set's 'is.finalized' - it is read-only")
+        },
+        
+        run.metadata = function(value)
+        {
+            if (missing(value))
+                private$i.data$run.metadata
+            else
+                stop("Cannot modify a simulation.set's 'run.metadata' - it is read-only")
+        },
+        
+        seed = function(value) #get's a random seed for this simulation set
+        {
+            if (missing(value))
+                private$i.data$seed
+            else
+                stop("Cannot modify a simulation.set's 'seed' - it is read-only")
         },
         
         jheem.kernel = function(value)
@@ -1750,15 +1816,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         i.jheem.kernel = NULL,
         i.data = NULL,
-        #i.run.metadata = NULL,
-        #i.solver.metadata = NULL,
-        # and i.metadata is in the parent sim.metadata object
-        
-        # i.calibration.code = NULL,
-        # i.intervention.code = NULL,
-        # i.is.degenerate = NULL,
-        # i.finalized = NULL,
-        # i.seed = NULL,
         
         # just for diagnostics, will be removed soon
         slowerFoo = function(dimension.values, ..., check.consistency, error.prefix) {

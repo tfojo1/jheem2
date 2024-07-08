@@ -1135,6 +1135,7 @@ JHEEM.ENGINE = R6::R6Class(
                                    keep.to.year = private$i.keep.to.year,
                                    prior.simulation.set = private$i.prior.simulation.set,
                                    prior.sim.index = prior.sim.index,
+                                   solver.metadata = private$i.solver.metadata,
                                    check.consistency = private$i.check.consistency)
             
             private$i.check.consistency = F
@@ -1448,6 +1449,7 @@ JHEEM = R6::R6Class(
                           keep.to.year,
                           prior.simulation.set,
                           prior.sim.index,
+                          solver.metadata,
                           check.consistency = !self$has.been.crunched())
         {
             # Set the times
@@ -1491,6 +1493,17 @@ JHEEM = R6::R6Class(
                                                                 check.consistency = check.consistency,
                                                                 error.prefix = paste0("Error preparing JHEEM to run (while setting up the diffeq interface): "))
             
+            # Set up the simulation maker
+            private$i.simulation.maker = SINGLE.SIMULATION.MAKER$new(jheem.kernel = private$i.kernel,
+                                                                     sub.version = private$i.sub.version,
+                                                                     from.year = private$i.keep.from.time,
+                                                                     to.year = private$i.keep.to.time,
+                                                                     solver.metadata = solver.metadata,
+                                                                     intervention.code = private$i.intervention.code,
+                                                                     calibration.code = private$i.calibration.code,
+                                                                     outcome.location.mapping = private$i.outcome.location.mapping,
+                                                                     error.prefix = "Error initializing single.simulation.maker from engine")
+            
             # Set the i.has.been.crunched flag
             private$i.has.been.crunched = T
             
@@ -1518,6 +1531,7 @@ JHEEM = R6::R6Class(
                         keep.to.year = keep.to.year,
                         prior.simulation.set = prior.simulation.set,
                         prior.sim.index = prior.sim.index,
+                        solver.metadata = solver.metadata,
                         check.consistency = check.consistency)
             
             # Set prior values
@@ -1581,21 +1595,13 @@ JHEEM = R6::R6Class(
                 run.metadata = append.run.metadata(prior.simulation.set$run.metadata$subset(prior.sim.index),
                                                    run.metadata)
             
-            sim = create.single.simulation(jheem.kernel = private$i.kernel,
-                                           sub.version = private$i.sub.version,
-                                           from.year = private$i.keep.from.time,
-                                           to.year = private$i.keep.to.time,
-                                           outcome.numerators = outcome.numerators.and.denominators$numerators,
-                                           outcome.denominators = outcome.numerators.and.denominators$denominators,
-                                           parameters = private$i.parameters,
-                                           solver.metadata = solver.metadata,
-                                           run.metadata = run.metadata,
-                                           intervention.code = private$i.intervention.code,
-                                           calibration.code = private$i.calibration.code,
-                                           outcome.location.mapping = private$i.outcome.location.mapping,
-                                           is.degenerate = ode.results$terminated.for.time,
-                                           finalize = finalize)
-
+            sim = private$i.simulation.maker$make.simulation(outcome.numerators = outcome.numerators.and.denominators$numerators,
+                                                             outcome.denominators = outcome.numerators.and.denominators$denominators,
+                                                             parameters = private$i.parameters,
+                                                             run.metadata = run.metadata,
+                                                             finalize = finalize,
+                                                             is.degenerate = ode.results$terminated.for.time,
+                                                             error.prefix = "Error making sim from engine")
             
             # Return
             sim
@@ -1815,7 +1821,7 @@ JHEEM = R6::R6Class(
             
             #-- Make sure we can apply --#
             check.foreground.can.apply.to.quantity(foreground = foreground,
-                                                   specification = specification,
+                                                   specification.or.kernel = private$i.kernel,
                                                    error.prefix = error.prefix)
                 # FYI, this function is defined in compiled_specification.R
             
@@ -2662,6 +2668,7 @@ JHEEM = R6::R6Class(
                 }
     
                 private$i.intervention.code = intervention.code
+                private$i.simulation.maker = NULL
             }
         },
         
@@ -2679,6 +2686,8 @@ JHEEM = R6::R6Class(
             
             private$i.calibration.code = calibration.code
             private$i.outcome.location.mapping = outcome.location.mapping
+            
+            private$i.simulation.maker = NULL
         },
 
         has.been.crunched = function()
@@ -2750,6 +2759,7 @@ JHEEM = R6::R6Class(
         
         #-- Specification Kernel --#
         i.kernel = NULL,
+        i.simulation.maker = NULL,
         
         #-- Element names/backgrounds --#
         i.element.names = NULL,
@@ -3132,6 +3142,9 @@ JHEEM = R6::R6Class(
                 private$clear.element.background.self.times(private$i.kernel$element.names)
                 private$clear.quantity.foreground.self.times(private$i.kernel$quantity.names)
                 private$clear.outcome.value.times.to.calculate(private$i.kernel$outcome.names)
+                
+                #-- Clear the simulation maker --#
+                private$i.simulation.maker = NULL
             }
             
             #-- KEEP years: Error Checks --#
@@ -5619,53 +5632,76 @@ JHEEM = R6::R6Class(
                 })
             }
             
+            
             outcome.numerators = lapply(outcome.names, function(outcome.name){
                 
-                # print(outcome.name)
-                # if (outcome.name=='sexual.transmission.rates')
-                #     browser()
                 outcome = private$i.kernel$get.outcome.kernel(outcome.name)
                 outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
                                       private$i.outcome.dim.names.sans.time[[outcome.name]])
                 
+                outcome.n = prod(sapply(private$i.outcome.dim.names.sans.time[[outcome.name]], length))
+                char.times = as.character(private$i.outcome.value.times[[outcome.name]])
                 
                 if (is.degenerate)
                     val = rep(as.numeric(NA), prod(sapply(outcome.dim.names, length)))
                 else
                 {
-                    if (!is.null(prior.simulation.set))
+                    if (is.null(prior.simulation.set))
                     {
-                        prior.sim.numerator = prior.simulation.set$data$outcome.numerators[[outcome.name]]
-                        if (is.null(prior.sim.numerator))
-                            stop(paste0("Error in extending simulations: we expected the outcome '", outcome.name, "' to be present in the prior simulation, but it is not there. This likely means that the '",
-                                        self$version, "' specification has been changed since the original simulations were run. Try rerun.simulations() to update your old simulations to the new version of the specification"))
-                        if (!dim.names.equal(dimnames(prior.sim.numerator)[setdiff(names(dim(prior.sim.numerator)), c('year','sim'))],
-                                             outcome.dim.names[setdiff(names(outcome.dim.names), 'year')], match.order.of.dimensions = T, match.order.within.dimensions = T))
-                            stop(paste0("Error in extending simulations: the '", outcome.name, "' outcome in the prior simulation does not have the dimnames we expect. This likely means that the '",
-                                        self$version, "' specification has been changed since the original simulations were run. Try rerun.simulations() to update your old simulations to the new version of the specification"))
-                            
-                        dim.names = c(dimnames(prior.sim.numerator)['year'],
-                                      other = 'temp',
-                                      dimnames(prior.sim.numerator)['sim'])
-                        dim.names$other = 1:(length(prior.sim.numerator) / prod(sapply(dim.names, length)))
-                        dim(prior.sim.numerator) = sapply(dim.names, length)
-                        dimnames(prior.sim.numerator) = dim.names
+                        val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
+                                                      char_desired_times = char.times,
+                                                      n_per_time = outcome.n,
+                                                      new_values = private$i.outcome.numerators[[outcome.name]],
+                                                      new_times = private$i.outcome.value.times.to.calculate[[outcome.name]],
+                                                      old_values = numeric(),
+                                                      old_times = 'nope',
+                                                      prior_sim_index = -1)
+                    }
+                    else
+                    {
+                        val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
+                                                      char_desired_times = char.times,
+                                                      n_per_time = outcome.n,
+                                                      new_values = private$i.outcome.numerators[[outcome.name]],
+                                                      new_times = private$i.outcome.value.times.to.calculate[[outcome.name]],
+                                                      old_values = prior.simulation.set$data$outcome.numerators[[outcome.name]],
+                                                      old_times = dimnames(prior.simulation.set$data$outcome.numerators[[outcome.name]])$year,
+                                                      prior_sim_index = prior.sim.index)
                     }
                     
-                    val = t(sapply(private$i.outcome.value.times[[outcome.name]], function(y){
-                        
-                        if (length(private$i.outcome.value.times.to.calculate[[outcome.name]])>0 &&
-                            y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
-                            y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
-                        {
-                            private$i.outcome.numerators[[outcome.name]][[as.character(y)]]
-                        }
-                        else
-                        {
-                            prior.sim.numerator[as.character(y),,prior.sim.index]
-                        }
-                            
-                    }))
+                    # if (!is.null(prior.simulation.set))
+                    # {
+                    #     prior.sim.numerator = prior.simulation.set$data$outcome.numerators[[outcome.name]]
+                    #     if (is.null(prior.sim.numerator))
+                    #         stop(paste0("Error in extending simulations: we expected the outcome '", outcome.name, "' to be present in the prior simulation, but it is not there. This likely means that the '",
+                    #                     self$version, "' specification has been changed since the original simulations were run. Try rerun.simulations() to update your old simulations to the new version of the specification"))
+                    #     if (!dim.names.equal(dimnames(prior.sim.numerator)[setdiff(names(dim(prior.sim.numerator)), c('year','sim'))],
+                    #                          outcome.dim.names[setdiff(names(outcome.dim.names), 'year')], match.order.of.dimensions = T, match.order.within.dimensions = T))
+                    #         stop(paste0("Error in extending simulations: the '", outcome.name, "' outcome in the prior simulation does not have the dimnames we expect. This likely means that the '",
+                    #                     self$version, "' specification has been changed since the original simulations were run. Try rerun.simulations() to update your old simulations to the new version of the specification"))
+                    #         
+                    #     dim.names = c(dimnames(prior.sim.numerator)['year'],
+                    #                   other = 'temp',
+                    #                   dimnames(prior.sim.numerator)['sim'])
+                    #     dim.names$other = 1:(length(prior.sim.numerator) / prod(sapply(dim.names, length)))
+                    #     dim(prior.sim.numerator) = sapply(dim.names, length)
+                    #     dimnames(prior.sim.numerator) = dim.names
+                    # }
+                    # 
+                    # val = t(sapply(private$i.outcome.value.times[[outcome.name]], function(y){
+                    #     
+                    #     if (length(private$i.outcome.value.times.to.calculate[[outcome.name]])>0 &&
+                    #         y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
+                    #         y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
+                    #     {
+                    #         private$i.outcome.numerators[[outcome.name]][[as.character(y)]]
+                    #     }
+                    #     else
+                    #     {
+                    #         prior.sim.numerator[as.character(y),,prior.sim.index]
+                    #     }
+                    #         
+                    # }))
                 }
                 
                 dim(val) = sapply(outcome.dim.names, length)
@@ -5677,6 +5713,14 @@ JHEEM = R6::R6Class(
             
             outcome.denominators = lapply(outcome.names, function(outcome.name){
                 
+                
+                outcome = private$i.kernel$get.outcome.kernel(outcome.name)
+                outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
+                                      private$i.outcome.dim.names.sans.time[[outcome.name]])
+                
+                outcome.n = prod(sapply(private$i.outcome.dim.names.sans.time[[outcome.name]], length))
+                char.times = as.character(private$i.outcome.value.times[[outcome.name]])
+                
                 if (is.null(private$i.outcome.denominators[[outcome.name]]))
                     NULL
                 else
@@ -5686,33 +5730,54 @@ JHEEM = R6::R6Class(
                                           private$i.outcome.dim.names.sans.time[[outcome.name]])
                     
                     if (is.degenerate)
-                        val = outcome.numerators[[outcome.name]]
+                        val = outcome.numerators[[outcome.name]] #use the same NA vector that is in the numerator
                     else
                     {
-                        if (!is.null(prior.simulation.set))
+                        if (is.null(prior.simulation.set))
                         {
-                            prior.sim.denominator = prior.simulation.set$data$outcome.denominators[[outcome.name]]
-                            dim.names = c(dimnames(prior.sim.denominator)['year'],
-                                          other = 'temp',
-                                          dimnames(prior.sim.denominator)['sim'])
-                            dim.names$other = 1:(length(prior.sim.denominator) / prod(sapply(dim.names, length)))
-                            dim(prior.sim.denominator) = sapply(dim.names, length)
-                            dimnames(prior.sim.denominator) = dim.names
+                            val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
+                                                          char_desired_times = char.times,
+                                                          n_per_time = outcome.n,
+                                                          new_values = private$i.outcome.denominators[[outcome.name]],
+                                                          new_times = private$i.outcome.value.times.to.calculate[[outcome.name]],
+                                                          old_values = numeric(),
+                                                          old_times = character(),
+                                                          prior_sim_index = -1)
                         }
-                        
-                        val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
-                            if (length(private$i.outcome.value.times.to.calculate[[outcome.name]])>0 &&
-                                y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
-                                y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
-                            {
-                                private$i.outcome.denominators[[outcome.name]][[as.character(y)]]
-                            }
-                            else
-                            {
-                                prior.sim.denominator[as.character(y),,prior.sim.index]
-                            }
-                        }))
-                        
+                        else
+                        {
+                            val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
+                                                          char_desired_times = char.times,
+                                                          n_per_time = outcome.n,
+                                                          new_values = private$i.outcome.denominators[[outcome.name]],
+                                                          new_times = private$i.outcome.value.times.to.calculate[[outcome.name]],
+                                                          old_values = prior.simulation.set$data$outcome.denominators[[outcome.name]],
+                                                          old_times = dimnames(prior.simulation.set$data$outcome.denominators[[outcome.name]])$year,
+                                                          prior_sim_index = prior.sim.index)
+                        }
+                        # if (!is.null(prior.simulation.set))
+                        # {
+                        #     prior.sim.denominator = prior.simulation.set$data$outcome.denominators[[outcome.name]]
+                        #     dim.names = c(dimnames(prior.sim.denominator)['year'],
+                        #                   other = 'temp',
+                        #                   dimnames(prior.sim.denominator)['sim'])
+                        #     dim.names$other = 1:(length(prior.sim.denominator) / prod(sapply(dim.names, length)))
+                        #     dim(prior.sim.denominator) = sapply(dim.names, length)
+                        #     dimnames(prior.sim.denominator) = dim.names
+                        # }
+                        # 
+                        # val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
+                        #     if (length(private$i.outcome.value.times.to.calculate[[outcome.name]])>0 &&
+                        #         y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
+                        #         y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
+                        #     {
+                        #         private$i.outcome.denominators[[outcome.name]][[as.character(y)]]
+                        #     }
+                        #     else
+                        #     {
+                        #         prior.sim.denominator[as.character(y),,prior.sim.index]
+                        #     }
+                        # }))
                     }                    
                     
                     dim(val) = sapply(outcome.dim.names, length)
@@ -6024,14 +6089,25 @@ JHEEM = R6::R6Class(
                         denominator = NULL
                     else
                     {
-                        if (is.null(private$i.outcome.denominators[[outcome$denominator.outcome]]))
+                        denominator.outcome = private$i.kernel$get.outcome.kernel(outcome$denominator.outcome)
+                        if (denominator.outcome$is.intrinsic)
+                        {
+                            # by definition, intrinsic and dynamic outcomes do not themselves have a denominator
+                            denominator = interpolate(values = private$i.outcome.numerators[[outcome$denominator.outcome]],
+                                                      value.times = private$i.outcome.value.times[[outcome$denominator.outcome]],
+                                                      desired.times = private$i.outcome.value.times.to.calculate[[outcome.name]])
+                            names(denominator) = private$i.outcome.value.times.to.calculate[[outcome.name]]
+                        }
+                        else if (is.null(private$i.outcome.denominators[[outcome$denominator.outcome]]))
                             denominator = private$i.outcome.numerators[[outcome$denominator.outcome]][as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])]
                         else
                         {
+                            # I think this should never execute - a denominator should be of type
+                            # non-negative number, and not have a denominator itself
                             denominator = lapply(as.character(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(time){
                                 
                                 private$i.outcome.numerators[[outcome$denominator.outcome]][[time]] /
-                                    private$i.outcome.denominators[[outcome$denominator.outcome]]
+                                    private$i.outcome.denominators[[outcome$denominator.outcome]][[time]]
                             })
                             names(denominator) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
                         }
@@ -6040,7 +6116,7 @@ JHEEM = R6::R6Class(
                     if (!is.null(outcome$denominator.outcome) && !outcome$value.is.numerator)
                     {
                         raw.value = lapply(1:length(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(i){
-                                   
+                            
                             time = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]][i])
                             collapsed.denominator = collapse.array.according.to.indices(arr = denominator[[time]],
                                                                                      small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.indices,
@@ -6060,11 +6136,32 @@ JHEEM = R6::R6Class(
                     
                     if (!is.null(denominator))
                     {
-                        denominator = lapply(private$i.outcome.numerators[[outcome$denominator.outcome]],
-                                             collapse.array.according.to.indices,
-                                             small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.indices,
-                                             large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$large.indices,
-                                             small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n)
+                        if (is.null(private$i.outcome.denominators[[outcome$denominator.outcome]]))
+                        {
+                            denominator = lapply(denominator,
+                                                 #private$i.outcome.numerators[[outcome$denominator.outcome]],
+                                                 collapse.array.according.to.indices,
+                                                 small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.indices,
+                                                 large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$large.indices,
+                                                 small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n)
+                        }
+                        else
+                        {
+                            # I think this should never execute - a denominator should be of type
+                            # non-negative number, and not have a denominator itself
+                            denominator = lapply(as.character(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(time){
+                                
+                                collapse.array.according.to.indices(private$i.outcome.numerators[[outcome$denominator.outcome]][[time]],
+                                                                    small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.indices,
+                                                                    large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$large.indices,
+                                                                    small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n) /
+                                    collapse.array.according.to.indices(private$i.outcome.denominators[[outcome$denominator.outcome]][[time]],
+                                                                        small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.indices,
+                                                                        large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$large.indices,
+                                                                        small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n)
+                            })
+                            names(denominator) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
+                        }
                     }
                     
                     # Store it
@@ -6293,7 +6390,7 @@ JHEEM = R6::R6Class(
                              ")",
                              ifelse(is.null(outcome$rename.dimension.values), "", ". This probably has to do with the rename.dimension.values argument"))
                     }
-                        
+            
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator =
                         get.collapse.array.indices(small.arr.dim.names = numerator.dim.names,
                                                 large.arr.dim.names = denominator.outcome.dim.names)

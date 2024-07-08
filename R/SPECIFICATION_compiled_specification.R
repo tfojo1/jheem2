@@ -1507,7 +1507,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                                                                                       max.dim.names = max.dim.names,
                                                                                       max.dimensions = max.dimensions,
                                                                                       dimension.aliases = dimension.aliases,
-                                                                                      apply.even.if.max.dim.names.null = F,
+                                                                                      apply.even.if.max.dim.names.null = T,
                                                                                       error.prefix = error.prefix)
             
             max.dim.names = max.dim.names.and.aliases$dim.names
@@ -1963,7 +1963,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             for (frgd in private$i.foregrounds)
             {
                 check.foreground.can.apply.to.quantity(foreground = frgd,
-                                                       specification = self,
+                                                       specification.or.kernel = self,
                                                        error.prefix = error.prefix)
             }
         },
@@ -2740,22 +2740,25 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
 )
 
 check.foreground.can.apply.to.quantity <- function(foreground,
-                                                   specification,
+                                                   specification.or.kernel,
                                                    error.prefix)
 {
     # Pull the quantity
     quantity.name = foreground$quantity.name
-    quantity = specification$get.quantity(quantity.name)
+    if (is(specification.or.kernel, 'jheem.kernel'))
+        quantity = specification.or.kernel$get.quantity.kernel(quantity.name)
+    else
+        quantity = specification.or.kernel$get.quantity(quantity.name)
     
     # Check that quantity is registered
     if (is.null(quantity))
-        stop(paste0(error.prefix, "Quantity '", quantity.name, "' is not registered in the '", specification$version, "' specification"))
+        stop(paste0(error.prefix, "Quantity '", quantity.name, "' is not registered in the '", specification.or.kernel$version, "' specification"))
 
     # Check if quantity must be static
     if (quantity$must.be.static)
         stop(paste0(error.prefix, "Quantity '", quantity.name, 
                     "' must be static (due to its appearance or the appearance of a descendant quantity in model outcome values) and CANNOT have a foreground set. Consider revising the '", 
-                    specification$version, "' specification"))
+                    specification.or.kernel$version, "' specification"))
     
     # Check if quantity has scale set
     if (is.null(quantity$scale))
@@ -2766,7 +2769,7 @@ check.foreground.can.apply.to.quantity <- function(foreground,
     if (is.null(quantity$max.dim.names))
         stop(paste0(error.prefix, "Quantity '", quantity.name, 
                     "' is not intervenable. Since its max.dim.names cannot be inferred, you must explicitly set the dimension.values argument when registered the quantity to the '",
-                    self$version, "' specification"))
+                    specification.or.kernel$version, "' specification"))
     
     # Check that all scales of foreground is convertible to/from scale of quantity
     scale.convertible = sapply(foreground$scales, can.convert.scale, convert.to.scale=quantity$scale)
