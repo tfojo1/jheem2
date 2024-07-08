@@ -1415,6 +1415,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 # output.array
             })
             
+            
+            
             individual.dimnames = dimnames(rv[[1]]) # which might be all we have
             rv = unlist(rv, recursive = FALSE)
             dim(rv) = sapply(individual.dimnames, length)
