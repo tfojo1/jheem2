@@ -1332,8 +1332,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 keep.dimensions = union(incomplete.dimensions, names(dimension.values))
             }
             
-            dimension.values = private$slowerFoo(dimension.values, ..., check.consistency = check.consistency, error.prefix=error.prefix)
-            # dimension.values = private$process.dimension.values(dimension.values, ..., error.prefix=error.prefix)
+            dimension.values = private$process.dimension.values(dimension.values, ..., check.consistency = check.consistency, error.prefix=error.prefix)
             # if (drop.single.sim.dimension && self$n.sim==1)
             #     keep.dimensions = names(dim.names)
             # else
@@ -1343,79 +1342,84 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             #     keep.dimensions = union(keep.dimensions, 'sim')
 
             rv = lapply(outcomes, function(outcome){
-                slowFoo(outcome, dimension.values, keep.dimensions, check.consistency, output, replace.inf.values.with.zero, mapping)
-                # scale = self$outcome.metadata[[outcome]]$scale
-                # numerator.needed = output %in% c('value', 'numerator')
-                # denominator.needed = scale.needs.denominator(scale) && output %in% c('value', 'denominator')
-                # 
-                # numerator.data = NULL
-                # denominator.data = NULL
-                # 
-                # # noting that some outcomes, like aids.diagnoses, do not have all years
-                # years.this.outcome = NULL
-                # unused.years.this.outcome = NULL
-                # dimension.values.this.outcome = dimension.values
-                # 
-                # if (numerator.needed)
-                #     numerator.data = private$i.data$outcome.numerators[[outcome]]
-                # if (denominator.needed) {
-                #     denominator.data = private$i.data$outcome.denominators[[outcome]]
-                #     if (check.consistency && is.null(denominator.data))
-                #         stop(paste0(error.prefix, "outcome '", outcome, "' missing denominator data"))
-                # }
-                # if (check.consistency && output == 'denominator' && !scale.needs.denominator(scale))
-                #      stop(paste0(error.prefix, "outcome '", outcome, "' does not use a denominator"))
-                # 
-                # # check that this outcome has the years we want before subset
-                # if (numerator.needed) years.this.outcome = dimnames(numerator.data)$year
-                # else if (denominator.needed) years.this.outcome = dimnames(denominator.data)$year
-                # else years.this.outcome = intersect(dimnames(numerator.data)$year, dimnames(denominator.data)$year)
-                # if ('year' %in% names(dimension.values.this.outcome)) {
-                #     unused.years.this.outcome = setdiff(dimension.values[['year']], years.this.outcome)
-                #     dimension.values.this.outcome[['year']] = intersect(dimension.values.this.outcome[['year']], years.this.outcome)
-                # }  
-                # 
-                # if (numerator.needed) numerator.data = array.access(numerator.data, dimension.values.this.outcome)
-                # if (denominator.needed) denominator.data = array.access(denominator.data, dimension.values.this.outcome)
-                # 
-                # # Aggregation
-                # if (numerator.needed) pre.agg.dimnames = dimnames(numerator.data)
-                # else pre.agg.dimnames = dimnames(denominator.data)
-                # 
-                # dimensions.to.drop = intersect(which(length(pre.agg.dimnames) == 1), which(!(names(pre.agg.dimnames) %in% keep.dimensions)))
-                # 
-                # if (length(dimensions.to.drop) > 0) {
-                #     pre.agg.dimnames = pre.agg.dimnames[-dimensions.to.drop]
-                #     if (numerator.needed) numerator.data = array(numerator.data, dim = sapply(pre.agg.dimnames, length), dimnames = pre.agg.dimnames)
-                #     if (denominator.needed) denominator.data = array(denominator.data, dim = sapply(pre.agg.dimnames, length), dimnames = pre.agg.dimnames)
-                # }
-                # 
-                # if (length(pre.agg.dimnames) > length(keep.dimensions)) {
-                #     if (numerator.needed) numerator.data = apply(numerator.data, c(keep.dimensions, 'sim'), sum)
-                #     if (denominator.needed) denominator.data = apply(denominator.data, c(keep.dimensions, 'sim'), sum)
-                # }
-                # 
-                # if (output == 'numerator' || output == 'value' && !denominator.needed) output.array = numerator.data
-                # else if (output == 'denominator') output.array = denominator.data
-                # else {
-                #     output.array = numerator.data / denominator.data
-                #     if (replace.inf.values.with.zero && denominator.needed && output == 'value')
-                #         output.array[denominator.data == 0] = 0
-                # }
-                # 
-                # # add NAs for unused years so that this outcome's array can be mixed with the other outcomes' arrays
-                # if (length(unused.years.this.outcome)>0) {
-                #     dimnames.with.all.years = dimnames(output.array)
-                #     dimnames.with.all.years$year = dimension.values$year
-                #     output.array.with.all.years = array(NA, sapply(dimnames.with.all.years, length), dimnames.with.all.years)
-                #     output.array.with.all.years[get.array.access.indices(dimnames.with.all.years, dimnames(output.array))] = output.array
-                #     output.array=output.array.with.all.years
-                # }
-                # 
-                # output.array
+                scale = self$outcome.metadata[[outcome]]$scale
+                numerator.needed = output %in% c('value', 'numerator')
+                denominator.needed = scale.needs.denominator(scale) && output %in% c('value', 'denominator')
+                
+                numerator.data = NULL
+                denominator.data = NULL
+                
+                # noting that some outcomes, like aids.diagnoses, do not have all years
+                years.this.outcome = NULL
+                unused.years.this.outcome = NULL
+                dimension.values.this.outcome = dimension.values
+                
+                if (numerator.needed)
+                    numerator.data = private$i.data$outcome.numerators[[outcome]]
+                if (denominator.needed) {
+                    denominator.data = private$i.data$outcome.denominators[[outcome]]
+                    if (check.consistency && is.null(denominator.data))
+                        stop(paste0(error.prefix, "outcome '", outcome, "' missing denominator data"))
+                }
+                if (check.consistency && output == 'denominator' && !scale.needs.denominator(scale))
+                    stop(paste0(error.prefix, "outcome '", outcome, "' does not use a denominator"))
+                
+                # check that this outcome has the years we want before subset
+                if (numerator.needed) years.this.outcome = dimnames(numerator.data)$year
+                else if (denominator.needed) years.this.outcome = dimnames(denominator.data)$year
+                else years.this.outcome = intersect(dimnames(numerator.data)$year, dimnames(denominator.data)$year)
+                if ('year' %in% names(dimension.values.this.outcome)) {
+                    unused.years.this.outcome = setdiff(dimension.values[['year']], years.this.outcome)
+                    dimension.values.this.outcome[['year']] = intersect(dimension.values.this.outcome[['year']], years.this.outcome)
+                }  
+                
+                if (numerator.needed) numerator.data = array.access(numerator.data, dimension.values.this.outcome)
+                if (denominator.needed) denominator.data = array.access(denominator.data, dimension.values.this.outcome)
+                
+                # Apply mapping
+                if (numerator.needed && !is.null(mapping)) numerator.data = mapping$apply(numerator.data)
+                if (denominator.needed && !is.null(mapping)) denominator.data = mapping$apply(denominator.data)
+                
+                # Aggregation
+                if (numerator.needed) pre.agg.dimnames = dimnames(numerator.data)
+                else pre.agg.dimnames = dimnames(denominator.data)
+                
+                dimensions.to.drop = intersect(which(length(pre.agg.dimnames) == 1), which(!(names(pre.agg.dimnames) %in% keep.dimensions)))
+                
+                if (length(dimensions.to.drop) > 0) {
+                    pre.agg.dimnames = pre.agg.dimnames[-dimensions.to.drop]
+                    if (numerator.needed) numerator.data = array(numerator.data, dim = sapply(pre.agg.dimnames, length), dimnames = pre.agg.dimnames)
+                    if (denominator.needed) denominator.data = array(denominator.data, dim = sapply(pre.agg.dimnames, length), dimnames = pre.agg.dimnames)
+                }
+                
+                if (length(pre.agg.dimnames) > length(keep.dimensions)) {
+                    if (numerator.needed) numerator.data = apply.robust(numerator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
+                    if (denominator.needed) denominator.data = apply.robust(denominator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
+                }
+                
+                if (output == 'numerator' || output == 'value' && !denominator.needed) output.array = numerator.data
+                else if (output == 'denominator') output.array = denominator.data
+                else {
+                    output.array = numerator.data / denominator.data
+                    if (replace.inf.values.with.zero && denominator.needed && output == 'value')
+                        output.array[denominator.data == 0] = 0
+                }
+                
+                # add NAs for unused years so that this outcome's array can be mixed with the other outcomes' arrays
+                # don't do this if there's a mapping, since we can only have one outcome anyways, if there's a mapping
+                if (length(unused.years.this.outcome)>0 && is.null(mapping)) { # 
+                    dimnames.with.all.years = dimnames(output.array)
+                    if (!is.null(mapping)) {
+                        dimnames.with.all.years$year = c(dimnames.with.all.years$year, unused.years.this.outcome)
+                    } 
+                    else dimnames.with.all.years$year = dimension.values$year
+                    output.array.with.all.years = array(NA, sapply(dimnames.with.all.years, length), dimnames.with.all.years)
+                    output.array.with.all.years[get.array.access.indices(dimnames.with.all.years, dimnames(output.array))] = output.array
+                    output.array=output.array.with.all.years
+                }
+                
+                output.array
             })
-            
-            
             
             individual.dimnames = dimnames(rv[[1]]) # which might be all we have
             rv = unlist(rv, recursive = FALSE)
@@ -1649,87 +1653,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         save = function(root.dir = get.jheem.root.directory("Cannot save simulation set: "))
         {
             save.simulation.set(simset = self, root.dir = root.dir)
-        },
-        # just for diagnostics, will be removed soon
-        slowFoo = function(outcome, dimension.values, keep.dimensions, check.consistency, output, replace.inf.values.with.zero, mapping)
-        {
-            scale = self$outcome.metadata[[outcome]]$scale
-            numerator.needed = output %in% c('value', 'numerator')
-            denominator.needed = scale.needs.denominator(scale) && output %in% c('value', 'denominator')
-            
-            numerator.data = NULL
-            denominator.data = NULL
-            
-            # noting that some outcomes, like aids.diagnoses, do not have all years
-            years.this.outcome = NULL
-            unused.years.this.outcome = NULL
-            dimension.values.this.outcome = dimension.values
-            
-            if (numerator.needed)
-                numerator.data = private$i.data$outcome.numerators[[outcome]]
-            if (denominator.needed) {
-                denominator.data = private$i.data$outcome.denominators[[outcome]]
-                if (check.consistency && is.null(denominator.data))
-                    stop(paste0(error.prefix, "outcome '", outcome, "' missing denominator data"))
-            }
-            if (check.consistency && output == 'denominator' && !scale.needs.denominator(scale))
-                stop(paste0(error.prefix, "outcome '", outcome, "' does not use a denominator"))
-            
-            # check that this outcome has the years we want before subset
-            if (numerator.needed) years.this.outcome = dimnames(numerator.data)$year
-            else if (denominator.needed) years.this.outcome = dimnames(denominator.data)$year
-            else years.this.outcome = intersect(dimnames(numerator.data)$year, dimnames(denominator.data)$year)
-            if ('year' %in% names(dimension.values.this.outcome)) {
-                unused.years.this.outcome = setdiff(dimension.values[['year']], years.this.outcome)
-                dimension.values.this.outcome[['year']] = intersect(dimension.values.this.outcome[['year']], years.this.outcome)
-            }  
-            
-            if (numerator.needed) numerator.data = array.access(numerator.data, dimension.values.this.outcome)
-            if (denominator.needed) denominator.data = array.access(denominator.data, dimension.values.this.outcome)
-            
-            # Apply mapping
-            if (numerator.needed && !is.null(mapping)) numerator.data = mapping$apply(numerator.data)
-            if (denominator.needed && !is.null(mapping)) denominator.data = mapping$apply(denominator.data)
-            
-            # Aggregation
-            if (numerator.needed) pre.agg.dimnames = dimnames(numerator.data)
-            else pre.agg.dimnames = dimnames(denominator.data)
-            
-            dimensions.to.drop = intersect(which(length(pre.agg.dimnames) == 1), which(!(names(pre.agg.dimnames) %in% keep.dimensions)))
-            
-            if (length(dimensions.to.drop) > 0) {
-                pre.agg.dimnames = pre.agg.dimnames[-dimensions.to.drop]
-                if (numerator.needed) numerator.data = array(numerator.data, dim = sapply(pre.agg.dimnames, length), dimnames = pre.agg.dimnames)
-                if (denominator.needed) denominator.data = array(denominator.data, dim = sapply(pre.agg.dimnames, length), dimnames = pre.agg.dimnames)
-            }
-            
-            if (length(pre.agg.dimnames) > length(keep.dimensions)) {
-                if (numerator.needed) numerator.data = apply(numerator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
-                if (denominator.needed) denominator.data = apply(denominator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
-            }
-            
-            if (output == 'numerator' || output == 'value' && !denominator.needed) output.array = numerator.data
-            else if (output == 'denominator') output.array = denominator.data
-            else {
-                output.array = numerator.data / denominator.data
-                if (replace.inf.values.with.zero && denominator.needed && output == 'value')
-                    output.array[denominator.data == 0] = 0
-            }
-            
-            # add NAs for unused years so that this outcome's array can be mixed with the other outcomes' arrays
-            # don't do this if there's a mapping, since we can only have one outcome anyways, if there's a mapping
-            if (length(unused.years.this.outcome)>0 && is.null(mapping)) { # 
-                dimnames.with.all.years = dimnames(output.array)
-                if (!is.null(mapping)) {
-                    dimnames.with.all.years$year = c(dimnames.with.all.years$year, unused.years.this.outcome)
-                } 
-                else dimnames.with.all.years$year = dimension.values$year
-                output.array.with.all.years = array(NA, sapply(dimnames.with.all.years, length), dimnames.with.all.years)
-                output.array.with.all.years[get.array.access.indices(dimnames.with.all.years, dimnames(output.array))] = output.array
-                output.array=output.array.with.all.years
-            }
-            
-            output.array
         }
         
     ),
@@ -1818,11 +1741,6 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         i.jheem.kernel = NULL,
         i.data = NULL,
-        
-        # just for diagnostics, will be removed soon
-        slowerFoo = function(dimension.values, ..., check.consistency, error.prefix) {
-            private$process.dimension.values(dimension.values, ..., check.consistency = check.consistency, error.prefix=error.prefix)
-        },
         
         eval.outcome.active.binding = function(value, outcome.name)
         {
