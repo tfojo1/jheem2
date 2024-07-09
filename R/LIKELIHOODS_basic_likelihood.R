@@ -1048,7 +1048,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                              numeric(private$i.n.obs)
             )
             
-            if (private$i.outcome.is.proportion || private$i.outcome.is.rate)
+            if (private$i.outcome.is.proportion || 
+                (private$i.outcome.is.rate && !(private$i.use.lognormal.approximation && private$i.calculate.lagged.difference)))
             {
                 obs = private$i.obs.vector * n.vector
                 measurement.error.cov.mat = n.vector %*% t(n.vector) * private$i.measurement.error.covariance.matrix
