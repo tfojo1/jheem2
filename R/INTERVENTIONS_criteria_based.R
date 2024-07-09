@@ -29,7 +29,7 @@ create.monotonic.criterion <- function(parameter.name,
                                        subsequent.thresholds.apply.after.iteration=numeric(),
                                        dimension.values = list(), 
                                        
-                                       draw.parameters.from.previous.sims = !is.function(initial.parameter.values),
+                                       draw.parameters.from.previous.sims = !is.function(parameter.initial.value),
                                        ...)
 {
     JHEEM.OUTCOME.INTERVENTION.CRITERION$new(parameter.name = parameter.name,
