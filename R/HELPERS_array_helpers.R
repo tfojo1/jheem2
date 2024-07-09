@@ -639,6 +639,7 @@ apply.robust <- function(arr,
                          ...)
 {
     dimnames.after.apply = dimnames(arr)[names(dimnames(arr)) %in% MARGIN]
+    dimnames.after.apply = dimnames.after.apply[MARGIN] # must preserve order!!
     array(apply(arr, MARGIN=MARGIN, FUN=FUN, ...),
           dim=sapply(dimnames.after.apply, length),
           dimnames=dimnames.after.apply)
