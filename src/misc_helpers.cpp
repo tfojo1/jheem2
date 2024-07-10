@@ -316,3 +316,23 @@ bool any_overlap_character(CharacterVector c1,
     
     return (false);
 }
+
+
+// [[Rcpp::export]]
+bool any_setdiff_character(CharacterVector x,
+                           CharacterVector y)
+{
+    for (int i=0; i<x.length(); i++)
+    {
+        bool matched;
+        for (int j=0; j<y.length() && !matched; j++)
+        {
+            matched = x[i]==y[j];
+        }
+        
+        if (!matched)
+            return (true);
+    }
+    
+    return (false);
+}

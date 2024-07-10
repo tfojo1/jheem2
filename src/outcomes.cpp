@@ -44,7 +44,7 @@ NumericVector populate_outcomes_array(NumericVector desired_times,
         else // pull from new
         {
             NumericVector new_src = new_values[char_time];
-            for (int i=0; i<n_per_time; i++)
+            for (int i=0; i<new_src.length(); i++)
             {
                 rv[i*n_desired_times + t] = new_src[i];
             }
