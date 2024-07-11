@@ -1034,6 +1034,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             }
             
             # Re-purpose likelihood mean code to find aggregated N matrix (diagonal, so treated as vector)
+            n.vector=NULL
             if (private$i.outcome.is.proportion || private$i.outcome.is.rate) {
                 n.vector = get_basic_likelihood_mean(expanded.sim.denominator.data,
                                                      private$i.transformation.matrix.row.oriented.indices,
