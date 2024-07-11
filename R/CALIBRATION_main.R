@@ -265,6 +265,26 @@ set.up.calibration <- function(version,
         all.parameters[names(params)] = params
         engine$run(all.parameters)
     }
+    
+    #-- Check the initial sims to make sure the likelihood computes (not to -Inf) --#
+    if (verbose)
+        print(paste0(verbose.prefix, "Making sure the likelihood computes on initial simulation(s)..."))
+    for (i in 1:dim(starting.parameter.values)[1])
+    {
+        sim = run.simulation(starting.parameter.values[1,])
+        if (likelihood$compute(sim)==-Inf)
+        {
+            lik.pieces = likelihood$compute.piecewise(sim)
+            errored.likelihood <<- likelihood
+            errored.sim <<- sim
+            
+            stop(paste0("The likelihood evaluates to -Inf on the ", 
+                        get.ordinal(i), " set of initial parameter values. The likelihood components are:\n",
+                        paste0(paste0(" - ", names(lik.pieces), " = ", lik.pieces), collapse='\n'),
+                        "\nThe simulation and likelihood have been saved in the global environment as 'errored.sim' and 'errored.likelihood'"))
+        }
+    }
+    
 
     #-- Set MCMC parameters depending on whether this is prelim or not --#
     if (calibration.info$is.preliminary) # get is.preliminary of calibration info object
