@@ -1090,11 +1090,27 @@ copy.simulation.set <- function(simset)
     if (!is(simset, 'jheem.simulation.set'))
         stop("Error copying simset: 'simset' must be a jheem.simulation.set object")
     
-    JHEEM.SIMULATION.SET$new(jheem.kernel = simset$jheem.kernel,
-                             data = simset$data,
-                             metadata = simset$metadata,
+    # JHEEM.SIMULATION.SET$new(jheem.kernel = simset$jheem.kernel,
+    #                          data = simset$data,
+    #                          metadata = simset$metadata,
+    #                          sub.version = simset$sub.version,
+    #                          error.prefix = "Error loading simulation")
+    
+    do.create.simulation.set(jheem.kernel = simset$jheem.kernel,
                              sub.version = simset$sub.version,
-                             error.prefix = "Error loading simulation")
+                             outcome.numerators = simset$data$outcome.numerators,
+                             outcome.denominators = simset$data$outcome.denominators,
+                             parameters = simset$parameters,
+                             from.year = simset$from.year,
+                             to.year = simset$to.year,
+                             n.sim = simset$n.sim,
+                             outcome.location.mapping = simset$outcome.location.mapping,
+                             calibration.code = simset$calibration.code,
+                             intervention.code = simset$intervention.code,
+                             run.metadata = simset$run.metadata,
+                             solver.metadata = simset$solver.metadata,
+                             is.degenerate = simset$is.degenerate,
+                             finalize = simset$is.finalized)
 }
 
 do.create.simulation.set <- function(jheem.kernel,

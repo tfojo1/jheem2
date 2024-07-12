@@ -4806,8 +4806,9 @@ JHEEM = R6::R6Class(
                         # I'm not totally sure this line is correct, but I think so
                         # it is not necessary to run calculations
                         # but it does avoid retriggering calculating the masks again
-                        private$i.quantity.value.applies.mask[[quantity.name]][as.character(private$i.quantity.value.all.applies.for.time[[quantity.name]])] = T
-                        
+                        all.applies.times = names(private$i.quantity.value.all.applies.for.time[[quantity.name]])[private$i.quantity.value.all.applies.for.time[[quantity.name]]]
+                        private$i.quantity.value.applies.mask[[quantity.name]][all.applies.times] = T
+
                         # Update the value.applies.mask
                         update.value.applies.times = setdiff_sorted_vectors(missing.times, private$i.quantity.value.all.applies.for.time[[quantity.name]])
                         if (length(update.value.applies.times)>0)
