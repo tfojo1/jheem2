@@ -32,21 +32,21 @@ create.monotonic.criterion <- function(parameter.name,
                                        draw.parameters.from.previous.sims = !is.function(parameter.initial.value),
                                        ...)
 {
-    JHEEM.OUTCOME.INTERVENTION.CRITERION$new(parameter.name = parameter.name,
-                                             outcome = outcome,
-                                             inversely.related = inversely.related,
-                                             
-                                             parameter.scale = parameter.scale,
-                                             parameter.initial.value = parameter.initial.value,
-                                             
-                                             target.value = target.value,
-                                             min.acceptable.value = min.acceptable.value,
-                                             max.acceptable.value = max.acceptable.value,
-                                             subsequent.thresholds.apply.after.iteration = subsequent.thresholds.apply.after.iteration,
-                                             dimension.values = dimension.values,
-                                             
-                                             draw.parameters.from.previous.sims = !is.function(initial.parameter.values),
-                                             ...)
+    MONOTONIC.OUTCOME.INTERVENTION.CRITERION$new(parameter.name = parameter.name,
+                                                 outcome = outcome,
+                                                 inversely.related = inversely.related,
+                                                 
+                                                 parameter.scale = parameter.scale,
+                                                 parameter.initial.value = parameter.initial.value,
+                                                 
+                                                 target.value = target.value,
+                                                 min.acceptable.value = min.acceptable.value,
+                                                 max.acceptable.value = max.acceptable.value,
+                                                 subsequent.thresholds.apply.after.iteration = subsequent.thresholds.apply.after.iteration,
+                                                 dimension.values = dimension.values,
+                                                 
+                                                 draw.parameters.from.previous.sims = !is.function(parameter.initial.value),
+                                                 ...)
 }
 
 #'@name Create a "Guess-and-Check" Intervention that Must Satisfy Some Criteria by Varying Parameters
@@ -69,15 +69,15 @@ create.monotonic.criteria.based.intervention <- function(base.intervention,
                                                          code=NULL, 
                                                          name=NULL)
 {
-    CRITERIA.BASED.INTERVENTION$new(base.intervention = base.intervention,
-                                    completion.criteria = completion.criteria,
-                                    max.iterations = max.iterations,
-                                    n.iterations.after.satisfying.criteria = n.iterations.after.satisfying.criteria,
-                                    max.iterations.first.sim = max.iterations.first.sim,
-                                    n.iterations.after.satisfying.criteria.first.sim = n.iterations.after.satisfying.criteria.first.sim,
-                                    max.failure.rate = max.failure.rate,
-                                    code = code,
-                                    name = name)
+    MONOTONIC.CRITERIA.BASED.INTERVENTION$new(base.intervention = base.intervention,
+                                              completion.criteria = completion.criteria,
+                                              max.iterations = max.iterations,
+                                              n.iterations.after.satisfying.criteria = n.iterations.after.satisfying.criteria,
+                                              max.iterations.first.sim = max.iterations.first.sim,
+                                              n.iterations.after.satisfying.criteria.first.sim = n.iterations.after.satisfying.criteria.first.sim,
+                                              max.failure.rate = max.failure.rate,
+                                              code = code,
+                                              name = name)
 }
 
 ##-----------------------##
@@ -115,17 +115,17 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 stop(paste0(error.prefix, "'base.intervention' must be an object of class jheem.standard.intervention - as created by create.intervention() or join.interventions()"))
             
             # Completion Criteria
-            if (is(completion.criteria, "jheem.intervention.criterion"))
+            if (is(completion.criteria, "monotonic.outcome.intervention.criterion"))
                 completion.criteria = list(completion.criteria)
             
             if (!is.list(completion.criteria))
-                stop(paste0(error.prefix, "'completion.critera' must be either a 'jheem.intervention.criterion' object or a list of 'jheem.intervention.criterion' objects"))
+                stop(paste0(error.prefix, "'completion.critera' must be either a 'monotonic.outcome.intervention.criterion' object or a list of 'monotonic.outcome.intervention.criterion' objects"))
             
             if (length(completion.criteria)==0)
                 stop(paste0(error.prefix, "'completion.criteria' cannot be an empty list"))
             
-            if (any(!sapply(completion.criteria, is, "jheem.intervention.criterion")))
-                stop(paste0(error.prefix, "'completion.critera' must be either a 'jheem.intervention.criterion' object or a list of 'jheem.intervention.criterion' objects"))
+            if (any(!sapply(completion.criteria, is, "monotonic.outcome.intervention.criterion")))
+                stop(paste0(error.prefix, "'completion.critera' must be either a 'monotonic.outcome.intervention.criterion' object or a list of 'monotonic.outcome.intervention.criterion' objects"))
 
            
             # n.iterations.after.satisfying.criteria
@@ -167,7 +167,6 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             private$i.n.iterations.after.satisfying.criteria.first.sim = n.iterations.after.satisfying.criteria.first.sim
             private$i.max.iterations.first.sim = max.iterations.first.sim
             private$i.max.failure.rate = max.failure.rate
-            private$i.draw.parameters.from.previous.sims = draw.parameters.from.previous.sims
             
         },
         
@@ -179,7 +178,9 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         do.check.can.apply = function(version, location, sub.version, error.prefix)
         {
             # The default does nothing additional
-        }
+        },
+        
+        check = function() {browser()}
     ),
     
     active = list(
@@ -216,9 +217,9 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         #@Andrew - I think you'll need these, but feel free to remove
         # run-time parameters - updated for each run
         i.previous.parameter.values = NULL,
+        i.previous.score = NULL,
         i.n.failures = NULL,
         i.n.sim = NULL,
-        
         
         is.equal.to = function(other)
         {
@@ -228,11 +229,122 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         prepare.to.run = function(engine, sim, verbose)
         {
            #@Andrew fill in
+            
+            # check whether the parameters to track are actually in the simulation (or base intervention? or intervention's "parameter distribution"?) - Ask Todd
+            
+            private$i.previous.parameter.values = NULL
+            private$i.n.failures = 0
+            private$i.n.sim = sim$n.sim
         },
         
         do.run = function(engine, sim.index, parameters, verbose)
         {
-           #@Andrew fill in
+            #@Andrew fill in
+            # ptm = Sys.time()
+            
+            cc=private$i.completion.criteria[[1]]
+            iteration = 1
+            acceptable.sim.found = F
+            
+            #-- Step 1: Run with either parameters set to 1 (for a multiplier) or using previous sim parameters --#
+            
+            if (sim.index > 1 && cc$draw.parameters.from.previous.sims) {
+                parameters = private$i.previous.parameter.values
+                previous.sim = engine$run(parameters=parameters, prior.sim.index = 1) #?
+                previous.score = sum(sapply(private$i.completion.criteria, function(criterion) {criterion$score.sim(previous.sim, iteration=iteration, verbose=F)}))
+                previous.parameters = parameters
+            }
+            else {
+                previous.sim = engine$run(parameters=sapply(parameters, function(x) {1}), prior.sim.index = 1) #?
+                previous.score = sum(sapply(private$i.completion.criteria, function(criterion) {criterion$score.sim(previous.sim, iteration=iteration, verbose=F)}))
+                previous.parameters = parameters
+            }
+            
+            #-- Step 2: If not yet in range, loop with new parameters until in range or fail --#
+            
+            # check if we are already in the range
+            criteria.satisfied = all(sapply(private$i.completion.criteria, function(criterion){
+                criterion$is.satisfied(previous.sim, iteration = iteration)
+            }))
+            
+            if (!criteria.satisfied) {
+                if (sim.index == 1) max.iterations = private$i.max.iterations.first.sim
+                else
+                    max.iterations = private$i.max.iterations
+                while (iteration < max.iterations && !acceptable.sim.found) {
+                    
+                    iteration = iteration + 1
+                    
+                    # decide on new parameters?
+                    # if overshot, try lower. If undershot, try higher.
+                    if (iteration == 1 && !private$i.draw.parameters.from.previous.sims)
+                        # for the first sim where we use the initial value
+                        parameters[[1]] = cc$parameter.initial.value
+                    else parameters = cc$suggest.new.parameter(previous.sim, iteration, debug=F)
+                    
+                    sim = engine$run(parameters=parameters,
+                                     prior.sim.index = sim.index)
+                    
+                    # browser()
+                    
+                    # Evaluate output
+                    criteria.satisfied = all(sapply(private$i.completion.criteria, function(criterion){
+                        criterion$is.satisfied(sim, iteration = iteration)
+                    }))
+                    if (criteria.satisfied) {
+                        acceptable.sim.found = T
+                    } else {
+                        # compare to previous sim
+                        current.score = sum(sapply(private$i.completion.criteria, function(criterion) {criterion$score.sim(sim, iteration=iteration, verbose=F)}))
+                        if (current.score > previous.score) {
+                            previous.sim = sim
+                            previous.score = current.score
+                            previous.parameters = parameters
+                        }
+                    }
+                    
+                }
+                # print(paste0("Sim ", sim.index, " took ", Sys.time()-ptm, " for ", iteration, " iterations"))
+                
+                if (!acceptable.sim.found) {
+                    private$i.n.failures = private$i.n.failures + 1
+                    print("Failure")
+                    return(derive.degenerate.simulation(sim)) # check with Todd
+                }
+            }
+            
+            
+            #-- Step 3: Try to get closer to the target --#
+            
+            if (sim.index == 1) n.iterations.after.satisfying.criteria = private$i.n.iterations.after.satisfying.criteria.first.sim
+            else n.iterations.after.satisfying.criteria = private$i.n.iterations.after.satisfying.criteria
+            
+            for (i in seq_along(n.iterations.after.satisfying.criteria)) {
+                
+                parameters = cc$suggest.new.parameter(previous.sim, iteration + i)
+                sim = engine$run(parameters=parameters,
+                                 prior.sim.index = sim.index) # not the previous one, of course
+                
+                # compare to previous sim
+                current.score = cc$score.sim(sim, iteration=iteration + i, verbose=F)
+                if (current.score > previous.score) {
+                    previous.sim = sim
+                    previous.score = current.score
+                    previous.parameters = parameters
+                }
+            }
+            
+            #-- Step 4: Save parameters to use for next sim --#
+            
+            if (is.null(private$i.previous.score))
+                private$i.previous.parameter.values = parameters
+            else if (current.score > private$i.previous.score)
+                private$i.previous.parameter.values = parameters # also save best sim??
+            print(paste0("sim ", sim.index, " obtained a score of ", current.score))
+            
+            #-- Step 5: Return sim --#
+            return(sim)
+           
         },
         
         do.validate = function(jheem.kernel,
@@ -267,29 +379,30 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                               subsequent.thresholds.apply.after.iteration=numeric(),
                               dimension.values = list(), 
                               
-                              draw.parameters.from.previous.sims = !is.function(initial.parameter.values),
+                              draw.parameters.from.previous.sims = !is.function(parameter.initial.value),
                               ...)
         {
+            # browser()
             #@Andrew - validate parameter.name, scale, initial.value, draw from previous sims
-            
+            error.prefix = "Error: unable to create monotonic outcome intervention criterion: "
             # parameter.name
             
-            # initial.parameter.value
-            if (is.numeric(initial.parameter.value))
+            # parameter.initial.value
+            if (is.numeric(parameter.initial.value))
             {
                 #@Andrew - should be a single, non-na numeric
             }
-            else if (is.function(initial.parameter.values))
+            else if (is.function(parameter.initial.value))
             {
-                arg.names = get.function.argument.names(fn = initial.parameter.values,
+                arg.names = get.function.argument.names(fn = parameter.initial.value,
                                                         exclude.arguments.with.default.values = T)
                 
                 if (length(arg.names)!=1 || arg.names!='sim')
-                    stop(paste0(error.prefix, "If 'initial.parameter.values' is a function, it must take one and only one argument without a default value: 'sim'"))
+                    stop(paste0(error.prefix, "If 'parameter.initial.value' is a function, it must take one and only one argument without a default value: 'sim'"))
             }
             else
                 stop(paste0(error.prefix,
-                            "'initial.parameter.values' must be either a single numeric value, or a function that takes a sim and returns a named numeric vector"))
+                            "'parameter.initial.value' must be either a single numeric value, or a function that takes a sim and returns a named numeric vector"))
             
             # parameter scale
             check.model.scale(scale = parameter.scale,
@@ -365,14 +478,14 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                                          allow.duplicate.values.within.dimensions = F,
                                          error.prefix=error.prefix)
             
-
-            
             # Store variables
             #@Andrew - store parameter stuff
             
             private$i.parameter.name = parameter.name
             private$i.parameter.scale = parameter.scale
-            private$i.initial.parameter.value = parameter.initial.value
+            private$i.parameter.initial.value = parameter.initial.value
+            private$i.inversely.related = inversely.related
+            private$i.draw.parameter.from.previous.sims = draw.parameters.from.previous.sims
             
             private$i.outcome = outcome
             private$i.target.value = target.value
@@ -381,8 +494,12 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             private$i.max.acceptable.value = max.acceptable.value
             private$i.subsequent.thresholds.apply.after.iteration = subsequent.thresholds.apply.after.iteration
             
-            private$i.stratify.outcome.by.dimensions = stratify.outcome.by.dimensions
+            # private$i.stratify.outcome.by.dimensions = stratify.outcome.by.dimensions
             private$i.dimension.values = dimension.values
+            
+            # Todd didn't make this:
+            private$i.score.metric = "normal.with.coefficient.of.variance"
+            private$i.coefficient.of.variance = 0.5
         },
         
         is.satisfied = function(sim, iteration)
@@ -395,11 +512,28 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             
             sim.value >= min.acceptable & sim.value <= max.acceptable
         },
+        # added until we do something taking multiple criteria into account simultaneously
+        suggest.new.parameter = function(sim, iteration, debug=F) {
+            if (debug) browser()
+            sim.value = as.vector(private$get.sim.value(sim))
+            if (!private$i.inversely.related) {
+                percentage.incorrect = (private$i.target.value - sim.value) / private$i.target.value
+                old.param.value = sim$params[private$i.parameter.name]
+                # print(paste0("iteration ", iteration, ": sim.value: ", sim.value, " target.value: ", private$i.target.value, " old.param.value: ", old.param.value, " percentage incorrect: ", percentage.incorrect))
+                new.param.value = old.param.value * (1 + percentage.incorrect)
+            }
+            else {
+                multiplier = private$i.target.value / sim.value
+                old.param.value = sim$params[private$i.parameter.name]
+                print(paste0("iteration ", iteration, ": sim.value: ", sim.value, " target.value: ", private$i.target.value, " old.param.value: ", old.param.value, " multipler: ", multiplier))
+                new.param.value = old.param.value / multiplier
+            }
+        },
         
-        score.sim = function(sim, iteration, verbose, as.log.likelihood=T)
+        score.sim = function(sim, iteration, verbose, as.log.likelihood=T, debug=F)
         {
             #@Andrew - may need to modify
-            
+            if (debug) browser()
             P.IN.RANGE = 0.9999
             
             #-- Prep the bounds --#
@@ -419,7 +553,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             high = transform.to.unbounded.scale(high, scale)
             target = transform.to.unbounded.scale(private$i.target.value, scale)
             mid = (high + low) / 2
-            
+            # browser()
             #-- Figure out our SDs --#
             # base.of.sd = c(private$i.target.value, target, pre.transformed.mid, mid) #putting four things in here helps protect us against getting an sd of zero
             base.of.sd = abs(c(target, mid)) #putting two things in here helps protect us against getting an sd of zero
@@ -472,9 +606,8 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
         {
             if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
                 stop(paste0("Error in jheem.outcome.intervention.criterion$validate(): 'error.prefix' must be a single, non-NA character value"))
-            
+            # browser()
             error.prefix = paste0(error.prefix, "Invalid criterion for '", private$i.outcome, "' - ")
-            
             outcome = jheem.kernel$get.outcome.kernel(private$i.outcome)
             
             if (is.null(outcome))
@@ -516,20 +649,37 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                     }
                 }
             }
-        }
+        },
+        check = function() {browser()}
     ),
     
     active = list(
+        # Added this because somehow the intervention expects to know this but it was given only to criteria?
+        draw.parameter.from.previous.sims = function(value)
+        {
+            if (missing(value))
+                private$i.draw.parameter.from.previous.sims
+            else
+                stop("Cannot modify 'draw.parameter.from.previous.sims' for a jheem.intervention - it is read-only")
+        },
         
+        parameter.initial.value = function(value)
+        {
+            if (missing(value))
+                private$i.parameter.initial.value
+            else
+                stop("Cannot modify 'parameter.initial.value' for a jheem.intervention - it is read-only")
+        }
     ),
     
     private = list(
         
         i.parameter.name = NULL,
         i.outcome = NULL,
+        i.inversely.related = NULL,
         
         i.parameter.scale = NULL,
-        i.initial.parameter.value = NULL,
+        i.parameter.initial.value = NULL,
         i.draw.parameter.from.previous.sims = NULL,
         
         i.target.value = NULL,
@@ -539,10 +689,17 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
         
         i.dimension.values = NULL,
         
+        # Todd didn't put this
+        i.score.metric = NULL,
+        i.coefficient.of.variance = NULL,
+        
         get.sim.value = function(sim)
         {
+            dimension.values.this.sim = private$i.dimension.values
+            if (!('year' %in% names(private$i.dimension.values)))
+                dimension.values.this.sim['year'] = sim$to.year
             sim$get(outcomes = private$i.outcome,
-                    dimension.values = private$i.dimension.values,
+                    dimension.values = dimension.values.this.sim,
                     keep.dimensions = character()) #by definition, only allowed to get a single scalar
         }
         
