@@ -246,7 +246,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               use.lognormal.approximation=F,
                               calculate.lagged.difference=F)
         {
-            
+            # browser()
             error.prefix = paste0('Error creating basic likelihood instructions: ')
             
             # *outcome.for.sim* -- validated in the super$initialize
@@ -323,13 +323,13 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             # *included.multiplier.correlation.structure* is 'compound.symmetry' or 'autoregressive.1'
             if (!is.character(included.multiplier.correlation.structure) || length(included.multiplier.correlation.structure)!=1 || !(included.multiplier.correlation.structure) %in% c('compound.symmetry', 'autoregressive.1'))
                 stop(paste0(error.prefix, "'included.multiplier.correlation.structure' must be either 'compound.symmetry' or 'autoregressive.1'"))
-            
+
             # *correlation.multipliers* are all single numeric vectors with values between 0 and 1 inclusive
             correlation.multipliers = list(correlation.different.years=correlation.different.years,
                                            correlation.different.strata=correlation.different.strata,
                                            correlation.different.sources=correlation.different.sources,
                                            correlation.same.source.different.details=correlation.same.source.different.details)
-            names(correlation.multipliers) = c(correlation.different.years, correlation.different.strata, correlation.different.sources, correlation.same.source.different.details)
+            names(correlation.multipliers) = c('correlation.different.years', 'correlation.different.strata', 'correlation.different.sources', 'correlation.same.source.different.details')
             for (i in seq_along(correlation.multipliers)) {
                 if (!is.numeric(correlation.multipliers[[i]]) || length(correlation.multipliers[[i]]) > 1 || is.na(correlation.multipliers[[i]]) || correlation.multipliers[[i]] > 1 || correlation.multipliers[[i]] < 0)
                     stop(paste0(error.prefix, "'", names(correlation.multipliers)[[i]], "' must be a numeric value between 0 and 1 inclusive"))
@@ -346,14 +346,11 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             # *error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', or 'data.ci'
             if (!(error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.ci')))
                 stop(paste0(error.prefix, "'error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', or 'data.ci'"))
-            
+
             if (error.variance.type %in% c('sd', 'variance', 'cv') && (!is.numeric(error.variance.term) || length(error.variance.term)!=1 || is.na(error.variance.term) || error.variance.term < 0))
                 stop(paste0(error.prefix, "'error.variance.term' must be a single, nonnegative, numeric value if 'error.variance.type' is one of 'sd', 'variance', or 'cv'"))
             if (error.variance.type %in% c('data.sd', 'data.ci') && !is.null(error.variance.term))
                 stop(paste0(error.prefix, "'error.variance.term' must be NULL if 'error.variance.term' is one of 'data.sd' or 'data.ci'"))
-            
-            # if (error.variance.type != 'cv')
-            #     stop(paste0(error.prefix, "only 'cv' is currently supported as an 'error.variance.type' for basic likelihoods"))
             
             # *weights* -- validated in the super$initialize
             
@@ -362,7 +359,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                 stop(paste0(error.prefix, "'equalize.weight.by.year' must be a single logical value (T/F)"))
             
             # EXPERIMENTAL DIMENSION VALUES SHOULD BE A NAMED LIST
-            if (!is.null(dimension.values) && (!is.list(dimension.values) || (length(dimension.values > 0) && is.null(names(dimension.values))) || 'year' %in% names(dimension.values)))
+            if (!is.null(dimension.values) && (!is.list(dimension.values) || (length(dimension.values) > 0 && is.null(names(dimension.values))) || 'year' %in% names(dimension.values)))
                 stop(paste0(error.prefix, "experimental 'dimension.values' argument must be NULL or a named list without 'year'"))
             
             #use.lognormal.approximation
@@ -378,7 +375,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                              weights = weights,
                              likelihood.class.generator = JHEEM.BASIC.LIKELIHOOD,
                              error.prefix = error.prefix)
-            
+
             private$i.outcome.for.data = outcome.for.data
             private$i.denominator.outcome.for.sim = denominator.outcome.for.sim
             private$i.outcome.value = outcome.value
@@ -800,7 +797,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
             if (n.stratifications.with.data==0)
                 stop(paste0(error.prefix, "No data found for any stratifications"))
-
+            # browser()
             # NOTE: STRATUM MUST BE RESTORED TO CHARACTER LATER WHEN WE GENERATE THE WEIGHTS MATRIX SINCE WE HAVE TO STRING SPLIT IT
             private$i.details = as.factor(private$i.details)
             # private$i.metadata$location = as.factor(private$i.metadata$location) # already factor somehow
@@ -857,6 +854,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             private$i.transformation.matrix = private$i.transformation.matrix[!dv.shortened.remove.mask,]
             private$i.obs.vector = private$i.obs.vector[!dv.shortened.remove.mask]
             private$i.metadata = private$i.metadata[!dv.shortened.remove.mask,]
+            private$i.n.obs = length(private$i.obs.vector)
             
             ## ---- GENERATE SPARSE REPRESENTATIONS OF TRANSFORMATION MATRIX ---- ##
             private$i.transformation.matrix.indices = generate_transformation_matrix_indices(private$i.transformation.matrix,
