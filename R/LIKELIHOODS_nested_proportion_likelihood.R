@@ -830,7 +830,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             ## ---- PREPARE DATA STRUCTURES ---- ##
             
-            
             private$i.sim.ontology = sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
             private$i.sim.ontology$year = as.character(years)
             private$i.sim.ontology$location = all.locations
@@ -1676,11 +1675,14 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         
         get.obs.n = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, sim.ontology, model.strata, partitioning.function, version, location, error.prefix)
         {
-            # browser()
             
             # Change stratification into what dimensions the n data ontology will need to achieve it and get mappings to align
             universal.ontology.for.n = data.manager$get.universal.ontology.for.outcome(outcome.for.n)
             initial.aligning.mappings = get.mappings.to.align.ontologies(universal.ontology.for.n, sim.ontology)
+            
+            if (is.null(initial.aligning.mappings))
+                stop(paste0(error.prefix, "an aligning mapping could not be found between the universal ontology for n and the sim ontology"))
+            
             # browser()
             if (!is.null(stratification))
                 stratification.for.n = initial.aligning.mappings[[1]]$get.required.from.dimensions(stratification) # I think this always works... until there's a case where it doesn't.
