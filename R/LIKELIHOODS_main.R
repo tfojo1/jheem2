@@ -612,10 +612,11 @@ JHEEM.LIKELIHOOD = R6::R6Class(
                                         to.year,
                                         omit.years,
                                         data.manager,
-                                        outcome.for.data)
+                                        outcome.for.data,
+                                        exclude.ontology.names = NULL)
         {
             if (from.year == -Inf || to.year == Inf) {
-                data.manager.bounds = data.manager$get.year.bounds.for.outcome(outcome.for.data)
+                data.manager.bounds = data.manager$get.year.bounds.for.outcome(outcome.for.data, exclude.ontology.names = exclude.ontology.names)
                 if (from.year == -Inf)
                     from.year = data.manager.bounds[['earliest.year']]
                 if (to.year == Inf)

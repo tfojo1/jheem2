@@ -359,6 +359,7 @@ pull.data <- function(data.manager = get.default.data.manager(),
                       dimension.values = NULL,
                       sources = NULL,
                       from.ontology.names = NULL,
+                      exclude.ontology.names = NULL,
                       target.ontology = NULL,
                       allow.mapping.from.target.ontology = T,
                       append.attributes = NULL,
@@ -464,7 +465,7 @@ get.registered.ontology <- function(data.manager = get.default.data.manager(), o
 }
 
 #'@export
-get.year.bounds.for.outcome <- function(data.manager = get.default.data.manager(), outcome)
+get.year.bounds.for.outcome <- function(data.manager = get.default.data.manager(), outcome, exclude.ontology.names = NULL)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -472,7 +473,7 @@ get.year.bounds.for.outcome <- function(data.manager = get.default.data.manager(
 }
 
 #'@export
-get.locations.with.data <- function(data.manager = get.default.data.manager(), outcome, years)
+get.locations.with.data <- function(data.manager = get.default.data.manager(), outcome, years, exclude.ontology.names = NULL)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -1305,6 +1306,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         dimension.values = NULL,
                         sources = NULL,
                         from.ontology.names = NULL,
+                        exclude.ontology.names = NULL,
                         target.ontology = NULL,
                         allow.mapping.from.target.ontology = T,
                         append.attributes = NULL,
@@ -1316,6 +1318,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         ...)
         {
             # if (debug) browser()
+            # Rprof(append=T)
             time.keep = F
             total.time = Sys.time()
             error.prefix = paste0("Cannot pull '", outcome, "' data from the data manager: ")
@@ -1388,12 +1391,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 
                 # *from.ontology.names* is either NULL or a character vector with no NA or empty values
                 if (!is.null(from.ontology.names) && (!is.character(from.ontology.names) || anyNA(from.ontology.names) || any(nchar(from.ontology.names)==0)))
-                    stop(paste0(error.prefix, "from.ontology.names must be either NULL or a character vector with no NA or empty values"))
+                    stop(paste0(error.prefix, "'from.ontology.names' must be either NULL or a character vector with no NA or empty values"))
                 
                 #  all of which have been previously registered with this data manager (if not NULL)
                 unregistered.ontologies = sapply(from.ontology.names, function(x){is.null(private$i.ontologies[[x]])})
                 if (!is.null(from.ontology.names) && any(unregistered.ontologies))
-                    stop(paste0(error.prefix, "all ontologies in from.ontology.names must be registered with this data manager"))
+                    stop(paste0(error.prefix, "all ontologies in 'from.ontology.names' must be registered with this data manager"))
+                
+                # *exclude.ontology.names* is either NULL or a character vector with no NA or empty values
+                if (!is.null(exclude.ontology.names) && (!is.character(exclude.ontology.names) || anyNA(exclude.ontology.names) || any(nchar(exclude.ontology.names)==0)))
+                    stop(paste0(error.prefix, "'exclude.ontology.names' must be either NULL or a character vector with no NA or empty values"))
                 
                 # *append.attributes* is either NULL or a character vector with no NA values that
                 #  contains only "details" or "url" or both
@@ -1423,6 +1430,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 target.ontology = private$get.universal.ontology(outcome = outcome,
                                                                  sources = sources,
                                                                  from.ontology.names = from.ontology.names,
+                                                                 exclude.ontology.names = exclude.ontology.names,
                                                                  target.ontology = target.ontology,
                                                                  debug=F)
             }
@@ -1473,6 +1481,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     ontologies.used.names = source.ontology.names
                 else
                     ontologies.used.names = intersect(source.ontology.names, from.ontology.names)
+                ontologies.used.names = setdiff(ontologies.used.names, exclude.ontology.names)
                 pulled.source.data = NULL
                 source.lacks.denominator.data.flag = FALSE
                 source.lacks.estimate.data.flag = FALSE
@@ -2061,6 +2070,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (!is.null(TIME.KEEPER$total)) TIME.KEEPER$total = TIME.KEEPER$total + Sys.time() - total.time
                 else TIME.KEEPER$total = Sys.time() - total.time
             }
+            # Rprof(NULL)
             post.processed.data
         },
         
@@ -2071,6 +2081,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                    dimension.values = NULL,
                                    sources = NULL,
                                    from.ontology.names = NULL,
+                                   exclude.ontology.names = NULL,
                                    target.ontology = NULL,
                                    allow.mapping.from.target.ontology = T,
                                    append.attributes = NULL,
@@ -2094,6 +2105,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                dimension.values = dimension.values,
                                sources = sources,
                                from.ontology.names = from.ontology.names,
+                               exclude.ontology.names = exclude.ontology.names,
                                target.ontology = target.ontology,
                                allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
                                append.attributes = append.attributes,
@@ -2112,6 +2124,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                dimension.values = dimension.values,
                                sources = sources,
                                from.ontology.names = from.ontology.names,
+                               exclude.ontology.names = exclude.ontology.names,
                                target.ontology = target.ontology,
                                allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
                                append.attributes = append.attributes,
@@ -2132,6 +2145,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                    dimension.values = dimension.values,
                                    sources = sources,
                                    from.ontology.names = from.ontology.names,
+                                   exclude.ontology.names = exclude.ontology.names,
                                    target.ontology = target.ontology,
                                    allow.mapping.from.target.ontology = allow.mapping.from.target.ontology,
                                    append.attributes = append.attributes,
@@ -2213,20 +2227,25 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             })
         },
         
-        get.year.bounds.for.outcome = function(outcome)
+        get.year.bounds.for.outcome = function(outcome, exclude.ontology.names = NULL)
         {
             if (is.null(outcome) || !is.character(outcome) || length(outcome) > 1 || is.na(outcome))
                 stop("'outcome' must be a single, non-NA character value")
             if (!(outcome %in% names(private$i.outcome.info)))
                 stop(paste0("'", outcome, "' is not a registered outcome."))
+            
+            # *exclude.ontology.names* is either NULL or a character vector with no NA or empty values
+            if (!is.null(exclude.ontology.names) && (!is.character(exclude.ontology.names) || anyNA(exclude.ontology.names) || any(nchar(exclude.ontology.names)==0)))
+                stop(paste0(error.prefix, "'exclude.ontology.names' must be either NULL or a character vector with no NA or empty values"))
             # browser()
             earliest.year = Inf
             latest.year = -Inf
             if (outcome %in% names(private$i.data)) {
                 for (metric in private$i.data[[outcome]]) {
                     for (source in metric) {
-                        for (ontology in source) {
-                            for (strat in ontology) {
+                        ontology.names = setdiff(names(source), exclude.ontology.names)
+                        for (ontology.name in ontology.names) {
+                            for (strat in source[[ontology.name]]) {
                                 if ('year' %in% names(dimnames(strat))) {
                                     if (all(is.year.range(dimnames(strat)$year))) {
                                         parsed.range = parse.year.ranges(dimnames(strat)$year)
@@ -2253,7 +2272,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             list(earliest.year = earliest.year, latest.year = latest.year)
         },
         
-        get.locations.with.data = function(outcome, metric='estimate', years = NULL)
+        get.locations.with.data = function(outcome, metric='estimate', years = NULL, exclude.ontology.names = NULL)
         {
             if (is.null(outcome) || !is.character(outcome) || length(outcome) > 1 || is.na(outcome))
                 stop("'outcome' must be a single, non-NA character value")
@@ -2268,11 +2287,15 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # *years* is NULL or a numeric vector with no NAs or duplicates
             if (!is.null(years) && (!is.numeric(years) || any(is.na(years)) || any(duplicated(years))))
                 stop("'years' must be NULL or a numeric vector with no NAs or duplicates")
+            # *exclude.ontology.names* is either NULL or a character vector with no NA or empty values
+            if (!is.null(exclude.ontology.names) && (!is.character(exclude.ontology.names) || anyNA(exclude.ontology.names) || any(nchar(exclude.ontology.names)==0)))
+                stop(paste0(error.prefix, "'exclude.ontology.names' must be either NULL or a character vector with no NA or empty values"))
             
             unique(unlist(lapply(private$i.data[[outcome]], function(metric.data) {
                 unique(unlist(lapply(metric.data, function(source.data) {
-                    unique(unlist(lapply(source.data, function(ontology.data) {
-                        unique(unlist(lapply(ontology.data, function(stratification.data) {
+                    ontology.names = setdiff(names(source.data), exclude.ontology.names)
+                    unique(unlist(lapply(ontology.names, function(ontology.name) {
+                        unique(unlist(lapply(source.data[[ontology.name]], function(stratification.data) {
                             if (!is.null(years)) {
                                 new.dimnames = dimnames(stratification.data)
                                 new.dimnames$year = intersect(years, new.dimnames$year)
@@ -2289,7 +2312,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             })))
         },
         
-        get.ontologies.for.outcome = function(outcome, sources = NULL)
+        get.ontologies.for.outcome = function(outcome, sources = NULL, exclude.ontology.names = NULL)
         {
             # VALIDATE ARGUMENTS
             error.prefix = "Error getting ontologies for outcome: "
@@ -2307,6 +2330,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             })
             if (any(unregistered.sources))
                 stop(paste0(error.prefix, "all sources must be registered for this outcome with this data manager"))
+            # *exclude.ontology.names* is either NULL or a character vector with no NA or empty values
+            if (!is.null(exclude.ontology.names) && (!is.character(exclude.ontology.names) || anyNA(exclude.ontology.names) || any(nchar(exclude.ontology.names)==0)))
+                stop(paste0(error.prefix, "'exclude.ontology.names' must be either NULL or a character vector with no NA or empty values"))
             
             # GET ONTOLOGIES IN REQUESTED SOURCES
             ont.names = unique(unlist(lapply(names(private$i.data[[outcome]]), function(metric.name) {
@@ -2316,12 +2342,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     else NULL
                 })))
             })))
+            ont.names = setdiff(ont.names, exclude.ontology.names)
             onts = lapply(ont.names, function(n) {self$get.registered.ontology(n)})
             names(onts) = ont.names
             onts
         },
         
-        get.universal.ontology.for.outcome = function(outcome)
+        get.universal.ontology.for.outcome = function(outcome, exclude.ontology.names = NULL)
         {
             # VALIDATE ARGUMENTS
             error.prefix = "Error getting universal ontology for outcome: "
@@ -2329,8 +2356,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix, "'outcome' must be a single, non-NA character value"))
             if (!(outcome %in% names(private$i.outcome.info)))
                 stop(paste0(error.prefix, "'", outcome, "' is not a registered outcome"))
+            # *exclude.ontology.names* is either NULL or a character vector with no NA or empty values
+            if (!is.null(exclude.ontology.names) && (!is.character(exclude.ontology.names) || anyNA(exclude.ontology.names) || any(nchar(exclude.ontology.names)==0)))
+                stop(paste0(error.prefix, "'exclude.ontology.names' must be either NULL or a character vector with no NA or empty values"))
             if (!(outcome %in% names(private$i.data))) return (NULL)
-            private$get.universal.ontology(outcome, return.target.to.universal.mapping = F)
+            private$get.universal.ontology(outcome, exclude.ontology.names=exclude.ontology.names, return.target.to.universal.mapping = F)
         },
         
         unhash.url = function(arr)
@@ -2530,10 +2560,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             rv
         },
         
-        get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, target.ontology = NULL, return.target.to.universal.mapping = T, debug = F)
+        get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, exclude.ontology.names = NULL, target.ontology = NULL, return.target.to.universal.mapping = T, debug = F)
         {
             if (debug) browser()
-            onts = self$get.ontologies.for.outcome(outcome, sources)
+            onts = self$get.ontologies.for.outcome(outcome, sources, exclude.ontology.names = exclude.ontology.names)
             if (!is.null(from.ontology.names)) onts = onts[names(onts) %in% from.ontology.names]
             uni = onts[[1]]
             if (length(onts) > 1) {

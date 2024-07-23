@@ -17,6 +17,7 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
                                                                                       omit.years = NULL,
                                                                                       
                                                                                       sources.to.use = NULL,
+                                                                                      exclude.denominator.ontology.names = NULL,
                                                                                       redundant.location.threshold = 5,
                                                                                       
                                                                                       included.multiplier,
@@ -64,6 +65,7 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
                                                         to.year = to.year,
                                                         omit.years = omit.years,
                                                         sources.to.use = sources.to.use,
+                                                        exclude.denominator.ontology.names = exclude.denominator.ontology.names,
                                                         redundant.location.threshold = redundant.location.threshold,
                                                         included.multiplier=included.multiplier,
                                                         included.multiplier.sd=included.multiplier.sd,
@@ -113,6 +115,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
                                                                                     omit.years = NULL,
                                                                                     
                                                                                     sources.to.use = NULL,
+                                                                                    exclude.denominator.ontology.names = NULL,
                                                                                     redundant.location.threshold = 5,
                                                                                     
                                                                                     p.bias.inside.location,
@@ -156,6 +159,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
                                                         to.year = to.year,
                                                         omit.years = omit.years,
                                                         sources.to.use = sources.to.use,
+                                                        exclude.denominator.ontology.names=exclude.denominator.ontology.names,
                                                         redundant.location.threshold = redundant.location.threshold,
                                                         included.multiplier=NULL,
                                                         included.multiplier.sd=NULL,
@@ -219,6 +223,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              omit.years = NULL,
                                                              
                                                              sources.to.use = NULL,
+                                                             exclude.denominator.ontology.names = NULL,
                                                              redundant.location.threshold = 5,
                                                              
                                                              p.bias.inside.location,
@@ -262,6 +267,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                         to.year = to.year,
                                                         omit.years = omit.years,
                                                         sources.to.use = sources.to.use,
+                                                        exclude.denominator.ontology.names = exclude.denominator.ontology.names,
                                                         redundant.location.threshold = redundant.location.threshold,
                                                         included.multiplier=NULL,
                                                         included.multiplier.sd=NULL,
@@ -313,6 +319,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               to.year,
                               omit.years,
                               sources.to.use,
+                              exclude.denominator.ontology.names,
                               redundant.location.threshold,
                               included.multiplier,
                               included.multiplier.sd,
@@ -526,6 +533,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             private$i.equalize.weight.by.year = equalize.weight.by.year
             
             private$i.sources.to.use = sources.to.use
+            private$i.exclude.denominator.ontology.names = exclude.denominator.ontology.names
             private$i.redundant.location.threshold = redundant.location.threshold
             private$i.parameters = list(included.multiplier = included.multiplier,
                                         included.multiplier.sd = included.multiplier.sd,
@@ -645,6 +653,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'sources.to.use' - they are read-only")
         },
+        exclude.denominator.ontology.names = function(value)
+        {
+            if (missing(value))
+                private$i.exclude.denominator.ontology.names
+            else
+                stop(paste0("Cannot modify a jheem.likelihood.instruction's 'exclude.denominator.ontology.names' - they are read-only"))
+        },
         redundant.location.threshold = function(value)
         {
             if (missing(value))
@@ -728,6 +743,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         
         i.parameters = NULL,
         i.sources.to.use = NULL,
+        i.exclude.denominator.ontology.names = NULL,
         i.redundant.location.threshold = NULL,
         
         i.partitioning.function = NULL,
@@ -785,6 +801,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             private$i.use.lognormal.approximation = instructions$use.lognormal.approximation
             private$i.calculate.lagged.difference = instructions$calculate.lagged.difference
             
+            private$i.sources = instructions$sources
+            private$i.exclude.denominator.ontology.names = instructions$exclude.denominator.ontology.names
             
             # Find years we have data for. Note: this does not guarantee that we'll have data for *our* locations, especially since we don't know what counties they'll be made up of yet.
             # If we get to n-multipliers and don't have enough data, I'll just throw an error and the user can change the year range that's used.
@@ -797,7 +815,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                            to.year = instructions$to.year,
                                            omit.years = instructions$omit.years,
                                            data.manager = data.manager,
-                                           outcome.for.data = private$i.denominator.outcome.for.data)
+                                           outcome.for.data = private$i.denominator.outcome.for.data,
+                                           exclude.ontology.names = private$i.exclude.denominator.ontology.names)
             years = intersect(years, years.n)
             
             if (!is.null(private$i.outcome.for.n.multipliers)) {
@@ -1357,6 +1376,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         
         i.optimized.get.instructions = NULL,
         
+        i.sources = NULL,
+        i.exclude.denominator.ontology.names = NULL,
+        
         i.obs.vector = NULL,
         i.details = NULL,
         i.metadata = NULL,
@@ -1677,7 +1699,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         {
             
             # Change stratification into what dimensions the n data ontology will need to achieve it and get mappings to align
-            universal.ontology.for.n = data.manager$get.universal.ontology.for.outcome(outcome.for.n)
+            universal.ontology.for.n = data.manager$get.universal.ontology.for.outcome(outcome.for.n, exclude.ontology.names = private$i.exclude.denominator.ontology.names)
             initial.aligning.mappings = get.mappings.to.align.ontologies(universal.ontology.for.n, sim.ontology)
             
             if (is.null(initial.aligning.mappings))
@@ -1775,6 +1797,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             data = data.manager$pull(outcome = outcome.for.n,
                                      keep.dimensions = c('year', 'location', stratification),
                                      dimension.values = list(location = locations.with.n.data, year = years.with.data),
+                                     exclude.ontology.names = private$i.exclude.denominator.ontology.names,
                                      na.rm=T)
             
             # # if we are at the top level but got nothing, throw an error because these are supposed to be locations with data
@@ -1782,7 +1805,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             #     stop("Top level did not have any data for locations that were supposed to have data")
             ## NEW PLAN: MAKE AN ARRAY OF ALL NA WITH THE DIMENSIONS WE KNOW ALL THE PULLS COME OUT IN: THE UNIVERSAL ONTOLOGY FOR THIS OUTCOME
             if (is.null(data) && is.top.level) {
-                universal = data.manager$get.universal.ontology.for.outcome(outcome.for.n)
+                universal = data.manager$get.universal.ontology.for.outcome(outcome.for.n, exclude.ontology.names = private$i.exclude.denominator.ontology.names)
                 universal = universal[c('year', 'location', stratification)]
                 universal$location = locations.with.n.data
                 universal$year = years.with.data
@@ -1917,7 +1940,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             model.arr.ontology = as.ontology(model.arr.dimnames, incomplete.dimensions = 'year')
             
             # Change stratification into what dimensions the n data ontology will need to achieve it and get mappings to align
-            universal.ontology = data.manager$get.universal.ontology.for.outcome(outcome)
+            # browser()
+            universal.ontology = data.manager$get.universal.ontology.for.outcome(outcome, exclude.ontology.names = if (private$i.outcome.for.n.multipliers==private$i.denominator.outcome.for.data) private$i.exclude.denominator.ontology.names else NULL)
             aligning.mappings = get.mappings.to.align.ontologies(universal.ontology, sim.ontology)
             if (!is.null(stratification))
                 stratification.for.n = aligning.mappings[[1]]$get.required.from.dimensions(stratification)
@@ -1983,6 +2007,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 data = data.manager$pull(outcome = outcome,
                                          keep.dimensions = keep.dimensions,
                                          dimension.values = list(year = as.character(years), location = location),
+                                         exclude.ontology.names = if (private$i.outcome.for.n.multipliers==private$i.denominator.outcome.for.data) private$i.exclude.denominator.ontology.names else NULL,
                                          na.rm = T,
                                          debug = F) # location.1 == '24035' && length(stratification)==0) #length(stratification)==1)
                 output.before.replacement = data
