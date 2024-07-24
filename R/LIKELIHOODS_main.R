@@ -566,6 +566,20 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             self$compute(sim=sim, log=log, check.consistency = check.consistency, debug=debug)
         },
         
+        # compare sims
+        compare.sims = function(sim1, sim2, piecewise=T, log=F)
+        {
+            if (piecewise)
+                diff = self$compute.piecewise(sim2) - self$compute.piecewise(sim1)
+            else
+                diff = self$compute(sim2) - self$compute(sim1)
+            
+            if (log)
+                diff
+            else
+                exp(diff)
+        },
+        
         get.outcome.location.mapping = function()
         {
             return (NULL) # for now we'll just return NULL to make code work
