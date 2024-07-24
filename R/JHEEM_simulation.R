@@ -1444,13 +1444,26 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             
             individual.outcome.dimnames = dimnames(rv[[1]]) # which might be all we have
             rv = unlist(rv, recursive = FALSE)
-            dimnames.with.outcome = c(individual.outcome.dimnames, list(outcome=outcomes))
-            dim(rv) = sapply(dimnames.with.outcome, length)
-            dimnames(rv) = dimnames.with.outcome
+            if (drop.single.outcome.dimension && length(outcomes)==1)
+            {
+                dim(rv) = sapply(individual.outcome.dimnames, length)
+                dimnames(rv) = individual.outcome.dimnames
+            } else {
+                dimnames.with.outcome = c(individual.outcome.dimnames, list(outcome=outcomes))
+                dim(rv) = sapply(dimnames.with.outcome, length)
+                dimnames(rv) = dimnames.with.outcome
+            }
+            
+            if (drop.single.sim.dimension && dim(rv)[['sim']]==1) {
+                dimnames.without.sim = dimnames(rv)[names(dimnames(rv)) != 'sim']
+                dim(rv) = sapply(dimnames.without.sim, length)
+                dimnames(rv) = dimnames.without.sim
+            }
             
             # browser()
             if (summary.type == 'mean.and.interval') {
                 alpha = (1-interval.coverage)/2
+                
                 # Apply doesn't work if sim is the only dimension
                 if (!identical(names(dim(rv)), 'sim')) {
                     rv = apply(rv, setdiff(names(dim(rv)), 'sim'), function(x) {
