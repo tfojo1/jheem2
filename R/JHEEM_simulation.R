@@ -1387,48 +1387,53 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 if ('year' %in% names(dimension.values.this.outcome)) {
                     unused.years.this.outcome = setdiff(dimension.values[['year']], years.this.outcome)
                     dimension.values.this.outcome[['year']] = intersect(dimension.values.this.outcome[['year']], years.this.outcome)
-                }  
+                }
                 
                 if (numerator.needed) numerator.data = array.access(numerator.data, dimension.values.this.outcome)
                 if (denominator.needed) denominator.data = array.access(denominator.data, dimension.values.this.outcome)
                 
-                # Apply mapping
-                if (numerator.needed && !is.null(mapping)) numerator.data = mapping$apply(numerator.data)
-                if (denominator.needed && !is.null(mapping)) denominator.data = mapping$apply(denominator.data)
-                
-                # Aggregation
-                if (numerator.needed) pre.agg.dimnames = dimnames(numerator.data)
-                else pre.agg.dimnames = dimnames(denominator.data)
-                
-                dimensions.to.drop = intersect(which(length(pre.agg.dimnames) == 1), which(!(names(pre.agg.dimnames) %in% keep.dimensions)))
-                
-                if (length(dimensions.to.drop) > 0) {
-                    pre.agg.dimnames = pre.agg.dimnames[-dimensions.to.drop]
-                    if (numerator.needed) numerator.data = array(numerator.data, dim = sapply(pre.agg.dimnames, length), dimnames = pre.agg.dimnames)
-                    if (denominator.needed) denominator.data = array(denominator.data, dim = sapply(pre.agg.dimnames, length), dimnames = pre.agg.dimnames)
+                if (length(numerator.data)>0 && length(denominator.data)>0) {
+                    # Apply mapping
+                    if (numerator.needed && !is.null(mapping)) numerator.data = mapping$apply(numerator.data)
+                    if (denominator.needed && !is.null(mapping)) denominator.data = mapping$apply(denominator.data)
+                    
+                    # Aggregation
+                    if (numerator.needed) pre.agg.dimnames = dimnames(numerator.data)
+                    else pre.agg.dimnames = dimnames(denominator.data)
+                    
+                    dimensions.to.drop = intersect(which(length(pre.agg.dimnames) == 1), which(!(names(pre.agg.dimnames) %in% keep.dimensions)))
+                    
+                    if (length(dimensions.to.drop) > 0) {
+                        pre.agg.dimnames = pre.agg.dimnames[-dimensions.to.drop]
+                        if (numerator.needed) numerator.data = array(numerator.data, dim = sapply(pre.agg.dimnames, length), dimnames = pre.agg.dimnames)
+                        if (denominator.needed) denominator.data = array(denominator.data, dim = sapply(pre.agg.dimnames, length), dimnames = pre.agg.dimnames)
+                    }
+                    
+                    if (length(pre.agg.dimnames) > length(keep.dimensions)) {
+                        if (numerator.needed) numerator.data = apply.robust(numerator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
+                        if (denominator.needed) denominator.data = apply.robust(denominator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
+                    }
+                    
+                    if (output == 'numerator' || output == 'value' && !denominator.needed) output.array = numerator.data
+                    else if (output == 'denominator') output.array = denominator.data
+                    else {
+                        output.array = numerator.data / denominator.data
+                        if (replace.inf.values.with.zero && denominator.needed && output == 'value')
+                            output.array[denominator.data == 0] = 0
+                    }
                 }
                 
-                if (length(pre.agg.dimnames) > length(keep.dimensions)) {
-                    if (numerator.needed) numerator.data = apply.robust(numerator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
-                    if (denominator.needed) denominator.data = apply.robust(denominator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
-                }
-                
-                if (output == 'numerator' || output == 'value' && !denominator.needed) output.array = numerator.data
-                else if (output == 'denominator') output.array = denominator.data
                 else {
-                    output.array = numerator.data / denominator.data
-                    if (replace.inf.values.with.zero && denominator.needed && output == 'value')
-                        output.array[denominator.data == 0] = 0
+                    output.dimnames = dimnames(numerator.data)[names(dimnames(numerator.data)) %in% c(keep.dimensions, 'sim')]
+                    output.array = array(NA, sapply(output.dimnames, length), output.dimnames)
                 }
                 
                 # add NAs for unused years so that this outcome's array can be mixed with the other outcomes' arrays
                 # don't do this if there's a mapping, since we can only have one outcome anyways, if there's a mapping
-                if (length(unused.years.this.outcome)>0 && is.null(mapping)) { # 
+                # but we only need this if year is a keep dimension, right? Is year ever allowed to not be a keep dimension? I guess it is, since if someone deliberately forced keep.dimensions to not have it...
+                if (length(unused.years.this.outcome)>0 && is.null(mapping) && 'year' %in% keep.dimensions) { # 
                     dimnames.with.all.years = dimnames(output.array)
-                    if (!is.null(mapping)) {
-                        dimnames.with.all.years$year = c(dimnames.with.all.years$year, unused.years.this.outcome)
-                    } 
-                    else dimnames.with.all.years$year = dimension.values$year
+                    dimnames.with.all.years$year = dimension.values$year
                     output.array.with.all.years = array(NA, sapply(dimnames.with.all.years, length), dimnames.with.all.years)
                     output.array.with.all.years[get.array.access.indices(dimnames.with.all.years, dimnames(output.array))] = output.array
                     output.array=output.array.with.all.years
@@ -1437,27 +1442,47 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 output.array
             })
             
-            individual.dimnames = dimnames(rv[[1]]) # which might be all we have
+            individual.outcome.dimnames = dimnames(rv[[1]]) # which might be all we have
             rv = unlist(rv, recursive = FALSE)
-            dim(rv) = sapply(individual.dimnames, length)
-            dimnames(rv) = individual.dimnames
+            dimnames.with.outcome = c(individual.outcome.dimnames, list(outcome=outcomes))
+            dim(rv) = sapply(dimnames.with.outcome, length)
+            dimnames(rv) = dimnames.with.outcome
             
             # browser()
             if (summary.type == 'mean.and.interval') {
                 alpha = (1-interval.coverage)/2
-                rv = apply(rv, setdiff(names(dim(rv)), 'sim'), function(x) {
-                    c(mean(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T))
-                })
-                new.dim.names = c(list(metric = c('mean', 'lower', 'upper')), dimnames(rv)[-1])
-                dimnames(rv) = new.dim.names
+                # Apply doesn't work if sim is the only dimension
+                if (!identical(names(dim(rv)), 'sim')) {
+                    rv = apply(rv, setdiff(names(dim(rv)), 'sim'), function(x) {
+                        c(mean(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T))
+                    })
+                    new.dim.names = c(list(metric = c('mean', 'lower', 'upper')), dimnames(rv)[-1])
+                    dimnames(rv) = new.dim.names
+                }
+                    
+                else {
+                    new.dim.names = c(list(metric = c('mean', 'lower', 'upper')))
+                    rv = array(c(mean(rv, na.rm=T), quantile(rv, probs=c(alpha, 1-alpha), na.rm=T)),
+                               sapply(new.dim.names, length), new.dim.names)
+                }
+                
             }
             if (summary.type == 'median.and.interval') {
                 alpha = (1-interval.coverage)/2
-                rv = apply(rv, setdiff(names(dim(rv)), 'sim'), function(x) {
-                    c(median(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T))
-                })
-                new.dim.names = c(list(metric = c('median', 'lower', 'upper')), dimnames(rv)[-1])
-                dimnames(rv) = new.dim.names
+                # Apply doesn't work if sim is the only dimension
+                if (!identical(names(dim(rv)), 'sim')) {
+                    rv = apply(rv, setdiff(names(dim(rv)), 'sim'), function(x) {
+                        c(median(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T))
+                    })
+                    new.dim.names = c(list(metric = c('mean', 'lower', 'upper')), dimnames(rv)[-1])
+                    dimnames(rv) = new.dim.names
+                }
+                
+                else {
+                    new.dim.names = c(list(metric = c('mean', 'lower', 'upper')))
+                    rv = array(c(median(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T)),
+                               sapply(new.dim.names, length), new.dim.names)
+                }
             }
             rv
         },
