@@ -1933,6 +1933,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         
         get.n.multipliers = function(metalocation.to.minimal.component.map, metalocation.type, main.location, stratification, sim.ontology, model.strata, data.manager, outcome, years, error.prefix)
         {
+            # browser()
             n.metalocations = length(metalocation.to.minimal.component.map)
             n.years = length(years)
             model.arr.dimnames = sim.ontology[names(sim.ontology) %in% c('year', stratification)]
@@ -1957,7 +1958,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 else {
                     arr = get.outcome.ratios(location.1 = metalocation.to.minimal.component.map[[i]],
                                              location.2 = main.location,
-                                             stratification = stratification.for.n, data.manager = data.manager, outcome = outcome, years = years, universal.ontology = universal.ontology, cache=n.mult.cache)
+                                             stratification = stratification.for.n, data.manager = data.manager, outcome = outcome, years = years, universal.ontology = universal.ontology, cache=n.mult.cache, error.prefix=error.prefix)
                     
                     if (is.null(arr)) stop("bug in get.outcome.ratios: returned NULL")
                     # Map this back to the model ontology
@@ -1993,7 +1994,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             return(one.matrix.per.model.stratum)
         },
         
-        get.outcome.ratios = function(location.1, location.2, stratification, data.manager, outcome, years, universal.ontology, cache)
+        get.outcome.ratios = function(location.1, location.2, stratification, data.manager, outcome, years, universal.ontology, cache, error.prefix)
         {
             # Pull data for each location. Later, we will map them to an aligning ontology.
             
@@ -2053,7 +2054,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             # recurse
             stratification.ratios = lapply(recursive.stratifications.list, function(lower.stratification) {
-                lower.ratio.arr = get.outcome.ratios(location.1, location.2, lower.stratification, data.manager, outcome, years, universal.ontology, cache=cache)
+                lower.ratio.arr = get.outcome.ratios(location.1, location.2, lower.stratification, data.manager, outcome, years, universal.ontology, cache=cache, error.prefix=error.prefix)
                 # if (!is.null(lower.ratio.arr) && !is.null(ratio.arr)) lower.ratio.arr = expand.array(to.expand = lower.ratio.arr, target.dim.names = dimnames(ratio.arr))
                 # lower.ratio.arr
             })
@@ -2082,6 +2083,11 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     append.dimnames = dimnames(arr)[!names(dimnames(arr)) %in% names(expand.to.dimnames)]
                     expand.to.dimnames = c(expand.to.dimnames, append.dimnames)
                 }
+                
+                # It's possible that one or more of them won't have as many years as the others, a fatal error
+                missing.years = unique(unlist(sapply(stratification.ratios, function(arr) {setdiff(expand.to.dimnames$year, dimnames(arr)$year)})))
+                if (length(missing.years)>0)
+                    stop(paste0(error.prefix, "One or more needed stratifications of '", outcome, "' data lacked data for years ", paste0(missing.years, collapse=', '), ". Consider restricting the years for this likelihood."))
                 stratification.ratios = lapply(stratification.ratios, function(arr) {expand.array(arr, expand.to.dimnames)})
                 
                 # take geometric mean of non-NAs only; this will be the product of non-NAs (NAs converted to 1 temporarily) raised to the power of 1 / the number of non-NAs
