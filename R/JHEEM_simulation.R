@@ -1392,7 +1392,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 if (numerator.needed) numerator.data = array.access(numerator.data, dimension.values.this.outcome)
                 if (denominator.needed) denominator.data = array.access(denominator.data, dimension.values.this.outcome)
                 
-                if (length(numerator.data)>0 && length(denominator.data)>0) {
+                if (!(numerator.needed && !(length(numerator.data)>0)) && !(denominator.needed && !(length(denominator.data)>0))) {
                     # Apply mapping
                     if (numerator.needed && !is.null(mapping)) numerator.data = mapping$apply(numerator.data)
                     if (denominator.needed && !is.null(mapping)) denominator.data = mapping$apply(denominator.data)
