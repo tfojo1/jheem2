@@ -1550,6 +1550,35 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             self$subset(self$n.sim)
         },
         
+        get.params = function(match.names=NULL,
+                              simulation.indices=self$n.sim)
+        {
+            if (length(match.names)==0)
+                match.names = self$parameter.names
+            else
+            {
+                if (is.character(match.names))
+                {
+                    regexes = gsub("\\*", ".*", match.names)
+                    match.names = grepl(regexes[1], self$parameter.names)
+                    for (regex in regexes[-1])
+                        match.names = match.names | grepl(regex, self$parameter.names)
+                    
+                    if (!any(match.names))
+                        stop("The given match.names do not match any parameter.names")
+                }
+                else if (!is.numeric(match.names))
+                {
+                    stop("'match.names' must be either a charater or numeric vector")
+                }
+            }
+            
+            if (!is.numeric(simulation.indices))
+                stop("'simulation.indices' must be a numeric vector")
+            
+            self$parameters[match.names, simulation.indices]
+        },
+        
         get.engine = function(start.year = NULL,
                               end.year = NULL,
                               max.run.time.seconds = NULL,
@@ -1689,6 +1718,14 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 private$i.data$parameters
             else
                 stop("Cannot modify a simulation's 'parameters' - they are read-only")
+        },
+        
+        parameter.names = function(value)
+        {
+            if (missing(value))
+                dimnames(private$i.data$parameters)[[1]]
+            else
+                stop("Cannot modify a simulation's 'parameter.names' - they are read-only")
         },
         
         params = function(value)
