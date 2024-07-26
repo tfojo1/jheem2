@@ -230,7 +230,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             stop("need to implement is.equal.to for criteria-based-intervention")
         },
         
-        prepare.to.run = function(engine, sim, verbose)
+        prepare.to.run = function(engine, sim, keep.from.year, keep.to.year, verbose)
         {
            #@Andrew fill in
             
@@ -243,15 +243,16 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             private$i.naive.dx = sapply(private$i.parameters.to.optimize.names, function(x) {NA})
             private$i.param.has.pos.direction = sapply(private$i.parameters.to.optimize.names, function(x) {NA})
             
-            # private$i.parameters = sapply(sapply(private$i.completion.criteria, function(criterion) {criterion$parameter.name}), NA)
             # set up the optimized sim get
+            sim.metadata = get.simulation.metadata(version=sim$version, location=sim$location, from.year=keep.from.year, to.year=keep.to.year)
+            for (criterion in private$i.completion.criteria) {criterion$prepare.optimized.sim.get.instructions(sim.metadata)}
         },
         
         do.run = function(engine, sim.index, parameters, verbose)
         {
             #@Andrew fill in
             # ptm = Sys.time()
-            # if (sim.index==2) browser()
+            # if (sim.index==49) browser()
             #-- Step 1: Run with either parameters set to 1 (for a multiplier) or using previous sim parameters --#
             # browser()
 
@@ -283,10 +284,10 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                         if (private$i.param.has.pos.direction[[parameter.name]]) 1 else -1
                     else 1
                 })
-                
+                # browser()
                 new.parameters.to.optimize = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
                     criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
-                    criterion.this.parameter$suggest.new.parameter(prev.sim, private$i.naive.dx[[parameter.name]])
+                    criterion.this.parameter$suggest.new.parameter(prev.sim, private$i.naive.dx[[parameter.name]], is.fine.tuning = F)
                 })
                 names(new.parameters.to.optimize) = private$i.parameters.to.optimize.names # comes back weird from the above sapply because the inner function returns a named vector
                 
@@ -301,6 +302,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                                                                               new.parameters.to.optimize[[parameter.name]],
                                                                               parameters.to.optimize[[parameter.name]])
                 })
+                names(private$i.naive.dx) = private$i.parameters.to.optimize.names
                 
                 # update directionality if previously unknown
                 for (parameter.name in private$i.parameters.to.optimize.names) {
@@ -313,7 +315,6 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 criteria.satisfied = all(sapply(private$i.completion.criteria, function(criterion){
                     criterion$is.satisfied(prev.sim, iteration = iteration)
                 }))
-                
             }
             
             #-- Step 2: If not yet in range, loop with new parameters until in range or fail --#
@@ -325,7 +326,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     max.iterations = private$i.max.iterations
                 # browser()
                 # Rotate through criteria one by one
-                unsatisfied.criteria = seq_along(private$i.completion.criteria)
+                unsatisfied.criteria = seq_along(private$i.completion.criteria) # Note: it's possible that one of ours IS already satisfied...
                 criterion.index = 1
                 
                 iteration = iteration + 1
@@ -339,20 +340,33 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     criterion.this.iteration = private$i.completion.criteria[[criterion.index]]
                     parameter.this.criterion = criterion.this.iteration$parameter.name
                     # decide on new parameters
-                    new.parameter.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.naive.dx[[parameter.this.criterion]])
+                    new.parameter.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.naive.dx[[parameter.this.criterion]], is.fine.tuning=F)
                     new.parameters.to.optimize = parameters.to.optimize
+                    
+                    # if it somehow suggested the exact same parameter, move on. Count it as an iteration to avoid getting trapped forever
+                    if (is.na(new.parameter.to.optimize.value)||is.na(parameters.to.optimize[[parameter.this.criterion]])) browser()
+                    if (new.parameter.to.optimize.value == parameters.to.optimize[[parameter.this.criterion]]) {
+                        iteration = iteration + 1
+                        next
+                    }
+                    
                     new.parameters.to.optimize[[parameter.this.criterion]] = new.parameter.to.optimize.value
                     
                     # run a new sim
-                    next.sim = engine$run(parameters=c(new.parameters.to.optimize, parameters),
-                                          prior.sim.index = sim.index)
+                    tryCatch({next.sim = engine$run(parameters=c(new.parameters.to.optimize, parameters),
+                                                    prior.sim.index = sim.index)}, error=function(e){browser()})
+                    
                     iteration = iteration + 1
                     
                     # Use this information to save a new derivative
-                    private$i.naive.dx[[parameter.this.criterion]] = criterion.this.iteration$get.transformed.naive.derivative(next.sim,
-                                                                                                                               prev.sim,
-                                                                                                                               new.parameter.to.optimize.value,
-                                                                                                                               parameters.to.optimize[[parameter.this.criterion]])
+                    # But we do not want a derivative of 0, so if the outcome hasn't changed, we should skip it
+                    if (criterion.this.iteration$check.has.changed(prev.sim, next.sim)) {
+                        private$i.naive.dx[[parameter.this.criterion]] = criterion.this.iteration$get.transformed.naive.derivative(next.sim,
+                                                                                                                                   prev.sim,
+                                                                                                                                   new.parameter.to.optimize.value,
+                                                                                                                                   parameters.to.optimize[[parameter.this.criterion]])
+                    }
+                    
                     # Compare score to previous sim's score
                     criterion.satisfied = sapply(private$i.completion.criteria, function(criterion){
                         criterion$is.satisfied(next.sim, iteration = iteration)
@@ -377,7 +391,6 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     return(derive.degenerate.simulation(sim)) # check with Todd
                 }
             }
-            
             #-- Step 3: Try to get closer to the target --#
             
             if (sim.index == 1) n.iterations.after.satisfying.criteria = private$i.n.iterations.after.satisfying.criteria.first.sim
@@ -391,10 +404,10 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 parameter.this.criterion = criterion.this.iteration$parameter.name
                 
                 # decide on new parameters
-                new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.naive.dx[[parameter.this.criterion]])
+                new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.naive.dx[[parameter.this.criterion]], is.fine.tuning = T)
                 new.parameters.to.optimize = parameters.to.optimize
                 new.parameters.to.optimize[[parameter.this.criterion]] = new.parameters.to.optimize.value
-                
+                # if (sim.index==2) browser()
                 next.sim = engine$run(parameters=c(new.parameters.to.optimize, parameters),
                                       prior.sim.index = sim.index)
                 iteration = iteration + 1
@@ -405,12 +418,13 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                                                                                                                            new.parameters.to.optimize.value,
                                                                                                                            parameters.to.optimize[[parameter.this.criterion]])
 
-                # compare to previous sim -- any out of range is a deal breaker.
                 
+                # compare to previous sim -- any out of range is a deal breaker.
                 criteria.satisfied = all(sapply(private$i.completion.criteria, function(criterion){
-                    criterion$is.satisfied(sim, iteration = iteration)
+                    criterion$is.satisfied(next.sim, iteration = iteration)
                 }))
-               # use sum score instead 
+                
+               # use sum score instead
                 next.score = sum(sapply(private$i.completion.criteria, function(criterion) {
                     criterion$score.sim(next.sim, iteration=iteration, is.fine.tuning=T, verbose=F)}))
                 prev.score = sum(sapply(private$i.completion.criteria, function(criterion) {
@@ -602,6 +616,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
         
         is.satisfied = function(sim, iteration)
         {
+            # sim.value = private$optimized.get.sim.value(sim)
             sim.value = private$get.sim.value(sim)
             
             threshold.mask = c(iteration < private$i.subsequent.thresholds.apply.after.iteration, T)
@@ -610,10 +625,16 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             sim.value >= min.acceptable & sim.value <= max.acceptable
         },
         
-        get.transformed.naive.derivative = function(current.sim, prev.sim, current.param, prev.param) {
-            # browser()
-            current.value = as.vector(private$get.sim.value(current.sim))
-            prev.value = as.vector(private$get.sim.value(prev.sim))
+        check.has.changed = function(next.sim, prev.sim) {
+            private$optimized.get.sim.value(next.sim) != private$optimized.get.sim.value(prev.sim)
+        },
+        
+        get.transformed.naive.derivative = function(current.sim, prev.sim, current.param, prev.param, debug=F) {
+            if (debug) browser()
+            current.value = as.vector(private$optimized.get.sim.value(current.sim))
+            prev.value = as.vector(private$optimized.get.sim.value(prev.sim))
+            # current.value = private$get.sim.value(current.sim)
+            # prev.value = private$get.sim.value(prev.sim)
             
             outcome.scale = current.sim$outcome.metadata[[private$i.outcome]]$scale
             
@@ -624,34 +645,35 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             tsfx.prev.param = transform.to.unbounded.scale(prev.param, private$i.parameter.scale)
             
             naive.dx = (tsfx.current.outcome-tsfx.prev.outcome) / (tsfx.current.param - tsfx.prev.param)
+            if (naive.dx==0) browser()
+            if (self$parameter.name == 'testing.multiplier')
+                print(paste0('naive.dx: ', naive.dx))
+            return(naive.dx)
             
         },
         
         # added until we do something taking multiple criteria into account simultaneously
-        suggest.new.parameter = function(sim, transformed.naive.dx, debug=F) {
+        suggest.new.parameter = function(sim, transformed.naive.dx, is.fine.tuning=F, debug=F) {
             if (debug) browser()
-            tsfx.current.outcome = transform.to.unbounded.scale(as.vector(private$get.sim.value(sim)), sim$outcome.metadata[[private$i.outcome]]$scale)
             
-            tsfx.target.outcome = transform.to.unbounded.scale(private$i.target.value, sim$outcome.metadata[[private$i.outcome]]$scale)
+            low = private$i.min.acceptable.value[1]
+            high = private$i.max.acceptable.value[1]
+            mid = (high + low) / 2
+            
+            # If fine tuning, use target. Otherwise, use mean of mid and target.
+            if (is.fine.tuning)
+                tsfx.target.outcome = transform.to.unbounded.scale(private$i.target.value, sim$outcome.metadata[[private$i.outcome]]$scale)
+            else
+                tsfx.target.outcome = transform.to.unbounded.scale(mean(mid, private$i.target.value), sim$outcome.metadata[[private$i.outcome]]$scale)
+            
+            tsfx.current.outcome = transform.to.unbounded.scale(as.vector(private$optimized.get.sim.value(sim)), sim$outcome.metadata[[private$i.outcome]]$scale)
+            # tsfx.current.outcome = transform.to.unbounded.scale(private$get.sim.value(sim), sim$outcome.metadata[[private$i.outcome]]$scale)
             
             tsfx.param = transform.to.unbounded.scale(sim$params[private$i.parameter.name], private$i.parameter.scale)
             
             tsfx.step = (tsfx.target.outcome- tsfx.current.outcome) / transformed.naive.dx
             
             next.param = transform.from.unbounded.scale(tsfx.param + tsfx.step, private$i.parameter.scale)
-            
-            # if (!private$i.inversely.related) {
-            #     percentage.incorrect = (private$i.target.value - sim.value) / private$i.target.value
-            #     old.param.value = sim$params[private$i.parameter.name]
-            #     # print(paste0("iteration ", iteration, ": sim.value: ", sim.value, " target.value: ", private$i.target.value, " old.param.value: ", old.param.value, " percentage incorrect: ", percentage.incorrect))
-            #     new.param.value = old.param.value * (1 + percentage.incorrect)
-            # }
-            # else {
-            #     multiplier = private$i.target.value / sim.value
-            #     old.param.value = sim$params[private$i.parameter.name]
-            #     print(paste0("iteration ", iteration, ": sim.value: ", sim.value, " target.value: ", private$i.target.value, " old.param.value: ", old.param.value, " multipler: ", multiplier))
-            #     new.param.value = old.param.value / multiplier
-            # }
         },
         
         score.sim = function(sim, iteration, is.fine.tuning=F, verbose, as.log.likelihood=T, debug=F)
@@ -661,7 +683,8 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             P.IN.RANGE = 0.9999
             
             #-- Prep the bounds --#
-            pre.transformed.sim.value = sim.value = private$get.sim.value(sim)
+            pre.transformed.sim.value = sim.value = private$optimized.get.sim.value(sim)
+            # pre.transformed.sim.value = sim.value = private$get.sim.value(sim)
              ##
             low = private$i.min.acceptable.value[1]
             high = private$i.max.acceptable.value[1]
@@ -674,7 +697,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                 target = transform.to.unbounded.scale(private$i.target.value, scale)
             else
                 target = transform.to.unbounded.scale(mean(mid, private$i.target.value), scale)
-            
+            target = transform.to.unbounded.scale(private$i.target.value, scale)
             above.range = sim.value > high
             below.range = sim.value < low
             is.in.range = !above.range & !below.range
@@ -718,7 +741,8 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             if (verbose)
                 base::print(paste0("   ", private$i.outcome, " = ", round(pre.transformed.sim.value,3),
                                    " (p = ", round(exp(log.f), 3), ")"))
-            # print(paste0("iteration ", iteration, " has value ", pre.transformed.sim.value, " and score ", log.f))
+            # if (self$parameter.name == 'testing.multiplier')
+                # print(paste0("iteration ", iteration, " has value ", pre.transformed.sim.value, " and score ", log.f))
             if (is.na(log.f))
                 browser()
             
@@ -726,6 +750,12 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                 log.f
             else
                 exp(-log.f)
+        },
+        
+        prepare.optimized.sim.get.instructions = function(sim.metadata) {
+            private$i.optimized.sim.get.instructions = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome,
+                                                                                                       keep.dimensions = 'year', #by definition, only allowed to get a single scalar, but optimized get requires year
+                                                                                                       dimension.values = private$i.dimension.values)
         },
 
         equals = function(other)
@@ -835,14 +865,16 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
         i.score.metric = NULL,
         i.coefficient.of.variance = NULL,
         
+        i.optimized.sim.get.instructions = NULL,
+        
         get.sim.value = function(sim)
         {
-            dimension.values.this.sim = private$i.dimension.values
-            if (!('year' %in% names(private$i.dimension.values)))
-                dimension.values.this.sim['year'] = sim$to.year
             sim$get(outcomes = private$i.outcome,
-                    dimension.values = dimension.values.this.sim,
+                    dimension.values = private$i.dimension.values,
                     keep.dimensions = character()) #by definition, only allowed to get a single scalar
+        },
+        optimized.get.sim.value = function(sim) {
+            as.vector(sim$optimized.get(private$i.optimized.sim.get.instructions))
         }
         
     )
