@@ -426,7 +426,11 @@ JHEEM.INTERVENTION = R6::R6Class(
             
             
             # Run
-            private$prepare.to.run(engine, sim=sim, verbose=verbose)
+            private$prepare.to.run(engine, 
+                                   sim = sim, 
+                                   keep.from.year = keep.from.year,
+                                   keep.to.year = keep.to.year,
+                                   verbose=verbose)
             sim.list = lapply(1:sim$n.sim, function(i){
                 params = new.parameters[i,]
                 names(params) = new.param.names
@@ -537,7 +541,11 @@ JHEEM.INTERVENTION = R6::R6Class(
         i.code = NULL,
         i.parameter.distribution = NULL,
         
-        prepare.to.run = function(engine, sim, verbose)
+        prepare.to.run = function(engine, 
+                                  sim,
+                                  keep.from.year,
+                                  keep.to.year,
+                                  verbose)
         {
             # The default does nothing
         },
