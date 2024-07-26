@@ -3,7 +3,6 @@
 #'
 #'@param parameter.name The name of the parameter to be modified to achieve the outcome
 #'@param outcome A character vector indicating the name of the outcome to which the criterion applies
-#'@param inversely.related If true, increasing the parameter decreases the value of the outcome. If false, increasing the parameter increases the outcome
 #'
 #'@param parameter.scale The scale on which the parameter operates
 #'@param parameter.initial.value Either a single scalar numeric or a function that takes argument sim and returns a single scalar numeric
@@ -18,7 +17,6 @@
 #'@export
 create.monotonic.criterion <- function(parameter.name,
                                        outcome,
-                                       inversely.related,
                                        
                                        parameter.scale,
                                        parameter.initial.value,
@@ -34,7 +32,6 @@ create.monotonic.criterion <- function(parameter.name,
 {
     MONOTONIC.OUTCOME.INTERVENTION.CRITERION$new(parameter.name = parameter.name,
                                                  outcome = outcome,
-                                                 inversely.related = inversely.related,
                                                  
                                                  parameter.scale = parameter.scale,
                                                  parameter.initial.value = parameter.initial.value,
@@ -103,7 +100,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                               name)
         {
             #@Andrew
-            
+            # browser()
             super$initialize(code = code,
                              name = name,
                              parameter.distribution = base.intervention$parameter.distribution)
@@ -126,7 +123,10 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             
             if (any(!sapply(completion.criteria, is, "monotonic.outcome.intervention.criterion")))
                 stop(paste0(error.prefix, "'completion.critera' must be either a 'monotonic.outcome.intervention.criterion' object or a list of 'monotonic.outcome.intervention.criterion' objects"))
-
+            
+            # The parameters of the completion criteria must not be shared by each other or the base intervention.
+            if (any(duplicated(c(sapply(completion.criteria, function(criterion) {criterion$parameter.name}), base.intervention$parameter.distribution@var.names))))
+                stop(paste0(error.prefix, "completion criteria may not share parameters with each other or with any parameter distributions in the base intervention"))
            
             # n.iterations.after.satisfying.criteria
             if (!is.numeric(n.iterations.after.satisfying.criteria) || length(n.iterations.after.satisfying.criteria)!=1 || is.na(n.iterations.after.satisfying.criteria))
@@ -328,7 +328,6 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 # Rotate through criteria one by one
                 unsatisfied.criteria = seq_along(private$i.completion.criteria) # Note: it's possible that one of ours IS already satisfied...
                 criterion.index = 1
-                
                 iteration = iteration + 1
                 while (iteration < max.iterations && length(unsatisfied.criteria)>0) {
                     # if (iteration ==10) browser()
@@ -340,17 +339,17 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     criterion.this.iteration = private$i.completion.criteria[[criterion.index]]
                     parameter.this.criterion = criterion.this.iteration$parameter.name
                     # decide on new parameters
-                    new.parameter.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.naive.dx[[parameter.this.criterion]], is.fine.tuning=F)
+                    new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.naive.dx[[parameter.this.criterion]], is.fine.tuning=F)
                     new.parameters.to.optimize = parameters.to.optimize
                     
                     # if it somehow suggested the exact same parameter, move on. Count it as an iteration to avoid getting trapped forever
-                    if (is.na(new.parameter.to.optimize.value)||is.na(parameters.to.optimize[[parameter.this.criterion]])) browser()
-                    if (new.parameter.to.optimize.value == parameters.to.optimize[[parameter.this.criterion]]) {
+                    if (is.na(new.parameters.to.optimize.value)||is.na(parameters.to.optimize[[parameter.this.criterion]])) browser()
+                    if (new.parameters.to.optimize.value == parameters.to.optimize[[parameter.this.criterion]]) {
                         iteration = iteration + 1
                         next
                     }
                     
-                    new.parameters.to.optimize[[parameter.this.criterion]] = new.parameter.to.optimize.value
+                    new.parameters.to.optimize[[parameter.this.criterion]] = new.parameters.to.optimize.value
                     
                     # run a new sim
                     tryCatch({next.sim = engine$run(parameters=c(new.parameters.to.optimize, parameters),
@@ -363,7 +362,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     if (criterion.this.iteration$check.has.changed(prev.sim, next.sim)) {
                         private$i.naive.dx[[parameter.this.criterion]] = criterion.this.iteration$get.transformed.naive.derivative(next.sim,
                                                                                                                                    prev.sim,
-                                                                                                                                   new.parameter.to.optimize.value,
+                                                                                                                                   new.parameters.to.optimize.value,
                                                                                                                                    parameters.to.optimize[[parameter.this.criterion]])
                     }
                     
@@ -397,7 +396,8 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             else n.iterations.after.satisfying.criteria = private$i.n.iterations.after.satisfying.criteria
             criterion.index = 0
             for (i in 1:n.iterations.after.satisfying.criteria) {
-                
+                # print(iteration)
+                # if (iteration==9) browser()
                 # rotate criterion
                 criterion.index = (criterion.index %% length(private$i.completion.criteria)) + 1
                 criterion.this.iteration = private$i.completion.criteria[[criterion.index]]
@@ -407,17 +407,25 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.naive.dx[[parameter.this.criterion]], is.fine.tuning = T)
                 new.parameters.to.optimize = parameters.to.optimize
                 new.parameters.to.optimize[[parameter.this.criterion]] = new.parameters.to.optimize.value
-                # if (sim.index==2) browser()
+                
+                if (is.na(new.parameters.to.optimize.value)||is.na(parameters.to.optimize[[parameter.this.criterion]])) browser()
+                if (new.parameters.to.optimize.value == parameters.to.optimize[[parameter.this.criterion]]) {
+                    iteration = iteration + 1
+                    next
+                }
+                
                 next.sim = engine$run(parameters=c(new.parameters.to.optimize, parameters),
                                       prior.sim.index = sim.index)
                 iteration = iteration + 1
                 
                 # Use this information to save a new derivative
-                private$i.naive.dx[[parameter.this.criterion]] = criterion.this.iteration$get.transformed.naive.derivative(next.sim,
-                                                                                                                           prev.sim,
-                                                                                                                           new.parameters.to.optimize.value,
-                                                                                                                           parameters.to.optimize[[parameter.this.criterion]])
-
+                # But we do not want a derivative of 0, so if the outcome hasn't changed, we should skip it
+                if (criterion.this.iteration$check.has.changed(prev.sim, next.sim)) {
+                    private$i.naive.dx[[parameter.this.criterion]] = criterion.this.iteration$get.transformed.naive.derivative(next.sim,
+                                                                                                                               prev.sim,
+                                                                                                                               new.parameters.to.optimize.value,
+                                                                                                                               parameters.to.optimize[[parameter.this.criterion]])
+                }
                 
                 # compare to previous sim -- any out of range is a deal breaker.
                 criteria.satisfied = all(sapply(private$i.completion.criteria, function(criterion){
@@ -471,7 +479,6 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
         
         initialize = function(parameter.name,
                               outcome,
-                              inversely.related,
                               
                               parameter.scale,
                               parameter.initial.value,
@@ -586,7 +593,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             
             #@Todd didn't make these
             if (!is.character(score.metric) || length(score.metric)!=1 || is.na(score.metric))
-                stop(paste0(error.prefix, "'score.metic' must be a single character value"))
+                stop(paste0(error.prefix, "'score.metric' must be a single character value"))
             if (!is.numeric(score.coefficient.of.variance) || length(score.coefficient.of.variance)!=1 || is.na(score.coefficient.of.variance) || score.coefficient.of.variance<=0)
                 stop(paste0(error.prefix, "'score.coefficient.of.variance' must be a single, positive numeric value")) # right?
             
@@ -596,7 +603,6 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             private$i.parameter.name = parameter.name
             private$i.parameter.scale = parameter.scale
             private$i.parameter.initial.value = parameter.initial.value
-            private$i.inversely.related = inversely.related
             private$i.draw.parameter.from.previous.sims = draw.parameter.from.previous.sims
             
             private$i.outcome = outcome
@@ -645,6 +651,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             tsfx.prev.param = transform.to.unbounded.scale(prev.param, private$i.parameter.scale)
             
             naive.dx = (tsfx.current.outcome-tsfx.prev.outcome) / (tsfx.current.param - tsfx.prev.param)
+            if (is.na(naive.dx)) browser()
             if (naive.dx==0) browser()
             if (self$parameter.name == 'testing.multiplier')
                 print(paste0('naive.dx: ', naive.dx))
@@ -848,7 +855,6 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
         
         i.parameter.name = NULL,
         i.outcome = NULL,
-        i.inversely.related = NULL,
         
         i.parameter.scale = NULL,
         i.parameter.initial.value = NULL,
