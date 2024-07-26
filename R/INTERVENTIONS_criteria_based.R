@@ -125,7 +125,8 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 stop(paste0(error.prefix, "'completion.critera' must be either a 'monotonic.outcome.intervention.criterion' object or a list of 'monotonic.outcome.intervention.criterion' objects"))
             
             # The parameters of the completion criteria must not be shared by each other or the base intervention.
-            if (any(duplicated(c(sapply(completion.criteria, function(criterion) {criterion$parameter.name}), base.intervention$parameter.distribution@var.names))))
+            if (any(duplicated(c(sapply(completion.criteria, function(criterion) {criterion$parameter.name}),
+                                 if (!is.null(base.intervention$parameter.distribution)) base.intervention$parameter.distribution@var.names else NULL))))
                 stop(paste0(error.prefix, "completion criteria may not share parameters with each other or with any parameter distributions in the base intervention"))
            
             # n.iterations.after.satisfying.criteria
@@ -252,7 +253,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         {
             #@Andrew fill in
             # ptm = Sys.time()
-            # if (sim.index==49) browser()
+            # if (sim.index==2) browser()
             #-- Step 1: Run with either parameters set to 1 (for a multiplier) or using previous sim parameters --#
             # browser()
 
