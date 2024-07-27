@@ -223,7 +223,8 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         i.previous.score = NULL,
         i.n.failures = NULL,
         i.n.sim = NULL,
-        i.naive.dx = NULL,
+        i.dx.components = NULL,
+        i.dx.discount.prior.n = NULL,
         i.param.has.pos.direction = NULL,
         
         is.equal.to = function(other)
@@ -241,7 +242,11 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             names(private$i.previous.parameter.means) = private$i.parameters.to.optimize.names
             private$i.n.failures = 0
             private$i.n.sim = sim$n.sim
-            private$i.naive.dx = sapply(private$i.parameters.to.optimize.names, function(x) {NA})
+            private$i.dx.components = lapply(private$i.parameters.to.optimize.names, function(x) {
+                list(dx=NA, dx.n=1)
+            })
+            private$i.dx.discount.prior.n = 0.5
+            
             private$i.param.has.pos.direction = sapply(private$i.parameters.to.optimize.names, function(x) {NA})
             
             # set up the optimized sim get
@@ -278,17 +283,19 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 }))
             }
             if ((sim.index != 1 && !criteria.satisfied) || sim.index == 1) {
-                private$i.naive.dx = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
-                    if (!is.na(private$i.naive.dx[[parameter.name]]))
-                        private$i.naive.dx[[parameter.name]]
+                private$i.dx.components = lapply(private$i.parameters.to.optimize.names, function(parameter.name) {
+                    if (!is.na(private$i.dx.components[[parameter.name]]$dx))
+                        dx = private$i.dx.components[[parameter.name]]$dx
                     else if (!is.na(private$i.param.has.pos.direction[[parameter.name]]))
-                        if (private$i.param.has.pos.direction[[parameter.name]]) 1 else -1
-                    else 1
+                        if (private$i.param.has.pos.direction[[parameter.name]]) dx = 1 else dx = -1
+                    else dx = 1
+                    dx.n = 1
+                    list(dx=dx, dx.n=dx.n)
                 })
                 # browser()
                 new.parameters.to.optimize = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
                     criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
-                    criterion.this.parameter$suggest.new.parameter(prev.sim, private$i.naive.dx[[parameter.name]], is.fine.tuning = F)
+                    criterion.this.parameter$suggest.new.parameter(prev.sim, private$i.dx.components[[parameter.name]]$dx, is.fine.tuning = F)
                 })
                 names(new.parameters.to.optimize) = private$i.parameters.to.optimize.names # comes back weird from the above sapply because the inner function returns a named vector
                 
@@ -296,19 +303,22 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 iteration = 2
                 
                 # update dx
-                private$i.naive.dx = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
+                
+                private$i.dx.components = lapply(private$i.parameters.to.optimize.names, function(parameter.name) {
                     criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
-                    criterion.this.parameter$get.transformed.naive.derivative(next.sim,
-                                                                              prev.sim,
-                                                                              new.parameters.to.optimize[[parameter.name]],
-                                                                              parameters.to.optimize[[parameter.name]])
+                    components = criterion.this.parameter$get.derivative.components(next.sim,
+                                                                                    prev.sim,
+                                                                                    new.parameters.to.optimize[[parameter.name]],
+                                                                                    parameters.to.optimize[[parameter.name]],
+                                                                                    private$i.dx.components[[parameter.name]],
+                                                                                    private$i.dx.discount.prior.n)
+                    list(dx=components$dx, dx.n=components$dx.n)
                 })
-                names(private$i.naive.dx) = private$i.parameters.to.optimize.names
                 
                 # update directionality if previously unknown
                 for (parameter.name in private$i.parameters.to.optimize.names) {
                     if (is.na(private$i.param.has.pos.direction[[parameter.name]]))
-                        private$i.param.has.pos.direction[[parameter.name]] = private$i.naive.dx[[parameter.name]] > 0
+                        private$i.param.has.pos.direction[[parameter.name]] = private$i.dx.components[[parameter.name]]$dx > 0
                 }
                 
                 prev.sim = next.sim
@@ -340,7 +350,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     criterion.this.iteration = private$i.completion.criteria[[criterion.index]]
                     parameter.this.criterion = criterion.this.iteration$parameter.name
                     # decide on new parameters
-                    new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.naive.dx[[parameter.this.criterion]], is.fine.tuning=F)
+                    new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.dx.components[[parameter.this.criterion]]$dx, is.fine.tuning=F)
                     new.parameters.to.optimize = parameters.to.optimize
                     
                     # if it somehow suggested the exact same parameter, move on. Count it as an iteration to avoid getting trapped forever
@@ -361,12 +371,14 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     # Use this information to save a new derivative
                     # But we do not want a derivative of 0, so if the outcome hasn't changed, we should skip it
                     if (criterion.this.iteration$check.has.changed(prev.sim, next.sim)) {
-                        private$i.naive.dx[[parameter.this.criterion]] = criterion.this.iteration$get.transformed.naive.derivative(next.sim,
-                                                                                                                                   prev.sim,
-                                                                                                                                   new.parameters.to.optimize.value,
-                                                                                                                                   parameters.to.optimize[[parameter.this.criterion]])
+                        components = criterion.this.iteration$get.derivative.components(next.sim,
+                                                                                        prev.sim,
+                                                                                        new.parameters.to.optimize[[parameter.this.criterion]],
+                                                                                        parameters.to.optimize[[parameter.this.criterion]],
+                                                                                        private$i.dx.components[[parameter.this.criterion]],
+                                                                                        private$i.dx.discount.prior.n)
+                        private$i.dx.components[[parameter.this.criterion]] = list(dx=components$dx, dx.n=components$dx.n)
                     }
-                    
                     # Compare score to previous sim's score
                     criterion.satisfied = sapply(private$i.completion.criteria, function(criterion){
                         criterion$is.satisfied(next.sim, iteration = iteration)
@@ -405,7 +417,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 parameter.this.criterion = criterion.this.iteration$parameter.name
                 
                 # decide on new parameters
-                new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.naive.dx[[parameter.this.criterion]], is.fine.tuning = T)
+                new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.dx.components[[parameter.this.criterion]]$dx, is.fine.tuning = T)
                 new.parameters.to.optimize = parameters.to.optimize
                 new.parameters.to.optimize[[parameter.this.criterion]] = new.parameters.to.optimize.value
                 
@@ -422,10 +434,13 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 # Use this information to save a new derivative
                 # But we do not want a derivative of 0, so if the outcome hasn't changed, we should skip it
                 if (criterion.this.iteration$check.has.changed(prev.sim, next.sim)) {
-                    private$i.naive.dx[[parameter.this.criterion]] = criterion.this.iteration$get.transformed.naive.derivative(next.sim,
-                                                                                                                               prev.sim,
-                                                                                                                               new.parameters.to.optimize.value,
-                                                                                                                               parameters.to.optimize[[parameter.this.criterion]])
+                    components = criterion.this.iteration$get.derivative.components(next.sim,
+                                                                                    prev.sim,
+                                                                                    new.parameters.to.optimize[[parameter.this.criterion]],
+                                                                                    parameters.to.optimize[[parameter.this.criterion]],
+                                                                                    private$i.dx.components[[parameter.this.criterion]],
+                                                                                    private$i.dx.discount.prior.n)
+                    private$i.dx.components[[parameter.this.criterion]] = list(dx=components$dx, dx.n=components$dx.n)
                 }
                 
                 # compare to previous sim -- any out of range is a deal breaker.
@@ -636,8 +651,13 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             private$optimized.get.sim.value(next.sim) != private$optimized.get.sim.value(prev.sim)
         },
         
-        get.transformed.naive.derivative = function(current.sim, prev.sim, current.param, prev.param, debug=F) {
+        get.derivative.components = function(current.sim, prev.sim, current.param, prev.param, derivative.components, dx.discount.prior.n, debug=F) {
             if (debug) browser()
+            # Now takes in a list and returns a list
+            
+            prev.dx = derivative.components$dx
+            dx.n = derivative.components$dx.
+            
             current.value = as.vector(private$optimized.get.sim.value(current.sim))
             prev.value = as.vector(private$optimized.get.sim.value(prev.sim))
             # current.value = private$get.sim.value(current.sim)
@@ -651,13 +671,18 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             tsfx.current.param = transform.to.unbounded.scale(current.param, private$i.parameter.scale)
             tsfx.prev.param = transform.to.unbounded.scale(prev.param, private$i.parameter.scale)
             
-            naive.dx = (tsfx.current.outcome-tsfx.prev.outcome) / (tsfx.current.param - tsfx.prev.param)
+            one.dx = (tsfx.current.outcome-tsfx.prev.outcome) / (tsfx.current.param - tsfx.prev.param)
+            
+            naive.dx = (prev.dx * (dx.n ^ dx.discount.prior.n - 1) + one.dx) / (dx.n ^ dx.discount.prior.n)
+            new.dx.n = dx.n + 1
+            
+            if (is.infinite(naive.dx)) browser()
+            
             if (is.na(naive.dx)) browser()
             if (naive.dx==0) browser()
             if (self$parameter.name == 'testing.multiplier')
                 print(paste0('naive.dx: ', naive.dx))
-            return(naive.dx)
-            
+            return (list(dx=naive.dx, dx.n=new.dx.n))
         },
         
         # added until we do something taking multiple criteria into account simultaneously
