@@ -6,7 +6,11 @@
 ##-------------------##
 ##-------------------##
 
-interpolate <- function(values,
+
+# this is now implemented in a cpp function
+# We leave the old code here in case we ever need it to help understand the cpp
+#  or to compare against cpp output
+OLD.interpolate <- function(values,
                         value.times,
                         desired.times)
 {
@@ -44,6 +48,39 @@ interpolate <- function(values,
                 (value.times[index.after] - value.times[index.before])
         }
     })
+}
+
+interpolate <- function(values,
+                        value.times,
+                        desired.times)
+{
+    if (length(values) != length(value.times))
+        stop("To interpolate, 'values' must have the same length as 'value.times'")
+    
+    if (length(values)==0)
+        stop("To interpolate, 'values' cannot be empty")
+    
+    was.list = is.list(values)
+    if (was.list)
+    {
+        len = length(values[[1]])
+        if (any(vapply(values[-1], length, FUN.VALUE = integer(1)) != len))
+            stop("To interpolate, all the elements of 'values' must have the same length")
+    }
+    else
+    {
+        values = as.list(values);
+    }
+
+    # This cpp function is in optimize_engine.cpp
+    rv = do_interpolate(values = values,
+                        value_times = value.times,
+                        desired_times = desired.times)
+    
+    if (!was.list)
+        rv = unlist(rv)
+    
+    rv
 }
 
 interpolate.array <- function(arr,

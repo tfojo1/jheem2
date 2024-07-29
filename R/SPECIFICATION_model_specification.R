@@ -4067,6 +4067,9 @@ MODEL.ELEMENT = R6::R6Class(
                     if (!is.numeric(value) || length(value)==0 || any(is.na(value)))
                         stop(paste0(error.prefix,
                                     "'value' must be a non-empty, numeric object with no NA values"))
+                    
+                    if (length(value) != 1 && is.null(dimnames(value)))
+                        stop(paste0(error.prefix, "'value' must either be a scalar (single) numeric value OR it must have dimnames set"))
                 }
                 else # Using get.value.function
                 {
@@ -4489,6 +4492,11 @@ MODEL.ELEMENT = R6::R6Class(
                     stop(paste0(error.prefix, "Evaluating ", get.value.function.name, " for model element ",
                                 self$get.original.name(wrt.version = specification.metadata$version),
                                 " yields NAs"))
+                if (length(value) != 1 && is.null(dimnames(value)))
+                    stop(paste0(error.prefix, "Evaluating ", get.value.function.name, " for model element ",
+                                self$get.original.name(wrt.version = specification.metadata$version),
+                                " must yield either a scalar (single) numeric value OR it must have dimnames set"))
+                
                 
                 # make sure it accords with the expected max.dim.names
                 verify.dim.names.for.quantity(dim.names = dimnames(value),
@@ -7331,6 +7339,24 @@ MODEL.OUTCOME = R6::R6Class(
                                              include.denominator.outcome = F,
                                              error.prefix = error.prefix)
             
+            if (set && is.null(dim.names) && length(private$i.keep.dimensions)>0)
+            {
+                # Would it be better to do a top-down calculation here?
+                
+                invalid.dimensions = setdiff(private$i.keep.dimensions, names(specification$ontologies$all))
+                if (length(invalid.dimensions)>0)
+                {
+                    stop(paste0(error.prefix,
+                                "Outcome ", self$get.original.name(wrt.version=specification$version),
+                                " cannot infer its dim.names and so will derive them from the specifications ontologies. However, ",
+                                ifelse(length(invalid.dimensions)==1, "dimension ", "dimensions "),
+                                collapse.with.and("'", invalid.dimensions, "'"),
+                                " are not present in the specification ontologies"))
+                }
+                
+                dim.names = max.dim.names = specification$ontologies$all[private$i.keep.dimensions]
+            }
+            
             if (set || !is.null(dim.names))
             {
                 if (!is.null(private$i.keep.dimensions))
@@ -7527,6 +7553,9 @@ MODEL.OUTCOME = R6::R6Class(
                                                      all.outcomes = all.outcomes,
                                                      include.denominator.outcome = F,
                                                      error.prefix = error.prefix)
+            # 
+            # if (is.null(dim.names))
+            #     dim.names = specification$ontologies$all[private$i.keep.dimensions]
             
             if (is.null(private$i.denominator.outcome) || private$i.scale=='number' || private$i.scale=='non.negative.number' || private$i.value.is.numerator)
                 max.dimensions = NULL
@@ -8809,6 +8838,22 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                 first.desired.time = desired.times[1]
                 last.desired.time = desired.times[length(desired.times)]
                 
+                # Protect ourselves against interpolating beyond the endpoints
+                if (first.desired.time < binding.times[1])
+                {
+                    binding.times = c(first.desired.time, binding.times)
+                    for (i in 1:length(bindings))
+                        bindings[[i]] = c(bindings[[i]][1], bindings[[i]])
+                }
+                
+                if ((last.desired.time+cumulative.interval) > binding.times[length(binding.times)])
+                {
+                    binding.times = c(binding.times, last.desired.time+cumulative.interval)
+                    for (i in 1:length(bindings))
+                        bindings[[i]] = c(bindings[[i]], bindings[[i]][length(bindings[[i]])])
+                }
+
+                # Set up
                 n.binding.times = length(binding.times)
                 mask = binding.times[-1] > (first.desired.time + 1 - cumulative.interval) & 
                     binding.times[-n.binding.times] < (last.desired.time + 1)

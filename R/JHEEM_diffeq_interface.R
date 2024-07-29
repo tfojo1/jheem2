@@ -1134,12 +1134,14 @@ prepare.tracker <- function(outcome.name,
     )
 }
 
+# this will be implemented in cpp in calculate_quantity_background_value.cpp
 can.get.outcome.value.from.ode.output <- function(outcome.name,
                                                   settings)
 {
     any(names(settings$outcomes)==outcome.name)
 }
 
+# this will be implemented in cpp in calculate_quantity_background_value.cpp
 # ode.results has
 # $times - a numeric vector of times
 # $values - a numeric matrix with ncol = length(times)

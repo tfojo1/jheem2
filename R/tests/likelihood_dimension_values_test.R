@@ -9,7 +9,7 @@ test.population.likelihood.instructions =
                                        correlation.different.sources = 0.3, # default
                                        correlation.same.source.different.details = 0.3, # default
                                         
-                                        dimension.values = list(age='25-34 years'),
+                                     #   dimension.values = list(age='25-34 years'),
                                        
                                        # assumes correlation between all combos of years is the same
                                        observation.correlation.form = 'compound.symmetry', 
@@ -31,6 +31,6 @@ test.population.likelihood.instructions =
   )
 
 test.lik = test.population.likelihood.instructions$instantiate.likelihood('ehe','C.12580')
-# exp(test.lik$compute(sim2)-test.lik$compute(sim.last))
-# 
-# exp(test.lik$compute(sim2, debug=T))
+exp(test.lik$compute(sim2)-test.lik$compute(sim.last))
+
+exp(test.lik$compute(sim2, debug=T))

@@ -426,6 +426,70 @@ assemble.mcmc.from.calibration <- function(version,
 }
 
 #'@export
+extract.last.simulation.from.calibration <- function(version,
+                                                     location,
+                                                     calibration.code,
+                                                     root.dir = get.jheem.root.directory("Cannot set up calibration: "),
+                                                     allow.incomplete=F,
+                                                     include.first.sim=F,
+                                                     chains = NULL)
+{
+    dir = get.calibration.dir(version=version,
+                              location=location,
+                              calibration.code=calibration.code,
+                              root.dir=root.dir)
+    
+    cache.dir = file.path(dir, 'cache')
+    chain.dirs = list.dirs(cache.dir, recursive = F, full.names = F)
+    n.chains = length(chain.dirs)
+    
+    max.chunk = -1
+    chain.with.max.chunk = -1
+    for (chain in 1:n.chains)
+    {
+        chain.dir = file.path(cache.dir, paste0('chain_', chain))
+        chunk.files = list.files(chain.dir)
+        chunk = as.numeric(substr(chunk.files, start=nchar(paste0("chain", chain, "_chunk"))+1, nchar(chunk.files)-6))
+        max.chunk.for.chain = max(chunk)
+        if (max.chunk.for.chain > max.chunk)
+        {
+            max.chunk = max.chunk.for.chain
+            chain.with.max.chunk = chain
+        }
+    }
+    
+    if (max.chunk<0)
+        stop("Cannot extract.last.simulation.from.calibration - no simulations have been saved")
+    
+    if (!allow.incomplete)
+    {
+        chain.control = get(load(file.path(cache.dir, paste0('chain', chain.with.max.chunk, "_control.Rdata"))))
+        if (!all(chain.control@chunk.done))
+            stop("Cannot extract.last.simulation.from.calibration - no chains have finished running. Use allow.incomplete = T to get the last simulation that has been finished")
+    }
+    
+    mcmc.last = get(load(file.path(cache.dir, 
+                                   paste0('chain_', chain.with.max.chunk), 
+                                   paste0('chain', chain.with.max.chunk, "_chunk", max.chunk, ".Rdata"))))
+    
+    sim.last = mcmc.last@simulations[[length(mcmc.last@simulations)]]
+    
+    if (include.first.sim)
+    {
+        mcmc.first = mcmc.last = get(load(file.path(cache.dir, 
+                                                    paste0('chain_', chain.with.max.chunk), 
+                                                    paste0('chain', chain.with.max.chunk, "_chunk1.Rdata"))))
+        sim.first = mcmc.first@simulations[[1]]
+        
+        sim = join.simulation.sets(sim.first, sim.last)
+    }
+    else
+        sim = join.simulation.sets(sim.last) #this finalizes things
+    
+    sim
+}
+
+#'@export
 assemble.simulations.from.calibration <- function(version,
                                                   location,
                                                   calibration.code,

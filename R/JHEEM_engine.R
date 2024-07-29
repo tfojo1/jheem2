@@ -2831,7 +2831,6 @@ JHEEM = R6::R6Class(
         i.outcome.non.cumulative.values.all.apply = NULL,
         
         #-- Indices for quantities --#
-        i.quantity.component.depends.on.mapping.indices = NULL,
         i.quantity.mapping.indices = NULL,
         i.quantity.foreground.effect.indices = NULL,
 
@@ -2873,6 +2872,9 @@ JHEEM = R6::R6Class(
         #-- The Model Settings to Pass Along --#
         i.checked.model.settings = NULL,
         i.unchecked.model.settings = NULL,
+        
+        #-- Scratch Vectors --#
+        i.quantity.component.depends.on.scratch = NULL,
         
         ##---------------------##
         ##---------------------##
@@ -3075,6 +3077,15 @@ JHEEM = R6::R6Class(
             private$i.diffeq.settings = create.diffeq.settings(jheem = self,
                                                                kernel = private$i.kernel,
                                                                error.prefix = paste0("Error creating diffeq settings for JHEEM for version '", private$i.version, "' and location '", private$i.location, "': "))
+            
+            # Set up scratch vectors
+            private$i.quantity.component.depends.on.scratch = lapply(kernel$quantity.kernels, function(quantity){
+                lapply(quantity$components, function(comp){
+                    lapply(comp$depends.on, function(dep.on){
+                        NULL
+                    })
+                })
+            })
             
             # Clear the i.has.been.crunched flag
             private$i.has.been.crunched = F
@@ -5989,7 +6000,7 @@ JHEEM = R6::R6Class(
                             {
                                 dep.on.numerators = interpolate(private$i.outcome.numerators[[dep.on.outcome.name]], 
                                                                value.times = private$i.outcome.value.times.to.calculate[[dep.on.outcome.name]],
-                                                               desired.time = times.to.pull)
+                                                               desired.times = times.to.pull)
                             }
                             else
                             {

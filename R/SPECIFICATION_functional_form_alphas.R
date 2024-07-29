@@ -283,12 +283,26 @@ set.alpha.main.effect.values <- function(alphas,
     alphas
 }
 
+
+# ALPHA.TIMES = c(
+#     total = 0,
+#     apply.link = 0,
+#     dim.values = 0,
+#     id.dimensions = 0,
+#     sort.dimensions = 0,
+#     int.name = 0,
+#     skeleton = 0,
+#     value.names = 0,
+#     store = 0
+# )
+
 set.alpha.interaction.value <- function(alphas,
                                         dimension.values,
                                         value,
                                         check.consistency=T,
                                         error.prefix='')
 {
+# total.start = Sys.time()    
     if (!is(alphas, 'functional.form.alphas'))
         stop(paste0(error.prefix, "'alphas' must be an object of class 'functional.form.alphas'"))
     
@@ -296,12 +310,16 @@ set.alpha.interaction.value <- function(alphas,
     if (!is.numeric(value) || length(value)!=1 || is.na(value))
         stop(paste0(error.prefix, "'value' must be a non-NA, single numeric value"))
 
+# start =  Sys.time()
     #-- Transform the value --#
     alphas$link$check.untransformed.values(value, variable.name.for.error='value', error.prefix=paste0(error.prefix, "'value' for alphas do not match expected scale - "))
     value = alphas$link$apply(value)
+# end = Sys.time()
+# ALPHA.TIMES['apply.link'] <<- ALPHA.TIMES['apply.link'] + as.numeric(end) - as.numeric(start)
     
     #-- Validate dimension values --#
-    
+
+# start = Sys.time()    
     if (is.null(names(dimension.values)))
         stop(paste0(error.prefix, "'dimension.values' must be named with the dimensions each value applies to"))
     
@@ -326,7 +344,10 @@ set.alpha.interaction.value <- function(alphas,
         stop(error.prefix, "'dimension.values' must be either a character vector or a list containing only character vectors")
     
     dimension.values = as.list(dimension.values)
-    
+# end = Sys.time()
+# ALPHA.TIMES['dim.values'] <<- ALPHA.TIMES['dim.values'] + as.numeric(end) - as.numeric(start)
+# 
+# start = Sys.time()
     # Identify the dimensions involved here
     unique.dimensions = unique(dimensions)
     if (check.consistency)
@@ -353,6 +374,10 @@ set.alpha.interaction.value <- function(alphas,
                         " for alphas '", alphas$name, "'"))
     }
     
+# end = Sys.time()
+# ALPHA.TIMES['id.dimensions'] <<- ALPHA.TIMES['id.dimensions'] + as.numeric(end) - as.numeric(start)
+#   
+# start = Sys.time()    
     # Sort the dimensions according to the order they appear in max or min.dim.names
     if (is.null(alphas$maximum.dim.names))
         unique.dimensions = intersect(names(alphas$maximum.dim.names), unique.dimensions)
@@ -379,9 +404,17 @@ set.alpha.interaction.value <- function(alphas,
     n.iterated.dim.values = length(iterated.dim.values[[1]])
     
     
+# end = Sys.time()
+# ALPHA.TIMES['sort.dimensions'] <<- ALPHA.TIMES['sort.dimensions'] + as.numeric(end) - as.numeric(start)
+#  
+# start = Sys.time()
     # Get the name for the interaction (based on involved dimensions)
     interaction.name = paste0(unique.dimensions, collapse='_')
     
+# end = Sys.time()
+# ALPHA.TIMES['int.name'] <<- ALPHA.TIMES['int.name'] + as.numeric(end) - as.numeric(start)
+# 
+# start = Sys.time()
     # Create the skeleton holder to store info in (if not already present)
     if (is.null(alphas$interaction.effects[[interaction.name]]))
     {
@@ -393,7 +426,11 @@ set.alpha.interaction.value <- function(alphas,
         )
         names(alphas$interaction.effects[[interaction.name]]$dim.values) = unique.dimensions
     }
-    
+
+# end = Sys.time()
+# ALPHA.TIMES['skeleton'] <<- ALPHA.TIMES['skeleton'] + as.numeric(end) - as.numeric(start)
+# 
+# start = Sys.time()    
     # Get the names we will use to identify new values (so we can overwrite if previously set)
     value.names = sapply(1:n.iterated.dim.values, function(i){
         paste0(sapply(iterated.dim.values, function(dv){
@@ -401,6 +438,10 @@ set.alpha.interaction.value <- function(alphas,
         }), collapse="_") 
     })
     
+# end = Sys.time()
+# ALPHA.TIMES['value.names'] <<- ALPHA.TIMES['value.names'] + as.numeric(end) - as.numeric(start)
+# 
+# start = Sys.time()    
     # Store the dim.values
     for (i in 1:n.dim)
         alphas$interaction.effects[[interaction.name]]$dim.values[[i]][value.names] = iterated.dim.values[[i]]
@@ -415,6 +456,9 @@ set.alpha.interaction.value <- function(alphas,
     # If we added any value for a new dimension.value, clear the crunched indices
     if (length(alphas$interaction.effects[[interaction.name]]$values) != length.before.adding)
         alphas$crunched = NULL
+    
+# end = Sys.time()
+# ALPHA.TIMES['store'] <<- ALPHA.TIMES['store'] + as.numeric(end) - as.numeric(start)
     
     # Check if non-additive
     if (!alphas$is.additive && check.consistency)
@@ -478,7 +522,10 @@ set.alpha.interaction.value <- function(alphas,
         }
         
     }
-    
+
+# end = Sys.time()
+# ALPHA.TIMES['total'] <<- ALPHA.TIMES['total'] + as.numeric(end) - as.numeric(total.start)
+
     # Return the updated object
     alphas
 }

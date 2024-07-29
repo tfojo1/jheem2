@@ -1068,12 +1068,13 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                use.poisson
             )
             
-            sigma = sigma * private$i.inverse.variance.weights.matrix
-            
             # Revise sigma if including multiplier
             if (!is.null(private$i.inverse.multiplier.matrix.times.cov.mat)) {
-                sigma = sigma + private$i.inverse.multiplier.matrix.times.cov.mat * (sigma + mean %*% t(mean))
+                sigma.minus.measurement.error = sigma - measurement.error.cov.mat
+                sigma = sigma + private$i.inverse.multiplier.matrix.times.cov.mat * (sigma.minus.measurement.error + mean %*% t(mean))
             }
+            
+            sigma = sigma * private$i.inverse.variance.weights.matrix
             
 
             if (private$i.use.lognormal.approximation)
@@ -1116,9 +1117,11 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 if (private$i.calculate.lagged.difference)
                     lik.summary = cbind(private$i.metadata.for.lag, obs=obs, mean=mean, sd=sqrt(diag(sigma)))
                 else if (!is.null(n.vector))
-                    lik.summary = cbind(private$i.metadata, obs=obs/n.vector, mean/n.vector, sd=sqrt(diag(sigma))/n.vector)
+                    lik.summary = cbind(private$i.metadata, obs=obs/n.vector, mean=mean/n.vector, sd=sqrt(diag(sigma))/n.vector)
                 else
-                    lik.summary = cbind(private$i.metadata, obs=obs, mean, sd=sqrt(diag(sigma)))
+                    lik.summary = cbind(private$i.metadata, obs=obs, mean=mean, sd=sqrt(diag(sigma)))
+                
+                lik.summary$z = (lik.summary$obs - lik.summary$mean) / lik.summary$sd
                 browser()
             } 
             return(likelihood)
