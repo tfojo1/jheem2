@@ -8,6 +8,59 @@ IntegerVector generate_transformation_matrix_indices(
     int n) {
     
     // Create sparse representation of the transformation matrix 
+    int sparse_indices[n*m];
+    int sparse_column_length[n];
+    int *sparse_column;
+    
+    for (int i=0; i<n; i++) {
+        sparse_column = sparse_indices + i*m;
+        sparse_column_length[i] = 0;
+        for (int j=0; j<m; j++) {
+            if (transformation_matrix[i*m + j]) {
+                sparse_column[ sparse_column_length[i] ] = j;
+                sparse_column_length[i]++;
+            }
+        }
+    }
+    
+    // Figure out how many entries we have in sparse_indices
+    int n_triples = 0;
+    for (int i=0; i<n; i++)
+    {
+        for (int j=0; j<sparse_column_length[i]; j++)
+        {
+            n_triples += sparse_column_length[i] - j;
+        }
+    }
+    
+    // Convert to a vector consisting of triples (i,j,k)
+    // Note that for space reasons, (2,3,k) will be present but not (3,2,k)
+    IntegerVector triples(n_triples * 3);
+    int triples_index = 0;
+    for (int k=0; k<n; k++) {
+        sparse_column = sparse_indices + k*m;
+        for (unsigned int a=0; a<sparse_column_length[k]; a++) {
+            for (unsigned int b=a; b<sparse_column_length[k]; b++) {
+                triples[triples_index] = sparse_column[a];
+                triples[triples_index + 1] = sparse_column[b];
+                triples[triples_index + 2] = k;
+                
+                triples_index += 3;
+            }
+        }
+    }
+    
+    // Return the IntegerVector triples
+    return triples;
+}
+
+// [[Rcpp::export]]
+IntegerVector OLD_generate_transformation_matrix_indices(
+        NumericVector transformation_matrix,
+        int m,
+        int n) {
+    
+    // Create sparse representation of the transformation matrix 
     List sparse_indices (n);
     for (int i=0; i<n; i++) {
         IntegerVector sparse_column;
