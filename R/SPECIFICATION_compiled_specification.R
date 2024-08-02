@@ -1310,6 +1310,8 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 if (length(compartments)==0)
                     array(0, dim=c(0,length(private$i.compartment.value.function.aliases)),
                           dimnames=list(NULL, names(private$i.compartment.value.function.aliases)))
+                if (length(private$i.compartment.value.function.aliases)==0)
+                    array(character(), dim=c(0,0))
                 else
                 {
                     val = sapply(names(private$i.compartment.value.function.aliases), function(alias){

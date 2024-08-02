@@ -261,7 +261,7 @@ create.jheem.specification <- function(version,
         if (!is.numeric(start.year) || length(start.year)!=1 || is.na(start.year))
             stop(paste0(error.prefix, "'start.year' must be a single, non-NA numeric value"))
         
-        min.start.year = 1960
+        min.start.year = 1800
         max.start.year = 1980
         if (start.year < min.start.year || start.year > max.start.year)
             stop(paste0(error.prefix,
@@ -547,8 +547,8 @@ create.jheem.specification <- function(version,
     }
     
     # dim.names - make sure that we contain location
-    if (all(names(compartments.for.infected.and.uninfected)!='location'))
-        stop(paste0(error.prefix, "'compartments.for.infected.and.uninfected' must include a 'location' dimension"))
+    # if (all(names(compartments.for.infected.and.uninfected)!='location'))
+    #     stop(paste0(error.prefix, "'compartments.for.infected.and.uninfected' must include a 'location' dimension"))
     
     # dim.names - make sure that not all empty for infected or uninfected
     #if (length(compartments.for.infected.and.uninfected)==0)
