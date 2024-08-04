@@ -19,9 +19,10 @@ if (1==2)
 #'@param location.mappings is a named list, where the names correspond to modeled locations, and the elements are vectors of observed locations
 create.outcome.location.mapping <- function(location.mappings,
                                             outcome.name,
-                                            version,
-                                            location,
-                                            sub.version = NULL)
+                                            version = jheem.kernel$version,
+                                            location = jheem.kernel$location,
+                                            sub.version = NULL,
+                                            jheem.kernel = NULL)
 {
     if (!is.character(outcome.name) || length(outcome.name)!=1 || is.na(outcome.name))
         stop(paste0(error.prefix, "'outcome.name' must be a single, non-NA character value"))
@@ -45,19 +46,22 @@ create.outcome.location.mapping <- function(location.mappings,
         version = version,
         location = location,
         sub.version = sub.version,
-        location.mappings.for.outcomes = list.loc.mappings
+        location.mappings.for.outcomes = list.loc.mappings,
+        jheem.kernel = jheem.kernel
     )
 }
 
-create.default.outcome.location.mapping <- function(version,
-                                                  location,
-                                                  sub.version = NULL)
+create.default.outcome.location.mapping <- function(version = jheem.kernel$version,
+                                                  location = jheem.kernel$location,
+                                                  sub.version = NULL,
+                                                  jheem.kernel = NULL)
 {
     OUTCOME.LOCATION.MAPPING$new(
         version = version,
         location = location,
         sub.version = sub.version,
-        location.mappings.for.outcomes = NULL
+        location.mappings.for.outcomes = NULL,
+        jheem.kernel = jheem.kernel
     )
 }
 
@@ -81,9 +85,27 @@ join.outcome.location.mappings <- function(mappings.to.join)
         version = mappings.to.join[[1]]$version,
         location = mappings.to.join[[1]]$location,
         sub.version = mappings.to.join[[1]]$sub.version,
-        location.mappings.for.outcomes = joined.outcome.location.mappings
+        location.mappings.for.outcomes = joined.outcome.location.mappings,
+        jheem.kernel = mappings.to.join[[1]]$jheem.kernel
     )
 }
+
+
+# a helper that we use for now to force a reload of the class with the old data
+update.outcome.location.mapping <- function(mapping, jheem.kernel)
+{
+    if (is.null(jheem.kernel))
+        jheem.kernel = mapping$jheem.kernel
+    
+    OUTCOME.LOCATION.MAPPING$new(
+        version = mapping$version,
+        location = mapping$location,
+        sub.version = mapping$sub.version,
+        location.mappings.for.outcomes = mapping$location.mappings.for.outcomes,
+        jheem.kernel = jheem.kernel
+    )
+}
+
 
 OUTCOME.LOCATION.MAPPING = R6::R6Class(
     'outcome.location.mapping',
@@ -95,7 +117,8 @@ OUTCOME.LOCATION.MAPPING = R6::R6Class(
         initialize = function(version,
                               location,
                               sub.version,
-                              location.mappings.for.outcomes)
+                              location.mappings.for.outcomes,
+                              jheem.kernel = NULL)
         {
             super$initialize(version = version, 
                              location = location,
@@ -106,6 +129,7 @@ OUTCOME.LOCATION.MAPPING = R6::R6Class(
             # Dumb constructor - error checking is done in the wrapper to the constructor
             
             private$i.location.mappings.for.outcomes = location.mappings.for.outcomes  
+            private$i.jheem.kernel = jheem.kernel
         },
         
         get.observed.locations = function(outcome.name,
@@ -124,12 +148,18 @@ OUTCOME.LOCATION.MAPPING = R6::R6Class(
             {
                 modeled.location.type = locations::get.location.type(modeled.location)
                 location.type = locations::get.location.type(private$i.location)
+                
                 if (!is.na(modeled.location.type) && modeled.location.type=='CBSA' &&
                     (is.na(location.type) || location.type=='CBSA'))
                 {
-                    specification = get.compiled.specification.for.version('ehe')
-                    outcome = specification$get.outcome(outcome.name)
-                
+                    if (is.null(private$i.jheem.kernel))
+                    {
+                        specification = get.compiled.specification.for.version('ehe')
+                        outcome = specification$get.outcome(outcome.name)
+                    }
+                    else
+                        outcome = private$i.jheem.kernel$get.outcome.kernel(outcome.name)
+                        
                     if (is.null(outcome))
                         stop(paste0(error.prefix, "'", outcome.name, "' is not a valid outcome in the '", private$i.version, "' model specification"))
                     
@@ -213,12 +243,21 @@ OUTCOME.LOCATION.MAPPING = R6::R6Class(
                 private$i.location.mappings.for.outcomes
             else
                 stop("Cannot modify a JHEEM's 'location.mappings.for.outcomes' - they are read-only")
+        },
+        
+        jheem.kernel = function(value)
+        {
+            if (missing(value))
+                private$i.jheem.kernel
+            else
+                stop("Cannot modify a JHEEM's 'jheem.kernel' - they are read-only")
         }
     ),
     
     private = list(
         
         i.location.mappings.for.outcomes = NULL,
+        i.jheem.kernel = NULL,
         
         get.current.code.iteration = function()
         {

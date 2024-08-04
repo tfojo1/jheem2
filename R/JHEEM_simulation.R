@@ -778,8 +778,7 @@ SIMULATION.METADATA = R6::R6Class(
             if (missing(value))
             {
                 if (is.null(private$i.metadata$outcome.location.mapping))
-                    create.default.outcome.location.mapping(version = private$i.version,
-                                                            location = private$i.location,
+                    create.default.outcome.location.mapping(jheem.kernel = private$i.jheem.kernel,
                                                             sub.version = private$i.sub.version)
                 else
                     private$i.metadata$outcome.location.mapping
@@ -1283,6 +1282,19 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             })
             
             lockEnvironment(self)
+        },
+        
+        check = function()
+        {
+            browser()
+        },
+        
+        # here for now as a hack to let us force updates
+        update = function()
+        {
+            if (!is.null(private$i.metadata$outcome.location.mapping))
+                private$i.metadata$outcome.location.mapping = update.outcome.location.mapping(mapping = private$i.metadata$outcome.location.mapping,
+                                                                                              jheem.kernel = private$i.jheem.kernel)
         },
         
         print = function(...)
