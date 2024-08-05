@@ -42,6 +42,7 @@ source('../jheem2/R/INTERVENTIONS_target_populations.R')
 source('../jheem2/R/INTERVENTIONS_intervention_effects.R')
 source("../jheem2/R/INTERVENTIONS_main.R")
 source('../jheem2/R/INTERVENTIONS_foreground.R')
+source('../jheem2/R/INTERVENTIONS_criteria_based.R')
 
 source('../jheem2/R/JHEEM_entity.R')
 source('../jheem2/R/JHEEM_diffeq_interface.R')
