@@ -344,7 +344,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             #     stop(paste0(error.prefix, "'measurement.error.coefficient.of.variance' must be a numeric value between 0 and 1 inclusive"))
             
             # *error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', or 'data.ci'
-            if (!(error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.ci')))
+            if (!(error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.ci', 'data.variance')))
                 stop(paste0(error.prefix, "'error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', or 'data.ci'"))
 
             if (error.variance.type %in% c('sd', 'variance', 'cv') && (!is.numeric(error.variance.term) || length(error.variance.term)!=1 || is.na(error.variance.term) || error.variance.term < 0))
@@ -636,8 +636,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
             if (private$i.outcome.is.proportion && is.null(private$i.denominator.outcome.for.sim)) {
                 private$i.denominator.outcome.for.sim = sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$denominator.outcome
-                if (is.null(private$i.denominator.outcome.for.sim))
-                    stop(paste0(error.prefix, "denominator data expected for this outcome but not found"))
+        #        if (is.null(private$i.denominator.outcome.for.sim))
+        #            stop(paste0(error.prefix, "denominator data expected for this outcome but not found"))
             }
 
             private$i.sim.ontology = sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
@@ -713,7 +713,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                        metric = metric.map[[private$i.parameters$error.variance.type]],
                                                        sources = private$i.sources.to.use,
                                                        keep.dimensions = keep.dimensions,
-                                                       dimension.values = list(year = as.character(years), location = all.locations),
+                                                       dimension.values = list(year = as.character(years), location = location),
                                                        target.ontology = private$i.sim.ontology,
                                                        allow.mapping.from.target.ontology = T)
                         
@@ -1012,6 +1012,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         i.calculate.lagged.difference = NULL,
         i.lagged.pairs = NULL,
         i.metadata.for.lag = NULL,
+        
+        i.error.vector = NULL,
         
         do.compute = function(sim, log, check.consistency, debug)
         {

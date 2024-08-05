@@ -4008,6 +4008,7 @@ JHEEM = R6::R6Class(
                                                           to.time.for.cumulative = private$i.run.to.time-1,
                                                           calculate.non.cumulative.times = T)
             
+            
             private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]] = calculated$times
             private$i.outcome.non.cumulative.value.time.to.calculate.is.after.time[[outcome.name]] = calculated$is.after.time
         },
@@ -4062,6 +4063,17 @@ JHEEM = R6::R6Class(
                 shifted.later.keep.mask = c(F,keep.mask[-length(keep.mask)])
                 
                 keep.mask = keep.mask | shifted.earlier.keep.mask | shifted.later.keep.mask
+                
+                # I think this code is right
+                # basically, we should always have at least one non.cumulative.value.time
+                if (!any(keep.mask))
+                {
+                    n.times = length(private$i.outcome.non.cumulative.value.times[[outcome.name]])
+                    if (private$i.outcome.non.cumulative.value.times[[outcome.name]][n.times] < from.time)
+                        keep.mask[n.times] = T
+                    else
+                        keep.mask[1] = T
+                }
                 
                 times = private$i.outcome.non.cumulative.value.times[[outcome.name]][keep.mask]
                 is.after.time = private$i.outcome.non.cumulative.value.time.is.after.time[[outcome.name]][keep.mask]
@@ -6115,11 +6127,17 @@ JHEEM = R6::R6Class(
                         
                         bindings = c(bindings.of.outcomes, bindings.of.quantities)
                         
-                        raw.value = outcome$calculate.values(desired.times = private$i.outcome.value.times.to.calculate[[outcome.name]],
-                                                             bindings = bindings,
-                                                             binding.times = times.to.pull,
-                                                             cumulative.interval = 1,
-                                                             error.prefix = '')
+                        if (length(times.to.pull)==0)
+                        {
+                            browser()
+                            raw.value = list()
+                        }
+                        else
+                            raw.value = outcome$calculate.values(desired.times = private$i.outcome.value.times.to.calculate[[outcome.name]],
+                                                                 bindings = bindings,
+                                                                 binding.times = times.to.pull,
+                                                                 cumulative.interval = 1,
+                                                                 error.prefix = '')
                     }
                     
                     #-- Incorporate the denominator --#
