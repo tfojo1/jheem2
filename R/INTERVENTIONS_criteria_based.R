@@ -842,7 +842,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                             stop(paste0(error.prefix, collapse.with.and("'", invalid.values, "'"),
                                         ifelse(length(invalid.values)==1, " is not a valid value", " are valid values"),
                                         " in the '", d, "' dimension of outcome '", private$i.outcome, 
-                                        "' in the '", specification.metadata$version, "' specification instance in this simulation - and so cannot be used as dimension values in the criterion"))
+                                        "' in the '", jheem.kernel$version, "' specification instance in this simulation - and so cannot be used as dimension values in the criterion"))
                     }
                 }
             }
