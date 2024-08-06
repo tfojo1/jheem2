@@ -264,16 +264,20 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
 
             # keep separate the parameters passed into this function (which come from a distribution and are NOT optimized) and the ones I will optimize and make sure the engine$run gets them all
             
-            parameters.to.optimize = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
+            tsfx.parameters.to.optimize = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
                 criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
                 if (criterion.this.parameter$draw.parameter.from.previous.sims && sim.index > 1)
                     value = private$i.previous.parameter.means[[parameter.name]]
                 else
-                    criterion.this.parameter$parameter.initial.value
+                    transform.to.unbounded.scale(criterion.this.parameter$parameter.initial.value, criterion.this.parameter$parameter.scale)
             })
             
             # Take starting point (which has initial value given or inherited from previous sim) and take a step assuming a dx of 1, then save dx and use for future
-            prev.sim = engine$run(parameters=c(parameters.to.optimize, parameters), prior.sim.index=sim.index)
+            untsfx.parameters.to.optimize = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
+                criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
+                transform.from.unbounded.scale(tsfx.parameters.to.optimize[[parameter.name]], criterion.this.parameter$parameter.scale)
+            })
+            prev.sim = engine$run(parameters=c(untsfx.parameters.to.optimize, parameters), prior.sim.index=sim.index)
             iteration = 1 # Iteration refers to how many times engine$run is called
             
             # Check if these parameters are good enough on their own! We can skip to fine tuning as long as we have a derivative to use.
@@ -293,13 +297,16 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     list(dx=dx, dx.n=dx.n)
                 })
                 # browser()
-                new.parameters.to.optimize = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
+                tsfx.new.parameters.to.optimize = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
                     criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
                     criterion.this.parameter$suggest.new.parameter(prev.sim, private$i.dx.components[[parameter.name]]$dx, is.fine.tuning = F)
                 })
-                names(new.parameters.to.optimize) = private$i.parameters.to.optimize.names # comes back weird from the above sapply because the inner function returns a named vector
-                
-                next.sim = engine$run(parameters=c(new.parameters.to.optimize, parameters), prior.sim.index=sim.index)
+                names(tsfx.new.parameters.to.optimize) = private$i.parameters.to.optimize.names # comes back weird from the above sapply because the inner function returns a named vector
+                untsfx.new.parameters.to.optimize = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
+                    criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
+                    transform.from.unbounded.scale(tsfx.new.parameters.to.optimize[[parameter.name]], criterion.this.parameter$parameter.scale)
+                })
+                next.sim = engine$run(parameters=c(untsfx.new.parameters.to.optimize, parameters), prior.sim.index=sim.index)
                 iteration = 2
                 
                 # update dx
@@ -308,10 +315,11 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
                     components = criterion.this.parameter$get.derivative.components(next.sim,
                                                                                     prev.sim,
-                                                                                    new.parameters.to.optimize[[parameter.name]],
-                                                                                    parameters.to.optimize[[parameter.name]],
+                                                                                    tsfx.new.parameters.to.optimize[[parameter.name]],
+                                                                                    tsfx.parameters.to.optimize[[parameter.name]],
                                                                                     private$i.dx.components[[parameter.name]],
-                                                                                    private$i.dx.discount.prior.n)
+                                                                                    private$i.dx.discount.prior.n,
+                                                                                    verbose=verbose)
                     list(dx=components$dx, dx.n=components$dx.n)
                 })
                 
@@ -350,20 +358,24 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     criterion.this.iteration = private$i.completion.criteria[[criterion.index]]
                     parameter.this.criterion = criterion.this.iteration$parameter.name
                     # decide on new parameters
-                    new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.dx.components[[parameter.this.criterion]]$dx, is.fine.tuning=F)
-                    new.parameters.to.optimize = parameters.to.optimize
+                    tsfx.new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.dx.components[[parameter.this.criterion]]$dx, is.fine.tuning=F)
+                    tsfx.new.parameters.to.optimize = tsfx.parameters.to.optimize
                     
                     # if it somehow suggested the exact same parameter, move on. Count it as an iteration to avoid getting trapped forever
-                    if (is.na(new.parameters.to.optimize.value)||is.na(parameters.to.optimize[[parameter.this.criterion]])) browser()
-                    if (new.parameters.to.optimize.value == parameters.to.optimize[[parameter.this.criterion]]) {
+                    if (is.na(tsfx.new.parameters.to.optimize.value)||is.na(tsfx.parameters.to.optimize[[parameter.this.criterion]])) browser()
+                    if (tsfx.new.parameters.to.optimize.value == tsfx.parameters.to.optimize[[parameter.this.criterion]]) {
                         iteration = iteration + 1
                         next
                     }
                     
-                    new.parameters.to.optimize[[parameter.this.criterion]] = new.parameters.to.optimize.value
+                    tsfx.new.parameters.to.optimize[[parameter.this.criterion]] = tsfx.new.parameters.to.optimize.value
+                    untsfx.new.parameters.to.optimize = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
+                        criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
+                        transform.from.unbounded.scale(tsfx.new.parameters.to.optimize[[parameter.name]], criterion.this.parameter$parameter.scale)
+                    })
                     
                     # run a new sim
-                    tryCatch({next.sim = engine$run(parameters=c(new.parameters.to.optimize, parameters),
+                    tryCatch({next.sim = engine$run(parameters=c(untsfx.new.parameters.to.optimize, parameters),
                                                     prior.sim.index = sim.index)}, error=function(e){browser()})
                     
                     iteration = iteration + 1
@@ -373,10 +385,11 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     if (criterion.this.iteration$check.has.changed(prev.sim, next.sim)) {
                         components = criterion.this.iteration$get.derivative.components(next.sim,
                                                                                         prev.sim,
-                                                                                        new.parameters.to.optimize[[parameter.this.criterion]],
-                                                                                        parameters.to.optimize[[parameter.this.criterion]],
+                                                                                        tsfx.new.parameters.to.optimize[[parameter.this.criterion]],
+                                                                                        tsfx.parameters.to.optimize[[parameter.this.criterion]],
                                                                                         private$i.dx.components[[parameter.this.criterion]],
-                                                                                        private$i.dx.discount.prior.n)
+                                                                                        private$i.dx.discount.prior.n,
+                                                                                        verbose=verbose)
                         private$i.dx.components[[parameter.this.criterion]] = list(dx=components$dx, dx.n=components$dx.n)
                     }
                     # Compare score to previous sim's score
@@ -387,7 +400,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     prev.score = criterion.this.iteration$score.sim(prev.sim, iteration=iteration-1, is.fine.tuning=F, verbose=F)
                     if (next.score > prev.score || all(criterion.satisfied)) {
                         prev.sim = next.sim
-                        parameters.to.optimize = new.parameters.to.optimize
+                        tsfx.parameters.to.optimize = tsfx.new.parameters.to.optimize
                         # save prev score? for now will just calculate it twice (once as prev.score, once later as current.score)
                         
                         # update satisfied criteria for cycling through
@@ -417,17 +430,21 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 parameter.this.criterion = criterion.this.iteration$parameter.name
                 
                 # decide on new parameters
-                new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.dx.components[[parameter.this.criterion]]$dx, is.fine.tuning = T)
-                new.parameters.to.optimize = parameters.to.optimize
-                new.parameters.to.optimize[[parameter.this.criterion]] = new.parameters.to.optimize.value
+                tsfx.new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.dx.components[[parameter.this.criterion]]$dx, is.fine.tuning = T)
+                tsfx.new.parameters.to.optimize = tsfx.parameters.to.optimize
+                tsfx.new.parameters.to.optimize[[parameter.this.criterion]] = tsfx.new.parameters.to.optimize.value
                 
-                if (is.na(new.parameters.to.optimize.value)||is.na(parameters.to.optimize[[parameter.this.criterion]])) browser()
-                if (new.parameters.to.optimize.value == parameters.to.optimize[[parameter.this.criterion]]) {
+                if (is.na(tsfx.new.parameters.to.optimize.value)||is.na(tsfx.parameters.to.optimize[[parameter.this.criterion]])) browser()
+                if (tsfx.new.parameters.to.optimize.value == tsfx.parameters.to.optimize[[parameter.this.criterion]]) {
                     iteration = iteration + 1
                     next
                 }
+                untsfx.new.parameters.to.optimize = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
+                    criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
+                    transform.from.unbounded.scale(tsfx.new.parameters.to.optimize[[parameter.name]], criterion.this.parameter$parameter.scale)
+                })
                 
-                next.sim = engine$run(parameters=c(new.parameters.to.optimize, parameters),
+                next.sim = engine$run(parameters=c(untsfx.new.parameters.to.optimize, parameters),
                                       prior.sim.index = sim.index)
                 iteration = iteration + 1
                 
@@ -436,10 +453,11 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 if (criterion.this.iteration$check.has.changed(prev.sim, next.sim)) {
                     components = criterion.this.iteration$get.derivative.components(next.sim,
                                                                                     prev.sim,
-                                                                                    new.parameters.to.optimize[[parameter.this.criterion]],
-                                                                                    parameters.to.optimize[[parameter.this.criterion]],
+                                                                                    tsfx.new.parameters.to.optimize[[parameter.this.criterion]],
+                                                                                    tsfx.parameters.to.optimize[[parameter.this.criterion]],
                                                                                     private$i.dx.components[[parameter.this.criterion]],
-                                                                                    private$i.dx.discount.prior.n)
+                                                                                    private$i.dx.discount.prior.n,
+                                                                                    verbose=verbose)
                     private$i.dx.components[[parameter.this.criterion]] = list(dx=components$dx, dx.n=components$dx.n)
                 }
                 
@@ -455,7 +473,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     criterion$score.sim(prev.sim, iteration=iteration-1, is.fine.tuning=T, verbose=F)}))
                 if (next.score > prev.score && all(criteria.satisfied)) {
                     prev.sim = next.sim
-                    parameters.to.optimize = new.parameters.to.optimize
+                    tsfx.parameters.to.optimize = tsfx.new.parameters.to.optimize
                 }
             }
             final.sim = prev.sim # which was either set to next.sim at the end of the last iteration if accepted, or kept the same if not
@@ -465,7 +483,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             #-- Step 4: Save parameters to use for next sim --#
             
             # use parameter values to update mean for all sims
-            private$i.previous.parameter.means = (private$i.previous.parameter.means * (sim.index - private$i.n.failures - 1) + parameters.to.optimize) / (sim.index - private$i.n.failures)
+            private$i.previous.parameter.means = (private$i.previous.parameter.means * (sim.index - private$i.n.failures - 1) + tsfx.parameters.to.optimize) / (sim.index - private$i.n.failures)
             
             print(paste0("sim ", sim.index, " obtained a score of ", final.score, " with ", iteration, " iterations"))
             
@@ -651,9 +669,10 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             private$optimized.get.sim.value(next.sim) != private$optimized.get.sim.value(prev.sim)
         },
         
-        get.derivative.components = function(current.sim, prev.sim, current.param, prev.param, derivative.components, dx.discount.prior.n, debug=F) {
+        get.derivative.components = function(current.sim, prev.sim, tsfx.current.param, tsfx.prev.param, derivative.components, dx.discount.prior.n, verbose=F, debug=F) {
             if (debug) browser()
             # Now takes in a list and returns a list
+            # Note that parameters will now be input transformed
             
             prev.dx = derivative.components$dx
             dx.n = derivative.components$dx.
@@ -668,8 +687,8 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             tryCatch({tsfx.current.outcome = transform.to.unbounded.scale(current.value, outcome.scale)}, error=function(e) {browser()})
             
             tsfx.prev.outcome = transform.to.unbounded.scale(prev.value, outcome.scale)
-            tsfx.current.param = transform.to.unbounded.scale(current.param, private$i.parameter.scale)
-            tsfx.prev.param = transform.to.unbounded.scale(prev.param, private$i.parameter.scale)
+            # tsfx.current.param = transform.to.unbounded.scale(current.param, private$i.parameter.scale)
+            # tsfx.prev.param = transform.to.unbounded.scale(prev.param, private$i.parameter.scale)
             
             one.dx = (tsfx.current.outcome-tsfx.prev.outcome) / (tsfx.current.param - tsfx.prev.param)
             
@@ -680,8 +699,8 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             
             if (is.na(naive.dx)) browser()
             if (naive.dx==0) browser()
-            if (self$parameter.name == 'testing.multiplier')
-                print(paste0('naive.dx: ', naive.dx))
+            if (verbose && self$parameter.name == 'testing.multiplier')
+                print(paste0('testing.multiplier naive.dx: ', naive.dx))
             return (list(dx=naive.dx, dx.n=new.dx.n))
         },
         
@@ -706,7 +725,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             
             tsfx.step = (tsfx.target.outcome- tsfx.current.outcome) / transformed.naive.dx
             
-            next.param = transform.from.unbounded.scale(tsfx.param + tsfx.step, private$i.parameter.scale)
+            next.tsfx.param = tsfx.param + tsfx.step
         },
         
         score.sim = function(sim, iteration, is.fine.tuning=F, verbose, as.log.likelihood=T, debug=F)
@@ -874,6 +893,14 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                 private$i.parameter.name
             else
                 stop("Cannot modify 'parameter.name' for a jheem.intervention - it is read-only")
+        },
+        
+        parameter.scale = function(value)
+        {
+            if (missing(value))
+                private$i.parameter.scale
+            else
+                stop("Cannot modify 'parameter.scale' for a jheem.intervention - it is read-only")
         }
     ),
     

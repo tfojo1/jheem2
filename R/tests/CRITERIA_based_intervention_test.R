@@ -53,28 +53,25 @@ base.intervention = create.intervention(WHOLE.POPULATION,
 #-- Create Criteria --#
 testing.criterion = create.monotonic.criterion(parameter.name = 'testing.multiplier',
                                                outcome = 'testing',
-                                               inversely.related = F,
                                                parameter.scale = 'ratio',
                                                parameter.initial.value = 4,
-                                               target.value = .951, #.95
+                                               target.value = .95, #.95
                                                min.acceptable.value = .95,
                                                max.acceptable.value = .96,
                                                dimension.values=list(year='2035'))
 suppression.criterion = create.monotonic.criterion(parameter.name = 'unsuppressed.multiplier',
                                                    outcome = 'suppression',
-                                                   inversely.related = T,
                                                    parameter.scale = 'complementary.proportion',
                                                    parameter.initial.value = .5,
-                                                   target.value = .951, #.955
+                                                   target.value = .95, #.955
                                                    min.acceptable.value = .95,
                                                    max.acceptable.value = .96,
                                                    dimension.values=list(year='2035'))
 prep.criterion = create.monotonic.criterion(parameter.name = 'uninitiated.multiplier',
                                             outcome = 'prep.uptake.proportion',
-                                            inversely.related = T,
                                             parameter.scale = 'complementary.proportion',
                                             parameter.initial.value = .5,
-                                            target.value = .51, #.52
+                                            target.value = .5, #.52
                                             min.acceptable.value = .5,
                                             max.acceptable.value = .55,
                                             dimension.values=list(year='2035'))
