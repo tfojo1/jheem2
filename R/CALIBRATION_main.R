@@ -461,11 +461,20 @@ extract.last.simulation.from.calibration <- function(version,
     if (max.chunk<0)
         stop("Cannot extract.last.simulation.from.calibration - no simulations have been saved")
     
-    if (!allow.incomplete)
+    chain.control = get(load(file.path(cache.dir, paste0('chain', chain.with.max.chunk, "_control.Rdata"))))
+
+    
+    if (!all(chain.control@chunk.done))
     {
-        chain.control = get(load(file.path(cache.dir, paste0('chain', chain.with.max.chunk, "_control.Rdata"))))
-        if (!all(chain.control@chunk.done))
+        if (!allow.incomplete)
             stop("Cannot extract.last.simulation.from.calibration - no chains have finished running. Use allow.incomplete = T to get the last simulation that has been finished")
+        
+        print(paste0("Sampling incomplete: Using the ",
+                     get.ordinal(max.chunk),
+                     " chunk (out of ",
+                     length(chain.control@chunk.done), ")",
+                     ifelse(n.chains==1, '',
+                            paste0(" from the ", get.ordinal(chain.with.max.chunk), " chain"))))
     }
     
     mcmc.last = get(load(file.path(cache.dir, 

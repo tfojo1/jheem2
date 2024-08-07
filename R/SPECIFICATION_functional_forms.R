@@ -1138,6 +1138,18 @@ LINEAR.FUNCTIONAL.FORM = R6::R6Class(
         }
     ),
     
+    active = list(
+      
+        anchor.year = function(value)
+        {
+            if (missing(value))
+                private$i.anchor.year
+            else
+                stop("Cannot modify 'anchor.year' for a functional.form object - it is read-only")
+        }
+          
+    ),
+    
     private = list(
         i.anchor.year = NULL,
         
