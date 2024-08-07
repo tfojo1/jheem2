@@ -155,9 +155,9 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             private$i.stratifications = private$generate.stratifications(dimensions = dimensions,
                                                                          levels.of.stratification = levels.of.stratification)
             
-            # *weights* is a list containing only 1. jheem.likelihood.weights' objects whose dimensions, if any, are named in 'dimensions' and 2. numeric vectors with nonnegative, non-NA values
-            if (!is.null(weights) && (!is.numeric(weights) || length(weights)!=1 || is.na(weights)) && (!is.list(weights) || (any(sapply(weights, function(x) {!(is(x, 'jheem.likelihood.weights') && all(names(x$dimension.values) %in% dimensions)) && (!is.numeric(x) || any(is.na(x)) || any(sapply(x, function(value) {value < 0})))})))))
-                stop(paste0(error.prefix, "'weights' must be NULL, a single numeric value, or a list containing only 1. jheem.likelihood.weights' objects whose dimensions, if any, are named in 'dimensions' and 2. numeric vectors with nonnegative, non-NA values"))
+            # *weights* is a list containing only 1. jheem.likelihood.weights' objects whose dimensions, if any, are named in 'dimensions' (or are 'year') and 2. numeric vectors with nonnegative, non-NA values
+            if (!is.null(weights) && (!is.numeric(weights) || length(weights)!=1 || is.na(weights)) && (!is.list(weights) || (any(sapply(weights, function(x) {!(is(x, 'jheem.likelihood.weights') && all(names(x$dimension.values) %in% c(dimensions, 'year'))) && (!is.numeric(x) || any(is.na(x)) || any(sapply(x, function(value) {value < 0})))})))))
+                stop(paste0(error.prefix, "'weights' must be NULL, a single numeric value, or a list containing only 1. jheem.likelihood.weights' objects whose dimensions, if any, are named in 'dimensions' (or are 'year') and 2. numeric vectors with nonnegative, non-NA values"))
             private$i.weights = private$generate.weights.from.weights.list(weights)
             
             # *likelihood.class.generator* is an R6ClassGenerator object.
