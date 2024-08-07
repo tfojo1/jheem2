@@ -2120,8 +2120,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 }
             }
             
-            stratum.names = lapply(metadata$stratum, function(x) {
-                unlist(strsplit(x, "__"))
+            data.dimension.values = apply(metadata, MARGIN=1, function(row) {
+                stratum = unlist(strsplit(row[['stratum']], "__"))
+                dimensions = unlist(strsplit(row[['dimensions']], "__"))
+                rv = setNames(c(row[['year']], stratum), c('year', dimensions))
             })
             
             # Once the weights list is in the format list(weights.object1, weights.object2, ...), I'll loop over them.
@@ -2131,20 +2133,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 if (length(weight$dimension.values) == 0) {
                     weights.vector = weights.vector * weight$total.weight
                 } else {
-                    weights.mask = sapply(stratum.names, function(x) {
-                        contains.dimension.value = F
-                        if (length(x) == length(weight$dimension.values)) {
-                            for (d in seq_along(x)) {
-                                # NOTE: This assumes the dimensions of the dimension.values are sorted alphabetically. The stratum names are.
-                                if (x[[d]] %in% weight$dimension.values[[d]])
-                                    contains.dimension.value = T
-                                else {
-                                    contains.dimension.value = F
-                                    break
-                                }
-                            }
-                        }
-                        contains.dimension.value
+                    weights.mask = sapply(data.dimension.values, function(row) {
+                        dimensions.this.weight = names(weight$dimension.values)
+                        if (!all(dimensions.this.weight %in% names(row)))
+                            return (F)
+                        all(sapply(dimensions.this.weight, function(dimension) {
+                            row[[dimension]] %in% weight$dimension.values[[dimension]] # weight can have multiple values per dimension
+                        }))
                     })
                     weights.vector[weights.mask] = weights.vector[weights.mask] * weight$total.weight
                 }
