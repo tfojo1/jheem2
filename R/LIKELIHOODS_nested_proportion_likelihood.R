@@ -503,6 +503,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             if (!is.logical(equalize.weight.by.year) || length(equalize.weight.by.year) > 1 || is.null(equalize.weight.by.year) || is.na(equalize.weight.by.year))
                 stop(paste0(error.prefix, "'equalize.weight.by.year' must be a single logical value (T/F)"))
             
+            # if 'year' is in the dimension values for any *weights*, then *equalize.weight.by.year* must be FALSE
+            if (equalize.weight.by.year && any(sapply(private$i.weights, function(weight) {'year' %in% names(weight$dimension.values)})))
+                stop(paste0(error.prefix, "'equalize.weight.by.year' must be FALSE if any weights include 'year' in their dimension values"))
+            
             # *partitioning.function* is a function that accepts an array as input and returns an array of the same dimnames as output. It must have three arguments called "arr", "version" and "location".
             if (!is.function(partitioning.function) || length(formals(partitioning.function)) != 3 || names(formals(partitioning.function))[[1]] != 'arr' || names(formals(partitioning.function))[[2]] != 'version' || names(formals(partitioning.function))[[3]] != 'location')
                 stop(paste0(error.prefix, "'partitioning.function' must be a function with only three arguments: 'arr', 'version', and 'location'"))

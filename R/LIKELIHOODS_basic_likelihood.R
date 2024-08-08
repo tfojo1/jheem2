@@ -357,7 +357,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             # *equalize.weight.by.year* is a boolean
             if (!is.logical(equalize.weight.by.year) || length(equalize.weight.by.year) > 1 || is.null(equalize.weight.by.year) || is.na(equalize.weight.by.year))
                 stop(paste0(error.prefix, "'equalize.weight.by.year' must be a single logical value (T/F)"))
-            
+
             # EXPERIMENTAL DIMENSION VALUES SHOULD BE A NAMED LIST
             if (!is.null(dimension.values) && (!is.list(dimension.values) || (length(dimension.values) > 0 && is.null(names(dimension.values))) || 'year' %in% names(dimension.values)))
                 stop(paste0(error.prefix, "experimental 'dimension.values' argument must be NULL or a named list without 'year'"))
@@ -375,6 +375,10 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                              weights = weights,
                              likelihood.class.generator = JHEEM.BASIC.LIKELIHOOD,
                              error.prefix = error.prefix)
+            
+            # if 'year' is in the dimension values for any *weights*, then *equalize.weight.by.year* must be FALSE
+            if (equalize.weight.by.year && any(sapply(private$i.weights, function(weight) {'year' %in% names(weight$dimension.values)})))
+                stop(paste0(error.prefix, "'equalize.weight.by.year' must be FALSE if any weights include 'year' in their dimension values"))
 
             private$i.outcome.for.data = outcome.for.data
             private$i.denominator.outcome.for.sim = denominator.outcome.for.sim
