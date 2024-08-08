@@ -343,9 +343,9 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             # if (!is.numeric(measurement.error.coefficient.of.variance) || length(measurement.error.coefficient.of.variance) > 1 || is.na(measurement.error.coefficient.of.variance) || measurement.error.coefficient.of.variance > 1 || measurement.error.coefficient.of.variance < 0)
             #     stop(paste0(error.prefix, "'measurement.error.coefficient.of.variance' must be a numeric value between 0 and 1 inclusive"))
             
-            # *error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', or 'data.ci'
+            # *error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.ci',  or 'data.variance'
             if (!(error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.ci', 'data.variance')))
-                stop(paste0(error.prefix, "'error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', or 'data.ci'"))
+                stop(paste0(error.prefix, "'error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.ci', or 'data.variance'"))
 
             if (error.variance.type %in% c('sd', 'variance', 'cv') && (!is.numeric(error.variance.term) || length(error.variance.term)!=1 || is.na(error.variance.term) || error.variance.term < 0))
                 stop(paste0(error.prefix, "'error.variance.term' must be a single, nonnegative, numeric value if 'error.variance.type' is one of 'sd', 'variance', or 'cv'"))
@@ -771,7 +771,8 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                     one.metadata = one.metadata[, sort(colnames(one.metadata))]
                     one.metadata['stratum'] = do.call(paste, c(subset.data.frame(one.metadata, select=-c(year, source, value)), sep="__"))
                     one.metadata[is.na(one.metadata$stratum), 'stratum'] = ".TOTAL."
-                    one.metadata = subset.data.frame(one.metadata, select = c(year, stratum, source))
+                    one.metadata['dimensions'] = paste0(strat, collapse="__")
+                    one.metadata = subset.data.frame(one.metadata, select = c(year, stratum, dimensions, source))
                     
                     # Find the required.dimnames
                     for (d in names(one.sim.required.dimnames)) {
@@ -1208,32 +1209,26 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 }
             }
             
-            stratum.names = lapply(metadata$stratum, function(x) {
-                unlist(strsplit(x, "__"))
+            data.dimension.values = apply(metadata, MARGIN=1, function(row) {
+                stratum = unlist(strsplit(row[['stratum']], "__"))
+                dimensions = unlist(strsplit(row[['dimensions']], "__"))
+                rv = setNames(c(row[['year']], stratum), c('year', dimensions))
             })
-            
+
             # Once the weights list is in the format list(weights.object1, weights.object2, ...), I'll loop over them.
             for (weight in weights) {
-                
+
                 # if no dimension.values, apply it to all observations
                 if (length(weight$dimension.values) == 0) {
                     weights.vector = weights.vector * weight$total.weight
                 } else {
-                    weights.mask = sapply(stratum.names, function(x) {
-                        contains.dimension.value = F
-                        if (length(x) == length(weight$dimension.values)) {
-                            for (d in seq_along(x)) {
-                                # NOTE: This assumes the dimensions of the dimension.values are sorted alphabetically. The stratum names are.
-                                if (x[[d]] %in% weight$dimension.values[[d]])
-                                    contains.dimension.value = T
-                                else {
-                                    contains.dimension.value = F
-                                    break
-                                }
-                            }
-                        }
-                        contains.dimension.value
-                        
+                    weights.mask = sapply(data.dimension.values, function(row) {
+                        dimensions.this.weight = names(weight$dimension.values)
+                        if (!all(dimensions.this.weight %in% names(row)))
+                            return (F)
+                        all(sapply(dimensions.this.weight, function(dimension) {
+                            row[[dimension]] %in% weight$dimension.values[[dimension]] # weight can have multiple values per dimension
+                        }))
                     })
                     weights.vector[weights.mask] = weights.vector[weights.mask] * weight$total.weight
                 }
