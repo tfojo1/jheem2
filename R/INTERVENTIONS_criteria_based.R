@@ -284,7 +284,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
                 transform.from.unbounded.scale(tsfx.parameters.to.optimize[[parameter.name]], criterion.this.parameter$parameter.scale)
             })
-            prev.sim = engine$run(parameters=c(untsfx.parameters.to.optimize, parameters), prior.sim.index=sim.index) # cache prev sim!!!
+            prev.sim = engine$run(parameters=c(untsfx.parameters.to.optimize, parameters), prior.sim.index=sim.index)
             iteration = 1 # Iteration refers to how many times engine$run is called
             
             # Check if these parameters are good enough on their own! We can skip to fine tuning as long as we have a derivative to use.
@@ -500,7 +500,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             # print(paste0("sim ", sim.index, " obtained a score of ", final.score, " with ", iteration, " iterations"))
             
             private$i.total.iterations = private$i.total.iterations + iteration
-            if (verbose) print(paste0("iterations after sim ", sim.index, ": ", private$i.total.iterations))
+            if (verbose && sim.index==private$i.n.sim) print(paste0("iterations after sim ", sim.index, ": ", private$i.total.iterations))
             
             #-- Step 5: Return sim --#
             return(final.sim)
@@ -728,8 +728,8 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             
             if (is.na(naive.dx)) browser()
             if (naive.dx==0) browser()
-            if (verbose && self$parameter.name == 'testing.multiplier')
-                print(paste0('testing.multiplier naive.dx: ', naive.dx))
+            # if (verbose && self$parameter.name == 'testing.multiplier')
+            #     print(paste0('testing.multiplier naive.dx: ', naive.dx))
             return (list(dx=naive.dx, dx.n=new.dx.n, dx.mean=new.dx.mean, dx.sd=new.dx.sd))
         },
         
