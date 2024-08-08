@@ -980,7 +980,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 one.metadata = one.metadata[, sort(colnames(one.metadata))]
                 one.metadata['stratum'] = do.call(paste, c(subset.data.frame(one.metadata, select=-c(location, year, source, value)), sep="__"))
                 one.metadata[is.na(one.metadata$stratum), 'stratum'] = ".TOTAL." # I can change this to "" instead of ".TOTAL.", can't I?
-                one.metadata = subset.data.frame(one.metadata, select = c(location, year, stratum, source))
+                one.metadata['dimensions'] = paste0(strat, collapse="__")
+                one.metadata = subset.data.frame(one.metadata, select = c(location, year, stratum, dimensions, source))
                 
                 # Find the required.dimnames
                 for (d in names(one.sim.required.dimnames)) {
@@ -1131,7 +1132,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 private$i.obs.error = measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
             }
             dim(private$i.obs.error) = c(private$i.n.obs, private$i.n.obs)
-            # browser()
+
             # ------ THINGS THAT DEPEND ON OBSERVATION-LOCATIONS ------ #
             observation.locations = union(as.vector(unique(private$i.metadata$location)), location) #otherwise is factor
             n.obs.locations = length(observation.locations) # we have ensured the main location is always in here because it will be used for metalocations and therefore must be accounted for everywhere else too
@@ -2110,7 +2111,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         generate.inverse.variance.weights.matrix = function(obs.vector, equalize.weight.by.year, metadata, weights)
         {
             weights.vector = rep(1,length(obs.vector))
-            
+
             if (equalize.weight.by.year) {
                 obs.per.year = table(metadata$year)
                 number.years = length(obs.per.year)
@@ -2123,7 +2124,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             data.dimension.values = apply(metadata, MARGIN=1, function(row) {
                 stratum = unlist(strsplit(row[['stratum']], "__"))
                 dimensions = unlist(strsplit(row[['dimensions']], "__"))
-                rv = setNames(c(row[['year']], stratum), c('year', dimensions))
+                rv = setNames(c(list(row[['year']]), as.list(stratum)), c('year', dimensions))
             })
             
             # Once the weights list is in the format list(weights.object1, weights.object2, ...), I'll loop over them.

@@ -1208,11 +1208,11 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                     weights.vector[metadata$year == year]  = length(obs.vector) / (obs.per.year[[year]] * number.years)
                 }
             }
-            
+
             data.dimension.values = apply(metadata, MARGIN=1, function(row) {
                 stratum = unlist(strsplit(row[['stratum']], "__"))
                 dimensions = unlist(strsplit(row[['dimensions']], "__"))
-                rv = setNames(c(row[['year']], stratum), c('year', dimensions))
+                rv = setNames(c(list(row[['year']]), as.list(stratum)), c('year', dimensions))
             })
 
             # Once the weights list is in the format list(weights.object1, weights.object2, ...), I'll loop over them.
