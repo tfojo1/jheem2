@@ -35,6 +35,9 @@ bool sorted_vectors_overlap(NumericVector x, NumericVector y)
 // [[Rcpp::export]]
 NumericVector setdiff_sorted_vectors(NumericVector x, NumericVector y)
 {
+    if (y.length()==0 || x.length()==0)
+        return (x);
+    
     int keep_indices[x.length()];
     int n_keep = 0;
     int j = 0;
