@@ -45,7 +45,7 @@ NumericVector setdiff_sorted_vectors(NumericVector x, NumericVector y)
     // Figure out which elements of x we're going to keep
     for (int i=0; i<x.length(); i++)
     {
-        while (y[j]<x[i] && j<y.length())
+        while (j<y.length() && y[j]<x[i])
             j++;
         
         if (j==y.length() || x[i] != y[j])
