@@ -236,6 +236,110 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
             dimnames(rv) = dim.names
             rv
         },
+
+        get.parameters = function(parameter.names = NULL,
+                                  summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
+                                  interval.coverage = 0.95,
+                                  error.prefix = "Error getting simulation parameters: ",
+                                  verbose = F,
+                                  stop.for.errors = F)
+        {
+            if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
+                stop("Cannot get.parameters() from simset.collection - 'error.prefix' must be a single, non-NA character value")
+            
+            if (is.null(parameter.names))
+                param.names.to.use = character()
+            else
+                param.names.to.use = parameter.names
+            
+            list.rv = lapply(private$i.intervention.codes, function(int.code){
+                lapply(private$i.locations, function(loc){
+                    
+                    simset = private$do.get.simset(location = loc,
+                                                   intervention.code = int.code,
+                                                   verbose = verbose,
+                                                   verbose.prefix = " ",
+                                                   stop.for.errors = stop.for.errors)
+                    
+                    if (is.null(simset))
+                        NULL
+                    else if (simset$n.sim != self$n.sim)
+                        stop(paste0(error.prefix, "The simset for location ", loc, " and intervention ", int.code, " does not have the expected number of simulations"))
+                    else
+                    {
+                        if (is.null(parameter.names))
+                            param.names.to.use <<- union(param.names.to.use, simset$parameter.names)
+                        
+                        if (is.null(parameter.names))
+                            sub.rv = simset$parameters
+                        else
+                        {
+                            invalid.param.names = setdiff(parameter.names, simset$parameter.names)
+                            if (length(invalid.param.names)>0)
+                                stop(paste0(error.prefix,
+                                            ifelse(length(invalid.param.names)==1, "Parameter ", "Parameters "),
+                                            collapse.with.and("'", invalid.param.names, "'"),
+                                            ifelse(length(invalid.param.names)==1, " is", " are"),
+                                            " not present in the simulation for location '",
+                                            loc, "' and intervention '", int.code, "'"))
+                            
+                            sub.rv = simset$parameters[parameter.names,,drop=F]
+                        }
+                        
+                        sub.rv
+                    }
+                })
+            })
+
+            if (all(sapply(list.rv, function(sub1){
+                            all(sapply(sub1, is.null))})))
+                stop(paste0(error.prefix, "No simset in the collection had any data available"))
+            
+            # Fold it into a numeric object, filling in NA's for NULL
+            n.inner = length(param.names.to.use)
+            
+            rv = sapply(list.rv, function(list.rv.for.int){
+                list.rv.for.int[sapply(list.rv.for.int, is.null)] = rep(as.numeric(NA), n.inner)
+                sapply(list.rv.for.int, function(sub){
+                    sub
+                })
+            })
+            
+            # Set dimnames and return
+            dim.names = list(parameter = param.names.to.use,
+                             simulation = 1:self$n.sim,
+                             location = private$i.locations,
+                             intervention = private$i.intervention.code.labels)
+            
+            dim(rv) = sapply(dim.names, length)
+            dimnames(rv) = dim.names
+            
+            if (summary.type == 'mean.and.interval' ||
+                summary.type == 'median.and.interval')
+            {
+                alpha = (1-interval.coverage)/2
+                rv = apply(rv, c('parameter','location','intervention'), function(val){
+                    if (summary.type == 'mean.and.interval')
+                        c(mean(val), quantile(val, probs=c(alpha, 1-alpha)))
+                    else
+                        quantile(val, probs=c(0.5, alpha, 1-alpha))
+                })
+                
+                dim.names = c(list(value=NULL),
+                              dim.names[c('parameter','location','intervention')])
+                if (summary.type == 'mean.and.interval')
+                    dim.names$value = c("mean", "lower", "upper")
+                else
+                    dim.names$value = c("median", "lower", "upper")
+                
+                dim(rv) = sapply(dim.names, length)
+                dimnames(rv) = dim.names
+                
+                rv = apply(rv, c('parameter','value','location','intervention'), function(x){x})
+            }
+            
+            rv
+        },
         
         print = function(...)
         {
@@ -336,7 +440,7 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
             # Check root.dir
             if (!is.character(root.dir) || length(root.dir)!=1 || is.na(root.dir))
                 stop("Cannot create file-based simset collection: 'root.dir' must be a single, non-NA character value")
-            if (!dir.exists(root.dir))
+            if (!dir.exists(root.dir) && !dir.exists(file.path(root.dir, SIMULATION.SUB.DIRECTORY))) # the second condition here is because dir.exists('Q:') will return
                 stop(paste0("Cannot create file-based simset collection: '", root.dir, "' does not exist"))
             
             # Figure out n.sim if NULL
