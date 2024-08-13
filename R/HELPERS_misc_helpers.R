@@ -6,27 +6,31 @@
 ##-------------------##
 ##-------------------##
 
-interpolate <- function(values,
+
+# this is now implemented in a cpp function
+# We leave the old code here in case we ever need it to help understand the cpp
+#  or to compare against cpp output
+OLD.interpolate <- function(values,
                         value.times,
                         desired.times)
 {
     if (length(values) != length(value.times))
         stop("To interpolate, 'values' must have the same length as 'value.times'")
-
+    
     if (is.list(values))
         fn = lapply
     else
     {
         fn = sapply
-        values = as.list(values)
+        values = as.list(values)   
     }
-
+    
     n.times = length(value.times)
     fn(desired.times, function(time){
         index.before = (1:n.times)[value.times<=time]
         index.before = index.before[length(index.before)]
         index.after = (1:n.times)[value.times > time][1]
-
+        
         if (length(index.before)==0)
             values[[index.after]]
         else if (is.na(index.after))
@@ -46,6 +50,93 @@ interpolate <- function(values,
     })
 }
 
+interpolate <- function(values,
+                        value.times,
+                        desired.times)
+{
+    if (length(values) != length(value.times))
+        stop("To interpolate, 'values' must have the same length as 'value.times'")
+    
+    if (length(values)==0)
+        stop("To interpolate, 'values' cannot be empty")
+    
+    was.list = is.list(values)
+    if (was.list)
+    {
+        len = length(values[[1]])
+        if (any(vapply(values[-1], length, FUN.VALUE = integer(1)) != len))
+            stop("To interpolate, all the elements of 'values' must have the same length")
+    }
+    else
+    {
+        values = as.list(values);
+    }
+
+    # This cpp function is in optimize_engine.cpp
+    rv = do_interpolate(values = values,
+                        value_times = value.times,
+                        desired_times = desired.times)
+    
+    if (!was.list)
+        rv = unlist(rv)
+    
+    rv
+}
+
+interpolate.array <- function(arr,
+                              dimension = 'year',
+                              desired.times = NULL)
+{
+    if (!is.numeric(arr) || !is.array(arr))
+        stop("'arr' must be a numeric array")
+    
+    if (is.null(dimnames(arr)))
+        stop("'arr' must have dimnames set")
+    
+    if ((!is.character(dimension) &&!is.numeric(dimension)) ||
+        length(dimension)!=1 || is.na(dimension))
+        stop("'dimension' must be a single, non-NA character or numeric value")
+    
+    if (is.character(dimension))
+    {
+        if (all(names(dim(arr))!=dimension))
+            stop(paste0("The dimension '", dimension, "' is not present in 'arr'"))
+        
+        other.dimensions = setdiff(names(dim(arr)), dimension)
+    }
+    else if (is.numeric(dimension))
+    {
+        if (dimension < 1 || dimension > length(dim(arr)))
+            stop(paste0("dimension (", dimension, ") must be between 1 and ", length(dim(arr))))
+        
+        other.dimensions = setdiff(1:length(dim(arr)), dimension)
+    }
+    
+    times = suppressWarnings(as.numeric(dimnames(arr)[[dimension]]))
+    if (any(is.na(times)))
+        stop(paste0("dimnames(arr)[[", dimension, "]] cannot be interpreted as numbers"))
+    
+    if (is.null(desired.times))
+        desired.times = times
+    else if (!is.numeric(desired.times) || length(desired.times)==0 || any(is.na(desired.times)))
+        stop("'desired.times' must be a numeric vector with no NA values")
+    
+    raw.interpolated = apply(arr, other.dimensions, function(values){
+        if (all(is.na(values)))
+            stop("Cannot interpolate array - at least one margin contains all NA values")
+        interpolate(values = values[!is.na(values)], 
+                    value.times = times[!is.na(values)],
+                    desired.times = desired.times)
+    })
+    
+    dim.names = dimnames(arr)[c(dimension, other.dimensions)]
+    dim.names[[dimension]] = as.character(desired.times)
+    dim(raw.interpolated) = sapply(dim.names, length)
+    dimnames(raw.interpolated) = dim.names
+    
+    apply(raw.interpolated, names(dim(arr)), function(x){x})
+}
+
 ##----------------------------##
 ##----------------------------##
 ##-- MISC STRING OPERATIONS --##
@@ -53,14 +144,6 @@ interpolate <- function(values,
 ##----------------------------##
 
 
-# str - a single character value
-string.contains.invalid.characters <- function(str, valid.characters)
-{
-    valid.characters = unlist(strsplit(valid.characters, ''))
-    sapply(strsplit(str, ''), function(chars){
-        length(setdiff(chars, valid.characters))>0
-    })
-}
 
 # str - a character vector
 # contents - a single string value
@@ -100,7 +183,10 @@ string.ends.with <- function(str, postfix)
 }
 
 NUMBERS.LETTERS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+NUMBERS.LETTERS.PERIOD = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ."
 NUMBERS.LETTERS.DASH.PERIOD = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-."
+NUMBERS.LETTERS.DASH.PERIOD.SPACE = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-. "
+NUMBERS.LETTERS.DASH.PERIOD.COMMA.SPACE = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-., "
 NUMBERS.LETTERS.DASH.PERIOD.UNDERSCORE = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-._"
 NUMBERS.LETTERS.SPACE.DASH.PERIOD.UNDERSCORE = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-._ "
 
@@ -111,6 +197,28 @@ string.contains.invalid.characters <- function(str, valid.characters)
     sapply(strsplit(str, ''), function(chars){
         length(setdiff(chars, valid.characters))>0
     })
+}
+
+check.for.invalid.characters <- function(str,
+                                         valid.characters,
+                                         str.name,
+                                         valid.characters.description = NULL,
+                                         error.prefix = '')
+{
+    if (string.contains.invalid.characters(str, valid.characters = valid.characters))
+    {
+        invalid.characters = setdiff(strsplit(str, split='')[[1]],
+                                     strsplit(valid.characters, split='')[[1]])
+        
+        if (is.single.value)
+            stop(paste0(error.prefix,
+                        str.name,
+                        " ('", str, "') cannot contain ", 
+                        collapse.with.or("'", invalid.characters, "'"),
+                        ifelse(is.null(valid.characters.description), '', 
+                               paste0(" - it can only contain ", valid.characters.description))
+            ))
+    }
 }
 
 
@@ -136,7 +244,7 @@ collapse.with.conjunction <- function(...,
                                       separator = ',')
 {
     to.collapse = paste0(...)
-
+    
     if (length(to.collapse)==1)
         to.collapse
     else if (length(to.collapse)==2)
@@ -167,7 +275,7 @@ get.ordinal <- function(nums)
                          'th', #7
                          'th', #8
                          'th') #9
-
+    
     last.digits = nums - (10 * floor(nums/10)) + 1
     paste0(nums, ORDINAL.SUFFIXES[last.digits])
 }
@@ -189,11 +297,40 @@ first.index.of <- function(haystack, needle)
 row.indices.of <- function(haystack, needle)
 {
     mask = apply(haystack, 1, function(val){
-        all( (is.na(val) & is.na(needle)) |
+        all( (is.na(val) & is.na(needle)) | 
                  (!is.na(val) & !is.na(needle) & val==needle))
     })
-
+    
     (1:length(mask))[mask]
+}
+
+##-------------------------------##
+##-------------------------------##
+##-- FUNCTIONS and EXPRESSIONS --##
+##-------------------------------##
+##-------------------------------##
+
+get.function.names.in.expr <- function(ex)
+{
+    setdiff(all.vars(ex, functions = T), all.vars(ex, functions = F))
+}
+
+get.function.argument.names <- function(fn, 
+                                        exclude.arguments.with.default.values=F,
+                                        exclude.dot.dot.dot=exclude.arguments.with.default.values)
+{
+    fn.args = formals(args(fn))
+    arg.names = names(fn.args)
+    
+    if (exclude.arguments.with.default.values)
+        rv = arg.names[as.logical(sapply(fn.args, function(val){!is.null(val) && val==''}))]
+    else
+        rv = arg.names
+    
+    if (exclude.dot.dot.dot)
+        rv[rv!='...']
+    else
+        rv
 }
 
 ##------------------##
@@ -206,16 +343,17 @@ row.indices.of <- function(haystack, needle)
 # returns a matrix
 # one column for each element in values
 # one row for each combo of one value from each element of values
+#'@export
 get.every.combination <- function(values)
 {
     n = length(values)
     n.val = sapply(values, length)
     n.before = c(1, cumprod(n.val[-n]))
     n.after = c(rev(cumprod(rev(n.val[-1]))),1)
-
+    
     matrix(sapply(1:n, function(i){
         rep(rep(values[[i]], n.after[i]), each=n.before[i])
-    }), ncol=n)
+    }), ncol=n, dimnames = list(NULL, names(values)))
 }
 
 # x and y must be matrices with the same number of columns
@@ -225,17 +363,17 @@ setdiff.rows <- function(x, y)
 {
     has.match = sapply(1:nrow(x), function(i){
         any(sapply(1:nrow(y), function(j){
-
+            
             all(is.na(x[i,]) & is.na(y[j,]) |
                     ( (!is.na(x[i,]) & !is.na(y[j,])) & (x[i,]==y[j,]) ))
-
+            
         }))
     })
-
+    
     x[!has.match,,drop=F]
 }
 
-# If needles is a vector, returns the index, i,
+# If needles is a vector, returns the index, i, 
 #   of the first row for which all(haystack[i,] == needles)
 # If needles is a matrix, returns a vector of row indices into haystack
 #   one for each row in needle
@@ -244,23 +382,68 @@ row.index.of <- function(haystack, needles)
 {
     if (is.null(dim(needles)))
         dim(needle) = c(1,length(needle))
-
+        
     apply(needles, 1, function(one.needle){
-
+        
         mask = apply(haystack, 1, function(val){
-            all( (is.na(val) & is.na(one.needle)) |
-                     (!is.na(val) & !is.na(one.needle) & val==one.needle))
+            all( (is.na(val) & is.na(one.needle)) | 
+                 (!is.na(val) & !is.na(one.needle) & val==one.needle))
         })
-
+        
         if (!any(mask))
             NA
         else
             (1:dim(haystack)[1])[mask][1]
     })
-
+    
 }
 
 is.subset <- function(sub, super)
 {
     length(setdiff(sub, super))==0
+}
+
+##-----------##
+##-----------##
+##-- OTHER --##
+##-----------##
+##-----------##
+
+# if length(values)<n
+# makes a vector of length n, where the first 1:length(values) elements == values
+# and all subsequent elements are values[length(values)]
+pad.with.last.value <- function(values, n)
+{
+    if (length(values)<n)
+        c(values, rep(values[length(values)], n-length(values)))
+    else
+        values
+}
+
+r6.sets.equal <- function(set1, set2)
+{
+    if (length(set1) == length(set2))
+    {
+        for (obj1 in set1)
+        {
+            found.match = F
+            for (i2 in 1:length(set2))
+            {
+                obj2 = set2[[i2]]
+                if (obj1$equals(obj2))
+                {
+                    found.match = T
+                    set2 = set2[-i2]
+                    break
+                }
+            }
+            
+            if (!found.match)
+                return (F)
+        }
+        
+        T
+    }
+    else
+        F
 }

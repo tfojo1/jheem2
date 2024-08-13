@@ -80,6 +80,9 @@ create.functional.form.alphas <- function(functional.form,
                         "'", name, "' is not a valid name for an alpha for the given functional.form (Must be one of ",
                         paste0("'", functional.form$alpha.names, "'", collapse=', '), ")"))
         
+        if (is.null(maximum.dim.names))
+            maximum.dim.names = functional.form$minimum.dim.names
+        
         check.dim.names.valid(maximum.dim.names,
                               variable.name.for.error='maximum.dim.names',
                               error.prefix=error.prefix,
@@ -107,6 +110,8 @@ create.functional.form.alphas <- function(functional.form,
                                 paste0("'", functional.form$minimum.dim.names[[d]], "'", collapse=', '), ")"))
             })
         }
+        else if (is.null(maximum.dim.names))
+            maximum.dim.names = functional.form$minimum.dim.names
     }
     
     rv = list(
@@ -129,124 +134,148 @@ create.functional.form.alphas <- function(functional.form,
 ##----------------------------------------##
 
 set.alpha.main.effect.values <- function(alphas,
-                                         dimensions,
-                                         dimension.values,
+                                         dimension,
+                                         dimension.values = names(values),
                                          values,
                                          check.consistency=T,
                                          error.prefix='')
 {
-    # Prep the values and arguments
-    dimensions.and.values = prep.dimensions.and.values.for.alphas(alphas=alphas,
-                                                                  dimensions=dimensions,
-                                                                  dimension.values=dimension.values,
-                                                                  values=values,
-                                                                  check.consistency=check.consistency,
-                                                                  error.prefix=error.prefix,
-                                                                  is.interaction=F)
-    dimensions = dimensions.and.values$dimensions
-    dimension.values = dimensions.and.values$dimension.values
-    values = dimensions.and.values$values
+
+    if (!is(alphas, 'functional.form.alphas'))
+        stop(paste0(error.prefix, "'alphas' must be an object of class 'functional.form.alphas'"))
     
-    unique.dimensions = unique(dimensions)
+    #-- Check values --#
+    if (!is.numeric(values) || length(values)==0)
+        stop(paste0(error.prefix, "'values' must be a non-empty numeric vector"))
+    if (any(is.na(values)))
+        stop(paste0(error.prefix, "'values' cannot contain NA values"))
+    
+    #-- Transform the values --#
+    alphas$link$check.untransformed.values(values, variable.name.for.error='values', error.prefix=paste0(error.prefix, "'values' for alphas do not match expected scale - "))
+    values = alphas$link$apply(values)
+    
+    #-- Check Dimension --#
     if (check.consistency)
-    {   
+    {
+        if (!is.character(dimension) || length(dimension)!=1 || is.na(dimension))
+            stop(paste0(error.prefix, "'dimension' must be a single, non-na character value"))
+        
         if (!is.null(alphas$maximum.dim.names))
         {
-            invalid.dimensions = setdiff(unique.dimensions, c('all', names(alphas$maximum.dim.names)))
-            if (length(invalid.dimensions)>0)
-                stop(paste0(error.prefix, 
-                            collapse.with.and("'", invalid.dimensions, "'"),
-                            ifelse(length(invalid.dimensions)==1, 
-                                   " is not a valid dimension",
-                                   " are not valid dimensions"),
-                            " for alphas '", alphas$name, "' (must be one of ",
-                            collapse.with.or("'", names(alphas$maximum.dim.names), "'")))
+            if (all(dimension != c('all', names(alphas$maximum.dim.names))))
+                stop(paste0(error.prefix,
+                            "'", dimension, "' is not a valid dimension for alphas '", alphas$name, "' (must be one of ",
+                            collapse.with.or("'", c('all', names(alphas$maximum.dim.names)), "'")))
         }
+    }
+    
+    #-- Check dimension values --#
+    
+    if (!is.character(dimension.values))
+        stop(paste0(error.prefix, "'dimension.values' must be a character vector"))
+    
+    if (any(is.na(dimension.values)))
+        stop(paste0(error.prefix, "'dimension.values' cannot contain NA values"))
+    
+    dimension.values = as.list(dimension.values)
+    
+    if (check.consistency)
+    {
+        if (!is.null(alphas$maximum.dim.names))
+            value.possibilities = alphas$maximum.dim.names[[dimension]]
+        else
+            value.possibilities = alphas$minimum.dim.names[[dimension]]
         
+        if (dimension == 'all')
+        {
+            if (length(dimension.values)!=1)
+                stop(paste0(error.prefix, "If dimension is 'all', dimension.values must have a single value"))
+        }
+        else if (!is.null(value.possibilities))
+        {
+            invalid.values = setdiff(dimension.values, value.possibilities)
+            if (length(invalid.values)>0)
+                stop(paste0(error.prefix, collapse.with.and("'", invalid.values, "'"),
+                            ifelse(length(invalid.values)==1, " is not a valid value", " are not valid values"),
+                            " for the '", dimension, "' dimension"))
+        }
+    }
+    
+    #-- Make sure values and dimension.values are the same length --#
+    if (length(values) != length(dimension.values))
+    {
+        if (length(values)==1)
+            values = rep(values, length(dimension.values))
+        else
+            stop(paste0(error.prefix,
+                        "'values' (length ", length(values),
+                        ") must have the same length as 'dimension.values' (length ", length(dimension.values), "), or values must be a scalar"))
+    }
+    
+    #-- Check validity if alphas are additive --#
+    if (check.consistency)
+    {   
         if (!alphas$is.additive)
         {
-            if (length(unique.dimensions)>1)
-                stop(paste0(error.prefix, "For alphas '", alphas$name, 
-                            "' that overwrites its betas, only one dimension can be used for main effect values. (",
-                            collapse.with.and("'", unique.dimensions, "'"), " were specified)"))
-            if (length(alphas$main.effects)>0 && any(names(alphas$main.effects)!=unique.dimensions))
+            if (length(alphas$main.effects)>0 && any(names(alphas$main.effects)!=dimension))
                 stop(paste0(error.prefix, "For alphas '",
                             alphas$name, "' that overwrites its betas, only one dimension can be used for main effect values. ",
-                            "Attempting to use dimension '", unique.dimensions, "', but have previously used ",
+                            "Attempting to use dimension '", dimension, "', but have previously used ",
                             paste0("'", names(alphas$main.effects), "'", collapse=', ')))
-            if (!is.null(alphas$all.effect) && any(unique.dimensions!='all'))
+            if (!is.null(alphas$all.effect) && dimension!='all')
                 stop(paste0(error.prefix, "For alphas '",
                             alphas$name, "' that overwrites its betas, only one dimension can be used for main effect values. ",
-                            "Attempting to use dimension '", unique.dimensions, "', but have previously used an alpha for 'all' ",
+                            "Attempting to use dimension '", dimension, "', but have previously used an alpha for 'all' ",
                             "(Cannot set an all alpha AND other main effect alphas when overwriting values)"))
             
             if (length(alphas$interaction.effects)>0)
             {
-                if (any(dimensions=='all'))
+                if (dimension=='all')
                     stop(paste0(error.prefix, "When attempting to set 'all' effect for alphas '",
                                 alphas$name, "' that overwrites its betas, interaction alphas were previously set. Cannot set both an effect for 'all' AND interaction effects"))
 
                 for (one.interaction in alphas$interaction.effects)
                 {
-                    # If we made it past the error checks above, we know that unique.dimensions actually has just a single value
-                    if (all(one.interaction$dimensions != unique.dimensions) )
+                    if (one.interaction$dimensions != dimension)
                         stop(paste0(error.prefix, "For alphas '",
                                     alphas$name, "' that overwrites its betas, dimension values for main effects must share a dimension (but not overlap dimension values) with any previously set interaction effects. ",
-                                    " Previously set interaction effects did not include dimension '", unique.dimensions, "'"))
+                                    " Previously set interaction effects did not include dimension '", dimension, "'"))
                         
-                    overlapping.values = intersect(one.interaction$dim.values[[unique.dimensions]], dimension.values)
+                    overlapping.values = intersect(one.interaction$dim.values[[dimension]], dimension.values)
                     if (length(overlapping.values)>0)
                         stop(paste0(error.prefix, "For alphas '",
                                     alphas$name, "' that overwrites its betas, dimension values for main effects cannot overlap with previously set values for interaction effects. ",
                                     ifelse(length(overlapping.values)==1, "Value ", "Values "),
                                     collapse.with.and("'", overlapping.values, "'"),
                                     ifelse(length(overlapping.values)==1, " was", " were"),
-                                    " previously set for an interaction effect for dimension '", unique.dimensions, "'"))
+                                    " previously set for an interaction effect for dimension '", dimension, "'"))
                 }
             }
         }
     }
     
-    # Sort the dimensions according to the order they appear in max or min.dim.names
-    if (is.null(alphas$maximum.dim.names))
-        unique.dimensions = intersect(names(alphas$maximum.dim.names), unique.dimensions)
-    else
-        unique.dimensions = c(intersect(names(alphas$minimum.dim.names), unique.dimensions),
-                              sort(setdiff(unique.dimensions, names(alphas$minimum.dim.names))))
-    
-    # Set the 'all' value
-    # (and remove it from our lists of things to add to main effects)
-    if (any(unique.dimensions=='all'))
+    #-- Set the value --#
+    if (dimension=='all')
     {
-        alphas$all.effect = as.numeric(values[dimensions=='all'][1])
-        mask = dimensions != 'all'
-        
-        dimensions = dimensions[mask]
-        dimension.values = dimension.values[mask]
-        values = values[mask]
-        unique.dimensions = setdiff(unique.dimensions, 'all')
+        alphas$all.effect = as.numeric(values[1])
     }
-    
-    # Set the values (besides 'all')
-    for (d in unique.dimensions)
+    else
     {
-        mask = dimensions == d
-        
         # Set up the object if it has not been set up previously
-        if (is.null(alphas$main.effects[[d]]))
-            alphas$main.effects[[d]] = list(values=numeric(),
-                                            dim.values=list())
+        if (is.null(alphas$main.effects[[dimension]]))
+            alphas$main.effects[[dimension]] = list(values=numeric(),
+                                                    dim.values=list())
         
         # Store the length so that we can check below if we have added new values
-        length.before.adding = length(alphas$main.effects[[d]]$values)
+        length.before.adding = length(alphas$main.effects[[dimension]]$values)
         
         # Store the values
-        value.names = as.character(dimension.values[mask])
-        alphas$main.effects[[d]]$values[value.names] = values[mask]
-        alphas$main.effects[[d]]$dimension.values[value.names] = dimension.values[mask]
+        value.names = as.character(dimension.values)
+        alphas$main.effects[[dimension]]$values[value.names] = values
+        alphas$main.effects[[dimension]]$dimension.values[value.names] = dimension.values
         
         # If we added any value for a new dimension.value, clear the crunched indices
-        if (length(alphas$main.effects[[d]]$values) != length.before.adding)
+        if (length(alphas$main.effects[[dimension]]$values) != length.before.adding)
             alphas$crunched = NULL
     }
     
@@ -254,37 +283,85 @@ set.alpha.main.effect.values <- function(alphas,
     alphas
 }
 
+
+# ALPHA.TIMES = c(
+#     total = 0,
+#     apply.link = 0,
+#     dim.values = 0,
+#     id.dimensions = 0,
+#     sort.dimensions = 0,
+#     int.name = 0,
+#     skeleton = 0,
+#     value.names = 0,
+#     store = 0
+# )
+
 set.alpha.interaction.value <- function(alphas,
-                                         dimensions,
-                                         dimension.values,
-                                         value,
-                                         check.consistency=T,
-                                         error.prefix='')
+                                        dimension.values,
+                                        value,
+                                        check.consistency=T,
+                                        error.prefix='')
 {
-    # Prep the values and arguments
-    dimensions.and.values = prep.dimensions.and.values.for.alphas(alphas=alphas,
-                                                                  dimensions=dimensions,
-                                                                  dimension.values=dimension.values,
-                                                                  values=value,
-                                                                  check.consistency=check.consistency,
-                                                                  error.prefix=error.prefix,
-                                                                  is.interaction=T)
-    dimensions = dimensions.and.values$dimensions
-    dimension.values = dimensions.and.values$dimension.values
-    value = dimensions.and.values$values
+# total.start = Sys.time()    
+    if (!is(alphas, 'functional.form.alphas'))
+        stop(paste0(error.prefix, "'alphas' must be an object of class 'functional.form.alphas'"))
     
+    #-- Check value --#
+    if (!is.numeric(value) || length(value)!=1 || is.na(value))
+        stop(paste0(error.prefix, "'value' must be a non-NA, single numeric value"))
+
+# start =  Sys.time()
+    #-- Transform the value --#
+    alphas$link$check.untransformed.values(value, variable.name.for.error='value', error.prefix=paste0(error.prefix, "'value' for alphas do not match expected scale - "))
+    value = alphas$link$apply(value)
+# end = Sys.time()
+# ALPHA.TIMES['apply.link'] <<- ALPHA.TIMES['apply.link'] + as.numeric(end) - as.numeric(start)
+    
+    #-- Validate dimension values --#
+
+# start = Sys.time()    
+    if (is.null(names(dimension.values)))
+        stop(paste0(error.prefix, "'dimension.values' must be named with the dimensions each value applies to"))
+    
+    if (is.character(dimension.values))
+    {
+        dimensions = names(dimension.values)
+    }
+    else if (is.list(dimension.values))
+    {
+        if (any(!sapply(dimension.values, is.character)))
+            stop(error.prefix, "'dimension.values' must be either a character vector or a list containing only character vectors")
+        
+        new.dimension.values = unlist(dimension.values)
+        names(new.dimension.values) = NULL
+        names(new.dimension.values) = unlist(sapply(seq_along(dimension.values), function(i){
+            rep(names(dimension.values)[i], length(dimension.values[[i]]))
+        }))
+        dimension.values = new.dimension.values
+        dimensions = names(dimension.values)
+    }
+    else
+        stop(error.prefix, "'dimension.values' must be either a character vector or a list containing only character vectors")
+    
+    dimension.values = as.list(dimension.values)
+# end = Sys.time()
+# ALPHA.TIMES['dim.values'] <<- ALPHA.TIMES['dim.values'] + as.numeric(end) - as.numeric(start)
+# 
+# start = Sys.time()
     # Identify the dimensions involved here
     unique.dimensions = unique(dimensions)
     if (check.consistency)
     {
         invalid.dimensions = setdiff(dimensions, names(alphas$maximum.dim.names))
         if (length(invalid.dimensions)>0)
+        {
             stop(paste0(error.prefix, 
                         collapse.with.and("'", invalid.dimensions, "'"),
                         ifelse(length(invalid.dimensions)==1, 
                                " is not a valid dimension",
                                " are not valid dimensions"),
                         " for alphas '", alphas$name, "'"))
+        }
         
         if (length(unique.dimensions)<2)
             stop(paste0(error.prefix,
@@ -297,6 +374,10 @@ set.alpha.interaction.value <- function(alphas,
                         " for alphas '", alphas$name, "'"))
     }
     
+# end = Sys.time()
+# ALPHA.TIMES['id.dimensions'] <<- ALPHA.TIMES['id.dimensions'] + as.numeric(end) - as.numeric(start)
+#   
+# start = Sys.time()    
     # Sort the dimensions according to the order they appear in max or min.dim.names
     if (is.null(alphas$maximum.dim.names))
         unique.dimensions = intersect(names(alphas$maximum.dim.names), unique.dimensions)
@@ -323,9 +404,17 @@ set.alpha.interaction.value <- function(alphas,
     n.iterated.dim.values = length(iterated.dim.values[[1]])
     
     
+# end = Sys.time()
+# ALPHA.TIMES['sort.dimensions'] <<- ALPHA.TIMES['sort.dimensions'] + as.numeric(end) - as.numeric(start)
+#  
+# start = Sys.time()
     # Get the name for the interaction (based on involved dimensions)
     interaction.name = paste0(unique.dimensions, collapse='_')
     
+# end = Sys.time()
+# ALPHA.TIMES['int.name'] <<- ALPHA.TIMES['int.name'] + as.numeric(end) - as.numeric(start)
+# 
+# start = Sys.time()
     # Create the skeleton holder to store info in (if not already present)
     if (is.null(alphas$interaction.effects[[interaction.name]]))
     {
@@ -337,7 +426,11 @@ set.alpha.interaction.value <- function(alphas,
         )
         names(alphas$interaction.effects[[interaction.name]]$dim.values) = unique.dimensions
     }
-    
+
+# end = Sys.time()
+# ALPHA.TIMES['skeleton'] <<- ALPHA.TIMES['skeleton'] + as.numeric(end) - as.numeric(start)
+# 
+# start = Sys.time()    
     # Get the names we will use to identify new values (so we can overwrite if previously set)
     value.names = sapply(1:n.iterated.dim.values, function(i){
         paste0(sapply(iterated.dim.values, function(dv){
@@ -345,6 +438,10 @@ set.alpha.interaction.value <- function(alphas,
         }), collapse="_") 
     })
     
+# end = Sys.time()
+# ALPHA.TIMES['value.names'] <<- ALPHA.TIMES['value.names'] + as.numeric(end) - as.numeric(start)
+# 
+# start = Sys.time()    
     # Store the dim.values
     for (i in 1:n.dim)
         alphas$interaction.effects[[interaction.name]]$dim.values[[i]][value.names] = iterated.dim.values[[i]]
@@ -359,6 +456,9 @@ set.alpha.interaction.value <- function(alphas,
     # If we added any value for a new dimension.value, clear the crunched indices
     if (length(alphas$interaction.effects[[interaction.name]]$values) != length.before.adding)
         alphas$crunched = NULL
+    
+# end = Sys.time()
+# ALPHA.TIMES['store'] <<- ALPHA.TIMES['store'] + as.numeric(end) - as.numeric(start)
     
     # Check if non-additive
     if (!alphas$is.additive && check.consistency)
@@ -422,200 +522,14 @@ set.alpha.interaction.value <- function(alphas,
         }
         
     }
-    
+
+# end = Sys.time()
+# ALPHA.TIMES['total'] <<- ALPHA.TIMES['total'] + as.numeric(end) - as.numeric(total.start)
+
     # Return the updated object
     alphas
 }
 
-
-
-prep.dimensions.and.values.for.alphas <- function(alphas,
-                                                  dimensions,
-                                                  dimension.values,
-                                                  values,
-                                                  check.consistency=T,
-                                                  error.prefix='',
-                                                  is.interaction)
-{
-    if (!is(alphas, 'functional.form.alphas'))
-        stop(paste0(error.prefix, "'alphas' must be an object of class 'functional.form.alphas'"))
-    
-    #-- Make it so that dimension values is a list with each element a single value (numeric or character) --#
-    if (is.list(dimension.values))
-    {
-        if (any(sapply(dimension.values, length)!=1))
-        {
-            # Repeat the dimensions so that there is one dimension value for each element in dimension.values
-            if (length(dimension.values)==length(dimensions))
-                dimensions = unlist(sapply(1:length(dimensions), function(i){
-                    rep(dimensions[i], length(dimension.values[[i]]))
-                }))
-            
-            # 'unlist' the dimension values
-            # (the result still has to be a list, because it can contain either numeric or character values,
-            #  but there will be just one value per element in dimension.values)
-            orig.dimension.values = dimension.values
-            dimension.values = list()
-            for (elem in orig.dimension.values)
-                dimension.values = c(dimension.values,
-                                     as.list(elem))
-        }
-    }    
-    else    
-        dimension.values = as.list(dimension.values)
-    
-    #-- Fill in missing dimensions --#
-    if (length(dimensions)==0)
-    {   
-        if (any(sapply(dimension.values, is.numeric)))
-            stop(paste0(error.prefix, 
-                        "In setting alphas, if numeric values are passed as dimension.values, 'dimensions' must be explicitly specified for each dimension value"))
-        
-        if (is.null(alphas$maximum.dim.names))
-            dimensions = get.dimension.for.values(alphas$minimum.dim.names, values=dimension.values)
-        else
-            dimensions = get.dimension.for.values(alphas$maximum.dim.names, values=dimension.values)
-        
-        dimensions[is.na(dimensions) && sapply(dimension.values, function(dv){dv=='all'})] = 'all'
-        
-        # If we couldn't figure out a dimension, throw an error
-        if (any(is.na(dimensions)))
-        {
-            if (is.null(alphas$maximum.dim.names))
-                stop(paste0(error.prefix,
-                            "Cannot identify '",
-                            ifelse(sum(is.na(dimensions))==1, "dimension for dimension value ", "dimensions for dimension values "),
-                            collapse.with.or("'", dimension.values[is.na(dimensions)], "'"),
-                            " for alphas ", alphas$name))
-            else
-                stop(paste0(error.prefix,
-                            "Invalid dimension ",
-                            ifelse(sum(is.na(dimensions))==1, "value", "values"),
-                            " for alphas '", alphas$name, "' : ",
-                            collapse.with.and("'", dimension.values[is.na(dimensions)], "'")))
-        }
-    }
-    
-    #-- If there is only a single value for dimensions, it applies to all dimension values --#
-    if (length(dimensions)==1)
-        dimensions = rep(dimensions, length(dimension.values))
-    
-    if (check.consistency)
-    {
-        if (length(dimensions) != length(dimension.values))
-            stop(paste0(error.prefix,
-                        "'dimensions' must either be a single value, or the same length as 'dimension.values"))
-        
-        # Check for invalid dimensions (we cannot say dimensions are invalid if alphas$maximum.dim.names is not set)
-        if (!is.null(alphas$maximum.dim.names))
-        {
-            invalid.dimensions = setdiff(dimensions, c('all', names(alphas$maximum.dim.names)))
-            
-            if (length(invalid.dimensions)>0)
-                stop(paste0(error.prefix,
-                            "Invalid dimension(s): ",
-                            paste0("'", invalid.dimensions, "'", collapse=', '),
-                            ". dimensions must be one of: ",
-                            paste0("'", names(alphas$maximum.dim.names), "'", collapse=', ')))
-        }
-        
-        # Check for invalid dimension values
-        errors = sapply(1:length(dimension.values), function(i){
-            if (dimensions[[i]]=='all')
-                NA
-            else if (is.numeric(dimension.values[[i]]))
-            {
-                if (is.null(alphas$maximum.dim.names))
-                {
-                    if (any(names(alphas$minimum.dim.names)==dimensions[i]) && 
-                        (dimension.values[[i]]<1 || dimension.values[[i]]>length(alphas$minimum.dim.names[[ dimensions[i] ]])))
-                        paste0(error.prefix,
-                               "integer dimension.values for dimension '", dimensions[[i]],
-                               "' must be between 1 and ", length(alphas$maximum.dim.names[[ dimensions[i] ]]))
-                    else if (dimension.values[[i]]<1)
-                        paste0(error.prefix,
-                               "integer dimension.values for dimension '", dimensions[[i]],
-                               "' must be greater than or equal to 1")
-                    else
-                        NA
-                }
-                else
-                {
-                    if (dimension.values[[i]]<1 || dimension.values[[i]]>length(alphas$maximum.dim.names[[ dimensions[i] ]]))
-                        paste0(error.prefix,
-                               "integer dimension.values for dimension '", dimensions[[i]],
-                               "' must be between 1 and ", length(alphas$maximum.dim.names[[ dimensions[i] ]]))
-                    else
-                        NA
-                }
-            }
-            else
-            {
-                if (is.null(alphas$maximum.dim.names))
-                {
-                    if (any(names(alphas$minimum.dim.names)==dimensions[i]))
-                        invalid.mask = sapply(dimension.values[[i]], function(val){
-                            all(val != alphas$maximum.dim.names[[ dimensions[i] ]])
-                        })
-                    else
-                        invalid.mask = logical()
-                }
-                else
-                {
-                    invalid.mask = sapply(dimension.values[[i]], function(val){
-                        all(val != alphas$maximum.dim.names[[ dimensions[i] ]])
-                    })
-                }
-                
-                if (any(invalid.mask))
-                    paste0(error.prefix, collapse.with.and("'", dimension.values[[i]][invalid.mask], "'"),
-                           ifelse(sum(invalid.mask)==1, "is not a valid value", "are not valid values"),
-                           " for dimension '",
-                           dimensions[i])
-                else
-                    NA
-            }
-        })
-        errors = errors[!is.na(errors)]
-        
-        if (length(errors)>0)
-            stop(paste0(error.prefix,
-                        "Invalid dimension values\n",
-                        paste0("- ", errors, collapse='\n')))
-        
-        # Make sure values is numeric and non-NA
-        if (!is.numeric(values))
-            stop(paste0(error.prefix, "'values' must be a numeric vector"))
-        if (any(is.na(values)))
-            stop(paste0(error.prefix, "'values' cannot contain NA values"))
-        
-        if (is.interaction)
-        {
-            if (length(values) != 1)
-                stop(paste0(error.prefix,
-                            "For an interaction alpha, 'value' must be of length one"))
-        }
-        else
-        {
-            if (length(values) != length(dimension.values))
-            {
-                if (length(values)==1)
-                    values = rep(values, length(dimension.values))
-                else
-                    stop(paste0(error.prefix,
-                                "'values' must be either a single numeric value or have the same length as 'dimension.values'"))
-            }
-        }
-    }
-    
-    #-- Make sure we can apply the link function --#
-    alphas$link$check.untransformed.values(values, variable.name.for.error='values', error.prefix=paste0(error.prefix, "'values' for alphas do not match expected scale - "))
-    
-    #-- Package up and return --#
-    list(dimensions = dimensions,
-         dimension.values = dimension.values,
-         values = alphas$link$apply(values))    
-}
 
 ##------------------------------------------------------------##
 ##-- SOME GETTERS for SETTING UP DIMENSIONS based on ALPHAS --##
@@ -828,9 +742,11 @@ crunch.alphas <- function(alphas,
             
             # Check for errors in the indices (will have returned a NULL value)
             if (is.null(indices))
+            {
                 stop(paste0(error.prefix,
                             "There was an error crunching interaction-effect alphas for '", alphas$name, "' (dimensions ",
                             collapse.with.and("'", int$dimensions, "'"), ")"))
+            }
             
             # Fold into 'crunched'
             alphas$crunched$access.indices = c(alphas$crunched$access.indices, indices$access.indices)

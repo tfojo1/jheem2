@@ -8,7 +8,6 @@ source('R/HELPERS_dim_names_helpers.R')
 source('R/SPECIFICATION_model_specification.R') #has the outcome.metadata object definition
 Rcpp::sourceCpp('src/array_helpers.cpp')
 #Rcpp::sourceCpp('src/andrew_test.cpp')
-library(abind)
 
 DATA.ROOT.DIR = '../../v1_data/'
 
@@ -104,12 +103,14 @@ data.manager$put.long.form(data = data,
 # first.pull =data.manager$pull(outcome = 'new',
 #                   dimension.values = list(location='Maryland'),
 #                   sources = c('cdc'))
+
 # my.pull = data.manager$pull(outcome = 'new',
 #                             dimension.values = list(location='Maryland', age=c('13-24 years', '25-34 years'), sex=c('male', 'female')),
 #                             keep.dimensions = c('year', 'risk'),
 #                             sources = c('cdc'),
 #                             append.attributes = c('url', 'details')
 #                             )
+
 my.target.ontology = ontology(location='Maryland',
                               year=NULL,
                               age=c('13-24 years', '25-34 years', '35-44 years', '45-54 years','55+ years'),
@@ -122,4 +123,6 @@ my.pull = data.manager$pull(outcome = 'new',
                             dimension.values = list(location='Maryland', age=c('13-24 years', '25-34 years')),
                             keep.dimensions = c('year', 'location', 'sex', 'risk'),
                             sources = c('cdc'),
-                            target.ontology = my.target.ontology)
+                            target.ontology = my.target.ontology,
+                            allow.mapping.from.target.ontology = TRUE,
+                            append.attributes = 'url')
