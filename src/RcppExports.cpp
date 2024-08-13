@@ -309,6 +309,48 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// do_calculate_quantity_background_value
+RObject do_calculate_quantity_background_value(List quantity, CharacterVector missing_times, Environment specification_metadata, CharacterVector location, Environment engine, bool check_consistency, CharacterVector error_prefix);
+RcppExport SEXP _jheem2_do_calculate_quantity_background_value(SEXP quantitySEXP, SEXP missing_timesSEXP, SEXP specification_metadataSEXP, SEXP locationSEXP, SEXP engineSEXP, SEXP check_consistencySEXP, SEXP error_prefixSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type quantity(quantitySEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type missing_times(missing_timesSEXP);
+    Rcpp::traits::input_parameter< Environment >::type specification_metadata(specification_metadataSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type location(locationSEXP);
+    Rcpp::traits::input_parameter< Environment >::type engine(engineSEXP);
+    Rcpp::traits::input_parameter< bool >::type check_consistency(check_consistencySEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type error_prefix(error_prefixSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_calculate_quantity_background_value(quantity, missing_times, specification_metadata, location, engine, check_consistency, error_prefix));
+    return rcpp_result_gen;
+END_RCPP
+}
+// do_interpolate
+RObject do_interpolate(List values, NumericVector value_times, NumericVector desired_times);
+RcppExport SEXP _jheem2_do_interpolate(SEXP valuesSEXP, SEXP value_timesSEXP, SEXP desired_timesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type value_times(value_timesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type desired_times(desired_timesSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_interpolate(values, value_times, desired_times));
+    return rcpp_result_gen;
+END_RCPP
+}
+// do_calculate_outcome_numerator_and_denominator
+void do_calculate_outcome_numerator_and_denominator(const char* outcome_name, List ode_results, Environment engine);
+RcppExport SEXP _jheem2_do_calculate_outcome_numerator_and_denominator(SEXP outcome_nameSEXP, SEXP ode_resultsSEXP, SEXP engineSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const char* >::type outcome_name(outcome_nameSEXP);
+    Rcpp::traits::input_parameter< List >::type ode_results(ode_resultsSEXP);
+    Rcpp::traits::input_parameter< Environment >::type engine(engineSEXP);
+    do_calculate_outcome_numerator_and_denominator(outcome_name, ode_results, engine);
+    return R_NilValue;
+END_RCPP
+}
 // calculate_main_effect_indices
 RObject calculate_main_effect_indices(List target_dim_names, CharacterVector alpha_dimensions, List alpha_dim_values);
 RcppExport SEXP _jheem2_calculate_main_effect_indices(SEXP target_dim_namesSEXP, SEXP alpha_dimensionsSEXP, SEXP alpha_dim_valuesSEXP) {
@@ -444,6 +486,70 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// do_project_logistic_tail
+RObject do_project_logistic_tail(NumericVector intercept, NumericVector slope, NumericVector slope_with_future, double future_slope, double future_slope_after_year, double span, double min, double max, double logistic_after_value, double anchor_year, NumericVector years);
+RcppExport SEXP _jheem2_do_project_logistic_tail(SEXP interceptSEXP, SEXP slopeSEXP, SEXP slope_with_futureSEXP, SEXP future_slopeSEXP, SEXP future_slope_after_yearSEXP, SEXP spanSEXP, SEXP minSEXP, SEXP maxSEXP, SEXP logistic_after_valueSEXP, SEXP anchor_yearSEXP, SEXP yearsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type intercept(interceptSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type slope(slopeSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type slope_with_future(slope_with_futureSEXP);
+    Rcpp::traits::input_parameter< double >::type future_slope(future_slopeSEXP);
+    Rcpp::traits::input_parameter< double >::type future_slope_after_year(future_slope_after_yearSEXP);
+    Rcpp::traits::input_parameter< double >::type span(spanSEXP);
+    Rcpp::traits::input_parameter< double >::type min(minSEXP);
+    Rcpp::traits::input_parameter< double >::type max(maxSEXP);
+    Rcpp::traits::input_parameter< double >::type logistic_after_value(logistic_after_valueSEXP);
+    Rcpp::traits::input_parameter< double >::type anchor_year(anchor_yearSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type years(yearsSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_project_logistic_tail(intercept, slope, slope_with_future, future_slope, future_slope_after_year, span, min, max, logistic_after_value, anchor_year, years));
+    return rcpp_result_gen;
+END_RCPP
+}
+// generate_lag_matrix_indices
+IntegerVector generate_lag_matrix_indices(NumericVector years, NumericVector locations, NumericVector strata, NumericVector sources, int n);
+RcppExport SEXP _jheem2_generate_lag_matrix_indices(SEXP yearsSEXP, SEXP locationsSEXP, SEXP strataSEXP, SEXP sourcesSEXP, SEXP nSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type years(yearsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type locations(locationsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type strata(strataSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sources(sourcesSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    rcpp_result_gen = Rcpp::wrap(generate_lag_matrix_indices(years, locations, strata, sources, n));
+    return rcpp_result_gen;
+END_RCPP
+}
+// apply_lag_to_vector
+NumericVector apply_lag_to_vector(NumericVector mean, IntegerVector L, NumericVector output, int n);
+RcppExport SEXP _jheem2_apply_lag_to_vector(SEXP meanSEXP, SEXP LSEXP, SEXP outputSEXP, SEXP nSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type mean(meanSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type L(LSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type output(outputSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    rcpp_result_gen = Rcpp::wrap(apply_lag_to_vector(mean, L, output, n));
+    return rcpp_result_gen;
+END_RCPP
+}
+// apply_lag_to_matrix
+NumericVector apply_lag_to_matrix(NumericVector input, IntegerVector L, NumericVector output, int n);
+RcppExport SEXP _jheem2_apply_lag_to_matrix(SEXP inputSEXP, SEXP LSEXP, SEXP outputSEXP, SEXP nSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type input(inputSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type L(LSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type output(outputSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    rcpp_result_gen = Rcpp::wrap(apply_lag_to_matrix(input, L, output, n));
+    return rcpp_result_gen;
+END_RCPP
+}
 // generate_transformation_matrix_indices
 IntegerVector generate_transformation_matrix_indices(NumericVector transformation_matrix, int m, int n);
 RcppExport SEXP _jheem2_generate_transformation_matrix_indices(SEXP transformation_matrixSEXP, SEXP mSEXP, SEXP nSEXP) {
@@ -454,6 +560,19 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type m(mSEXP);
     Rcpp::traits::input_parameter< int >::type n(nSEXP);
     rcpp_result_gen = Rcpp::wrap(generate_transformation_matrix_indices(transformation_matrix, m, n));
+    return rcpp_result_gen;
+END_RCPP
+}
+// OLD_generate_transformation_matrix_indices
+IntegerVector OLD_generate_transformation_matrix_indices(NumericVector transformation_matrix, int m, int n);
+RcppExport SEXP _jheem2_OLD_generate_transformation_matrix_indices(SEXP transformation_matrixSEXP, SEXP mSEXP, SEXP nSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type transformation_matrix(transformation_matrixSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    rcpp_result_gen = Rcpp::wrap(OLD_generate_transformation_matrix_indices(transformation_matrix, m, n));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -573,6 +692,30 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// any_overlap_character
+bool any_overlap_character(CharacterVector c1, CharacterVector c2);
+RcppExport SEXP _jheem2_any_overlap_character(SEXP c1SEXP, SEXP c2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< CharacterVector >::type c1(c1SEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type c2(c2SEXP);
+    rcpp_result_gen = Rcpp::wrap(any_overlap_character(c1, c2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// any_setdiff_character
+bool any_setdiff_character(CharacterVector x, CharacterVector y);
+RcppExport SEXP _jheem2_any_setdiff_character(SEXP xSEXP, SEXP ySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< CharacterVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type y(ySEXP);
+    rcpp_result_gen = Rcpp::wrap(any_setdiff_character(x, y));
+    return rcpp_result_gen;
+END_RCPP
+}
 // get_nested_proportion_likelihood_components
 List get_nested_proportion_likelihood_components(NumericMatrix p, NumericMatrix n, List year_metalocation_n_multipliers, List year_metalocation_n_multiplier_sd, List year_metalocation_p_bias, List year_metalocation_p_sd, double metalocation_p_correlation, double metalocation_n_multiplier_correlation, List year_metalocation_to_year_obs_n_mapping, List obs_n, List obs_n_plus_conditioned_error_variances, LogicalVector year_metalocation_to_year_condition_on_location_mask, NumericMatrix year_metalocation_to_year_condition_on_location_mapping, LogicalVector year_metalocation_to_year_obs_location_mask, NumericMatrix year_metalocation_to_year_obs_location_mapping, List year_loc_stratum_to_obs_mapping, List year_metalocation_to_obs_mapping, IntegerVector obs_year_index, NumericVector obs_p, NumericMatrix obs_error);
 RcppExport SEXP _jheem2_get_nested_proportion_likelihood_components(SEXP pSEXP, SEXP nSEXP, SEXP year_metalocation_n_multipliersSEXP, SEXP year_metalocation_n_multiplier_sdSEXP, SEXP year_metalocation_p_biasSEXP, SEXP year_metalocation_p_sdSEXP, SEXP metalocation_p_correlationSEXP, SEXP metalocation_n_multiplier_correlationSEXP, SEXP year_metalocation_to_year_obs_n_mappingSEXP, SEXP obs_nSEXP, SEXP obs_n_plus_conditioned_error_variancesSEXP, SEXP year_metalocation_to_year_condition_on_location_maskSEXP, SEXP year_metalocation_to_year_condition_on_location_mappingSEXP, SEXP year_metalocation_to_year_obs_location_maskSEXP, SEXP year_metalocation_to_year_obs_location_mappingSEXP, SEXP year_loc_stratum_to_obs_mappingSEXP, SEXP year_metalocation_to_obs_mappingSEXP, SEXP obs_year_indexSEXP, SEXP obs_pSEXP, SEXP obs_errorSEXP) {
@@ -647,6 +790,36 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// do_get_reverse_indices_from_forward
+IntegerVector do_get_reverse_indices_from_forward(List forward_indices, int n_from);
+RcppExport SEXP _jheem2_do_get_reverse_indices_from_forward(SEXP forward_indicesSEXP, SEXP n_fromSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type forward_indices(forward_indicesSEXP);
+    Rcpp::traits::input_parameter< int >::type n_from(n_fromSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_get_reverse_indices_from_forward(forward_indices, n_from));
+    return rcpp_result_gen;
+END_RCPP
+}
+// populate_outcomes_array
+NumericVector populate_outcomes_array(NumericVector desired_times, CharacterVector char_desired_times, int n_per_time, List new_values, NumericVector new_times, NumericVector old_values, CharacterVector old_times, int prior_sim_index);
+RcppExport SEXP _jheem2_populate_outcomes_array(SEXP desired_timesSEXP, SEXP char_desired_timesSEXP, SEXP n_per_timeSEXP, SEXP new_valuesSEXP, SEXP new_timesSEXP, SEXP old_valuesSEXP, SEXP old_timesSEXP, SEXP prior_sim_indexSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type desired_times(desired_timesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type char_desired_times(char_desired_timesSEXP);
+    Rcpp::traits::input_parameter< int >::type n_per_time(n_per_timeSEXP);
+    Rcpp::traits::input_parameter< List >::type new_values(new_valuesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type new_times(new_timesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type old_values(old_valuesSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type old_times(old_timesSEXP);
+    Rcpp::traits::input_parameter< int >::type prior_sim_index(prior_sim_indexSEXP);
+    rcpp_result_gen = Rcpp::wrap(populate_outcomes_array(desired_times, char_desired_times, n_per_time, new_values, new_times, old_values, old_times, prior_sim_index));
+    return rcpp_result_gen;
+END_RCPP
+}
 // do_optimized_get
 NumericVector do_optimized_get(List numerators, List denominators, List info_by_outcome, int n_to_per_outcome, bool avoid_infinite);
 RcppExport SEXP _jheem2_do_optimized_get(SEXP numeratorsSEXP, SEXP denominatorsSEXP, SEXP info_by_outcomeSEXP, SEXP n_to_per_outcomeSEXP, SEXP avoid_infiniteSEXP) {
@@ -698,6 +871,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_jheem2_compute_dx", (DL_FUNC) &_jheem2_compute_dx, 13},
     {"_jheem2_interpolate_values_when_do_not_apply", (DL_FUNC) &_jheem2_interpolate_values_when_do_not_apply, 3},
     {"_jheem2_apply_foregrounds", (DL_FUNC) &_jheem2_apply_foregrounds, 7},
+    {"_jheem2_do_calculate_quantity_background_value", (DL_FUNC) &_jheem2_do_calculate_quantity_background_value, 7},
+    {"_jheem2_do_interpolate", (DL_FUNC) &_jheem2_do_interpolate, 3},
+    {"_jheem2_do_calculate_outcome_numerator_and_denominator", (DL_FUNC) &_jheem2_do_calculate_outcome_numerator_and_denominator, 3},
     {"_jheem2_calculate_main_effect_indices", (DL_FUNC) &_jheem2_calculate_main_effect_indices, 3},
     {"_jheem2_calculate_two_way_interaction_indices", (DL_FUNC) &_jheem2_calculate_two_way_interaction_indices, 5},
     {"_jheem2_calculate_three_way_interaction_indices", (DL_FUNC) &_jheem2_calculate_three_way_interaction_indices, 7},
@@ -706,7 +882,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_jheem2_do_add_or_set_two_way_interaction_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_or_set_two_way_interaction_alphas_to_arr, 8},
     {"_jheem2_do_add_or_set_three_way_interaction_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_or_set_three_way_interaction_alphas_to_arr, 10},
     {"_jheem2_do_add_or_set_four_way_interaction_alphas_to_arr", (DL_FUNC) &_jheem2_do_add_or_set_four_way_interaction_alphas_to_arr, 12},
+    {"_jheem2_do_project_logistic_tail", (DL_FUNC) &_jheem2_do_project_logistic_tail, 11},
+    {"_jheem2_generate_lag_matrix_indices", (DL_FUNC) &_jheem2_generate_lag_matrix_indices, 5},
+    {"_jheem2_apply_lag_to_vector", (DL_FUNC) &_jheem2_apply_lag_to_vector, 4},
+    {"_jheem2_apply_lag_to_matrix", (DL_FUNC) &_jheem2_apply_lag_to_matrix, 4},
     {"_jheem2_generate_transformation_matrix_indices", (DL_FUNC) &_jheem2_generate_transformation_matrix_indices, 3},
+    {"_jheem2_OLD_generate_transformation_matrix_indices", (DL_FUNC) &_jheem2_OLD_generate_transformation_matrix_indices, 3},
     {"_jheem2_generate_transformation_matrix_row_oriented_indices", (DL_FUNC) &_jheem2_generate_transformation_matrix_row_oriented_indices, 3},
     {"_jheem2_get_basic_likelihood_mean", (DL_FUNC) &_jheem2_get_basic_likelihood_mean, 4},
     {"_jheem2_get_basic_likelihood_sigma", (DL_FUNC) &_jheem2_get_basic_likelihood_sigma, 7},
@@ -716,10 +897,14 @@ static const R_CallMethodDef CallEntries[] = {
     {"_jheem2_union_sorted_vectors", (DL_FUNC) &_jheem2_union_sorted_vectors, 1},
     {"_jheem2_intersect_sorted_vectors", (DL_FUNC) &_jheem2_intersect_sorted_vectors, 1},
     {"_jheem2_interpolate_sorted_vectors", (DL_FUNC) &_jheem2_interpolate_sorted_vectors, 4},
+    {"_jheem2_any_overlap_character", (DL_FUNC) &_jheem2_any_overlap_character, 2},
+    {"_jheem2_any_setdiff_character", (DL_FUNC) &_jheem2_any_setdiff_character, 2},
     {"_jheem2_get_nested_proportion_likelihood_components", (DL_FUNC) &_jheem2_get_nested_proportion_likelihood_components, 20},
     {"_jheem2_apply_ontology_mapping", (DL_FUNC) &_jheem2_apply_ontology_mapping, 5},
     {"_jheem2_get_ontology_mapping_matrix", (DL_FUNC) &_jheem2_get_ontology_mapping_matrix, 5},
     {"_jheem2_get_ontology_mapping_indices", (DL_FUNC) &_jheem2_get_ontology_mapping_indices, 4},
+    {"_jheem2_do_get_reverse_indices_from_forward", (DL_FUNC) &_jheem2_do_get_reverse_indices_from_forward, 2},
+    {"_jheem2_populate_outcomes_array", (DL_FUNC) &_jheem2_populate_outcomes_array, 8},
     {"_jheem2_do_optimized_get", (DL_FUNC) &_jheem2_do_optimized_get, 5},
     {"_jheem2_get_year_indices_for_optimized_info", (DL_FUNC) &_jheem2_get_year_indices_for_optimized_info, 4},
     {NULL, NULL, 0}
