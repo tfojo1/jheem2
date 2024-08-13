@@ -1880,3 +1880,141 @@ void do_add_or_set_four_way_interaction_alphas_to_arr(NumericVector arr,
     }
 }
 
+// [[Rcpp::export]]
+RObject do_project_logistic_tail(NumericVector intercept,
+                                 NumericVector slope,
+                                 NumericVector slope_with_future,
+                                 double future_slope,
+                                 double future_slope_after_year,
+                                 double span,
+                                 double min,
+                                 double max,
+                                 double logistic_after_value,
+                                 double anchor_year,
+                                 NumericVector years)
+{
+    //-- Initial Processing --//
+    int n = slope.length();
+    int n_years = years.length();
+    bool use_future_slope = future_slope == 0 || future_slope_after_year!=R_PosInf;
+    
+    
+    //-- Set up logistic_slope_sans_additional --//
+    double logistic_slope_sans_additional[n];
+    double slope_to_logistic_multiplier = span /
+        (logistic_after_value - min) / (max - logistic_after_value);
+    
+    for (int i=0; i<n; i++)
+        logistic_slope_sans_additional[i] = slope[i] * slope_to_logistic_multiplier;
+
+    
+    //-- Set up logistic_slope_with_additional --//
+    double logistic_slope_with_additional[n];
+    
+    if (use_future_slope)
+    {
+        for (int i=0; i<n; i++)
+            logistic_slope_with_additional[i] = slope_with_future[i] * slope_to_logistic_multiplier;
+    }
+        
+    
+    //-- Set up logistic_after_year --//
+    double logistic_after_year[n];
+        
+    if (use_future_slope)
+    {
+        double val_at_additional_year;
+        double delta = future_slope_after_year - anchor_year;
+            
+        for (int i=0; i<n; i++)
+        {
+            val_at_additional_year = intercept[i] + slope[i] * delta;
+            
+            if (val_at_additional_year < logistic_after_value)
+                logistic_after_year[i] = future_slope_after_year + (logistic_after_value - val_at_additional_year) / slope_with_future[i];
+            else
+                logistic_after_year[i] = anchor_year + (logistic_after_value - intercept[i]) / slope[i];
+        }
+    }
+    else
+    {
+        for (int i=0; i<n; i++)
+            logistic_after_year[i] = anchor_year + (logistic_after_value - intercept[i]) / slope[i];
+    }
+
+    //-- Set up logistic intercept --//
+    double logistic_intercept[n];
+        
+    double default_logistic_intercept = log(logistic_after_value - min) - log(max - logistic_after_value);
+    
+    for (int i=0; i<n; i++)    
+    {
+        logistic_intercept[i] = default_logistic_intercept;
+        
+        if (logistic_slope_sans_additional[i] !=0)
+        {
+            if (use_future_slope && logistic_after_year[i] > future_slope_after_year)
+                logistic_intercept[i] -= logistic_slope_sans_additional[i] * (future_slope_after_year - anchor_year);
+            else
+                logistic_intercept[i] -= logistic_slope_sans_additional[i] * (logistic_after_year[i] - anchor_year);
+        }
+        
+        if (use_future_slope && logistic_slope_with_additional[i] !=0 && logistic_after_year[i] > future_slope_after_year)
+        {
+            logistic_intercept[i] -= logistic_slope_with_additional[i] * (logistic_after_year[i] - future_slope_after_year);
+        }
+    }
+
+    
+    //-- Loop through and create the rv --//
+    
+    // We need six inputs to run this loop
+    // 1) intercept
+    // 2) slope
+    // 3) slope_with_future (only if use_future==TRUE)
+    // 4) logistic_intercept
+    // 5) logistic_slope_sans_additional
+    // 6) logistic_slope_with_additional (only if use_future==TRUE)
+    
+    List rv(n_years);
+    for (int y=0; y<n_years; y++)
+    {
+        double year = years[y];
+        NumericVector sub_rv(n);
+        
+        double delta;
+        double* slope_to_use;
+        double* logistic_slope_to_use;
+
+        if (use_future_slope && year > future_slope_after_year)
+        {
+            delta = year - future_slope_after_year;
+            slope_to_use = slope_with_future.begin();
+            logistic_slope_to_use = logistic_slope_with_additional;
+        }
+        else
+        {
+            delta = year - anchor_year;
+            slope_to_use = slope.begin();
+            logistic_slope_to_use = logistic_slope_sans_additional;
+        }
+        
+        for (int i=0; i<n; i++)
+        { 
+            sub_rv[i] = intercept[i] + slope_to_use[i] * delta;
+            if (sub_rv[i] > logistic_after_value)
+            {
+                double log_or = logistic_intercept[i] + logistic_slope_to_use[i] * delta;
+                sub_rv[i] = min + span / (1 + exp(-log_or));
+            }
+            
+            if (sub_rv[i] < min)
+                sub_rv[i] = min;
+        }
+       
+        rv[y] = sub_rv;
+    }
+
+    
+    return (rv);
+}
