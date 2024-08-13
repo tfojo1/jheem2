@@ -151,6 +151,7 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
                        replace.inf.values.with.zero = T,
                        summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                        interval.coverage = 0.95,
+                       mappings = list(),
                        error.prefix = "Error getting simulation results: ",
                        verbose = F,
                        stop.for.errors = F)
@@ -185,6 +186,7 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
                                             replace.inf.values.with.zero = replace.inf.values.with.zero,
                                             summary.type = summary.type,
                                             interval.coverage = interval.coverage,
+                                            mapping = mapping,
                                             error.prefix = error.prefix)
                         
                         this.inner.dim.names = dimnames(sub.rv)
