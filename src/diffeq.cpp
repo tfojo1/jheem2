@@ -1157,7 +1157,7 @@ if (debug)
         // Pull proportions and indices
         int proportions_quantity_index = one_remission_info["proportions_quantity_index"];
         double *remission_proportions = quantities[proportions_quantity_index];
-        List proportions_indices_for_from = one_remission_info["proportions_indices"];
+        List proportions_indices_for_from = one_remission_info["proportions_indices_for_from"];
         
         int n_from = one_remission_info["n_from"];
         int n_to_per_from = one_remission_info["n_to_per_from"];

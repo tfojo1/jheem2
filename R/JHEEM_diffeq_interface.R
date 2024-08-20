@@ -34,13 +34,14 @@ create.diffeq.settings <- function(jheem,
     outcomes = lapply(outcome.names, kernel$get.outcome.kernel)
     names(outcomes) = outcome.names
     
-    outcome.is.dynamic.or.intrinsic.mask = sapply(outcomes, function(outcome){outcome$is.dynamic}) | sapply(outcomes, function(outcome){outcome$is.intrinsic})
+    outcome.is.dynamic.or.intrinsic.mask = vapply(outcomes, function(outcome){outcome$is.dynamic}, FUN.VALUE = logical(1)) |
+        vapply(outcomes, function(outcome){outcome$is.intrinsic}, FUN.VALUE = logical(1))
     settings$outcomes = outcomes[outcome.is.dynamic.or.intrinsic.mask]
     settings$outcome.dim.names = lapply(settings$outcomes, function(outcome){
         outcome$dim.names
     })
     
-    dynamic.outcomes = settings$outcomes[sapply(settings$outcomes, function(outcome){outcome$is.dynamic})]
+    dynamic.outcomes = settings$outcomes[vapply(settings$outcomes, function(outcome){outcome$is.dynamic}, FUN.VALUE = logical(1))]
     
     settings$outcome.names.by.core.component = lapply(settings$core.components, function(components){
         lapply(components, function(comp){
@@ -50,7 +51,7 @@ create.diffeq.settings <- function(jheem,
     
     
     # Pull the population outcomes
-    pop.outcomes.mask = sapply(dynamic.outcomes, function(outcome){outcome$dynamic.quantity.name})=='population'
+    pop.outcomes.mask = vapply(dynamic.outcomes, function(outcome){outcome$dynamic.quantity.name}, FUN.VALUE=character(1))=='population'
     pop.outcomes = dynamic.outcomes[pop.outcomes.mask]
     settings$population.outcomes = list()
     
@@ -77,13 +78,13 @@ create.diffeq.settings <- function(jheem,
     
     #-- Set up state/dx sizes and indices --#
     settings$state_and_dx_sizes = c(
-        infected = prod(sapply(settings$ontologies$infected, length)),
-        uninfected = prod(sapply(settings$ontologies$uninfected, length)),
-        sapply(settings$outcomes, function(out){
-            prod(sapply(out$dim.names, length))
-        })
+        infected = prod(vapply(settings$ontologies$infected, length, FUN.VALUE = numeric(1))),
+        uninfected = prod(vapply(settings$ontologies$uninfected, length, FUN.VALUE = numeric(1))),
+        vapply(settings$outcomes, function(out){
+            prod(vapply(out$dim.names, length, FUN.VALUE = numeric(1)))
+        }, FUN.VALUE = numeric(1))
     )
-    settings$state_and_dx_sizes = sapply(settings$state_and_dx_sizes, as.integer)
+    settings$state_and_dx_sizes = vapply(settings$state_and_dx_sizes, as.integer, integer(1))
     
     settings$indices_into_state_and_dx = c(0, cumsum(settings$state_and_dx_sizes[-length(settings$state_and_dx_sizes)]))
     names(settings$indices_into_state_and_dx) = names(settings$state_and_dx_sizes)
@@ -163,9 +164,9 @@ prepare.diffeq.settings <- function(settings,
     #-- Prepare for each core component --#
     
     settings$need.to.update = lapply(settings$core.component.dependencies, function(core.comp.dependencies){
-        as.logical(sapply(core.comp.dependencies, function(dep){
+        vapply(core.comp.dependencies, function(dep){
             any(settings$quantity.dim.names.have.changed[dep])
-        }))
+        }, FUN.VALUE = logical(1))
     })
     
     settings = prepare.initial.state(settings,
@@ -249,7 +250,7 @@ prepare.initial.state <- function(settings,
                 required.ontology = settings$kernel$ontologies[[comp$group]]
                 
                 # Make sure no dimensions are missing
-                missing.dimensions = setdiff(names(required.ontology)[sapply(required.ontology, length)>1],
+                missing.dimensions = setdiff(names(required.ontology)[vapply(required.ontology, length, numeric(1))>1],
                                              names(dimnames(quantity.value)))
                 
                 if (length(missing.dimensions)>0)
@@ -350,7 +351,7 @@ prepare.natality.info <- function(settings, quantity.dim.names,
         }
         
         n.parent.categories = length(parent.categories)
-        n.parent.compartments.per.parent.category = prod(sapply(fertility.dim.names, length)) / n.parent.categories
+        n.parent.compartments.per.parent.category = prod(vapply(fertility.dim.names, length, FUN.VALUE = numeric(1))) / n.parent.categories
         
         
         # Set up the indices for fertility/parent ontology
@@ -387,13 +388,13 @@ prepare.natality.info <- function(settings, quantity.dim.names,
         # Set up the indices into birth proportions
         
         all.born.into.dimensions = substr(names(comp$all.births.into.compartments), 1, nchar(names(comp$all.births.into.compartments))-3)
-        dimensions.with.proportions = setdiff(names(offspring.ontology)[sapply(offspring.ontology, length)>1],
+        dimensions.with.proportions = setdiff(names(offspring.ontology)[vapply(offspring.ontology, length, FUN.VALUE = numeric(1))>1],
                                               union(all.born.into.dimensions,
                                                     comp$parent.child.concordant.dimensions))
         if (length(dimensions.with.proportions)==0)
             n.offspring.compartments.per.parent.category = 1
         else
-            n.offspring.compartments.per.parent.category = prod(sapply(offspring.ontology[dimensions.with.proportions], length))
+            n.offspring.compartments.per.parent.category = prod(vapply(offspring.ontology[dimensions.with.proportions], length, FUN.VALUE = numeric(1)))
         
         base.offspring.dim.names = offspring.ontology
         base.offspring.dim.names[all.born.into.dimensions] = comp$all.births.into.compartments
@@ -417,7 +418,8 @@ prepare.natality.info <- function(settings, quantity.dim.names,
         
         birth.proportion.indices.for.parent.categories = lapply(parent.categories, function(catg){
             dimension.values = base.birth.proportions.dimension.values
-            dimension.values[paste0(variable.birth.proportion.dimensions.by.parent.category, '.from')] = catg[variable.birth.proportion.dimensions.by.parent.category]
+            if (length(variable.birth.proportion.dimensions.by.parent.category)>0)
+                dimension.values[paste0(variable.birth.proportion.dimensions.by.parent.category, '.from')] = catg[variable.birth.proportion.dimensions.by.parent.category]
             if (length(dimension.values)==0)
                 0
             else
@@ -513,7 +515,7 @@ prepare.mortality.info <- function(settings, quantity.dim.names,
         
         list(
             group = DIFFEQ.GROUP.INDICES[comp$group],
-            n = prod(sapply(mortality.dim.names, length)),
+            n = prod(vapply(mortality.dim.names, length, FUN.VALUE = numeric(1))),
             quantity_index = settings$quantity.indices[comp$mortality.rate],
             state_indices = as.integer(get.array.access.indices(arr.dim.names = group.ontology, 
                                                                 dimension.values = mortality.dim.names,
@@ -560,7 +562,7 @@ prepare.transitions.info <- function(settings, quantity.dim.names,
             group = DIFFEQ.GROUP.INDICES[comp$group],
             quantity_index = settings$quantity.indices[comp$transition.rate],
             
-            n = prod(sapply(from.dim.names, length)),
+            n = prod(vapply(from.dim.names, length, FUN.VALUE = numeric(1))),
             
             state_from_indices = get.array.access.indices(arr.dim.names = group.ontology,
                                                           dimension.values = from.dim.names,
@@ -614,11 +616,11 @@ prepare.infections.info <- function(settings, quantity.dim.names,
         names(contact.from.dim.names) = substr(names(contact.from.dim.names), 1, nchar(names(contact.from.dim.names))-5)
         names(contact.to.dim.names) = substr(names(contact.to.dim.names), 1, nchar(names(contact.to.dim.names))-3)
         
-        n.from.contacts = prod(sapply(contact.from.dim.names, length))
-        n.to.contacts = prod(sapply(contact.to.dim.names, length))
+        n.from.contacts = prod(vapply(contact.from.dim.names, length, FUN.VALUE = numeric(1)))
+        n.to.contacts = prod(vapply(contact.to.dim.names, length, FUN.VALUE = numeric(1)))
         
-        n.compartments.per.from.contact = prod(sapply(transmissibility.dim.names, length)) / n.from.contacts
-        n.compartments.per.to.contact = prod(sapply(susceptibility.dim.names, length)) / n.to.contacts
+        n.compartments.per.from.contact = prod(vapply(transmissibility.dim.names, length, FUN.VALUE = numeric(1))) / n.from.contacts
+        n.compartments.per.to.contact = prod(vapply(susceptibility.dim.names, length, FUN.VALUE = numeric(1))) / n.to.contacts
         
         # Parse new infection probabilities
         
@@ -631,7 +633,10 @@ prepare.infections.info <- function(settings, quantity.dim.names,
         outcome.trackable.types = sapply(settings$outcomes[outcome.names], function(outcome){outcome$trackable.type})
         
         # Set up indices for from/infected/transmitting
-        from.contact.categories = apply(get.every.combination(contact.from.dim.names), 1, as.list)
+        if (length(contact.from.dim.names)>0)
+            from.contact.categories = apply(get.every.combination(contact.from.dim.names), 1, as.list)
+        else
+            from.contact.categories = list(NULL)
         
         transmissibility.to.infected.indices = get.array.access.indices(arr.dim.names = infected.ontology,
                                                                         dimension.values = transmissibility.dim.names,
@@ -656,8 +661,11 @@ prepare.infections.info <- function(settings, quantity.dim.names,
         
         
         # Set up indices for to/uninfected/susceptible
-        to.contact.categories = apply(get.every.combination(contact.to.dim.names), 1, as.list)
-        
+        if (length(contact.to.dim.names)>0)
+            to.contact.categories = apply(get.every.combination(contact.to.dim.names), 1, as.list)
+        else
+            to.contact.categories = list(NULL)
+            
         susceptibility.to.uninfected.indices = get.array.access.indices(arr.dim.names = uninfected.ontology,
                                                                         dimension.values = susceptibility.dim.names,
                                                                         index.from = 0)
@@ -808,11 +816,11 @@ prepare.remission.info <- function(settings, quantity.dim.names,
                                    check.consistency, error.prefix)
 {
     #-- Update whichever ones we need to update --#
-    settings$mortality.info[settings$need.to.update$remission] = 
+    settings$remission.info[settings$need.to.update$remission] = 
         lapply((1:length(settings$need.to.update$remission))[settings$need.to.update$remission], function(i){
             
-            if (i==1)
-                stop("*** NOTE *** We haven't modeling remission yet. It's possible we'll get errors here - contact Todd for debugging questions")
+            # if (i==1)
+            #     stop("*** NOTE *** We haven't modeling remission yet. It's possible we'll get errors here - contact Todd for debugging questions")
             
             comp = settings$core.components$remission[[i]]
             from.ontology = settings$ontologies[['infected']]
@@ -842,13 +850,14 @@ prepare.remission.info <- function(settings, quantity.dim.names,
                                                           dimension.values = remission.rate.dim.names)
             
             from.categories = apply(get.every.combination(remission.rate.dim.names), 1, as.list)
-            n.from = nrow(from.categories)
+            n.from = length(from.categories)
             
             # Set up the indices for distributing remissions into the uninfected state
-            base.to.dim.names = remission.rate.dim.names
+            base.to.dim.names = to.ontology
             base.to.dim.names[names(comp$all.remissions.into.compartments)] = comp$all.remissions.into.compartments
+            
             shared.to.from.dimensions = intersect(names(to.ontology), names(remission.rate.dim.names))
-            n.to.per.from = prod(sapply(base.to.dim.names[setdiff(names(base.to.dim.names), shared.to.from.dimensions)], length))
+            n.to.per.from = prod(vapply(base.to.dim.names[setdiff(names(base.to.dim.names), shared.to.from.dimensions)], length, FUN.VALUE = numeric(1)))
             
             to.dim.names.per.from = lapply(from.categories, function(catg){
                 
@@ -859,12 +868,12 @@ prepare.remission.info <- function(settings, quantity.dim.names,
             })
             
             to.indices.for.from = lapply(to.dim.names.per.from,
-                                         get.expand.array.indices,
-                                         target.dim.names = to.ontology)
+                                         get.array.access.indices,
+                                         arr.dim.names = to.ontology)
             
             unique.to.dimensions = setdiff(names(to.ontology), names(remission.rate.dim.names))
             base.proportions.dim.names = remission.rate.dim.names
-            names(base.proportions.dim.names) = paste0(names(base.proportions.dim.names), '.from')
+#            names(base.proportions.dim.names) = paste0(names(base.proportions.dim.names), '.from')
             unique.to.dim.names = base.to.dim.names[unique.to.dimensions]
             names(unique.to.dim.names) = paste0(names(unique.to.dim.names), '.to')
             base.proportions.dim.names = c(base.proportions.dim.names, unique.to.dim.names)
@@ -872,9 +881,10 @@ prepare.remission.info <- function(settings, quantity.dim.names,
             proportions.dim.names.per.from = lapply(from.categories, function(catg){
                 
                 dim.names = base.proportions.dim.names
-                dim.names[paste0(shared.to.from.dimensions, '.from')] = catg[shared.to.from.dimensions]
+                dim.names[shared.to.from.dimensions] = catg[shared.to.from.dimensions]
+ #               dim.names[paste0(shared.to.from.dimensions, '.from')] = catg[shared.to.from.dimensions]
                 
-                to.dim.names
+                dim.names
             })
             
             proportions.indices.for.from = lapply(proportions.dim.names.per.from,
@@ -932,8 +942,8 @@ prepare.fixed.strata.info <- function(settings, quantity.dim.names,
             fixed.categories = apply(get.every.combination(fixed.dim.names), 1, as.list)
             
             n.fixed.strata = length(fixed.categories)
-            n.uninfected.compartments.per.fixed.stratum = prod(sapply(uninfected.ontology, length)) / n.fixed.strata
-            n.infected.compartments.per.fixed.stratum = prod(sapply(infected.ontology, length)) / n.fixed.strata
+            n.uninfected.compartments.per.fixed.stratum = prod(vapply(uninfected.ontology, length, FUN.VALUE = numeric(1))) / n.fixed.strata
+            n.infected.compartments.per.fixed.stratum = prod(vapply(infected.ontology, length, FUN.VALUE = numeric(1))) / n.fixed.strata
             
             uninfected.indices.for.stratum = lapply(fixed.categories, 
                                                     get.array.access.indices,
@@ -967,9 +977,9 @@ prepare.population.trackers <- function(settings, quantity.dim.names,
 {
     # Set up need.to.update
     need.to.update = lapply(settings$population.tracker.dependencies, function(pop.dependencies){
-        as.logical(sapply(pop.dependencies, function(dep){
+        vapply(pop.dependencies, function(dep){
             any(settings$quantity.dim.names.have.changed[dep])
-        }))
+        }, FUN.VALUE = logical(1))
     })
     
     # for now
@@ -1010,14 +1020,14 @@ prepare.quantities.info <- function(settings,
     if (need.to.update)
     {
         #-- Calculate the scratch sizes needed for each quantity --#
-        scratch.size.per.quantity = sapply(quantity.names, function(quantity.name){
+        scratch.size.per.quantity = vapply(quantity.names, function(quantity.name){
             if (length(quantity.values[[quantity.name]])==0)
                 stop(paste0(error.prefix, "There has been an error crunching quantity values - no values whatsoever for '", quantity.name, "' have been rendered"))
             else if (length(quantity.values[[quantity.name]])==1 && is.null(quantity.after.values[[quantity.name]][[1]]))
                 0
             else
                 length(quantity.values[[quantity.name]][[1]])
-        })
+        }, FUN.VALUE = numeric(1))
         
         #-- Update the scratch offsets into the quantities info --#
         settings$quantity_scratch_offsets = c(0, cumsum(scratch.size.per.quantity[-length(scratch.size.per.quantity)]))
@@ -1040,10 +1050,10 @@ prepare.quantities.info <- function(settings,
             scratch_offset = settings$quantity_scratch_offsets[quantity.name]
         )
         
-        null.after = sapply(rv$after.values, is.null)
+        null.after = vapply(rv$after.values, is.null, FUN.VALUE = logical(1))
         rv$after.values[null.after] = rv$values[null.after]
         
-        null.after.applies = sapply(rv$after.value.applies, is.null)
+        null.after.applies = vapply(rv$after.value.applies, is.null, FUN.VALUE = logical(1))
         rv$after.value.applies[null.after.applies] = rv$value.applies[null.after.applies]
         
         rv
@@ -1125,7 +1135,7 @@ prepare.tracker <- function(outcome.name,
     
     list(
         offset_into_tracked = settings$indices_into_state_and_dx[outcome.name],
-        n = prod(sapply(intersected.dim.names, length)),
+        n = prod(vapply(intersected.dim.names, length, FUN.VALUE = numeric(1))),
         group = DIFFEQ.GROUP.INDICES[group],
         multiply_by_quantity_index = multiply.by.quantity.index,
         state_indices = as.integer(intersected.indices.into.group[outcome.indices.into.intersected]),
