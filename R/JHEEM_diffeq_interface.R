@@ -448,8 +448,7 @@ prepare.natality.info <- function(settings, quantity.dim.names,
             offspring_indices_for_parent_categories = offspring.indices.for.parent.categories,
             birth_proportion_indices_for_parent_categories = birth.proportion.indices.for.parent.categories,
             
-            from_birth_trackers = lapply(outcome.names[outcome.trackable.types=='births.from'], 
-                                         prepare.tracker,
+            from_birth_trackers = prepare.and.pare.trackers(outcome.names[outcome.trackable.types=='births.from'], 
                                          settings = settings,
                                          subset.dim.names = fertility.dim.names,
                                          quantity.dim.names = quantity.dim.names,
@@ -457,8 +456,7 @@ prepare.natality.info <- function(settings, quantity.dim.names,
                                          check.consistency = check.consistency,
                                          error.prefix = error.prefix),
             
-            by_incidence_trackers = lapply(outcome.names[outcome.trackable.types=='incidence.by'], 
-                                           prepare.tracker,
+            by_incidence_trackers = prepare.and.pare.trackers(outcome.names[outcome.trackable.types=='incidence.by'], 
                                            settings = settings,
                                            quantity.dim.names = quantity.dim.names,
                                            subset.dim.names = fertility.dim.names,
@@ -466,8 +464,7 @@ prepare.natality.info <- function(settings, quantity.dim.names,
                                            check.consistency = check.consistency,
                                            error.prefix = error.prefix),
             
-            to_birth_trackers = lapply(outcome.names[outcome.trackable.types=='births.to'], 
-                                       prepare.tracker,
+            to_birth_trackers = prepare.and.pare.trackers(outcome.names[outcome.trackable.types=='births.to'], 
                                        settings = settings,
                                        quantity.dim.names = quantity.dim.names,
                                        subset.dim.names = base.offspring.dim.names,
@@ -475,8 +472,7 @@ prepare.natality.info <- function(settings, quantity.dim.names,
                                        check.consistency = check.consistency,
                                        error.prefix = error.prefix),
             
-            to_incidence_trackers = lapply(outcome.names[outcome.trackable.types=='incidence.to'], 
-                                           prepare.tracker,
+            to_incidence_trackers = prepare.and.pare.trackers(outcome.names[outcome.trackable.types=='incidence.to'], 
                                            settings = settings,
                                            quantity.dim.names = quantity.dim.names,
                                            subset.dim.names = base.offspring.dim.names,
@@ -523,7 +519,7 @@ prepare.mortality.info <- function(settings, quantity.dim.names,
             rate_indices = as.integer(get.expand.array.indices(quantity.dim.names[[comp$mortality.rate]],
                                                                target.dim.names = mortality.dim.names,
                                                                index.from = 0)),
-            trackers = lapply(outcome.names, prepare.tracker,
+            trackers = prepare.and.pare.trackers(outcome.names,
                               settings = settings,
                               quantity.dim.names = quantity.dim.names,
                               subset.dim.names = mortality.dim.names,
@@ -574,8 +570,7 @@ prepare.transitions.info <- function(settings, quantity.dim.names,
                                                         dimension.values = to.dim.names,
                                                         index.from = 0),
             
-            trackers = lapply(outcome.names, 
-                              prepare.tracker,
+            trackers = prepare.and.pare.trackers(outcome.names, 
                               settings = settings,
                               quantity.dim.names = quantity.dim.names,
                               group = comp$group,
@@ -768,8 +763,7 @@ prepare.infections.info <- function(settings, quantity.dim.names,
             new_infection_proportions_indices_for_to_contacts = new.infection.proportion.indices,
             new_infection_state_indices_for_to_contacts = new.infection.state.indices,
             
-            by_incidence_trackers = lapply(outcome.names[outcome.trackable.types=='incidence.by'], 
-                                           prepare.tracker,
+            by_incidence_trackers = prepare.and.pare.trackers(outcome.names[outcome.trackable.types=='incidence.by'], 
                                            settings = settings,
                                            quantity.dim.names = quantity.dim.names,
                                            subset.dim.names = transmissibility.dim.names,
@@ -777,8 +771,7 @@ prepare.infections.info <- function(settings, quantity.dim.names,
                                            check.consistency = check.consistency,
                                            error.prefix = error.prefix),
             
-            to_incidence_trackers = lapply(outcome.names[outcome.trackable.types=='incidence.to'], 
-                                           prepare.tracker,
+            to_incidence_trackers = prepare.and.pare.trackers(outcome.names[outcome.trackable.types=='incidence.to'], 
                                            settings = settings,
                                            quantity.dim.names = quantity.dim.names,
                                            subset.dim.names = new.infection.dim.names,
@@ -786,8 +779,7 @@ prepare.infections.info <- function(settings, quantity.dim.names,
                                            check.consistency = check.consistency,
                                            error.prefix = error.prefix),
             
-            from_incidence_trackers = lapply(outcome.names[outcome.trackable.types=='incidence.from'], 
-                                           prepare.tracker,
+            from_incidence_trackers = prepare.and.pare.trackers(outcome.names[outcome.trackable.types=='incidence.from'], 
                                            settings = settings,
                                            quantity.dim.names = quantity.dim.names,
                                            subset.dim.names = susceptibility.dim.names,
@@ -890,7 +882,7 @@ prepare.remission.info <- function(settings, quantity.dim.names,
             proportions.indices.for.from = lapply(proportions.dim.names.per.from,
                                                   get.expand.array.indices,
                                                   to.expand.dim.names = remission.proportions.dim.names)
-            
+           
             list(
                 remission_quantity_index = settings$quantity.indices[comp$remission.rate],
                 proportions_quantity_index = settings$quantity.indices[comp$remission.proportions],
@@ -904,23 +896,21 @@ prepare.remission.info <- function(settings, quantity.dim.names,
                 n_from = n.from,
                 n_to_per_from = n.to.per.from,
                 
-                from_trackers = lapply(outcome.names[outcome.trackable.types=='remission.from'], 
-                                       prepare.tracker,
-                                       settings = settings,
-                                       quantity.dim.names = quantity.dim.names,
-                                       subset.dim.names = remission.rate.dim.names,
-                                       group = 'infected',
-                                       check.consistency = check.consistency,
-                                       error.prefix = error.prefix),
+                from_trackers = prepare.and.pare.trackers(outcome.names[outcome.trackable.types=='remission.from'], 
+                                                          settings = settings,
+                                                          quantity.dim.names = quantity.dim.names,
+                                                          subset.dim.names = remission.rate.dim.names,
+                                                          group = 'infected',
+                                                          check.consistency = check.consistency,
+                                                          error.prefix = error.prefix),
                 
-                to_trackers = lapply(outcome.names[outcome.trackable.types=='remission.to'], 
-                                     prepare.tracker,
-                                     settings = settings,
-                                     quantity.dim.names = quantity.dim.names,
-                                     subset.dim.names = base.to.dim.names,
-                                     group = 'uninfected',
-                                     check.consistency = check.consistency,
-                                     error.prefix = error.prefix)
+                to_trackers = prepare.and.pare.trackers(outcome.names[outcome.trackable.types=='remission.to'],
+                                                        settings = settings,
+                                                        quantity.dim.names = quantity.dim.names,
+                                                        subset.dim.names = base.to.dim.names,
+                                                        group = 'uninfected',
+                                                        check.consistency = check.consistency,
+                                                        error.prefix = error.prefix)
             )
         })
     
@@ -985,7 +975,7 @@ prepare.population.trackers <- function(settings, quantity.dim.names,
     # for now
     for (group in names(need.to.update))
     {   
-        settings$population_trackers[[group]][ need.to.update[[group]] ] = lapply(settings$population.outcomes[[group]][ need.to.update[[group]] ], function(outcome){
+        trackers = lapply(settings$population.outcomes[[group]][ need.to.update[[group]] ], function(outcome){
             
             prepare.tracker(outcome.name = outcome$name, 
                             settings = settings,
@@ -996,6 +986,9 @@ prepare.population.trackers <- function(settings, quantity.dim.names,
                             error.prefix = error.prefix)
             
         })
+        
+        settings$population_trackers[[group]][ need.to.update[[group]] ] = 
+            trackers[!vapply(trackers, is.null, FUN.VALUE = logical(1))]
     }
     
     
@@ -1064,6 +1057,26 @@ prepare.quantities.info <- function(settings,
     settings
 }
 
+prepare.and.pare.trackers <- function(outcome.names,
+                                      settings,
+                                      quantity.dim.names,
+                                      group,
+                                      subset.dim.names,
+                                      check.consistency,
+                                      error.prefix)
+{
+    trackers = lapply(outcome.names, 
+                      prepare.tracker,
+                      settings = settings,
+                      subset.dim.names = subset.dim.names,
+                      quantity.dim.names = quantity.dim.names,
+                      group = group,
+                      check.consistency = check.consistency,
+                      error.prefix = error.prefix)
+    
+    trackers[!vapply(trackers, is.null, FUN.VALUE = logical(1))]
+}
+
 prepare.tracker <- function(outcome.name, 
                             settings,
                             quantity.dim.names,
@@ -1104,7 +1117,9 @@ prepare.tracker <- function(outcome.name,
     intersected.dim.names = intersect.joined.dim.names(intersected.dim.names, 
                                                        subset.dim.names)
     
-    
+    if (any(sapply(intersected.dim.names, length)==0))
+        return (NULL) # there is no overlap, so nothing to track!
+        
     intersected.indices.into.subset = get.array.access.indices(arr.dim.names = subset.dim.names,
                                                                 dimension.values = intersected.dim.names,
                                                                 index.from = 1)
@@ -1113,6 +1128,7 @@ prepare.tracker <- function(outcome.name,
     
     outcome.indices.into.intersected = get.array.access.indices(arr.dim.names = intersected.dim.names,
                                                                 dimension.values = relevant.outcome.dim.names)
+    
     
     intersected.indices.into.outcome = get.expand.array.indices(to.expand.dim.names = outcome.dim.names,
                                                                 target.dim.names = intersected.dim.names,
