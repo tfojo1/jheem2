@@ -233,10 +233,10 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         
         i.total.iterations = NULL,
         
-        is.equal.to = function(other)
-        {
-            stop("need to implement is.equal.to for criteria-based-intervention")
-        },
+        # is.equal.to = function(other)
+        # {
+        #     stop("need to implement is.equal.to for criteria-based-intervention")
+        # },
         
         prepare.to.run = function(engine, sim, keep.from.year, keep.to.year, verbose)
         {
