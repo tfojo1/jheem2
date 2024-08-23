@@ -769,9 +769,8 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
              ##
             low = private$i.min.acceptable.value[1]
             high = private$i.max.acceptable.value[1]
-            mid = (high + low) / 2
             scale = sim$outcome.metadata[[private$i.outcome]]$scale
-            #mid = pre.transformed.mid = (high + low) / 2
+            mid = pre.transformed.mid = (high + low) / 2
             
             # If fine tuning, use target. Otherwise, use mean of mid and target.
             if (is.fine.tuning)
