@@ -172,6 +172,7 @@ register.data.ontology <- function(data.manager = get.default.data.manager(),
 #'@param outcome The name (a single character value) of the outcome. This is the 'internal' name by which the outcome will be referenced in accessing the data manager
 #'@param metadata An object of class 'outcome.metadata', as created by \code{\link{create.outcome.metadata}} that contains information about how to display the outcome
 #'@param denominator.outcome The denominator outcome type that should be used when aggregating data (taking a weighted average) for this outcome type. Must be a previously registered outcome with scale='non.negative.number'. Only applies if scale is 'rate', 'proportion', or 'time'
+#'@param denominator.lags.by.one.year Flag indicating whether the denominator data is shifting one year earlier than this outcome's data. For example, data for this outcome in year 2020 will use the 2019 denominator data if this flag is set to TRUE.
 #'@param overwrite A logical indicating whether the information on this outcome should overwrite previously-registered information about this outcome. However, this registration must include the same metadata$scale and denominator.outcome (ie, can't change the structure of the outcome, only the display 'trappings')
 #'@param allow.missing.denominator.outcome A logical allowing the user to register an outcome of scale 'rate', 'proportion' or 'time' without supplying a denominator outcome
 #'
@@ -180,6 +181,7 @@ register.data.outcome <- function(data.manager = get.default.data.manager(),
                                   outcome,
                                   metadata,
                                   denominator.outcome=NULL,
+                                  denominator.lags.by.one.year=F,
                                   overwrite = F,
                                   allow.missing.denominator.outcome = F)
 {
@@ -189,6 +191,7 @@ register.data.outcome <- function(data.manager = get.default.data.manager(),
     data.manager$register.outcome(outcome = outcome,
                                   metadata = metadata,
                                   denominator.outcome = denominator.outcome,
+                                  denominator.lags.by.one.year = denominator.lags.by.one.year,
                                   overwrite = overwrite,
                                   allow.missing.denominator.outcome = allow.missing.denominator.outcome)
 }
@@ -683,10 +686,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 })
             }
             
-            # Remove cached universal ontologies and target to universal mappings because they may no longer be valid (i.e., this outcome/source may not have a certain ontology anymore, even though the ontology is still registered)
-            private$i.cached.universal.ontologies = list()
-            private$i.cached.target.to.universal.mappings = list()
-            
         },
         
         register.ontology = function(name, ont)
@@ -716,6 +715,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         register.outcome = function(outcome,
                                     metadata,
                                     denominator.outcome=NULL,
+                                    denominator.lags.by.one.year=NULL,
                                     overwrite=F,
                                     allow.missing.denominator.outcome = F)
         {
@@ -728,10 +728,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             error.prefix = paste0("Unable to register outcome '", outcome,
                                   "' for data.manager '", private$i.name, "': ")
             
-            
             # - metadata is a 'outcome.metadata' object
             if (!is(metadata, "outcome.metadata"))
                 stop(paste0(error.prefix, "'metadata' must be an object of class 'outcome.metadata' as returned by create.outcome.metadata()"))
+            
+            # *denominator.lags.by.one.year* is NULL or a single logical value (if *denominator.outcome* isn't NULL)
+            if (!is.null(denominator.outcome) && !is.null(denominator.lags.by.one.year) && (!is.logical(denominator.lags.by.one.year) || length(denominator.lags.by.one.year)!=1 || is.na(denominator.lags.by.one.year)))
+                stop(paste0(error.prefix, "if 'denominator.outcome' is supplied, then 'denominator.lags.by.one.year' must be NULL or a single, non-NA logical value"))
             
             if (!is.logical(overwrite) || length(overwrite)!=1 || is.na(overwrite))
                 stop(paste0(error.prefix, "'overwrite' must be a single, non-empty, non-NA logical value"))
@@ -745,14 +748,19 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # -- is a single, non-empty, non-NA character value
             # -- corresponds to a previously-registered outcome with scale 'non.negative.number'
             
-            #@need to implement
+            if (metadata$scale %in% c('rate', 'proportion', 'time', 'ratio')) {
+                if (!is.character(denominator.outcome) || length(denominator.outcome)!=1 || is.na(denominator.outcome) ||
+                    is.null(private$i.outcome.info[[denominator.outcome]]) || private$i.outcome.info[[denominator.outcome]]$scale != 'non.negative.number')
+                    stop(paste0(error.prefix, "outcomes with scale 'rate', 'proportion', 'time', or 'ratio' must have a 'denominator.outcome' that corresponds to a previously-registered outcome with scale 'non.negative.number'"))
+            }
+            else {
+                if (!is.null(denominator.outcome))
+                    stop(paste0(error.prefix, "'denominator.outcome' must be NULL for outcomes of scale '", metadata$scale, "'"))
+            }
             
             # If this outcome has not previously been registered, store it
             # Otherwise, if scale and denominator outcome are the same as before, ignore.
             #   If different, throw an error
-            
-            #@need to implement
-            
             
             previous.outcome.info = private$i.outcome.info[[outcome]]
             if (!is.null(previous.outcome.info))
@@ -765,15 +773,15 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     stop(paste0(error.prefix, "The outcome '", outcome, "' was previously registered with a different scale and/or denominator outcome"))
             }
             
-            if (metadata$scale %in% c('rate', 'proportion', 'time') && is.null(denominator.outcome) && !allow.missing.denominator.outcome)
+            if (metadata$scale %in% c('rate', 'proportion', 'time', 'ratio') && is.null(denominator.outcome) && !allow.missing.denominator.outcome)
                 stop(paste0(error.prefix, "'denominator.outcome' must be supplied for scale ", metadata$scale))
-            
             
             # Store it
             outcome.info = list(
                 outcome = outcome,
                 metadata = metadata,
-                denominator.outcome = denominator.outcome
+                denominator.outcome = denominator.outcome,
+                denominator.lags.by.one.year = denominator.lags.by.one.year
             )
             
             private$i.outcome.info[[outcome]] = outcome.info
@@ -1194,10 +1202,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             private$i.url[[outcome]][[metric]][[source]][[ontology.name]][[stratification]][overwrite.indices] = url
             private$i.details[[outcome]][[metric]][[source]][[ontology.name]][[stratification]][overwrite.indices] = details
             
-            # Clear cached universal ontologies and target to universal mappings
-            private$i.cached.universal.ontologies = list()
-            private$i.cached.target.to.universal.mappings = list()
-            
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
@@ -1318,9 +1322,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         ...)
         {
             # if (debug) browser()
-            # Rprof(append=T)
-            time.keep = F
-            total.time = Sys.time()
             error.prefix = paste0("Cannot pull '", outcome, "' data from the data manager: ")
             # *extra dimensions* are an alternative to 'dimension.values' and must pass the same checks if used
             extra.dimension.values = list(...)
@@ -1343,7 +1344,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 #  that has been previously registered as an outcome for this data manager
                 if (!is.character(outcome) || length(outcome)!=1 || is.na(outcome) || nchar(outcome)==0)
                     stop(paste0(error.prefix, "'outcome' must be a single, non-empty, non-NA character value"))
-                
                 
                 if (is.null(outcome.info))
                     stop(paste0(error.prefix, "'", outcome, "' is not a registered outcome."))
@@ -1414,11 +1414,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Check if we have any data at all for this outcome!
             if (is.null(private$i.data[[outcome]][[metric]])) {
-                if (timekeep && metric=='estimate' && is.null(sources)) {
-                    if (!is.null(TIME.KEEPER$total)) TIME.KEEPER$total = TIME.KEEPER$total + Sys.time() - total.time
-                    else TIME.KEEPER$total = Sys.time() - total.time
-                }
-                
                 return (NULL)
             }
             
@@ -1467,14 +1462,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 sources.used.names = sources
             sources.successful.names = c()
             
-            if (time.keep && metric=='estimate' && is.null(sources)) {
-                if (!is.null(TIME.KEEPER$before.lapply)) TIME.KEEPER$before.lapply = TIME.KEEPER$before.lapply + Sys.time() - total.time
-                else TIME.KEEPER$before.lapply = Sys.time() - total.time
-            }
-            lapply.time = Sys.time()
-            
-            ## FOR THE FUTURE: DO A PRETEND PULL TO SEE WHAT ONTOLOGIES WE NEED, THEN POTENTIALLY REMAKE THE UNIVERSAL WITH ONLY THOSE
-            # if (debug) browser()
             pre.processed.data = lapply(sources.used.names, function(source.name) {
                 source.ontology.names = names(private$i.data[[outcome]][[metric]][[source.name]])
                 if (is.null(from.ontology.names))
@@ -1496,33 +1483,15 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         strat.data = private$i.data[[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
                         strat.dimensions = names(dim(strat.data))
                         strat.dimnames = as.ontology(dimnames(strat.data), incomplete.dimensions = intersect(incomplete.dimensions(ont), strat.dimensions))
-                        if (time.keep && metric=='estimate' && is.null(sources)) {
-                            if (!is.null(TIME.KEEPER$initial.strat)) TIME.KEEPER$initial.strat = TIME.KEEPER$initial.strat + Sys.time() - initial.strat.time
-                            else TIME.KEEPER$initial.strat = Sys.time() - initial.strat.time
-                        }
+                        
                         if (all(is.na(strat.data))) next
                         
-                        ### This step can take a VERY long time (~30 seconds) to fail on some outcomes and stratifications. We need to cache the result.
-                        mta.time = Sys.time()
                         mapping.to.apply = get.ontology.mapping(strat.dimnames, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
-                        if (time.keep && metric=='estimate' && is.null(sources)) {
-                            if (!is.null(TIME.KEEPER$getting.mta)) TIME.KEEPER$getting.mta = TIME.KEEPER$getting.mta + Sys.time() - mta.time
-                            else TIME.KEEPER$getting.mta = Sys.time() - mta.time
-                        }
-                        phase.one.time = Sys.time()
                         if (is.null(mapping.to.apply)) {
-                            if (time.keep && metric=='estimate' && is.null(sources)) {
-                                if (!is.null(TIME.KEEPER$phase.one)) TIME.KEEPER$phase.one = TIME.KEEPER$phase.one + Sys.time() - phase.one.time
-                                else TIME.KEEPER$phase.one = Sys.time() - phase.one.time
-                            }
                             next
                         }
                         dimnames.for.apply = mapping.to.apply$apply.to.dim.names(strat.dimnames)
                         if (!setequal(names(dimnames.for.apply), union(keep.dimensions, dv.names))) {
-                            if (time.keep && metric=='estimate' && is.null(sources)) {
-                                if (!is.null(TIME.KEEPER$phase.one)) TIME.KEEPER$phase.one = TIME.KEEPER$phase.one + Sys.time() - phase.one.time
-                                else TIME.KEEPER$phase.one = Sys.time() - phase.one.time
-                            }
                             next
                         }
                         
@@ -1538,10 +1507,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                         }
                         if (missing.dimension.values.for.aggregated.dimension) {
-                            if (time.keep && metric=='estimate' && is.null(sources)) {
-                                if (!is.null(TIME.KEEPER$phase.one)) TIME.KEEPER$phase.one = TIME.KEEPER$phase.one + Sys.time() - phase.one.time
-                                else TIME.KEEPER$phase.one = Sys.time() - phase.one.time
-                            }
                             next
                         }
                         
@@ -1560,21 +1525,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             dimnames.for.apply[[d]] = replacement
                         }
                         if (dimension.has.no.intersection) {
-                            if (debug) {
-                                if (!is.null(TIME.KEEPER$phase.one)) TIME.KEEPER$phase.one = TIME.KEEPER$phase.one + Sys.time() - phase.one.time
-                                else TIME.KEEPER$phase.one = Sys.time() - phase.one.time
-                            }
                             next
                         }
                         # Apply mapping
                         
                         incompatible.mapped.stratification = F
                         data.types = union('data', append.attributes)
-                        if (time.keep && metric=='estimate' && is.null(sources)) {
-                            if (!is.null(TIME.KEEPER$phase.one)) TIME.KEEPER$phase.one = TIME.KEEPER$phase.one + Sys.time() - phase.one.time
-                            else TIME.KEEPER$phase.one = Sys.time() - phase.one.time
-                        }
-                        phase.two.time = Sys.time()
                         pulled.ont.data = lapply(data.types, function(data.type) {
                             if (incompatible.mapped.stratification) return (NULL)
                             if (!mapping.to.apply$can.apply.to.dim.names(from.dim.names = strat.dimnames,
@@ -1638,9 +1594,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 if (data.type == 'details') data.to.process = self$unhash.details(data.to.process)
                                 function.to.apply = function(x) {list(unique(unlist(x)))}
                             }
-                            if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion') && !mapping.to.apply$is.identity.mapping) {
+                            if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion', 'ratio') && !mapping.to.apply$is.identity.mapping) {
                                 
-                                # Mappings inherently perform sum operations, but that is invalid for these scales. We therefore can only map the counts and then reproduce the rate/time/proportions afterwards.
+                                # Mappings inherently perform sum operations, but that is invalid for these scales. We therefore can only map the counts and then reproduce the rate/time/proportions/ratios afterwards.
                                 # If we have an identity mapping, then we can skip this
                                 
                                 denominator.outcome = outcome.info[['denominator.outcome']]
@@ -1654,10 +1610,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     return (NULL)
                                 }
                                 
+                                # The dimension.values for this pull are usually the strat.dimnames, but if we have a denominator offset,
+                                # then we need the year part of it to be changed by <offset>, like 2020 -> 2019.
+                                denom.dim.vals = strat.dimnames
+                                if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+                                    denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
+                                }
+                                
                                 denominator.array = self$pull(outcome = denominator.outcome,
                                                               metric = 'estimate',
                                                               keep.dimensions = union(keep.dimensions, dv.names),
-                                                              dimension.values = strat.dimnames,
+                                                              dimension.values = denom.dim.vals,
                                                               sources = denominator.source,
                                                               target.ontology = strat.dimnames,
                                                               allow.mapping.from.target.ontology = F,
@@ -1680,9 +1643,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 # Otherwise, we need to take the mean across source
                                 else denominator.array = apply.robust(denominator.array, non.source.dimensions, mean, na.rm=T)
                                 
-                                # # Catch an otherwise invisible bug if denominator.array somehow doesn't have the same shape/order as the data
-                                # if (!dim.names.equal(dimnames(denominator.array), dimnames(data.to.process)))
-                                #     stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect dimensions'))
+                                # If we had an offset, rename the year dimension names to match the main data
+                                if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+                                    dimnames(denominator.array)$year = as.character(as.numeric(dimnames(denominator.array)$year) - outcome.info$denominator.lags.by.one.year)
+                                }
                                 
                                 # So apparently it's possible that the ontology we get denominator data from can have the same dimension values but in a different order from those in our main data
                                 denom.to.data.mapping = get.ontology.mapping(dimnames(denominator.array), as.ontology(dimnames(data.to.process), incomplete.dimensions=c('year', 'location'))) # made it as.ontology b/c couldn't map year otherwise
@@ -1748,18 +1712,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             mapped.data.by.type
                         })
-                        if (time.keep && metric=='estimate' && is.null(sources)) {
-                            if (!is.null(TIME.KEEPER$phase.two)) TIME.KEEPER$phase.two = TIME.KEEPER$phase.two + Sys.time() - phase.two.time
-                            else TIME.KEEPER$phase.two = Sys.time() - phase.two.time
-                        }
                         if (incompatible.mapped.stratification) {
                             pulled.ont.data = NULL
                             next
                         }
                         names(pulled.ont.data) = data.types
-                        phase.three.time = Sys.time()
                         # We might need to subset details or url if the 'data' was unexpectedly subset due to denominator data for a proportion having fewer years or locations
-                        if (outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion') || metric=='coefficient.of.variance') {
+                        if (outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion', 'ratio') || metric=='coefficient.of.variance') {
                             tryCatch(
                                 {if ('details' %in% data.types) pulled.ont.data[['details']] = array.access(pulled.ont.data[['details']], dimnames(pulled.ont.data[['data']]))},
                                 error=function(e) {browser()}
@@ -1831,7 +1790,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         data.by.data.type = apply(data.by.data.type, keep.dimensions, FUN = sum, na.rm = na.rm)
                                         dim(data.by.data.type) = sapply(post.agg.dimnames, length)
                                         dimnames(data.by.data.type) = post.agg.dimnames
-                                    } else if (scale %in% c('rate', 'time', 'proportion')) {
+                                    } else if (scale %in% c('rate', 'time', 'proportion', 'ratio')) {
                                         denominator.outcome = outcome.info[['denominator.outcome']] ## NOTE: I MUST TELL ZOE TO ADD THIS AFTER I INTRODUCE THE REQUIREMENT TO HAVE IT
                                         denominator.ontology = target.ontology ## NOTE: DO WE NEED TO HAVE THE UNIVERSAL ALIGN TO THE DENOMINATOR ONTOLOGIES TOO, WHEN WE KNOW WE'LL NEED IT?
                                         
@@ -1844,7 +1803,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                             source.lacks.denominator.data.flag <<- TRUE
                                             return (NULL)
                                         }
-                                        # browser()
+                                        
+                                        # If we have a denominator offset, then the dimension values needs to specify that the years will be
+                                        # whatever they are for the main data, but slid back by <offset>, like 2020 -> 2019.
+                                        denom.dim.vals = strat.dimnames
+                                        if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+                                            denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
+                                        }
+                                        
                                         denominator.array = self$pull(outcome = denominator.outcome,
                                                                       metric = 'estimate', # I believe we always want "estimates" for aggregating with denominators
                                                                       keep.dimensions = names(pre.agg.dimnames),
@@ -1873,6 +1839,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         if (is.null(denom.to.data.mapping))
                                             # browser()
                                             stop(paste0(error.prefix, 'bug in aggregation code: denominator array dimensions cannot be mapped to main data dimensions'))
+                                        
+                                        # It's possible that we didn't find as many years or locations in the denominator as we did in the data.by.data.type
+                                        if (!setequal(dimnames(denominator.array)$year, dimnames(data.by.data.type)$year) || !setequal(dimnames(denominator.array)$location, dimnames(data.by.data.type)$location))
+                                            data.by.data.type = array.access(data.by.data.type, year=dimnames(denominator.array)$year, location=dimnames(denominator.array)$location)
+                                        
                                         denominator.array = denom.to.data.mapping$apply(denominator.array, to.dim.names = dimnames(data.by.data.type)) # need this argument to ensure correct order
                                         
                                         if (metric %in% c('variance', 'standard.deviation', 'coefficient.of.variance')) denominator.array = denominator.array**2
@@ -1890,7 +1861,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         dimnames(data.by.data.type) = post.agg.dimnames
                                         
                                         data.by.data.type = data.by.data.type / denominator.totals.array
-                                    } else if (scale == 'ratio') stop(paste0(error.prefix, scale, ' data cannot be aggregated'))
+                                    }
                                     else stop(paste0(error.prefix, 'aggregating ', scale, ' data is not yet implemented'))
                                     if (metric %in% c('standard.deviation', 'coefficient.of.variance')) {
                                         data.by.data.type = sqrt(data.by.data.type)
@@ -1931,18 +1902,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             dimnames(data.by.data.type) = as.list(dimnames(data.by.data.type))
                             data.by.data.type
                         }) # end of lapply for data.types
-                        # if (debug) browser()
-                        if (time.keep && metric=='estimate' && is.null(sources)) {
-                            if (!is.null(TIME.KEEPER$phase.three)) TIME.KEEPER$phase.three = TIME.KEEPER$phase.three + Sys.time() - phase.three.time
-                            else TIME.KEEPER$phase.three = Sys.time() - phase.three.time
-                        }
-                        phase.four.time = Sys.time()
+                        
                         if (all(is.na(pulled.ont.data[[1]]))) {
                             pulled.ont.data = NULL
-                            if (time.keep && metric=='estimate' && is.null(sources)) {
-                                if (!is.null(TIME.KEEPER$phase.four)) TIME.KEEPER$phase.four = TIME.KEEPER$phase.four + Sys.time() - phase.four.time
-                                else TIME.KEEPER$phase.four = Sys.time() - phase.four.time
-                            }
                             next
                         }
                         names(pulled.ont.data) = data.types
@@ -1953,17 +1915,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             # keep.dimensions <<- keep.dimensions
                             # need.to.set.keep.dimensions.flag <<- FALSE
                         }
-                        if (time.keep && metric=='estimate' && is.null(sources)) {
-                            if (!is.null(TIME.KEEPER$phase.four)) TIME.KEEPER$phase.four = TIME.KEEPER$phase.four + Sys.time() - phase.four.time
-                            else TIME.KEEPER$phase.four = Sys.time() - phase.four.time
-                        }
                         break
                         
                     } # end of loop for stratification
                     if (source.lacks.denominator.data.flag) break
                     
                     if (all(is.na(pulled.ont.data))) next
-                    phase.five.time = Sys.time()
                     # Integrate ontology's pulled data into the source's pulled data -- they should all be in the same (universal) ontology and therefore compatible
                     new.source.data.dimnames = dimnames(pulled.ont.data[[1]])
                     if (!is.null(pulled.source.data)) {
@@ -1986,21 +1943,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     })
                     names(pulled.source.data) = data.types
                     pulled.source.data <<- pulled.source.data
-                    if (time.keep && metric=='estimate' && is.null(sources)) {
-                        if (!is.null(TIME.KEEPER$phase.five)) TIME.KEEPER$phase.five = TIME.KEEPER$phase.five + Sys.time() - phase.five.time
-                        else TIME.KEEPER$phase.five = Sys.time() - phase.five.time
-                    }
                     
                 }  # end of loop for ontology
                 pulled.source.data
             }) # end of lapply for sources
+            
             # we have a list (one element per source) of lists (one element per data type, i.e. 'data', 'url', or 'details')
             # repackage this to be a data array with 'url', 'details' and possibly a mapping as attributes
-            if (time.keep && metric=='estimate' && is.null(sources)) {
-                if (!is.null(TIME.KEEPER$lapply)) TIME.KEEPER$lapply = TIME.KEEPER$lapply + Sys.time() - lapply.time
-                else TIME.KEEPER$lapply = Sys.time() - lapply.time
-            }
-            after.lapply.time = Sys.time()
             post.processed.data = NULL
             if (debug) browser()
             # Some sources may have returned NULL above and should be removed.
@@ -2061,14 +2010,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     
                 }
                 if (return.mapping.flag) attr(post.processed.data, 'mapping') = target.to.universal.mapping
-            }
-            if (time.keep && metric=='estimate' && is.null(sources)) {
-                if (!is.null(TIME.KEEPER$after.lapply)) TIME.KEEPER$after.lapply = TIME.KEEPER$after.lapply + Sys.time() - after.lapply.time
-                else TIME.KEEPER$after.lapply = Sys.time() - after.lapply.time
-            }
-            if (time.keep && metric=='estimate' && is.null(sources)) {
-                if (!is.null(TIME.KEEPER$total)) TIME.KEEPER$total = TIME.KEEPER$total + Sys.time() - total.time
-                else TIME.KEEPER$total = Sys.time() - total.time
             }
             # Rprof(NULL)
             post.processed.data
