@@ -1613,9 +1613,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 # The dimension.values for this pull are usually the strat.dimnames, but if we have a denominator offset,
                                 # then we need the year part of it to be changed by <offset>, like 2020 -> 2019.
                                 denom.dim.vals = strat.dimnames
-                                if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-                                    denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
-                                }
+                                # if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+                                #     denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
+                                # }
                                 
                                 denominator.array = self$pull(outcome = denominator.outcome,
                                                               metric = 'estimate',
@@ -1644,9 +1644,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 else denominator.array = apply.robust(denominator.array, non.source.dimensions, mean, na.rm=T)
                                 
                                 # If we had an offset, rename the year dimension names to match the main data
-                                if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-                                    dimnames(denominator.array)$year = as.character(as.numeric(dimnames(denominator.array)$year) - outcome.info$denominator.lags.by.one.year)
-                                }
+                                # if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+                                #     dimnames(denominator.array)$year = as.character(as.numeric(dimnames(denominator.array)$year) - outcome.info$denominator.lags.by.one.year)
+                                # }
                                 
                                 # So apparently it's possible that the ontology we get denominator data from can have the same dimension values but in a different order from those in our main data
                                 denom.to.data.mapping = get.ontology.mapping(dimnames(denominator.array), as.ontology(dimnames(data.to.process), incomplete.dimensions=c('year', 'location'))) # made it as.ontology b/c couldn't map year otherwise
@@ -1807,9 +1807,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         # If we have a denominator offset, then the dimension values needs to specify that the years will be
                                         # whatever they are for the main data, but slid back by <offset>, like 2020 -> 2019.
                                         denom.dim.vals = strat.dimnames
-                                        if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-                                            denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
-                                        }
+                                        # if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+                                        #     denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
+                                        # }
                                         
                                         denominator.array = self$pull(outcome = denominator.outcome,
                                                                       metric = 'estimate', # I believe we always want "estimates" for aggregating with denominators
@@ -1829,6 +1829,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                   dim = dim(denominator.array)[names(dim(denominator.array)) != 'source'],
                                                                   dimnames = dimnames(denominator.array)[names(dimnames(denominator.array)) != 'source']
                                         )
+                                        
+                                        # If we had an offset, rename the year dimension names to match the main data
+                                        # if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+                                        #     dimnames(denominator.array)$year = as.character(as.numeric(dimnames(denominator.array)$year) - outcome.info$denominator.lags.by.one.year)
+                                        # }
                                         
                                         # # Catch an otherwise invisible bug if denominator.array somehow doesn't have the same shape/order as the data
                                         # if (!dim.names.equal(dimnames(denominator.array), dimnames(data.by.data.type)))
