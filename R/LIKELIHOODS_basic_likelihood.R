@@ -212,6 +212,61 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
                                             calculate.lagged.difference = T)
 }
 
+create.time.lagged.comparison.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
+                                                                                           outcome.for.sim,
+                                                                                           denominator.outcome.for.sim=NULL,
+                                                                                           dimensions = character(0),
+                                                                                           denominator.dimensions = dimensions,
+                                                                                           dimension.values = NULL, # EXPERIMENTAL
+                                                                                           levels.of.stratification = NULL,
+                                                                                           from.year = -Inf,
+                                                                                           to.year = Inf,
+                                                                                           omit.years = NULL,
+                                                                                           sources.to.use = NULL,
+                                                                                           included.multiplier,
+                                                                                           included.multiplier.sd,
+                                                                                           included.multiplier.correlation=NULL,
+                                                                                           included.multiplier.correlation.structure=c('compound.symmetry', 'autoregressive.1')[1],
+                                                                                           correlation.different.years = 0.5,
+                                                                                           correlation.different.strata = 0.1,
+                                                                                           correlation.different.sources = 0.3,
+                                                                                           correlation.same.source.different.details = 0.3,
+                                                                                           observation.correlation.form = c('compound.symmetry', 'autoregressive.1')[1],
+                                                                                           error.variance.term=NULL,
+                                                                                           error.variance.type=NULL,
+                                                                                           weights = list(),
+                                                                                           equalize.weight.by.year = T,
+                                                                                           use.lognormal.approximation = T)
+{
+    JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
+                                            outcome.for.sim = outcome.for.sim,
+                                            denominator.outcome.for.sim = denominator.outcome.for.sim,
+                                            outcome.value = NULL,
+                                            dimensions = dimensions,
+                                            denominator.dimensions = denominator.dimensions,
+                                            dimension.values = dimension.values, # EXPERIMENTAL
+                                            levels.of.stratification = levels.of.stratification,
+                                            from.year = from.year,
+                                            to.year = to.year,
+                                            omit.years = omit.years,
+                                            sources.to.use = sources.to.use,
+                                            included.multiplier=included.multiplier,
+                                            included.multiplier.sd=included.multiplier.sd,
+                                            included.multiplier.correlation=included.multiplier.correlation,
+                                            included.multiplier.correlation.structure=included.multiplier.correlation.structure,
+                                            correlation.different.years = correlation.different.years,
+                                            correlation.different.strata = correlation.different.strata,
+                                            correlation.different.sources = correlation.different.sources,
+                                            correlation.same.source.different.details = correlation.same.source.different.details,
+                                            observation.correlation.form = observation.correlation.form,
+                                            error.variance.term = error.variance.term,
+                                            error.variance.type = error.variance.type,
+                                            weights = weights,
+                                            equalize.weight.by.year = equalize.weight.by.year,
+                                            use.lognormal.approximation = use.lognormal.approximation,
+                                            calculate.lagged.difference = T)
+}
+
 JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
     'jheem.basic.likelihood.instructions',
     inherit = JHEEM.LIKELIHOOD.INSTRUCTIONS,
