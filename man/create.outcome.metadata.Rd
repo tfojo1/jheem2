@@ -5,24 +5,27 @@
 \title{Create a metadata object for tracked quantities or tracked transitions}
 \usage{
 create.outcome.metadata(
-  scale,
   display.name,
   description,
+  scale,
   axis.name,
   units,
+  singular.unit = units,
   display.as.percent = scale == "proportion"
 )
 }
 \arguments{
-\item{scale}{The scale of the quantity. Either "rate", "ratio", "proportion", "time", "number", "non.negative.number"}
-
 \item{display.name}{The (nicely formatted) name of the quantity - to use in titling figures and other reporting. Should be capitalized}
 
 \item{description}{A phrase or single sentence describing the quantity. Should be captialized}
 
+\item{scale}{The scale of the quantity. Either "rate", "ratio", "proportion", "time", "number", "non.negative.number"}
+
 \item{axis.name}{A name to use in labeling axes on figures that display this quantity. Should be capitalized}
 
 \item{units}{The units the quantity takes (eg, "cases", "%", "tests/year")}
+
+\item{singular.unit}{The unit to use if the value of the quantity is exactly == 1}
 
 \item{display.as.percent}{A logical indicator for whether, when plotted or otherwise displayed, the quantity should be converted to a percent. Only valid if scale=='proportion'}
 }

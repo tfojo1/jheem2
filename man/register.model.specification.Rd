@@ -17,7 +17,6 @@ Once a specification object is registered, it can no longer be modified
 }
 \seealso{
 Other JHEEM Version Management Functions: 
-\code{\link{get.specification.for.version}()},
-\code{\link{register.apply.parameters.to.engine.function}()}
+\code{\link{get.specification.for.version}()}
 }
 \concept{JHEEM Version Management Functions}

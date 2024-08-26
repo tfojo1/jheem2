@@ -10,7 +10,7 @@ register.model.element(
   scale,
   dimensions = NULL,
   dimension.values = NULL,
-  apply.aliases.to.dimension.values = F,
+  resolve.dimension.values.against.model = T,
   value = NULL,
   get.value.function = NULL,
   functional.form = NULL,
@@ -44,8 +44,6 @@ register.model.element(
 
 \item{dimension.values}{Optional parameter to specify which dimension.values the model.element will use in its dimension names}
 
-\item{apply.aliases.to.dimension.values}{A logical indicating whether, if dimension.values are supplied, they should have the compartment.value.aliases for the model specification applied to them}
-
 \item{value}{A numeric value that serves as the value for this element if it is not otherwise specified. If NULL, then a value must be specified either by a get.value.function (a function which returns a value), or by a functional.form}
 
 \item{get.value.function}{An alternative to passing value directly, if the value needs to be different by location. This should be a function that takes arguments location, specification, and ...}
@@ -71,6 +69,8 @@ register.model.element(
 \item{ramp.value.application, taper.value.application}{How to interpret ramp and taper values. 'multiplier' multiplies the ramp by the first functional.form-generated value (and taper by the last functional.form-generated value). 'absolute' just plugs in the value directly}
 
 \item{ramp.interpolate.links, taper.interpolate.links}{The name(s) of link function (either 'identity', 'log', or 'exp') denoting the scale at which to interpolate values for the ramp or taper. Can be either a single value (applied to all elements in the ramp), or a vector of length(ramp.times) or length(taper.times)}
+
+\item{resolve.dimension.values.against.model.ontologies}{A logical indicating whether, if dimension.values are supplied, they should be resolved against model ontologies and have compartment.value.aliases for the model specification applied to them}
 }
 \description{
 Register a Model Element

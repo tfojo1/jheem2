@@ -14,10 +14,12 @@ create.logistic.tail.functional.form(
   intercept.link = "logistic",
   intercept.min = NA,
   intercept.max = NA,
+  intercept.robust.to.negative = F,
   slope.link = intercept.link,
   slope.min = NA,
   slope.max = NA,
-  parameters.are.on.transformed.scale = T,
+  slope.robust.to.negative = F,
+  parameters.are.on.transformed.scale = F,
   overwrite.parameters.with.alphas = F,
   error.prefix = "Cannot create logistic-tail functional.form: "
 )
@@ -33,7 +35,7 @@ create.logistic.tail.functional.form(
 
 \item{intercept.link, slope.link}{The names of the transformations to the scale on which alphas are added to calculate the intercept and slope. One of "identity", "log", "logit"}
 
-\item{intercept.min, intercept.max, slope.min, slope.max}{The min and max values to which intercept and slope van evaluate}
+\item{intercept.min, intercept.max, slope.min, slope.max}{The min and max values to which intercept and slope can evaluate}
 
 \item{overwrite.parameters.with.alphas}{Logical indicating whether, when alphas are applied, they OVERWRITE values. If F, alphas are added to the transformed value (on the transformed scale)}
 

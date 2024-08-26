@@ -8,39 +8,39 @@
 \title{Set a ramp or taper (times and values) for a model element}
 \usage{
 set.element.ramp.times(
-  jheem.engine,
+  model.settings,
   element.name,
   times,
   indices = 1:length(times),
-  check.consistency = !jheem.engine$has.been.crunched()
+  wrt.version = model.settings$version
 )
 
 set.element.ramp.values(
-  jheem.engine,
+  model.settings,
   element.name,
   values,
   indices = 1:length(values),
-  check.consistency = !jheem.engine$has.been.crunched()
+  wrt.version = model.settings$version
 )
 
 set.element.taper.times(
-  jheem.engine,
+  model.settings,
   element.name,
   times,
   indices = 1:length(times),
-  check.consistency = !jheem.engine$has.been.crunched()
+  wrt.version = model.settings$version
 )
 
 set.element.taper.values(
-  jheem.engine,
+  model.settings,
   element.name,
   values,
   indices = 1:length(values),
-  check.consistency = !jheem.engine$has.been.crunched()
+  wrt.version = model.settings$version
 )
 }
 \arguments{
-\item{jheem.engine}{A jheem.engine object (created by \code{\link{create.jheem.engine}})}
+\item{model.settings}{An object of class 'jheem.model.settings'}
 
 \item{element.name}{The name of the model element to set the ramp/taper for}
 
@@ -48,7 +48,7 @@ set.element.taper.values(
 
 \item{indices}{The indices of the ramp/taper to set times or values for. Can be either numeric indices, character indices (if the ramp/taper was named when setting up the specification), or logical indices}
 
-\item{check.consistency}{A logical indicator whether to sanitize arguments and check for consistency during calculations. Setting to F increases performance}
+\item{wrt.version}{The version relative to which the element name is resolved (if an element.name is overwritten in a descendant version, using wrt.version can be used to select which specification's model element is to be modified)}
 }
 \description{
 Set a ramp or taper (times and values) for a model element
@@ -66,15 +66,9 @@ A ramp is a set of multipliers which are multiplied by the first functional.form
 
 }}
 \seealso{
-Other Functions to create and modify a jheem.engine: 
-\code{\link{create.jheem.engine}()},
-\code{\link{crunch.jheem.engine}()},
-\code{\link{run.jheem.engine}()},
+Other Functions to create and modify a model settings: 
 \code{\link{set.element.functional.form.from.time}()},
 \code{\link{set.element.functional.form.future.slope}()},
-\code{\link{set.element.functional.form.interaction.alphas}()},
-\code{\link{set.element.functional.form.main.effect.alphas}()},
-\code{\link{set.element.values.from.parameters}()},
-\code{\link{set.element.value}()}
+\code{\link{set.element.functional.form.interaction.alphas}()}
 }
-\concept{Functions to create and modify a jheem.engine}
+\concept{Functions to create and modify a model settings}

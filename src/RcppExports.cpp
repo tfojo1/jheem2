@@ -10,40 +10,6 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// do_matrix_multiply_A_specified_interpolated_blocks_increment
-void do_matrix_multiply_A_specified_interpolated_blocks_increment(double *A, double *B, double *dst, int m_A, int m_B, int n_B, int n_blocks, int *A_block_per_row);
-RcppExport SEXP _jheem2_do_matrix_multiply_A_specified_interpolated_blocks_increment(SEXP *ASEXP, SEXP *BSEXP, SEXP *dstSEXP, SEXP m_ASEXP, SEXP m_BSEXP, SEXP n_BSEXP, SEXP n_blocksSEXP, SEXP *A_block_per_rowSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< double >::type *A(*ASEXP);
-    Rcpp::traits::input_parameter< double >::type *B(*BSEXP);
-    Rcpp::traits::input_parameter< double >::type *dst(*dstSEXP);
-    Rcpp::traits::input_parameter< int >::type m_A(m_ASEXP);
-    Rcpp::traits::input_parameter< int >::type m_B(m_BSEXP);
-    Rcpp::traits::input_parameter< int >::type n_B(n_BSEXP);
-    Rcpp::traits::input_parameter< int >::type n_blocks(n_blocksSEXP);
-    Rcpp::traits::input_parameter< int >::type *A_block_per_row(*A_block_per_rowSEXP);
-    do_matrix_multiply_A_specified_interpolated_blocks_increment(*A, *B, *dst, m_A, m_B, n_B, n_blocks, *A_block_per_row);
-    return R_NilValue;
-END_RCPP
-}
-// do_matrix_multiply_A_specified_interpolated_blocks_increment
-void do_matrix_multiply_A_specified_interpolated_blocks_increment(double *A, double *B, double *dst, double *A_blocks_per_row, int m_A, int m_B, int n_B, int n_blocks);
-RcppExport SEXP _jheem2_do_matrix_multiply_A_specified_interpolated_blocks_increment(SEXP *ASEXP, SEXP *BSEXP, SEXP *dstSEXP, SEXP *A_blocks_per_rowSEXP, SEXP m_ASEXP, SEXP m_BSEXP, SEXP n_BSEXP, SEXP n_blocksSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< double >::type *A(*ASEXP);
-    Rcpp::traits::input_parameter< double >::type *B(*BSEXP);
-    Rcpp::traits::input_parameter< double >::type *dst(*dstSEXP);
-    Rcpp::traits::input_parameter< double >::type *A_blocks_per_row(*A_blocks_per_rowSEXP);
-    Rcpp::traits::input_parameter< int >::type m_A(m_ASEXP);
-    Rcpp::traits::input_parameter< int >::type m_B(m_BSEXP);
-    Rcpp::traits::input_parameter< int >::type n_B(n_BSEXP);
-    Rcpp::traits::input_parameter< int >::type n_blocks(n_blocksSEXP);
-    do_matrix_multiply_A_specified_interpolated_blocks_increment(*A, *B, *dst, *A_blocks_per_row, m_A, m_B, n_B, n_blocks);
-    return R_NilValue;
-END_RCPP
-}
 // overwrite_arr
 NumericVector overwrite_arr(NumericVector dst, IntegerVector dst_indices, NumericVector src, IntegerVector src_indices);
 RcppExport SEXP _jheem2_overwrite_arr(SEXP dstSEXP, SEXP dst_indicesSEXP, SEXP srcSEXP, SEXP src_indicesSEXP) {
@@ -851,8 +817,6 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_jheem2_do_matrix_multiply_A_specified_interpolated_blocks_increment", (DL_FUNC) &_jheem2_do_matrix_multiply_A_specified_interpolated_blocks_increment, 8},
-    {"_jheem2_do_matrix_multiply_A_specified_interpolated_blocks_increment", (DL_FUNC) &_jheem2_do_matrix_multiply_A_specified_interpolated_blocks_increment, 8},
     {"_jheem2_overwrite_arr", (DL_FUNC) &_jheem2_overwrite_arr, 4},
     {"_jheem2_add_to_arr", (DL_FUNC) &_jheem2_add_to_arr, 4},
     {"_jheem2_overwrite_arr_with_scalar", (DL_FUNC) &_jheem2_overwrite_arr_with_scalar, 2},

@@ -11,6 +11,7 @@ pull.data(
   dimension.values = NULL,
   sources = NULL,
   from.ontology.names = NULL,
+  exclude.ontology.names = NULL,
   target.ontology = NULL,
   allow.mapping.from.target.ontology = T,
   append.attributes = NULL,

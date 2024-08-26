@@ -4,7 +4,7 @@
 \alias{combine.ontology.mappings}
 \title{Combine multiple ontology mappings into a single mapping}
 \usage{
-combine.ontology.mappings(...)
+combine.ontology.mappings(..., thorough.validation = T)
 }
 \arguments{
 \item{...}{Either ontology.mapping objects or lists containing ontology.mapping objects#'}

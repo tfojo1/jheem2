@@ -11,6 +11,14 @@ create.linear.functional.form(
   link = c("identity", "log", "logit")[1],
   min = NA,
   max = NA,
+  intercept.link = NULL,
+  intercept.min = NA,
+  intercept.max = NA,
+  intercept.robust.to.negative = F,
+  slope.link = intercept.link,
+  slope.min = NA,
+  slope.max = NA,
+  slope.robust.to.negative = F,
   parameters.are.on.transformed.scale = T,
   overwrite.parameters.with.alphas = F,
   error.prefix = "Cannot create linear functional.form: "
@@ -25,11 +33,17 @@ create.linear.functional.form(
 
 \item{min, max}{The minimum and maximum values this functional form can create. The default (NA) sets to the min/max for the link specified (eg, 0-Inf for a log link, 0-1 for a logistic link)}
 
+\item{intercept.link, slope.link}{The names of the transformations to the scale on which alphas are added to calculate the intercept and slope. One of "identity", "log", "logit". If NULL, inferred automatically from the link for the entire functional form}
+
+\item{intercept.min, intercept.max, slope.min, slope.max}{The min and max values to which intercept and slope can evaluate}
+
 \item{overwrite.parameters.with.alphas}{Logical indicating whether, when alphas are applied, they OVERWRITE values. If F, alphas are added to the transformed value (on the transformed scale)}
 
 \item{error.prefix}{String to prepend to any error message in case of an error}
 
 \item{parameters.is.on.transformed.scale}{Logical indicating whether the intercept and slope are already on the transformed scale at which alphas apply}
+
+\item{intercept.robust.intercept.linkto.negative, slope.robust.to.negative}{Whether intercept and slope should be allowed to be negative, even if a log or logit link is used (this is handled by letting the the alphas apply to the negative of the parameter, then negating it)}
 }
 \description{
 Create an Functional Form that is Linear (possibly on a transformed scale)

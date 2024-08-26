@@ -5,7 +5,7 @@
 \title{Set multiple functional form main effect alphas from parameters}
 \usage{
 set.element.functional.form.alphas.from.parameters(
-  jheem.engine,
+  model.settings,
   element.name,
   alpha.name,
   parameters,
@@ -14,11 +14,11 @@ set.element.functional.form.alphas.from.parameters(
   dimensions.with.values.referred.to.by.name = character(),
   dimensions.with.values.referred.to.by.index = character(),
   throw.error.if.no.parameters = T,
-  check.consistency = !jheem.engine$has.been.crunched()
+  wrt.version = model.settings$version
 )
 }
 \arguments{
-\item{jheem.engine}{A jheem.engine object (created by \code{\link{create.jheem.engine}})}
+\item{model.settings}{An object of class 'jheem.model.settings'}
 
 \item{element.name}{The name of the model element whose functional form we wish to modify}
 
@@ -34,7 +34,7 @@ set.element.functional.form.alphas.from.parameters(
 
 \item{throw.error.if.no.parameters}{A logical indicator - if no parameter names match the pattern parameter.name.prefix<x>parameter.name.suffix, whether an error should be thrown}
 
-\item{check.consistency}{A logical indicator whether to sanitize arguments and check for consistency during calculations. Setting to F increases performance}
+\item{wrt.version}{The version relative to which the element name is resolved (if an element.name is overwritten in a descendant version, using wrt.version can be used to select which specification's model element is to be modified)}
 }
 \value{
 The names of parameters that were used

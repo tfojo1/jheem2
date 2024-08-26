@@ -5,34 +5,22 @@
 \title{Set the Value of a Model Element}
 \usage{
 set.element.value(
-  jheem.engine,
+  model.settings,
   element.name,
   value,
-  check.consistency = !jheem.engine$has.been.crunched()
+  wrt.version = model.settings$version
 )
 }
 \arguments{
-\item{jheem.engine}{A jheem.engine object (created by \code{\link{create.jheem.engine}})}
+\item{model.settings}{An object of class 'jheem.model.settings'}
 
 \item{element.name}{The name of the model element to update a value for}
 
 \item{value}{The new value for the model element}
 
-\item{check.consistency}{A logical indicator whether to sanitize arguments and check for consistency during calculations. Setting to F increases performance}
+\item{wrt.version}{The version relative to which the element name is resolved (if an element.name is overwritten in a descendant version, using wrt.version can be used to select which specification's model element is to be modified)}
 }
 \description{
 Set the Value of a Model Element
 }
-\seealso{
-Other Functions to create and modify a jheem.engine: 
-\code{\link{create.jheem.engine}()},
-\code{\link{crunch.jheem.engine}()},
-\code{\link{run.jheem.engine}()},
-\code{\link{set.element.functional.form.from.time}()},
-\code{\link{set.element.functional.form.future.slope}()},
-\code{\link{set.element.functional.form.interaction.alphas}()},
-\code{\link{set.element.functional.form.main.effect.alphas}()},
-\code{\link{set.element.ramp.times}()},
-\code{\link{set.element.values.from.parameters}()}
-}
-\concept{Functions to create and modify a jheem.engine}
+\concept{Functions to modify model settings}

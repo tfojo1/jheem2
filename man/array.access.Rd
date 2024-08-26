@@ -25,11 +25,11 @@ Flexibly Subset an Array
 
 }}
 \examples{
-arr = array(1:24, dim=c(age=4, race=3, sex=2),
-                 dimnames=list(age=c('age1','age2','age3','age4'),
-                               race=c('black','hispanic','other'),
+arr = array(1:24, dim=c(age=4, race=3, sex=2), 
+                 dimnames=list(age=c('age1','age2','age3','age4'), 
+                               race=c('black','hispanic','other'), 
                                sex=c('female','male')))
-
+                               
 array.access(arr, dimension.values=list(age=1:3, race='black'))
 #is equivalent to
 arr[1:3, 'black',]

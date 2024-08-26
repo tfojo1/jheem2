@@ -17,7 +17,6 @@ Get a JHEEM Specification Object
 }
 \seealso{
 Other JHEEM Version Management Functions: 
-\code{\link{register.apply.parameters.to.engine.function}()},
 \code{\link{register.model.specification}()}
 }
 \concept{JHEEM Version Management Functions}
