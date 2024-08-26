@@ -16,7 +16,7 @@
 #'@details Creates a 'jheem.intervention' object where all the intervention effects given in ... apply to all the target populations given in ...
 #'
 #'@export
-create.intervention <- function(..., code=NULL, name=NULL, parameter.distribution=NULL)
+create.intervention <- function(..., code=NULL, name=NULL, parameter.distribution=NULL, overwrite.existing.intervention=F)
 {
     #-- Parse ... for target.populations and intervention.effects --#
     target.populations = list()
@@ -50,6 +50,9 @@ create.intervention <- function(..., code=NULL, name=NULL, parameter.distributio
     if (length(intervention.effects)==0)
         stop("Cannot create standard intervention: ... must contain at least one intervention.effect object")
     
+    if (is.null(overwrite.existing.intervention) || !is.logical(overwrite.existing.intervention) || length(overwrite.existing.intervention)!=1 || is.na(overwrite.existing.intervention))
+        stop(paste0(error.prefix, "'overwrite.existing.intervention' must be TRUE or FALSE"))
+    
     joint.target.population = union.target.populations(target.populations)
     
     #-- Group into foregrounds --#
@@ -67,7 +70,8 @@ create.intervention <- function(..., code=NULL, name=NULL, parameter.distributio
     JHEEM.STANDARD.INTERVENTION$new(foregrounds = foregrounds,
                                     code = code,
                                     name = name,
-                                    parameter.distribution = parameter.distribution)
+                                    parameter.distribution = parameter.distribution,
+                                    overwrite.existing.intervention = overwrite.existing.intervention)
 }
 
 #'@name Join Multiple Interventions into a Single Intervention
@@ -77,9 +81,12 @@ create.intervention <- function(..., code=NULL, name=NULL, parameter.distributio
 #'@param sequential
 #'
 #'@export
-join.interventions <- function(..., code=NULL, name=NULL, parameter.distribution=NULL, sequential=F)
+join.interventions <- function(..., code=NULL, name=NULL, parameter.distribution=NULL, overwrite.existing.intervention=F, sequential=F)
 {
     args = list(...)
+    
+    if (is.null(overwrite.existing.intervention) || !is.logical(overwrite.existing.intervention) || length(overwrite.existing.intervention)!=1 || is.na(overwrite.existing.intervention))
+        stop(paste0(error.prefix, "'overwrite.existing.intervention' must be TRUE or FALSE"))
     
     sub.interventions = list()
     for (i in 1:length(args))
@@ -122,10 +129,11 @@ join.interventions <- function(..., code=NULL, name=NULL, parameter.distribution
         join.standard.interventions(interventions = sub.interventions,
                                     code = code,
                                     name = name,
-                                    parameter.distribution = parameter.distribution)
+                                    parameter.distribution = parameter.distribution,
+                                    overwrite.existing.intervention = overwrite.existing.intervention)
 }
 
-join.standard.interventions <- function(interventions, code, name, parameter.distribution)
+join.standard.interventions <- function(interventions, code, name, parameter.distribution, overwrite.existing.intervention)
 {
     all.foregrounds = list()
     for (int in interventions)
@@ -176,7 +184,8 @@ join.standard.interventions <- function(interventions, code, name, parameter.dis
     JHEEM.STANDARD.INTERVENTION$new(foregrounds = new.foregrounds,
                                     code = code,
                                     name = name,
-                                    parameter.distribution = parameter.distribution)
+                                    parameter.distribution = parameter.distribution,
+                                    overwrite.existing.intervention = overwrite.existing.intervention)
 }
 
 #'@export
@@ -225,7 +234,7 @@ get.intervention.from.code <- function(code, throw.error.if.missing=T, error.pre
 
 # This function is internal
 # Interventions are automatically registered when they have a code set
-register.intervention <- function(intervention, error.prefix='')
+register.intervention <- function(intervention, overwrite.existing = F, error.prefix='')
 {
     if (!is(intervention, 'jheem.intervention') && R6::is.R6(int))
         stop(paste0(error.prefix, "Cannot register intervention - 'intervention' must be an R6 object with class 'jheem.intervention'"))
@@ -236,11 +245,12 @@ register.intervention <- function(intervention, error.prefix='')
     if (is.null(intervention$code))
         stop(paste0(error.prefix, "interventions can only be registered if they have a code specified"))
           
-    
     # Is something already registered?
-    already.registered = get.intervention(intervention$code, throw.error.if.missing = F)
-    if (!is.null(already.registered) && !already.registered$equals(intervention, trust.codes.to.indicate.equality = F))
-        stop(paste0("A different intervention has already been registered with the code '", intervention$code, "'"))
+    if (!overwrite.existing) {
+        already.registered = get.intervention(intervention$code, throw.error.if.missing = F)
+        if (!is.null(already.registered) && !already.registered$equals(intervention, trust.codes.to.indicate.equality = F))
+            stop(paste0("A different intervention has already been registered with the code '", intervention$code, "'"))
+    }
 
     # Register it    
     INTERVENTION.MANAGER$interventions[[intervention$code]] = intervention
@@ -323,7 +333,8 @@ JHEEM.INTERVENTION = R6::R6Class(
         
         initialize = function(name,
                               code,
-                              parameter.distribution)
+                              parameter.distribution,
+                              overwrite.existing.intervention = F)
         {
             error.prefix = "Cannot create intervention: "
             
@@ -356,6 +367,9 @@ JHEEM.INTERVENTION = R6::R6Class(
                     stop(paste0(error.prefix, "'parameter.distribution' must have variable names set"))
             }
             
+            if (is.null(overwrite.existing.intervention) || !is.logical(overwrite.existing.intervention) || length(overwrite.existing.intervention)!=1 || is.na(overwrite.existing.intervention))
+                stop(paste0(error.prefix, "'overwrite.existing.intervention' must be TRUE or FALSE"))
+            
             # Store the values
             private$i.name = name
             private$i.code = code
@@ -363,7 +377,7 @@ JHEEM.INTERVENTION = R6::R6Class(
 
             # Register to the intervention manager
             if (!is.null(code))
-                register.intervention(self)
+                register.intervention(self, overwrite.existing = overwrite.existing.intervention)
         },
         
         run = function(sim,
@@ -528,7 +542,7 @@ JHEEM.INTERVENTION = R6::R6Class(
         depends.on = function(value)
         {
             if (missing(value))
-                stop("The 'depends.on' active binding must be implemented at the subclass-level for a jheem.intervention")
+                print("The 'depends.on' active binding must be implemented at the subclass-level for a jheem.intervention") #stop() won't build
             else
                 stop("Cannot modify 'depends.on' for a jheem.intervention - it is read-only")
         }
@@ -582,7 +596,8 @@ NULL.INTERVENTION = R6::R6Class(
         {
             super$initialize(code = 'noint',
                              name = "No Intervention",
-                             parameter.distribution = NULL)
+                             parameter.distribution = NULL,
+                             overwrite.existing.intervention = F)
         },
         
         get.intervention.foregrounds = function()
@@ -630,11 +645,12 @@ SINGLE.ITERATION.INTERVENTION = R6::R6Class(
     
     public = list(
         
-        initialize = function(code, name, parameter.distribution)
+        initialize = function(code, name, parameter.distribution, overwrite.existing.intervention=F)
         {
             super$initialize(code = code,
                              name = name,
-                             parameter.distribution = parameter.distribution)
+                             parameter.distribution = parameter.distribution,
+                             overwrite.existing.intervention = overwrite.existing.intervention)
         },
         
         
@@ -645,7 +661,6 @@ SINGLE.ITERATION.INTERVENTION = R6::R6Class(
     ),
     
     active = list(
-        
     ),
     
     private = list(
@@ -667,11 +682,13 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
         initialize = function(foregrounds,
                               parameter.distribution,
                               code,
-                              name)
+                              name,
+                              overwrite.existing.intervention=F)
         {
             super$initialize(code = code,
                              name = name,
-                             parameter.distribution = parameter.distribution)
+                             parameter.distribution = parameter.distribution,
+                             overwrite.existing.intervention = overwrite.existing.intervention)
             
             private$i.foregrounds = foregrounds
             names(private$i.foregrounds) = sapply(private$i.foregrounds, function(frgd){

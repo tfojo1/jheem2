@@ -65,7 +65,8 @@ create.monotonic.criteria.based.intervention <- function(base.intervention,
                                                          max.failure.rate = 0,
                                                          discount.prior.n = 0.5,
                                                          code=NULL, 
-                                                         name=NULL)
+                                                         name=NULL,
+                                                         overwrite.existing.intervention=F)
 {
     MONOTONIC.CRITERIA.BASED.INTERVENTION$new(base.intervention = base.intervention,
                                               completion.criteria = completion.criteria,
@@ -76,7 +77,8 @@ create.monotonic.criteria.based.intervention <- function(base.intervention,
                                               max.failure.rate = max.failure.rate,
                                               discount.prior.n = discount.prior.n,
                                               code = code,
-                                              name = name)
+                                              name = name,
+                                              overwrite.existing.intervention = overwrite.existing.intervention)
 }
 
 ##-----------------------##
@@ -100,13 +102,15 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                               max.failure.rate,
                               discount.prior.n,
                               code, 
-                              name)
+                              name,
+                              overwrite.existing.intervention)
         {
             #@Andrew
             # browser()
             super$initialize(code = code,
                              name = name,
-                             parameter.distribution = base.intervention$parameter.distribution)
+                             parameter.distribution = base.intervention$parameter.distribution,
+                             overwrite.existing.intervention = overwrite.existing.intervention)
             
             error.prefix = "Cannot create monotonic, criteria-based intervention: "
             
@@ -160,7 +164,6 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             
             if (max.failure.rate < 0 || max.failure.rate > 1)
                 stop(paste0(error.prefix, "'max.failure.rate' (", max.failure.rate, ") must be between 0 and 1"))
-            
             
             # Store the variables
             private$i.base.intervention = base.intervention
@@ -770,7 +773,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             low = private$i.min.acceptable.value[1]
             high = private$i.max.acceptable.value[1]
             scale = sim$outcome.metadata[[private$i.outcome]]$scale
-            mid = pre.transformed.mid = (high + low) / 2
+            pre.transformed.mid = (high + low) / 2
             
             # If fine tuning, use target. Otherwise, use mean of mid and target.
             if (is.fine.tuning)
@@ -787,8 +790,6 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             low = transform.to.unbounded.scale(low, scale)
             high = transform.to.unbounded.scale(high, scale)
             mid = (high + low) / 2
-            
-            
             
             # browser()
             #-- Figure out our SDs --#
