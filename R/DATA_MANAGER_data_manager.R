@@ -172,6 +172,7 @@ register.data.ontology <- function(data.manager = get.default.data.manager(),
 #'@param outcome The name (a single character value) of the outcome. This is the 'internal' name by which the outcome will be referenced in accessing the data manager
 #'@param metadata An object of class 'outcome.metadata', as created by \code{\link{create.outcome.metadata}} that contains information about how to display the outcome
 #'@param denominator.outcome The denominator outcome type that should be used when aggregating data (taking a weighted average) for this outcome type. Must be a previously registered outcome with scale='non.negative.number'. Only applies if scale is 'rate', 'proportion', or 'time'
+#'@param denominator.lags.by.one.year Flag indicating whether the denominator data is shifting one year earlier than this outcome's data. For example, data for this outcome in year 2020 will use the 2019 denominator data if this flag is set to TRUE.
 #'@param overwrite A logical indicating whether the information on this outcome should overwrite previously-registered information about this outcome. However, this registration must include the same metadata$scale and denominator.outcome (ie, can't change the structure of the outcome, only the display 'trappings')
 #'@param allow.missing.denominator.outcome A logical allowing the user to register an outcome of scale 'rate', 'proportion' or 'time' without supplying a denominator outcome
 #'
@@ -180,6 +181,7 @@ register.data.outcome <- function(data.manager = get.default.data.manager(),
                                   outcome,
                                   metadata,
                                   denominator.outcome=NULL,
+                                  denominator.lags.by.one.year=F,
                                   overwrite = F,
                                   allow.missing.denominator.outcome = F)
 {
@@ -189,6 +191,7 @@ register.data.outcome <- function(data.manager = get.default.data.manager(),
     data.manager$register.outcome(outcome = outcome,
                                   metadata = metadata,
                                   denominator.outcome = denominator.outcome,
+                                  denominator.lags.by.one.year = denominator.lags.by.one.year,
                                   overwrite = overwrite,
                                   allow.missing.denominator.outcome = allow.missing.denominator.outcome)
 }
@@ -712,7 +715,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         register.outcome = function(outcome,
                                     metadata,
                                     denominator.outcome=NULL,
-                                    denominator.by.lags.one.year=NULL,
+                                    denominator.lags.by.one.year=NULL,
                                     overwrite=F,
                                     allow.missing.denominator.outcome = F)
         {

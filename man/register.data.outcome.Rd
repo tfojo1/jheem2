@@ -9,6 +9,7 @@ register.data.outcome(
   outcome,
   metadata,
   denominator.outcome = NULL,
+  denominator.lags.by.one.year = F,
   overwrite = F,
   allow.missing.denominator.outcome = F
 )
@@ -21,6 +22,8 @@ register.data.outcome(
 \item{metadata}{An object of class 'outcome.metadata', as created by \code{\link{create.outcome.metadata}} that contains information about how to display the outcome}
 
 \item{denominator.outcome}{The denominator outcome type that should be used when aggregating data (taking a weighted average) for this outcome type. Must be a previously registered outcome with scale='non.negative.number'. Only applies if scale is 'rate', 'proportion', or 'time'}
+
+\item{denominator.lags.by.one.year}{Flag indicating whether the denominator data is shifting one year earlier than this outcome's data. For example, data for this outcome in year 2020 will use the 2019 denominator data if this flag is set to TRUE.}
 
 \item{overwrite}{A logical indicating whether the information on this outcome should overwrite previously-registered information about this outcome. However, this registration must include the same metadata$scale and denominator.outcome (ie, can't change the structure of the outcome, only the display 'trappings')}
 
