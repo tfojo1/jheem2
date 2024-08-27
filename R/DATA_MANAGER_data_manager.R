@@ -750,7 +750,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             if (metadata$scale %in% c('rate', 'proportion', 'time', 'ratio')) {
                 if (!is.character(denominator.outcome) || length(denominator.outcome)!=1 || is.na(denominator.outcome) ||
-                    is.null(private$i.outcome.info[[denominator.outcome]]) || private$i.outcome.info[[denominator.outcome]]$scale != 'non.negative.number')
+                    is.null(private$i.outcome.info[[denominator.outcome]]) || private$i.outcome.info[[denominator.outcome]]$metadata$scale != 'non.negative.number')
                     stop(paste0(error.prefix, "outcomes with scale 'rate', 'proportion', 'time', or 'ratio' must have a 'denominator.outcome' that corresponds to a previously-registered outcome with scale 'non.negative.number'"))
             }
             else {
