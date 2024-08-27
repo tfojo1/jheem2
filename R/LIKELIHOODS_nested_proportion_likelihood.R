@@ -351,7 +351,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               calculate.lagged.difference)
         {
             
-            error.prefix = paste0('Error creating nested proportion likelihood instructions: ')
+            error.prefix = paste0("Error creating nested proportion likelihood instructions for outcome '", outcome.for.sim, "': ")
             
             # validated in the super$initialize:
             # *outcome.for.sim* (although more validation follows)
@@ -2170,7 +2170,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
 #'@export
 get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensions, levels.of.stratification, outcome.for.p, outcome.for.n, sub.location.type, super.location.type, main.location.type = 'CBSA', minimum.sample.size = 12, main.location.type.p.source=NULL, sub.location.type.p.source=NULL, super.location.type.p.source=NULL, main.location.type.n.source=NULL, sub.location.type.n.source=NULL, super.location.type.n.source=NULL, debug=F)
 {
-    error.prefix = "Error getting p bias estimates: "
+    error.prefix = paste0("Error getting p bias estimates for outcome '", outcome.for.p, "': ")
     # --- VALIDATION --- #
     if (debug) browser()
     

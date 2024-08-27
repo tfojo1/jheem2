@@ -302,7 +302,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               calculate.lagged.difference=F)
         {
             # browser()
-            error.prefix = paste0('Error creating basic likelihood instructions: ')
+            error.prefix = paste0("Error creating basic likelihood instructions for outcome '", outcome.for.sim, "': ")
             
             # *outcome.for.sim* -- validated in the super$initialize
             
