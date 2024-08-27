@@ -1,5 +1,6 @@
 # Note: didn't include instruction "codes" in this since we haven't used them
 
+#'@export
 create.ifelse.likelihood.instructions = function(...) {
     error.prefix = "Error creating 'jheem.ifelse.likelihood.instructions': "
     # all arguments must be JHEEM.LIKELIHOOD.INSTRUCTIONS and none joint

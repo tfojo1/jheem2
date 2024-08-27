@@ -3,10 +3,8 @@
 #'
 #'@param parameter.name The name of the parameter to be modified to achieve the outcome
 #'@param outcome A character vector indicating the name of the outcome to which the criterion applies
-#'
 #'@param parameter.scale The scale on which the parameter operates
 #'@param parameter.initial.value Either a single scalar numeric or a function that takes argument sim and returns a single scalar numeric
-#'
 #'@param target.value A single, numeric value that we want the outcome to get to
 #'@param min.acceptable.value,max.acceptable.value Indicators of the min and max possible values of the outcome we would be willing to accept. Must be either (1) single, numeric values or (2) numeric vectors. In this case, the first values are the min/max threshold until subsequent.thresholds.apply.after.iteration[1], the second values are the thresholds prior to subsequent.thresholds.apply.after.iteration[2], etc
 #'@param subsequent.thresholds.apply.after.iteration The number of iterations after which the 2nd, 3rd, etc thresholds in min.acceptable.value, max.acceptable.value apply

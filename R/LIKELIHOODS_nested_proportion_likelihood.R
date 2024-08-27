@@ -1,4 +1,5 @@
 
+#'@export
 create.nested.proportion.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
                                                                                       denominator.outcome.for.data, # is NEVER null here because we are working with proportions
                                                                                       outcome.for.sim,
@@ -97,6 +98,7 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
                                                         calculate.lagged.difference = F)
 }
 
+#'@export
 create.time.lagged.comparison.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                                                     denominator.outcome.for.data, # is NEVER null here because we are working with proportions
                                                                                     outcome.for.sim,
