@@ -1479,7 +1479,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     stratification.names = names(private$i.data[[outcome]][[metric]][[source.name]][[ont.name]])
                     
                     for (strat in stratification.names) {
-                        initial.strat.time = Sys.time()
                         strat.data = private$i.data[[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
                         strat.dimensions = names(dim(strat.data))
                         strat.dimnames = as.ontology(dimnames(strat.data), incomplete.dimensions = intersect(incomplete.dimensions(ont), strat.dimensions))
@@ -1528,7 +1527,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             next
                         }
                         # Apply mapping
-                        
+                        # if (debug) browser()
                         incompatible.mapped.stratification = F
                         data.types = union('data', append.attributes)
                         pulled.ont.data = lapply(data.types, function(data.type) {
@@ -1600,33 +1599,38 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 # If we have an identity mapping, then we can skip this
                                 
                                 denominator.outcome = outcome.info[['denominator.outcome']]
-                                # Check if this source has data, otherwise use all available sources and apply mean over result, or give up.
-                                if (source.name %in% names(private$i.data[[denominator.outcome]][['estimate']]))
-                                    denominator.source = source.name
-                                else if (length(names(private$i.data[[denominator.outcome]][['estimate']]))>0)
-                                    denominator.source = names(private$i.data[[denominator.outcome]][['estimate']])
-                                else {
-                                    source.lacks.denominator.data.flag <<- TRUE
-                                    return (NULL)
-                                }
                                 
                                 # The dimension.values for this pull are usually the strat.dimnames, but if we have a denominator offset,
                                 # then we need the year part of it to be changed by <offset>, like 2020 -> 2019.
                                 denom.dim.vals = strat.dimnames
-                                # if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-                                #     denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
-                                # }
+                                if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+                                    denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
+                                }
                                 
-                                denominator.array = self$pull(outcome = denominator.outcome,
-                                                              metric = 'estimate',
-                                                              keep.dimensions = union(keep.dimensions, dv.names),
-                                                              dimension.values = denom.dim.vals,
-                                                              sources = denominator.source,
-                                                              target.ontology = strat.dimnames,
-                                                              allow.mapping.from.target.ontology = F,
-                                                              from.ontology.names = NULL, # I suppose we have no choice since the same source could use different ontologies for its denominator
-                                                              na.rm = na.rm,
-                                                              check.arguments = F)
+                                # The same source might not be the right one if we aggregated locations into another source.
+                                # We could try each of our sources until we get one, starting with whichever matches, but trying others.
+                                
+                                denominator.sources = names(private$i.data[[denominator.outcome]][['estimate']])
+                                # put same source on front
+                                if (source.name %in% denominator.sources) {
+                                    denominator.sources = c(source.name, setdiff(denominator.sources, source.name))
+                                }
+                                
+                                denominator.array = NULL
+                                for (denominator.source in denominator.sources) {
+                                    denominator.array = self$pull(outcome = denominator.outcome,
+                                                                  metric = 'estimate',
+                                                                  keep.dimensions = union(keep.dimensions, dv.names),
+                                                                  dimension.values = denom.dim.vals,
+                                                                  sources = denominator.source,
+                                                                  target.ontology = strat.dimnames,
+                                                                  allow.mapping.from.target.ontology = F,
+                                                                  from.ontology.names = NULL, # I suppose we have no choice since the same source could use different ontologies for its denominator
+                                                                  na.rm = na.rm,
+                                                                  check.arguments = F)
+                                    if (!is.null(denominator.array)) break
+                                }
+                                
                                 if (is.null(denominator.array)) {
                                     source.lacks.denominator.data.flag <<- TRUE
                                     return (NULL)
@@ -1644,9 +1648,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 else denominator.array = apply.robust(denominator.array, non.source.dimensions, mean, na.rm=T)
                                 
                                 # If we had an offset, rename the year dimension names to match the main data
-                                # if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-                                #     dimnames(denominator.array)$year = as.character(as.numeric(dimnames(denominator.array)$year) - outcome.info$denominator.lags.by.one.year)
-                                # }
+                                if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+                                    dimnames(denominator.array)$year = as.character(as.numeric(dimnames(denominator.array)$year) + outcome.info$denominator.lags.by.one.year)
+                                }
                                 
                                 # So apparently it's possible that the ontology we get denominator data from can have the same dimension values but in a different order from those in our main data
                                 denom.to.data.mapping = get.ontology.mapping(dimnames(denominator.array), as.ontology(dimnames(data.to.process), incomplete.dimensions=c('year', 'location'))) # made it as.ontology b/c couldn't map year otherwise
@@ -1794,32 +1798,35 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         denominator.outcome = outcome.info[['denominator.outcome']] ## NOTE: I MUST TELL ZOE TO ADD THIS AFTER I INTRODUCE THE REQUIREMENT TO HAVE IT
                                         denominator.ontology = target.ontology ## NOTE: DO WE NEED TO HAVE THE UNIVERSAL ALIGN TO THE DENOMINATOR ONTOLOGIES TOO, WHEN WE KNOW WE'LL NEED IT?
                                         
-                                        # CHECK IF THIS SOURCE HAS DENOMINATOR DATA. IF NOT, TRY ANOTHER SOURCE.
-                                        if (source.name %in% names(private$i.data[[denominator.outcome]][['estimate']]))
-                                            denominator.source = source.name
-                                        else if (length(names(private$i.data[[denominator.outcome]][['estimate']]))>0)
-                                            denominator.source = names(private$i.data[[denominator.outcome]][['estimate']])[[1]]
-                                        else {
-                                            source.lacks.denominator.data.flag <<- TRUE
-                                            return (NULL)
-                                        }
-                                        
                                         # If we have a denominator offset, then the dimension values needs to specify that the years will be
                                         # whatever they are for the main data, but slid back by <offset>, like 2020 -> 2019.
-                                        denom.dim.vals = strat.dimnames
-                                        # if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-                                        #     denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
-                                        # }
+                                        denom.dim.vals = pre.agg.dimnames
+                                        if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+                                            denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
+                                        }
                                         
-                                        denominator.array = self$pull(outcome = denominator.outcome,
-                                                                      metric = 'estimate', # I believe we always want "estimates" for aggregating with denominators
-                                                                      keep.dimensions = names(pre.agg.dimnames),
-                                                                      dimension.values = dimension.values,
-                                                                      sources = denominator.source,
-                                                                      target.ontology = denominator.ontology,
-                                                                      allow.mapping.from.target.ontology = F,
-                                                                      from.ontology.names = NULL,
-                                                                      na.rm = na.rm)
+                                        denominator.sources = names(private$i.data[[denominator.outcome]][['estimate']])
+                                        # put same source on front
+                                        if (source.name %in% denominator.sources) {
+                                            denominator.sources = c(source.name, setdiff(denominator.sources, source.name))
+                                        }
+                                        
+                                        denominator.array = NULL
+                                        for (denominator.source in denominator.sources) {
+                                            denominator.array = self$pull(outcome = denominator.outcome,
+                                                                          metric = 'estimate', # I believe we always want "estimates" for aggregating with denominators
+                                                                          keep.dimensions = names(pre.agg.dimnames),
+                                                                          dimension.values = denom.dim.vals,
+                                                                          sources = denominator.source,
+                                                                          target.ontology = denominator.ontology,
+                                                                          allow.mapping.from.target.ontology = F,
+                                                                          from.ontology.names = NULL,
+                                                                          na.rm = na.rm,
+                                                                          check.arguments = F)
+                                            if (!is.null(denominator.array)) break
+                                        }
+                                        
+                                        
                                         if (is.null(denominator.array)) {
                                             source.lacks.denominator.data.flag <<- TRUE
                                             return (NULL)
@@ -1831,10 +1838,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         )
                                         
                                         # If we had an offset, rename the year dimension names to match the main data
-                                        # if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-                                        #     dimnames(denominator.array)$year = as.character(as.numeric(dimnames(denominator.array)$year) - outcome.info$denominator.lags.by.one.year)
-                                        # }
-                                        
+                                        if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+                                            dimnames(denominator.array)$year = as.character(as.numeric(dimnames(denominator.array)$year) + outcome.info$denominator.lags.by.one.year)
+                                        }
+
                                         # # Catch an otherwise invisible bug if denominator.array somehow doesn't have the same shape/order as the data
                                         # if (!dim.names.equal(dimnames(denominator.array), dimnames(data.by.data.type)))
                                         #     stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect dimensions'))
