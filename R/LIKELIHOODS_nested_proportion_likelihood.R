@@ -1707,7 +1707,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             # Change stratification into what dimensions the n data ontology will need to achieve it and get mappings to align
             universal.ontology.for.n = data.manager$get.universal.ontology.for.outcome(outcome.for.n, exclude.ontology.names = private$i.exclude.denominator.ontology.names)
-            initial.aligning.mappings = get.mappings.to.align.ontologies(universal.ontology.for.n, sim.ontology)
+            initial.aligning.mappings = get.mappings.to.align.ontologies(universal.ontology.for.n, sim.ontology, allow.non.overlapping.incomplete.dimensions = T)
+            # I added "allow.non...=T" recently (8/30/24) because there's no guarantee the universal ont's locations have ours.
             
             if (is.null(initial.aligning.mappings))
                 stop(paste0(error.prefix, "an aligning mapping could not be found between the universal ontology for n and the sim ontology"))
@@ -1995,14 +1996,31 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             }
             
             # check for NAs
-            if (any(sapply(one.matrix.per.model.stratum, function(mat) {any(is.na(mat))})))
-                stop(paste0(error.prefix, "not enough data found for n-multipliers; consider restricting likelihood years"))
+            if (any(sapply(one.matrix.per.model.stratum, function(mat) {any(is.na(mat))}))) {
+                
+                # find years that are missing
+                years.missing.anything = years[unique(unlist(sapply(one.matrix.per.model.stratum, function(mat) {which(apply(is.na(mat), 1, any))})))]
+                
+                ERROR.MANAGER$code="NL7"
+                ERROR.MANAGER$contents = list(one.matrix.per.model.stratum=one.matrix.per.model.stratum,
+                                              outcome=outcome,
+                                              years=years,
+                                              years.missing.anything=years.missing.anything,
+                                              stratification=stratification,
+                                              model.strata=model.strata,
+                                              location=location,
+                                              metalocation.to.minimal.component.map=metalocation.to.minimal.component.map)
+                
+                stop(paste0(error.prefix, "some or all needed '", outcome, "' data was not found for the following year(s): ", paste0(years.missing.anything, collapse=', '), "; consider restricting likelihood years"))
+            }
+                
             
             return(one.matrix.per.model.stratum)
         },
         
-        get.outcome.ratios = function(location.1, location.2, stratification, data.manager, outcome, years, universal.ontology, cache, error.prefix)
+        get.outcome.ratios = function(location.1, location.2, stratification, data.manager, outcome, years, universal.ontology, cache, error.prefix, debug=F)
         {
+            if (debug) browser()
             # Pull data for each location. Later, we will map them to an aligning ontology.
             
             ### check if this is cached. If so, use it and return. If not, set it at the end.

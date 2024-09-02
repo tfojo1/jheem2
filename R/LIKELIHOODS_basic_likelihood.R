@@ -122,10 +122,10 @@ create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.
 #'@title Create JHEEM Basic Likelihood Instructions With Included Multiplier
 #'
 #'@inheritParams create.basic.likelihood.instructions
-#'@param included.multiplier A single numeric value that represents... ASK TODD
-#'@param included.multiplier
-#'@param included.multiplier
-#'@param included.multiplier
+#'@param included.multiplier The value of the multiplier that has already been used in calculating the simulation value of the outcome (represents the mean of the distribution around the multiplier).
+#'@param included.multiplier.sd The standard deviation of the uncertainty around the included multiplier.
+#'@param included.multiplier.correlation The correlation between values of the multiplier across different strata and years.
+#'@param included.multiplier.correlation.structure Which correlation form to use for values of the multiplier across various strata and years.
 #'
 #'@export
 create.basic.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
@@ -719,6 +719,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
             if(!is.null(private$i.denominator.outcome.for.sim) && !(private$i.denominator.outcome.for.sim %in% sim.metadata$outcomes))
                 stop(paste0(error.prefix, private$i.denominator.for.sim, " is not a simulation outcome in this specification"))
+            # browser()
 
             scale = sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$scale
             if (!(scale %in% c('non.negative.number', 'number', 'proportion', 'rate')))
