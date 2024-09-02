@@ -1792,9 +1792,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         },
         
         # hard code female msm as not needed so we can stop if it is NA? -> never implemented
-        get.average = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames = NULL, cache, error.prefix)
+        get.average = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames = NULL, cache, error.prefix, debug=F)
         {
-            
+            if (debug) browser()
             ### check if this is cached. If so, use it and return. If not, set it at the end.
             if (length(stratification)==0) this.step.hash = 'NULL'
             else this.step.hash = paste0(stratification, collapse = '__')
@@ -1835,8 +1835,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     data = array(data, dim = sapply(new.dimnames, length), new.dimnames)
                 }
                 
-                # If we are lacking certain years (or locations), expand data to include them as NA.
-                if (!setequal(dimnames(data)$location, locations.with.n.data) || !setequal(dimnames(data)$year, get.range.robust.year.intersect(years.with.data, dimnames(data)$year))) {
+                # If we are lacking certain years (or locations), expand data to include them as NA
+                # Note that if we have single years, we want setequal(..., years.with.data) but need more if one is year ranges
+                if (any(is.year.range(dimnames(data)$year)))
+                    stop(paste0(error.prefix, "use of denominator data in year ranges is not yet implemented"))
+                years.are.equal = setequal(dimnames(data)$year,
+                                           if (!any(is.year.range(years.with.data))) years.with.data else get.range.robust.year.intersect(years.with.data, dimnames(data)$year))
+                if (!setequal(dimnames(data)$location, locations.with.n.data) || !years.are.equal) {
                     complete.dimnames = dimnames(data)
                     complete.dimnames$location = locations.with.n.data
                     complete.dimnames$year = years.with.data
