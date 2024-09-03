@@ -2526,7 +2526,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         },
         
         get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, exclude.ontology.names = NULL, target.ontology = NULL, return.target.to.universal.mapping = T, debug = F)
-        {o
+        {
             if (debug) browser()
             onts = self$get.ontologies.for.outcome(outcome, sources, exclude.ontology.names = exclude.ontology.names)
             if (!is.null(from.ontology.names)) onts = onts[names(onts) %in% from.ontology.names]
