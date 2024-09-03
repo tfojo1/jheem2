@@ -58,6 +58,7 @@ create.data.manager <- function(name,
 #'@param file A file storing a cached data manager object (only)
 #'@param name A name for the local data manager. If NULL, the name of the cached data manager.
 #'@param description A description for the local data manager. If NULL, the description of the cached data manager.
+#'@param set.as.default Should the loaded data manager be set as the default data manager
 #'
 #'@export
 load.data.manager <- function(file,
@@ -98,6 +99,7 @@ load.data.manager <- function(file,
 #'@param data.manager A jheem.data.manager object to be copied
 #'@param name The name of the new data manager
 #'@param description A short description of the new data manager. If NULL, the description of the copied data manager.
+#'@param set.as.default Should the new data manager be set as the default data manager
 #'
 #'@export
 copy.data.manager <- function(data.manager = get.default.data.manager(),
@@ -247,8 +249,8 @@ register.parent.data.source <- function(data.manager = get.default.data.manager(
 #'
 #'@param data.manager A jheem.data.manager object
 #'@param data A numeric array or scalar value containing the data to store. If it is an array, it must have named dimnames set
-#'
 #'@param outcome The outcome type for the data. Must be an outcome previously registered with \code{\link{register.data.outcome}}
+#'@param metric The type of measurement. The default value is "estimate", but other options include "cv", "variance", and "sd".
 #'@param ontology.name The name of the ontology which the data follow. Must be an ontology previously registered with \code{\link{register.data.ontology}}
 #'@param dimension.values A named list that indicates what subset of a bigger data element these particular data should be stored into. The names of dimension values. The values of dimension.values can be either (1) character vectors
 #'@param source The (single) character name of the source from which these data derive. Must be a source previously registered with \code{\link{register.data.source}} Note: a source is conceived such that one source cannot contain two sets of data for the same set of dimension values
@@ -317,26 +319,11 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                debug=F)
 }
 
-#' #'@export
-#' pull.data <- function(data.manager,
-#'                       outcome,
-#'                       keep.dimensions,
-#'                       dimensions.values = NULL,
-#'                       target.ontology,
-#'                       debug = F)
-#' {
-#'     data.manager$pull(outcome=outcome,
-#'                       keep.dimensions=keep.dimensions,
-#'                       dimensions.values=dimensions.values,
-#'                       target.ontology=target.ontology,
-#'                       debug=debug)
-#' }
-
-
 #'@title Pull data from a data manager
 #'
 #'@param data.manager A jheem.data.manager object
 #'@param outcome The outcome type for the data. Must be an outcome previously registered to this data manager with \code{\link{register.data.outcome}}
+#'@param metric The type of measurement. The default value is "estimate", but other options include "cv", "variance", and "sd".
 #'@param keep.dimensions The dimensions that should be retained in the returned value
 #'@param dimension.values A named list, indicating which values for specific dimensions to pull data for. Each element must be a named character, numeric, or logical vector.
 #'@param sources The data sources from which to pull data (if available). If NULL, will pull from all data sources that have any relevant data
@@ -358,6 +345,7 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
 #'@export
 pull.data <- function(data.manager = get.default.data.manager(),
                       outcome,
+                      metric = 'estimate',
                       keep.dimensions = NULL,
                       dimension.values = NULL,
                       sources = NULL,
@@ -377,6 +365,7 @@ pull.data <- function(data.manager = get.default.data.manager(),
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
     data.manager$pull(outcome = outcome,
+                      metric = metric,
                       keep.dimensions = keep.dimensions,
                       dimension.values = dimension.values,
                       sources = sources,
@@ -458,6 +447,8 @@ get.data.source.short.names <- function(data.manager = get.default.data.manager(
     data.manager$get.source.short.names(sources)
 }
 
+#'param ontology.name The name of an ontology (must be registered in the data manager)
+#'
 #'@export
 get.registered.ontology <- function(data.manager = get.default.data.manager(), ontology.name)
 {
@@ -467,20 +458,36 @@ get.registered.ontology <- function(data.manager = get.default.data.manager(), o
     data.manager$get.registered.ontology(ontology.name)
 }
 
+#'@title Get year bounds for outcome
+#'
+#'@details Gets the earliest and latest years for which a data manager has data for a given outcome and metric. Searches all sources and all ontologies that haven't been specifcally excluded
+#'
+#'@param outcome The outcome for which to find earliest and latest years of data (must be registered in the data manager)
+#'@param metric The type of measurement to find earliest and latest years of data within the outcome. The default value is "estimate", but other options include "cv", "variance", and "sd".
+#'@param exclude.ontology.names The names of ontologies to exclude from this search. Must be NULL or a character vector with no NA's or empty values.
+#'
 #'@export
-get.year.bounds.for.outcome <- function(data.manager = get.default.data.manager(), outcome, exclude.ontology.names = NULL)
+get.year.bounds.for.outcome <- function(data.manager = get.default.data.manager(), outcome, metric='estimate', exclude.ontology.names = NULL)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    data.manager$get.year.bounds.for.outcome(outcome)
+    data.manager$get.year.bounds.for.outcome(outcome,
+                                             metric=metric,
+                                             exclude.ontology.names=exclude.ontology.names)
 }
 
+#'@title Get locations with data for an outcome
+#'
+#'@details Get locations that have data for a given outcome, metric and set of years. Searches all sources and all ontologies that haven't been specifcally excluded
+#'
+#'@inheritParams get.year.bounds.for.outcome
+#'@param years The years to include. May be NULL to search all available years, or a numeric vector with no NA's or duplicates.
 #'@export
-get.locations.with.data <- function(data.manager = get.default.data.manager(), outcome, years, exclude.ontology.names = NULL)
+get.locations.with.data <- function(data.manager = get.default.data.manager(), outcome, metric='estimate', years, exclude.ontology.names = NULL)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    data.manager$get.locations.with.data(outcome, years)
+    data.manager$get.locations.with.data(outcome, metric=metric, years=years)
 }
 
 
@@ -2180,12 +2187,20 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             })
         },
         
-        get.year.bounds.for.outcome = function(outcome, exclude.ontology.names = NULL)
+        get.year.bounds.for.outcome = function(outcome,
+                                               metric='estimate',
+                                               exclude.ontology.names = NULL)
         {
             if (is.null(outcome) || !is.character(outcome) || length(outcome) > 1 || is.na(outcome))
                 stop("'outcome' must be a single, non-NA character value")
             if (!(outcome %in% names(private$i.outcome.info)))
                 stop(paste0("'", outcome, "' is not a registered outcome."))
+            if (!(outcome %in% names(private$i.data)))
+                stop(paste0("there is no data for outcome '", outcome, "'"))
+            if (!is.character(metric) || length(metric) != 1)
+                stop("'metric' must be a single character value")
+            if (!(metric %in% names(private$i.data[[outcome]])))
+                stop(paste0("there is no data for metric '", metric, "' for outcome '", outcome, "'"))
             
             # *exclude.ontology.names* is either NULL or a character vector with no NA or empty values
             if (!is.null(exclude.ontology.names) && (!is.character(exclude.ontology.names) || anyNA(exclude.ontology.names) || any(nchar(exclude.ontology.names)==0)))
@@ -2193,26 +2208,22 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # browser()
             earliest.year = Inf
             latest.year = -Inf
-            if (outcome %in% names(private$i.data)) {
-                for (metric in private$i.data[[outcome]]) {
-                    for (source in metric) {
-                        ontology.names = setdiff(names(source), exclude.ontology.names)
-                        for (ontology.name in ontology.names) {
-                            for (strat in source[[ontology.name]]) {
-                                if ('year' %in% names(dimnames(strat))) {
-                                    if (all(is.year.range(dimnames(strat)$year))) {
-                                        parsed.range = parse.year.ranges(dimnames(strat)$year)
-                                        starts = sort(parsed.range$start)
-                                        ends = sort(parsed.range$end, decreasing = T)
-                                        if (starts[[1]] < earliest.year) earliest.year = starts[[1]]
-                                        if (ends[[1]] > latest.year) latest.year = ends[[1]]
-                                    }
-                                    else {
-                                        years = sort(dimnames(strat)[['year']])
-                                        if (years[[1]] < earliest.year) earliest.year = years[[1]]
-                                        if (years[[length(years)]] > latest.year) latest.year = years[[length(years)]]
-                                    }
-                                }
+            for (source in private$i.data[[outcome]][[metric]]) {
+                ontology.names = setdiff(names(source), exclude.ontology.names)
+                for (ontology.name in ontology.names) {
+                    for (strat in source[[ontology.name]]) {
+                        if ('year' %in% names(dimnames(strat))) {
+                            if (all(is.year.range(dimnames(strat)$year))) {
+                                parsed.range = parse.year.ranges(dimnames(strat)$year)
+                                starts = sort(parsed.range$start)
+                                ends = sort(parsed.range$end, decreasing = T)
+                                if (starts[[1]] < earliest.year) earliest.year = starts[[1]]
+                                if (ends[[1]] > latest.year) latest.year = ends[[1]]
+                            }
+                            else {
+                                years = sort(dimnames(strat)[['year']])
+                                if (years[[1]] < earliest.year) earliest.year = years[[1]]
+                                if (years[[length(years)]] > latest.year) latest.year = years[[length(years)]]
                             }
                         }
                     }
@@ -2225,7 +2236,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             list(earliest.year = earliest.year, latest.year = latest.year)
         },
         
-        get.locations.with.data = function(outcome, metric='estimate', years = NULL, exclude.ontology.names = NULL)
+        get.locations.with.data = function(outcome,
+                                           metric='estimate',
+                                           years = NULL,
+                                           exclude.ontology.names = NULL)
         {
             if (is.null(outcome) || !is.character(outcome) || length(outcome) > 1 || is.na(outcome))
                 stop("'outcome' must be a single, non-NA character value")
@@ -2243,23 +2257,21 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # *exclude.ontology.names* is either NULL or a character vector with no NA or empty values
             if (!is.null(exclude.ontology.names) && (!is.character(exclude.ontology.names) || anyNA(exclude.ontology.names) || any(nchar(exclude.ontology.names)==0)))
                 stop(paste0(error.prefix, "'exclude.ontology.names' must be either NULL or a character vector with no NA or empty values"))
-            
-            unique(unlist(lapply(private$i.data[[outcome]], function(metric.data) {
-                unique(unlist(lapply(metric.data, function(source.data) {
-                    ontology.names = setdiff(names(source.data), exclude.ontology.names)
-                    unique(unlist(lapply(ontology.names, function(ontology.name) {
-                        unique(unlist(lapply(source.data[[ontology.name]], function(stratification.data) {
-                            if (!is.null(years)) {
-                                new.dimnames = dimnames(stratification.data)
-                                new.dimnames$year = intersect(years, new.dimnames$year)
-                                data.for.years = array(stratification.data[get.array.access.indices(dimnames(stratification.data), dimension.values = list(year = intersect(years, dimnames(stratification.data)$year)))],
-                                                       dim = sapply(new.dimnames, length),
-                                                       dimnames = new.dimnames)
-                                location.has.data = apply(data.for.years, MARGIN='location', FUN=function(x) {!all(is.na(x))})
-                            } else
-                                location.has.data = apply(stratification.data, MARGIN='location', FUN=function(x) {!all(is.na(x))})
-                            names(location.has.data[location.has.data])
-                        })))
+
+            unique(unlist(lapply(private$i.data[[outcome]][[metric]], function(source.data) {
+                ontology.names = setdiff(names(source.data), exclude.ontology.names)
+                unique(unlist(lapply(ontology.names, function(ontology.name) {
+                    unique(unlist(lapply(source.data[[ontology.name]], function(stratification.data) {
+                        if (!is.null(years)) {
+                            new.dimnames = dimnames(stratification.data)
+                            new.dimnames$year = intersect(years, new.dimnames$year)
+                            data.for.years = array(stratification.data[get.array.access.indices(dimnames(stratification.data), dimension.values = list(year = intersect(years, dimnames(stratification.data)$year)))],
+                                                   dim = sapply(new.dimnames, length),
+                                                   dimnames = new.dimnames)
+                            location.has.data = apply(data.for.years, MARGIN='location', FUN=function(x) {!all(is.na(x))})
+                        } else
+                            location.has.data = apply(stratification.data, MARGIN='location', FUN=function(x) {!all(is.na(x))})
+                        names(location.has.data[location.has.data])
                     })))
                 })))
             })))
@@ -2514,7 +2526,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         },
         
         get.universal.ontology = function(outcome, sources = NULL, from.ontology.names = NULL, exclude.ontology.names = NULL, target.ontology = NULL, return.target.to.universal.mapping = T, debug = F)
-        {
+        {o
             if (debug) browser()
             onts = self$get.ontologies.for.outcome(outcome, sources, exclude.ontology.names = exclude.ontology.names)
             if (!is.null(from.ontology.names)) onts = onts[names(onts) %in% from.ontology.names]

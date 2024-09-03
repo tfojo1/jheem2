@@ -1,4 +1,12 @@
 
+#'@title Created Nested Proportion Likelihood Instructions With Included Multiplier
+#'
+#'@inheritParams create.nested.proportion.likelihood.instructions
+#'@param included.multiplier
+#'@param included.multiplier.sd
+#'@param included.multiplier.correlation
+#'@param included.multiplier.correlation.structure
+#'
 #'@export
 create.nested.proportion.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
                                                                                       denominator.outcome.for.data, # is NEVER null here because we are working with proportions
@@ -192,7 +200,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
                                                         calculate.lagged.difference = T) # changed vs generic
 }
 
-#'@inheritParams create.nested.proportion.likelihood.instructions
+#'@inheritParams create.basic.likelihood.instructions
 #'@param location.types The types of the locations that contain or are contained by the model location.
 #'@param minimum.geographic.resolution.type The type of location used to partition locations. The type of the model location AND 'location.types' types must all completely enclose regions of this type
 #'@param p.bias.inside.location A single numeric value specifying the bias in the outcome proportion between locations inside the model location and the model location itself

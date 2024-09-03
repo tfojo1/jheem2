@@ -50,6 +50,7 @@ OLD.interpolate <- function(values,
     })
 }
 
+#'@export
 interpolate <- function(values,
                         value.times,
                         desired.times)
