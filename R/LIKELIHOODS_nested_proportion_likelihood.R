@@ -1524,6 +1524,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     obs.n = lik.components$obs.n
                     lik.summary = cbind(private$i.metadata, obs.p =round(obs.vector/obs.n, 3), mean.p = round(mean/obs.n, 3), sd.p = round(sqrt(diag(sigma))/obs.n, 3))
                 }
+                rownames(lik.summary) = 1:nrow(lik.summary)
                 browser()
             }
             likelihood 

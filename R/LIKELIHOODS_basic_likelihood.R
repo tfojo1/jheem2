@@ -1218,6 +1218,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                     lik.summary = cbind(private$i.metadata, obs=obs, mean=mean, sd=sqrt(diag(sigma)))
                 
                 lik.summary$z = (lik.summary$obs - lik.summary$mean) / lik.summary$sd
+                rownames(lik.summary) = 1:nrow(lik.summary)
                 browser()
             } 
             return(likelihood)
