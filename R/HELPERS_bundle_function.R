@@ -50,8 +50,7 @@ get.depends.on.functions <- function(fn,
                        all.vars(reparsed, functions = F))
     fn.names = setdiff(fn.names, HOLDER)
     fn.names = setdiff(fn.names, omit.function.names)
-    fn.names = setdiff(fn.names, names(formals(fn)))
-
+    
     #-- Start omitting stuff --#
         
     if (omit.functions.from.any.package)
@@ -63,9 +62,8 @@ get.depends.on.functions <- function(fn,
     
     for (name in fn.names)
     {
-        if (!exists(name))
+        if (!exists(name, where=environment(fn)))
         {
-            browser()
             stop(paste0(error.prefix, 
                         fn.name.for.error,
                         " depends on function ",
@@ -73,7 +71,7 @@ get.depends.on.functions <- function(fn,
         }
     }
     
-    fns = lapply(fn.names, get)
+    fns = lapply(fn.names, get, pos=environment(fn))
     names(fns) = fn.names
     
     if (omit.primitives && !omit.functions.from.any.package)
