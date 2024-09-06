@@ -1,4 +1,13 @@
 
+#'@title Created Nested Proportion Likelihood Instructions With Included Multiplier
+#'
+#'@inheritParams create.nested.proportion.likelihood.instructions
+#'@param included.multiplier
+#'@param included.multiplier.sd
+#'@param included.multiplier.correlation
+#'@param included.multiplier.correlation.structure
+#'
+#'@export
 create.nested.proportion.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
                                                                                       denominator.outcome.for.data, # is NEVER null here because we are working with proportions
                                                                                       outcome.for.sim,
@@ -97,6 +106,7 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
                                                         calculate.lagged.difference = F)
 }
 
+#'@export
 create.time.lagged.comparison.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                                                     denominator.outcome.for.data, # is NEVER null here because we are working with proportions
                                                                                     outcome.for.sim,
@@ -190,7 +200,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
                                                         calculate.lagged.difference = T) # changed vs generic
 }
 
-#'@inheritParams create.nested.proportion.likelihood.instructions
+#'@inheritParams create.basic.likelihood.instructions
 #'@param location.types The types of the locations that contain or are contained by the model location.
 #'@param minimum.geographic.resolution.type The type of location used to partition locations. The type of the model location AND 'location.types' types must all completely enclose regions of this type
 #'@param p.bias.inside.location A single numeric value specifying the bias in the outcome proportion between locations inside the model location and the model location itself
@@ -351,7 +361,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               calculate.lagged.difference)
         {
             
-            error.prefix = paste0('Error creating nested proportion likelihood instructions: ')
+            error.prefix = paste0("Error creating nested proportion likelihood instructions for outcome '", outcome.for.sim, "': ")
             
             # validated in the super$initialize:
             # *outcome.for.sim* (although more validation follows)
@@ -1514,6 +1524,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     obs.n = lik.components$obs.n
                     lik.summary = cbind(private$i.metadata, obs.p =round(obs.vector/obs.n, 3), mean.p = round(mean/obs.n, 3), sd.p = round(sqrt(diag(sigma))/obs.n, 3))
                 }
+                rownames(lik.summary) = 1:nrow(lik.summary)
                 browser()
             }
             likelihood 
@@ -1705,7 +1716,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             
             # Change stratification into what dimensions the n data ontology will need to achieve it and get mappings to align
             universal.ontology.for.n = data.manager$get.universal.ontology.for.outcome(outcome.for.n, exclude.ontology.names = private$i.exclude.denominator.ontology.names)
-            initial.aligning.mappings = get.mappings.to.align.ontologies(universal.ontology.for.n, sim.ontology)
+            initial.aligning.mappings = get.mappings.to.align.ontologies(universal.ontology.for.n, sim.ontology, allow.non.overlapping.incomplete.dimensions = T)
+            # I added "allow.non...=T" recently (8/30/24) because there's no guarantee the universal ont's locations have ours.
             
             if (is.null(initial.aligning.mappings))
                 stop(paste0(error.prefix, "an aligning mapping could not be found between the universal ontology for n and the sim ontology"))
@@ -1789,9 +1801,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         },
         
         # hard code female msm as not needed so we can stop if it is NA? -> never implemented
-        get.average = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames = NULL, cache, error.prefix)
+        get.average = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames = NULL, cache, error.prefix, debug=F)
         {
-            
+            if (debug) browser()
             ### check if this is cached. If so, use it and return. If not, set it at the end.
             if (length(stratification)==0) this.step.hash = 'NULL'
             else this.step.hash = paste0(stratification, collapse = '__')
@@ -1832,8 +1844,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     data = array(data, dim = sapply(new.dimnames, length), new.dimnames)
                 }
                 
-                # If we are lacking certain years (or locations), expand data to include them as NA.
-                if (!setequal(dimnames(data)$location, locations.with.n.data) || !setequal(dimnames(data)$year, get.range.robust.year.intersect(years.with.data, dimnames(data)$year))) {
+                # If we are lacking certain years (or locations), expand data to include them as NA
+                # Note that if we have single years, we want setequal(..., years.with.data) but need more if one is year ranges
+                if (any(is.year.range(dimnames(data)$year)))
+                    stop(paste0(error.prefix, "use of denominator data in year ranges is not yet implemented"))
+                years.are.equal = setequal(dimnames(data)$year,
+                                           if (!any(is.year.range(years.with.data))) years.with.data else get.range.robust.year.intersect(years.with.data, dimnames(data)$year))
+                if (!setequal(dimnames(data)$location, locations.with.n.data) || !years.are.equal) {
                     complete.dimnames = dimnames(data)
                     complete.dimnames$location = locations.with.n.data
                     complete.dimnames$year = years.with.data
@@ -1993,14 +2010,46 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             }
             
             # check for NAs
-            if (any(sapply(one.matrix.per.model.stratum, function(mat) {any(is.na(mat))})))
-                stop(paste0(error.prefix, "not enough data found for n-multipliers; consider restricting likelihood years"))
+            if (any(sapply(one.matrix.per.model.stratum, function(mat) {any(is.na(mat))}))) {
+                
+                # find years that are missing
+                years.missing.anything = years[unique(unlist(sapply(one.matrix.per.model.stratum, function(mat) {which(apply(is.na(mat), 1, any))})))]
+                
+                # If we are missing the years at the front or end, we'll throw the error because we should not extrapolate.
+                # But if we are missing years only in the middle, we can interpolate
+                
+                if (!(years[[1]] %in% years.missing.anything) && !(years[[length(years)]] %in% years.missing.anything)) {
+                    # To use interpolate.array, we have to give the arrays dimnames
+                    one.mat.dimnames = list(year=years, metalocation=as.character(1:length(metalocation.to.minimal.component.map)))
+                    one.matrix.per.model.stratum = lapply(one.matrix.per.model.stratum, function(mat) {
+                        one.mat=interpolate.array(arr=set.array.dimnames(mat, one.mat.dimnames))
+                        # remove dimnames for consistency with usual case
+                        dimnames(one.mat)=NULL
+                        return(one.mat)
+                    })
+                }
+                else {
+                    ERROR.MANAGER$code="NL7"
+                    ERROR.MANAGER$contents = list(one.matrix.per.model.stratum=one.matrix.per.model.stratum,
+                                                  outcome=outcome,
+                                                  years=years,
+                                                  years.missing.anything=years.missing.anything,
+                                                  stratification=stratification,
+                                                  model.strata=model.strata,
+                                                  location=location,
+                                                  metalocation.to.minimal.component.map=metalocation.to.minimal.component.map)
+                    
+                    stop(paste0(error.prefix, "some or all needed '", outcome, "' data was not found for the following year(s): ", paste0(years.missing.anything, collapse=', '), "; Interpolation was attempted but extrapolation was needed; consider restricting likelihood years"))
+                }
+            }
+                
             
             return(one.matrix.per.model.stratum)
         },
         
-        get.outcome.ratios = function(location.1, location.2, stratification, data.manager, outcome, years, universal.ontology, cache, error.prefix)
+        get.outcome.ratios = function(location.1, location.2, stratification, data.manager, outcome, years, universal.ontology, cache, error.prefix, debug=F)
         {
+            if (debug) browser()
             # Pull data for each location. Later, we will map them to an aligning ontology.
             
             ### check if this is cached. If so, use it and return. If not, set it at the end.
@@ -2170,7 +2219,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
 #'@export
 get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensions, levels.of.stratification, outcome.for.p, outcome.for.n, sub.location.type, super.location.type, main.location.type = 'CBSA', minimum.sample.size = 12, main.location.type.p.source=NULL, sub.location.type.p.source=NULL, super.location.type.p.source=NULL, main.location.type.n.source=NULL, sub.location.type.n.source=NULL, super.location.type.n.source=NULL, debug=F)
 {
-    error.prefix = "Error getting p bias estimates: "
+    error.prefix = paste0("Error getting p bias estimates for outcome '", outcome.for.p, "': ")
     # --- VALIDATION --- #
     if (debug) browser()
     

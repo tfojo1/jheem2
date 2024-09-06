@@ -628,11 +628,6 @@ check.expand.arguments <- function(to.expand=NULL,
 ##-- ARRAY APPLY --##
 ##-----------------##
 
-#'@title Apply on Array Without Dropping Dimnames
-#'
-#'@param arr
-#'@param margin
-#'@param fun
 apply.robust <- function(arr,
                          MARGIN,
                          FUN,

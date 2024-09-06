@@ -79,6 +79,8 @@ source("../jheem2/R/CALIBRATION_main.R")
 Rcpp::sourceCpp('../jheem2/src/misc_helpers.cpp')
 Rcpp::sourceCpp('../jheem2/src/lag_matrix.cpp')
 
+source("../jheem2/R/DEBUGGING_error_manager.R")
+
 JHEEM2.FUNCTION.NAMES = union(JHEEM2.FUNCTION.NAMES,
                               setdiff(names(get(".GlobalEnv"))[sapply(get(".GlobalEnv"), is.function)],
                                       PRE.SOURCE.JHEEM2.FUNCTION.NAMES))

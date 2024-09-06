@@ -188,7 +188,7 @@ prepare.plot <- function(...,
         }
         corresponding.observed.outcome
     })
-    
+    # browser()
     outcome.display.names = list()
     for (outcome in outcomes) {
         display.name = outcome
@@ -396,6 +396,9 @@ prepare.plot <- function(...,
             
             # Remove NAs or Infs generated in this process
             df.truth = df.truth[!is.na(df.truth$value) & !is.infinite(df.truth$value),]
+
+            #If we end up with 0 rows, we need to consider the df.truth to be NULL
+            if (nrow(df.truth)==0) df.truth=NULL
         }
         if (!is.null(df.sim)) {
             df.sim$value = log(df.sim$value)
@@ -421,12 +424,15 @@ prepare.plot <- function(...,
             
             # Remove NAs or Infs generated in this process
             df.sim = df.sim[!is.na(df.sim$value) & !is.infinite(df.sim$value),]
+            
+            #If we end up with 0 rows, we need to consider the df.sim to be NULL
+            if (length(df.sim)==0) df.sim=NULL
         }
     }
     
     #-- PACKAGE AND RETURN --#
     y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
-    
+
     return(list(df.sim=df.sim, df.truth=df.truth, details=list(y.label=y.label)))
 }
 
@@ -441,6 +447,8 @@ execute.simplot <- function(prepared.plot.data,
                             style.manager=get.default.style.manager(),
                             debug=F)
 {
+    if (debug) browser()
+
     #-- UNPACK DATA --#
     df.sim=prepared.plot.data$df.sim
     df.truth=prepared.plot.data$df.truth
@@ -536,10 +544,14 @@ execute.simplot <- function(prepared.plot.data,
     #-- MAKE THE PLOT --#
     
     rv = ggplot2::ggplot()
-    rv = rv + ggplot2::scale_color_manual(name = "sim color", values = color.sim.by)
-    rv = rv + ggplot2::scale_shape_manual(name = "data shape", values = all.shapes.for.scale)
-    rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = color.sim.by)
-    rv = rv + ggplot2::scale_linetype(name="sim linetype")
+    if (!is.null(df.sim)) {
+        rv = rv + ggplot2::scale_color_manual(name = "sim color", values = color.sim.by)
+        rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = color.sim.by)
+        rv = rv + ggplot2::scale_linetype(name="sim linetype")
+    }
+    if (!is.null(df.truth)) {
+        rv = rv + ggplot2::scale_shape_manual(name = "data shape", values = all.shapes.for.scale)
+    }
     
     if (!plot.year.lag.ratio) rv = rv + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
     else
@@ -620,6 +632,6 @@ execute.simplot <- function(prepared.plot.data,
         rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
     
     if (plot.year.lag.ratio) rv = rv + ggplot2::xlab("latter year")
-    # browser()
+
     rv
 }

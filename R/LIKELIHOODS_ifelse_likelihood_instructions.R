@@ -1,5 +1,12 @@
 # Note: didn't include instruction "codes" in this since we haven't used them
 
+#'@title Create If-Else Likelihood Instructions
+#'
+#'@details Upon being instantiated, these instructions will attempt to instantiate the first provided set of instructions. If that fails, it will try the next, etc.
+#'
+#'@param ... A list of JHEEM likelihood instructions in order of preference
+#'
+#'@export
 create.ifelse.likelihood.instructions = function(...) {
     error.prefix = "Error creating 'jheem.ifelse.likelihood.instructions': "
     # all arguments must be JHEEM.LIKELIHOOD.INSTRUCTIONS and none joint

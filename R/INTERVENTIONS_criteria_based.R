@@ -3,10 +3,8 @@
 #'
 #'@param parameter.name The name of the parameter to be modified to achieve the outcome
 #'@param outcome A character vector indicating the name of the outcome to which the criterion applies
-#'
 #'@param parameter.scale The scale on which the parameter operates
 #'@param parameter.initial.value Either a single scalar numeric or a function that takes argument sim and returns a single scalar numeric
-#'
 #'@param target.value A single, numeric value that we want the outcome to get to
 #'@param min.acceptable.value,max.acceptable.value Indicators of the min and max possible values of the outcome we would be willing to accept. Must be either (1) single, numeric values or (2) numeric vectors. In this case, the first values are the min/max threshold until subsequent.thresholds.apply.after.iteration[1], the second values are the thresholds prior to subsequent.thresholds.apply.after.iteration[2], etc
 #'@param subsequent.thresholds.apply.after.iteration The number of iterations after which the 2nd, 3rd, etc thresholds in min.acceptable.value, max.acceptable.value apply
@@ -65,7 +63,8 @@ create.monotonic.criteria.based.intervention <- function(base.intervention,
                                                          max.failure.rate = 0,
                                                          discount.prior.n = 0.5,
                                                          code=NULL, 
-                                                         name=NULL)
+                                                         name=NULL,
+                                                         overwrite.existing.intervention=F)
 {
     MONOTONIC.CRITERIA.BASED.INTERVENTION$new(base.intervention = base.intervention,
                                               completion.criteria = completion.criteria,
@@ -76,7 +75,8 @@ create.monotonic.criteria.based.intervention <- function(base.intervention,
                                               max.failure.rate = max.failure.rate,
                                               discount.prior.n = discount.prior.n,
                                               code = code,
-                                              name = name)
+                                              name = name,
+                                              overwrite.existing.intervention = overwrite.existing.intervention)
 }
 
 ##-----------------------##
@@ -100,13 +100,15 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                               max.failure.rate,
                               discount.prior.n,
                               code, 
-                              name)
+                              name,
+                              overwrite.existing.intervention)
         {
             #@Andrew
             # browser()
             super$initialize(code = code,
                              name = name,
-                             parameter.distribution = base.intervention$parameter.distribution)
+                             parameter.distribution = base.intervention$parameter.distribution,
+                             overwrite.existing.intervention = overwrite.existing.intervention)
             
             error.prefix = "Cannot create monotonic, criteria-based intervention: "
             
@@ -160,7 +162,6 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             
             if (max.failure.rate < 0 || max.failure.rate > 1)
                 stop(paste0(error.prefix, "'max.failure.rate' (", max.failure.rate, ") must be between 0 and 1"))
-            
             
             # Store the variables
             private$i.base.intervention = base.intervention
@@ -787,8 +788,6 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             low = transform.to.unbounded.scale(low, scale)
             high = transform.to.unbounded.scale(high, scale)
             mid = (high + low) / 2
-            
-            
             
             # browser()
             #-- Figure out our SDs --#
