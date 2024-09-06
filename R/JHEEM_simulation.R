@@ -218,6 +218,17 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
         }
     ),
     
+    active = list(
+        
+        metadata = function(value)
+        {
+            if (missing(value))
+                private$i.metadata
+            else
+                stop("Cannot modify a single.simulation.maker's metadata")
+        }
+    ),
+    
     private = list(
         i.jheem.kernel = NULL,
         i.metadata = NULL   
@@ -267,33 +278,41 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
 #                              is.degenerate = is.degenerate)
 # }
 
-derive.degenerate.simulation <- function(sim)
+derive.degenerate.simulation <- function(sim,
+                                         from.year = sim$from.year,
+                                         to.year = sim$to.year,
+                                         intervention.code = sim$intervention.code,
+                                         parameters = sim$parameters,
+                                         run.metadata = sim$run.metadata,
+                                         error.prefix = 'Error deriving degenerate simulation')
 {
-    outcome.numerators = lapply(sim$data$outcome.numerators, function(num){
-        num[] = as.numeric(NA)
-        num
+    maker = SINGLE.SIMULATION.MAKER$new(jheem.kernel = sim$jheem.kernel,
+                                        sub.version = sim$sub.version,
+                                        from.year = from.year,
+                                        to.year = to.year,
+                                        solver.metadata = sim$solver.metadata,
+                                        intervention.code = intervention.code,
+                                        calibration.code = sim$calibration.code,
+                                        outcome.location.mapping = sim$outcome.location.mapping,
+                                        error.prefix = error.prefix)
+    
+    outcome.numerators = outcome.denominators = lapply(maker$metadata$outcome.ontologies, function(ont){
+        array(as.numeric(NA),
+              dim = sapply(ont, length), 
+              dimnames = ont)
     })
     
-    outcome.denominators = lapply(sim$data$outcome.numerators, function(denom){
-        if (!is.null(denom))
-            denom[] = as.numeric(NA)
-        denom
-    })
+    outcome.denominators[sapply(maker$metadata$outcome.metadata[names(outcome.denominators)], function(metadata){
+        metadata$scale=='non.negative.number' || metadata$scale=='number'
+    })] = NULL
     
-    create.single.simulation(jheem.kernel = sim$jheem.kernel,
-                             sub.version = sim$sub.version,
-                             outcome.numerators = outcome.numerators,
-                             outcome.denominators = outcome.denominators,
-                             parameters = sim$parameters,
-                             from.year = sim$from.year,
-                             to.year = sim$to.year,
-                             intervention.code = sim$intervention.code,
-                             calibration.code = sim$calibration.code,
-                             outcome.location.mapping = sim$outcome.location.mapping,
-                             solver.metadata = sim$solver.metadata,
-                             run.metadata = sim$run.metadata,
-                             finalize = sim$is.finalized,
-                             is.degenerate = T)
+    maker$make.simulation(outcome.numerators = outcome.numerators,
+                          outcome.denominators = outcome.denominators,
+                          parameters = parameters,
+                          run.metadata,
+                          is.degenerate = T,
+                          finalize = T,
+                          error.prefix = error.prefix)
 }
 
 join.simulation.sets <- function(..., finalize=T, run.metadata=NULL)
