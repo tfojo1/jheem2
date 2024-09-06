@@ -855,7 +855,7 @@ SOLVER.METADATA = R6::R6Class(
     )
 )
 
-#'@name Create an Engine to Run JHEEM Simulations
+#'@title Create an Engine to Run JHEEM Simulations
 #'
 #'@param version,location,sub.version The JHEEM version, sub.version, and location for which to run simulations
 #'@param max.run.time.seconds The maximum amount of time to run simulations before terminating

@@ -6,7 +6,7 @@
 ##---------------------------------------------------------##
 ##---------------------------------------------------------##
 
-#'@name Create an Intervention
+#'@title Create an Intervention
 #'
 #'@param ... Either (a) objects of class 'target.population', (b) objects of class 'intervention.effect', or (d) lists containing only 'target.population' or 'intervention.effect' objects. Must contain at least one 'target.population' object and at least one 'intervention.effect' object
 #'@param code A brief (2-30 character) string that will uniquely identify this intervention
@@ -74,7 +74,7 @@ create.intervention <- function(..., code=NULL, name=NULL, parameter.distributio
                                     overwrite.existing.intervention = overwrite.existing.intervention)
 }
 
-#'@name Join Multiple Interventions into a Single Intervention
+#'@title Join Multiple Interventions into a Single Intervention
 #'
 #'@inheritParams create.intervention
 #'@param ... One or more interventions to join. These may be either objects of class jheem.intervention or lists which contain only objects of class jheem.intervention

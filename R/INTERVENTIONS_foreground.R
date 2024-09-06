@@ -1,5 +1,5 @@
 
-#'@name Create a Model Foreground Object
+#'@title Create a Model Foreground Object
 #'
 #'@details A model foreground object applies multiple effects to multiple subpopulations *simultaneously*, with all effects targeting the same model quantity
 #'

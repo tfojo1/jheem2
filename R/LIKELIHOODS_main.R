@@ -398,7 +398,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
 ##-- THE LIKELIHOOD WEIGHTS CLASS --##
 ##----------------------------------##
 
-#'@name Create Weights to Be Applied in Calculating a JHEEM Likelihood
+#'@title Create Weights to Be Applied in Calculating a JHEEM Likelihood
 #'
 #'@param total.weight The weight that is applied to all observations in the
 #'@param dimension.values

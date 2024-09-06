@@ -1,5 +1,5 @@
 
-#'@name Create a criterion for monotonic parameter, criteria-based interventions
+#'@title Create a criterion for monotonic parameter, criteria-based interventions
 #'
 #'@param parameter.name The name of the parameter to be modified to achieve the outcome
 #'@param outcome A character vector indicating the name of the outcome to which the criterion applies
@@ -44,7 +44,7 @@ create.monotonic.criterion <- function(parameter.name,
                                                  ...)
 }
 
-#'@name Create a "Guess-and-Check" Intervention that Must Satisfy Some Criteria by Varying Parameters
+#'@title Create a "Guess-and-Check" Intervention that Must Satisfy Some Criteria by Varying Parameters
 #'
 #'@param base.intervention A single.iteration.intervention, as created by \code{\link{create.intervention}} or \code{\link{join.interventions}}
 #'@param completion.criteria Either a single jheem.intervention.criterion object, as created by \code{\link{create.intervention.criterion}} or a list containing only jheem.intervention.criterion objects
@@ -266,7 +266,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         {
             #@Andrew fill in
             # ptm = Sys.time()
-            # if (sim.index==3) browser()
+            if (sim.index==2) browser()
             #-- Step 1: Run with either parameters set to 1 (for a multiplier) or using previous sim parameters --#
             # browser()
 
@@ -324,6 +324,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 iteration = 2
                 
                 # update dx
+                if (sim.index==2) browser()
                 private$i.dx.components = lapply(private$i.parameters.to.optimize.names, function(parameter.name) {
                     criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
                     components = criterion.this.parameter$get.derivative.components(next.sim,
@@ -361,7 +362,8 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 criterion.index = 1
                 iteration = iteration + 1
                 while (iteration < max.iterations && length(unsatisfied.criteria)>0) {
-                    # if (iteration ==10) browser()
+                    if (sim.index==2) print(tsfx.parameters.to.optimize)
+                    # if (sim.index==2 && iteration==5) browser()
                     # things that were satisfied can become unsatisfied again
                     # rotate through the criteria that are not yet satisfied
                     criterion.index = (criterion.index %% length(private$i.completion.criteria)) + 1
@@ -425,6 +427,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 if (length(unsatisfied.criteria) > 0) {
                     private$i.n.failures = private$i.n.failures + 1
                     print("Failure")
+                    browser()
                     return(derive.degenerate.simulation(sim)) # check with Todd
                 }
             }
@@ -498,7 +501,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             # use parameter values to update mean for all sims
             private$i.previous.parameter.means = (private$i.previous.parameter.means * (sim.index - private$i.n.failures - 1) + tsfx.parameters.to.optimize) / (sim.index - private$i.n.failures)
             
-            # print(paste0("sim ", sim.index, " obtained a score of ", final.score, " with ", iteration, " iterations"))
+            print(paste0("sim ", sim.index, " obtained a score of ", final.score, " with ", iteration, " iterations"))
             
             private$i.total.iterations = private$i.total.iterations + iteration
             if (verbose && sim.index==private$i.n.sim) print(paste0("iterations after sim ", sim.index, ": ", private$i.total.iterations))

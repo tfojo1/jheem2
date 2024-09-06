@@ -1,7 +1,7 @@
 
 
 
-#'@name Get a Specification Metadata Object
+#'@title Get a Specification Metadata Object
 #'
 #'@param version The version of the model specification (must have been previously registered) for which to get metadata
 #'@param location A single character value representing the location for the metadata

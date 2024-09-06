@@ -6,7 +6,7 @@
 ##----------------------------------------------------------##
 ##----------------------------------------------------------##
 
-#'@name Create a Target Population to Which Interventions May be Applied
+#'@title Create a Target Population to Which Interventions May be Applied
 #'
 #'@param ... Dimension values that denote the categories that comprise this target population. Each element must be namned with the name of the dimension, and can be either (1) character values, (2) integers, or (3) logical vectors
 #'@param name A short (<= 20 characters) descriptive name for the target population. Should be nicely formatted for public display
@@ -26,7 +26,7 @@ create.target.population <- function(...,
 
 # Wrappers for combination target populations
 
-#'@name Create a Target Population that is the UNION Other Target Populations
+#'@title Create a Target Population that is the UNION Other Target Populations
 #'
 #'@inheritParams create.target.population
 #'@param ... One or more target.population objects or lists of target populations
@@ -41,7 +41,7 @@ union.target.populations <- function(..., name=NULL)
                                              name = name)
 }
 
-#'@name Create a Target Population that is the INTERSECTION of Other Target Populations
+#'@title Create a Target Population that is the INTERSECTION of Other Target Populations
 #'
 #'@inheritParams union.target.populations
 #'
@@ -55,7 +55,7 @@ intersect.target.populations <- function(..., name=NULL)
                                              name = name)
 }
 
-#'@name Create a Target Population that is the DIFFERENCE between two other Target Populations
+#'@title Create a Target Population that is the DIFFERENCE between two other Target Populations
 #'
 #'@param pop1,pop2 Target Population Objects
 #'
