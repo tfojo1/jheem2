@@ -6,7 +6,7 @@ JHEEM.SIMULATION.CODE.ITERATION = '2.0'
 ##----------------------##
 ##----------------------##
 
-#'@name Get Simulation Data
+#'@title Get Simulation Data
 #'
 #'@param outcomes A character vector with one or more outcomes for which to pull data. Must be a subset of sim$outcomes
 #'@param keep.dimensions Which dimensions should be retained in the resulting array
@@ -41,7 +41,7 @@ get.simset.data <- function(simset,
                error.prefix = error.prefix)
 }
 
-#'@name Get a Simulation Metadata Object
+#'@title Get a Simulation Metadata Object
 #'
 #'@param version The version of the model specification (must have been previously registered) for which to get metadata
 #'@param location A single character value representing the location for the metadata
@@ -76,7 +76,7 @@ get.simulation.metadata <- function(version,
                             error.prefix = error.prefix)
 }
 
-#'@name Rerun a Simulation Set
+#'@title Rerun a Simulation Set
 #'
 #'@inheritParams create.jheem.engine
 #'@param simset The JHEEM simulation set to re-run
@@ -1080,7 +1080,7 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
 ##-- SIMULATION SET Objects --##
 ##----------------------------##
 
-#'@name Load a Simulation Set
+#'@title Load a Simulation Set
 #'
 #'@param file The file containing the saved simulation set
 #'
@@ -1098,7 +1098,7 @@ load.simulation.set <- function(file)
     copy.simulation.set(simset)
 }
 
-#'@name Make a copy of a Simulation Set
+#'@title Make a copy of a Simulation Set
 #'
 #'@param simset The simulation.set object to copy
 #'

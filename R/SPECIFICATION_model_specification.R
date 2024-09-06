@@ -911,7 +911,7 @@ register.model.quantity.subset <- function(specification,
                                            ...)
 }
 
-#'@name Register a Foreground for a Model Specification
+#'@title Register a Foreground for a Model Specification
 #'
 #'@inheritParams register.model.quantity
 #'@param foreground An object of class 'jheem.model.foreground', as created by \code{\link{create.model.foreground}}
@@ -929,7 +929,7 @@ register.model.foreground <- function(specification,
 }
 
 
-#'@name Create
+#'@title Create
 register.default.parameter.values <- function(specification,
                                         parameter.values)
 {

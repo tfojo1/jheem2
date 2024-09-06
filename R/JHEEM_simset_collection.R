@@ -1,5 +1,5 @@
 
-#'@name Create a Collection of JHEEM Simulation-Sets
+#'@title Create a Collection of JHEEM Simulation-Sets
 #'
 #'@param version,sub.version The version and (optional) sub-version for the simsets
 #'@param locations A character vector of locations for which to collect simsets

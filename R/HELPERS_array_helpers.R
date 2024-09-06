@@ -423,7 +423,7 @@ get.expand.array.indices <- function(to.expand.dim.names,
     }
 }
 
-#'@name Get a Set of Indices to Collapse One Array into Another
+#'@title Get a Set of Indices to Collapse One Array into Another
 #'
 #'@value A list with four elements: $large.indices, $small.indices, $large.n, $small.n
 #'  large.indices and small.indices are integer vectors of equal length, such that the value at large.indices[i] goes into the value at small.indices[i] if collapsing
