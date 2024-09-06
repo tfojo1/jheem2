@@ -2015,17 +2015,32 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 # find years that are missing
                 years.missing.anything = years[unique(unlist(sapply(one.matrix.per.model.stratum, function(mat) {which(apply(is.na(mat), 1, any))})))]
                 
-                ERROR.MANAGER$code="NL7"
-                ERROR.MANAGER$contents = list(one.matrix.per.model.stratum=one.matrix.per.model.stratum,
-                                              outcome=outcome,
-                                              years=years,
-                                              years.missing.anything=years.missing.anything,
-                                              stratification=stratification,
-                                              model.strata=model.strata,
-                                              location=location,
-                                              metalocation.to.minimal.component.map=metalocation.to.minimal.component.map)
+                # If we are missing the years at the front or end, we'll throw the error because we should not extrapolate.
+                # But if we are missing years only in the middle, we can interpolate
                 
-                stop(paste0(error.prefix, "some or all needed '", outcome, "' data was not found for the following year(s): ", paste0(years.missing.anything, collapse=', '), "; consider restricting likelihood years"))
+                if (!(years[[1]] %in% years.missing.anything) && !(years[[length(years)]] %in% years.missing.anything)) {
+                    # To use interpolate.array, we have to give the arrays dimnames
+                    one.mat.dimnames = list(year=years, metalocation=as.character(1:length(metalocation.to.minimal.component.map)))
+                    one.matrix.per.model.stratum = lapply(one.matrix.per.model.stratum, function(mat) {
+                        one.mat=interpolate.array(arr=set.array.dimnames(mat, one.mat.dimnames))
+                        # remove dimnames for consistency with usual case
+                        dimnames(one.mat)=NULL
+                        return(one.mat)
+                    })
+                }
+                else {
+                    ERROR.MANAGER$code="NL7"
+                    ERROR.MANAGER$contents = list(one.matrix.per.model.stratum=one.matrix.per.model.stratum,
+                                                  outcome=outcome,
+                                                  years=years,
+                                                  years.missing.anything=years.missing.anything,
+                                                  stratification=stratification,
+                                                  model.strata=model.strata,
+                                                  location=location,
+                                                  metalocation.to.minimal.component.map=metalocation.to.minimal.component.map)
+                    
+                    stop(paste0(error.prefix, "some or all needed '", outcome, "' data was not found for the following year(s): ", paste0(years.missing.anything, collapse=', '), "; Interpolation was attempted but extrapolation was needed; consider restricting likelihood years"))
+                }
             }
                 
             
