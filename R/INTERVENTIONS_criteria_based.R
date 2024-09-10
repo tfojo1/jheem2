@@ -5,6 +5,7 @@
 #'@param outcome A character vector indicating the name of the outcome to which the criterion applies
 #'@param parameter.scale The scale on which the parameter operates
 #'@param parameter.initial.value Either a single scalar numeric or a function that takes argument sim and returns a single scalar numeric
+#'@param min.acceptable.parameter.value,max.acceptable.parameter.value Indicators of the min and max possible values of the parameter to prevent unreasonably large (or small) parameter values crashing the algorithm. Must be single, numeric values or NULL, in which case the limits allowed by the 'parameter.scale' will be used.
 #'@param target.value A single, numeric value that we want the outcome to get to
 #'@param min.acceptable.value,max.acceptable.value Indicators of the min and max possible values of the outcome we would be willing to accept. Must be either (1) single, numeric values or (2) numeric vectors. In this case, the first values are the min/max threshold until subsequent.thresholds.apply.after.iteration[1], the second values are the thresholds prior to subsequent.thresholds.apply.after.iteration[2], etc
 #'@param subsequent.thresholds.apply.after.iteration The number of iterations after which the 2nd, 3rd, etc thresholds in min.acceptable.value, max.acceptable.value apply
@@ -12,12 +13,16 @@
 #'@param ... An alternative way of supplying dimensions values - must be named character vectors, integer vectors, or logical vectors
 #'@param draw.parameters.from.previous.sims Whether the initial value for the parameter after the first simulation in a set should be the given initial value, or should be based on what worked for previous simulations in the set
 #'
+#'@details If the intervention algorithm finds it needs to keep raising (or lowering) the parameter value so high (or low) that it reaches the bounds, the parameter will be considered optimized.
+#' This often occurs when the parameter's outcome is already beyond the target and would be generally deemed acceptable anyway.
 #'@export
 create.monotonic.criterion <- function(parameter.name,
                                        outcome,
                                        
                                        parameter.scale,
                                        parameter.initial.value,
+                                       min.acceptable.parameter.value=NULL,
+                                       max.acceptable.parameter.value=NULL,
                                        
                                        target.value,
                                        min.acceptable.value,
@@ -33,6 +38,8 @@ create.monotonic.criterion <- function(parameter.name,
                                                  
                                                  parameter.scale = parameter.scale,
                                                  parameter.initial.value = parameter.initial.value,
+                                                 min.acceptable.parameter.value = min.acceptable.parameter.value,
+                                                 max.acceptable.parameter.value = max.acceptable.parameter.value,
                                                  
                                                  target.value = target.value,
                                                  min.acceptable.value = min.acceptable.value,
@@ -231,6 +238,8 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         i.dx.components = NULL,
         i.dx.discount.prior.n = NULL,
         i.param.has.pos.direction = NULL,
+        i.keep.from.year = NULL, # these are used to give a degenerate sim if needed
+        i.keep.to.year = NULL,
         
         i.total.iterations = NULL,
         
@@ -241,7 +250,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         
         prepare.to.run = function(engine, sim, keep.from.year, keep.to.year, verbose)
         {
-           #@Andrew fill in
+            # verbose isn't saved??
             
             # check whether the parameters to track are actually in the simulation (or base intervention? or intervention's "parameter distribution"?) - Ask Todd
             private$i.parameters.to.optimize.names = sapply(private$i.completion.criteria, function(criterion) {criterion$parameter.name})
@@ -252,6 +261,8 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             private$i.dx.components = lapply(private$i.parameters.to.optimize.names, function(x) {
                 list(dx=NA, dx.n=1, dx.mean=NA, dx.sd=NA)
             })
+            private$i.keep.from.year = keep.from.year
+            private$i.keep.to.year = keep.to.year
             
             private$i.param.has.pos.direction = sapply(private$i.parameters.to.optimize.names, function(x) {NA})
             
@@ -266,7 +277,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         {
             #@Andrew fill in
             # ptm = Sys.time()
-            if (sim.index==2) browser()
+            # if (sim.index==2) browser()
             #-- Step 1: Run with either parameters set to 1 (for a multiplier) or using previous sim parameters --#
             # browser()
 
@@ -324,7 +335,6 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 iteration = 2
                 
                 # update dx
-                if (sim.index==2) browser()
                 private$i.dx.components = lapply(private$i.parameters.to.optimize.names, function(parameter.name) {
                     criterion.this.parameter = private$i.completion.criteria[[parameter.name]]
                     components = criterion.this.parameter$get.derivative.components(next.sim,
@@ -361,9 +371,11 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 unsatisfied.criteria = seq_along(private$i.completion.criteria) # Note: it's possible that one of ours IS already satisfied...
                 criterion.index = 1
                 iteration = iteration + 1
+                failed.to.change.count = 0
                 while (iteration < max.iterations && length(unsatisfied.criteria)>0) {
-                    if (sim.index==2) print(tsfx.parameters.to.optimize)
-                    # if (sim.index==2 && iteration==5) browser()
+                    # if (verbose) print(tsfx.parameters.to.optimize)
+                    # if (iteration==6) browser()
+                    
                     # things that were satisfied can become unsatisfied again
                     # rotate through the criteria that are not yet satisfied
                     criterion.index = (criterion.index %% length(private$i.completion.criteria)) + 1
@@ -372,6 +384,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     criterion.this.iteration = private$i.completion.criteria[[criterion.index]]
                     parameter.this.criterion = criterion.this.iteration$parameter.name
                     # decide on new parameters
+                    # if (iteration == 5) browser()
                     tsfx.new.parameters.to.optimize.value = criterion.this.iteration$suggest.new.parameter(prev.sim, private$i.dx.components[[parameter.this.criterion]]$dx, is.fine.tuning=F)
                     tsfx.new.parameters.to.optimize = tsfx.parameters.to.optimize
                     
@@ -419,6 +432,13 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                         
                         # update satisfied criteria for cycling through
                         unsatisfied.criteria = which(!criterion.satisfied)
+                        failed.to.change.count = 0
+                    }
+                    # If we didn't accept, take note. We don't want to try and reject the same thing forever. We get to do this once for every remaining parameter before we give up.
+                    else {
+                        failed.to.change.count = failed.to.change.count + 1
+                        if (failed.to.change.count == length(unsatisfied.criteria))
+                            break
                     }
                     
                 }
@@ -426,9 +446,12 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 
                 if (length(unsatisfied.criteria) > 0) {
                     private$i.n.failures = private$i.n.failures + 1
-                    print("Failure")
-                    browser()
-                    return(derive.degenerate.simulation(sim)) # check with Todd
+                    if (verbose) print(paste0("Failure on sim.index ", sim.index))
+                    return(derive.degenerate.simulation(sim,
+                                                        from.year = private$i.keep.from.year,
+                                                        to.year = private$i.keep.to.year,
+                                                        intervention.code = private$i.code,
+                                                        parameters = c(untsfx.parameters.to.optimize, parameters))) # check with Todd
                 }
             }
             #-- Step 3: Try to get closer to the target --#
@@ -501,7 +524,8 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             # use parameter values to update mean for all sims
             private$i.previous.parameter.means = (private$i.previous.parameter.means * (sim.index - private$i.n.failures - 1) + tsfx.parameters.to.optimize) / (sim.index - private$i.n.failures)
             
-            print(paste0("sim ", sim.index, " obtained a score of ", final.score, " with ", iteration, " iterations"))
+            if (verbose)
+                print(paste0("sim ", sim.index, " obtained a score of ", final.score, " with ", iteration, " iterations"))
             
             private$i.total.iterations = private$i.total.iterations + iteration
             if (verbose && sim.index==private$i.n.sim) print(paste0("iterations after sim ", sim.index, ": ", private$i.total.iterations))
@@ -535,6 +559,8 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                               
                               parameter.scale,
                               parameter.initial.value,
+                              min.acceptable.parameter.value,
+                              max.acceptable.parameter.value,
                               
                               target.value,
                               min.acceptable.value,
@@ -551,6 +577,8 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             #@Andrew - validate parameter.name, scale, initial.value, draw from previous sims
             error.prefix = "Error: unable to create monotonic outcome intervention criterion: "
             # parameter.name
+            if (!is.character(parameter.name) || length(parameter.name)!=1 || is.na(parameter.name))
+                stop(paste0(error.prefix, "'parameter.name' must be a single, non-NA character value"))
             
             # parameter.initial.value
             if (is.numeric(parameter.initial.value))
@@ -575,7 +603,29 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                               varname.for.error = "'parameter.scale'",
                               require.scalar = T,
                               error.prefix = error.prefix)
+            
+            # min & max acceptable parameter values. I don't think we can check if *parameter.initial.value* is within these bounds because it might be a function
+            min.parameter.bound = transform.from.unbounded.scale(-Inf, parameter.scale)
+            max.parameter.bound = transform.from.unbounded.scale(Inf, parameter.scale)
+            
+            if (is.null(min.acceptable.parameter.value))
+                min.acceptable.parameter.value = min.parameter.bound
+            if (is.null(max.acceptable.parameter.value))
+                max.acceptable.parameter.value = max.parameter.bound
+            
+            if (!is.numeric(min.acceptable.parameter.value) || length(min.acceptable.parameter.value)!=1 || is.na(min.acceptable.parameter.value))
+                stop(paste0(error.prefix, "'min.acceptable.parameter.value' must be a single, non-nA numeric value"))
+            if (!is.numeric(max.acceptable.parameter.value) || length(max.acceptable.parameter.value)!=1 || is.na(max.acceptable.parameter.value))
+                stop(paste0(error.prefix, "'max.acceptable.parameter.value' must be a single, non-nA numeric value"))
+            
+            # have to be within the bounds set by the scale
+            if (min.acceptable.parameter.value < min.parameter.bound)
+                stop(paste0(error.prefix, "'min.acceptable.parameter.value' must be no less than ", min.parameter.bound, " when scale is '", parameter.scale, "'"))
+            if (max.acceptable.parameter.value > max.parameter.bound)
+                stop(paste0(error.prefix, "'max.acceptable.parameter.value' must be no greater than ", max.parameter.bound, " when scale is '", parameter.scale, "'"))
 
+            min.acceptable.parameter.value = transform.to.unbounded.scale(min.acceptable.parameter.value, parameter.scale)
+            max.acceptable.parameter.value = transform.to.unbounded.scale(max.acceptable.parameter.value, parameter.scale)
             
             # outcome, target
             if (!is.character(outcome) || length(outcome)!=1 || is.na(outcome))
@@ -656,13 +706,15 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             private$i.parameter.name = parameter.name
             private$i.parameter.scale = parameter.scale
             private$i.parameter.initial.value = parameter.initial.value
+            private$i.tsfx.min.acceptable.parameter.value = min.acceptable.parameter.value
+            private$i.tsfx.max.acceptable.parameter.value = max.acceptable.parameter.value
             private$i.draw.parameter.from.previous.sims = draw.parameter.from.previous.sims
             
             private$i.outcome = outcome
             private$i.target.value = target.value
-            
             private$i.min.acceptable.value = min.acceptable.value
             private$i.max.acceptable.value = max.acceptable.value
+            
             private$i.subsequent.thresholds.apply.after.iteration = subsequent.thresholds.apply.after.iteration
             
             # private$i.stratify.outcome.by.dimensions = stratify.outcome.by.dimensions
@@ -675,13 +727,18 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
         
         is.satisfied = function(sim, iteration)
         {
+            # Being at the bounds of the parameter now also counts as being satisfied
+            
             # sim.value = private$optimized.get.sim.value(sim)
             sim.value = private$get.sim.value(sim)
             
             threshold.mask = c(iteration < private$i.subsequent.thresholds.apply.after.iteration, T)
             min.acceptable = private$i.min.acceptable.value[threshold.mask][1]
             max.acceptable = private$i.max.acceptable.value[threshold.mask][1]
-            sim.value >= min.acceptable & sim.value <= max.acceptable
+            outcome.satisfaction = sim.value >= min.acceptable & sim.value <= max.acceptable
+            parameter.satisfaction = transform.to.unbounded.scale(sim$params[private$i.parameter.name], private$i.parameter.scale) %in%
+                c(private$i.tsfx.min.acceptable.parameter.value, private$i.tsfx.max.acceptable.parameter.value)
+            return(outcome.satisfaction || parameter.satisfaction)
         },
         
         check.has.changed = function(next.sim, prev.sim) {
@@ -759,6 +816,15 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             tsfx.step = (tsfx.target.outcome- tsfx.current.outcome) / transformed.naive.dx
             
             next.tsfx.param = tsfx.param + tsfx.step
+            
+            # If this makes the suggested parameter go above or below the bounds set by the user, then we'll just go half the distance between the current value and the relevant bound.
+            if (next.tsfx.param > private$i.tsfx.max.acceptable.parameter.value) {
+                next.tsfx.param = private$i.tsfx.max.acceptable.parameter.value
+            }
+            else if (next.tsfx.param < private$i.tsfx.min.acceptable.parameter.value) {
+                next.tsfx.param = private$i.tsfx.min.acceptable.parameter.value
+            }
+            return(next.tsfx.param)
         },
         
         score.sim = function(sim, iteration, is.fine.tuning=F, verbose, as.log.likelihood=T, debug=F)
@@ -900,7 +966,6 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
     ),
     
     active = list(
-        # Added this because somehow the intervention expects to know this but it was given only to criteria?
         draw.parameter.from.previous.sims = function(value)
         {
             if (missing(value))
@@ -941,6 +1006,8 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
         
         i.parameter.scale = NULL,
         i.parameter.initial.value = NULL,
+        i.tsfx.min.acceptable.parameter.value = NULL,
+        i.tsfx.max.acceptable.parameter.value = NULL,
         i.draw.parameter.from.previous.sims = NULL,
         
         i.target.value = NULL,
