@@ -819,7 +819,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             private$i.exclude.denominator.ontology.names = instructions$exclude.denominator.ontology.names
             
             # Find years we have data for. Note: this does not guarantee that we'll have data for *our* locations, especially since we don't know what counties they'll be made up of yet.
-            # If we get to n-multipliers and don't have enough data, I'll just throw an error and the user can change the year range that's used.
+            # If we get to n-multipliers and don't have enough data, we'll repeat starting from just after this point with the years that actually worked out
             years = get.likelihood.years(from.year = instructions$from.year,
                                          to.year = instructions$to.year,
                                          omit.years = instructions$omit.years,
@@ -842,401 +842,414 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 years = intersect(years, years.n.multipliers)
             }
             
-            # --- VALIDATE THAT OUTCOME.FOR.SIM IS A PROPORTION --- #
-            sim.metadata = get.simulation.metadata(version=version,
-                                                   location=location,
-                                                   from.year = years[[1]],
-                                                   to.year = years[[length(years)]])
-            if (sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$scale != 'proportion')
-                stop(paste0(error.prefix, "'outcome.for.sim' must have scale 'proportion' in this specification"))
+            # Beginning of potentially 2-step process of finding years with data and doing the instantiate over again with the years we do have
             
-            if(!(sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$is.cumulative))
-                stop(paste0(error.prefix, "'outcome.for.sim' must be cumulative in this specification"))
+            for (attempt in 1:2) {
             
-            all.locations = private$get.all.locations(location = location,
-                                                      location.types = instructions$location.types,
-                                                      maximum.locations.per.type = instructions$maximum.locations.per.type,
-                                                      minimum.geographic.resolution.type = instructions$minimum.geographic.resolution.type,
-                                                      data.manager = data.manager,
-                                                      years = years)
-            # all.locations = c('24510', 'C.12580', 'MD')
-            
-            ## ---- PREPARE DATA STRUCTURES ---- ##
-            
-            private$i.sim.ontology = sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
-            private$i.sim.ontology$year = as.character(years)
-            private$i.sim.ontology$location = all.locations
-            
-            private$i.obs.p = c()
-            private$i.details = c() # will contain each observation's sorted details as a collapsed character factor
-            private$i.metadata = data.frame(year = character(0),
-                                            stratum = character(0),
-                                            source = character(0))
-            mappings.list = list()
-            dimnames.list = list()
-            locations.list = list()
-            remove.mask.list = list()
-            
-            private$i.transformation.matrix = NULL
-            private$i.sim.required.dimnames = list()
-            remove.mask = c()
-            data.keep.dimensions = c()
-            
-            
-            ## ---- PULL DATA ---- ##
-            if (post.time.checkpoint.flag) print(paste0("Begin pulling: ", Sys.time()))
-            # browser()
-            n.stratifications.with.data = 0
-            for (strat in private$i.stratifications) {
-                keep.dimensions = c('year', 'location')
-                if (!identical(strat, "")) keep.dimensions = c(keep.dimensions, strat)
-                data = data.manager$pull(outcome = private$i.outcome.for.data,
-                                         sources = private$i.sources.to.use,
-                                         keep.dimensions = keep.dimensions,
-                                         dimension.values = list(year = as.character(years), location = all.locations),
-                                         target.ontology = private$i.sim.ontology,
-                                         allow.mapping.from.target.ontology = T,
-                                         append.attributes = 'details')
-                if (is.null(data)) {
-                    if (throw.error.if.no.data)
-                        stop(paste0(error.prefix, "no data was found for the stratification '", strat, "'"))
-                    else next
-                }
+                # --- VALIDATE THAT OUTCOME.FOR.SIM IS A PROPORTION --- #
+                # if (attempt == 1) browser()
+                sim.metadata = get.simulation.metadata(version=version,
+                                                       location=location,
+                                                       from.year = years[[1]],
+                                                       to.year = years[[length(years)]])
+                if (sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$scale != 'proportion')
+                    stop(paste0(error.prefix, "'outcome.for.sim' must have scale 'proportion' in this specification"))
                 
-                one.mapping = attr(data, 'mapping')
-                one.details = attr(data, 'details')
+                if(!(sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$is.cumulative))
+                    stop(paste0(error.prefix, "'outcome.for.sim' must be cumulative in this specification"))
                 
-                ## Pull measurement error variance if needed
-                if (instructions$parameters$p.error.variance.type %in% c('data.sd', 'data.variance', 'data.cv')) {
-                    metric.map = list(data.sd='sd', data.variance='variance', data.cv='coefficient.of.variance')
-                    p.error.data = data.manager$pull(outcome = private$i.outcome.for.data,
-                                                     metric = metric.map[[private$i.parameters$p.error.variance.type]],
-                                                     sources = private$i.sources.to.use,
-                                                     keep.dimensions = keep.dimensions,
-                                                     dimension.values = list(year = as.character(years), location = all.locations),
-                                                     target.ontology = private$i.sim.ontology,
-                                                     allow.mapping.from.target.ontology = T)
-                    
-                    if (is.null(p.error.data)) {
+                all.locations = private$get.all.locations(location = location,
+                                                          location.types = instructions$location.types,
+                                                          maximum.locations.per.type = instructions$maximum.locations.per.type,
+                                                          minimum.geographic.resolution.type = instructions$minimum.geographic.resolution.type,
+                                                          data.manager = data.manager,
+                                                          years = years)
+                # all.locations = c('24510', 'C.12580', 'MD')
+                
+                ## ---- PREPARE DATA STRUCTURES ---- ##
+                
+                private$i.sim.ontology = sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
+                private$i.sim.ontology$year = as.character(years)
+                private$i.sim.ontology$location = all.locations
+                
+                private$i.obs.p = c()
+                private$i.details = c() # will contain each observation's sorted details as a collapsed character factor
+                private$i.metadata = data.frame(year = character(0),
+                                                stratum = character(0),
+                                                source = character(0))
+                private$i.p.error.vector = c()
+                mappings.list = list()
+                dimnames.list = list()
+                locations.list = list()
+                remove.mask.list = list()
+                
+                private$i.transformation.matrix = NULL
+                private$i.sim.required.dimnames = list()
+                remove.mask = c()
+                data.keep.dimensions = c()
+                
+                
+                ## ---- PULL DATA ---- ##
+                if (post.time.checkpoint.flag) print(paste0("Begin pulling: ", Sys.time()))
+                # browser()
+                n.stratifications.with.data = 0
+                for (strat in private$i.stratifications) {
+                    keep.dimensions = c('year', 'location')
+                    if (!identical(strat, "")) keep.dimensions = c(keep.dimensions, strat)
+                    data = data.manager$pull(outcome = private$i.outcome.for.data,
+                                             sources = private$i.sources.to.use,
+                                             keep.dimensions = keep.dimensions,
+                                             dimension.values = list(year = as.character(years), location = all.locations),
+                                             target.ontology = private$i.sim.ontology,
+                                             allow.mapping.from.target.ontology = T,
+                                             append.attributes = 'details')
+                    if (is.null(data)) {
                         if (throw.error.if.no.data)
-                            stop(paste0(error.prefix, "no ", metric.map[[private$i.parameters$p.error.variance.type]], ", data was found for the stratification '", strat, "'"))
+                            stop(paste0(error.prefix, "no data was found for the stratification '", strat, "'"))
                         else next
                     }
                     
-                    # find overlapping dimnames, limit both, then flip data to NA if cv for that value is NA
-                    common.dimnames = get.dimension.values.overlap(dimnames(data), dimnames(p.error.data))
-                    p.error.data = array.access(p.error.data, common.dimnames)
-                    data = array.access(data, common.dimnames)
+                    one.mapping = attr(data, 'mapping')
+                    one.details = attr(data, 'details')
                     
-                    if (instructions$parameters$p.error.variance.type == 'data.cv')
-                        p.error.data = data * p.error.data # sd = cv * mean
-                    
-                    data[is.na(p.error.data)] = NA
-                    one.details = array.access(one.details, common.dimnames)
-                    
-                    one.p.error.data = as.numeric(p.error.data) # na masks will align perfectly with obs p mask
-                    one.p.error.data = one.p.error.data[!is.na(one.p.error.data)]
-                    
-                    if (instructions$parameters$p.error.variance.type == 'data.variance')
-                        one.p.error.data = sqrt(one.p.error.data)
-                    
-                    private$i.p.error.vector = c(private$i.p.error.vector, one.p.error.data)
-                }
-                
-                # If we have lognormal approximation on, we should transform the observations right now, after converting zeroes to NA so that they are ignored in the same ways.
-                if (private$i.use.lognormal.approximation) {
-                    data[data==0]=NA
-                    # We do NOT log transform here, at instantiate time, because the fancy function during compute won't like it
-                }
-                
-                n.stratifications.with.data = n.stratifications.with.data + 1
-                one.dimnames = dimnames(data)
-                one.locations = dimnames(data)$location
-                one.obs.p = as.numeric(data)
-                
-                one.remove.mask = is.na(one.obs.p)
-                one.obs.p = one.obs.p[!one.remove.mask]
-                one.details = one.details[!one.remove.mask]
-                
-                # Metadata will involve melting both arrays (data and details) as well as making "stratum"
-                one.metadata = reshape2::melt(data)
-                one.metadata = one.metadata[!one.remove.mask,]
-                
-                # Recover required dimnames from one.metadata -- note that year won't be fixed yet
-                # if (identical(strat, "risk")) browser()
-                one.sim.required.dimnames = one.mapping$get.required.from.dim.names(lapply(one.metadata[!(colnames(one.metadata) %in% c('location', 'source', 'value'))],
-                                                                                                function(x) {sort(as.character(unique(x)))})) ## MONITOR THIS SORT FOR BUGS
-                
-                # Convert any year ranges in metadata to single years using their median year
-                one.metadata$year = sapply(one.metadata$year, function(year.or.year.range) {
-                    year.or.year.range = as.character(year.or.year.range)
-                    if (is.year.range(year.or.year.range)) {
-                        parsed.year.range = parse.year.ranges(year.or.year.range)
-                        return(as.character(ceiling(mean(c(as.numeric(parsed.year.range$start), as.numeric(parsed.year.range$end))))))
+                    ## Pull measurement error variance if needed
+                    if (instructions$parameters$p.error.variance.type %in% c('data.sd', 'data.variance', 'data.cv')) {
+                        
+                        metric.map = list(data.sd='sd', data.variance='variance', data.cv='coefficient.of.variance')
+                        p.error.data = data.manager$pull(outcome = private$i.outcome.for.data,
+                                                         metric = metric.map[[private$i.parameters$p.error.variance.type]],
+                                                         sources = private$i.sources.to.use,
+                                                         keep.dimensions = keep.dimensions,
+                                                         dimension.values = list(year = as.character(years), location = all.locations),
+                                                         target.ontology = private$i.sim.ontology,
+                                                         allow.mapping.from.target.ontology = T)
+                        
+                        if (is.null(p.error.data)) {
+                            if (throw.error.if.no.data)
+                                stop(paste0(error.prefix, "no ", metric.map[[private$i.parameters$p.error.variance.type]], ", data was found for the stratification '", strat, "'"))
+                            else next
+                        }
+                        
+                        # find overlapping dimnames, limit both, then flip data to NA if cv for that value is NA
+                        common.dimnames = get.dimension.values.overlap(dimnames(data), dimnames(p.error.data))
+                        p.error.data = array.access(p.error.data, common.dimnames)
+                        data = array.access(data, common.dimnames)
+                        
+                        if (instructions$parameters$p.error.variance.type == 'data.cv')
+                            p.error.data = data * p.error.data # sd = cv * mean
+                        
+                        data[is.na(p.error.data)] = NA
+                        one.details = array.access(one.details, common.dimnames)
+                        
+                        one.p.error.data = as.numeric(p.error.data) # na masks will align perfectly with obs p mask
+                        one.p.error.data = one.p.error.data[!is.na(one.p.error.data)]
+                        
+                        if (instructions$parameters$p.error.variance.type == 'data.variance')
+                            one.p.error.data = sqrt(one.p.error.data)
+                        
+                        private$i.p.error.vector = c(private$i.p.error.vector, one.p.error.data)
                     }
-                    else return(year.or.year.range)
-                })
-                new.years = sort(unique(one.metadata$year))
-                
-                # Do the same for the dimnames
-                one.dimnames$year = sapply(one.dimnames$year, function(year.or.year.range) {
-                    year.or.year.range = as.character(year.or.year.range)
-                    if (is.year.range(year.or.year.range)) {
-                        parsed.year.range = parse.year.ranges(year.or.year.range)
-                        return(as.character(ceiling(mean(c(as.numeric(parsed.year.range$start), as.numeric(parsed.year.range$end))))))
+                    
+                    # If we have lognormal approximation on, we should transform the observations right now, after converting zeroes to NA so that they are ignored in the same ways.
+                    if (private$i.use.lognormal.approximation) {
+                        data[data==0]=NA
+                        # We do NOT log transform here, at instantiate time, because the fancy function during compute won't like it
                     }
-                    else return(year.or.year.range)
-                })
-                names(one.dimnames$year) = NULL # a necessary step because the old year ranges were becoming names
+                    
+                    n.stratifications.with.data = n.stratifications.with.data + 1
+                    one.dimnames = dimnames(data)
+                    one.locations = dimnames(data)$location
+                    one.obs.p = as.numeric(data)
+                    
+                    one.remove.mask = is.na(one.obs.p)
+                    one.obs.p = one.obs.p[!one.remove.mask]
+                    one.details = one.details[!one.remove.mask]
+                    
+                    # Metadata will involve melting both arrays (data and details) as well as making "stratum"
+                    one.metadata = reshape2::melt(data)
+                    one.metadata = one.metadata[!one.remove.mask,]
+                    
+                    # Recover required dimnames from one.metadata -- note that year won't be fixed yet
+                    # if (identical(strat, "risk")) browser()
+                    one.sim.required.dimnames = one.mapping$get.required.from.dim.names(lapply(one.metadata[!(colnames(one.metadata) %in% c('location', 'source', 'value'))],
+                                                                                                    function(x) {sort(as.character(unique(x)))})) ## MONITOR THIS SORT FOR BUGS
+                    
+                    # Convert any year ranges in metadata to single years using their median year
+                    one.metadata$year = sapply(one.metadata$year, function(year.or.year.range) {
+                        year.or.year.range = as.character(year.or.year.range)
+                        if (is.year.range(year.or.year.range)) {
+                            parsed.year.range = parse.year.ranges(year.or.year.range)
+                            return(as.character(ceiling(mean(c(as.numeric(parsed.year.range$start), as.numeric(parsed.year.range$end))))))
+                        }
+                        else return(year.or.year.range)
+                    })
+                    new.years = sort(unique(one.metadata$year))
+                    
+                    # Do the same for the dimnames
+                    one.dimnames$year = sapply(one.dimnames$year, function(year.or.year.range) {
+                        year.or.year.range = as.character(year.or.year.range)
+                        if (is.year.range(year.or.year.range)) {
+                            parsed.year.range = parse.year.ranges(year.or.year.range)
+                            return(as.character(ceiling(mean(c(as.numeric(parsed.year.range$start), as.numeric(parsed.year.range$end))))))
+                        }
+                        else return(year.or.year.range)
+                    })
+                    names(one.dimnames$year) = NULL # a necessary step because the old year ranges were becoming names
+                    
+                    one.sim.required.dimnames$year = new.years
+                    
+                    one.metadata = one.metadata[, sort(colnames(one.metadata))]
+                    one.metadata['stratum'] = do.call(paste, c(subset.data.frame(one.metadata, select=-c(location, year, source, value)), sep="__"))
+                    one.metadata[is.na(one.metadata$stratum), 'stratum'] = ".TOTAL." # I can change this to "" instead of ".TOTAL.", can't I?
+                    one.metadata['dimensions'] = paste0(strat, collapse="__")
+                    one.metadata = subset.data.frame(one.metadata, select = c(location, year, stratum, dimensions, source))
+                    
+                    # Find the required.dimnames
+                    for (d in names(one.sim.required.dimnames)) {
+                        if (!(d %in% names(private$i.sim.required.dimnames)))
+                            private$i.sim.required.dimnames = c(private$i.sim.required.dimnames, setNames(list(one.sim.required.dimnames[[d]]), d))
+                        else
+                            private$i.sim.required.dimnames[[d]] = sort(union(private$i.sim.required.dimnames[[d]], one.sim.required.dimnames[[d]]))
+                    }
+                    
+                    # Convert one.details list of vectors to a list of characters of collapsed sorted details, then unlist to a vector
+                    one.details = unlist(lapply(one.details, function(v) {paste(sort(v), collapse="__")}))
+                    
+                    private$i.obs.p = c(private$i.obs.p, one.obs.p)
+                    private$i.details = c(private$i.details, one.details)
+                    private$i.metadata = rbind(private$i.metadata, one.metadata)
+                    mappings.list = c(mappings.list, list(one.mapping))
+                    dimnames.list = c(dimnames.list, list(one.dimnames))
+                    locations.list = c(locations.list, list(one.locations))
+                    remove.mask.list = c(remove.mask.list, list(one.remove.mask))
+                    
+                    # data.keep.dimensions = union(data.keep.dimensions, keep.dimensions) # Why do I do this?? Maybe I don't need a dimension?
+                    
+                }
+                private$i.n.obs = length(private$i.obs.p)
+                if (private$i.n.obs==0) stop(paste0(error.prefix, "no data was found for any stratification"))
                 
-                one.sim.required.dimnames$year = new.years
+                if (post.time.checkpoint.flag) print(paste0("Finish pulling: ", Sys.time()))
+    
+                # Find redundant locations (have at most only a few more data points than the main location does) and remove them, only if we have data for our main location
+                redundant.locations = NULL
+                if (location %in% private$i.metadata$location) {
+                    redundant.locations = private$get.redundant.locations(location, private$i.metadata, extra.points.needed.to.keep = instructions$redundant.location.threshold)
+                    # Check if we even have data for more than just the main location.
+                    if (length(setdiff(all.locations, redundant.locations))==1)
+                        stop(paste0(error.prefix, "data only found for main location after removing redundant locations"))
+                }
+                redundant.locations.mask = private$i.metadata$location %in% redundant.locations
+                private$i.obs.p = private$i.obs.p[!redundant.locations.mask]
+                private$i.metadata = private$i.metadata[!redundant.locations.mask,]
+                private$i.details = private$i.details[!redundant.locations.mask]
                 
-                one.metadata = one.metadata[, sort(colnames(one.metadata))]
-                one.metadata['stratum'] = do.call(paste, c(subset.data.frame(one.metadata, select=-c(location, year, source, value)), sep="__"))
-                one.metadata[is.na(one.metadata$stratum), 'stratum'] = ".TOTAL." # I can change this to "" instead of ".TOTAL.", can't I?
-                one.metadata['dimensions'] = paste0(strat, collapse="__")
-                one.metadata = subset.data.frame(one.metadata, select = c(location, year, stratum, dimensions, source))
+                # The remove mask needs to be updated -- carefully -- because it is in reference to the state before removal and will be used later on for the transformation mapping matrix.
+                # Since location is the second dimension after year in all the arrays pulled, n.years times n.locations is the size of a block repeated a certain number of times
+                year.location.block.counts = sapply(dimnames.list, function(x) {prod(sapply(x, length)[!(names(x) %in% c('year', 'location'))])})
+                empty.locations = setdiff(unique(unlist(locations.list)), unique(private$i.metadata$location)) # just throwing these in instead of duplicating code
+                removed.locations.list = lapply(locations.list, function(x) {x %in% union(redundant.locations, empty.locations)})
+                redundant.locations.full.size.mask = lapply(1:length(dimnames.list), function(i) {rep(rep(removed.locations.list[[i]], each=length(dimnames.list[[i]]$year)), year.location.block.counts[[i]])})
                 
-                # Find the required.dimnames
-                for (d in names(one.sim.required.dimnames)) {
-                    if (!(d %in% names(private$i.sim.required.dimnames)))
-                        private$i.sim.required.dimnames = c(private$i.sim.required.dimnames, setNames(list(one.sim.required.dimnames[[d]]), d))
-                    else
-                        private$i.sim.required.dimnames[[d]] = sort(union(private$i.sim.required.dimnames[[d]], one.sim.required.dimnames[[d]]))
+                # Now this shows which elements in each remove.mask.list element correspond to redundant locations. We remove them from the remove mask list and remove mask.
+                remove.mask.list = lapply(1:length(remove.mask.list), function(i) {remove.mask.list[[i]][!redundant.locations.full.size.mask[[i]]]})
+                locations.list = lapply(1:length(locations.list), function(i) {locations.list[[i]][!removed.locations.list[[i]]]})
+    
+                # Now the required dimnames may have their dimensions in the wrong order or their values in the wrong order. They may also lack some values from a complete dimension. Use the sim ontology to fix this.
+                private$i.sim.ontology$location = union(as.vector(unique(private$i.metadata$location)), location) # location MUST be here to ensure it counts as an obs location, even if no obs exist for it
+                corrected.sim.required.dimnames = private$i.sim.ontology[names(private$i.sim.ontology) %in% names(private$i.sim.required.dimnames)]
+                corrected.sim.required.dimnames$year = sort(private$i.sim.required.dimnames$year)
+                private$i.sim.required.dimnames = corrected.sim.required.dimnames
+                private$i.sim.ontology$year = private$i.sim.required.dimnames$year
+                
+                private$i.details = as.factor(private$i.details)
+                # private$i.metadata$location = as.factor(private$i.metadata$location) # already factor somehow
+                if (private$i.parameters$observation.correlation.form == 'autoregressive.1') {
+                    private$i.metadata$year = suppressWarnings(as.numeric(private$i.metadata$year))
+                    if (any(is.na(private$i.metadata$year)))
+                        stop(paste0(error.prefix, "'observation.correlation.form' 'autoreggresive.1' can only be used with single-year data points"))
+                }
+                else private$i.metadata$year = as.factor(private$i.metadata$year)
+                private$i.metadata$stratum = as.factor(private$i.metadata$stratum)
+                # private$i.metadata$source = as.factor(private$i.metadata$source) # already factor somehow
+                
+                # might remove years
+                private$i.sim.dimension.values = private$i.sim.required.dimnames[sapply(names(private$i.sim.required.dimnames), function(d) {!identical(private$i.sim.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
+                private$i.sim.dimension.values$year = private$i.sim.required.dimnames$year
+                private$i.sim.dimension.values = as.list(private$i.sim.dimension.values)
+                
+                # Make sure sim keep dimensions has year because the sim$get relies on it later
+                private$i.sim.keep.dimensions = union('year', names(private$i.sim.required.dimnames))
+                
+                # Reorder -- everything should be in the order of the sim.ontology so that it aligns with the sim$get arrays later.
+                private$i.sim.keep.dimensions = names(private$i.sim.ontology)[sort(sapply(private$i.sim.keep.dimensions, function(d) {which(names(private$i.sim.ontology) == d)}))]
+                
+                # years.with.data = get.range.robust.year.intersect(private$i.sim.required.dimnames$year, as.character(sort(unique(private$i.metadata$year))))
+                years.with.data = private$i.sim.required.dimnames$year
+                n.years = length(years.with.data)
+                private$i.obs.year.index = sapply(private$i.metadata$year, function(y) {which(years.with.data == y)})
+                
+                ## ---- GENERATE LAGGED PAIRS IF REQUESTED ---- ##
+                if (private$i.calculate.lagged.difference) {
+                    year.for.lag = suppressWarnings(as.numeric(private$i.metadata$year))
+                    if (any(is.na(year.for.lag)))
+                        stop(paste0(error.prefix, "'calculate.lagged.difference' can only be used with single-year data points"))
+                    private$i.lagged.pairs = generate_lag_matrix_indices(year.for.lag,# check if valid -- no year ranges, please!
+                                                                         as.integer(as.factor(private$i.metadata$location)), # location not used for basic likelihoods but is available for nested prop likelihoods
+                                                                         as.integer(as.factor(private$i.metadata$stratum)),
+                                                                         as.integer(as.factor(private$i.metadata$source)),
+                                                                         private$i.n.obs)
+                    if (length(private$i.lagged.pairs)==0)
+                        stop(paste0(error.prefix, "no data found for lagged-year pairs"))
+                    private$i.n.lagged.obs = length(private$i.lagged.pairs)/2
+                    
+                    # Keep only the latter years for each pair
+                    private$i.metadata.for.lag = private$i.metadata[private$i.lagged.pairs[rep(c(T,F), private$i.n.lagged.obs)] + 1, ]
                 }
                 
-                # Convert one.details list of vectors to a list of characters of collapsed sorted details, then unlist to a vector
-                one.details = unlist(lapply(one.details, function(v) {paste(sort(v), collapse="__")}))
+                # Generate transformation matrix
+                if (post.time.checkpoint.flag) print(paste0("Generate transformation matrix: ", Sys.time()))
+                private$i.transformation.matrix = generate.transformation.matrix.nested(dimnames.list, locations.list, remove.mask.list, n.stratifications.with.data, private$i.sim.required.dimnames, all.locations = private$i.sim.ontology$location)
                 
-                private$i.obs.p = c(private$i.obs.p, one.obs.p)
-                private$i.details = c(private$i.details, one.details)
-                private$i.metadata = rbind(private$i.metadata, one.metadata)
-                mappings.list = c(mappings.list, list(one.mapping))
-                dimnames.list = c(dimnames.list, list(one.dimnames))
-                locations.list = c(locations.list, list(one.locations))
-                remove.mask.list = c(remove.mask.list, list(one.remove.mask))
                 
-                # data.keep.dimensions = union(data.keep.dimensions, keep.dimensions) # Why do I do this?? Maybe I don't need a dimension?
+                # data frame of model strata, unless we only have totals
+                model.stratification = private$i.sim.keep.dimensions[!(private$i.sim.keep.dimensions %in% c('year', 'location'))]
+                if (length(model.stratification)==0) {
+                    model.stratification = NULL
+                    model.strata = NULL
+                    n.strata = 1
+                } else {
+                    model.strata = expand.grid(private$i.sim.ontology[names(private$i.sim.ontology) %in% model.stratification])
+                    n.strata = nrow(model.strata)
+                }
                 
-            }
-            private$i.n.obs = length(private$i.obs.p)
-            if (private$i.n.obs==0) stop(paste0(error.prefix, "no data was found for any stratification"))
-            
-            if (post.time.checkpoint.flag) print(paste0("Finish pulling: ", Sys.time()))
-
-            # Find redundant locations (have at most only a few more data points than the main location does) and remove them, only if we have data for our main location
-            redundant.locations = NULL
-            if (location %in% private$i.metadata$location) {
-                redundant.locations = private$get.redundant.locations(location, private$i.metadata, extra.points.needed.to.keep = instructions$redundant.location.threshold)
-                # Check if we even have data for more than just the main location.
-                if (length(setdiff(all.locations, redundant.locations))==1)
-                    stop(paste0(error.prefix, "data only found for main location after removing redundant locations"))
-            }
-            redundant.locations.mask = private$i.metadata$location %in% redundant.locations
-            private$i.obs.p = private$i.obs.p[!redundant.locations.mask]
-            private$i.metadata = private$i.metadata[!redundant.locations.mask,]
-            private$i.details = private$i.details[!redundant.locations.mask]
-            
-            # The remove mask needs to be updated -- carefully -- because it is in reference to the state before removal and will be used later on for the transformation mapping matrix.
-            # Since location is the second dimension after year in all the arrays pulled, n.years times n.locations is the size of a block repeated a certain number of times
-            year.location.block.counts = sapply(dimnames.list, function(x) {prod(sapply(x, length)[!(names(x) %in% c('year', 'location'))])})
-            empty.locations = setdiff(unique(unlist(locations.list)), unique(private$i.metadata$location)) # just throwing these in instead of duplicating code
-            removed.locations.list = lapply(locations.list, function(x) {x %in% union(redundant.locations, empty.locations)})
-            redundant.locations.full.size.mask = lapply(1:length(dimnames.list), function(i) {rep(rep(removed.locations.list[[i]], each=length(dimnames.list[[i]]$year)), year.location.block.counts[[i]])})
-            
-            # Now this shows which elements in each remove.mask.list element correspond to redundant locations. We remove them from the remove mask list and remove mask.
-            remove.mask.list = lapply(1:length(remove.mask.list), function(i) {remove.mask.list[[i]][!redundant.locations.full.size.mask[[i]]]})
-            locations.list = lapply(1:length(locations.list), function(i) {locations.list[[i]][!removed.locations.list[[i]]]})
-
-            # Now the required dimnames may have their dimensions in the wrong order or their values in the wrong order. They may also lack some values from a complete dimension. Use the sim ontology to fix this.
-            private$i.sim.ontology$location = union(as.vector(unique(private$i.metadata$location)), location) # location MUST be here to ensure it counts as an obs location, even if no obs exist for it
-            corrected.sim.required.dimnames = private$i.sim.ontology[names(private$i.sim.ontology) %in% names(private$i.sim.required.dimnames)]
-            corrected.sim.required.dimnames$year = sort(private$i.sim.required.dimnames$year)
-            private$i.sim.required.dimnames = corrected.sim.required.dimnames
-            private$i.sim.ontology$year = private$i.sim.required.dimnames$year
-            
-            private$i.details = as.factor(private$i.details)
-            # private$i.metadata$location = as.factor(private$i.metadata$location) # already factor somehow
-            if (private$i.parameters$observation.correlation.form == 'autoregressive.1') {
-                private$i.metadata$year = suppressWarnings(as.numeric(private$i.metadata$year))
-                if (any(is.na(private$i.metadata$year)))
-                    stop(paste0(error.prefix, "'observation.correlation.form' 'autoreggresive.1' can only be used with single-year data points"))
-            }
-            else private$i.metadata$year = as.factor(private$i.metadata$year)
-            private$i.metadata$stratum = as.factor(private$i.metadata$stratum)
-            # private$i.metadata$source = as.factor(private$i.metadata$source) # already factor somehow
-            
-            # might remove years
-            private$i.sim.dimension.values = private$i.sim.required.dimnames[sapply(names(private$i.sim.required.dimnames), function(d) {!identical(private$i.sim.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
-            private$i.sim.dimension.values$year = private$i.sim.required.dimnames$year
-            private$i.sim.dimension.values = as.list(private$i.sim.dimension.values)
-            
-            # Make sure sim keep dimensions has year because the sim$get relies on it later
-            private$i.sim.keep.dimensions = union('year', names(private$i.sim.required.dimnames))
-            
-            # Reorder -- everything should be in the order of the sim.ontology so that it aligns with the sim$get arrays later.
-            private$i.sim.keep.dimensions = names(private$i.sim.ontology)[sort(sapply(private$i.sim.keep.dimensions, function(d) {which(names(private$i.sim.ontology) == d)}))]
-            
-            # years.with.data = get.range.robust.year.intersect(private$i.sim.required.dimnames$year, as.character(sort(unique(private$i.metadata$year))))
-            years.with.data = private$i.sim.required.dimnames$year
-            n.years = length(years.with.data)
-            private$i.obs.year.index = sapply(private$i.metadata$year, function(y) {which(years.with.data == y)})
-            
-            ## ---- GENERATE LAGGED PAIRS IF REQUESTED ---- ##
-            if (private$i.calculate.lagged.difference) {
-                year.for.lag = suppressWarnings(as.numeric(private$i.metadata$year))
-                if (any(is.na(year.for.lag)))
-                    stop(paste0(error.prefix, "'calculate.lagged.difference' can only be used with single-year data points"))
-                private$i.lagged.pairs = generate_lag_matrix_indices(year.for.lag,# check if valid -- no year ranges, please!
-                                                                     as.integer(as.factor(private$i.metadata$location)), # location not used for basic likelihoods but is available for nested prop likelihoods
-                                                                     as.integer(as.factor(private$i.metadata$stratum)),
-                                                                     as.integer(as.factor(private$i.metadata$source)),
-                                                                     private$i.n.obs)
-                if (length(private$i.lagged.pairs)==0)
-                    stop(paste0(error.prefix, "no data found for lagged-year pairs"))
-                private$i.n.lagged.obs = length(private$i.lagged.pairs)/2
+                if (post.time.checkpoint.flag) print(paste0("Generate measurement error correlation matrix: ", Sys.time()))
                 
-                # Keep only the latter years for each pair
-                private$i.metadata.for.lag = private$i.metadata[private$i.lagged.pairs[rep(c(T,F), private$i.n.lagged.obs)] + 1, ]
-            }
-            
-            # Generate transformation matrix
-            if (post.time.checkpoint.flag) print(paste0("Generate transformation matrix: ", Sys.time()))
-            private$i.transformation.matrix = generate.transformation.matrix.nested(dimnames.list, locations.list, remove.mask.list, n.stratifications.with.data, private$i.sim.required.dimnames, all.locations = private$i.sim.ontology$location)
-            # browser()
-            
-            # data frame of model strata, unless we only have totals
-            model.stratification = private$i.sim.keep.dimensions[!(private$i.sim.keep.dimensions %in% c('year', 'location'))]
-            if (length(model.stratification)==0) {
-                model.stratification = NULL
-                model.strata = NULL
-                n.strata = 1
-            } else {
-                model.strata = expand.grid(private$i.sim.ontology[names(private$i.sim.ontology) %in% model.stratification])
-                n.strata = nrow(model.strata)
-            }
-            
-            if (post.time.checkpoint.flag) print(paste0("Generate measurement error correlation matrix: ", Sys.time()))
-            
-            measurement.error.correlation.matrix = get_obs_error_correlation_matrix(rep(1, private$i.n.obs**2),
-                                                                                    private$i.n.obs,
-                                                                                    as.numeric(private$i.metadata$location),
-                                                                                    as.numeric(private$i.metadata$year),
-                                                                                    as.numeric(private$i.metadata$stratum),
-                                                                                    as.numeric(private$i.metadata$source),
-                                                                                    as.numeric(private$i.details),
-                                                                                    private$i.parameters$correlation.different.locations,
-                                                                                    private$i.parameters$correlation.different.year,
-                                                                                    private$i.parameters$correlation.different.strata,
-                                                                                    private$i.parameters$correlation.different.source,
-                                                                                    private$i.parameters$correlation.same.source.different.details,
-                                                                                    private$i.parameters$observation.correlation.form == "autoregressive.1")
-            # All forms of error will be converted to sd and then we use cov = corr * sd %*% t(sd), the last part sometimes being just sd squared
-            if (private$i.parameters$p.error.variance.type %in% c('data.sd', 'data.variance', 'data.cv')) {
-                # all have been converted to sd earlier, including data.cv
-                measurement.error.sd.matrix = private$i.p.error.vector %*% t(private$i.p.error.vector)
-                private$i.obs.error = measurement.error.correlation.matrix * measurement.error.sd.matrix
-            }
-            else if (private$i.parameters$p.error.variance.type == 'sd')
-                private$i.obs.error = measurement.error.correlation.matrix * private$i.parameters$p.error.variance.term ^ 2 # this reflects our choice to make measurement error sd constant, not scaling with level of suppression (or other p)
-            else if (private$i.parameters$p.error.variance.type == 'variance')
-                private$i.obs.error = measurement.error.correlation.matrix * private$i.parameters$p.error.variance.term
-            else if (private$i.parameters$p.error.variance.type == 'cv') {
-                measurement.error.sd = private$i.obs.p * private$i.parameters$p.error.variance.term
-                private$i.obs.error = measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
-            }
-            dim(private$i.obs.error) = c(private$i.n.obs, private$i.n.obs)
-
-            # ------ THINGS THAT DEPEND ON OBSERVATION-LOCATIONS ------ #
-            observation.locations = union(as.vector(unique(private$i.metadata$location)), location) #otherwise is factor
-            n.obs.locations = length(observation.locations) # we have ensured the main location is always in here because it will be used for metalocations and therefore must be accounted for everywhere else too
-            
-            locations.possibly.with.n.data = dimnames(data.manager$pull(outcome = private$i.denominator.outcome.for.data,
-                                                                        keep.dimensions = c('year', 'location'), # used to also include the model.stratification in keep.dimensions, a sometimes impossible ask!
-                                                                        dimension.values = list(location = setdiff(observation.locations, location), year = years.with.data)))$location
-            if (is.null(locations.possibly.with.n.data))
-                stop(paste0(error.prefix, "'", private$i.denominator.outcome.for.data, "' could not be found for the required observation locations"))
-            if (post.time.checkpoint.flag) print(paste0("Calculate obs.n: ", Sys.time()))
-            
-            obs.n.info = private$get.obs.n(data.manager = data.manager,
-                                           stratification = model.stratification, # may be character(0)
-                                           locations.with.n.data = locations.possibly.with.n.data,
-                                           years.with.data = years.with.data,
-                                           outcome.for.n = private$i.denominator.outcome.for.data,
-                                           sim.ontology = private$i.sim.ontology,
-                                           model.strata = model.strata, # may be NULL
-                                           partitioning.function = private$i.partitioning.function,
-                                           version = version,
-                                           location = location,
-                                           error.prefix = error.prefix)
-            private$i.obs.n = obs.n.info$obs.n
-            locations.with.n.data = obs.n.info$locations.with.n.data
-            # missing stuff also stored in info
-            # browser()
-            obs.n.cv = NULL
-            obs.n.variance.inflation.if.estimated = NULL
-
-            # The T matrix is currently in dimensions responses x year-location-stratum
-            # Now, split it into responses x year x location x stratum
-            dim(private$i.transformation.matrix) = c(private$i.n.obs, n.years, n.obs.locations, n.strata)
-            
-            if (post.time.checkpoint.flag) print(paste0("Generate year loc stratum to obs mapping: ", Sys.time()))
-            
-            private$i.year.loc.stratum.to.obs.mapping = lapply(1:n.strata, function(i) {
-                # drop the stratum dimension, which is last, but don't drop any other dimensions, like year, if they happen to have only one value
-                stratum.transformation.array = private$i.transformation.matrix[,,,i,drop=F]
-                dim(stratum.transformation.array) = dim(stratum.transformation.array)[c(T,T,T,F)]
+                measurement.error.correlation.matrix = get_obs_error_correlation_matrix(rep(1, private$i.n.obs**2),
+                                                                                        private$i.n.obs,
+                                                                                        as.numeric(private$i.metadata$location),
+                                                                                        as.numeric(private$i.metadata$year),
+                                                                                        as.numeric(private$i.metadata$stratum),
+                                                                                        as.numeric(private$i.metadata$source),
+                                                                                        as.numeric(private$i.details),
+                                                                                        private$i.parameters$correlation.different.locations,
+                                                                                        private$i.parameters$correlation.different.year,
+                                                                                        private$i.parameters$correlation.different.strata,
+                                                                                        private$i.parameters$correlation.different.source,
+                                                                                        private$i.parameters$correlation.same.source.different.details,
+                                                                                        private$i.parameters$observation.correlation.form == "autoregressive.1")
+                # All forms of error will be converted to sd and then we use cov = corr * sd %*% t(sd), the last part sometimes being just sd squared
+                if (private$i.parameters$p.error.variance.type %in% c('data.sd', 'data.variance', 'data.cv')) {
+                    # all have been converted to sd earlier, including data.cv
+                    measurement.error.sd.matrix = private$i.p.error.vector %*% t(private$i.p.error.vector)
+                    private$i.obs.error = measurement.error.correlation.matrix * measurement.error.sd.matrix
+                }
+                else if (private$i.parameters$p.error.variance.type == 'sd')
+                    private$i.obs.error = measurement.error.correlation.matrix * private$i.parameters$p.error.variance.term ^ 2 # this reflects our choice to make measurement error sd constant, not scaling with level of suppression (or other p)
+                else if (private$i.parameters$p.error.variance.type == 'variance')
+                    private$i.obs.error = measurement.error.correlation.matrix * private$i.parameters$p.error.variance.term
+                else if (private$i.parameters$p.error.variance.type == 'cv') {
+                    measurement.error.sd = private$i.obs.p * private$i.parameters$p.error.variance.term
+                    private$i.obs.error = measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
+                }
+                dim(private$i.obs.error) = c(private$i.n.obs, private$i.n.obs)
+    
+                # ------ THINGS THAT DEPEND ON OBSERVATION-LOCATIONS ------ #
+                observation.locations = union(as.vector(unique(private$i.metadata$location)), location) #otherwise is factor
+                n.obs.locations = length(observation.locations) # we have ensured the main location is always in here because it will be used for metalocations and therefore must be accounted for everywhere else too
                 
-                # flatten year and location to a matrix
-                dim(stratum.transformation.array) = c(private$i.n.obs, n.years * n.obs.locations)
-                stratum.transformation.array
-            })
-            
-            # ------ THINGS THAT DEPEND ON METALOCATION INFO ------ #
-            metalocation.info = private$get.metalocations(location = location,
-                                                          observation.locations = observation.locations,
-                                                          minimum.geographic.resolution.type = instructions$minimum.geographic.resolution.type)
-            metalocation.type = metalocation.info$metalocation.type
-            metalocation.to.minimal.component.map = metalocation.info$metalocation.to.minimal.component.map
-            n.metalocations = length(metalocation.type)
-            metalocation.to.obs.location.mapping = metalocation.info$metalocation.to.obs.location.mapping
-            
-            private$i.year.metalocation.to.year.obs.location.mapping = array(0, dim = c(n.years, n.obs.locations, n.years, n.metalocations))
-            for (y in 1:n.years) {
-                private$i.year.metalocation.to.year.obs.location.mapping[y,,y,] = metalocation.to.obs.location.mapping
+                locations.possibly.with.n.data = dimnames(data.manager$pull(outcome = private$i.denominator.outcome.for.data,
+                                                                            keep.dimensions = c('year', 'location'), # used to also include the model.stratification in keep.dimensions, a sometimes impossible ask!
+                                                                            dimension.values = list(location = setdiff(observation.locations, location), year = years.with.data)))$location
+                if (is.null(locations.possibly.with.n.data))
+                    stop(paste0(error.prefix, "'", private$i.denominator.outcome.for.data, "' could not be found for the required observation locations"))
+                if (post.time.checkpoint.flag) print(paste0("Calculate obs.n: ", Sys.time()))
+                
+                obs.n.info = private$get.obs.n(data.manager = data.manager,
+                                               stratification = model.stratification, # may be character(0)
+                                               locations.with.n.data = locations.possibly.with.n.data,
+                                               years.with.data = years.with.data,
+                                               outcome.for.n = private$i.denominator.outcome.for.data,
+                                               sim.ontology = private$i.sim.ontology,
+                                               model.strata = model.strata, # may be NULL
+                                               partitioning.function = private$i.partitioning.function,
+                                               version = version,
+                                               location = location,
+                                               error.prefix = error.prefix)
+                private$i.obs.n = obs.n.info$obs.n
+                locations.with.n.data = obs.n.info$locations.with.n.data
+                # missing stuff also stored in info
+                # browser()
+                obs.n.cv = NULL
+                obs.n.variance.inflation.if.estimated = NULL
+    
+                # The T matrix is currently in dimensions responses x year-location-stratum
+                # Now, split it into responses x year x location x stratum
+                dim(private$i.transformation.matrix) = c(private$i.n.obs, n.years, n.obs.locations, n.strata)
+                
+                if (post.time.checkpoint.flag) print(paste0("Generate year loc stratum to obs mapping: ", Sys.time()))
+                
+                private$i.year.loc.stratum.to.obs.mapping = lapply(1:n.strata, function(i) {
+                    # drop the stratum dimension, which is last, but don't drop any other dimensions, like year, if they happen to have only one value
+                    stratum.transformation.array = private$i.transformation.matrix[,,,i,drop=F]
+                    dim(stratum.transformation.array) = dim(stratum.transformation.array)[c(T,T,T,F)]
+                    
+                    # flatten year and location to a matrix
+                    dim(stratum.transformation.array) = c(private$i.n.obs, n.years * n.obs.locations)
+                    stratum.transformation.array
+                })
+                
+                # ------ THINGS THAT DEPEND ON METALOCATION INFO ------ #
+                metalocation.info = private$get.metalocations(location = location,
+                                                              observation.locations = observation.locations,
+                                                              minimum.geographic.resolution.type = instructions$minimum.geographic.resolution.type)
+                metalocation.type = metalocation.info$metalocation.type
+                metalocation.to.minimal.component.map = metalocation.info$metalocation.to.minimal.component.map
+                n.metalocations = length(metalocation.type)
+                metalocation.to.obs.location.mapping = metalocation.info$metalocation.to.obs.location.mapping
+                
+                private$i.year.metalocation.to.year.obs.location.mapping = array(0, dim = c(n.years, n.obs.locations, n.years, n.metalocations))
+                for (y in 1:n.years) {
+                    private$i.year.metalocation.to.year.obs.location.mapping[y,,y,] = metalocation.to.obs.location.mapping
+                }
+                dim(private$i.year.metalocation.to.year.obs.location.mapping) = c(n.obs.locations*n.years, n.metalocations*n.years)
+                private$i.year.metalocation.to.year.obs.location.mask = apply(private$i.year.metalocation.to.year.obs.location.mapping != 0, 2, any)
+                private$i.year.metalocation.to.year.obs.location.mapping =
+                    private$i.year.metalocation.to.year.obs.location.mapping[,private$i.year.metalocation.to.year.obs.location.mask]
+    
+                private$i.year.metalocation.to.obs.mapping = lapply(1:n.strata, function(i) {
+                    private$i.year.loc.stratum.to.obs.mapping[[i]] %*% private$i.year.metalocation.to.year.obs.location.mapping
+                })
+    
+                year.metalocation.to.year.obs.n.mapping.per.stratum = array(0, dim = c(n.years, length(locations.with.n.data) + 1, n.years, n.metalocations))
+                metalocation.info.for.conditioning = metalocation.info$metalocation.to.obs.location.mapping[c(locations.with.n.data, location),]
+                metalocation.info.for.conditioning = metalocation.info.for.conditioning[, apply(metalocation.info.for.conditioning!=0, 2, any)]
+                n.metalocations.for.conditioning = ncol(metalocation.info.for.conditioning)
+                for (y in 1:n.years) {
+                    year.metalocation.to.year.obs.n.mapping.per.stratum[y,,y,] = metalocation.info.for.conditioning
+                }
+                dim(year.metalocation.to.year.obs.n.mapping.per.stratum) = c((length(locations.with.n.data) + 1) * n.years, n.metalocations.for.conditioning * n.years)
+                private$i.year.metalocation.to.year.obs.n.mapping = rep(list(year.metalocation.to.year.obs.n.mapping.per.stratum), n.strata)
+                metalocation.info.for.conditioning.without.msa = metalocation.info.for.conditioning[locations.with.n.data,]
+                
+                # --- N MULTIPLIERS --- #
+                if (post.time.checkpoint.flag) print(paste0("Calculate n multipliers: ", Sys.time()))
+                private$i.year.metalocation.n.multipliers = private$get.n.multipliers(metalocation.to.minimal.component.map = metalocation.to.minimal.component.map,
+                                                                                      metalocation.type = metalocation.type,
+                                                                                      main.location = location,
+                                                                                      stratification = model.stratification, # can be NULL
+                                                                                      sim.ontology = private$i.sim.ontology,
+                                                                                      model.strata = model.strata, # can be NULL
+                                                                                      data.manager = data.manager,
+                                                                                      outcome = private$i.outcome.for.n.multipliers,
+                                                                                      years = years.with.data,
+                                                                                      error.prefix = error.prefix)
+                
+                ## IF THIS RETURNED NULL, IT MEANS WE NEED TO START OVER WITH DIFFERENT YEARS
+                if (!is.null(private$i.year.metalocation.n.multipliers))
+                    break
+                years = private$i.years
             }
-            dim(private$i.year.metalocation.to.year.obs.location.mapping) = c(n.obs.locations*n.years, n.metalocations*n.years)
-            private$i.year.metalocation.to.year.obs.location.mask = apply(private$i.year.metalocation.to.year.obs.location.mapping != 0, 2, any)
-            private$i.year.metalocation.to.year.obs.location.mapping =
-                private$i.year.metalocation.to.year.obs.location.mapping[,private$i.year.metalocation.to.year.obs.location.mask]
-
-            private$i.year.metalocation.to.obs.mapping = lapply(1:n.strata, function(i) {
-                private$i.year.loc.stratum.to.obs.mapping[[i]] %*% private$i.year.metalocation.to.year.obs.location.mapping
-            })
-
-            year.metalocation.to.year.obs.n.mapping.per.stratum = array(0, dim = c(n.years, length(locations.with.n.data) + 1, n.years, n.metalocations))
-            metalocation.info.for.conditioning = metalocation.info$metalocation.to.obs.location.mapping[c(locations.with.n.data, location),]
-            metalocation.info.for.conditioning = metalocation.info.for.conditioning[, apply(metalocation.info.for.conditioning!=0, 2, any)]
-            n.metalocations.for.conditioning = ncol(metalocation.info.for.conditioning)
-            for (y in 1:n.years) {
-                year.metalocation.to.year.obs.n.mapping.per.stratum[y,,y,] = metalocation.info.for.conditioning
-            }
-            dim(year.metalocation.to.year.obs.n.mapping.per.stratum) = c((length(locations.with.n.data) + 1) * n.years, n.metalocations.for.conditioning * n.years)
-            private$i.year.metalocation.to.year.obs.n.mapping = rep(list(year.metalocation.to.year.obs.n.mapping.per.stratum), n.strata)
-            metalocation.info.for.conditioning.without.msa = metalocation.info.for.conditioning[locations.with.n.data,]
-            
-            # --- N MULTIPLIERS --- #
-            if (post.time.checkpoint.flag) print(paste0("Calculate n multipliers: ", Sys.time()))
-            private$i.year.metalocation.n.multipliers = private$get.n.multipliers(metalocation.to.minimal.component.map = metalocation.to.minimal.component.map,
-                                                                                  metalocation.type = metalocation.type,
-                                                                                  main.location = location,
-                                                                                  stratification = model.stratification, # can be NULL
-                                                                                  sim.ontology = private$i.sim.ontology,
-                                                                                  model.strata = model.strata, # can be NULL
-                                                                                  data.manager = data.manager,
-                                                                                  outcome = private$i.outcome.for.n.multipliers,
-                                                                                  years = years.with.data,
-                                                                                  error.prefix = error.prefix)
             
             private$i.year.metalocation.n.multiplier.sd = lapply(private$i.year.metalocation.n.multipliers, function(mult) {
                 mult * private$i.parameters$n.multiplier.cv
@@ -2029,17 +2042,28 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     })
                 }
                 else {
-                    ERROR.MANAGER$code="NL7"
-                    ERROR.MANAGER$contents = list(one.matrix.per.model.stratum=one.matrix.per.model.stratum,
-                                                  outcome=outcome,
-                                                  years=years,
-                                                  years.missing.anything=years.missing.anything,
-                                                  stratification=stratification,
-                                                  model.strata=model.strata,
-                                                  location=location,
-                                                  metalocation.to.minimal.component.map=metalocation.to.minimal.component.map)
                     
-                    stop(paste0(error.prefix, "some or all needed '", outcome, "' data was not found for the following year(s): ", paste0(years.missing.anything, collapse=', '), "; Interpolation was attempted but extrapolation was needed; consider restricting likelihood years"))
+                    # Now, will instead try the whole instantiate again without these years
+                    # find first and last years that we for sure have data for
+                    non.missing.years = setdiff(years, years.missing.anything)
+                    first.non.missing.year = non.missing.years[[1]]
+                    last.non.missing.year = non.missing.years[[length(non.missing.years)]]
+                    # Later, when if we allow a single year of extrapolation on the ends, we may keep more than just this range.
+                    try.again.with.years = years[which(years==first.non.missing.year):which(years==last.non.missing.year)]
+                    private$i.years = as.numeric(try.again.with.years) # has to be numeric to be used later
+                    return()
+                    
+                    # ERROR.MANAGER$code="NL7"
+                    # ERROR.MANAGER$contents = list(one.matrix.per.model.stratum=one.matrix.per.model.stratum,
+                    #                               outcome=outcome,
+                    #                               years=years,
+                    #                               years.missing.anything=years.missing.anything,
+                    #                               stratification=stratification,
+                    #                               model.strata=model.strata,
+                    #                               location=location,
+                    #                               metalocation.to.minimal.component.map=metalocation.to.minimal.component.map)
+                    # 
+                    # stop(paste0(error.prefix, "some or all needed '", outcome, "' data was not found for the following year(s): ", paste0(years.missing.anything, collapse=', '), "; Interpolation was attempted but extrapolation was needed; consider restricting likelihood years"))
                 }
             }
                 

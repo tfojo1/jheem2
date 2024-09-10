@@ -527,10 +527,11 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             
             # VALIDATION PURPOSELY SKIPPED FOR TIME SAVING. ENSURE SIM IS A SIMULATION!
             
-            # check n.sim > 0?
-            
             if (!is(sim, 'jheem.simulation.set'))
                 stop(paste0(error.prefix, "'sim' must be a 'jheem.simulation.set' object"))
+            
+            if (sim$n.sim != 1)
+                stop(paste0(error.prefix, "'sim' must have only one simulation in it"))
             
             if (check.consistency)
             {
