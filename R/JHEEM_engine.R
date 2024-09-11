@@ -855,7 +855,7 @@ SOLVER.METADATA = R6::R6Class(
     )
 )
 
-#'@title Create an Engine to Run JHEEM Simulations
+#'@name Create an Engine to Run JHEEM Simulations
 #'
 #'@param version,location,sub.version The JHEEM version, sub.version, and location for which to run simulations
 #'@param max.run.time.seconds The maximum amount of time to run simulations before terminating
@@ -4253,7 +4253,7 @@ JHEEM = R6::R6Class(
             
             private$i.quantity.values[[quantity.name]][missing.times] = calculated.values$quantity.values
             private$i.quantity.after.values[[quantity.name]][missing.times] = calculated.values$quantity.after.values
-            
+
             return (self)
         },
 
@@ -4763,7 +4763,7 @@ JHEEM = R6::R6Class(
                                   quantity$original.name,
                                   " was returned by function '",
                                   quantity$components[[component.index]]$value.function.name,
-                                  "' for time ", time, " - ")   
+                                  "' for time '", time, "' - ")   
             
             # Make sure it's numeric
             if (!is.numeric(value))
@@ -4774,6 +4774,11 @@ JHEEM = R6::R6Class(
             if (length(value)==0)
                 stop(paste0(error.prefix, 
                             "the returned value cannot be length zero"))
+            
+            # Make sure there are no NA values
+            if (any(is.na(value)))
+                stop(paste0(error.prefix, 
+                            "the returned value cannot contain NA values"))
             
             # Make sure it is either a scalar or has dim.names set
             if (length(value)>1)
