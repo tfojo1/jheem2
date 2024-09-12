@@ -2235,13 +2235,30 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
 #'@param levels.of.stratification
 #'@param outcome.for.p
 #'@param outcome.for.n
+#'@param years Numeric vector
 #'@param sub.location.type Can be NULL
 #'@param super.location.type Can be NULL
 #'@param main.location.type
 #'@param minimum.sample.size
 #'
 #'@export
-get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensions, levels.of.stratification, outcome.for.p, outcome.for.n, sub.location.type, super.location.type, main.location.type = 'CBSA', minimum.sample.size = 12, main.location.type.p.source=NULL, sub.location.type.p.source=NULL, super.location.type.p.source=NULL, main.location.type.n.source=NULL, sub.location.type.n.source=NULL, super.location.type.n.source=NULL, debug=F)
+get.p.bias.estimates = function(data.manager=get.default.data.manager(),
+                                dimensions,
+                                levels.of.stratification,
+                                outcome.for.p,
+                                outcome.for.n,
+                                sub.location.type,
+                                super.location.type,
+                                main.location.type = 'CBSA',
+                                minimum.sample.size = 12, 
+                                years=NULL,
+                                main.location.type.p.source=NULL,
+                                sub.location.type.p.source=NULL,
+                                super.location.type.p.source=NULL,
+                                main.location.type.n.source=NULL,
+                                sub.location.type.n.source=NULL,
+                                super.location.type.n.source=NULL,
+                                debug=F)
 {
     error.prefix = paste0("Error getting p bias estimates for outcome '", outcome.for.p, "': ")
     # --- VALIDATION --- #
@@ -2259,6 +2276,11 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
     # *levels.of.stratification* is NULL or a numeric vector with no NAs or duplicates
     if (!is.numeric(levels.of.stratification) || any(is.na(levels.of.stratification)) || any(duplicated(levels.of.stratification)) || any(sapply(levels.of.stratification, function(x) {x<0})))
         stop(paste0(error.prefix, "'levels.of.stratification' must be NULL or an integer vector containing no NAs, duplicates, or nonnegative numbers"))
+    
+    # *years* is numeric vector or NULL
+    if (!is.null(years) && (!is.numeric(years) || length(years)==0 || any(is.na(years)) || any(duplicated(years))))
+        stop(paste0(error.prefix, "'years' must be NULL or a numeric vector with no NAs or repeats"))
+    year.dimension.values = if (!is.null(years)) list(year=years) else list()
     
     # --- so that I don't have to change the code very much to accommodate not having a sub.location.type or super.location.type, I'll set a default but just skip one or other of the loops later.
     lack.sub.location.type = is.null(sub.location.type)
@@ -2316,7 +2338,7 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
             main.data = data.manager$pull(outcome = outcome.for.p,
                                           sources = main.location.type.p.source,
                                           keep.dimensions = c('year', 'location', stratification),
-                                          dimension.values = list(location = names(main.subs.p)),
+                                          dimension.values = c(year.dimension.values, list(location = names(main.subs.p))),
                                           debug = F)#identical(stratification, "risk"))
             if (is.null(main.data)) return(NULL)
             
@@ -2388,7 +2410,7 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(), dimensi
             main.p.data = data.manager$pull(outcome = outcome.for.p,
                                             sources = main.location.type.p.source,
                                             keep.dimensions = c('year', 'location', stratification),
-                                            dimension.values = list(location = names(main.supers.p.and.n)))
+                                            dimension.values = c(year.dimension.values, list(location = names(main.supers.p.and.n))))
             if (is.null(main.p.data)) return(NULL)
             if (dim(main.p.data)[['source']] > 1)
                 stop(paste0(error.prefix, main.location.type, " '", outcome.for.p, "' data from more than one source found. Please specify a single source to use in 'main.location.type.p.source'")) # SHOULD HAVE BEEN CAUGHT ALREADY
