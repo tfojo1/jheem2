@@ -2235,7 +2235,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
 #'@param levels.of.stratification
 #'@param outcome.for.p
 #'@param outcome.for.n
-#'@param years Numeric vector
+#'@param from.year,to.year Both NULL or both single numeric values
 #'@param sub.location.type Can be NULL
 #'@param super.location.type Can be NULL
 #'@param main.location.type
@@ -2251,7 +2251,8 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(),
                                 super.location.type,
                                 main.location.type = 'CBSA',
                                 minimum.sample.size = 12, 
-                                years=NULL,
+                                from.year=NULL,
+                                to.year=NULL,
                                 main.location.type.p.source=NULL,
                                 sub.location.type.p.source=NULL,
                                 super.location.type.p.source=NULL,
@@ -2277,10 +2278,17 @@ get.p.bias.estimates = function(data.manager=get.default.data.manager(),
     if (!is.numeric(levels.of.stratification) || any(is.na(levels.of.stratification)) || any(duplicated(levels.of.stratification)) || any(sapply(levels.of.stratification, function(x) {x<0})))
         stop(paste0(error.prefix, "'levels.of.stratification' must be NULL or an integer vector containing no NAs, duplicates, or nonnegative numbers"))
     
-    # *years* is numeric vector or NULL
-    if (!is.null(years) && (!is.numeric(years) || length(years)==0 || any(is.na(years)) || any(duplicated(years))))
-        stop(paste0(error.prefix, "'years' must be NULL or a numeric vector with no NAs or repeats"))
-    year.dimension.values = if (!is.null(years)) list(year=years) else list()
+    # *from.year* and *to.year* are numeric or both NULL
+    if (!(is.null(from.year) && is.null(to.year)) && !(!is.null(from.year) && !is.null(to.year)))
+        stop(paste0(error.prefix, "'from.year' and 'to.year' must either both be NULL or both be single numeric values"))
+    # and if numeric, be single and not NA
+    if (!is.null(from.year) && (!is.numeric(from.year) || length(from.year)!=1 || is.na(from.year)))
+        stop(paste0(error.prefix, "'from.year' must either be NULL or both be single numeric values"))
+    if (!is.null(to.year) && (!is.numeric(to.year) || length(to.year)!=1 || is.na(to.year)))
+        stop(paste0(error.prefix, "'to.year' must either be NULL or both be single numeric value"))
+    if (!is.null(to.year) && from.year > to.year)
+        stop(paste0(error.prefix, "if 'to.year' is not NULL, it must be greater than or equal to 'from.year'"))
+    year.dimension.values = if (!is.null(from.year)) list(year=(from.year:to.year)) else list()
     
     # --- so that I don't have to change the code very much to accommodate not having a sub.location.type or super.location.type, I'll set a default but just skip one or other of the loops later.
     lack.sub.location.type = is.null(sub.location.type)
