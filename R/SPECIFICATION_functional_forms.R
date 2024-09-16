@@ -2154,7 +2154,7 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             if (overwrite.knot.values.with.alphas[1])
                 alpha.links = fraction.asymptote.links
             else
-                alpha.links = lapply(franction.asymptote.links, function(l){l$get.coefficient.link()})
+                alpha.links = lapply(fraction.asymptote.links, function(l){l$get.coefficient.link()})
             
             #-- Apply link scale to fraction.asymptotes --#
             fraction.asymptotes = lapply(names(fraction.asymptote.links), function(name){
