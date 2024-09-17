@@ -460,7 +460,7 @@ get.registered.ontology <- function(data.manager = get.default.data.manager(), o
 
 #'@title Get year bounds for outcome
 #'
-#'@details Gets the earliest and latest years for which a data manager has data for a given outcome and metric. Searches all sources and all ontologies that haven't been specifcally excluded
+#'@details Gets the earliest and latest years for which a data manager has data for a given outcome and metric. Searches all sources and all ontologies that haven't been specifically excluded
 #'
 #'@param outcome The outcome for which to find earliest and latest years of data (must be registered in the data manager)
 #'@param metric The type of measurement to find earliest and latest years of data within the outcome. The default value is "estimate", but other options include "cv", "variance", and "sd".
