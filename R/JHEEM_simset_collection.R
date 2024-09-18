@@ -7,7 +7,7 @@
 #'@param n.sim Optional - the number of simulations which collected simsets should contain. If NULL, the number will attempt to be figured out
 #'@param root.dir The root directory relative to which all simset files (and all JHEEM files) are saved
 #'
-#'@value An object of class 'jheem.simset.collection'
+#'@return An object of class 'jheem.simset.collection'
 #'
 #'@export
 create.simset.collection <- function(version,
