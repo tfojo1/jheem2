@@ -1099,10 +1099,10 @@ create.nested.likelihood <- function(data.type=c('suppression','engagement','lin
     
     
 #-- CREATE THE FUNCTION AND RETURN --#
-    browser()
+    
     if (verbose)
         cat("NSTLIK: All done. Packaging up a function and returning.")
-    # return a list of anything I want to see
+    
     function(sim, log=T, debug=F) {
         
         np = extract.np.fn(sim)

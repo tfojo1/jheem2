@@ -50,6 +50,7 @@ get.jheem.root.directory <- function(error.prefix='')
 ##-- SIMSET FILENAME / PATH --##
 ##----------------------------##
 
+#'@export
 get.simset.filename.and.dir <- function(version,
                                         sub.version,
                                         calibration.code,
@@ -145,6 +146,7 @@ get.simset.filename.and.dir <- function(version,
     )
 }
 
+#'@export
 get.simset.filename <- function(version,
                                 sub.version,
                                 calibration.code,
@@ -170,6 +172,7 @@ get.simset.filename <- function(version,
         filename.and.dir$filename
 }
 
+#'@export
 parse.simset.filename <- function(filename, throw.error.if.malformed=T)
 {
     if (!is.character(filename) || length(filename)!=1 || is.na(filename))

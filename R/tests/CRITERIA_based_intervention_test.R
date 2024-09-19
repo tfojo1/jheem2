@@ -85,7 +85,6 @@ crit.int = create.monotonic.criteria.based.intervention (base.intervention = bas
                                                          max.iterations.first.sim = 100,
                                                          n.iterations.after.satisfying.criteria.first.sim = 20,
                                                          max.failure.rate = 0,
-                                                         discount.prior.n = 0,
                                                          code=NULL, 
                                                          name=NULL)
 ptm = Sys.time()

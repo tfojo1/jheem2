@@ -1,5 +1,5 @@
 
-#'@name Create a Collection of JHEEM Simulation-Sets
+#'@title Create a Collection of JHEEM Simulation-Sets
 #'
 #'@param version,sub.version The version and (optional) sub-version for the simsets
 #'@param locations A character vector of locations for which to collect simsets
@@ -7,7 +7,7 @@
 #'@param n.sim Optional - the number of simulations which collected simsets should contain. If NULL, the number will attempt to be figured out
 #'@param root.dir The root directory relative to which all simset files (and all JHEEM files) are saved
 #'
-#'@value An object of class 'jheem.simset.collection'
+#'@return An object of class 'jheem.simset.collection'
 #'
 #'@export
 create.simset.collection <- function(version,
@@ -276,16 +276,15 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
                             sub.rv = simset$parameters
                         else
                         {
-                            invalid.param.names = setdiff(parameter.names, simset$parameter.names)
-                            if (length(invalid.param.names)>0)
-                                stop(paste0(error.prefix,
-                                            ifelse(length(invalid.param.names)==1, "Parameter ", "Parameters "),
-                                            collapse.with.and("'", invalid.param.names, "'"),
-                                            ifelse(length(invalid.param.names)==1, " is", " are"),
-                                            " not present in the simulation for location '",
-                                            loc, "' and intervention '", int.code, "'"))
-                            
-                            sub.rv = simset$parameters[parameter.names,,drop=F]
+                            # invalid.param.names = setdiff(parameter.names, simset$parameter.names)
+                            # if (length(invalid.param.names)>0)
+                            #     stop(paste0(error.prefix,
+                            #                 ifelse(length(invalid.param.names)==1, "Parameter ", "Parameters "),
+                            #                 collapse.with.and("'", invalid.param.names, "'"),
+                            #                 ifelse(length(invalid.param.names)==1, " is", " are"),
+                            #                 " not present in the simulation for location '",
+                            #                 loc, "' and intervention '", int.code, "'"))
+                            sub.rv = simset$parameters[intersect(parameter.names, simset$parameter.names),,drop=F]
                         }
                         
                         sub.rv
@@ -300,10 +299,19 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
             # Fold it into a numeric object, filling in NA's for NULL
             n.inner = length(param.names.to.use)
             
+            dummy.parameters = array(as.numeric(NA),
+                                     dim=c(parameter=n.inner,
+                                           sim=self$n.sim),
+                                     dimnames = list(params=param.names.to.use,
+                                                     sim=1:self$n.sim))
             rv = sapply(list.rv, function(list.rv.for.int){
-                list.rv.for.int[sapply(list.rv.for.int, is.null)] = rep(as.numeric(NA), n.inner)
+#                list.rv.for.int[sapply(list.rv.for.int, is.null)] = rep(as.numeric(NA), n.inner)
                 sapply(list.rv.for.int, function(sub){
-                    sub
+                    sub.rv = dummy.parameters
+                    if (!is.null(sub))
+                        sub.rv[dimnames(sub)[[1]],] = sub
+                    
+                    sub.rv
                 })
             })
             

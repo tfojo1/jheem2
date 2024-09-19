@@ -140,7 +140,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             if (any(duplicated(c(sapply(completion.criteria, function(criterion) {criterion$parameter.name}),
                                  if (!is.null(base.intervention$parameter.distribution)) base.intervention$parameter.distribution@var.names else NULL))))
                 stop(paste0(error.prefix, "completion criteria may not share parameters with each other or with any parameter distributions in the base intervention"))
-            
+           
             # n.iterations.after.satisfying.criteria
             if (!is.numeric(n.iterations.after.satisfying.criteria) || length(n.iterations.after.satisfying.criteria)!=1 || is.na(n.iterations.after.satisfying.criteria))
                 stop(paste0(error.prefix, "'n.iterations.after.satisfying.criteria' must be a single, non-NA numeric value"))
@@ -281,7 +281,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             # if (sim.index==2) browser()
             #-- Step 1: Run with either parameters set to 1 (for a multiplier) or using previous sim parameters --#
             # browser()
-            
+
             # keep separate the parameters passed into this function (which come from a distribution and are NOT optimized) and the ones I will optimize and make sure the engine$run gets them all
             
             tsfx.parameters.to.optimize = sapply(private$i.parameters.to.optimize.names, function(parameter.name) {
@@ -379,7 +379,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 if (sim.index == 1) max.iterations = private$i.max.iterations.first.sim
                 else
                     max.iterations = private$i.max.iterations
-                
+
                 # Rotate through criteria one by one
                 unsatisfied.criteria = seq_along(private$i.completion.criteria) # Note: it's possible that one of ours IS already satisfied...
                 criterion.index = 1
@@ -478,10 +478,14 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 }
                 # print(paste0("Sim ", sim.index, " took ", Sys.time()-ptm, " for ", iteration, " iterations"))
                 
-                if (length(unsatisfied.criteria) > 0 || TRUE) {
+                if (length(unsatisfied.criteria) > 0) {
                     private$i.n.failures = private$i.n.failures + 1
                     if (verbose) print(paste0("Failure on sim.index ", sim.index))
-                    return(derive.degenerate.simulation(prev.sim)) # check with Todd
+                    return(derive.degenerate.simulation(sim,
+                                                        from.year = private$i.keep.from.year,
+                                                        to.year = private$i.keep.to.year,
+                                                        intervention.code = private$i.code,
+                                                        parameters = c(untsfx.parameters.to.optimize, parameters))) # check with Todd
                 }
             }
             #-- Step 3: Try to get closer to the target --#
@@ -543,21 +547,21 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                     criterion$is.satisfied(next.sim, iteration = iteration)
                 }))
                 
-                # use sum score instead
+               # use sum score instead
                 next.score = sum(sapply(private$i.completion.criteria, function(criterion) {
                     criterion$score.sim(next.sim, iteration=iteration, is.fine.tuning=T, verbose=F)
                     # tryCatch(
                     #     {criterion$score.sim(next.sim, iteration=iteration, is.fine.tuning=T, verbose=F)},
                     #     error=function(e) {browser()}
                     # )
-                }))
+                    }))
                 prev.score = sum(sapply(private$i.completion.criteria, function(criterion) {
                     criterion$score.sim(prev.sim, iteration=iteration-1, is.fine.tuning=T, verbose=F)
                     # tryCatch(
                     #     {criterion$score.sim(prev.sim, iteration=iteration-1, is.fine.tuning=T, verbose=F)},
                     #     error=function(e) {browser()}
                     # )
-                }))
+                    }))
                 if (next.score > prev.score && all(criteria.satisfied)) {
                     prev.sim = next.sim
                     tsfx.parameters.to.optimize = tsfx.new.parameters.to.optimize
@@ -585,7 +589,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             
             #-- Step 5: Return sim --#
             return(final.sim)
-            
+           
         },
         
         do.validate = function(jheem.kernel,
@@ -676,7 +680,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                 stop(paste0(error.prefix, "'min.acceptable.parameter.value' must be no less than ", min.parameter.bound, " when scale is '", parameter.scale, "'"))
             if (max.acceptable.parameter.value > max.parameter.bound)
                 stop(paste0(error.prefix, "'max.acceptable.parameter.value' must be no greater than ", max.parameter.bound, " when scale is '", parameter.scale, "'"))
-            
+
             min.acceptable.parameter.value = transform.to.unbounded.scale(min.acceptable.parameter.value, parameter.scale)
             max.acceptable.parameter.value = transform.to.unbounded.scale(max.acceptable.parameter.value, parameter.scale)
             
@@ -892,7 +896,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             #-- Prep the bounds --#
             pre.transformed.sim.value = sim.value = private$optimized.get.sim.value(sim)
             # pre.transformed.sim.value = sim.value = private$get.sim.value(sim)
-            ##
+             ##
             low = private$i.min.acceptable.value[1]
             high = private$i.max.acceptable.value[1]
             scale = sim$outcome.metadata[[private$i.outcome]]$scale
@@ -946,7 +950,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                 base::print(paste0("   ", private$i.outcome, " = ", round(pre.transformed.sim.value,3),
                                    " (p = ", round(exp(log.f), 3), ")"))
             # if (self$parameter.name == 'testing.multiplier')
-            # print(paste0("iteration ", iteration, " has value ", pre.transformed.sim.value, " and score ", log.f))
+                # print(paste0("iteration ", iteration, " has value ", pre.transformed.sim.value, " and score ", log.f))
             if (is.na(log.f))
                 # browser()
                 stop(paste0(error.prefix, "log.f is na: ask Andrew"))
@@ -962,7 +966,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                                                                                                        keep.dimensions = 'year', #by definition, only allowed to get a single scalar, but optimized get requires year
                                                                                                        dimension.values = private$i.dimension.values)
         },
-        
+
         equals = function(other)
         {
             stop('need to implement equals for outcome-based criterion')

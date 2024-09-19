@@ -180,8 +180,10 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                                           sub.version = NULL,
                                           data.manager = get.default.data.manager(), #Bernoulli's don't need this or the next argument
                                           throw.error.if.no.data = F,
-                                          error.prefix = 'Error instantiating likelihood: ')
+                                          error.prefix = NULL)
         {
+            if (is.null(error.prefix))
+                error.prefix = paste0("Error instantiating likelihood for '", private$i.outcome.for.sim, "': ")
             # *error.prefix* is a single non-NA, non-empty character vector
             if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix))
                 stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
@@ -396,7 +398,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
 ##-- THE LIKELIHOOD WEIGHTS CLASS --##
 ##----------------------------------##
 
-#'@name Create Weights to Be Applied in Calculating a JHEEM Likelihood
+#'@title Create Weights to Be Applied in Calculating a JHEEM Likelihood
 #'
 #'@param total.weight The weight that is applied to all observations in the
 #'@param dimension.values
@@ -525,10 +527,11 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             
             # VALIDATION PURPOSELY SKIPPED FOR TIME SAVING. ENSURE SIM IS A SIMULATION!
             
-            # check n.sim > 0?
-            
             if (!is(sim, 'jheem.simulation.set'))
                 stop(paste0(error.prefix, "'sim' must be a 'jheem.simulation.set' object"))
+            
+            if (sim$n.sim != 1)
+                stop(paste0(error.prefix, "'sim' must have only one simulation in it"))
             
             if (check.consistency)
             {

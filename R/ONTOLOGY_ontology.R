@@ -129,7 +129,7 @@ ontology <- function(..., incomplete.dimensions=NULL)
 
 #'@title Print an ontology
 #'
-#'@param ontology An ontology, as created by \code\link{ontology}}
+#'@param ontology An ontology, as created by \code\link{ontology}
 #'
 #'@export
 print.ontology <- function(ont)

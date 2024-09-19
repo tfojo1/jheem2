@@ -12,6 +12,8 @@ load.data.manager(file, name = NULL, description = NULL, set.as.default = F)
 \item{name}{A name for the local data manager. If NULL, the name of the cached data manager.}
 
 \item{description}{A description for the local data manager. If NULL, the description of the cached data manager.}
+
+\item{set.as.default}{Should the loaded data manager be set as the default data manager}
 }
 \description{
 Load a cached data manager

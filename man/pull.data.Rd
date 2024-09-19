@@ -7,6 +7,7 @@
 pull.data(
   data.manager = get.default.data.manager(),
   outcome,
+  metric = "estimate",
   keep.dimensions = NULL,
   dimension.values = NULL,
   sources = NULL,
@@ -27,6 +28,8 @@ pull.data(
 \item{data.manager}{A jheem.data.manager object}
 
 \item{outcome}{The outcome type for the data. Must be an outcome previously registered to this data manager with \code{\link{register.data.outcome}}}
+
+\item{metric}{The type of measurement. The default value is "estimate", but other options include "cv", "variance", and "sd".}
 
 \item{keep.dimensions}{The dimensions that should be retained in the returned value}
 
@@ -56,18 +59,5 @@ The return value may have several attributes:
 (3) If append.attributes includes "details", a list array (a list with dim and dimnames attributes set), with the same dimensions as the returned array, where each element is a character vector of strings giving the details about data collection
 }
 \description{
-#'@export
-pull.data <- function(data.manager,
-                      outcome,
-                      keep.dimensions,
-                      dimensions.values = NULL,
-                      target.ontology,
-                      debug = F)
-{
-    data.manager$pull(outcome=outcome,
-                      keep.dimensions=keep.dimensions,
-                      dimensions.values=dimensions.values,
-                      target.ontology=target.ontology,
-                      debug=debug)
-}
+Pull data from a data manager
 }

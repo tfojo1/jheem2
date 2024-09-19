@@ -17,6 +17,8 @@ copy.data.manager(
 \item{name}{The name of the new data manager}
 
 \item{description}{A short description of the new data manager. If NULL, the description of the copied data manager.}
+
+\item{set.as.default}{Should the new data manager be set as the default data manager}
 }
 \description{
 Create a copy of a JHEEM Data Manager

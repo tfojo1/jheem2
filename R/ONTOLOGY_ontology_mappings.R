@@ -538,6 +538,10 @@ get.mappings.to.align.ontologies <- function(ontology.1,
 #                     ))
     }
     
+    # save most recent call
+    ONTOLOGY.MAPPING.ERROR.MANAGER$recently.aligned.ontologies=list(ontology.1=ontology.1, ontology.2=ontology.2, align.on.dimensions=align.on.dimensions, allow.non.overlapping.incomplete.dimensions=allow.non.overlapping.incomplete.dimensions, include.dim.names=include.dim.names)
+    
+    
     rv
 }
 
@@ -1771,6 +1775,17 @@ ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings=list()
 ONTOLOGY.MAPPING.MANAGER$cached.two.way.mappings=list()
 ONTOLOGY.MAPPING.MANAGER$dimensions.directly.linked.by.mappings=list()
 ONTOLOGY.MAPPING.MANAGER$dimensions.linked.by.mappings=list()
+
+
+##----------------------------------------##
+##----------------------------------------##
+##-- The ONTOLOGY MAPPING ERROR MANAGER --##
+##----------------------------------------##
+##----------------------------------------##
+
+
+ONTOLOGY.MAPPING.ERROR.MANAGER = new.env()
+ONTOLOGY.MAPPING.ERROR.MANAGER$recently.aligned.ontologies=list(ontology.1=NULL, ontology.2=NULL, align.on.dimensions=NULL, allow.non.overlapping.dimensions=NULL, include.dim.names=NULL)
 
 
 ##-----------------------##
