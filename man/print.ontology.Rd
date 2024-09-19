@@ -6,6 +6,9 @@
 \usage{
 \method{print}{ontology}(ont)
 }
+\arguments{
+\item{ontology}{An ontology, as created by \code\link{ontology}}
+}
 \description{
 Print an ontology
 }

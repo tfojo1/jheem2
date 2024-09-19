@@ -1,6 +1,13 @@
-# Hello, Andrew
 
-
+#'@param version The version of the model specification (must have been previously registered)
+#'@param location A single character value representing the location for the calibration
+#'@param calibration.code
+#'@param root.dir
+#'@param sub.version
+#'@param cache.frequency
+#'@param allow.overwrite.cache
+#'@param verbose
+#'
 #'@export
 set.up.calibration <- function(version,
                                location,
@@ -372,6 +379,11 @@ set.up.calibration <- function(version,
         print(paste0(verbose.prefix, "All Done!"))
 }
 
+#'@inheritParams set.up.calibration
+#'@param chains
+#'@param update.frequency
+#'@param update.detail
+#'
 #'@export
 run.calibration <- function(version,
                             location,
@@ -393,6 +405,9 @@ run.calibration <- function(version,
                                               
 }
 
+#'@inheritParams set.up.calibration
+#'@param allow.remove.incomplete
+#'
 #'@export
 clear.calibration.cache <- function(version,
                                     location,
@@ -407,6 +422,10 @@ clear.calibration.cache <- function(version,
                                             allow.remove.incomplete = allow.remove.incomplete)    
 }
 
+#'@inheritParams set.up.calibration
+#'@param allow.remove.incomplete
+#'@param chains
+#'
 #'@export
 assemble.mcmc.from.calibration <- function(version,
                                            location,
@@ -425,6 +444,9 @@ assemble.mcmc.from.calibration <- function(version,
     mcmc
 }
 
+#'@inheritParams assemble.mcmc.from.calibration
+#'@param include.first.sim
+#'
 #'@export
 extract.last.simulation.from.calibration <- function(version,
                                                      location,
@@ -498,6 +520,8 @@ extract.last.simulation.from.calibration <- function(version,
     sim
 }
 
+#'@inheritParams assemble.mcmc.from.calibration
+#'
 #'@export
 assemble.simulations.from.calibration <- function(version,
                                                   location,
@@ -559,6 +583,25 @@ assemble.simulations.from.calibration <- function(version,
     join.simulation.sets(simulations, finalize = T, run.metadata = join.run.metadata(run.metadatas))
 }
 
+#'@param code
+#'@param likelihood.instructions
+#'@param is.preliminary
+#'@param end.year
+#'@param parameter.names
+#'@param n.iter
+#'@param thin
+#'@param description
+#'@param fixed.initial.parameter.values
+#'@param max.run.time.seconds
+#'@param solver.metadata
+#'@param n.chains
+#'@param n.burn
+#'@param data.manager
+#'@param preceding.calibration.codes
+#'@param weight.to.preceding.variance.estimates
+#'@param pull.parameters.and.values.from.preceding
+#'@param error.prefix
+#'
 #'@export
 register.calibration.info <- function(code,
                                       likelihood.instructions,

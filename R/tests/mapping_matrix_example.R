@@ -51,8 +51,3 @@ mp$apply(arr.jheem.sex.risk, to.dim.names = cdc.only.sex)
 # meaning our columns are in the expected order
 # but our rows are male/msm, female/msm, male/msm_idu, female/msm_idu, male/het, female/het, male/idu, female/idu
 # which is not the expected order of sex and risk dimensions (risk is first but sex was expected to be first)
-
-jheem.risk.sex = ontology(risk = c('never_IDU', 'active_IDU', 'IDU_in_remission'), sex = c('heterosexual_male', 'msm', 'female'))
-mpA = get.ontology.mapping(jheem.risk.sex, cdc.sex.risk)
-matA1 = mp$get.matrix(jheem.risk.sex, cdc.sex.risk)
-matA2 = mp$get.matrix(jheem.risk.sex, cdc.only.sex)

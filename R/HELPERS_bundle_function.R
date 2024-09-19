@@ -1,4 +1,7 @@
 
+
+# exporting for now so we can test that this is pulling the right functions from withing the package
+#'@export
 get.depends.on.functions <- function(fn,
                                      omit.function.names = if (exists('JHEEM2.FUNCTION.NAMES')) JHEEM2.FUNCTION.NAMES else character(),
                                      omit.methods = T,
@@ -7,9 +10,15 @@ get.depends.on.functions <- function(fn,
                                      omit.explicit.package.calls = T,
                                      recursive = T,
                                      fn.name.for.error = "The function",
-                                     error.prefix = "")
+                                     only.for.ancestor.environment = .GlobalEnv,
+                                     error.prefix = "",
+                                     depth = 0 # used for debugging
+)
 {
-    if (is.primitive(fn))
+    if (!is.null(only.for.ancestor.environment) && !identical(only.for.ancestor.environment, topenv(environment(fn))))
+        return (list())
+    
+    if (omit.primitives && is.primitive(fn))
         return (list())
   
     #-- Prepare a place-holder function name for functions we want to strip out --#
@@ -41,7 +50,7 @@ get.depends.on.functions <- function(fn,
                        all.vars(reparsed, functions = F))
     fn.names = setdiff(fn.names, HOLDER)
     fn.names = setdiff(fn.names, omit.function.names)
-
+    
     #-- Start omitting stuff --#
         
     if (omit.functions.from.any.package)
@@ -53,14 +62,16 @@ get.depends.on.functions <- function(fn,
     
     for (name in fn.names)
     {
-        if (!exists(name))
+        if (!exists(name, where=environment(fn)))
+        {
             stop(paste0(error.prefix, 
                         fn.name.for.error,
                         " depends on function ",
                         name, "() - but this function has not been defined"))
+        }
     }
     
-    fns = lapply(fn.names, get)
+    fns = lapply(fn.names, get, pos=environment(fn))
     names(fns) = fn.names
     
     if (omit.primitives && !omit.functions.from.any.package)
@@ -89,7 +100,8 @@ get.depends.on.functions <- function(fn,
                                                  omit.explicit.package.calls = omit.explicit.package.calls,
                                                  recursive = T,
                                                  fn.name.for.error = names(fns)[i],
-                                                 error.prefix = error.prefix))
+                                                 error.prefix = error.prefix,
+                                                 depth = depth+1))
             }
         }
     }

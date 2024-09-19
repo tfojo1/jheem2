@@ -28,6 +28,8 @@ create.monotonic.criteria.based.intervention(
 \item{n.iterations.after.satisfying.criteria}{The number of iterations to run after we have satisfied the criteria to try to get as close as possible to the target}
 
 \item{max.failure.rate}{The maximum proportion of simulations in a simulation set which can fail to find a solution that satisfies intervention criteria within max.iterations. If this threshold is exceeded, will throw an error; otherwise, will return degenerate simulations when it could not find a solution}
+
+\item{code}{A brief (2-30 character) string that will uniquely identify this intervention}
 }
 \description{
 Create a "Guess-and-Check" Intervention that Must Satisfy Some Criteria by Varying Parameters

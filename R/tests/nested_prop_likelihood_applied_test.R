@@ -51,13 +51,13 @@ suppression.likelihood.instructions =
   create.nested.proportion.likelihood.instructions(outcome.for.data = "suppression",
                                                    outcome.for.sim = "suppression",
                                                    denominator.outcome.for.data = 'diagnosed.prevalence',
-                                                   # denominator.outcome.for.sim = 'diagnosed.prevalence',
+                                                   denominator.outcome.for.sim = 'diagnosed.prevalence',
                                                    
                                                    location.types = c('COUNTY','STATE','CBSA'),
                                                    minimum.geographic.resolution.type = 'COUNTY',
                                                    
-                                                   # dimensions = c("age","sex","race","risk"),
-                                                   dimensions = c("sex"),
+                                                   dimensions = c("age","sex","race","risk"),
+                                                   #dimensions = c("sex"),
                                                    levels.of.stratification = c(0,1), 
                                                    from.year = as.integer(2008), 
                                                    

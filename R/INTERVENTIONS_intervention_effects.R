@@ -1,5 +1,5 @@
 
-#'@name Create an Effect for an Intervention to Have on a Model Quantity
+#'@title Create an Effect for an Intervention to Have on a Model Quantity
 #'
 #'@param quantity.name The name of the quantity, defined in a jheem.model.specification, which an intervention affects
 #'@param start.time The time at which the intervention begins to take effect (ie, depart from what the value of the quantity would otherwise have been)

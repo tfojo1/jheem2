@@ -1,5 +1,2 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^R\tests$
-^data-raw$
-^\.github$
