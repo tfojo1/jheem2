@@ -1,4 +1,5 @@
-
+#'@title Create A Style Manager
+#'
 #'@export
 create.style.manager = function(color.sim.by = 'stratum',
                                 color.data.by = 'stratum', # can change it to location.type
