@@ -59,5 +59,18 @@ The return value may have several attributes:
 (3) If append.attributes includes "details", a list array (a list with dim and dimnames attributes set), with the same dimensions as the returned array, where each element is a character vector of strings giving the details about data collection
 }
 \description{
-Pull data from a data manager
+#'@export
+pull.data <- function(data.manager,
+                      outcome,
+                      keep.dimensions,
+                      dimensions.values = NULL,
+                      target.ontology,
+                      debug = F)
+{
+    data.manager$pull(outcome=outcome,
+                      keep.dimensions=keep.dimensions,
+                      dimensions.values=dimensions.values,
+                      target.ontology=target.ontology,
+                      debug=debug)
+}
 }
