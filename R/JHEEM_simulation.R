@@ -76,6 +76,7 @@ get.simulation.metadata <- function(version,
                             error.prefix = error.prefix)
 }
 
+
 #'@title Rerun a Simulation Set
 #'
 #'@inheritParams create.jheem.engine
@@ -1098,9 +1099,13 @@ load.simulation.set <- function(file)
     copy.simulation.set(simset)
 }
 
-#'@title Make a copy of a Simulation Set
+#'@title Copy a Simulation Set
 #'
-#'@param simset The simulation.set object to copy
+#'@param simset A jheem.simulation.set object to copy
+#'
+#'@details Takes all the data/metadata from an existing simulation set, and puts it into a new simulation set object. This allows a simulation set created with a previous code structure to be updated to the newest code for the simulation set objects.
+#'
+#'@returns A jheem.simulation.set object
 #'
 #'@export
 copy.simulation.set <- function(simset)
