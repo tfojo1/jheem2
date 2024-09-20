@@ -47,6 +47,7 @@ get.simset.data <- function(simset,
 #'@param location A single character value representing the location for the metadata
 #'@param error.prefix A string to prepend to any errors generated in getting the metadata object
 #'@param from.year,to.year The years which a corresponding simulation will have data for
+#'@param jheem.kernel Optional: the jheem.kernel on which to base the simulation metadata
 #'
 #'@details A simulation.metadata object contains metadata, such as the dim.names to which its contents will conform
 #'
@@ -56,15 +57,24 @@ get.simulation.metadata <- function(version,
                                     from.year = NULL, to.year = NULL,
                                     n.sim = 1,
                                     sub.version = NULL,
+                                    jheem.kernel = NULL,
                                     error.prefix = paste0("Error deriving the simulation-metadata for '", version, "' and location '", location, "': "))
 {
-    specification = get.compiled.specification.for.version(version)
-    specification.metadata = do.get.specification.metadata(specification, location, error.prefix = error.prefix)
+    if (is.null(jheem.kernel))
+    {
+        jheem.kernel.or.specification = get.compiled.specification.for.version(version)
+        specification.metadata = do.get.specification.metadata(specification, location, error.prefix = error.prefix)   
+    }
+    else
+    {
+        jheem.kernel.or.specification = jheem.kernel
+        specification.metadata = jheem.kernel$specification.metadata
+    }
     
     SIMULATION.METADATA$new(version = version,
                             location = location,
                             sub.version = sub.version,
-                            metadata =  make.simulation.metadata.field(jheem.kernel.or.specification = specification,
+                            metadata =  make.simulation.metadata.field(jheem.kernel.or.specification = jheem.kernel.or.specification,
                                                                        specification.metadata = specification.metadata,
                                                                        sub.version = sub.version,
                                                                        outcome.location.mapping = NULL,
