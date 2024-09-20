@@ -1111,6 +1111,50 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         
         i.error.vector = NULL,
         
+        do.compute.lognormal.lagged = function(sim, log, check.consistency, debug)
+        {
+            use.poisson = is.null(private$i.denominator.outcome.for.sim) && !private$i.outcome.is.proportion
+            needs.denominator = use.poisson && !private$i.outcome.is.rate
+            
+            sim.numerator.data = as.numeric(sim$optimized.get(private$i.optimized.get.instructions[["sim.num.instr"]]))
+            if (needs.denominator)
+                sim.denominator.data = as.numeric(sim$optimized.get(private$i.optimized.get.instructions[["sim.denom.instr"]]))
+            else
+                sim.denominator.data = 1
+            
+            raw.sim.mean = sim.numerator.data / sim.denominator.data
+            
+            if (use.poisson)
+                raw.sim.variance =  sim.numerator.data / sim.denominator.data^2 # x / n^2
+            else
+                raw.sim.variance = sim.numerator.data * (1-raw.sim.mean) # n*p*(1-p)
+            
+            log.sim.variance = log(raw.sim.variance / (raw.sim.mean^2) + 1)
+            log.sim.mean = log(raw.sim.mean) - log.sim.variance/2
+            log.sim.sigma = diag(log.sim.variance)
+            
+            lagged.log.sim.mean = sim.lag.matrix %*% lagged.log.sim.mean
+            lagged.log.sim.sigma = sim.lag.matrix %*% log.sim.sigma %*% t(sim.lag.matrix)
+            
+            lagged.sim.mean = exp(lagged.log.sim.mean + diag(lagged.log.sim.sigma)/2)
+            lagged.sim.sigma = lagged.sim.mean %*% t(lagged.sim.mean) * (exp(lagged.log.sim.sigma) - 1)
+            
+            lagged.n = abs(sim.lag.matrix) %*% sim.denominator.data / 2
+            
+            
+            aggregated.lagged.sim.n = 
+                
+                log.obs.sigma = log(private$i.measurement.error.covariance.matrix + 1)
+            log.obs = log(private$i.obs.vector)
+            
+            obs.lag.matrix
+            lagged.log.obs = obs.lag.matrix %*% log.obs
+            lagged.log.obs.sigma = obs.lag.matrix %*% log.obs.sigma %*% t(obs.lag.matrix)
+            
+            #  lagged.obs = 
+            
+        },
+        
         do.compute = function(sim, log, check.consistency, debug)
         {
             sim.numerator.data = sim$optimized.get(private$i.optimized.get.instructions[["sim.num.instr"]])
