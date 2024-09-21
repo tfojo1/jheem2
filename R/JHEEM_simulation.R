@@ -54,7 +54,8 @@ get.simset.data <- function(simset,
 #'@export
 get.simulation.metadata <- function(version, 
                                     location,
-                                    from.year = NULL, to.year = NULL,
+                                    from.year = NULL, 
+                                    to.year = NULL,
                                     n.sim = 1,
                                     sub.version = NULL,
                                     jheem.kernel = NULL,
@@ -63,7 +64,7 @@ get.simulation.metadata <- function(version,
     if (is.null(jheem.kernel))
     {
         jheem.kernel.or.specification = get.compiled.specification.for.version(version)
-        specification.metadata = do.get.specification.metadata(specification, location, error.prefix = error.prefix)   
+        specification.metadata = do.get.specification.metadata(jheem.kernel.or.specification, location, error.prefix = error.prefix)   
     }
     else
     {
@@ -78,10 +79,10 @@ get.simulation.metadata <- function(version,
                                                                        specification.metadata = specification.metadata,
                                                                        sub.version = sub.version,
                                                                        outcome.location.mapping = NULL,
-                                                                       from.year=from.year,
-                                                                       to.year=to.year,
+                                                                       from.year = from.year,
+                                                                       to.year = to.year,
                                                                        n.sim = n.sim,
-                                                                       error.prefix=error.prefix),
+                                                                       error.prefix = error.prefix),
                             type = "Simulation Metadata",
                             error.prefix = error.prefix)
 }
