@@ -267,7 +267,11 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             private$i.param.has.pos.direction = sapply(private$i.parameters.to.optimize.names, function(x) {NA})
             
             # set up the optimized sim get
-            sim.metadata = get.simulation.metadata(version=sim$version, location=sim$location, from.year=keep.from.year, to.year=keep.to.year)
+            sim.metadata = get.simulation.metadata(version=sim$version, 
+                                                   location=sim$location,
+                                                   jheem.kernel=sim$jheem.kernel,
+                                                   from.year=keep.from.year, 
+                                                   to.year=keep.to.year)
             for (criterion in private$i.completion.criteria) {criterion$prepare.optimized.sim.get.instructions(sim.metadata)}
             
             private$i.total.iterations = 0
