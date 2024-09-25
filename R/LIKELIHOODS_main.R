@@ -519,8 +519,9 @@ JHEEM.LIKELIHOOD = R6::R6Class(
         
         #'@param sim A 'jheem.simulation.set' object
         #'@param log Whether to use log likelihood
+        #'@param use.optimized.get Should the optimized sim$get be used? The optimized get only works on simsets of the same internal structure as that defined in the specification at the time this likelihood was instantiated, so use it for the MCMC but leave it FALSE for analysis.
         #'@param check.consistency - Whether to spend time checking to make sure everything is internally consistent. Setting to F is faster, but may generate weird error messages if there are bugs
-        compute = function(sim, log=T, check.consistency=private$i.check.consistency.flag, debug=F)
+        compute = function(sim, log=T, use.optimized.get=F, check.consistency=private$i.check.consistency.flag, debug=F)
         {
             #@Andrew implement
             error.prefix = "Error computing likelihood: "
@@ -546,7 +547,7 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             }
             
             # Call the subclass function
-            result=private$do.compute(sim, log=log, check.consistency=check.consistency, debug=debug)
+            result=private$do.compute(sim, log=log, use.optimized.get = use.optimized.get, check.consistency=check.consistency, debug=debug)
             
             # Flip check.consistency flag
             private$i.check.consistency.flag = F
@@ -555,18 +556,18 @@ JHEEM.LIKELIHOOD = R6::R6Class(
         },
         
         # A function-factory
-        get.compute.function = function(default.log=T, check.consistency=T, debug=F)
+        get.compute.function = function(default.log=T, default.use.optimized.get=F, check.consistency=T, debug=F)
         {
-            function(sim, log=default.log)
+            function(sim, log=default.log, use.optimized.get=default.use.optimized.get)
             {
-                self$compute(sim, log=log, check.consistency=check.consistency, debug=debug)
+                self$compute(sim, log=log, use.optimized.get=F, check.consistency=check.consistency, debug=debug)
             }
         },
         
         # Override at the sub-class level, just for joint likelihood
-        compute.piecewise = function(sim, log=T, check.consistency=T, debug=F)
+        compute.piecewise = function(sim, log=T, use.optimized.get=F, check.consistency=T, debug=F)
         {
-            self$compute(sim=sim, log=log, check.consistency = check.consistency, debug=debug)
+            self$compute(sim=sim, log=log, use.optimized.get=use.optimized.get, check.consistency = check.consistency, debug=debug)
         },
         
         # compare sims
@@ -615,7 +616,7 @@ JHEEM.LIKELIHOOD = R6::R6Class(
         i.stratifications = NULL,
         i.weights = NULL,
         
-        do.compute = function(sim, log, check.consistency, debug)
+        do.compute = function(sim, log, use.optimized.get=F, check.consistency, debug)
         {
             stop("The 'do.compute' function must be overridden at the subclass-level for a jheem.likelihood")  
         },

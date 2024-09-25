@@ -1426,13 +1426,32 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         i.lagged.pairs = NULL,
         i.metadata.for.lag = NULL,
         
-        do.compute = function(sim, log=T, check.consistency=T, debug=F)
+        do.compute = function(sim, log=T, use.optimized.get=F, check.consistency=T, debug=F)
         {
-            sim.p = sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])
-            if (is.null(private$i.denominator.outcome.for.sim))
-                sim.n = sim$optimized.get(private$i.optimized.get.instructions[["sim.n.instr"]])
-            else
-                sim.n = sim$optimized.get(private$i.optimized.get.instructions[["sim.n.instr"]])
+            if (use.optimized.get) {
+                sim.p = sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])
+                if (is.null(private$i.denominator.outcome.for.sim))
+                    sim.n = sim$optimized.get(private$i.optimized.get.instructions[["sim.n.instr"]])
+                else
+                    sim.n = sim$optimized.get(private$i.optimized.get.instructions[["sim.n.instr"]])
+            }
+            else {
+                sim.p = sim$get(outcome = private$i.outcome.for.sim,
+                                keep.dimensions = private$i.sim.keep.dimensions,
+                                dimension.values = private$i.sim.dimension.values,
+                                drop.single.sim.dimension = T)
+                if (is.null(private$i.denominator.outcome.for.sim))
+                    sim.n = sim$get(outcome = private$i.outcome.for.sim,
+                                    keep.dimensions = private$i.sim.keep.dimensions,
+                                    dimension.values = private$i.sim.dimension.values,
+                                    output = 'denominator',
+                                    drop.single.sim.dimension = T)
+                else
+                    sim.n = sim$get(outcome = private$i.denominator.outcome.for.sim,
+                                    keep.dimensions = private$i.sim.keep.dimensions,
+                                    dimension.values = private$i.sim.dimension.values,
+                                    drop.single.sim.dimension = T)
+            }
             
             flattened.dims = c(year = dim(sim.p)[['year']], stratum = prod(dim(sim.p)[names(dim(sim.p)) != 'year']))
             dim(sim.p) = flattened.dims

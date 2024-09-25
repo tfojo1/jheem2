@@ -245,7 +245,7 @@ set.up.calibration <- function(version,
                                                                              data.manager=calibration.info$data.manager)
 
     compute.likelihood <- function(sim) {
-        likelihood$compute(sim=sim, log=T, check.consistency=F)
+        likelihood$compute(sim=sim, log=T, use.optimized.get=T, check.consistency=F)
     }
     
 
@@ -279,9 +279,9 @@ set.up.calibration <- function(version,
     for (i in 1:dim(starting.parameter.values)[1])
     {
         sim = run.simulation(starting.parameter.values[1,])
-        if (likelihood$compute(sim)==-Inf)
+        if (likelihood$compute(sim, use.optimized.get=T)==-Inf)
         {
-            lik.pieces = likelihood$compute.piecewise(sim)
+            lik.pieces = likelihood$compute.piecewise(sim, use.optimized.get=T)
             errored.likelihood <<- likelihood
             errored.sim <<- sim
             

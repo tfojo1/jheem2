@@ -1111,9 +1111,16 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         
         i.error.vector = NULL,
         
-        do.compute = function(sim, log, check.consistency, debug)
+        do.compute = function(sim, log, use.optimized.get=F, check.consistency, debug)
         {
-            sim.numerator.data = sim$optimized.get(private$i.optimized.get.instructions[["sim.num.instr"]])
+            if (use.optimized.get)
+                sim.numerator.data = sim$optimized.get(private$i.optimized.get.instructions[["sim.num.instr"]])
+            else
+                sim.numerator.data = sim$get(outcomes = private$i.outcome.for.sim,
+                                             keep.dimensions = names(private$i.sim.required.dimnames),
+                                             dimension.values = private$i.sim.dimension.values,
+                                             output = 'numerator',
+                                             drop.single.sim.dimension = T)
             
             # we use Poisson if we are neither a proportion nor have a denominator outcome for sim provided
             # Rates are always Poisson because they are not bounded 0-1, and p(1-p) could go negative!
@@ -1125,7 +1132,19 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 sim.denominator.data = numeric(0)
                 expanded.sim.denominator.data = numeric(0)# so as not to throw errors in cpp sigma
             } else {
-                sim.denominator.data = sim$optimized.get(private$i.optimized.get.instructions[["sim.denom.instr"]])
+                if (use.optimized.get)
+                    sim.denominator.data = sim$optimized.get(private$i.optimized.get.instructions[["sim.denom.instr"]])
+                else if (is.null(private$i.denominator.outcome.for.sim))
+                    sim.denominator.data = sim$get(outcome = private$i.outcome.for.sim,
+                                                   keep.dimensions = names(private$i.denominator.required.dimnames),
+                                                   dimension.values = private$i.denominator.dimension.values,
+                                                   output = 'denominator',
+                                                   drop.single.sim.dimension = T)
+                else
+                    sim.denominator.data = sim$get(outcome = private$i.denominator.outcome.for.sim,
+                                                   keep.dimensions = names(private$i.denominator.required.dimnames),
+                                                   dimension.values = private$i.denominator.dimension.values,
+                                                   drop.single.sim.dimension = T)
                 expanded.sim.denominator.data = expand.array(sim.denominator.data, dimnames(sim.numerator.data))
             }
             
