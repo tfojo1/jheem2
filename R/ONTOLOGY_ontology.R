@@ -204,7 +204,7 @@ is.ontology <- function(x)
 
 #'@title Get indicators of which dimensions in an ontology are complete
 #'
-#'@param ontology An ontology, as created by \code\link{ontology}}
+#'@param ontology An ontology, as created by \code{\link{ontology}}
 #'
 #'@return A named logical vector - the corresponding to names(ontology) - indicating whether each dimension is complete
 #'
@@ -227,7 +227,7 @@ is_complete.ontology <- function(x)
 
 #'@title Get indicators of which dimensions in an ontology are complete
 #'
-#'@param ontology An ontology, as created by \code\link{ontology}}
+#'@param ontology An ontology, as created by \code{\link{ontology}}
 #'
 #'@return A named logical vector - the corresponding to names(ontology) - indicating whether each dimension is complete
 #'
@@ -245,7 +245,7 @@ is.complete <- function(x)
 
 #'@title Get an ontology's incomplete dimensions
 #'
-#'@param ontology An ontology, as created by \code\link{ontology}}
+#'@param ontology An ontology, as created by \code{\link{ontology}}
 #'
 #'@return A vector containing the names of the ontology's incomplete dimensions
 #'
@@ -257,7 +257,7 @@ incomplete.dimensions.ontology <- function(x)
 
 #'@title Get an ontology's incomplete dimensions
 #'
-#'@param ontology An ontology, as created by \code\link{ontology}}
+#'@param ontology An ontology, as created by \code{\link{ontology}}
 #'
 #'@return A vector containing the names of the ontology's incomplete dimensions
 #'
@@ -303,7 +303,7 @@ incomplete.dimensions <- function(x)
 
 #'@title Subset an ont
 #'
-#'@param ont An ontology, as created by \code\link{ontology}}
+#'@param ont An ontology, as created by \code{\link{ontology}}
 #'@param i What to subset
 #'
 #'@return An ontology
@@ -329,7 +329,7 @@ incomplete.dimensions <- function(x)
 
 #'@title Modify an ontology
 #'
-#'@param ont An ontology, as created by \code\link{ontology}}
+#'@param ont An ontology, as created by \code{\link{ontology}}
 #'@param i What to subset
 #'@param value New values to insert
 #'
@@ -412,7 +412,7 @@ incomplete.dimensions <- function(x)
 
 #'@title Modify an ontology
 #'
-#'@param ont An ontology, as created by \code\link{ontology}}
+#'@param ont An ontology, as created by \code{\link{ontology}}
 #'@param i What to subset
 #'@param value New value to insert
 #'
@@ -449,7 +449,7 @@ incomplete.dimensions <- function(x)
 
 #'@title Modify an ontology
 #'
-#'@param ont An ontology, as created by \code\link{ontology}}
+#'@param ont An ontology, as created by \code{\link{ontology}}
 #'@param i What to subset
 #'@param value New value to insert
 #'
@@ -550,7 +550,7 @@ c.ontology <- function(...)
 
 #'@title Resolve dimension.values into a set of dimnames for an ontology
 #'
-#'@param ont An ontology, as created by \code\link{ontology}}
+#'@param ont An ontology, as created by \code{\link{ontology}}
 #'@param dimension.values A list of dimension.values (ie, a named list of either character, integer, or logical vectors that indexes into the dimnames given in ont)
 #'@param error.prefix Text to prepend to any error messages that are thrown
 #'@param throw.error.if.unresolvable A logical indicating what to do if unable to resolve against the ontology. When FALSE, will return NULL if unresolvable

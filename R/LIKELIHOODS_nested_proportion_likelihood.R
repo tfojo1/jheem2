@@ -1,11 +1,8 @@
 
 #'@title Created Nested Proportion Likelihood Instructions With Included Multiplier
 #'
+#'@inheritParams create.basic.likelihood.instructions.with.included.multiplier
 #'@inheritParams create.nested.proportion.likelihood.instructions
-#'@param included.multiplier
-#'@param included.multiplier.sd
-#'@param included.multiplier.correlation
-#'@param included.multiplier.correlation.structure
 #'
 #'@export
 create.nested.proportion.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
@@ -106,6 +103,9 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
                                                         calculate.lagged.difference = F)
 }
 
+#'@title Create Time Lagged Comparison Nested Proportion Likelihood Instructions
+#'@inheritParams create.time.lagged.comparison.likelihood.instructions
+#'@inheritParams create.nested.proportion.likelihood.instructions
 #'@export
 create.time.lagged.comparison.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                                                     denominator.outcome.for.data, # is NEVER null here because we are working with proportions
@@ -207,7 +207,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
 #'@param p.bias.outside.location A single numeric value specifying the bias in the outcome proportion between locations outside the model location and the model location itself
 #'@param p.bias.sd.inside.location The standard deviation associated with 'p.bias.inside.location'
 #'@param p.bias.sd.outsidde.location The standard deviation associated with 'p.bias.outside.location'
-#'@param within.location.p.error.correlation 
+#'@param within.location.p.error.correlation Corre
 #'@param within.location.n.error.correlation
 #'@param correlation.different.locations
 #'@param denominator.measurement.error.cv
@@ -2248,17 +2248,16 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
     )
 )
 
-
+#'@title Get P Bias Estimates
+#'@inheritParams create.nested.proportion.likelihood.instructions
 #'@param data.manager The name of the data manager
-#'@param dimensions
-#'@param levels.of.stratification
-#'@param outcome.for.p
-#'@param outcome.for.n
+#'@param outcome.for.p,outcome.for.n Outcome names for proportion and denominator data, respectively, as found in the data manager
 #'@param from.year,to.year Both NULL or both single numeric values
-#'@param sub.location.type Can be NULL
-#'@param super.location.type Can be NULL
-#'@param main.location.type
-#'@param minimum.sample.size
+#'@param sub.location.type Used to find p-bias "inside" estimates by comparing data for this type against that of the main location type. If NULL, no p-bias "inside" estimates are found.
+#'@param super.location.type Used to find p-bias "outside" estimates by comparing data for this type against that of the main location type. If NULL, no p-bias "outside" estimates are found.
+#'@param main.location.type The location type that serves as the basis of comparison.
+#'@param minimum.sample.size Numeric value specifying the minimum number of sub-main location pairs (or super-main location pairs) that must be found in order to calculate p-bias estimates
+#'@return A list containing mean and sd for p-bias "inside" and p-bias "outside" estimates. Some or all of these may be NA if 'sub.location.type' and/or 'super.location.type' were left NULL.
 #'
 #'@export
 get.p.bias.estimates = function(data.manager=get.default.data.manager(),
