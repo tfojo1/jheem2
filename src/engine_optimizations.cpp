@@ -18,6 +18,22 @@ RObject get_list_elem_by_name(List values,
     return (R_NilValue);
 }
 
+int get_list_elem_index(List values,
+                        const char* to_get_name)
+{
+    if (values.length()==0)
+        return (-1);
+    
+    CharacterVector names = values.attr("names");
+    for (int i=0; i<values.length(); i++)
+    {
+        if (names[i]==to_get_name)
+            return (i);
+    }
+    
+    return (-1);
+}
+
 bool dim_names_are_equal(RObject dim_names_1,
                          RObject dim_names_2)
 {
@@ -254,7 +270,9 @@ RObject do_calculate_quantity_background_value(List quantity,
                     //-- Calculate the value --//
                     // Rcout << "Evaluating the value of the component...";
                     
-                    Function evaluate_function = comp["evaluate"];
+                    //Function evaluate_function = comp["evaluate"];
+                    int evaluate_function_index = get_list_elem_index(comp, "evaluate");
+                    Function evaluate_function = comp[evaluate_function_index];
                     NumericVector value = evaluate_function(Named("bindings") = bindings, 
                                                             _["error.prefix"] = error_prefix);
                     // Rcout << "done\n";
