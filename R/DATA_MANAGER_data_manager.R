@@ -269,7 +269,8 @@ put.data <- function(data.manager = get.default.data.manager(),
                      url,
                      details,
                      allow.na.to.overwrite=F,
-                     debug=F)
+                     debug=F,
+                     printouts=F)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -283,7 +284,8 @@ put.data <- function(data.manager = get.default.data.manager(),
                      url=url,
                      details=details,
                      allow.na.to.overwrite=allow.na.to.overwrite,
-                     debug=F)
+                     debug=F,
+                     printouts=printouts)
 }
 
 #'@title Put long-form data into a data manager
@@ -302,7 +304,8 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                url,
                                details,
                                allow.na.to.overwrite=F,
-                               debug=F)
+                               debug=F,
+                               printouts=F)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -316,7 +319,8 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                url=url,
                                details=details,
                                allow.na.to.overwrite=allow.na.to.overwrite,
-                               debug=F)
+                               debug=F,
+                               printouts=printouts)
 }
 
 #' #'@export
@@ -922,8 +926,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                        url,
                        details,
                        allow.na.to.overwrite=F,
-                       debug=F)
+                       debug=F,
+                       printouts=F)
         {
+            if (printouts) {
+                dots = "........"
+                puttime=Sys.time()
+                print(paste0("Beginning put for outcome '", outcome, "', source '", source, "' at ", puttime))
+            }
             #------------------------#
             #-- Validate arguments --#
             #------------------------#
@@ -1032,6 +1042,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
 
             # check dimension.values are valid
             # map them to character values
+            if (printouts) {
+                checktime = Sys.time()
+                print(paste0(dots, "Performing checks at ", checktime))
+            }
             dimension.values = resolve.ontology.dimension.values(ont = ont,
                                                                  dimension.values = dimension.values,
                                                                  error.prefix = paste0(error.prefix, "Error resolving 'dimension.values' - "))
@@ -1098,7 +1112,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #--------------------------#
             #-- Hash url and details --#
             #--------------------------#
-            
+            if (printouts) {
+                hashtime = Sys.time()
+                print(paste0(dots, "Checktime took ", hashtime-checktime))
+            }
             url.hashed = paste0(sort(url), collapse='__')
             details.hashed = paste0(sort(details), collapse='__')
             if (url.hashed %in% private$i.url.list) url = which(private$i.url.list==url.hashed)
@@ -1113,7 +1130,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             url = as.integer(url)
             details = as.integer(details) # don't know why which() and length() didn't already make it integer...
-            
+            if (printouts) {
+                phase3time = Sys.time()
+                print(paste0(dots, "Hashtime took ", phase3time - hashtime))
+            }
             #--------------------------------#
             #-- Set up to receive the data --#
             #--------------------------------#
@@ -1124,21 +1144,33 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Figure out what stratification it goes in as the union of:
             # (1) dimensions in the data
             # (2) dimensions in dimension.values
+            
             stratification = private$get.required.stratification(dimension.values = dimension.values,
                                                                  data = data,
                                                                  ontology.name = ontology.name,
                                                                  return.as.dimensions = F)
-
+            if (printouts) {
+                prepdntime = Sys.time()
+                print(paste0(dots, "getting required stratification took ", prepdntime-phase3time))
+            }
             # What dim.names do we need to accommodate the new data?
             put.dim.names = private$prepare.put.dim.names(outer.join.dim.names(if (is.array(data)) dimnames(data) else list(), dimension.values),
                                                           ontology.name = ontology.name)
-            
+            if (printouts) {
+                reqstratdimtime = Sys.time()
+                print(paste0(dots, "preparing put dimnames took ", reqstratdimtime-prepdntime))
+            }
             ## @AZ re-order the put.dim.names to ensure it has the same order of dimensions as the stratification does.
             stratification.dimensions = private$get.required.stratification(dimension.values = dimension.values,
                                                                             data = data,
                                                                             ontology.name = ontology.name,
                                                                             return.as.dimensions = T)
             put.dim.names = put.dim.names[stratification.dimensions]
+            if (printouts) {
+                metrictime = Sys.time()
+                print(paste0(dots, "getting required strat dimensions took ", metrictime-reqstratdimtime))
+                print(paste0(dots, "Phase three stuff took ", metrictime-phase3time))
+            }
             if (debug) browser()
             ## ANDREW'S NEW LOGIC TO ACCOMMODATE MULTIPLE METRICS AND ENSURING ALIGNED DIMNAMES AMONG ALL
             existing.dim.names.this.metric = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
@@ -1160,7 +1192,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (data.already.present) {
                 dimnames.aligning.all.metrics = private$prepare.put.dim.names(do.call(outer.join.dim.names, c(existing.dim.names, list(put.dim.names))), ontology.name)
             }
-            
+            if (printouts) {
+                backuptime = Sys.time()
+                print(paste0(dots, "Metric stuff took ", backuptime-metrictime))
+            }
             if (data.already.present && !dim.names.equal(existing.dim.names, dimnames.aligning.all.metrics))
             {
                 # Backup old data
@@ -1179,7 +1214,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         private[[name]][[outcome]][[metr]][[source]][[ontology.name]][[stratification]] =
                             array(NaN, dim=sapply(dimnames.aligning.all.metrics, length), dimnames = dimnames.aligning.all.metrics)
                 }
-                
+                if (printouts) {
+                    print(paste0(dots, "Performing array access..."))
+                }
                 # Overwrite the new structure with the old data
                 for (name in data.element.names) {
                     for (metr in metrics.with.data) {
@@ -1210,6 +1247,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             #@ fast.array.access loops five times if five dimensions (location, year, age, risk, sex...) with lapply
             #@ within fast.array.access, subset.values is a list of length(dims) and each element has all the dim values
             # browser()
+            if (printouts) {
+                finalputtime = Sys.time()
+                print(paste0(dots, "Backup took ", finalputtime-backuptime))
+            }
             overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]]),
                                                          dimension.values = c(dimnames(data), dimension.values))
             if (!allow.na.to.overwrite)
@@ -1224,7 +1265,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Put metadata
             private$i.url[[outcome]][[metric]][[source]][[ontology.name]][[stratification]][overwrite.indices] = url
             private$i.details[[outcome]][[metric]][[source]][[ontology.name]][[stratification]][overwrite.indices] = details
-            
+            if (printouts) {
+                totalputtime = Sys.time()
+                print(paste0(dots, "Final putting took ", totalputtime-finalputtime))
+                print(paste0(dots, "Total put took ", totalputtime - puttime))
+            }
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
@@ -1238,7 +1283,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                  url,
                                  details,
                                  allow.na.to.overwrite=F,
-                                 debug=F)
+                                 debug=F,
+                                 printouts=F)
         {
             #-- Initial validate arguments --#
             # *data* must be a 2d object with named columns
@@ -1264,7 +1310,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                        data = data[data[['outcome']]==one.outcome,],
                                        url = url,
                                        details = details,
-                                       debug=debug)
+                                       debug=debug,
+                                       printouts=printouts)
                 }
             }
             else
@@ -1322,7 +1369,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                          url = url,
                          details = details,
                          allow.na.to.overwrite = allow.na.to.overwrite,
-                         debug=debug)
+                         debug=debug,
+                         printouts=printouts)
             }
         },
 
