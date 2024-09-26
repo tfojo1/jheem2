@@ -15,7 +15,8 @@ put.data(
   url,
   details,
   allow.na.to.overwrite = F,
-  debug = F
+  debug = F,
+  printouts = F
 )
 }
 \arguments{
