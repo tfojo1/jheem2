@@ -12,6 +12,8 @@ resolve.ontology.dimension.values(
 )
 }
 \arguments{
+\item{ont}{An ontology, as created by \code{\link{ontology}}}
+
 \item{dimension.values}{A list of dimension.values (ie, a named list of either character, integer, or logical vectors that indexes into the dimnames given in ont)}
 
 \item{error.prefix}{Text to prepend to any error messages that are thrown}

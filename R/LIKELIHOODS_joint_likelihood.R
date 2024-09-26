@@ -157,11 +157,11 @@ JHEEM.JOINT.LIKELIHOOD = R6::R6Class(
             join.outcome.location.mappings(sub.lik.mappings)
         },
         
-        compute.piecewise = function(sim, log=T, check.consistency=T, debug=F)
+        compute.piecewise = function(sim, log=T, use.optimized.get=F, check.consistency=T, debug=F)
         {
             # why do I need to use return here?
             return(sub.values = sapply(private$i.sub.likelihoods, function(like) {
-                like$compute(sim, log=log, check.consistency=check.consistency, debug=debug)
+                like$compute(sim, log=log, use.optimized.get=use.optimized.get, check.consistency=check.consistency, debug=debug)
             }))
         },
         check = function() {browser()}
@@ -172,10 +172,10 @@ JHEEM.JOINT.LIKELIHOOD = R6::R6Class(
         
         i.sub.likelihoods = NULL,
         
-        do.compute = function(sim, log, check.consistency, debug)
+        do.compute = function(sim, log, use.optimized.get, check.consistency, debug)
         {
             sub.values = sapply(private$i.sub.likelihoods, function(like){
-                like$compute(sim, log=log, check.consistency=check.consistency, debug)
+                like$compute(sim, log=log, use.optimized.get=use.optimized.get, check.consistency=check.consistency, debug)
             })
             # print(sub.values)
             if (log)

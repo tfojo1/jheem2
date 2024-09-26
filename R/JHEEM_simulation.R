@@ -1733,7 +1733,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                             error.prefix = error.prefix)
         },
         
-        #'@value Returns a NEW simulation set object, run out to end.year
+        #'@return Returns a NEW simulation set object, run out to end.year
         extend = function(end.year,
                           keep.from.year = self$from.year,
                           keep.to.year = end.year,

@@ -202,6 +202,19 @@ prepare.plot <- function(...,
         outcome.display.names[outcome] = display.name
     }
     
+    outcome.scales = list()
+    for (outcome in outcomes) {
+        scale = 'non.negative.number'
+        i = 1
+        while (i <= length(simset.list)) {
+            if (outcome %in% names(simset.list[[i]]$outcome.metadata)) {
+                scale = simset.list[[i]]$outcome.metadata[[outcome]]$scale
+                break
+            } else i = i + 1
+        }
+        outcome.scales[outcome] = scale
+    }
+    
     outcome.ontologies = lapply(outcomes, function(outcome) {
         if (is.null(target.ontology) || FALSE)
         outcome.ontology = NULL
@@ -272,6 +285,10 @@ prepare.plot <- function(...,
                 outcome.mappings = c(outcome.mappings, list(NULL))
             if (!is.null(outcome.data)) {
                 
+                # If the scale is proportion, multiply data by 100 to match the "%" symbol the label will have
+                if (outcome.scales[outcomes.for.data[[i]]] == 'proportion')
+                    outcome.data = outcome.data * 100
+                
                 # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
                 one.df.outcome = reshape2::melt(outcome.data, na.rm = T)
                 one.df.outcome = as.data.frame(lapply(one.df.outcome, function(col) {
@@ -327,6 +344,10 @@ prepare.plot <- function(...,
                                                       summary.type = summary.type)
                 
                 if (is.null(simset.data.this.outcome)) next
+                
+                # If the scale is proportion, multiply data by 100 to match the "%" symbol the label will have
+                if (simset.list[[i]][['outcome.metadata']][[outcome]]$scale == 'proportion')
+                    simset.data.this.outcome = simset.data.this.outcome * 100
                 
                 # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
                 one.df.sim.this.outcome = reshape2::melt(simset.data.this.outcome, na.rm = T)

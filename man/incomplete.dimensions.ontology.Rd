@@ -6,6 +6,9 @@
 \usage{
 \method{incomplete.dimensions}{ontology}(x)
 }
+\arguments{
+\item{ontology}{An ontology, as created by \code{\link{ontology}}}
+}
 \value{
 A vector containing the names of the ontology's incomplete dimensions
 }

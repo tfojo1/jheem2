@@ -7,6 +7,8 @@
 \method{[}{ontology}(ont, i)
 }
 \arguments{
+\item{ont}{An ontology, as created by \code{\link{ontology}}}
+
 \item{i}{What to subset}
 }
 \value{

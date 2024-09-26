@@ -90,11 +90,11 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             stop("The 'compute' function must be overridden in a descendant class")
         },
         
-        get.compute.function = function(default.log=T)
+        get.compute.function = function(default.log=T, default.use.optimized.get=F)
         {
-            function(sim, log=default.log)
+            function(sim, log=default.log, use.optimized.get=default.use.optimized.get)
             {
-                self$compute(sim, log=log)
+                self$compute(sim, log=log, use.optimized.get=use.optimized.get)
             }
         }
     ),
@@ -139,10 +139,10 @@ JHEEM.COMBINATION.LIKELIHOOD = R6::R6Class(
             private$i.sub.likelihoods = sub.likelihoods
         },
         
-        compute = function(sim, log=T)
+        compute = function(sim, log=T, use.optimized.get=F)
         {
             sub.values = sapply(self$sub.likelihoods, function(lik){
-                lik$compute(sim, log=log)
+                lik$compute(sim, log=log, use.optimized.get = use.optimized.get)
             })
             
             if (log)

@@ -6,6 +6,9 @@
 \usage{
 \method{is_complete}{ontology}(x)
 }
+\arguments{
+\item{ontology}{An ontology, as created by \code{\link{ontology}}}
+}
 \value{
 A named logical vector - the corresponding to names(ontology) - indicating whether each dimension is complete
 }

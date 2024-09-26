@@ -7,6 +7,8 @@
 \method{$}{ontology}(ont, i) <- value
 }
 \arguments{
+\item{ont}{An ontology, as created by \code{\link{ontology}}}
+
 \item{i}{What to subset}
 
 \item{value}{New value to insert}
