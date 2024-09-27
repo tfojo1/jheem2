@@ -1150,7 +1150,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             raw.sim.mean = sim.numerator.data / sim.denominator.data
             
             if (use.binomial)
-                raw.sim.variance = sim.numerator.data * (1-raw.sim.mean) # n*p*(1-p)
+                raw.sim.variance = raw.sim.mean * (1-raw.sim.mean) / sim.denominator.data # mu * (1 - mu) / n which is np(1-p) / n^2
             else
                 raw.sim.variance =  sim.numerator.data / sim.denominator.data^2 # x / n^2
             
