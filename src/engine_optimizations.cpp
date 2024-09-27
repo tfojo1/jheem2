@@ -85,23 +85,23 @@ RObject do_calculate_quantity_background_value(List quantity,
     const char* quantity_name = quantity["name"];
     //CharacterVector quantity_name = quantity["name"];
     
-    CharacterVector depends_on = quantity["depends.on"];
+    CharacterVector depends_on = (CharacterVector) get_list_elem_by_name(quantity, "depends.on");
     int n_depends_on = depends_on.length();
     
     int n_components = quantity["n.components"];
-    List components = quantity["components"];
+    List components = (List) get_list_elem_by_name(quantity, "components");
     
     // Engine state variables
-    LogicalVector i_quantity_is_static = engine["i.quantity.is.static"];
-    List i_quantity_values = engine["i.quantity.values"];
-    List i_quantity_after_values = engine["i.quantity.after.values"];
+    LogicalVector i_quantity_is_static = engine.find("i.quantity.is.static");
+    List i_quantity_values = engine.find("i.quantity.values");
+    List i_quantity_after_values = engine.find("i.quantity.after.values");
     
     // Engine functions
-    Function calculate_quantity_component_dim_names = engine["calculate.quantity.component.dim.names"];
-    Function calculate_quantity_component_depends_on_indices = engine["calculate.quantity.component.depends.on.indices"];
-    Function check_function_quantity_component_value = engine["check.function.quantity.component.value"];
-    Function calculate_quantity_dim_names = engine["calculate.quantity.dim.names"];
-    Function calculate_quantity_component_expand_access_indices = engine["calculate.quantity.component.expand.access.indices"];
+    Function calculate_quantity_component_dim_names = engine.find("calculate.quantity.component.dim.names");
+    Function calculate_quantity_component_depends_on_indices = engine.find("calculate.quantity.component.depends.on.indices");
+    Function check_function_quantity_component_value = engine.find("check.function.quantity.component.value");
+    Function calculate_quantity_dim_names = engine.find("calculate.quantity.dim.names");
+    Function calculate_quantity_component_expand_access_indices = engine.find("calculate.quantity.component.expand.access.indices");
     
     // The return value holders
     List quantity_values(missing_times.length());
@@ -157,7 +157,7 @@ RObject do_calculate_quantity_background_value(List quantity,
                     //-- Calculate dim.names (if we need to and we can) --//
                     if (strcmp(comp["value.type"], "function")) //ie, if this is NOT a function
                     {
-                        List i_quantity_component_dim_names = engine["i.quantity.component.dim.names"];
+                        List i_quantity_component_dim_names = engine.find("i.quantity.component.dim.names");
                         RObject quantity_component_dim_names = get_list_elem_by_name(i_quantity_component_dim_names, quantity_name);
                         
                         if (quantity_component_dim_names == R_NilValue || 
@@ -170,7 +170,7 @@ RObject do_calculate_quantity_background_value(List quantity,
                     }
                     
                     //-- Bind the depends-on quantities --//
-                    CharacterVector comp_depends_on = comp["depends.on"];
+                    CharacterVector comp_depends_on = (CharacterVector) get_list_elem_by_name(comp, "depends.on");
                     int n_comp_depends_on = comp_depends_on.length();
                     for (int d=0; d<n_comp_depends_on; d++)
                     {
@@ -208,14 +208,14 @@ RObject do_calculate_quantity_background_value(List quantity,
                             
                             if (!strcmp(comp["value.type"], "expression"))
                             {
-                                List i_quantity_mapping_indices = engine["i.quantity.mapping.indices"];
+                                List i_quantity_mapping_indices = engine.find("i.quantity.mapping.indices");
                                 
                                 RObject i_quantity_mapping_indices_for_quantity = get_list_elem_by_name(i_quantity_mapping_indices, quantity_name);
                                 bool need_to_calculate_depends_on_indices = i_quantity_mapping_indices_for_quantity == R_NilValue;
                                 
                                 if (!need_to_calculate_depends_on_indices)                                                    
                                 {
-                                    List quantity_components_depends_on_indices = ((List) i_quantity_mapping_indices_for_quantity)["components.depends.on"];
+                                    List quantity_components_depends_on_indices = (List) get_list_elem_by_name((List) i_quantity_mapping_indices_for_quantity, "components.depends.on");
                                     
                                     need_to_calculate_depends_on_indices = quantity_components_depends_on_indices.length() <= c;
                                     if (!need_to_calculate_depends_on_indices)
@@ -232,15 +232,15 @@ RObject do_calculate_quantity_background_value(List quantity,
                                                                                     _["depends.on"] = dep_on);
                                 }
                                 
-                                i_quantity_mapping_indices = engine["i.quantity.mapping.indices"];
+                                i_quantity_mapping_indices = engine.find("i.quantity.mapping.indices");
                                 i_quantity_mapping_indices_for_quantity = i_quantity_mapping_indices[quantity_name];
-                                List quantity_components_depends_on_indices = ((List) i_quantity_mapping_indices_for_quantity)["components.depends.on"];
+                                List quantity_components_depends_on_indices = (List) get_list_elem_by_name((List) i_quantity_mapping_indices_for_quantity, "components.depends.on");
                                 List quantity_components_depends_on_indices_c = quantity_components_depends_on_indices[c];
                                 
                                 NumericVector unindexed_values = values;
                                 IntegerVector dep_on_indices = quantity_components_depends_on_indices_c[dep_on];
                                 
-                                List i_quantity_component_depends_on_scratch = engine["i.quantity.component.depends.on.scratch"];
+                                List i_quantity_component_depends_on_scratch = engine.find("i.quantity.component.depends.on.scratch");
                                 List quantity_component_depends_on_scratch = i_quantity_component_depends_on_scratch[quantity_name];
                                 List component_depends_on_scratch = quantity_component_depends_on_scratch[c];
        
@@ -290,7 +290,7 @@ RObject do_calculate_quantity_background_value(List quantity,
                         }
                         
                         
-                        List i_quantity_component_dim_names = engine["i.quantity.component.dim.names"];
+                        List i_quantity_component_dim_names = engine.find("i.quantity.component.dim.names");
                         RObject quantity_component_dim_names = get_list_elem_by_name(i_quantity_component_dim_names, quantity_name);
                         if (quantity_component_dim_names == R_NilValue ||
                             ((List) quantity_component_dim_names).length() <= c ||
@@ -302,7 +302,7 @@ RObject do_calculate_quantity_background_value(List quantity,
                                                                    _["value.for.function"] = value);
                         }
                         
-                        i_quantity_component_dim_names = engine["i.quantity.component.dim.names"]; //re-pull to get the updated dimnames
+                        i_quantity_component_dim_names = engine.find("i.quantity.component.dim.names"); //re-pull to get the updated dimnames
                         quantity_component_dim_names = i_quantity_component_dim_names[quantity_name];
                         
                         List dn1 = ((List) quantity_component_dim_names)[c];
@@ -348,7 +348,7 @@ RObject do_calculate_quantity_background_value(List quantity,
                 //-- Recalculate the dim.names if needed --//
                 
                 // Rcout << "Recalculate the dim.names...\n";
-                List i_quantity_dim_names = engine["i.quantity.dim.names"];
+                List i_quantity_dim_names = engine.find("i.quantity.dim.names");
                 if (get_list_elem_by_name(i_quantity_dim_names, quantity_name) == R_NilValue)
                 {
                     calculate_quantity_dim_names(quantity);    
@@ -365,7 +365,7 @@ RObject do_calculate_quantity_background_value(List quantity,
                     
                     //-- Recalculate the indices if we need to --//
                     // Rcout << "Recalculating indices...\n";
-                    List i_quantity_mapping_indices = engine["i.quantity.mapping.indices"];
+                    List i_quantity_mapping_indices = engine.find("i.quantity.mapping.indices");
                     bool need_to_calculate_indices = i_quantity_mapping_indices.length() == 0;
                     
                     if (!need_to_calculate_indices)
@@ -390,10 +390,10 @@ RObject do_calculate_quantity_background_value(List quantity,
                     
                     //-- Pull the expand indices --//
                     // Rcout << "Pulling expand indices...\n";
-                    i_quantity_mapping_indices = engine["i.quantity.mapping.indices"];
+                    i_quantity_mapping_indices = engine.find("i.quantity.mapping.indices");
                     //Rcout << "i_quantity_mapping_indices_2.length() = " << i_quantity_mapping_indices_2.length() << "\n";
                     List quantity_mapping_indices = i_quantity_mapping_indices[quantity_name];
-                    List components_expand_indices = quantity_mapping_indices["components.expand"];
+                    List components_expand_indices = (List) get_list_elem_by_name(quantity_mapping_indices, "components.expand");
                     IntegerVector expand_indices = components_expand_indices[c];
                     
                     //-- Fold it in to the comp.value --//
@@ -406,7 +406,7 @@ RObject do_calculate_quantity_background_value(List quantity,
                     }
                     else
                     {
-                        List components_access_indices = quantity_mapping_indices["components.access"];
+                        List components_access_indices = (List) get_list_elem_by_name(quantity_mapping_indices, "components.access");
                         IntegerVector access_indices = components_access_indices[c];
                         
                         //   std::string apply_function = as<std::string>(comp["apply.function"]);
@@ -476,7 +476,7 @@ RObject do_calculate_quantity_background_value(List quantity,
                 
                 //-- Set the dimnames --//
                 // Rcout << "Set the dimnames...\n";
-                i_quantity_dim_names = engine["i.quantity.dim.names"];
+                i_quantity_dim_names = engine.find("i.quantity.dim.names");
                 // Rcout << "get quantity dim names...";
                 List quantity_dim_names = i_quantity_dim_names[quantity_name];
                 // Rcout << "SUCCESS\n";
@@ -676,7 +676,7 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
                                                     Environment engine)
 {
     //-- Initial set up --//
-    Environment kernel = engine["i.kernel"];
+    Environment kernel = engine.find("i.kernel");
     
     // Pull some member variables
     List i_outcome_dim_name_sans_time = engine["i.outcome.dim.names.sans.time"];
