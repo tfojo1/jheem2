@@ -886,14 +886,16 @@ do.get.ontology.mapping <- function(from.ontology,
         mappings.to.try$viable.mappings = viable.mappings
         mappings.to.try$failed.mappings = failed.mappings
         
+        
         #-- Find the mappings --#
         
         if (DEBUG.ONTOLOGY.MAPPINGS)
             print(paste0("Find mappings for ", paste0(dset, collapse="/")))
         
+        required.dimensions.in.dset = intersect(required.dimensions, dset)
         mappings.for.dset = do.get.ontology.mapping.for.dimensions(from.ontology = from.ontology.for.set,
                                                                    to.ontology = to.ontology.for.set,
-                                                                   required.dimensions = intersect(required.dimensions, dset),
+                                                                   required.dimensions = required.dimensions.in.dset,
                                                                    required.dim.names = required.dim.names.for.set,
                                                                    get.two.way.alignment = get.two.way.alignment,
                                                                    allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions,
@@ -905,7 +907,11 @@ do.get.ontology.mapping <- function(from.ontology,
                                                                    search.depth = 0)
         
         if (is.null(mappings.for.dset))
+        {
+            if (DEBUG.ONTOLOGY.MAPPINGS)
+                print(paste0("Could not find any mappings for ", paste0(dset, collapse="/"), " - giving up"))
             return (NULL)
+        }
         
         rv$from = c(rv$from, mappings.for.dset$from)
         rv$to = c(rv$to, mappings.for.dset$to)
@@ -936,7 +942,7 @@ do.get.ontology.mapping.for.dimensions <- function(from.ontology,
     # 2) from.dim.names contains only required dimensions and no others
     # 3) All to.dimensions which are complete have equal values in from.dim.names and to.dim.names
     # 4) All to.dimensions which are incomplete have at least one value present in both from.dim.names and to.dim.names OR try.allowing.non.overlapping.incomplete.dimensions == TRUE
-    # 5) All required.dimensions are present in to.dimn.names, and all required.dim.names are present in to.dim.names (if this is not true and get.two.way.alignment==F, then we can give up now)
+    # 5) All required.dimensions are present in to.dim.names, and all required.dim.names are present in to.dim.names (if this is not true and get.two.way.alignment==F, then we can give up now)
 
     # check (5) - if not met, and we are not going for two-way, we will never succeed
     required.dimensions.are.present.in.to = length(setdiff(required.dimensions, names(to.ontology)))==0
@@ -974,7 +980,7 @@ do.get.ontology.mapping.for.dimensions <- function(from.ontology,
         !any(from.out.of.alignment.mask) &&
         required.dimensions.are.present.in.to &&
         required.dim.names.are.present.in.to
-
+    
     if (DEBUG.ONTOLOGY.MAPPINGS)
         debug.prefix = paste0(paste0(rep(" ", search.depth+1), collapse=''), "(", search.depth, ") ")
     
@@ -1008,7 +1014,8 @@ do.get.ontology.mapping.for.dimensions <- function(from.ontology,
                 {        
                     try.modification = from.out.of.alignment.mask[d] && from.dimensions.are.complete[d] &&
                         # this next line speeds us up, but could conceivably be wrong if we need to drop a dimension, then add it back with a mapping
-                        !any(to.dimensions==d)
+                        #!any(to.dimensions==d)
+                        !any(required.dimensions==d)
                 }
                 else if (mapping=='other')
                 {
