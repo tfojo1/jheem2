@@ -1352,12 +1352,19 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 })
                 names(dim.names) = dimensions
                 
-                
                 arr.data = array(as.numeric(NA), dim=sapply(dim.names, length), dimnames=dim.names)
-                for (i in 1:nrow(data))
-                {
-                    array.access(arr.data, dimension.values = as.list(data[i,dimensions])) = data[i,'value']
-                }
+                indices.arr = array(1:length(arr.data), dim=sapply(dim.names, length), dimnames=dim.names)
+                dimensions = names(dim.names)
+                indices.for.rows = sapply(1:nrow(data), function(i){
+                    do.call('[', args=c(list(indices.arr), as.list(data[i,dimensions])))
+                })
+                na.mask = is.na(data[,'value'])
+                arr.data[indices.for.rows[!na.mask]] = data[!na.mask,'value']
+                
+    #            for (i in 1:nrow(data))
+    #            {
+    #                array.access(arr.data, dimension.values = as.list(data[i,dimensions])) = data[i,'value']
+    #            }
 
                 #-- Pass through to main put function --#
                 self$put(outcome = outcome,
@@ -1372,6 +1379,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                          debug=debug,
                          printouts=printouts)
             }
+            
+            print('done with put long form')
         },
 
         pull = function(data.manager,
