@@ -679,29 +679,29 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
     Environment kernel = engine.find("i.kernel");
     
     // Pull some member variables
-    List i_outcome_dim_name_sans_time = engine["i.outcome.dim.names.sans.time"];
-    List i_outcome_numerator_dim_name_sans_time = engine["i.outcome.numerator.dim.names.sans.time"];
-    List i_outcome_value_times_to_calculate = engine["i.outcome.value.times.to.calculate"];
-    List i_outcome_numerators = engine["i.outcome.numerators"];
-    List i_outcome_denominators = engine["i.outcome.denominators"];
-    List i_diffeq_settings = engine["i.diffeq.settings"];
-    List i_outcome_non_cumulative_value_times = engine["i.outcome.non.cumulative.value.times"];
+    List i_outcome_dim_name_sans_time = engine.find("i.outcome.dim.names.sans.time");
+    List i_outcome_numerator_dim_name_sans_time = engine.find("i.outcome.numerator.dim.names.sans.time");
+    List i_outcome_value_times_to_calculate = engine.find("i.outcome.value.times.to.calculate");
+    List i_outcome_numerators = engine.find("i.outcome.numerators");
+    List i_outcome_denominators = engine.find("i.outcome.denominators");
+    List i_diffeq_settings = engine.find("i.diffeq.settings");
+    List i_outcome_non_cumulative_value_times = engine.find("i.outcome.non.cumulative.value.times");
     
-    LogicalVector i_quantity_is_static = engine["i.quantity.is.static"];
+    LogicalVector i_quantity_is_static = engine.find("i.quantity.is.static");
     
     // Pull some engine functions
-    Function calculate_outcome_value_times_to_calculate = engine["calculate.outcome.value.times.to.calculate"];
-    Function derive_outcome_numerator_dim_names_sans_time = engine["derive.outcome.numerator.dim.names.sans.time"];
-    Function calculate_outcome_non_cumulative_value_times = engine["calculate.outcome.non.cumulative.value.times"];
-    Function set_up_outcome_depends_on_bindings = engine["set.up.outcome.depends.on.bindings"];
-    Function calculate_outcome_indices_from_outcome = engine["calculate.outcome.indices.from.outcome"];
+    Function calculate_outcome_value_times_to_calculate = engine.find("calculate.outcome.value.times.to.calculate");
+    Function derive_outcome_numerator_dim_names_sans_time = engine.find("derive.outcome.numerator.dim.names.sans.time");
+    Function calculate_outcome_non_cumulative_value_times = engine.find("calculate.outcome.non.cumulative.value.times");
+    Function set_up_outcome_depends_on_bindings = engine.find("set.up.outcome.depends.on.bindings");
+    Function calculate_outcome_indices_from_outcome = engine.find("calculate.outcome.indices.from.outcome");
         
     
     // Pull some kernel functions
-    Function get_outcome_kernel = kernel["get.outcome.kernel"];
-    Function get_outcome_direct_dependee_outcome_names = kernel["get.outcome.direct.dependee.outcome.names"];
-    Function get_outcome_numerator_direct_dependee_outcome_names = kernel["get.outcome.numerator.direct.dependee.outcome.names"];
-    Function get_outcome_direct_dependee_quantity_names = kernel["get.outcome.direct.dependee.quantity.names"];
+    Function get_outcome_kernel = kernel.find("get.outcome.kernel");
+    Function get_outcome_direct_dependee_outcome_names = kernel.find("get.outcome.direct.dependee.outcome.names");
+    Function get_outcome_numerator_direct_dependee_outcome_names = kernel.find("get.outcome.numerator.direct.dependee.outcome.names");
+    Function get_outcome_direct_dependee_quantity_names = kernel.find("get.outcome.direct.dependee.quantity.names");
     
     // Pull some outcome-specific data elements
     List outcome_dim_names = i_outcome_dim_name_sans_time[outcome_name];
@@ -710,7 +710,7 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
     if (get_list_elem_by_name(i_outcome_value_times_to_calculate, outcome_name) == R_NilValue)
     {
         calculate_outcome_value_times_to_calculate(outcome_name);
-        i_outcome_value_times_to_calculate = engine["i.outcome.value.times.to.calculate"];
+        i_outcome_value_times_to_calculate = engine.find("i.outcome.value.times.to.calculate");
     }
     
     NumericVector outcome_value_times_to_calculate = i_outcome_value_times_to_calculate[outcome_name];
@@ -728,8 +728,8 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
             do_calculate_outcome_numerator_and_denominator(outcome_name,
                                                            ode_results,
                                                            engine);
-            i_outcome_numerators = engine["i.outcome.numerators"];
-            i_outcome_denominators = engine["i.outcome.denominators"];
+            i_outcome_numerators = engine.find("i.outcome.numerators");
+            i_outcome_denominators = engine.find("i.outcome.denominators");
         }
     }
     
@@ -737,7 +737,7 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
     if (get_list_elem_by_name(i_outcome_numerator_dim_name_sans_time, outcome_name) == R_NilValue)
     {
         derive_outcome_numerator_dim_names_sans_time(outcome_name);
-        i_outcome_numerator_dim_name_sans_time = engine["i.outcome.dim.names.sans.time"];
+        i_outcome_numerator_dim_name_sans_time = engine.find("i.outcome.dim.names.sans.time");
     }
     
     
@@ -758,10 +758,10 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
         if (get_list_elem_by_name(i_outcome_non_cumulative_value_times, outcome_name) == R_NilValue)
         {
             calculate_outcome_non_cumulative_value_times(outcome_name);
-            i_outcome_non_cumulative_value_times = engine["i.outcome.non.cumulative.value.times"];
+            i_outcome_non_cumulative_value_times = engine.find("i.outcome.non.cumulative.value.times");
         }
         NumericVector outcome_non_cumulative_value_times = i_outcome_non_cumulative_value_times[outcome_name];
-        List i_outcome_non_cumulative_value_time_to_calculate_is_after_time = engine["i.outcome.non.cumulative.value.time.to.calculate.is.after.time"];
+        List i_outcome_non_cumulative_value_time_to_calculate_is_after_time = engine.find("i.outcome.non.cumulative.value.time.to.calculate.is.after.time");
         
         CharacterVector outcome_numerator_direct_dependee_outcome_names = get_outcome_numerator_direct_dependee_outcome_names(outcome_name);
         bool all_dependee_outcomes_are_cumulative = true;
@@ -800,7 +800,7 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
         
         
         //-- Map the bindings for dependee OUTCOMES to a list --//
-        List i_outcome_depends_on_outcome_bindings = engine["i.outcome.depends.on.outcome.bindings"];
+        List i_outcome_depends_on_outcome_bindings = engine.find("i.outcome.depends.on.outcome.bindings");
         List bindings_of_outcomes = i_outcome_depends_on_outcome_bindings[outcome_name];
 
         for (int i=0; i<outcome_numerator_direct_dependee_outcome_names.length(); i++)
@@ -811,7 +811,7 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
             if (get_list_elem_by_name(i_outcome_non_cumulative_value_times, outcome_name) == R_NilValue)
             {
                 calculate_outcome_non_cumulative_value_times(dep_on_outcome_name);
-                i_outcome_non_cumulative_value_times = engine["i.outcome.non.cumulative.value.times"];
+                i_outcome_non_cumulative_value_times = engine.find("i.outcome.non.cumulative.value.times");
             }
             
             List i_outcome_indices = engine["i.outcome.indices"];
@@ -827,8 +827,8 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
                                                            _["dep.on.outcome.name"] = dep_on_outcome_name);
                 }
             }
-outcome_indices_for_outcome = i_outcome_indices[outcome_name];
-value_from_outcome_indices = outcome_indices_for_outcome["value.from.outcome"];
+            outcome_indices_for_outcome = i_outcome_indices[outcome_name];
+            value_from_outcome_indices = outcome_indices_for_outcome["value.from.outcome"];
             
             if (dep_on_outcome["is.intrinsic"])
             {
