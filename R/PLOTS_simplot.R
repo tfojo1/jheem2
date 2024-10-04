@@ -133,21 +133,18 @@ prepare.plot <- function(...,
             stop(paste0(error.prefix, "'outcomes' must be a character vector with no NAs or duplicates"))
     }
     
-    if (plot.which %in% c('both', 'sim.only')) {
-        if (outcomes.found.in.simset.args) {
-            if (length(simset.args) < 2)
-                stop(paste0(error.prefix, "one or more jheem.simulation.set objects or lists containing only jheem.simulation.set objects must be supplied"))
-            else
-                simset.list = simset.args[1:(length(simset.args)-1)]
-        }
-        else {
-            if (length(simset.args) < 1)
-                stop(paste0(error.prefix, "one or more jheem.simulation.set objects or lists containing only jheem.simulation.set objects must be supplied"))
-            else
-                simset.list = simset.args
-        }
+    if (outcomes.found.in.simset.args) {
+        if (length(simset.args) < 2)
+            stop(paste0(error.prefix, "one or more jheem.simulation.set objects or lists containing only jheem.simulation.set objects must be supplied"))
+        else
+            simset.list = simset.args[1:(length(simset.args)-1)]
     }
-    else simset.list = list()
+    else {
+        if (length(simset.args) < 1)
+            stop(paste0(error.prefix, "one or more jheem.simulation.set objects or lists containing only jheem.simulation.set objects must be supplied"))
+        else
+            simset.list = simset.args
+    }
     
     # *corresponding.data.outcomes' is NULL or a vector with outcomes as names
     if (!is.null(corresponding.data.outcomes) && (!is.character(corresponding.data.outcomes) || any(is.na(corresponding.data.outcomes)) || is.null(names(corresponding.data.outcomes)) || !all(names(corresponding.data.outcomes) %in% outcomes)))
@@ -168,9 +165,8 @@ prepare.plot <- function(...,
     
     # Check outcomes
     # - make sure each outcome is present in sim$outcomes for at least one sim/simset
-    if (plot.which %in% c('both', 'sim.only'))
-        if (any(sapply(outcomes, function(outcome) {!any(sapply(simset.list, function(simset) {outcome %in% simset$outcomes}))})))
-            stop(paste0("There weren't any simulation sets for one or more outcomes. Should this be an error?"))
+    if (any(sapply(outcomes, function(outcome) {!any(sapply(simset.list, function(simset) {outcome %in% simset$outcomes}))})))
+        stop(paste0("There weren't any simulation sets for one or more outcomes. Should this be an error?"))
     
     # Get the real-world outcome names
     # - eventually we're going to want to pull this from info about the likelihood if the sim notes which likelihood was used on it
@@ -179,22 +175,19 @@ prepare.plot <- function(...,
     # sims do not all have each outcome because of sub-versions
     
     # likelihoods need to share their outcome for sim and data, and think about what joint likelihoods. One simulation has one (usually joint) likelihood (instructions)
-    if (plot.which %in% c('both', 'sim.only')) {
-        outcomes.for.data = sapply(outcomes, function(outcome) {
-            if (outcome %in% names(corresponding.data.outcomes))
-                return(corresponding.data.outcomes[[outcome]])
-            corresponding.observed.outcome = NULL
-            i = 1
-            while (i <= length(simset.list)) {
-                if (outcome %in% names(simset.list[[i]]$outcome.metadata)) {
-                    corresponding.observed.outcome = simset.list[[i]]$outcome.metadata[[outcome]]$corresponding.observed.outcome
-                    break
-                } else i = i + 1
-            }
-            corresponding.observed.outcome
-        })
-    }
-    else outcomes.for.data = sapply(outcomes, function(outcome) outcome)
+    outcomes.for.data = sapply(outcomes, function(outcome) {
+        if (outcome %in% names(corresponding.data.outcomes))
+            return(corresponding.data.outcomes[[outcome]])
+        corresponding.observed.outcome = NULL
+        i = 1
+        while (i <= length(simset.list)) {
+            if (outcome %in% names(simset.list[[i]]$outcome.metadata)) {
+                corresponding.observed.outcome = simset.list[[i]]$outcome.metadata[[outcome]]$corresponding.observed.outcome
+                break
+            } else i = i + 1
+        }
+        corresponding.observed.outcome
+    })
     # browser()
     outcome.display.names = list()
     for (outcome in outcomes) {
