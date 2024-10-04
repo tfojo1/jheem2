@@ -3,7 +3,6 @@
 #'
 #'@param outcome.for.data A single character vector specifying the outcome that data managers will use to find data.
 #'@param outcome.for.sim A single character vector specifying the simulation outcome to use.
-#'@param denominator.outcome.for.sim (Optional) A single character vector specifying the simulation outcome to use a denominator if the outcome.for.sim is a ratio, proportion, or rate.
 #'@param dimensions A character vector of dimensions, excluding year, from which stratifications will be generated.
 #'@param denominator.dimensions (Optional) Analogous to 'dimensions' but for the simulation denominator outcome when applicable. Must be a subset of 'dimensions'.
 #'@param levels.of.stratification An integer vector specifying how the dimensions should be combined to form strata. '0' indicates totals (not stratified) while '1' indicates strata that are each stratified by one dimension at a time, '2' indicates strat that are each stratified by a combination of two dimensions at a time, etc. May not exceed the number of dimensions. Defaults to NULL, which is equivalent to '0'.
@@ -25,7 +24,6 @@
 #'@export
 create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  outcome.for.sim,
-                                                 denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute. OR, if outcome is proportion, rate, or time, use denominator within sim data
                                                  dimensions = character(0),
                                                  denominator.dimensions = dimensions,
                                                  dimension.values = NULL, # EXPERIMENTAL
@@ -46,7 +44,6 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
 {
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
                                             outcome.for.sim = outcome.for.sim,
-                                            denominator.outcome.for.sim = denominator.outcome.for.sim,
                                             outcome.value = NULL,
                                             dimensions = dimensions,
                                             denominator.dimensions = denominator.dimensions,
@@ -68,7 +65,8 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                             error.variance.term = error.variance.term,
                                             error.variance.type = error.variance.type,
                                             weights = weights,
-                                            equalize.weight.by.year = equalize.weight.by.year)
+                                            equalize.weight.by.year = equalize.weight.by.year,
+                                            is.basic.ratio.likehood = F)
     
 }
 
@@ -78,9 +76,7 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
 #'@param outcome.value A single, non-NA numeric value that is the value of the outcome at the totals level (i.e., not stratified).
 #'
 #'@export
-create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.for.sim,
-                                                                        denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute. OR, if outcome is proportion, rate, or time, use denominator within sim data
-                                                                        outcome.value,
+create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.for.sim,outcome.value,
                                                                         from.year,
                                                                         to.year,
                                                                         omit.years = NULL,
@@ -93,7 +89,6 @@ create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.
 {
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = NULL,
                                             outcome.for.sim = outcome.for.sim,
-                                            denominator.outcome.for.sim = denominator.outcome.for.sim,
                                             outcome.value = outcome.value,
                                             dimensions = character(0),
                                             denominator.dimensions = character(0),
@@ -115,7 +110,8 @@ create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.
                                             error.variance.term = error.variance.term,
                                             error.variance.type = error.variance.type,
                                             weights = weights,
-                                            equalize.weight.by.year = equalize.weight.by.year)
+                                            equalize.weight.by.year = equalize.weight.by.year,
+                                            is.basic.ratio.likehood = F)
     
 }
 
@@ -130,7 +126,6 @@ create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.
 #'@export
 create.basic.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
                                                                           outcome.for.sim,
-                                                                          denominator.outcome.for.sim=NULL,
                                                                           dimensions = character(0),
                                                                           denominator.dimensions = dimensions,
                                                                           dimension.values = NULL, # EXPERIMENTAL
@@ -155,7 +150,6 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
 {
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
                                             outcome.for.sim = outcome.for.sim,
-                                            denominator.outcome.for.sim = denominator.outcome.for.sim,
                                             outcome.value = NULL,
                                             dimensions = dimensions,
                                             denominator.dimensions = denominator.dimensions,
@@ -177,7 +171,8 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
                                             error.variance.term = error.variance.term,
                                             error.variance.type = error.variance.type,
                                             weights = weights,
-                                            equalize.weight.by.year = equalize.weight.by.year)
+                                            equalize.weight.by.year = equalize.weight.by.year,
+                                            is.basic.ratio.likehood = F)
 }
 
 #'@title Create JHEEM Basic Likelihood Instructions
@@ -187,7 +182,6 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
 #'@export
 create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.data,
                                                                   outcome.for.sim,
-                                                                  denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute. OR, if outcome is proportion, rate, or time, use denominator within sim data
                                                                   dimensions = character(0),
                                                                   denominator.dimensions = dimensions,
                                                                   dimension.values = NULL, # EXPERIMENTAL
@@ -209,7 +203,6 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
 {
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
                                             outcome.for.sim = outcome.for.sim,
-                                            denominator.outcome.for.sim = denominator.outcome.for.sim,
                                             outcome.value = NULL,
                                             dimensions = dimensions,
                                             denominator.dimensions = denominator.dimensions,
@@ -232,7 +225,8 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
                                             weights = weights,
                                             equalize.weight.by.year = equalize.weight.by.year,
                                             use.lognormal.approximation = use.lognormal.approximation,
-                                            calculate.lagged.difference = T)
+                                            calculate.lagged.difference = T,
+                                            is.basic.ratio.likelihood = F)
 }
 
 #'@title Create JHEEM Basic Likelihood Instructions
@@ -243,7 +237,6 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
 #'@export
 create.time.lagged.comparison.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
                                                                                            outcome.for.sim,
-                                                                                           denominator.outcome.for.sim=NULL,
                                                                                            dimensions = character(0),
                                                                                            denominator.dimensions = dimensions,
                                                                                            dimension.values = NULL, # EXPERIMENTAL
@@ -269,7 +262,6 @@ create.time.lagged.comparison.likelihood.instructions.with.included.multiplier <
 {
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
                                             outcome.for.sim = outcome.for.sim,
-                                            denominator.outcome.for.sim = denominator.outcome.for.sim,
                                             outcome.value = NULL,
                                             dimensions = dimensions,
                                             denominator.dimensions = denominator.dimensions,
@@ -293,7 +285,8 @@ create.time.lagged.comparison.likelihood.instructions.with.included.multiplier <
                                             weights = weights,
                                             equalize.weight.by.year = equalize.weight.by.year,
                                             use.lognormal.approximation = use.lognormal.approximation,
-                                            calculate.lagged.difference = T)
+                                            calculate.lagged.difference = T,
+                                            is.basic.ratio.likehood = F)
 }
 
 JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
@@ -304,7 +297,6 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         
         initialize = function(outcome.for.data,
                               outcome.for.sim,
-                              denominator.outcome.for.sim,
                               outcome.value,
                               dimensions,
                               denominator.dimensions,
@@ -328,7 +320,8 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                               weights,
                               equalize.weight.by.year,
                               use.lognormal.approximation=F,
-                              calculate.lagged.difference=F)
+                              calculate.lagged.difference=F,
+                              is.basic.ratio.likelihood = F)
         {
             # browser()
             error.prefix = paste0("Error creating basic likelihood instructions for outcome '", outcome.for.sim, "': ")
@@ -338,10 +331,6 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             # *outcome.for.data* is a single character vector, or NULL if "outcome.value" is not NULL
             if (is.null(outcome.value) && (!is.character(outcome.for.data) || length(outcome.for.data) > 1 || is.null(outcome.for.data) || is.na(outcome.for.data)))
                 stop(paste0(error.prefix, "'outcome.for.data' must be a character vector of length 1"))
-            
-            # *denominator.outcome.for.sim* is NULL or a single character vector
-            if (!is.null(denominator.outcome.for.sim) && (!is.character(denominator.outcome.for.sim) || length(denominator.outcome.for.sim) > 1 || is.na(denominator.outcome.for.sim)))
-                stop(paste0(error.prefix, "'denominator.outcome.for.sim' must be NULL or a character vector of length 1"))
             
             # *outcome.value* must be NULL or a single numeric value
             if (!is.null(outcome.value) && (!is.numeric(outcome.value) || length(outcome.value)!=1 || is.na(outcome.value)))
@@ -456,12 +445,15 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             #calculate.lagged.difference
             if (!is.logical(calculate.lagged.difference) || length(calculate.lagged.difference)!=1 || is.na(calculate.lagged.difference))
                 stop(paste0(error.prefix, "'calculate.lagged.difference' must be a single logical value (T/F)"))
+            #is.basic.ratio.likelihood
+            if (!is.logical(is.basic.ratio.likelihood) || length(is.basic.ratio.likelihood)!=1 || is.na(is.basic.ratio.likelihood))
+                stop(paste0(error.prefix, "'is.basic.ratio.likelihood' must be a single logical value (T/F)"))
             
             super$initialize(outcome.for.sim = outcome.for.sim,
                              dimensions = dimensions,
                              levels.of.stratification = levels.of.stratification,
                              weights = weights,
-                             likelihood.class.generator = JHEEM.BASIC.LIKELIHOOD,
+                             likelihood.class.generator = if (is.basic.ratio.likelihood) JHEEM.BASIC.RATIO.LIKELIHOOD else JHEEM.BASIC.LIKELIHOOD,
                              error.prefix = error.prefix)
             
             # if 'year' is in the dimension values for any *weights*, then *equalize.weight.by.year* must be FALSE
@@ -469,7 +461,6 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                 stop(paste0(error.prefix, "'equalize.weight.by.year' must be FALSE if any weights include 'year' in their dimension values"))
             
             private$i.outcome.for.data = outcome.for.data
-            private$i.denominator.outcome.for.sim = denominator.outcome.for.sim
             private$i.outcome.value = outcome.value
             private$i.from.year = from.year
             private$i.to.year = to.year
@@ -491,6 +482,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             private$i.dimension.values = dimension.values # EXPERIMENTAL
             private$i.use.lognormal.approximation = use.lognormal.approximation
             private$i.calculate.lagged.difference = calculate.lagged.difference
+            private$i.is.basic.ratio.likelihood = is.basic.ratio.likelihood
         },
         
         equals = function(other)
@@ -505,7 +497,6 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
                     to.compare.identical = c('description',
                                              'outcome.for.data',
                                              'outcome.for.sim',
-                                             'denominator.outcome.for.sim',
                                              'from.year',
                                              'to.year',
                                              'use.lognormal.approximation',
@@ -542,15 +533,6 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             }
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'outcome.for.data' - it is read-only")
-        },
-        denominator.outcome.for.sim = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.denominator.outcome.for.sim
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'denominator.outcome.for.sim' - it is read-only")
         },
         outcome.value = function(value)
         {
@@ -643,12 +625,19 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             }
             else
                 stop("Cannot modify a jheem.basic.likelihood.instruction's 'calculate.lagged.difference' - it is read-only")
+        },
+        is.basic.ratio.likelihood = function(value)
+        {
+            if (missing(value)) {
+                private$i.is.basic.ratio.likelihood
+            }
+            else
+                stop("Cannot modify a jheem.basic.likelihood.instruction's 'is.basic.ratio.likelihood' - it is read-only")
         }
     ),
     
     private = list(
         i.outcome.for.data = NULL,
-        i.denominator.outcome.for.sim = NULL,
         i.outcome.value = NULL,
         i.from.year = NULL,
         i.to.year = NULL,
@@ -659,7 +648,8 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         i.sources.to.use = NULL,
         i.dimension.values = NULL, # EXPERIMENTAL
         i.use.lognormal.approximation = NULL,
-        i.calculate.lagged.difference = NULL
+        i.calculate.lagged.difference = NULL,
+        i.is.basic.ratio.likelihood = NULL
     )
 )
 
@@ -679,7 +669,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                               throw.error.if.no.data,
                               error.prefix)
         {
-            # browser()
             super$initialize(instructions = instructions,
                              sub.version = sub.version,
                              version = version,
@@ -696,12 +685,12 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
             private$i.parameters = instructions$parameters
             private$i.outcome.for.data = instructions$outcome.for.data
-            private$i.denominator.outcome.for.sim = instructions$denominator.outcome.for.sim
             private$i.outcome.value = instructions$outcome.value
             
             private$i.dimension.values = instructions$dimension.values # EXPERIMENTAL
             private$i.use.lognormal.approximation = instructions$use.lognormal.approximation
             private$i.calculate.lagged.difference = instructions$calculate.lagged.difference
+            private$i.is.basic.ratio.likelihood = instructions$is.basic.ratio.likelihood
             
             ## ---- DETERMINE YEARS FOR SIM METADATA ---- ##
             years = get.likelihood.years(from.year = instructions$from.year,
@@ -717,21 +706,18 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                    from.year = years[[1]],
                                                    to.year = years[[length(years)]])
             
-            if(!is.null(private$i.denominator.outcome.for.sim) && !(private$i.denominator.outcome.for.sim %in% sim.metadata$outcomes))
-                stop(paste0(error.prefix, private$i.denominator.for.sim, " is not a simulation outcome in this specification"))
-            # browser()
-            
             scale = sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$scale
             if (!(scale %in% c('non.negative.number', 'number', 'proportion', 'rate')))
                 stop(paste0(error.prefix, "'outcome.for.sim' must be a non.negative.number, number, rate, or proportion"))
             private$i.outcome.is.proportion = scale == 'proportion'
             private$i.outcome.is.rate = scale == 'rate'
+            private$i.outcome.is.count = !private$i.outcome.is.proportion && !private$i.outcome.is.rate
             
-            if (private$i.outcome.is.proportion && is.null(private$i.denominator.outcome.for.sim)) {
-                private$i.denominator.outcome.for.sim = sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$denominator.outcome
-                #        if (is.null(private$i.denominator.outcome.for.sim))
-                #            stop(paste0(error.prefix, "denominator data expected for this outcome but not found"))
-            }
+            # if (private$i.outcome.is.proportion && is.null(private$i.denominator.outcome.for.sim)) {
+            #     private$i.denominator.outcome.for.sim = sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$denominator.outcome
+            #     #        if (is.null(private$i.denominator.outcome.for.sim))
+            #     #            stop(paste0(error.prefix, "denominator data expected for this outcome but not found"))
+            # }
             
             private$i.sim.ontology = sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
             private$i.sim.ontology$year = as.character(years)
@@ -754,7 +740,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             remove.mask.list = list()
             dv.remove.mask.list = list() # EXPERIMENTAL
             private$i.transformation.matrix = NULL
-            private$i.sim.required.dimnames = list()
+            private$i.sim.required.dimnames = private$i.denominator.required.dimnames = private$i.sim.dimension.values = private$i.denominator.dimension.values = list()
             
             ### EXPERIMENTAL: LIMIT STRATIFICATIONS TO ONLY THOSE WITH *ALL* THE DIMENSIONS FROM DIMENSION VALUES
             if (length(private$i.dimension.values) > 0) {
@@ -905,35 +891,26 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             # private$i.metadata$source = as.factor(private$i.metadata$source) # already factor somehow
             
             ## ---- FIND REQUIRED DIMENSION VALUES, ETC. ---- ##
-            corrected.sim.required.dimnames = private$i.sim.ontology[names(private$i.sim.ontology) %in% names(private$i.sim.required.dimnames)]
-            corrected.sim.required.dimnames$year = sort(private$i.sim.required.dimnames$year)
-            private$i.sim.required.dimnames = corrected.sim.required.dimnames
-            
-            private$i.years = private$i.sim.required.dimnames[['year']]
-            private$i.sim.dimension.values = private$i.sim.required.dimnames[sapply(names(private$i.sim.required.dimnames), function(d) {!identical(private$i.sim.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
-            private$i.sim.dimension.values[['year']] = private$i.years
-            
-            denominator.keep.dimensions = c(instructions$denominator.dimensions, 'year')[c(instructions$denominator.dimensions, 'year') %in% names(private$i.sim.required.dimnames)]
-            private$i.denominator.required.dimnames = private$i.sim.required.dimnames[names(private$i.sim.required.dimnames) %in% denominator.keep.dimensions]
-            private$i.denominator.dimension.values = private$i.denominator.required.dimnames[sapply(names(private$i.denominator.required.dimnames), function(d) {!identical(private$i.denominator.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
-            private$i.denominator.dimension.values[['year']] = private$i.years
-            
-            ## ---- GENERATE LAGGED PAIRS IF REQUESTED ---- ##
-            if (private$i.calculate.lagged.difference) {
-                year.for.lag = suppressWarnings(as.numeric(private$i.metadata$year))
-                if (any(is.na(year.for.lag)))
-                    stop(paste0(error.prefix, "'calculate.lagged.difference' can only be used with single-year data points"))
-                private$i.lagged.pairs = generate_lag_matrix_indices(year.for.lag,# check if valid -- no year ranges, please!
-                                                                     rep(0, nrow(private$i.metadata)), # location not used for basic likelihoods but is available for nested prop likelihoods
-                                                                     as.integer(as.factor(private$i.metadata$stratum)),
-                                                                     as.integer(as.factor(private$i.metadata$source)),
-                                                                     private$i.n.obs)
-                if (length(private$i.lagged.pairs)==0)
-                    stop(paste0(error.prefix, "no data found for lagged-year pairs"))
-                private$i.n.lagged.obs = length(private$i.lagged.pairs)/2
+            if (private$i.is.basic.ratio.likelihood) {
+                corrected.sim.required.dimnames = private$i.sim.ontology[names(private$i.sim.ontology)!='location']
+                corrected.sim.required.dimnames$year = sort(private$i.sim.required.dimnames$year)
+                private$i.sim.required.dimnames = private$i.denominator.required.dimnames = corrected.sim.required.dimnames
                 
-                # Keep only the latter years for each pair
-                private$i.metadata.for.lag = private$i.metadata[private$i.lagged.pairs[rep(c(T,F), private$i.n.lagged.obs)] + 1, ]
+                private$i.years = private$i.sim.required.dimnames[['year']]
+                private$i.sim.dimension.values = private$i.denominator.dimension.values = private$i.sim.required.dimnames['year']
+            } else {
+                corrected.sim.required.dimnames = private$i.sim.ontology[names(private$i.sim.ontology) %in% names(private$i.sim.required.dimnames)]
+                corrected.sim.required.dimnames$year = sort(private$i.sim.required.dimnames$year)
+                private$i.sim.required.dimnames = corrected.sim.required.dimnames
+                
+                private$i.years = private$i.sim.required.dimnames[['year']]
+                private$i.sim.dimension.values = private$i.sim.required.dimnames[sapply(names(private$i.sim.required.dimnames), function(d) {!identical(private$i.sim.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
+                private$i.sim.dimension.values[['year']] = private$i.years
+                
+                denominator.keep.dimensions = c(instructions$denominator.dimensions, 'year')[c(instructions$denominator.dimensions, 'year') %in% names(private$i.sim.required.dimnames)]
+                private$i.denominator.required.dimnames = private$i.sim.required.dimnames[names(private$i.sim.required.dimnames) %in% denominator.keep.dimensions]
+                private$i.denominator.dimension.values = private$i.denominator.required.dimnames[sapply(names(private$i.denominator.required.dimnames), function(d) {!identical(private$i.denominator.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
+                private$i.denominator.dimension.values[['year']] = private$i.years
             }
             # browser()
             ## ---- GENERATE TRANSFORMATION MATRIX ---- ##
@@ -951,13 +928,16 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             private$i.n.obs = length(private$i.obs.vector)
             
             ## ---- GENERATE SPARSE REPRESENTATIONS OF TRANSFORMATION MATRIX ---- ##
-            private$i.transformation.matrix.indices = generate_transformation_matrix_indices(private$i.transformation.matrix,
-                                                                                             private$i.n.obs,
-                                                                                             length(private$i.transformation.matrix) / private$i.n.obs)
-            
-            private$i.transformation.matrix.row.oriented.indices = generate_transformation_matrix_row_oriented_indices(private$i.transformation.matrix,
-                                                                                                                       private$i.n.obs,
-                                                                                                                       length(private$i.transformation.matrix) / private$i.n.obs)
+            if (!private$i.is.basic.ratio.likelihood) {
+                private$i.transformation.matrix.indices = generate_transformation_matrix_indices(private$i.transformation.matrix,
+                                                                                                 private$i.n.obs,
+                                                                                                 length(private$i.transformation.matrix) / private$i.n.obs)
+                
+                private$i.transformation.matrix.row.oriented.indices = generate_transformation_matrix_row_oriented_indices(private$i.transformation.matrix,
+                                                                                                                           private$i.n.obs,
+                                                                                                                           length(private$i.transformation.matrix) / private$i.n.obs)
+                
+            }
             
             ## ---- GENERATE MEASUREMENT ERROR COVARIANCE MATRIX ---- ##
             
@@ -1027,7 +1007,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                 multiplier.covariance.matrix = multiplier.correlation.matrix * included.multiplier.sd.vector %*% t(included.multiplier.sd.vector)
                 private$i.inverse.multiplier.matrix.times.cov.mat = inverse.multiplier.matrix * multiplier.covariance.matrix
             }
-            ##
             
             ## ---- GENERATE INVERSE VARIANCE WEIGHTS MATRIX ---- ##
             private$i.metadata$stratum = as.character(private$i.metadata$stratum)
@@ -1037,6 +1016,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                                  weights = private$i.weights)
             
             ## ---- SAVE THE PREPARED OPTIMIZED GET INSTRUCTIONS ---- ##
+            # browser()
             private$i.optimized.get.instructions = list()
             private$i.optimized.get.instructions[["sim.num.instr"]] = sim.metadata$prepare.optimized.get.instructions(outcomes = private$i.outcome.for.sim,
                                                                                                                       keep.dimensions = names(private$i.sim.required.dimnames),
@@ -1044,16 +1024,29 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                                                                                                       output = 'numerator',
                                                                                                                       drop.single.sim.dimension = T)
             if (private$i.outcome.is.proportion || private$i.outcome.is.rate) {
-                if (is.null(private$i.denominator.outcome.for.sim))
-                    private$i.optimized.get.instructions[['sim.denom.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
-                                                                                                                                keep.dimensions = names(private$i.denominator.required.dimnames),
-                                                                                                                                dimension.values = private$i.denominator.dimension.values,
-                                                                                                                                output = 'denominator',
-                                                                                                                                drop.single.sim.dimension = T)
-                else private$i.optimized.get.instructions[['sim.denom.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.denominator.outcome.for.sim,
-                                                                                                                                 keep.dimensions = names(private$i.denominator.required.dimnames),
-                                                                                                                                 dimension.values = private$i.denominator.dimension.values,
-                                                                                                                                 drop.single.sim.dimension = T)
+                private$i.optimized.get.instructions[['sim.denom.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
+                                                                                                                            keep.dimensions = names(private$i.denominator.required.dimnames),
+                                                                                                                            dimension.values = private$i.denominator.dimension.values,
+                                                                                                                            output = 'denominator',
+                                                                                                                            drop.single.sim.dimension = T)
+            }
+            
+            ## ---- GENERATE LAGGED PAIRS IF REQUESTED ---- ##
+            if (private$i.calculate.lagged.difference) {
+                year.for.lag = suppressWarnings(as.numeric(private$i.metadata$year))
+                if (any(is.na(year.for.lag)))
+                    stop(paste0(error.prefix, "'calculate.lagged.difference' can only be used with single-year data points"))
+                private$i.lagged.pairs = generate_lag_matrix_indices(year.for.lag,# check if valid -- no year ranges, please!
+                                                                     rep(0, nrow(private$i.metadata)), # location not used for basic likelihoods but is available for nested prop likelihoods
+                                                                     as.integer(as.factor(private$i.metadata$stratum)),
+                                                                     as.integer(as.factor(private$i.metadata$source)),
+                                                                     private$i.n.obs)
+                if (length(private$i.lagged.pairs)==0)
+                    stop(paste0(error.prefix, "no data found for lagged-year pairs"))
+                private$i.n.lagged.obs = length(private$i.lagged.pairs)/2
+                
+                # Keep only the latter years for each pair
+                private$i.metadata.for.lag = private$i.metadata[private$i.lagged.pairs[rep(c(T,F), private$i.n.lagged.obs)] + 1, ]
             }
             
         },
@@ -1079,9 +1072,9 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         i.parameters = NULL,
         
         i.outcome.for.data = NULL,
-        i.denominator.outcome.for.sim = NULL,
         i.outcome.is.proportion = NULL,
         i.outcome.is.rate = NULL,
+        i.outcome.is.count = NULL,
         i.outcome.value = NULL,
         
         i.optimized.get.instructions = NULL,
@@ -1106,6 +1099,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
         i.dimension.values = NULL, # EXPERIMENTAL
         i.use.lognormal.approximation = NULL,
         i.calculate.lagged.difference = NULL,
+        i.is.basic.ratio.likelihood = NULL,
         i.lagged.pairs = NULL,
         i.metadata.for.lag = NULL,
         
@@ -1150,7 +1144,7 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             raw.sim.mean = sim.numerator.data / sim.denominator.data
             
             if (use.binomial)
-                raw.sim.variance = sim.numerator.data * (1-raw.sim.mean) # n*p*(1-p)
+                raw.sim.variance = raw.sim.mean * (1-raw.sim.mean) / sim.denominator.data # mu * (1 - mu) / n which is np(1-p) / n^2
             else
                 raw.sim.variance =  sim.numerator.data / sim.denominator.data^2 # x / n^2
             
@@ -1255,23 +1249,18 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
             # if denom for sim is NULL, figure out if it's a proportion or not
             # if so, use a sim get requesting to get only the denominator
-            use.poisson = is.null(private$i.denominator.outcome.for.sim) && !private$i.outcome.is.proportion
-            if (use.poisson && !private$i.outcome.is.rate) {
+            use.poisson = private$i.outcome.is.rate || private$i.outcome.is.count
+            if (private$i.outcome.is.count) {
                 sim.denominator.data = numeric(0)
                 expanded.sim.denominator.data = numeric(0)# so as not to throw errors in cpp sigma
             } else {
                 if (use.optimized.get)
                     sim.denominator.data = sim$optimized.get(private$i.optimized.get.instructions[["sim.denom.instr"]])
-                else if (is.null(private$i.denominator.outcome.for.sim))
+                else
                     sim.denominator.data = sim$get(outcome = private$i.outcome.for.sim,
                                                    keep.dimensions = names(private$i.denominator.required.dimnames),
                                                    dimension.values = private$i.denominator.dimension.values,
                                                    output = 'denominator',
-                                                   drop.single.sim.dimension = T)
-                else
-                    sim.denominator.data = sim$get(outcome = private$i.denominator.outcome.for.sim,
-                                                   keep.dimensions = names(private$i.denominator.required.dimnames),
-                                                   dimension.values = private$i.denominator.dimension.values,
                                                    drop.single.sim.dimension = T)
                 expanded.sim.denominator.data = expand.array(sim.denominator.data, dimnames(sim.numerator.data))
             }
@@ -1357,7 +1346,6 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
                                           log=T,
                                           checkSymmetry = F)
             
-            
             if (debug) {
                 if (private$i.calculate.lagged.difference)
                     lik.summary = cbind(private$i.metadata.for.lag, obs=obs, mean=mean, sd=sqrt(diag(sigma)))
@@ -1384,9 +1372,9 @@ JHEEM.BASIC.LIKELIHOOD = R6::R6Class(
             
         },
         
-        generate.transformation.matrix = function(dimnames.list, remove.mask.list, n.strats, sim.dimnames)
+        generate.transformation.matrix = function(dimnames.list, remove.mask.list, n.strats, sim.dimnames, debug=F)
         {
-            # browser()
+            if (debug) browser()
             transformation.matrix = NULL
             for (i in 1:n.strats) {
                 
