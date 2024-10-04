@@ -1,7 +1,5 @@
 create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
-                                                       outcome.for.sim,
-                                                       denominator.outcome.for.sim = NULL, # If NULL (as it would be for population), will be doing the Poisson version of compute. OR, if outcome is proportion, rate, or time, use denominator within sim data
-                                                       dimensions = character(0),
+                                                       outcome.for.sim,dimensions = character(0),
                                                        denominator.dimensions = dimensions,
                                                        dimension.values = NULL, # EXPERIMENTAL
                                                        levels.of.stratification = NULL,
@@ -21,7 +19,7 @@ create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
 {
     JHEEM.BASIC.RATIO.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
                                                   outcome.for.sim = outcome.for.sim,
-                                                  denominator.outcome.for.sim = denominator.outcome.for.sim,
+                                                  outcome.value = NULL,
                                                   dimensions = dimensions,
                                                   denominator.dimensions = denominator.dimensions,
                                                   dimension.values = dimension.values, # EXPERIMENTAL
@@ -30,6 +28,10 @@ create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
                                                   to.year = to.year,
                                                   omit.years = omit.years,
                                                   sources.to.use = sources.to.use,
+                                                  included.multiplier=NULL,
+                                                  included.multiplier.sd=NULL,
+                                                  included.multiplier.correlation=NULL,
+                                                  included.multiplier.correlation.structure=c('compound.symmetry', 'autoregressive.1')[1],
                                                   correlation.different.years = correlation.different.years,
                                                   correlation.different.strata = correlation.different.strata,
                                                   correlation.different.sources = correlation.different.sources,
@@ -38,246 +40,20 @@ create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
                                                   error.variance.term = error.variance.term,
                                                   error.variance.type = error.variance.type,
                                                   weights = weights,
-                                                  equalize.weight.by.year = equalize.weight.by.year)
+                                                  equalize.weight.by.year = equalize.weight.by.year,
+                                                  use.lognormal.approximation=F,
+                                                  calculate.lagged.difference = TRUE,
+                                                  is.basic.ratio.likelihood = TRUE)
 }
 
 JHEEM.BASIC.RATIO.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
     'jheem.basic.ratio.likelihood.instructions',
-    inherit = JHEEM.LIKELIHOOD.INSTRUCTIONS,
-    
-    public = list(
-        
-        initialize = function(outcome.for.data,
-                              outcome.for.sim,
-                              denominator.outcome.for.sim,
-                              dimensions,
-                              denominator.dimensions,
-                              dimension.values, # EXPERIMENTAL
-                              levels.of.stratification,
-                              from.year,
-                              to.year,
-                              omit.years,
-                              sources.to.use,
-                              correlation.different.years,
-                              correlation.different.strata,
-                              correlation.different.sources,
-                              correlation.same.source.different.details,
-                              observation.correlation.form,
-                              error.variance.term,
-                              error.variance.type,
-                              weights,
-                              equalize.weight.by.year)
-        {
-            # browser()
-            error.prefix = paste0("Error creating basic likelihood instructions for outcome '", outcome.for.sim, "': ")
-            
-            # *outcome.for.sim* -- validated in the super$initialize
-            
-            # *denominator.outcome.for.sim* is NULL or a single character vector
-            if (!is.null(denominator.outcome.for.sim) && (!is.character(denominator.outcome.for.sim) || length(denominator.outcome.for.sim) > 1 || is.na(denominator.outcome.for.sim)))
-                stop(paste0(error.prefix, "'denominator.outcome.for.sim' must be NULL or a character vector of length 1"))
-            
-            # *dimensions* -- validated in the super$initialize
-            
-            # *denominator.dimensions* is NULL or a character vector with no NAs or duplicates
-            # AND which is a subset of *dimensions*
-            if (!is.null(denominator.dimensions) && (!is.character(denominator.dimensions) || any(is.na(denominator.dimensions)) || any(duplicated(dimensions))) || length(setdiff(denominator.dimensions, dimensions)) > 0)
-                stop(paste0(error.prefix, "'denominator dimensions' must be NULL or a character vector with no NAs or duplicates that is a subset of 'dimensions'"))
-            
-            # *levels.of.stratification* -- validated in the super$initialize
-            
-            # *from.year* and *to.year* are single integer vectors. *to.year* must be larger than *from.year*.
-            if (from.year != -Inf && (!is.numeric(from.year) || length(from.year) > 1 || is.null(from.year) || is.na(from.year)))
-                stop(paste0(error.prefix, "'from.year' must be -Inf or a numeric vector of length 1"))
-            if (to.year != Inf && (!is.numeric(to.year) || length(to.year) > 1 || is.null(to.year) || is.na(to.year)))
-                stop(paste0(error.prefix, "'to.year' must be Inf or a numeric vector of length 1"))
-            if (from.year > to.year)
-                stop(paste0(error.prefix, "'from.year' must be less than 'to.year'"))
-            
-            # *omit.years* is NULL or a numeric vector containing no NAs or duplicates.
-            if (!is.null(omit.years) && (!is.numeric(omit.years) || any(is.na(omit.years)) || any(duplicated(omit.years))))
-                stop(paste0(error.prefix, "'omit.years' must be NULL or an numeric vector containing no NAs or duplicates"))
-            omit.years = as.integer(omit.years)
-            
-            # *sources.to.use* is NULL or a character vector containing no NAs or duplicates
-            if (!is.null(sources.to.use) && (!is.character(sources.to.use) || any(is.na(sources.to.use)) || any(duplicated(sources.to.use))))
-                stop(paste0(error.prefix, "'sources.to.use' must be NULL or a character vector containing no NAs or duplicates"))
-            
-            # *correlation.multipliers* are all single numeric vectors with values between 0 and 1 inclusive
-            correlation.multipliers = list(correlation.different.years=correlation.different.years,
-                                           correlation.different.strata=correlation.different.strata,
-                                           correlation.different.sources=correlation.different.sources,
-                                           correlation.same.source.different.details=correlation.same.source.different.details)
-            names(correlation.multipliers) = c('correlation.different.years', 'correlation.different.strata', 'correlation.different.sources', 'correlation.same.source.different.details')
-            for (i in seq_along(correlation.multipliers)) {
-                if (!is.numeric(correlation.multipliers[[i]]) || length(correlation.multipliers[[i]]) > 1 || is.na(correlation.multipliers[[i]]) || correlation.multipliers[[i]] > 1 || correlation.multipliers[[i]] < 0)
-                    stop(paste0(error.prefix, "'", names(correlation.multipliers)[[i]], "' must be a numeric value between 0 and 1 inclusive"))
-            }
-            
-            # *observation.correlation.form* is either 'compound.symmetry' or 'autoregressive.1'
-            if (length(observation.correlation.form) > 1 || !(observation.correlation.form %in% c('compound.symmetry', 'autoregressive.1')))
-                stop(paste0(error.prefix, "'observation.correlation.form' must be either 'compound.symmetry' or 'autoregressive.1'"))
-            
-            # # *measurement.error.coefficient.of.variance* must be a single numeric value between 0 and 1
-            # if (!is.numeric(measurement.error.coefficient.of.variance) || length(measurement.error.coefficient.of.variance) > 1 || is.na(measurement.error.coefficient.of.variance) || measurement.error.coefficient.of.variance > 1 || measurement.error.coefficient.of.variance < 0)
-            #     stop(paste0(error.prefix, "'measurement.error.coefficient.of.variance' must be a numeric value between 0 and 1 inclusive"))
-            
-            # *error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.ci',  or 'data.variance'
-            if (!(error.variance.type %in% c('sd', 'variance', 'cv', 'data.sd', 'data.ci', 'data.variance')))
-                stop(paste0(error.prefix, "'error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.ci', or 'data.variance'"))
-            
-            if (error.variance.type %in% c('sd', 'variance', 'cv') && (!is.numeric(error.variance.term) || length(error.variance.term)!=1 || is.na(error.variance.term) || error.variance.term < 0))
-                stop(paste0(error.prefix, "'error.variance.term' must be a single, nonnegative, numeric value if 'error.variance.type' is one of 'sd', 'variance', or 'cv'"))
-            if (error.variance.type %in% c('data.sd', 'data.ci') && !is.null(error.variance.term))
-                stop(paste0(error.prefix, "'error.variance.term' must be NULL if 'error.variance.term' is one of 'data.sd' or 'data.ci'"))
-            
-            # *weights* -- validated in the super$initialize
-            
-            # *equalize.weight.by.year* is a boolean
-            if (!is.logical(equalize.weight.by.year) || length(equalize.weight.by.year) > 1 || is.null(equalize.weight.by.year) || is.na(equalize.weight.by.year))
-                stop(paste0(error.prefix, "'equalize.weight.by.year' must be a single logical value (T/F)"))
-            
-            # EXPERIMENTAL DIMENSION VALUES SHOULD BE A NAMED LIST
-            if (!is.null(dimension.values) && (!is.list(dimension.values) || (length(dimension.values) > 0 && is.null(names(dimension.values))) || 'year' %in% names(dimension.values)))
-                stop(paste0(error.prefix, "experimental 'dimension.values' argument must be NULL or a named list without 'year'"))
-            
-            super$initialize(outcome.for.sim = outcome.for.sim,
-                             dimensions = dimensions,
-                             levels.of.stratification = levels.of.stratification,
-                             weights = weights,
-                             likelihood.class.generator = JHEEM.BASIC.RATIO.LIKELIHOOD,
-                             error.prefix = error.prefix)
-            
-            # if 'year' is in the dimension values for any *weights*, then *equalize.weight.by.year* must be FALSE
-            if (equalize.weight.by.year && any(sapply(private$i.weights, function(weight) {'year' %in% names(weight$dimension.values)})))
-                stop(paste0(error.prefix, "'equalize.weight.by.year' must be FALSE if any weights include 'year' in their dimension values"))
-            
-            private$i.outcome.for.data = outcome.for.data
-            private$i.denominator.outcome.for.sim = denominator.outcome.for.sim
-            private$i.from.year = from.year
-            private$i.to.year = to.year
-            private$i.omit.years = omit.years
-            private$i.denominator.dimensions = denominator.dimensions
-            private$i.equalize.weight.by.year = equalize.weight.by.year
-            private$i.sources.to.use = sources.to.use
-            private$i.parameters = list(correlation.different.years = correlation.different.years,
-                                        correlation.different.strata = correlation.different.strata,
-                                        correlation.different.sources = correlation.different.sources,
-                                        correlation.same.source.different.details = correlation.same.source.different.details,
-                                        observation.correlation.form = observation.correlation.form,
-                                        error.variance.term = error.variance.term,
-                                        error.variance.type = error.variance.type)
-            private$i.dimension.values = dimension.values # EXPERIMENTAL
-        }
-    ),
-    active = list(
-        
-        outcome.for.data = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.outcome.for.data
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'outcome.for.data' - it is read-only")
-        },
-        denominator.outcome.for.sim = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.denominator.outcome.for.sim
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'denominator.outcome.for.sim' - it is read-only")
-        },
-        from.year = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.from.year
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'from.year' - it is read-only")
-        },
-        to.year = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.to.year
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'to.year' - it is read-only")
-        },
-        omit.years = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.omit.years
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'omit.years' - they are read-only")
-        },
-        denominator.dimensions = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.denominator.dimensions
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'denominator.dimensions' - they are read-only")
-        },
-        equalize.weight.by.year = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.equalize.weight.by.year
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'equalize.weight.by.year' - it is read-only")
-        },
-        parameters = function(value)
-        {
-            if (missing(value)) {
-                private$i.parameters
-            }
-            else
-                stop("Cannot modify a jheem.basic.likelihood.instruction's 'parameters' - they are read-only")
-        },
-        sources.to.use = function(value)
-        {
-            if (missing(value)) {
-                private$i.sources.to.use
-            }
-            else
-                stop("Cannot modify a jheem.basic.likelihood.instruction's 'sources.to.use' - they are read-only")
-        },
-        dimension.values = function(value) # EXPERIMENTAL
-        {
-            if (missing(value)) {
-                private$i.dimension.values
-            }
-            else
-                stop("Cannot modify a jheem.basic.likelihood.instruction's experimental 'dimension.values' - they are read-only")
-        }
-    ),
-    
-    private = list(
-        i.outcome.for.data = NULL,
-        i.denominator.outcome.for.sim = NULL,
-        i.from.year = NULL,
-        i.to.year = NULL,
-        i.omit.years = NULL,
-        i.denominator.dimensions = NULL,
-        i.equalize.weight.by.year = NULL,
-        i.parameters = NULL,
-        i.sources.to.use = NULL,
-        i.dimension.values = NULL # EXPERIMENTAL
-    )
+    inherit = JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS
 )
 
 JHEEM.BASIC.RATIO.LIKELIHOOD = R6::R6Class(
     'jheem.basic.ratio.likelihood',
-    inherit = JHEEM.LIKELIHOOD,
+    inherit = JHEEM.BASIC.LIKELIHOOD,
     portable = F,
     
     public = list(
@@ -290,271 +66,35 @@ JHEEM.BASIC.RATIO.LIKELIHOOD = R6::R6Class(
                               throw.error.if.no.data,
                               error.prefix)
         {
-            # browser()
+            # 'super' here is the basic likelihood, not main likelihood
             super$initialize(instructions = instructions,
-                             sub.version = sub.version,
                              version = version,
+                             sub.version = sub.version,
                              location = location,
+                             data.manager = data.manager,
+                             throw.error.if.no.data = throw.error.if.no.data,
                              error.prefix = error.prefix)
             
-            # Validate *data.manager*, a 'jheem.data.manager' object
-            if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
-                stop(paste0(error.prefix, "'data.manager' must be an R6 object with class 'jheem.data.manager'"))
-            
-            private$i.version = version
-            private$i.sub.version = sub.version
-            private$i.location = location
-            
-            private$i.parameters = instructions$parameters
-            private$i.outcome.for.data = instructions$outcome.for.data
-            private$i.denominator.outcome.for.sim = instructions$denominator.outcome.for.sim
-            
-            private$i.dimension.values = instructions$dimension.values # EXPERIMENTAL
-            
-            ## ---- DETERMINE YEARS FOR SIM METADATA ---- ##
-            years = get.likelihood.years(from.year = instructions$from.year,
-                                         to.year = instructions$to.year,
-                                         omit.years = instructions$omit.years,
-                                         data.manager = data.manager,
-                                         outcome.for.data = private$i.outcome.for.data)
-            
-            ## ---- PREPARE DATA STRUCTURES ---- ##
-            
-            sim.metadata = get.simulation.metadata(version=version, ## MOVE THIS TO MAIN LIKELIHOOD SINCE ALL WILL HAVE SIM METADATA?
-                                                   location=location,
-                                                   from.year = years[[1]],
-                                                   to.year = years[[length(years)]])
-            
-            if(!is.null(private$i.denominator.outcome.for.sim) && !(private$i.denominator.outcome.for.sim %in% sim.metadata$outcomes))
-                stop(paste0(error.prefix, private$i.denominator.for.sim, " is not a simulation outcome in this specification"))
-            # browser()
-            
-            scale = sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$scale
-            if (!(scale %in% c('non.negative.number', 'number', 'proportion', 'rate')))
-                stop(paste0(error.prefix, "'outcome.for.sim' must be a non.negative.number, number, rate, or proportion"))
-            private$i.outcome.is.proportion = scale == 'proportion'
-            private$i.outcome.is.rate = scale == 'rate'
-            
-            if (private$i.outcome.is.proportion && is.null(private$i.denominator.outcome.for.sim)) {
-                private$i.denominator.outcome.for.sim = sim.metadata$outcome.metadata[[private$i.outcome.for.sim]]$denominator.outcome
-                #        if (is.null(private$i.denominator.outcome.for.sim))
-                #            stop(paste0(error.prefix, "denominator data expected for this outcome but not found"))
-            }
-            
-            private$i.sim.ontology = sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
-            private$i.sim.ontology$year = as.character(years)
-            private$i.sim.ontology = do.call(ontology, c(private$i.sim.ontology, list(incomplete.dimensions = c('year', 'location'))))
-            
-            # Validate that instructions asked for dimensions that are in sim ontology for this outcome, and no more.
-            requested.dimensions = setdiff(unique(unlist(private$i.stratifications)), "")
-            dimensions.in.instr.not.sim = requested.dimensions[!sapply(requested.dimensions, function(d) {d %in% names(private$i.sim.ontology)})]
-            if (length(dimensions.in.instr.not.sim) > 0)
-                stop(paste0(error.prefix, "likelihood instructions requested the following dimensions not present in the simulation ontology for this outcome: ", paste(dimensions.in.instr.not.sim, collapse=", ")))
-            
-            
-            private$i.obs.vector = c()
-            private$i.details = c() # will contain each observation's sorted details as a collapsed character factor
-            private$i.metadata = data.frame(year = character(0),
-                                            stratum = character(0),
-                                            source = character(0))
-            
-            dimnames.list = list()
-            remove.mask.list = list()
-            dv.remove.mask.list = list() # EXPERIMENTAL
-            private$i.transformation.matrix = NULL
-            private$i.sim.required.dimnames = list()
-            
-            ### EXPERIMENTAL: LIMIT STRATIFICATIONS TO ONLY THOSE WITH *ALL* THE DIMENSIONS FROM DIMENSION VALUES
-            if (length(private$i.dimension.values) > 0) {
-                private$i.stratifications = private$i.stratifications[sapply(private$i.stratifications, function(stratification) {setequal(stratification, names(private$i.dimension.values))})]
-            }
-            
-            ## ---- PULL DATA ---- ##
-
-            n.stratifications.with.data = 0
-            for (strat in private$i.stratifications) {
-                keep.dimensions = 'year'
-                if (!identical(strat, "")) keep.dimensions = c(keep.dimensions, strat)
-                data = data.manager$pull(outcome = private$i.outcome.for.data,
-                                         sources = instructions$sources.to.use,
-                                         keep.dimensions = keep.dimensions,
-                                         dimension.values = list(year = as.character(years), location=location), # leave this for now. Will get more complicated when we have multi location models
-                                         target.ontology = private$i.sim.ontology,
-                                         allow.mapping.from.target.ontology = T,
-                                         append.attributes = 'details',
-                                         debug = F)
-                
-                if (is.null(data)) {
-                    if (throw.error.if.no.data)
-                        stop(paste0(error.prefix, "no data was found for the stratification '", strat, "'"))
-                    else next
-                }
-                
-                n.stratifications.with.data = n.stratifications.with.data + 1
-                one.mapping = attr(data, 'mapping')
-                one.dimnames = dimnames(data)
-                one.details = attr(data, 'details')
-                
-                ## Pull measurement error variance if needed
-                if (instructions$parameters$error.variance.type %in% c('data.sd', 'data.variance', 'data.cv')) {
-                    metric.map = list(data.sd='sd', data.variance='variance', data.cv='coefficient.of.variance')
-                    error.data = data.manager$pull(outcome = private$i.outcome.for.data,
-                                                   metric = metric.map[[private$i.parameters$error.variance.type]],
-                                                   sources = private$i.sources.to.use,
-                                                   keep.dimensions = keep.dimensions,
-                                                   dimension.values = list(year = as.character(years), location = location),
-                                                   target.ontology = private$i.sim.ontology,
-                                                   allow.mapping.from.target.ontology = T)
-                    
-                    if (is.null(error.data)) {
-                        if (throw.error.if.no.data)
-                            stop(paste0(error.prefix, "no ", metric.map[[private$i.parameters$error.variance.type]], ", data was found for the stratification '", strat, "'"))
-                        else next
-                    }
-                    
-                    # find overlapping dimnames, limit both, then flip data to NA if cv for that value is NA
-                    common.dimnames = get.dimension.values.overlap(dimnames(data), dimnames(error.data))
-                    error.data = array.access(error.data, common.dimnames)
-                    data = array.access(data, common.dimnames)
-                    
-                    if (instructions$parameters$error.variance.type == 'data.cv')
-                        error.data = data * error.data # sd = cv * mean ... Note that "data" has not been lognormal transformed yet, so we don't need to do exp(data)
-                    
-                    data[is.na(error.data)] = NA
-                    one.details = array.access(one.details, common.dimnames)
-                    
-                    one.error.data = as.numeric(error.data) # na masks will align perfectly with obs p mask
-                    one.error.data = one.error.data[!is.na(one.error.data)]
-                    
-                    if (instructions$parameters$error.variance.type == 'data.variance')
-                        one.error.data = sqrt(one.error.data)
-                    
-                    private$i.error.vector = c(private$i.error.vector, one.error.data)
-                }
-                
-                # Since we have lognormal approximation on, we should remove observations that are 0.
-                data[data==0]=NA
-                
-                # By this point, "data" may have had multiple entries converted to NA.
-                one.obs.vector = as.numeric(data)
-                
-                # EXPERIMENTAL
-                one.dimension.values.remove.mask = rep(T, length(one.obs.vector)) # EXPERIMENTAL
-                one.dimension.values.remove.mask[get.array.access.indices(one.dimnames, dimension.values=private$i.dimension.values)] = F # EXPERIMENTAL
-                dv.remove.mask.list = c(dv.remove.mask.list, list(one.dimension.values.remove.mask)) # EXPERIMENTAL
-                
-                one.remove.mask = is.na(one.obs.vector)
-                one.obs.vector = one.obs.vector[!one.remove.mask]
-                one.details = one.details[!one.remove.mask]
-                
-                # Metadata will involve melting both arrays (data and details) as well as making "stratum"
-                one.metadata = reshape2::melt(data)  
-                one.metadata = one.metadata[!one.remove.mask,]
-                
-                # Recover required dimnames from one.metadata
-                one.sim.required.dimnames = one.mapping$get.required.from.dim.names(lapply(one.metadata[!(colnames(one.metadata) %in% c('source', 'value'))],
-                                                                                           function(x) {as.character(unique(x))}))
-                
-                one.metadata = one.metadata[, sort(colnames(one.metadata))]
-                one.metadata['stratum'] = do.call(paste, c(subset.data.frame(one.metadata, select=-c(year, source, value)), sep="__"))
-                one.metadata[is.na(one.metadata$stratum), 'stratum'] = ".TOTAL."
-                one.metadata['dimensions'] = paste0(strat, collapse="__")
-                one.metadata = subset.data.frame(one.metadata, select = c(year, stratum, dimensions, source))
-                
-                # Find the required.dimnames
-                for (d in names(one.sim.required.dimnames)) {
-                    if (!(d %in% names(private$i.sim.required.dimnames)))
-                        private$i.sim.required.dimnames = c(private$i.sim.required.dimnames, setNames(list(one.sim.required.dimnames[[d]]), d))
-                    else
-                        private$i.sim.required.dimnames[[d]] = union(private$i.sim.required.dimnames[[d]], one.sim.required.dimnames[[d]])
-                }
-                
-                # Convert one.details list of vectors to a list of characters of collapsed sorted details, then unlist to a vector
-                one.details = unlist(lapply(one.details, function(v) {paste(sort(v), collapse="__")}))
-                
-                private$i.obs.vector = c(private$i.obs.vector, one.obs.vector)
-                private$i.details = c(private$i.details, one.details)
-                private$i.metadata = rbind(private$i.metadata, one.metadata)
-                dimnames.list = c(dimnames.list, list(one.dimnames))
-                remove.mask.list = c(remove.mask.list, list(one.remove.mask))
-
-            }
-            
-            private$i.n.obs = length(private$i.obs.vector)
-            
-            if (n.stratifications.with.data==0)
-                stop(paste0(error.prefix, "No data found for any stratifications"))
-            # browser()
-            # NOTE: STRATUM MUST BE RESTORED TO CHARACTER LATER WHEN WE GENERATE THE WEIGHTS MATRIX SINCE WE HAVE TO STRING SPLIT IT
-            private$i.details = as.factor(private$i.details)
-            # private$i.metadata$location = as.factor(private$i.metadata$location) # already factor somehow
-            if (private$i.parameters$observation.correlation.form == 'autoregressive.1') {
-                private$i.metadata$year = suppressWarnings(as.numeric(private$i.metadata$year))
-                if (any(is.na(private$i.metadata$year)))
-                    stop(paste0(error.prefix, "'observation.correlation.form' 'autoreggresive.1' can only be used with single-year data points"))
-            }
-            else private$i.metadata$year = as.factor(private$i.metadata$year)
-            private$i.metadata$stratum = as.factor(private$i.metadata$stratum)
-            # private$i.metadata$source = as.factor(private$i.metadata$source) # already factor somehow
-            
-            ## ---- FIND REQUIRED DIMENSION VALUES, ETC. ---- ##
-            corrected.sim.required.dimnames = private$i.sim.ontology[names(private$i.sim.ontology) %in% names(private$i.sim.required.dimnames)]
-            corrected.sim.required.dimnames$year = sort(private$i.sim.required.dimnames$year)
-            private$i.sim.required.dimnames = corrected.sim.required.dimnames
-            
-            private$i.years = private$i.sim.required.dimnames[['year']]
-            private$i.sim.dimension.values = private$i.sim.required.dimnames[sapply(names(private$i.sim.required.dimnames), function(d) {!identical(private$i.sim.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
-            private$i.sim.dimension.values[['year']] = private$i.years
-            
-            denominator.keep.dimensions = c(instructions$denominator.dimensions, 'year')[c(instructions$denominator.dimensions, 'year') %in% names(private$i.sim.required.dimnames)]
-            private$i.denominator.required.dimnames = private$i.sim.required.dimnames[names(private$i.sim.required.dimnames) %in% denominator.keep.dimensions]
-            private$i.denominator.dimension.values = private$i.denominator.required.dimnames[sapply(names(private$i.denominator.required.dimnames), function(d) {!identical(private$i.denominator.required.dimnames[[d]], private$i.sim.ontology[[d]])})]
-            private$i.denominator.dimension.values[['year']] = private$i.years
-            
-            ## ---- GENERATE LAGGED PAIRS ---- ##
-            year.for.lag = suppressWarnings(as.numeric(private$i.metadata$year))
-            if (any(is.na(year.for.lag)))
-                stop(paste0(error.prefix, "a 'basic.ratio.likelihood' can only be instantiated with single-year data points"))
-            private$i.lagged.pairs = generate_lag_matrix_indices(year.for.lag,# check if valid -- no year ranges, please!
-                                                                 rep(0, nrow(private$i.metadata)), # location not used for basic likelihoods but is available for nested prop likelihoods
-                                                                 as.integer(as.factor(private$i.metadata$stratum)),
-                                                                 as.integer(as.factor(private$i.metadata$source)),
-                                                                 private$i.n.obs)
-            if (length(private$i.lagged.pairs)==0)
-                stop(paste0(error.prefix, "no data found for lagged-year pairs"))
-            private$i.n.lagged.obs = length(private$i.lagged.pairs)/2
-            
-            # Keep only the latter years for each pair
-            private$i.metadata.for.lag = private$i.metadata[private$i.lagged.pairs[rep(c(T,F), private$i.n.lagged.obs)] + 1, ]
+            # We must have a denominator, so we cannot be a "count", just "rate" or "proportion"... is that what Todd said? Maybe not?
+            if (private$i.outcome.is.count)
+                stop(paste0(error.prefix, "outcome must have scale 'rate' or 'proportion' to use 'jheem.basic.ratio.likelihood'"))
             
             ## ---- GENERATE SIM LAG MATRIX ---- ##
-            sim.years = sort(private$i.sim.required.dimnames$year)
-            sim.years.to = sim.years[-1]
-            sim.years.from = sim.years[-length(sim.years)]
-            to.indices = get.array.access.indices(private$i.sim.required.dimnames, dimension.values = list(year=sim.years.to))
-            from.indices = get.array.access.indices(private$i.sim.required.dimnames, dimension.values = list(year=sim.years.from))
-            sim.lag.matrix = t(sapply(1:length(to.indices), function(i){
+            sim.years.to = private$i.years[-1] # private$i.years is already sorted and same as the sim.required.dimnames$year
+            sim.years.from = private$i.years[-length(private$i.years)]
+            private$i.to.indices = get.array.access.indices(private$i.sim.required.dimnames, dimension.values = list(year=sim.years.to))
+            private$i.from.indices = get.array.access.indices(private$i.sim.required.dimnames, dimension.values = list(year=sim.years.from))
+            private$i.sim.lag.matrix = t(sapply(1:length(private$i.to.indices), function(i){
                 row = rep(0, prod(sapply(private$i.sim.required.dimnames, length)))
-                row[to.indices[i]] = 1
-                row[from.indices[i]] = -1
+                row[private$i.to.indices[i]] = 1
+                row[private$i.from.indices[i]] = -1
                 row
             }))
             
-            ## ---- GENERATE TRANSFORMATION MATRIX AND LAG IT ---- ##
-            private$i.transformation.matrix = generate.transformation.matrix(dimnames.list, remove.mask.list, n.stratifications.with.data, private$i.sim.required.dimnames)
-            
-            if (is.null(private$i.transformation.matrix))
-                stop(paste0(error.prefix, "no mappings found to align simulation and data ontologies"))
-            obs.indices = private$i.lagged.pairs[2*(1:(length(private$i.lagged.pairs)/2))-1] + 1
-            private$i.transformation.matrix = private$i.transformation.matrix[obs.indices, to.indices]
-            
-            ## ---- EXPERIMENTAL: CREATE DIMENSION VALUES MASK ---- ##
-            # APPLY IT TO TRANSFORMATION MATRIX, OBS VECTOR, METADATA (@Andrew what about lag pairs and sim lag matrix?)
-            # dv.shortened.remove.mask = unlist(dv.remove.mask.list)[!unlist(remove.mask.list)]
-            # private$i.transformation.matrix = private$i.transformation.matrix[!dv.shortened.remove.mask,]
-            # private$i.obs.vector = private$i.obs.vector[!dv.shortened.remove.mask]
-            # private$i.metadata = private$i.metadata[!dv.shortened.remove.mask,]
-            # private$i.n.obs = length(private$i.obs.vector)
+            ## ---- FIND LAGGED TRANSFORMATION MATRIX ---- ##
+            # ASSUMPTION: sim years are contiguous (no gaps) according to Todd
+            private$i.obs.indices = private$i.lagged.pairs[2*(1:(length(private$i.lagged.pairs)/2))-1] + 1
+            private$i.transformation.matrix = private$i.transformation.matrix[private$i.obs.indices, private$i.to.indices]
             
             ## ---- GENERATE SPARSE REPRESENTATIONS OF TRANSFORMATION MATRIX ---- ##
             private$i.transformation.matrix.indices = generate_transformation_matrix_indices(private$i.transformation.matrix,
@@ -565,72 +105,6 @@ JHEEM.BASIC.RATIO.LIKELIHOOD = R6::R6Class(
                                                                                                                        private$i.n.lagged.obs,
                                                                                                                        length(private$i.transformation.matrix) / private$i.n.lagged.obs)
             
-            
-            
-            ## ---- GENERATE MEASUREMENT ERROR COVARIANCE MATRIX ---- ##
-            
-            # call this function with numeric(0) replacing the locations vector and 1 replacing the correlation different locations, used in the nested proportion likelihood.
-            measurement.error.correlation.matrix = get_obs_error_correlation_matrix(rep(1, private$i.n.obs**2),
-                                                                                    private$i.n.obs,
-                                                                                    numeric(0),
-                                                                                    as.numeric(private$i.metadata$year),
-                                                                                    as.numeric(private$i.metadata$stratum),
-                                                                                    as.numeric(private$i.metadata$source),
-                                                                                    as.numeric(private$i.details),
-                                                                                    1,
-                                                                                    private$i.parameters$correlation.different.year,
-                                                                                    private$i.parameters$correlation.different.strata,
-                                                                                    private$i.parameters$correlation.different.source,
-                                                                                    private$i.parameters$correlation.same.source.different.details,
-                                                                                    private$i.parameters$observation.correlation.form == "autoregressive.1")
-            # if we get measurement error sd from data, we'll need to have pulled it along with the regular data
-            
-            # TO DO: error variance if it's by year
-            
-            # All forms of error will be converted to sd and then we use cov = corr * sd %*% t(sd), the last part sometimes being just sd squared
-            if (private$i.parameters$error.variance.type %in% c('data.sd', 'data.variance', 'data.cv')) {
-                # all have been converted to sd earlier, including data.cv
-                measurement.error.sd.matrix = private$i.error.vector %*% t(private$i.error.vector)
-                private$i.measurement.error.covariance.matrix = measurement.error.correlation.matrix * measurement.error.sd.matrix
-            }
-            else if (private$i.parameters$error.variance.type == 'sd')
-                private$i.measurement.error.covariance.matrix = measurement.error.correlation.matrix * private$i.parameters$error.variance.term ^ 2 # this reflects our choice to make measurement error sd constant, not scaling with level of suppression (or other p)
-            else if (private$i.parameters$error.variance.type == 'variance')
-                private$i.measurement.error.covariance.matrix = measurement.error.correlation.matrix * private$i.parameters$error.variance.term
-            else if (private$i.parameters$error.variance.type == 'cv') {
-                measurement.error.sd = exp(private$i.obs.vector) * private$i.parameters$error.variance.term
-                private$i.measurement.error.covariance.matrix = measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
-            }
-            
-            ## ---- GENERATE INVERSE VARIANCE WEIGHTS MATRIX ---- ##
-            private$i.metadata$stratum = as.character(private$i.metadata$stratum)
-            private$i.inverse.variance.weights.matrix = generate.inverse.variance.weights.matrix(obs.vector = private$i.obs.vector,
-                                                                                                 equalize.weight.by.year = instructions$equalize.weight.by.year,
-                                                                                                 metadata = private$i.metadata,
-                                                                                                 weights = private$i.weights)
-            
-            ## ---- SAVE THE PREPARED OPTIMIZED GET INSTRUCTIONS ---- ##
-            private$i.optimized.get.instructions = list()
-            private$i.optimized.get.instructions[["sim.num.instr"]] = sim.metadata$prepare.optimized.get.instructions(outcomes = private$i.outcome.for.sim,
-                                                                                                                      keep.dimensions = names(private$i.sim.required.dimnames),
-                                                                                                                      dimension.values = private$i.sim.dimension.values,
-                                                                                                                      output = 'numerator',
-                                                                                                                      drop.single.sim.dimension = T)
-            if (private$i.outcome.is.proportion || private$i.outcome.is.rate) {
-                if (is.null(private$i.denominator.outcome.for.sim))
-                    private$i.optimized.get.instructions[['sim.denom.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
-                                                                                                                                keep.dimensions = names(private$i.denominator.required.dimnames),
-                                                                                                                                dimension.values = private$i.denominator.dimension.values,
-                                                                                                                                output = 'denominator',
-                                                                                                                                drop.single.sim.dimension = T)
-                else private$i.optimized.get.instructions[['sim.denom.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.denominator.outcome.for.sim,
-                                                                                                                                 keep.dimensions = names(private$i.denominator.required.dimnames),
-                                                                                                                                 dimension.values = private$i.denominator.dimension.values,
-                                                                                                                                 drop.single.sim.dimension = T)
-            }
-        },
-        check = function() {
-            browser()
         }
     ),
     
@@ -638,9 +112,9 @@ JHEEM.BASIC.RATIO.LIKELIHOOD = R6::R6Class(
         
         do.compute = function(sim, log, use.optimized.get, check.consistency, debug)
         {
-            browser()
-            use.binomial = private$i.outcome.is.proportion
-            use.denominator = !is.null(private$i.denominator.outcome.for.sim)
+            # browser()
+            use.poisson = private$i.outcome.is.rate || private$i.outcome.is.count
+            use.denominator = private$i.outcome.is.count
             
             if (use.optimized.get)
                 sim.numerator.data = sim$optimized.get(private$i.optimized.get.instructions[["sim.num.instr"]])
@@ -653,21 +127,14 @@ JHEEM.BASIC.RATIO.LIKELIHOOD = R6::R6Class(
             sim.dim.names = dimnames(sim.numerator.data)
             sim.numerator.data = as.numeric(sim.numerator.data)
             
-            
-            
             if (use.denominator) {
                 if (use.optimized.get)
                     sim.denominator.data = as.numeric(sim$optimized.get(private$i.optimized.get.instructions[["sim.denom.instr"]]))
-                else if (is.null(private$i.denominator.outcome.for.sim))
+                else
                     sim.denominator.data = as.numeric(sim$get(outcome = private$i.outcome.for.sim,
                                                               keep.dimensions = names(private$i.denominator.required.dimnames),
                                                               dimension.values = private$i.denominator.dimension.values,
                                                               output = 'denominator',
-                                                              drop.single.sim.dimension = T))
-                else
-                    sim.denominator.data = as.numeric(sim$get(outcome = private$i.denominator.outcome.for.sim,
-                                                              keep.dimensions = names(private$i.denominator.required.dimnames),
-                                                              dimension.values = private$i.denominator.dimension.values,
                                                               drop.single.sim.dimension = T))
             }
             else
@@ -675,17 +142,10 @@ JHEEM.BASIC.RATIO.LIKELIHOOD = R6::R6Class(
             
             raw.sim.mean = sim.numerator.data / sim.denominator.data
             
-            if (use.binomial)
-                raw.sim.variance = raw.sim.mean * (1-raw.sim.mean) / sim.denominator.data # mu * (1 - mu) / n which is np(1-p) / n^2
-            else
+            if (use.poisson)
                 raw.sim.variance =  sim.numerator.data / sim.denominator.data^2 # x / n^2
-            
-            
-            
-            # Keep only the latter years for each pair
-            private$i.metadata.for.lag = private$i.metadata[private$i.lagged.pairs[rep(c(T,F), private$i.n.lagged.obs)] + 1, ]
-            
-            # Now for what Todd does at compute time with raw.sim.mean and raw.sim.variance
+            else
+                raw.sim.variance = raw.sim.mean * (1-raw.sim.mean) / sim.denominator.data # mu * (1 - mu) / n which is np(1-p) / n^2
             
             log.sim.variance = log(raw.sim.variance / (raw.sim.mean^2) + 1)
             log.sim.mean = log(raw.sim.mean) - log.sim.variance/2
@@ -697,21 +157,19 @@ JHEEM.BASIC.RATIO.LIKELIHOOD = R6::R6Class(
             lagged.sim.mean = exp(lagged.log.sim.mean + diag(lagged.log.sim.sigma)/2)
             lagged.sim.sigma = lagged.sim.mean %*% t(lagged.sim.mean) * (exp(lagged.log.sim.sigma) - 1)
             
-            lagged.log.sim.mean = apply_lag_to_vector(log.sim.mean,
-                                                      private$i.lagged.pairs,
-                                                      rep(0, private$i.n.lagged.obs),
-                                                      private$i.n.obs)
-            lagged.log.sim.sigma = apply_lag_to_matrix(log.sim.sigma,
-                                                       private$i.lagged.pairs,
-                                                       rep(0, private$i.n.lagged.obs**2),
-                                                       private$i.n.obs)
+            lagged.n = (sim.denominator.data[private$i.to.indices] + sim.denominator.data[private$i.from.indices])/2
             
-            lagged.sim.mean = exp(lagged.log.sim.mean + diag(lagged.log.sim.sigma)/2)
-            lagged.sim.sigma = lagged.sim.mean %*% t(lagged.sim.mean) * (exp(lagged.log.sim.sigma) - 1)
-            
-            # hack to make aggregation matrix
-            obs.indices = private$i.lagged.pairs[2*(1:(length(private$i.lagged.pairs)/2))-1] + 1
-            sim.aggregation.matrix = private$i.transformation.matrix[obs.indices, to.indices]
+            # lagged.log.sim.mean = apply_lag_to_vector(log.sim.mean,
+            #                                           private$i.lagged.pairs,
+            #                                           rep(0, private$i.n.lagged.obs),
+            #                                           private$i.n.obs)
+            # lagged.log.sim.sigma = apply_lag_to_matrix(log.sim.sigma,
+            #                                            private$i.lagged.pairs,
+            #                                            rep(0, private$i.n.lagged.obs**2),
+            #                                            private$i.n.obs)
+            # 
+            # lagged.sim.mean = exp(lagged.log.sim.mean + diag(lagged.log.sim.sigma)/2)
+            # lagged.sim.sigma = lagged.sim.mean %*% t(lagged.sim.mean) * (exp(lagged.log.sim.sigma) - 1)
             
             aggregated.lagged.sim.n = get_basic_likelihood_mean(lagged.n,
                                                                 private$i.transformation.matrix.row.oriented.indices,
@@ -721,17 +179,11 @@ JHEEM.BASIC.RATIO.LIKELIHOOD = R6::R6Class(
                                                                    private$i.transformation.matrix.row.oriented.indices,
                                                                    private$i.n.lagged.obs,
                                                                    numeric(private$i.n.lagged.obs))
-            aggregated.lagged.sim.sigma = get_basic_likelihood_sigma(lagged.log.sim.mean,
-                                                                     lagged.n,
-                                                                     private$i.transformation.matrix.indices,
-                                                                     measurement.error.cov.mat,
-                                                                     private$i.n.lagged.obs,
-                                                                     sigma = numeric(private$i.n.lagged.obs **2),
-                                                                     use.poisson) # don't have this
+            
+            # @Andrew This can probably be optimized since it is sparse. Unfortunately, "lagged.sim.sigma" is not diagonal, so we can't use the get_basic_likelihood_sigma algorithm.
+            aggregated.lagged.sim.sigma = private$i.transformation.matrix %*% lagged.sim.sigma %*% t(private$i.transformation.matrix)
             # aggregated.lagged.sim.n = sim.aggregation.matrix %*% lagged.n
             # aggregated.lagged.sim.mean = sim.aggregation.matrix %*% lagged.sim.mean
-            # aggregated.lagged.sim.sigma = sim.aggregation.matrix %*% lagged.sim.sigma %*% t(sim.aggregation.matrix)
-            
             
             # obs
             # put it on the log scale
@@ -753,7 +205,6 @@ JHEEM.BASIC.RATIO.LIKELIHOOD = R6::R6Class(
                                                        rep(0, private$i.n.lagged.obs**2),
                                                        private$i.n.obs)
             
-            
             # lagged.log.obs = obs.lag.matrix %*% log.obs
             # lagged.log.obs.sigma = obs.lag.matrix %*% log.obs.sigma %*% t(obs.lag.matrix)
             
@@ -769,136 +220,18 @@ JHEEM.BASIC.RATIO.LIKELIHOOD = R6::R6Class(
                                           sigma = final.sigma,
                                           log=T,
                                           checkSymmetry = F)
+            
+            if (debug) {
+                lik.summary = cbind(private$i.metadata.for.lag, obs=lagged.obs, mean=final.mean, sd=sqrt(diag(final.sigma)))
+                lik.summary$z = (lik.summary$obs - lik.summary$mean) / lik.summary$sd
+                rownames(lik.summary) = 1:nrow(lik.summary)
+                browser()
+            } 
+            return(likelihood)
         },
-        generate.transformation.matrix = function(dimnames.list, remove.mask.list, n.strats, sim.dimnames)
-        {
-            # browser()
-            transformation.matrix = NULL
-            for (i in 1:n.strats) {
-                
-                one.dimnames = dimnames.list[[i]]
-                one.remove.mask = remove.mask.list[[i]]
-                
-                # "row year" means years as described by the data, which may year single years or ranges
-                # "column year" means years as described by the model, which is always single years
-                
-                row.years.in.both.data.and.sim = get.range.robust.year.intersect(one.dimnames$year, sim.dimnames$year)
-                col.years.in.both.data.and.sim = get.range.robust.year.intersect(sim.dimnames$year, one.dimnames$year)
-                row.years.in.data.but.not.sim = setdiff(one.dimnames$year, row.years.in.both.data.and.sim)
-                col.years.in.sim.but.not.data = setdiff(sim.dimnames$year, col.years.in.both.data.and.sim)
-                
-                # we must add rows that we'll soon delete so that every column year has a row year/range to map to
-                row.years.for.initial.tmat = c(row.years.in.both.data.and.sim, col.years.in.sim.but.not.data)
-                
-                year.modified.dimnames = one.dimnames
-                year.modified.dimnames$year = row.years.for.initial.tmat
-                year.modified.dimnames.without.source = year.modified.dimnames[names(year.modified.dimnames) != 'source']
-                
-                one.mapping = get.ontology.mapping(from.ontology = sim.dimnames, to.ontology = year.modified.dimnames.without.source)
-                one.source.transformation.matrix = one.mapping$get.matrix(from.dim.names = sim.dimnames,
-                                                                          to.dim.names = year.modified.dimnames.without.source)
-                
-                # Remove rows for years not in this stratification
-                if (length(col.years.in.sim.but.not.data) > 0) {
-                    indices.for.years.not.present = get.array.access.indices(year.modified.dimnames.without.source, list(year=col.years.in.sim.but.not.data))
-                    one.source.transformation.matrix = one.source.transformation.matrix[-indices.for.years.not.present,]
-                }
-                
-                # Repeat the matrix for each source this stratification has
-                one.transformation.matrix = NULL
-                for (source in 1:length(one.dimnames$source)) one.transformation.matrix = rbind(one.transformation.matrix, one.source.transformation.matrix)
-                ncol.in.matrix = ncol(one.transformation.matrix)
-                
-                # Align the matrix rows with the one.remove.mask rows, which may have extra years, so that rows for sporadically missing data can be masked out
-                if (length(row.years.in.data.but.not.sim) > 0) {
-                    indices.to.omit.from.one.remove.mask = get.array.access.indices(one.dimnames, list(year=row.years.in.data.but.not.sim))
-                    new.one.remove.mask = one.remove.mask[-indices.to.omit.from.one.remove.mask]
-                    one.transformation.matrix = one.transformation.matrix[!new.one.remove.mask,]
-                } else
-                    one.transformation.matrix = one.transformation.matrix[!one.remove.mask]
-                one.transformation.matrix = matrix(one.transformation.matrix, ncol=ncol.in.matrix)
-                transformation.matrix = rbind(transformation.matrix, one.transformation.matrix)
-            }
-            transformation.matrix
-        },
-        
-        generate.inverse.variance.weights.matrix = function(obs.vector,
-                                                            equalize.weight.by.year,
-                                                            metadata,
-                                                            weights)
-        {
-            weights.vector = rep(1,length(obs.vector))
-            
-            if (equalize.weight.by.year) {
-                obs.per.year = table(metadata$year)
-                number.years = length(obs.per.year)
-                
-                for (year in names(obs.per.year)) {
-                    weights.vector[metadata$year == year]  = length(obs.vector) / (obs.per.year[[year]] * number.years)
-                }
-            }
-            
-            data.dimension.values = apply(metadata, MARGIN=1, function(row) {
-                stratum = unlist(strsplit(row[['stratum']], "__"))
-                dimensions = unlist(strsplit(row[['dimensions']], "__"))
-                rv = setNames(c(list(row[['year']]), as.list(stratum)), c('year', dimensions))
-            })
-            
-            # Once the weights list is in the format list(weights.object1, weights.object2, ...), I'll loop over them.
-            for (weight in weights) {
-                
-                # if no dimension.values, apply it to all observations
-                if (length(weight$dimension.values) == 0) {
-                    weights.vector = weights.vector * weight$total.weight
-                } else {
-                    weights.mask = sapply(data.dimension.values, function(row) {
-                        dimensions.this.weight = names(weight$dimension.values)
-                        if (!all(dimensions.this.weight %in% names(row)))
-                            return (F)
-                        all(sapply(dimensions.this.weight, function(dimension) {
-                            row[[dimension]] %in% weight$dimension.values[[dimension]] # weight can have multiple values per dimension
-                        }))
-                    })
-                    weights.vector[weights.mask] = weights.vector[weights.mask] * weight$total.weight
-                }
-            }
-            
-            sqrt.weights.vector = sqrt(1/weights.vector)
-            sqrt.weights.vector %*% t(sqrt.weights.vector)
-        },
-        i.version = NULL,
-        i.location = NULL,
-        i.sub.version = NULL,
-        
-        i.parameters = NULL,
-        
-        i.outcome.for.data = NULL,
-        i.denominator.outcome.for.sim = NULL,
-        i.outcome.is.proportion = NULL,
-        i.outcome.is.rate = NULL,
-        
-        i.optimized.get.instructions = NULL,
-        
-        i.obs.vector = NULL,
-        i.details = NULL,
-        i.metadata = NULL,
-        i.sim.ontology = NULL,
-        i.sim.required.dimnames = NULL,
-        i.denominator.required.dimnames = NULL,
-        i.sim.dimension.values = NULL,
-        i.denominator.dimension.values = NULL,
-        i.transformation.matrix = NULL,
-        i.transformation.matrix.indices = NULL,
-        i.transformation.matrix.row.oriented.indices = NULL,
-        i.measurement.error.covariance.matrix = NULL,
-        i.inverse.variance.weights.matrix = NULL,
-        
-        i.n.obs = NULL,
-        i.n.lagged.obs = NULL,
-        i.dimension.values = NULL, # EXPERIMENTAL
-        i.lagged.pairs = NULL,
-        i.metadata.for.lag = NULL,
-        
-        i.error.vector = NULL
+        i.sim.lag.matrix = NULL,
+        i.to.indices = NULL,
+        i.from.indices = NULL,
+        i.obs.indices = NULL
     )
 )
