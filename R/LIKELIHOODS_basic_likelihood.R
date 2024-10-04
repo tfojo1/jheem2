@@ -66,7 +66,7 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                             error.variance.type = error.variance.type,
                                             weights = weights,
                                             equalize.weight.by.year = equalize.weight.by.year,
-                                            is.basic.ratio.likehood = F)
+                                            is.basic.ratio.likelihood = F)
     
 }
 
@@ -111,7 +111,7 @@ create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.
                                             error.variance.type = error.variance.type,
                                             weights = weights,
                                             equalize.weight.by.year = equalize.weight.by.year,
-                                            is.basic.ratio.likehood = F)
+                                            is.basic.ratio.likelihood = F)
     
 }
 
@@ -172,7 +172,7 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
                                             error.variance.type = error.variance.type,
                                             weights = weights,
                                             equalize.weight.by.year = equalize.weight.by.year,
-                                            is.basic.ratio.likehood = F)
+                                            is.basic.ratio.likelihood = F)
 }
 
 #'@title Create JHEEM Basic Likelihood Instructions
@@ -286,7 +286,7 @@ create.time.lagged.comparison.likelihood.instructions.with.included.multiplier <
                                             equalize.weight.by.year = equalize.weight.by.year,
                                             use.lognormal.approximation = use.lognormal.approximation,
                                             calculate.lagged.difference = T,
-                                            is.basic.ratio.likehood = F)
+                                            is.basic.ratio.likelihood = F)
 }
 
 JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
