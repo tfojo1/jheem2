@@ -6,7 +6,6 @@
 \usage{
 create.basic.likelihood.instructions.with.specified.outcome(
   outcome.for.sim,
-  denominator.outcome.for.sim = NULL,
   outcome.value,
   from.year,
   to.year,
@@ -21,8 +20,6 @@ create.basic.likelihood.instructions.with.specified.outcome(
 }
 \arguments{
 \item{outcome.for.sim}{A single character vector specifying the simulation outcome to use.}
-
-\item{denominator.outcome.for.sim}{(Optional) A single character vector specifying the simulation outcome to use a denominator if the outcome.for.sim is a ratio, proportion, or rate.}
 
 \item{outcome.value}{A single, non-NA numeric value that is the value of the outcome at the totals level (i.e., not stratified).}
 
