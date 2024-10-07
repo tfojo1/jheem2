@@ -1003,6 +1003,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     # data.keep.dimensions = union(data.keep.dimensions, keep.dimensions) # Why do I do this?? Maybe I don't need a dimension?
                     
                 }
+                # browser()
                 private$i.n.obs = length(private$i.obs.p)
                 if (private$i.n.obs==0) stop(paste0(error.prefix, "no data was found for any stratification"))
                 
@@ -1020,6 +1021,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 private$i.obs.p = private$i.obs.p[!redundant.locations.mask]
                 private$i.metadata = private$i.metadata[!redundant.locations.mask,]
                 private$i.details = private$i.details[!redundant.locations.mask]
+                private$i.n.obs = length(private$i.obs.p)
                 
                 # The remove mask needs to be updated -- carefully -- because it is in reference to the state before removal and will be used later on for the transformation mapping matrix.
                 # Since location is the second dimension after year in all the arrays pulled, n.years times n.locations is the size of a block repeated a certain number of times
@@ -1141,7 +1143,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 if (is.null(locations.possibly.with.n.data))
                     stop(paste0(error.prefix, "'", private$i.denominator.outcome.for.data, "' could not be found for the required observation locations"))
                 if (post.time.checkpoint.flag) print(paste0("Calculate obs.n: ", Sys.time()))
-                
+                # browser()
                 obs.n.info = private$get.obs.n(data.manager = data.manager,
                                                stratification = model.stratification, # may be character(0)
                                                locations.with.n.data = locations.possibly.with.n.data,
