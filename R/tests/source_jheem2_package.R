@@ -64,6 +64,7 @@ source('../jheem2/R/PLOTS_simplot.R')
 source('../jheem2/R/PLOTS_style_manager.R')
 
 source('../jheem2/R/LIKELIHOODS_basic_likelihood.R')
+source('../jheem2/R/LIKELIHOODS_basic_ratio_likelihood.R') 
 source('../jheem2/R/LIKELIHOODS_main.R')
 source('../jheem2/R/LIKELIHOODS_joint_likelihood.R')
 source('../jheem2/R/LIKELIHOODS_nested_proportion_likelihood.R')
