@@ -1,14 +1,14 @@
-source('R/SPECIFICATION_scales.R')
-source('R/HELPERS_misc_helpers.R')
-source('R/DATA_MANAGER_data_manager.R')
-source('R/ONTOLOGY_ontology.R')
-source('R/ONTOLOGY_ontology_mappings.R')
-source('R/HELPERS_array_helpers.R')
-source('R/HELPERS_dim_names_helpers.R')
-source('R/SPECIFICATION_model_specification.R') #has the outcome.metadata object definition
-# source('R/LOCATIONS_location_manager.R')
-Rcpp::sourceCpp('src/array_helpers.cpp')
-Rcpp::sourceCpp('src/ontology_mappings.cpp')
+# source('R/SPECIFICATION_scales.R')
+# source('R/HELPERS_misc_helpers.R')
+# source('R/DATA_MANAGER_data_manager.R')
+# source('R/ONTOLOGY_ontology.R')
+# source('R/ONTOLOGY_ontology_mappings.R')
+# source('R/HELPERS_array_helpers.R')
+# source('R/HELPERS_dim_names_helpers.R')
+# source('R/SPECIFICATION_model_specification.R') #has the outcome.metadata object definition
+# # source('R/LOCATIONS_location_manager.R')
+# Rcpp::sourceCpp('src/array_helpers.cpp')
+# Rcpp::sourceCpp('src/ontology_mappings.cpp')
 
 DATA.ROOT.DIR = '../../v1_data/'
 
@@ -991,11 +991,11 @@ test.proportion.mapping = function(browse=F) {
 }
 
 # ----MAIN----
-# test.proportion.aggregation()
+test.proportion.aggregation()
 test.choosing.stratifications()
 # test.argument.validation(browse=F)
-# x=test.common.ontology(browse=F)
-# test.proportion.mapping()
+x=test.common.ontology(browse=F)
+test.proportion.mapping()
 
 # jheem.ontology = ontology(
 #     location='Maryland',

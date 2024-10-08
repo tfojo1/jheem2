@@ -11,10 +11,11 @@ put.data(
   metric,
   source,
   ontology.name,
-  dimension.values,
+  dimension.values = NULL,
   url,
   details,
   allow.na.to.overwrite = F,
+  dimension.values.to.distribute = list(),
   debug = F,
   printouts = F
 )
@@ -32,13 +33,15 @@ put.data(
 
 \item{ontology.name}{The name of the ontology which the data follow. Must be an ontology previously registered with \code{\link{register.data.ontology}}}
 
-\item{dimension.values}{A named list that indicates what subset of a bigger data element these particular data should be stored into. The names of dimension values. The values of dimension.values can be either (1) character vectors}
+\item{dimension.values}{A named list that indicates what subset of a bigger data element these particular data should be stored into. Each element must be a named character, numeric, or logical vector.}
 
 \item{url}{A character vector with at least one element giving one or more URLs indicating where the data derive from}
 
 \item{details}{A character vector with at least one element giving one or more URLs giving data collection details. In general, data collected and tabulated using the same approach should have the same details, whereas data with different methods/tabulation should have different details}
 
 \item{allow.na.to.overwrite}{A logical indicator for whether NA values in data should be allowed to overwrite previous values put to the data manager (if data have been put previously)}
+
+\item{dimension.values.to.distribute}{A named list of the dimensions and their values which should be redistributed}
 }
 \description{
 Put data into a data manager
