@@ -253,7 +253,7 @@ register.parent.data.source <- function(data.manager = get.default.data.manager(
 #'@param outcome The outcome type for the data. Must be an outcome previously registered with \code{\link{register.data.outcome}}
 #'@param metric The type of measurement. The default value is "estimate", but other options include "cv", "variance", and "sd".
 #'@param ontology.name The name of the ontology which the data follow. Must be an ontology previously registered with \code{\link{register.data.ontology}}
-#'@param dimension.values A named list that indicates what subset of a bigger data element these particular data should be stored into. The names of dimension values. The values of dimension.values can be either (1) character vectors
+#'@param dimension.values A named list that indicates what subset of a bigger data element these particular data should be stored into. Each element must be a named character, numeric, or logical vector.
 #'@param source The (single) character name of the source from which these data derive. Must be a source previously registered with \code{\link{register.data.source}} Note: a source is conceived such that one source cannot contain two sets of data for the same set of dimension values
 #'@param url A character vector with at least one element giving one or more URLs indicating where the data derive from
 #'@param details A character vector with at least one element giving one or more URLs giving data collection details. In general, data collected and tabulated using the same approach should have the same details, whereas data with different methods/tabulation should have different details
@@ -266,7 +266,7 @@ put.data <- function(data.manager = get.default.data.manager(),
                      metric,
                      source,
                      ontology.name,
-                     dimension.values,
+                     dimension.values=NULL,
                      url,
                      details,
                      allow.na.to.overwrite=F,
@@ -304,7 +304,7 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                metric,
                                source,
                                ontology.name,
-                               dimension.values,
+                               dimension.values=NULL,
                                url,
                                details,
                                allow.na.to.overwrite=F,
@@ -928,7 +928,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                        metric = 'estimate',
                        source,
                        ontology.name,
-                       dimension.values,
+                       dimension.values=NULL,
                        url,
                        details,
                        allow.na.to.overwrite=F,
@@ -995,6 +995,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 do.check.values.for.model.scale(data, scale = 'non.negative.number',
                                                 variable.name.for.error = 'data',
                                                 error.prefix = error.prefix)
+            
+            if (is.null(dimension.values)) dimension.values = list()
             
             # *dimension.values.to.distribute* must be a named list with
             # names that are dimensions of the array
@@ -1317,7 +1319,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                  metric = 'estimate',
                                  source,
                                  ontology.name,
-                                 dimension.values,
+                                 dimension.values=NULL,
                                  url,
                                  details,
                                  allow.na.to.overwrite=F,

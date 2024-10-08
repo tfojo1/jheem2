@@ -38,8 +38,7 @@ data.manager$put.long.form(fake.dataset,
                            source = 'cdc',
                            ontology.name = 'CDC_bho',
                            url = 'www.fake.com',
-                           details = 'Fake data',
-                           dimension.values = list())
+                           details = 'Fake data')
 
 # Test the Dimension Values to Distribute
 fake.data.ont = ontology(location=fake.data.ont$location,
@@ -57,5 +56,4 @@ data.manager$put.long.form(fake.dataset,
                            ontology.name = 'CDC_bho',
                            url = 'www.fake.com',
                            details = 'Fake data',
-                           dimension.values = list(),
                            dimension.values.to.distribute= list(sex=c('unknown', 'prefer not to say'), race='unknown'))
