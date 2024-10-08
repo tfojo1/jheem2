@@ -247,6 +247,7 @@ register.parent.data.source <- function(data.manager = get.default.data.manager(
 
 #'@title Put data into a data manager
 #'
+#'@inheritParams distribute.dimension.values
 #'@param data.manager A jheem.data.manager object
 #'@param data A numeric array or scalar value containing the data to store. If it is an array, it must have named dimnames set
 #'@param outcome The outcome type for the data. Must be an outcome previously registered with \code{\link{register.data.outcome}}
@@ -269,6 +270,7 @@ put.data <- function(data.manager = get.default.data.manager(),
                      url,
                      details,
                      allow.na.to.overwrite=F,
+                     dimension.values.to.distribute=list(),
                      debug=F,
                      printouts=F)
 {
@@ -284,12 +286,14 @@ put.data <- function(data.manager = get.default.data.manager(),
                      url=url,
                      details=details,
                      allow.na.to.overwrite=allow.na.to.overwrite,
+                     dimension.values.to.distribute = dimension.values.to.distribute,
                      debug=F,
                      printouts=printouts)
 }
 
 #'@title Put long-form data into a data manager
 #'
+#'#'@inheritParams distribute.dimension.values
 #'@inheritParams put.data
 #'@param data A data frame or other 2-dimensional data structure with named columns. Must contain a column named 'value' of numeric values. If the 'source' argument is NULL, then data must also have a column named 'source' that gives the source for each row. May contain additional columns with names matching the specified ontology, which have the dimension values for each row. Any other columns are ignored
 #'
@@ -304,6 +308,7 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                url,
                                details,
                                allow.na.to.overwrite=F,
+                               dimension.values.to.distribute=list(),
                                debug=F,
                                printouts=F)
 {
@@ -319,6 +324,7 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                url=url,
                                details=details,
                                allow.na.to.overwrite=allow.na.to.overwrite,
+                               dimension.values.to.distribute = dimension.values.to.distribute,
                                debug=F,
                                printouts=printouts)
 }
@@ -926,6 +932,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                        url,
                        details,
                        allow.na.to.overwrite=F,
+                       dimension.values.to.distribute=list(),
                        debug=F,
                        printouts=F)
         {
@@ -934,6 +941,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 puttime=Sys.time()
                 print(paste0("Beginning put for outcome '", outcome, "', source '", source, "' at ", puttime))
             }
+            # browser()
             #------------------------#
             #-- Validate arguments --#
             #------------------------#
@@ -988,6 +996,18 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                 variable.name.for.error = 'data',
                                                 error.prefix = error.prefix)
             
+            # *dimension.values.to.distribute* must be a named list with
+            # names that are dimensions of the array
+            # and values that are in the dimnames of the array
+            # and can only be used if the scale is non.negative.number
+            # and the input is an array
+            if (!is.list(dimension.values.to.distribute))
+                stop(paste0(error.prefix, "'dimension.values.to.distribute' must be a named list; defaults to list()"))
+            if (length(dimension.values.to.distribute) > 0 && !is.array(data))
+                stop(paste0(error.prefix, "'dimension.values.to.distribute' can only be used when the data is an array; should be left as the default, list(), otherwise"))
+            if (length(dimension.values.to.distribute) > 0 && outcome.info$metadata$scale != 'non.negative.number')
+                stop(paste0(error.prefix, "'dimension.values.to.distribute' can only be used when the data has scale 'non.negative.number'; should be left as the default, list(), otherwise"))
+            
             if (is.array(data))
             {
                 if (is.null(dimnames(data)))
@@ -997,6 +1017,24 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (is.null(names(dimnames(data))))
                     stop(paste0(error.prefix,
                                 "If 'data' is an array, then it must be an array with NAMED dimnames"))
+                
+                # Distribute dimension values, if applicable, BEFORE checks on the data dimnames
+                if (length(dimension.values.to.distribute) > 0) {
+                    dvtd.names = names(dimension.values.to.distribute)
+                    if (is.null(dvtd.names) || any(is.na(dvtd.names)) || !all(dvtd.names %in% names(dimnames(data))))
+                        stop(paste0(error.prefix, "'dimension.values.to.distribute' must be a named list with names that are among the dimensions of 'data'"))
+                    if (any(sapply(dvtd.names, function(d) {
+                        length(dimension.values.to.distribute[[d]])==0 ||
+                            any(is.na(dimension.values.to.distribute[[d]])) ||
+                            any(duplicated(dimension.values.to.distribute[[d]])) ||
+                            !all(dimension.values.to.distribute[[d]] %in% dimnames(data)[[d]])
+                    })))
+                        stop(paste0(error.prefix, "the elements of 'dimension.values.to.distribute' must have positive length and contain values present in the same dimensions of 'data', with no NAs or repeats"))
+                }
+                if (length(dimension.values.to.distribute) > 0) {
+                    data = distribute.dimension.values(data, dimension.values.to.distribute)
+                }
+                
 
                 invalid.dimensions = setdiff(names(dimnames(data)), names(ont))
                 if (length(invalid.dimensions)>0)
@@ -1077,7 +1115,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (is.null(source.info))
                 stop(paste0(error.prefix, "'", source, "' is not a registered data source. Call register.data.source() to register it before putting data from that source"))
             
-            
             # 5) *url, and details* are
             #    -- character vectors
             #    -- with at least one value
@@ -1134,6 +1171,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 phase3time = Sys.time()
                 print(paste0(dots, "Hashtime took ", phase3time - hashtime))
             }
+            
             #--------------------------------#
             #-- Set up to receive the data --#
             #--------------------------------#
@@ -1283,6 +1321,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                  url,
                                  details,
                                  allow.na.to.overwrite=F,
+                                 dimension.values.to.distribute=list(),
                                  debug=F,
                                  printouts=F)
         {
@@ -1310,6 +1349,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                        data = data[data[['outcome']]==one.outcome,],
                                        url = url,
                                        details = details,
+                                       allow.na.to.overwrite=F,
+                                       dimension.values.to.distribute = dimension.values.to.distribute,
                                        debug=debug,
                                        printouts=printouts)
                 }
@@ -1342,9 +1383,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         stop(paste0(error.prefix, "Column '", d, "' in 'data' must contain character or numeric values"))
                     T
                 })
+                # browser()
                 
-                data[dimensions] = resolve.ontology.dimension.values(ont=ont, dimension.values=data[dimensions],
-                                                                     error.prefix=paste0(error.prefix, " Error resolving dimension values - "))
+                # NOTE: We will no longer check the dimension values here, because that intereferes with the possibility of redistributing them.
+                # Instead, we'll check like we already do in the put function
+                # data[dimensions] = resolve.ontology.dimension.values(ont=ont, dimension.values=data[dimensions],
+                                                                     # error.prefix=paste0(error.prefix, " Error resolving dimension values - "))
                 
                 # Hydrate it to an array
                 dim.names = lapply(dimensions, function(d){
@@ -1376,6 +1420,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                          url = url,
                          details = details,
                          allow.na.to.overwrite = allow.na.to.overwrite,
+                         dimension.values.to.distribute = dimension.values.to.distribute,
                          debug=debug,
                          printouts=printouts)
             }

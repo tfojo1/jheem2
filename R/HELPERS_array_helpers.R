@@ -650,3 +650,62 @@ set.array.dimnames <- function(arr, new.dimnames)
     
     return(array(arr, sapply(new.dimnames, length), new.dimnames))
 }
+
+##-------------------------#
+##-- REDISTRIBUTE VALUES --#
+##-------------------------#
+
+#' Distribute dimension values
+#' @param arr An array -- no validation is performed
+#' @param dimension.values.to.distribute A named list of the dimensions and their values which should be redistributed
+#' @return An array with the same number of dimensions as 'arr', but without the dimension values specified in 'dimension.values.to.distribute'.
+#' @description This function redistributes certain values in a dimension across the remaining values in that dimension.
+#' This is useful to remove problematic dimension values -- like race = 'unknown' -- while keeping the marginal sums and the
+#' relevant ratios between the remaining dimension values the same as they were before.
+#' @details If multiple dimensions should be redistributed, they will be redistributed in the order that they exist in 'dimension.values.to.distribute'.
+#' This can result in different outputs for different orders.
+distribute.dimension.values <- function(arr, dimension.values.to.distribute) {
+    for (d in names(dimension.values.to.distribute)) {
+        # browser()
+        dnames.original = dimnames(arr)
+        remove.vals = dimension.values.to.distribute[[d]]
+        
+        # Put the working dimension first so that colSums can use the rest
+        dnames.reordered = dnames.original[c(d, setdiff(names(dnames.original), d))]
+        arr.reordered = apply.robust(arr, c(d, setdiff(names(dnames.original), d)), function(x) {x})
+        
+        # Separate the values to be redistributed in this dimension from the remaining part of the array
+        dnames.trimmed = dnames.reordered
+        dnames.trimmed[[d]] = setdiff(dnames.reordered[[d]], remove.vals)
+
+        arr.trimmed.args = c(list(arr.reordered),
+                             list(dnames.trimmed[[d]]),
+                             lapply(setdiff(names(dnames.trimmed), d), function(x) {dnames.trimmed[[x]]}))
+        arr.trimmed = do.call(`[`, arr.trimmed.args)
+        
+        arr.to.distribute.args = c(list(arr.reordered),
+                                   list(remove.vals),
+                                   lapply(setdiff(names(dnames.reordered), d), function(x) {dnames.reordered[[x]]}),
+                                   drop=F)
+        arr.to.distribute = do.call(`[`, arr.to.distribute.args)
+        if (length(dim(arr.to.distribute))>1)
+            arr.to.distribute = colSums(arr.to.distribute)
+
+        # Calculate the relative ratios of the various remaining values so that we can distribute in keeping with these ratios
+        col.totals = if (length(dim(arr.trimmed))>1) colSums(arr.trimmed) else as.vector(arr.to.distribute)
+        fractions = apply.robust(arr.trimmed, d, function(x) {x/col.totals}, simplify = F)
+        additions = lapply(fractions, function(x) {x * arr.to.distribute})
+        dnames.additions = dnames.trimmed[c(setdiff(names(dnames.trimmed), d), d)]
+        
+        arr.additions = array(unlist(additions), sapply(dnames.additions, length), dnames.additions)
+        
+        # The above operations put the working dimension last -- move it to the front to match 'arr.trimmed'
+        arr.additions.reordered = apply.robust(arr.additions, names(dnames.reordered), function(x) {x})
+        
+        arr.result = arr.trimmed + arr.additions.reordered
+        
+        # Finish by restoring to input order
+        arr = apply(arr.result, names(dnames.original), function(x) {x})
+    }
+    arr
+}

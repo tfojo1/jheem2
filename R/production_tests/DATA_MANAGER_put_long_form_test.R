@@ -28,7 +28,7 @@ data.manager$register.ontology(
 # Fake data
 fake.data.ont = cdc.bho.ontology[c('location', 'year', 'race')]
 fake.data.ont[['location']] = c("C.12580", "C.12060")
-fake.data.ont[['year']] = as.character(2010:2012)
+fake.data.ont[['year']] = as.character(2010:2011)
 fake.array = array(1:prod(sapply(fake.data.ont, length)), sapply(fake.data.ont, length), fake.data.ont)
 
 fake.dataset = reshape2::melt(fake.array, as.is=T)
@@ -40,3 +40,22 @@ data.manager$put.long.form(fake.dataset,
                            url = 'www.fake.com',
                            details = 'Fake data',
                            dimension.values = list())
+
+# Test the Dimension Values to Distribute
+fake.data.ont = ontology(location=fake.data.ont$location,
+                         year=fake.data.ont$year,
+                         race=c(fake.data.ont$race, 'unknown'),
+                         sex=c(cdc.bho.ontology$sex, 'unknown', 'prefer not to say'),
+                         incomplete.dimensions=c('year', 'location'))
+fake.array = array(1:prod(sapply(fake.data.ont, length)), sapply(fake.data.ont, length), fake.data.ont)
+
+fake.dataset = reshape2::melt(fake.array, as.is=T)
+fake.dataset$outcome = 'new'
+
+data.manager$put.long.form(fake.dataset,
+                           source = 'cdc',
+                           ontology.name = 'CDC_bho',
+                           url = 'www.fake.com',
+                           details = 'Fake data',
+                           dimension.values = list(),
+                           dimension.values.to.distribute= list(sex=c('unknown', 'prefer not to say'), race='unknown'))
