@@ -5,6 +5,7 @@
 #'@param facet.by AZ: any number of dimensions but cannot include the split.by dimension
 #'@param dimension.values
 #'@param plot.which Should only simulation data or only calibration data be plotted, or both
+#'@param title NULL or a single, non-NA character value. If "location", the location of the first provided simset (if any) will be used for the title.
 #'@param data.manager The data.manager from which to draw real-world data for the plots
 #'@param style.manager We are going to have to define this down the road. It's going to govern how we do lines and sizes and colors. For now, just hard code those in, and we'll circle back to it
 #'
@@ -24,6 +25,7 @@ simplot <- function(...,
                     plot.which = c('both', 'sim.only', 'data.only')[1],
                     summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                     plot.year.lag.ratio = F,
+                    title = NULL,
                     n.facet.rows = NULL,
                     data.manager = get.default.data.manager(),
                     style.manager = get.default.style.manager(),
@@ -39,6 +41,7 @@ simplot <- function(...,
                                       plot.which=plot.which,
                                       summary.type=summary.type,
                                       plot.year.lag.ratio=plot.year.lag.ratio,
+                                      title=title,
                                       data.manager=data.manager,
                                       debug=debug)
     execute.simplot(prepared.plot.data,
@@ -63,6 +66,7 @@ prepare.plot <- function(...,
                          plot.which = c('both', 'sim.only', 'data.only')[1],
                          summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                          plot.year.lag.ratio = F,
+                         title=NULL,
                          data.manager = get.default.data.manager(),
                          debug = F)
 {
@@ -103,6 +107,9 @@ prepare.plot <- function(...,
     
     if (!identical(plot.year.lag.ratio, T) && !identical(plot.year.lag.ratio, F))
         stop(paste0(error.prefix, "'plot.year.lag.ratio' must be either T or F"))
+    
+    if (!is.null(title) && (!is.character(title) || length(title)!=1 || is.na(title)))
+        stop(paste0(error.prefix, "'title' must be NULL or a single, non-NA character value"))
     
     #-- STEP 1: PRE-PROCESSING --#
     # Get a list out of ... where each element is one simset (or sim for now)
@@ -440,8 +447,12 @@ prepare.plot <- function(...,
     
     #-- PACKAGE AND RETURN --#
     y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
+    if (title=="location" && length(simset.list)>0) {
+        plot.title = paste0(get.location.name(simset.list[[1]]$location), " (", simset.list[[1]]$location, ")")
+    }
+    else plot.title = title
 
-    return(list(df.sim=df.sim, df.truth=df.truth, details=list(y.label=y.label)))
+    return(list(df.sim=df.sim, df.truth=df.truth, details=list(y.label=y.label, plot.title=plot.title)))
 }
 
 execute.simplot <- function(prepared.plot.data,
@@ -461,6 +472,7 @@ execute.simplot <- function(prepared.plot.data,
     df.sim=prepared.plot.data$df.sim
     df.truth=prepared.plot.data$df.truth
     y.label = prepared.plot.data$details$y.label
+    plot.title = prepared.plot.data$details$plot.title
     
     #-- PREPARE PLOT COLORS, SHADES, SHAPES, ETC. --#
     
@@ -635,7 +647,8 @@ execute.simplot <- function(prepared.plot.data,
     
     rv = rv +
         ggplot2::scale_alpha(guide='none') +
-        ggplot2::labs(y=y.label)
+        ggplot2::labs(y=y.label) +
+        ggplot2::ggtitle(plot.title)
     if (!is.null(df.sim))
         rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
     
