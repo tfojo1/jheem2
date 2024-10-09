@@ -57,3 +57,23 @@ data.manager$put.long.form(fake.dataset,
                            url = 'www.fake.com',
                            details = 'Fake data',
                            dimension.values.to.distribute= list(sex=c('unknown', 'prefer not to say'), race='unknown', job='none'))
+
+fake.data.ont.less = as.list(fake.data.ont)
+fake.data.ont.less$race = c('black', 'other', 'unknown')
+fake.array = array(1:prod(sapply(fake.data.ont.less, length)), sapply(fake.data.ont.less, length), fake.data.ont.less)
+
+fake.dataset = reshape2::melt(fake.array, as.is=T)
+fake.dataset$outcome = 'new'
+# data.manager$put.long.form(fake.dataset,
+#                            source = 'cdc',
+#                            ontology.name = 'CDC_bho',
+#                            url = 'www.fake.com',
+#                            details = 'Fake data',
+#                            dimension.values.to.distribute= list(sex=c('unknown', 'prefer not to say'), race='unknown', job='none'))
+
+data.manager$put.long.form(fake.dataset,
+                           source = 'cdc',
+                           ontology.name = 'CDC_bho',
+                           url = 'www.fake.com',
+                           details = 'Fake data',
+                           dimension.values.to.distribute= list(year='2010'))
