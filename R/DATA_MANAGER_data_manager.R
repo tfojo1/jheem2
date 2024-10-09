@@ -941,7 +941,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 puttime=Sys.time()
                 print(paste0("Beginning put for outcome '", outcome, "', source '", source, "' at ", puttime))
             }
-            # browser()
+            if (debug) browser()
             #------------------------#
             #-- Validate arguments --#
             #------------------------#
@@ -1020,9 +1020,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     stop(paste0(error.prefix,
                                 "If 'data' is an array, then it must be an array with NAMED dimnames"))
                 
-                # Distribute dimension values, if applicable, BEFORE checks on the data dimnames
+                # Distribute dimension values, if applicable, BEFORE checks on the data dimnames. Note that we won't distribute dimensions we don't have, but no error
                 if (length(dimension.values.to.distribute) > 0) {
-                    dvtd.names = names(dimension.values.to.distribute)
+                    dvtd.names = intersect(names(dimension.values.to.distribute), names(dimnames(data)))
                     if (is.null(dvtd.names) || any(is.na(dvtd.names)) || !all(dvtd.names %in% names(dimnames(data))))
                         stop(paste0(error.prefix, "'dimension.values.to.distribute' must be a named list with names that are among the dimensions of 'data'"))
                     if (any(sapply(dvtd.names, function(d) {
@@ -1033,10 +1033,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     })))
                         stop(paste0(error.prefix, "the elements of 'dimension.values.to.distribute' must have positive length and contain values present in the same dimensions of 'data', with no NAs or repeats"))
                 }
-                if (length(dimension.values.to.distribute) > 0) {
-                    data = distribute.dimension.values(data, dimension.values.to.distribute)
-                }
                 
+                if (length(dimension.values.to.distribute) > 0) {
+                    data = distribute.dimension.values(data, dimension.values.to.distribute[names(dimension.values.to.distribute) %in% dvtd.names])
+                }
 
                 invalid.dimensions = setdiff(names(dimnames(data)), names(ont))
                 if (length(invalid.dimensions)>0)
@@ -1211,7 +1211,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 print(paste0(dots, "getting required strat dimensions took ", metrictime-reqstratdimtime))
                 print(paste0(dots, "Phase three stuff took ", metrictime-phase3time))
             }
-            if (debug) browser()
+            # if (debug) browser()
             ## ANDREW'S NEW LOGIC TO ACCOMMODATE MULTIPLE METRICS AND ENSURING ALIGNED DIMNAMES AMONG ALL
             existing.dim.names.this.metric = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
             data.already.present.this.metric = !is.null(existing.dim.names.this.metric)

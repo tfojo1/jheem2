@@ -56,4 +56,4 @@ data.manager$put.long.form(fake.dataset,
                            ontology.name = 'CDC_bho',
                            url = 'www.fake.com',
                            details = 'Fake data',
-                           dimension.values.to.distribute= list(sex=c('unknown', 'prefer not to say'), race='unknown'))
+                           dimension.values.to.distribute= list(sex=c('unknown', 'prefer not to say'), race='unknown', job='none'))
