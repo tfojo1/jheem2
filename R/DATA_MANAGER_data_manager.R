@@ -1009,6 +1009,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix, "'dimension.values.to.distribute' can only be used when the data is an array; should be left as the default, list(), otherwise"))
             if (length(dimension.values.to.distribute) > 0 && outcome.info$metadata$scale != 'non.negative.number')
                 stop(paste0(error.prefix, "'dimension.values.to.distribute' can only be used when the data has scale 'non.negative.number'; should be left as the default, list(), otherwise"))
+            # We cannot distribute on incomplete dimensions
+            if (any(names(dimension.values.to.distribute) %in% incomplete.dimensions(ont)))
+                stop(paste0(error.prefix, "'dimension.values.to.distribute' cannot contain any incomplete dimensions"))
             
             if (is.array(data))
             {
@@ -1036,6 +1039,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 
                 if (length(dimension.values.to.distribute) > 0) {
                     data = distribute.dimension.values(data, dimension.values.to.distribute[names(dimension.values.to.distribute) %in% dvtd.names])
+                    # We must now have exactly the dimension values in the ontology for distributed dimensions
+                    if (any(sapply(dvtd.names, function(d) {
+                        !setequal(dimnames(data)[[d]], ont[[d]])
+                    })))
+                        stop(paste0(error.prefix, "'dimension.values.to.distribute' can only be used when the dataset contains all values in the ontology for relevant dimensions"))
                 }
 
                 invalid.dimensions = setdiff(names(dimnames(data)), names(ont))
