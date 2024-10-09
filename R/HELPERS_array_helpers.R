@@ -666,7 +666,7 @@ set.array.dimnames <- function(arr, new.dimnames)
 #' This can result in different outputs for different orders.
 distribute.dimension.values <- function(arr, dimension.values.to.distribute) {
     for (d in names(dimension.values.to.distribute)) {
-        # browser()
+        
         dnames.original = dimnames(arr)
         remove.vals = dimension.values.to.distribute[[d]]
         
@@ -680,7 +680,8 @@ distribute.dimension.values <- function(arr, dimension.values.to.distribute) {
 
         arr.trimmed.args = c(list(arr.reordered),
                              list(dnames.trimmed[[d]]),
-                             lapply(setdiff(names(dnames.trimmed), d), function(x) {dnames.trimmed[[x]]}))
+                             lapply(setdiff(names(dnames.trimmed), d), function(x) {dnames.trimmed[[x]]}),
+                             drop=F)
         arr.trimmed = do.call(`[`, arr.trimmed.args)
         
         arr.to.distribute.args = c(list(arr.reordered),
@@ -698,9 +699,14 @@ distribute.dimension.values <- function(arr, dimension.values.to.distribute) {
         dnames.additions = dnames.trimmed[c(setdiff(names(dnames.trimmed), d), d)]
         
         arr.additions = array(unlist(additions), sapply(dnames.additions, length), dnames.additions)
+        # Treat additions that are NA as zero so that they don't make an existing value NA when they add to it
+        arr.additions[is.na(arr.additions)] = 0
         
         # The above operations put the working dimension last -- move it to the front to match 'arr.trimmed'
         arr.additions.reordered = apply.robust(arr.additions, names(dnames.reordered), function(x) {x})
+        
+        # Treat additions that are NA as zero so that they don't make an existing value NA when they add to it
+        arr.additions.reordered[is.na(arr.additions.reordered)]
         
         arr.result = arr.trimmed + arr.additions.reordered
         
