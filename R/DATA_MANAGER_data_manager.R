@@ -271,6 +271,7 @@ put.data <- function(data.manager = get.default.data.manager(),
                      details,
                      allow.na.to.overwrite=F,
                      dimension.values.to.distribute=list(),
+                     round.distributed.dimension.values=T,
                      debug=F,
                      printouts=F)
 {
@@ -287,6 +288,7 @@ put.data <- function(data.manager = get.default.data.manager(),
                      details=details,
                      allow.na.to.overwrite=allow.na.to.overwrite,
                      dimension.values.to.distribute = dimension.values.to.distribute,
+                     round.distributed.dimension.values = round.distributed.dimension.values,
                      debug=F,
                      printouts=printouts)
 }
@@ -309,6 +311,7 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                details,
                                allow.na.to.overwrite=F,
                                dimension.values.to.distribute=list(),
+                               round.distributed.dimension.values=T,
                                debug=F,
                                printouts=F)
 {
@@ -325,6 +328,7 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                details=details,
                                allow.na.to.overwrite=allow.na.to.overwrite,
                                dimension.values.to.distribute = dimension.values.to.distribute,
+                               round.distributed.dimension.values=round.distributed.dimension.values,
                                debug=F,
                                printouts=printouts)
 }
@@ -1031,22 +1035,26 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 # Distribute dimension values, if applicable, BEFORE checks on the data dimnames. Note that we won't distribute dimensions we don't have, but no error
                 if (length(dimension.values.to.distribute) > 0) {
                     dvtd.names = intersect(names(dimension.values.to.distribute), names(dimnames(data)))
-                    if (is.null(dvtd.names) || any(is.na(dvtd.names)) || !all(dvtd.names %in% names(dimnames(data))))
-                        stop(paste0(error.prefix, "'dimension.values.to.distribute' must be a named list with names that are among the dimensions of 'data'"))
+                    if (is.null(dvtd.names) || any(is.na(dvtd.names)))
+                        stop(paste0(error.prefix, "'dimension.values.to.distribute' must be a named list"))
                     if (any(sapply(dvtd.names, function(d) {
                         length(dimension.values.to.distribute[[d]])==0 ||
                             any(is.na(dimension.values.to.distribute[[d]])) ||
-                            any(duplicated(dimension.values.to.distribute[[d]])) ||
-                            !all(dimension.values.to.distribute[[d]] %in% dimnames(data)[[d]])
+                            any(duplicated(dimension.values.to.distribute[[d]]))
                     })))
-                        stop(paste0(error.prefix, "the elements of 'dimension.values.to.distribute' must have positive length and contain values present in the same dimensions of 'data', with no NAs or repeats"))
+                        stop(paste0(error.prefix, "the elements of 'dimension.values.to.distribute' must have positive length and contain no NAs or repeats"))
+                    # Use only the values we actually have without throwing error if there are extras, which may leave us with none
+                    dimension.values.to.distribute = sapply(dvtd.names, function(d) {
+                        intersect(dimension.values.to.distribute[[d]], dimnames(data)[[d]])
+                    })
+                    dimension.values.to.distribute = dimension.values.to.distribute[sapply(dimension.values.to.distribute, length)>0]
                 }
                 
                 if (length(dimension.values.to.distribute) > 0) {
                     data = distribute.dimension.values(data, dimension.values.to.distribute[names(dimension.values.to.distribute) %in% dvtd.names], round.distributed.dimension.values)
                     # We must now have exactly the dimension values in the ontology for distributed dimensions
                     if (any(sapply(dvtd.names, function(d) {
-                        !setequal(dimnames(data)[[d]], ont[[d]])
+                        length(setdiff(ont[[d]], dimnames(data)[[d]]))>0
                     })))
                         stop(paste0(error.prefix, "'dimension.values.to.distribute' can only be used when the dataset contains all values in the ontology for relevant dimensions"))
                 }
