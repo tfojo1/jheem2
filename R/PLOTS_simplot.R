@@ -4,7 +4,7 @@
 #'@param split.by AZ: at most one dimension
 #'@param facet.by AZ: any number of dimensions but cannot include the split.by dimension
 #'@param dimension.values
-#'@param plot.which Should only simulation data or only calibration data be plotted, or both
+#'@param plot.which Should simulation data and calibration data be plotted ('sim.and.data'), or only simulation data ('sim.only')
 #'@param data.manager The data.manager from which to draw real-world data for the plots
 #'@param style.manager We are going to have to define this down the road. It's going to govern how we do lines and sizes and colors. For now, just hard code those in, and we'll circle back to it
 #'
@@ -21,7 +21,7 @@ simplot <- function(...,
                     facet.by = NULL,
                     dimension.values = list(),
                     target.ontology = NULL,
-                    plot.which = c('both', 'sim.only', 'data.only')[1],
+                    plot.which = c('sim.and.data', 'sim.only')[1],
                     summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                     plot.year.lag.ratio = F,
                     n.facet.rows = NULL,
@@ -29,80 +29,18 @@ simplot <- function(...,
                     style.manager = get.default.style.manager(),
                     debug = F)
 {
-    prepared.plot.data = prepare.plot(...,
-                                      outcomes=outcomes,
-                                      corresponding.data.outcomes = corresponding.data.outcomes,
-                                      split.by=split.by,
-                                      facet.by=facet.by,
-                                      dimension.values=dimension.values,
-                                      target.ontology=target.ontology,
-                                      plot.which=plot.which,
-                                      summary.type=summary.type,
-                                      plot.year.lag.ratio=plot.year.lag.ratio,
-                                      data.manager=data.manager,
-                                      debug=debug)
-    execute.simplot(prepared.plot.data,
-                    outcomes=outcomes,
-                    split.by=split.by,
-                    facet.by=facet.by,
-                    plot.which=plot.which,
-                    summary.type=summary.type,
-                    plot.year.lag.ratio=plot.year.lag.ratio,
-                    n.facet.rows=n.facet.rows,
-                    style.manager=style.manager,
-                    debug=debug)
-}
-
-prepare.plot <- function(...,
-                         outcomes=NULL,
-                         corresponding.data.outcomes = NULL,
-                         split.by = NULL,
-                         facet.by = NULL,
-                         dimension.values = list(),
-                         target.ontology = NULL,
-                         plot.which = c('both', 'sim.only', 'data.only')[1],
-                         summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
-                         plot.year.lag.ratio = F,
-                         data.manager = get.default.data.manager(),
-                         debug = F)
-{
-    # -- VALIDATION -- #
-    if (debug) browser()
+    
     error.prefix = "Cannot generate simplot: "
     
-    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
-        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
-    
-    # *split.by* is NULL or a single, non-NA character vector
-    if (!is.null(split.by) && (!is.character(split.by) || length(split.by) > 1 || is.na(split.by)))
-        stop(paste0(error.prefix, "'split.by' must be NULL or a length one, non-NA character vector"))
-    
-    # *facet.by* is NULL or a character vector of length > 0 with no NAs or duplicates
-    if (!is.null(facet.by) && (!is.character(facet.by) || length(facet.by) < 1 || any(is.na(facet.by)) || any(duplicated(facet.by))))
-        stop(paste0(error.prefix, "'facet.by' must be NULL or a character vector with at least one element and no NAs or duplicates"))
-    
-    if (!is.null(split.by) && split.by %in% facet.by)
-        stop(paste0(error.prefix, "'facet.by' must not contain the dimension in 'split.by'"))
-    
-    if (!is.null(split.by) && split.by == 'year')
-        stop(paste0(error.prefix, "'split.by' cannot equal 'year'"))
-    
-    if (!is.null(facet.by) && 'year' %in% facet.by)
-        stop(paste0(error.prefix, "'facet.by' cannot contain 'year'"))
-
-    if (!is.null(target.ontology) &&
-        !is.ontology(target.ontology) &&
-        !(is.list(target.ontology) && all(sapply(target.ontology, function(x) {is.ontology((x))})) && !is.null(names(target.ontology))))
-        stop(paste0(error.prefix, "'target.ontology' must be NULL, an ontology, or a list of ontologies with outcomes as names"))
-    
-    if (!(identical(plot.which, 'sim.only') || identical(plot.which, 'data.only') || identical(plot.which, 'both')))
-        stop(paste0(error.prefix, "'plot.which' must be one of 'sim.only', 'data.only', or 'both'"))
+    if (!(identical(plot.which, 'sim.and.data') || identical(plot.which, 'sim.only')))
+        stop(paste0(error.prefix, "'plot.which' must be either 'sim.and.data' or 'sim.only'"))
     
     if (!(identical(summary.type, 'individual.simulation') || identical(summary.type, 'mean.and.interval') || identical(summary.type, 'median.and.interval')))
         stop(paste0(error.prefix, "'summary.type' must be one of 'individual.simulation', 'mean.and.interval', or 'median.and.interval'"))
     
-    if (!identical(plot.year.lag.ratio, T) && !identical(plot.year.lag.ratio, F))
-        stop(paste0(error.prefix, "'plot.year.lag.ratio' must be either T or F"))
+    # *corresponding.data.outcomes' is NULL or a vector with outcomes as names
+    if (!is.null(corresponding.data.outcomes) && (!is.character(corresponding.data.outcomes) || any(is.na(corresponding.data.outcomes)) || is.null(names(corresponding.data.outcomes)) || !all(names(corresponding.data.outcomes) %in% outcomes)))
+        stop(paste0(error.prefix, "'corresponding.data.outcomes' must be NULL or a character vector with outcomes as names and all of those outcomes specified in either the 'outcomes' argument or in '...'"))
     
     #-- STEP 1: PRE-PROCESSING --#
     # Get a list out of ... where each element is one simset (or sim for now)
@@ -146,14 +84,6 @@ prepare.plot <- function(...,
             simset.list = simset.args
     }
     
-    # *corresponding.data.outcomes' is NULL or a vector with outcomes as names
-    if (!is.null(corresponding.data.outcomes) && (!is.character(corresponding.data.outcomes) || any(is.na(corresponding.data.outcomes)) || is.null(names(corresponding.data.outcomes)) || !all(names(corresponding.data.outcomes) %in% outcomes)))
-        stop(paste0(error.prefix, "'corresponding.data.outcomes' must be NULL or a character vector with outcomes as names and all of those outcomes specified in either the 'outcomes' argument or in '...'"))
-    
-    # if *plot.year.lag.ratio* is true, we can have only one outcome
-    if (plot.year.lag.ratio && length(outcomes)>1)
-        stop(paste0(error.prefix, "only one outcome can be used with 'plot.year.lag.ratio'"))
-    
     # Now simset.list contains only simsets and lists containing only simsets. It needs to be just a single-level list of simsets now
     simset.list = unlist(simset.list, recursive = F)
     
@@ -168,6 +98,128 @@ prepare.plot <- function(...,
     if (any(sapply(outcomes, function(outcome) {!any(sapply(simset.list, function(simset) {outcome %in% simset$outcomes}))})))
         stop(paste0("There weren't any simulation sets for one or more outcomes. Should this be an error?"))
     
+    prepared.plot.data = prepare.plot(simset.list,
+                                      outcomes=outcomes,
+                                      locations=NULL,
+                                      corresponding.data.outcomes = corresponding.data.outcomes,
+                                      split.by=split.by,
+                                      facet.by=facet.by,
+                                      dimension.values=dimension.values,
+                                      target.ontology=target.ontology,
+                                      plot.which=plot.which,
+                                      summary.type=summary.type,
+                                      plot.year.lag.ratio=plot.year.lag.ratio,
+                                      data.manager=data.manager,
+                                      debug=debug)
+    execute.simplot(prepared.plot.data,
+                    outcomes=outcomes,
+                    split.by=split.by,
+                    facet.by=facet.by,
+                    plot.which=plot.which,
+                    summary.type=summary.type,
+                    plot.year.lag.ratio=plot.year.lag.ratio,
+                    n.facet.rows=n.facet.rows,
+                    style.manager=style.manager,
+                    debug=debug)
+}
+
+#' Simplot Data Only
+#'@inheritParams simplot
+#'@export
+simplot.data.only <- function(outcomes=NULL,
+                              locations=NULL,
+                              split.by=NULL,
+                              facet.by = NULL,
+                              dimension.values = list(),
+                              target.ontology = NULL,
+                              plot.year.lag.ratio = F,
+                              n.facet.rows = NULL,
+                              data.manager = get.default.data.manager(),
+                              style.manager = get.default.style.manager(),
+                              debug = F) {
+    
+    error.prefix = "Cannot generate simplot: "
+    
+    #@ validate locations
+    
+    prepared.plot.data = prepare.plot(simset.list=NULL,
+                                      outcomes=outcomes,
+                                      locations=locations,
+                                      corresponding.data.outcomes = corresponding.data.outcomes,
+                                      split.by=split.by,
+                                      facet.by=facet.by,
+                                      dimension.values=dimension.values,
+                                      target.ontology=target.ontology,
+                                      plot.which='data.only',
+                                      summary.type=summary.type,
+                                      plot.year.lag.ratio=plot.year.lag.ratio,
+                                      data.manager=data.manager,
+                                      debug=debug)
+    execute.simplot(prepared.plot.data,
+                    outcomes=outcomes,
+                    split.by=split.by,
+                    facet.by=facet.by,
+                    plot.which=plot.which,
+                    summary.type=summary.type,
+                    plot.year.lag.ratio=plot.year.lag.ratio,
+                    n.facet.rows=n.facet.rows,
+                    style.manager=style.manager,
+                    debug=debug)
+}
+
+
+prepare.plot <- function(simset.list=NULL,
+                         outcomes=NULL,
+                         locations=NULL,
+                         corresponding.data.outcomes = NULL,
+                         split.by = NULL,
+                         facet.by = NULL,
+                         dimension.values = list(),
+                         target.ontology = NULL,
+                         plot.which = c('both', 'sim.only', 'data.only')[1],
+                         summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
+                         plot.year.lag.ratio = F,
+                         data.manager = get.default.data.manager(),
+                         debug = F)
+{
+    # -- VALIDATION -- #
+    if (debug) browser()
+    error.prefix = "Cannot generate simplot: "
+    
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+    
+    # *split.by* is NULL or a single, non-NA character vector
+    if (!is.null(split.by) && (!is.character(split.by) || length(split.by) > 1 || is.na(split.by)))
+        stop(paste0(error.prefix, "'split.by' must be NULL or a length one, non-NA character vector"))
+    
+    # *facet.by* is NULL or a character vector of length > 0 with no NAs or duplicates
+    if (!is.null(facet.by) && (!is.character(facet.by) || length(facet.by) < 1 || any(is.na(facet.by)) || any(duplicated(facet.by))))
+        stop(paste0(error.prefix, "'facet.by' must be NULL or a character vector with at least one element and no NAs or duplicates"))
+    
+    if (!is.null(split.by) && split.by %in% facet.by)
+        stop(paste0(error.prefix, "'facet.by' must not contain the dimension in 'split.by'"))
+    
+    if (!is.null(split.by) && split.by == 'year')
+        stop(paste0(error.prefix, "'split.by' cannot equal 'year'"))
+    
+    if (!is.null(facet.by) && 'year' %in% facet.by)
+        stop(paste0(error.prefix, "'facet.by' cannot contain 'year'"))
+
+    if (!is.null(target.ontology) &&
+        !is.ontology(target.ontology) &&
+        !(is.list(target.ontology) && all(sapply(target.ontology, function(x) {is.ontology((x))})) && !is.null(names(target.ontology))))
+        stop(paste0(error.prefix, "'target.ontology' must be NULL, an ontology, or a list of ontologies with outcomes as names"))
+    
+    # Must supply a target ontology is using simplot.data.only, because otherwise multiple outcomes won't be alignable...?
+    
+    if (!identical(plot.year.lag.ratio, T) && !identical(plot.year.lag.ratio, F))
+        stop(paste0(error.prefix, "'plot.year.lag.ratio' must be either T or F"))
+    
+    # if *plot.year.lag.ratio* is true, we can have only one outcome
+    if (plot.year.lag.ratio && length(outcomes)>1)
+        stop(paste0(error.prefix, "only one outcome can be used with 'plot.year.lag.ratio'"))
+    
     # Get the real-world outcome names
     # - eventually we're going to want to pull this from info about the likelihood if the sim notes which likelihood was used on it
     # - what we'll do now will be the back-up to above
@@ -175,55 +227,66 @@ prepare.plot <- function(...,
     # sims do not all have each outcome because of sub-versions
     
     # likelihoods need to share their outcome for sim and data, and think about what joint likelihoods. One simulation has one (usually joint) likelihood (instructions)
-    outcomes.for.data = sapply(outcomes, function(outcome) {
-        if (outcome %in% names(corresponding.data.outcomes))
-            return(corresponding.data.outcomes[[outcome]])
-        corresponding.observed.outcome = NULL
-        i = 1
-        while (i <= length(simset.list)) {
-            if (outcome %in% names(simset.list[[i]]$outcome.metadata)) {
-                corresponding.observed.outcome = simset.list[[i]]$outcome.metadata[[outcome]]$corresponding.observed.outcome
-                break
-            } else i = i + 1
-        }
-        corresponding.observed.outcome
-    })
-    # browser()
-    outcome.display.names = list()
-    for (outcome in outcomes) {
-        display.name = outcome
-        i = 1
-        while (i <= length(simset.list)) {
-            if (outcome %in% names(simset.list[[i]]$outcome.metadata)) {
-                display.name = simset.list[[i]]$outcome.metadata[[outcome]]$display.name
-                break
-            } else i = i + 1
-        }
-        outcome.display.names[outcome] = display.name
+    if (plot.which=="data.only") outcomes.for.data = outcomes
+    else {
+        outcomes.for.data = sapply(outcomes, function(outcome) {
+            if (outcome %in% names(corresponding.data.outcomes))
+                return(corresponding.data.outcomes[[outcome]])
+            corresponding.observed.outcome = NULL
+            i = 1
+            while (i <= length(simset.list)) {
+                if (outcome %in% names(simset.list[[i]]$outcome.metadata)) {
+                    corresponding.observed.outcome = simset.list[[i]]$outcome.metadata[[outcome]]$corresponding.observed.outcome
+                    break
+                } else i = i + 1
+            }
+            corresponding.observed.outcome
+        })
     }
     
-    outcome.ontologies = lapply(outcomes, function(outcome) {
-        if (is.null(target.ontology) || FALSE)
-        outcome.ontology = NULL
-        i = 1
-        while (i <= length(simset.list)) {
-            if (outcome %in% names(simset.list[[i]]$outcome.ontologies)) {
-                outcome.ontology = simset.list[[i]]$outcome.ontologies[[outcome]]
-                break
-            } else i = i + 1
-        }
-        if (is.null(outcome.ontology))
-            stop(paste0("No outcome ontology found for outcome '", outcome, "'")) # Shouldn't happen
-        outcome.ontology
-    })
+    outcome.display.names = list()
+    if (plot.which=='data.only') outcome.display.names = sapply(outcomes, function(outcome) {data.manager$outcome.info[[outcome]]$metadata$display.name})
+    else {
+        for (outcome in outcomes) {
+            display.name = outcome
+            i = 1
+            while (i <= length(simset.list)) {
+                if (outcome %in% names(simset.list[[i]]$outcome.metadata)) {
+                    display.name = simset.list[[i]]$outcome.metadata[[outcome]]$display.name
+                    break
+                } else i = i + 1
+            }
+            outcome.display.names[outcome] = display.name
+        } 
+    }
     
-    outcome.locations = lapply(outcomes, function(outcome) {
-        locations.this.outcome = unique(unlist(lapply(simset.list, function(simset) {
-            simset$outcome.location.mapping$get.observed.locations(outcome, simset$location)
-        })))
-    })
-    names(outcome.locations) = outcomes.for.data
-    # browser()
+    if (plot.which=='data.only') outcome.ontologies=NULL
+    else {
+        outcome.ontologies = lapply(outcomes, function(outcome) {
+            if (is.null(target.ontology) || FALSE)
+                outcome.ontology = NULL
+            i = 1
+            while (i <= length(simset.list)) {
+                if (outcome %in% names(simset.list[[i]]$outcome.ontologies)) {
+                    outcome.ontology = simset.list[[i]]$outcome.ontologies[[outcome]]
+                    break
+                } else i = i + 1
+            }
+            if (is.null(outcome.ontology))
+                stop(paste0("No outcome ontology found for outcome '", outcome, "'")) # Shouldn't happen
+            outcome.ontology
+        }) 
+    }
+    
+    if (plot.which=='data.only') outcome.locations = locations
+    else {
+        outcome.locations = lapply(outcomes, function(outcome) {
+            locations.this.outcome = unique(unlist(lapply(simset.list, function(simset) {
+                simset$outcome.location.mapping$get.observed.locations(outcome, simset$location)
+            })))
+        })
+        names(outcome.locations) = outcomes.for.data
+    }
     
     #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
     
@@ -252,12 +315,19 @@ prepare.plot <- function(...,
                                                    allow.mapping.from.target.ontology = F,
                                                    na.rm=T,
                                                    debug=F)
-                    else
+                    else if (plot.which=='sim.and.data')
                         result = data.manager$pull(outcome = outcomes.for.data[[i]],
                                                    dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = outcome.ontologies[[i]],
                                                    allow.mapping.from.target.ontology = T,
+                                                   na.rm=T,
+                                                   debug=F)
+                    else # See if we really want this or not
+                        result = data.manager$pull(outcome = outcomes.for.data[[i]],
+                                                   dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                                   keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
+                                                   target.ontology = NULL,
                                                    na.rm=T,
                                                    debug=F)
                     
@@ -289,6 +359,7 @@ prepare.plot <- function(...,
                 df.truth = rbind(df.truth, one.df.outcome)
             }
         }
+        
         else
         {
             outcome.mappings = c(outcome.mappings, list(NULL))
