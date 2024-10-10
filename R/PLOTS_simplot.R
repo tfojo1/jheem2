@@ -24,6 +24,7 @@ simplot <- function(...,
                     plot.which = c('sim.and.data', 'sim.only')[1],
                     summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                     plot.year.lag.ratio = F,
+                    title = "location",
                     n.facet.rows = NULL,
                     data.manager = get.default.data.manager(),
                     style.manager = get.default.style.manager(),
@@ -109,6 +110,7 @@ simplot <- function(...,
                                       plot.which=plot.which,
                                       summary.type=summary.type,
                                       plot.year.lag.ratio=plot.year.lag.ratio,
+                                      title=title,
                                       data.manager=data.manager,
                                       debug=debug)
     execute.simplot(prepared.plot.data,
@@ -133,6 +135,7 @@ simplot.data.only <- function(outcomes=NULL,
                               dimension.values = list(),
                               target.ontology = NULL,
                               plot.year.lag.ratio = F,
+                              title = "location",
                               n.facet.rows = NULL,
                               data.manager = get.default.data.manager(),
                               style.manager = get.default.style.manager(),
@@ -153,6 +156,7 @@ simplot.data.only <- function(outcomes=NULL,
                                       plot.which='data.only',
                                       summary.type=summary.type,
                                       plot.year.lag.ratio=plot.year.lag.ratio,
+                                      title=title,
                                       data.manager=data.manager,
                                       debug=debug)
     execute.simplot(prepared.plot.data,
@@ -511,8 +515,12 @@ prepare.plot <- function(simset.list=NULL,
     
     #-- PACKAGE AND RETURN --#
     y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
-
-    return(list(df.sim=df.sim, df.truth=df.truth, details=list(y.label=y.label)))
+    if (title=="location" && length(simset.list)>0) {
+        plot.title = paste0(get.location.name(simset.list[[1]]$location), " (", simset.list[[1]]$location, ")")
+    }
+    else plot.title = title
+    
+    return(list(df.sim=df.sim, df.truth=df.truth, details=list(y.label=y.label, plot.title=plot.title)))
 }
 
 execute.simplot <- function(prepared.plot.data,
@@ -532,6 +540,7 @@ execute.simplot <- function(prepared.plot.data,
     df.sim=prepared.plot.data$df.sim
     df.truth=prepared.plot.data$df.truth
     y.label = prepared.plot.data$details$y.label
+    plot.title = prepared.plot.data$details$plot.title
     
     #-- PREPARE PLOT COLORS, SHADES, SHAPES, ETC. --#
     
@@ -706,7 +715,8 @@ execute.simplot <- function(prepared.plot.data,
     
     rv = rv +
         ggplot2::scale_alpha(guide='none') +
-        ggplot2::labs(y=y.label)
+        ggplot2::labs(y=y.label) +
+        ggplot2::ggtitle(plot.title)
     if (!is.null(df.sim))
         rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
     
