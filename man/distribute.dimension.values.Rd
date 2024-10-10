@@ -4,12 +4,18 @@
 \alias{distribute.dimension.values}
 \title{Distribute dimension values}
 \usage{
-distribute.dimension.values(arr, dimension.values.to.distribute)
+distribute.dimension.values(
+  arr,
+  dimension.values.to.distribute,
+  round.distributed.dimension.values
+)
 }
 \arguments{
 \item{arr}{An array -- no validation is performed}
 
 \item{dimension.values.to.distribute}{A named list of the dimensions and their values which should be redistributed}
+
+\item{round.distributed.dimension.values}{Should distributed quantities be rounded?}
 }
 \value{
 An array with the same number of dimensions as 'arr', but without the dimension values specified in 'dimension.values.to.distribute'.

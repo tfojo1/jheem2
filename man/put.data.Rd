@@ -16,6 +16,7 @@ put.data(
   details,
   allow.na.to.overwrite = F,
   dimension.values.to.distribute = list(),
+  round.distributed.dimension.values = T,
   debug = F,
   printouts = F
 )
@@ -42,6 +43,8 @@ put.data(
 \item{allow.na.to.overwrite}{A logical indicator for whether NA values in data should be allowed to overwrite previous values put to the data manager (if data have been put previously)}
 
 \item{dimension.values.to.distribute}{A named list of the dimensions and their values which should be redistributed}
+
+\item{round.distributed.dimension.values}{Should distributed quantities be rounded?}
 }
 \description{
 Put data into a data manager
