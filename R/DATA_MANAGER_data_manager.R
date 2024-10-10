@@ -933,6 +933,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                        details,
                        allow.na.to.overwrite=F,
                        dimension.values.to.distribute=list(),
+                       round.distributed.dimension.values=T,
                        debug=F,
                        printouts=F)
         {
@@ -1013,6 +1014,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (any(names(dimension.values.to.distribute) %in% incomplete.dimensions(ont)))
                 stop(paste0(error.prefix, "'dimension.values.to.distribute' cannot contain any incomplete dimensions"))
             
+            # *round.distributed.dimension.values* is logical
+            if (!is.logical(round.distributed.dimension.values) || length(round.distributed.dimension.values)!=1 || is.na(round.distributed.dimension.values))
+                stop(paste0(error.prefix, "'round.distributed.dimension.values' must be a single, non-NA logical value"))
+            
             if (is.array(data))
             {
                 if (is.null(dimnames(data)))
@@ -1038,7 +1043,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 }
                 
                 if (length(dimension.values.to.distribute) > 0) {
-                    data = distribute.dimension.values(data, dimension.values.to.distribute[names(dimension.values.to.distribute) %in% dvtd.names])
+                    data = distribute.dimension.values(data, dimension.values.to.distribute[names(dimension.values.to.distribute) %in% dvtd.names], round.distributed.dimension.values)
                     # We must now have exactly the dimension values in the ontology for distributed dimensions
                     if (any(sapply(dvtd.names, function(d) {
                         !setequal(dimnames(data)[[d]], ont[[d]])
@@ -1332,6 +1337,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                  details,
                                  allow.na.to.overwrite=F,
                                  dimension.values.to.distribute=list(),
+                                 round.distributed.dimension.values=T,
                                  debug=F,
                                  printouts=F)
         {
@@ -1361,6 +1367,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                        details = details,
                                        allow.na.to.overwrite=F,
                                        dimension.values.to.distribute = dimension.values.to.distribute,
+                                       round.distributed.dimension.values = round.distributed.dimension.values,
                                        debug=debug,
                                        printouts=printouts)
                 }
@@ -1431,6 +1438,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                          details = details,
                          allow.na.to.overwrite = allow.na.to.overwrite,
                          dimension.values.to.distribute = dimension.values.to.distribute,
+                         round.distributed.dimension.values= round.distributed.dimension.values,
                          debug=debug,
                          printouts=printouts)
             }

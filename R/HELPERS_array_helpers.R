@@ -658,13 +658,14 @@ set.array.dimnames <- function(arr, new.dimnames)
 #' Distribute dimension values
 #' @param arr An array -- no validation is performed
 #' @param dimension.values.to.distribute A named list of the dimensions and their values which should be redistributed
+#' @param round.distributed.dimension.values Should distributed quantities be rounded?
 #' @return An array with the same number of dimensions as 'arr', but without the dimension values specified in 'dimension.values.to.distribute'.
 #' @description This function redistributes certain values in a dimension across the remaining values in that dimension.
 #' This is useful to remove problematic dimension values -- like race = 'unknown' -- while keeping the marginal sums and the
 #' relevant ratios between the remaining dimension values the same as they were before.
 #' @details If multiple dimensions should be redistributed, they will be redistributed in the order that they exist in 'dimension.values.to.distribute'.
 #' This can result in different outputs for different orders.
-distribute.dimension.values <- function(arr, dimension.values.to.distribute) {
+distribute.dimension.values <- function(arr, dimension.values.to.distribute, round.distributed.dimension.values) {
     for (d in names(dimension.values.to.distribute)) {
         
         dnames.original = dimnames(arr)
@@ -701,6 +702,9 @@ distribute.dimension.values <- function(arr, dimension.values.to.distribute) {
         arr.additions = array(unlist(additions), sapply(dnames.additions, length), dnames.additions)
         # Treat additions that are NA as zero so that they don't make an existing value NA when they add to it
         arr.additions[is.na(arr.additions)] = 0
+        
+        # Round result if requested
+        if (round.distributed.dimension.values) arr.additions = round(arr.additions)
         
         # The above operations put the working dimension last -- move it to the front to match 'arr.trimmed'
         arr.additions.reordered = apply.robust(arr.additions, names(dnames.reordered), function(x) {x})
