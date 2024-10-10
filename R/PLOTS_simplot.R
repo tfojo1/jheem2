@@ -1,10 +1,11 @@
 
 #'@param ... One or more of either (1) jheem.simulation objects or (2) jheem.simset objects or (3) lists containing only jheem.simulation or jheem.simset objects
 #'@param outcomes A character vector of which simulation outcomes to plot
-#'@param split.by AZ: at most one dimension
-#'@param facet.by AZ: any number of dimensions but cannot include the split.by dimension
+#'@param split.by At most one dimension
+#'@param facet.by Any number of dimensions but cannot include the split.by dimension
 #'@param dimension.values
 #'@param plot.which Should simulation data and calibration data be plotted ('sim.and.data'), or only simulation data ('sim.only')
+#'@param title NULL or a single, non-NA character value. If "location", the location of the first provided simset (if any) will be used for the title.
 #'@param data.manager The data.manager from which to draw real-world data for the plots
 #'@param style.manager We are going to have to define this down the road. It's going to govern how we do lines and sizes and colors. For now, just hard code those in, and we'll circle back to it
 #'
@@ -127,6 +128,7 @@ simplot <- function(...,
 
 #' Simplot Data Only
 #'@inheritParams simplot
+#'@param title NULL or a single, non-NA character value. If "location", the first location provided in "locations" will be used for the title.
 #'@export
 simplot.data.only <- function(outcomes=NULL,
                               locations=NULL,
@@ -183,6 +185,7 @@ prepare.plot <- function(simset.list=NULL,
                          plot.which = c('both', 'sim.only', 'data.only')[1],
                          summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                          plot.year.lag.ratio = F,
+                         title="location",
                          data.manager = get.default.data.manager(),
                          debug = F)
 {
@@ -224,6 +227,9 @@ prepare.plot <- function(simset.list=NULL,
     if (plot.year.lag.ratio && length(outcomes)>1)
         stop(paste0(error.prefix, "only one outcome can be used with 'plot.year.lag.ratio'"))
     
+    if (!is.null(title) && (!is.character(title) || length(title)!=1 || is.na(title)))
+        stop(paste0(error.prefix, "'title' must be NULL or a single, non-NA character value"))
+    
     # Get the real-world outcome names
     # - eventually we're going to want to pull this from info about the likelihood if the sim notes which likelihood was used on it
     # - what we'll do now will be the back-up to above
@@ -231,7 +237,7 @@ prepare.plot <- function(simset.list=NULL,
     # sims do not all have each outcome because of sub-versions
     
     # likelihoods need to share their outcome for sim and data, and think about what joint likelihoods. One simulation has one (usually joint) likelihood (instructions)
-    if (plot.which=="data.only") outcomes.for.data = outcomes
+    if (plot.which=="data.only") outcomes.for.data = setNames(outcomes, outcomes)
     else {
         outcomes.for.data = sapply(outcomes, function(outcome) {
             if (outcome %in% names(corresponding.data.outcomes))
@@ -247,7 +253,7 @@ prepare.plot <- function(simset.list=NULL,
             corresponding.observed.outcome
         })
     }
-    
+    # browser()
     outcome.display.names = list()
     if (plot.which=='data.only') outcome.display.names = sapply(outcomes, function(outcome) {data.manager$outcome.info[[outcome]]$metadata$display.name})
     else {
@@ -303,6 +309,7 @@ prepare.plot <- function(simset.list=NULL,
         {
             outcome.data = tryCatch(
                 {
+                    # browser()
                     if (!is.null(target.ontology) && !is.list(target.ontology))
                         result = data.manager$pull(outcome = outcomes.for.data[[i]],
                                                    dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
@@ -372,7 +379,11 @@ prepare.plot <- function(simset.list=NULL,
     if (!is.null(df.truth)) {
         # make whatever column corresponds to split by actually be called "stratum" and same for facet.by.
         if (!is.null(split.by)) names(df.truth)[names(df.truth)==split.by] = "stratum"
-        if (!is.null(facet.by)) names(df.truth)[names(df.truth)==facet.by] = "facet.by"
+        if (!is.null(facet.by))
+            for (i in seq_along(facet.by)) {
+                names(df.truth)[names(df.truth)==facet.by[i]] = paste0("facet.by", i)
+            }
+        # if (!is.null(facet.by)) names(df.truth)[names(df.truth)==facet.by] = "facet.by" ##########################
         
         # if there is no 'stratum' because no split, then we should fill it with ""
         if (!('stratum' %in% names(df.truth))) df.truth['stratum'] = rep('', nrow(df.truth))
@@ -436,10 +447,14 @@ prepare.plot <- function(simset.list=NULL,
             if (!is.null(df.sim[['value.mean']])) df.sim$value = df.sim$value.mean
             if (!is.null(df.sim[['value.median']])) df.sim$value = df.sim$value.median
         }
-        
+        # browser()
         # make whatever column corresponds to split by actually be called "stratum" and same for facet.by.
         if (!is.null(split.by)) df.sim["stratum"] = df.sim[split.by]
-        if (!is.null(facet.by)) df.sim["facet.by"] = df.sim[facet.by]
+        if (!is.null(facet.by))
+            for (i in seq_along(facet.by)) {
+                df.sim[paste0("facet.by", i)] = df.sim[facet.by[i]]
+            }
+        # df.sim["facet.by"] = df.sim[facet.by]
         
         # if we don't have a 'stratum' col because no split, make an empty one
         if (!('stratum' %in% names(df.sim))) df.sim['stratum'] = rep('', nrow(df.sim))
@@ -453,17 +468,21 @@ prepare.plot <- function(simset.list=NULL,
             df.sim = df.sim[order(df.sim$stratum),]
     }
     
-    ## YEAR LAG RATIO
+    ## YEAR LAG RATIO #########################
     if (plot.year.lag.ratio) {
+        # browser()
         ## We will take log of values, then difference, then exponentiate result
         if (!is.null(df.truth)) {
             df.truth$value = log(df.truth$value)
             if (!is.null(split.by)) {
                 if (!is.null(facet.by))
-                    df.truth[['stratum']] = do.call(paste, list(df.truth$stratum, df.truth$facet.by, sep="__"))
+                    df.truth[['stratum']] = do.call(paste, c(list(df.truth$stratum),
+                                                             lapply(seq_along(facet.by), function(i) {df.truth[[paste0("facet.by", i)]]}),
+                                                             list(sep="__")))
             }
             else if (!is.null(facet.by))
-                df.truth[['stratum']] = df.truth$facet.by
+                df.truth[['stratum']] = do.call(paste, c(lapply(seq_along(facet.by), function(i) {df.truth[[paste0("facet.by", i)]]}),
+                                                         list(sep="__")))
             else df.truth[['stratum']] = rep(0, nrow(df.truth))
             truth.lag.indices = generate_lag_matrix_indices(as.integer(as.factor(df.truth$year)),
                                                             as.integer(as.factor(df.truth$location)),
@@ -487,10 +506,13 @@ prepare.plot <- function(simset.list=NULL,
             df.sim$value = log(df.sim$value)
             if (!is.null(split.by)) {
                 if (!is.null(facet.by))
-                    df.sim[['stratum']] = do.call(paste, list(df.sim$stratum, df.sim$facet.by, sep="__"))
+                    df.sim[['stratum']] = do.call(paste, c(list(df.sim$stratum),
+                                                           lapply(seq_along(facet.by), function(i) {df.sim[[paste0("facet.by", i)]]}),
+                                                           list(sep="__")))
             }
             else if (!is.null(facet.by))
-                df.sim[['stratum']] = df.sim$facet.by
+                df.sim[['stratum']] = do.call(paste, c(lapply(seq_along(facet.by), function(i) {df.sim[[paste0("facet.by", i)]]}),
+                                                       list(sep="__")))
             else df.sim[['stratum']] = rep(0, nrow(df.sim))
             # browser()
             sim.lag.indices = generate_lag_matrix_indices(as.integer(as.factor(df.sim$year)),
@@ -514,10 +536,15 @@ prepare.plot <- function(simset.list=NULL,
     }
     
     #-- PACKAGE AND RETURN --#
-    y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
-    if (title=="location" && length(simset.list)>0) {
-        plot.title = paste0(get.location.name(simset.list[[1]]$location), " (", simset.list[[1]]$location, ")")
+    if (plot.which=="data.only")
+        y.label = sapply(outcomes, function(outcome) {data.manager$outcome.info[[outcome]]$metadata$units})
+    else
+        y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
+    if (title=="location" && plot.which=="data.only") {
+        plot.title = paste0(get.location.name(locations[[1]]), " (", locations[[1]], ")") # need to check we've got valid location
     }
+    else if (title=="location")
+        plot.title = paste0(get.location.name(simset.list[[1]]$location), " (", simset.list[[1]]$location, ")")
     else plot.title = title
     
     return(list(df.sim=df.sim, df.truth=df.truth, details=list(y.label=y.label, plot.title=plot.title)))
@@ -702,12 +729,12 @@ execute.simplot <- function(prepared.plot.data,
     # If don't have a split.by, and thus only 1 color for sim, probably, then remove legend for it.
     if (style.manager$color.sim.by == 'stratum' && is.null(split.by))
         rv = rv + ggplot2::guides(color = "none")
-    
+    # browser()
     #-- FACET --#
     if (is.null(facet.by))
         facet.formula = as.formula("~outcome.display.name")
     else
-        facet.formula = as.formula("~outcome.display.name + facet.by")
+        facet.formula = as.formula(paste0("~outcome.display.name + ", paste(sapply(seq_along(facet.by), function(i) {paste0("facet.by", i)}), collapse=" + ")))
     if (!is.null(n.facet.rows))
         rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y', nrow=n.facet.rows)
     else
