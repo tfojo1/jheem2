@@ -1676,7 +1676,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         dimension.has.no.intersection = F
                         for (d in dv.names) {
                             if (d == 'year') {
-                                browser()
                                 replacement = get.range.robust.year.intersect(dimnames.for.apply[[d]], resolved.dimension.values[[d]])
                             }
                             else replacement = intersect(dimnames.for.apply[[d]], resolved.dimension.values[[d]])
