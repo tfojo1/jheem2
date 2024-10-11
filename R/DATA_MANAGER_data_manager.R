@@ -1221,6 +1221,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 reqstratdimtime = Sys.time()
                 print(paste0(dots, "preparing put dimnames took ", reqstratdimtime-prepdntime))
             }
+            
+            # Check that our data doesn't have year ranges if our ontology has single years or vice versa.
+            
+            if (!is.null(ont$year)) {
+                if (all(is.year.range(ont$year)) && any(!is.year.range(put.dim.names$year)))
+                    stop(paste0(error.prefix, "the data has single years while the existing ontology has year ranges"))
+                if (all(!is.year.range(ont$year)) && any(is.year.range(put.dim.names$year)))
+                    stop(paste0(error.prefix, "the data has year ranges while the existing ontology has single years"))
+            }
+            
             ## @AZ re-order the put.dim.names to ensure it has the same order of dimensions as the stratification does.
             stratification.dimensions = private$get.required.stratification(dimension.values = dimension.values,
                                                                             data = data,
@@ -1666,6 +1676,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         dimension.has.no.intersection = F
                         for (d in dv.names) {
                             if (d == 'year') {
+                                browser()
                                 replacement = get.range.robust.year.intersect(dimnames.for.apply[[d]], resolved.dimension.values[[d]])
                             }
                             else replacement = intersect(dimnames.for.apply[[d]], resolved.dimension.values[[d]])
