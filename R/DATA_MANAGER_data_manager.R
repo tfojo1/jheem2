@@ -1044,9 +1044,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     })))
                         stop(paste0(error.prefix, "the elements of 'dimension.values.to.distribute' must have positive length and contain no NAs or repeats"))
                     # Use only the values we actually have without throwing error if there are extras, which may leave us with none
-                    dimension.values.to.distribute = sapply(dvtd.names, function(d) {
+                    dimension.values.to.distribute = lapply(dvtd.names, function(d) {
                         intersect(dimension.values.to.distribute[[d]], dimnames(data)[[d]])
                     })
+                    names(dimension.values.to.distribute)=dvtd.names
                     dimension.values.to.distribute = dimension.values.to.distribute[sapply(dimension.values.to.distribute, length)>0]
                 }
                 
