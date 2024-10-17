@@ -330,8 +330,8 @@ prepare.natality.info <- function(settings, quantity.dim.names,
         outcome.names = settings$outcome.names.by.core.component$natality[[i]]
         outcome.trackable.types = sapply(settings$outcomes[outcome.names], function(outcome){outcome$trackable.type})
         
-        if (i==1 && length(outcome.names)>0)
-            stop("*** NOTE *** We haven't tested tracking dynamic outcomes related to natality yet. It's possible we'll get errors here - contact Todd for debugging questions")
+#        if (i==1 && length(outcome.names)>0)
+#            stop("*** NOTE *** We haven't tested tracking dynamic outcomes related to natality yet. It's possible we'll get errors here - contact Todd for debugging questions")
         
         # Set up the parent categories 
         #   - defined by the values of dimensions present in the parent ontology
