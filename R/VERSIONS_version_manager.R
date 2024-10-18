@@ -598,6 +598,9 @@ do.get.for.version <- function(version,
                                pull.previous.version.value.if.missing=F,
                                allow.null=F)
 {
+    if (!is.character(version) || length(version)!=1 || is.na(version))
+        stop("'version' must be a single, non-NA character value")
+    
     if (all(VERSION.MANAGER$versions!=version))
     {
         if (allow.null)
