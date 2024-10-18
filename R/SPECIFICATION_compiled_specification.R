@@ -26,6 +26,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                               fixed.strata.info,
                               quantities,
                               outcomes,
+                              outcome.updates,
                               core.components,
                               mechanisms,
                               
@@ -56,7 +57,8 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             private$i.fixed.strata.info = fixed.strata.info
             private$i.quantities = lapply(quantities, function(quant){quant$compile()})
-            private$i.outcomes = outcomes
+            private$i.outcomes = lapply(outcomes, function(outcome){outcome$clone(deep=T)}) # so that we can feel free to modify these in place without affecting ancestor specifications
+            private$i.outcome.updates = outcome.updates
             private$i.core.components = core.components
             private$i.mechanisms = mechanisms
             
@@ -638,6 +640,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             do.cat("Parsing outcome tree...")
             top.level.outcomes = sapply(top.level.outcome.names, private$resolve.outcome.name, this.refers.to.version=self$version)
             outcomes.to.use = private$parse.outcome.tree(top.level.outcomes)
+            outcomes.to.use = private$apply.outcome.updates(outcomes.to.use)
             do.cat("done\n")
 
             #-- Process Core Components and Mechanisms --#
@@ -1251,6 +1254,39 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             # Flag that the static quantities must be static
             sapply(depends.on.quantities.static, private$set.quantity.must.be.static, error.prefix=error.prefix)
+        },
+
+        apply.outcome.updates = function(outcomes)
+        {
+            for (update in private$i.outcome.updates)
+            {
+                outcome = outcomes[[update$outcome.name]]
+                
+                if (is.null(outcome))
+                {
+                    stop(paste0("The '", private$i.version, "' specification contains an instruction to update the ",
+                                update$what, " for outcome '", outcome$name, "', but no outcome named '",
+                                outcome$name, "' has been registered in any ancestor specification of '", private$i.version, "'"))
+                }
+                
+                if (outcome$version == private$i.version)
+                {
+                    stop(paste0("Outcome '", outcome.name, "' has already been registered in the '", private$i.version, 
+                                "' specification. You can only update ", update$what,
+                                " for outcomes registered in ancestor specifications. Just change the ",
+                                outcome$what, " in your track...outcome() call"))
+                }
+                
+                if (update$what == 'keep.dimensions')
+                    outcome$update.keep.dimensions(keep.dimensions = update$keep.dimensions,
+                                                   exclude.dimensions = update$exclude.dimensions,
+                                                   error.prefix = paste0("Cannot update keep.dimensions for outcome '", outcome$name, "': "))
+                else
+                    stop(paste0("Don't know how to execute an update to the '", outcome$what,
+                                "' for an outcome (for '", outcome$name, "')"))
+            }
+            
+            outcomes
         },
         
         # Can only be called AFTER flattening quantities
