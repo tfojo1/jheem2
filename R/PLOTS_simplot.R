@@ -128,10 +128,11 @@ simplot <- function(...,
 
 #' Simplot Data Only
 #'@inheritParams simplot
+#'@param A character vector of which simulation outcomes to plot. Note: This should be the names of the outcomes in the provided data manager, NOT in the simulations.
 #'@param title NULL or a single, non-NA character value. If "location", the first location provided in "locations" will be used for the title.
 #'@export
-simplot.data.only <- function(outcomes=NULL,
-                              locations=NULL,
+simplot.data.only <- function(outcomes,
+                              locations,
                               split.by=NULL,
                               facet.by = NULL,
                               dimension.values = list(),
@@ -358,11 +359,12 @@ prepare.plot <- function(simset.list=NULL,
                     outcome.data = outcome.data * 100
                 
                 # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
-                one.df.outcome = reshape2::melt(outcome.data, na.rm = T)
-                one.df.outcome = as.data.frame(lapply(one.df.outcome, function(col) {
-                    if (is.factor(col)) as.character(col)
-                    else col
-                }))
+                one.df.outcome = reshape2::melt(outcome.data, na.rm = T, as.is=T)
+                one.df.outcome$year = as.numeric(one.df.outcome$year)
+                # one.df.outcome = as.data.frame(lapply(one.df.outcome, function(col) {
+                #     if (is.factor(col)) as.character(col)
+                #     else col
+                # }))
                 
                 corresponding.outcome = names(outcomes.for.data)[[i]]
                 one.df.outcome['outcome'] = corresponding.outcome
@@ -546,7 +548,7 @@ prepare.plot <- function(simset.list=NULL,
     else if (title=="location")
         plot.title = paste0(get.location.name(simset.list[[1]]$location), " (", simset.list[[1]]$location, ")")
     else plot.title = title
-    
+    # browser()
     return(list(df.sim=df.sim, df.truth=df.truth, details=list(y.label=y.label, plot.title=plot.title)))
 }
 
@@ -562,7 +564,7 @@ execute.simplot <- function(prepared.plot.data,
                             debug=F)
 {
     if (debug) browser()
-
+    # browser()
     #-- UNPACK DATA --#
     df.sim=prepared.plot.data$df.sim
     df.truth=prepared.plot.data$df.truth
@@ -583,7 +585,7 @@ execute.simplot <- function(prepared.plot.data,
         df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
         df.truth['color.data.by'] = df.truth[style.manager$color.data.by]
         df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
-        df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
+        df.truth['color.and.shade.data.by'] = if (!is.null(df.truth$stratum) && all(df.truth$stratum=="")) df.truth['shade.data.by'] else do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
     }
     
     ## COLORS
@@ -735,10 +737,13 @@ execute.simplot <- function(prepared.plot.data,
         facet.formula = as.formula("~outcome.display.name")
     else
         facet.formula = as.formula(paste0("~outcome.display.name + ", paste(sapply(seq_along(facet.by), function(i) {paste0("facet.by", i)}), collapse=" + ")))
-    if (!is.null(n.facet.rows))
-        rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y', nrow=n.facet.rows)
-    else
-        rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y')
+    if (!is.null(df.sim) || !is.null(df.truth))
+    {
+        if (!is.null(n.facet.rows))
+            rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y', nrow=n.facet.rows)
+        else
+            rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y')
+    }
     
     rv = rv +
         ggplot2::scale_alpha(guide='none') +
