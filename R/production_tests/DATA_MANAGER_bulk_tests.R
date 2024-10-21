@@ -1,14 +1,14 @@
-source('R/SPECIFICATION_scales.R')
-source('R/HELPERS_misc_helpers.R')
-source('R/DATA_MANAGER_data_manager.R')
-source('R/ONTOLOGY_ontology.R')
-source('R/ONTOLOGY_ontology_mappings.R')
-source('R/HELPERS_array_helpers.R')
-source('R/HELPERS_dim_names_helpers.R')
-source('R/SPECIFICATION_model_specification.R') #has the outcome.metadata object definition
-# source('R/LOCATIONS_location_manager.R')
-Rcpp::sourceCpp('src/array_helpers.cpp')
-Rcpp::sourceCpp('src/ontology_mappings.cpp')
+# source('R/SPECIFICATION_scales.R')
+# source('R/HELPERS_misc_helpers.R')
+# source('R/DATA_MANAGER_data_manager.R')
+# source('R/ONTOLOGY_ontology.R')
+# source('R/ONTOLOGY_ontology_mappings.R')
+# source('R/HELPERS_array_helpers.R')
+# source('R/HELPERS_dim_names_helpers.R')
+# source('R/SPECIFICATION_model_specification.R') #has the outcome.metadata object definition
+# # source('R/LOCATIONS_location_manager.R')
+# Rcpp::sourceCpp('src/array_helpers.cpp')
+# Rcpp::sourceCpp('src/ontology_mappings.cpp')
 
 DATA.ROOT.DIR = '../../v1_data/'
 
@@ -80,15 +80,6 @@ test.proportion.aggregation = function(browse=F) {
     
     data.manager = create.data.manager('test', description='a data manager to test with')
     data.manager$register.outcome(
-        'suppression',
-        metadata = create.outcome.metadata(
-            scale = 'rate',
-            display.name = 'Suppression',
-            axis.name = 'Suppression (n)',
-            units = 'rate',
-            description = "Proportion of Diagnosed PWH Who Are Suppressed"),
-        denominator.outcome = 'prevalence.diagnosed')
-    data.manager$register.outcome(
         'prevalence.diagnosed',
         metadata = create.outcome.metadata(
             scale = 'non.negative.number',
@@ -98,6 +89,16 @@ test.proportion.aggregation = function(browse=F) {
             description = "Estimated Number of People with HIV aware of their Diagnosis"))
     data.manager$register.parent.source('cdc', 'cdc', 'cdc')
     data.manager$register.source('cdc', 'cdc', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')
+    data.manager$register.outcome(
+        'suppression',
+        metadata = create.outcome.metadata(
+            scale = 'rate',
+            display.name = 'Suppression',
+            axis.name = 'Suppression (n)',
+            units = 'rate',
+            description = "Proportion of Diagnosed PWH Who Are Suppressed"),
+        denominator.outcome = 'prevalence.diagnosed')
+    
     
     data.manager$register.ontology(
         'CDC_bho',
@@ -863,6 +864,14 @@ test.proportion.mapping = function(browse=F) {
     
     data.manager = create.data.manager('test', description='a data manager to test with')
     data.manager$register.outcome(
+        'prevalence.diagnosed',
+        metadata = create.outcome.metadata(
+            scale = 'non.negative.number',
+            display.name = "Prevalence (Diagnosed)",
+            axis.name = "People with Diagnosed HIV (n)",
+            units = 'people',
+            description = "Estimated Number of People with HIV aware of their Diagnosis"))
+    data.manager$register.outcome(
         'suppression',
         metadata = create.outcome.metadata(
             scale = 'rate',
@@ -871,14 +880,6 @@ test.proportion.mapping = function(browse=F) {
             units = 'rate',
             description = "Proportion of Diagnosed PWH Who Are Suppressed"),
         denominator.outcome = 'prevalence.diagnosed')
-    data.manager$register.outcome(
-        'prevalence.diagnosed',
-        metadata = create.outcome.metadata(
-            scale = 'non.negative.number',
-            display.name = "Prevalence (Diagnosed)",
-            axis.name = "People with Diagnosed HIV (n)",
-            units = 'people',
-            description = "Estimated Number of People with HIV aware of their Diagnosis"))
     data.manager$register.parent.source('cdc', 'cdc', 'cdc')
     data.manager$register.source('cdc', 'cdc', full.name = "US Centers for Disease Control and Prevention", short.name='CDC')    
     

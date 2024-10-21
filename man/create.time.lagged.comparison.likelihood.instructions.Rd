@@ -7,7 +7,6 @@
 create.time.lagged.comparison.likelihood.instructions(
   outcome.for.data,
   outcome.for.sim,
-  denominator.outcome.for.sim = NULL,
   dimensions = character(0),
   denominator.dimensions = dimensions,
   dimension.values = NULL,
@@ -32,8 +31,6 @@ create.time.lagged.comparison.likelihood.instructions(
 \item{outcome.for.data}{A single character vector specifying the outcome that data managers will use to find data.}
 
 \item{outcome.for.sim}{A single character vector specifying the simulation outcome to use.}
-
-\item{denominator.outcome.for.sim}{(Optional) A single character vector specifying the simulation outcome to use a denominator if the outcome.for.sim is a ratio, proportion, or rate.}
 
 \item{dimensions}{A character vector of dimensions, excluding year, from which stratifications will be generated.}
 

@@ -8,7 +8,6 @@
 create.nested.proportion.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
                                                                                       denominator.outcome.for.data, # is NEVER null here because we are working with proportions
                                                                                       outcome.for.sim,
-                                                                                      denominator.outcome.for.sim = NULL, # if NULL, uses denominator data within the sim data
                                                                                       outcome.for.n.multipliers = denominator.outcome.for.data,
                                                                                       
                                                                                       location.types, # test is c('county', 'state')
@@ -60,7 +59,6 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
     JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
                                                         denominator.outcome.for.data = denominator.outcome.for.data,
                                                         outcome.for.sim = outcome.for.sim,
-                                                        denominator.outcome.for.sim = denominator.outcome.for.sim,
                                                         outcome.for.n.multipliers = outcome.for.n.multipliers,
                                                         location.types = location.types,
                                                         minimum.geographic.resolution.type = minimum.geographic.resolution.type,
@@ -110,7 +108,6 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
 create.time.lagged.comparison.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                                                     denominator.outcome.for.data, # is NEVER null here because we are working with proportions
                                                                                     outcome.for.sim,
-                                                                                    denominator.outcome.for.sim = NULL, # if NULL, uses denominator data within the sim data
                                                                                     outcome.for.n.multipliers = denominator.outcome.for.data,
                                                                                     
                                                                                     location.types, # test is c('county', 'state')
@@ -158,7 +155,6 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
     JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
                                                         denominator.outcome.for.data = denominator.outcome.for.data,
                                                         outcome.for.sim = outcome.for.sim,
-                                                        denominator.outcome.for.sim = denominator.outcome.for.sim,
                                                         outcome.for.n.multipliers = outcome.for.n.multipliers,
                                                         location.types = location.types,
                                                         minimum.geographic.resolution.type = minimum.geographic.resolution.type,
@@ -218,7 +214,6 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
 create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              denominator.outcome.for.data, # is NEVER null here because we are working with proportions
                                                              outcome.for.sim,
-                                                             denominator.outcome.for.sim = NULL, # if NULL, uses denominator data within the sim data
                                                              outcome.for.n.multipliers = denominator.outcome.for.data,
                                                              
                                                              location.types, # test is c('county', 'state')
@@ -266,7 +261,6 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
     JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS$new(outcome.for.data = outcome.for.data,
                                                         denominator.outcome.for.data = denominator.outcome.for.data,
                                                         outcome.for.sim = outcome.for.sim,
-                                                        denominator.outcome.for.sim = denominator.outcome.for.sim,
                                                         outcome.for.n.multipliers = outcome.for.n.multipliers,
                                                         location.types = location.types,
                                                         minimum.geographic.resolution.type = minimum.geographic.resolution.type,
@@ -318,7 +312,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         initialize = function(outcome.for.data,
                               denominator.outcome.for.data,
                               outcome.for.sim,
-                              denominator.outcome.for.sim,
                               outcome.for.n.multipliers,
                               location.types,
                               minimum.geographic.resolution.type,
@@ -382,10 +375,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             # *denominator.outcome.for.data* is a single character vector
             if (!is.character(outcome.for.data) || length(outcome.for.data) > 1 || is.null(outcome.for.data) || is.na(outcome.for.data))
                 stop(paste0(error.prefix, "'outcome.for.data' must be a character vector of length 1"))
-            
-            # *denominator.outcome.for.sim* is a single character vector
-            if (!is.null(denominator.outcome.for.sim) && (!is.character(denominator.outcome.for.sim) || length(denominator.outcome.for.sim) > 1 || is.na(denominator.outcome.for.sim)))
-                stop(paste0(error.prefix, "'denominator.outcome.for.sim' must be NULL or a character vector of length 1"))
             
             # *outcome.for.n.multipliers* is a single character vector
             if (!is.null(outcome.for.n.multipliers) && (!is.character(outcome.for.n.multipliers) || length(outcome.for.n.multipliers) > 1 || is.na(outcome.for.n.multipliers)))
@@ -539,7 +528,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             
             private$i.outcome.for.data = outcome.for.data
             private$i.denominator.outcome.for.data = denominator.outcome.for.data
-            private$i.denominator.outcome.for.sim = denominator.outcome.for.sim
             private$i.outcome.for.n.multipliers = outcome.for.n.multipliers
             private$i.from.year = from.year
             private$i.to.year = to.year
@@ -596,15 +584,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
             }
             else
                 stop("Cannot modify a jheem.likelihood.instruction's 'denominator.outcome.for.data' - it is read-only")
-        },
-        denominator.outcome.for.sim = function(value)
-        {
-            if (missing(value))
-            {
-                private$i.denominator.outcome.for.sim
-            }
-            else
-                stop("Cannot modify a jheem.likelihood.instruction's 'denominator.outcome.for.sim' - it is read-only")
         },
         outcome.for.n.multipliers = function(value)
         {
@@ -747,7 +726,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS = R6::R6Class(
         
         i.outcome.for.data = NULL,
         i.denominator.outcome.for.data = NULL,
-        i.denominator.outcome.for.sim = NULL,
         i.outcome.for.n.multipliers = NULL,
         i.from.year = NULL,
         i.to.year = NULL,
@@ -804,7 +782,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             private$i.parameters = instructions$parameters
             private$i.outcome.for.data = instructions$outcome.for.data
             private$i.denominator.outcome.for.data = instructions$denominator.outcome.for.data
-            private$i.denominator.outcome.for.sim = instructions$denominator.outcome.for.sim
             private$i.outcome.for.n.multipliers = instructions$outcome.for.n.multipliers
             
             private$i.partitioning.function = instructions$partitioning.function
@@ -1026,6 +1003,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     # data.keep.dimensions = union(data.keep.dimensions, keep.dimensions) # Why do I do this?? Maybe I don't need a dimension?
                     
                 }
+                # browser()
                 private$i.n.obs = length(private$i.obs.p)
                 if (private$i.n.obs==0) stop(paste0(error.prefix, "no data was found for any stratification"))
                 
@@ -1043,6 +1021,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 private$i.obs.p = private$i.obs.p[!redundant.locations.mask]
                 private$i.metadata = private$i.metadata[!redundant.locations.mask,]
                 private$i.details = private$i.details[!redundant.locations.mask]
+                private$i.n.obs = length(private$i.obs.p)
                 
                 # The remove mask needs to be updated -- carefully -- because it is in reference to the state before removal and will be used later on for the transformation mapping matrix.
                 # Since location is the second dimension after year in all the arrays pulled, n.years times n.locations is the size of a block repeated a certain number of times
@@ -1164,7 +1143,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 if (is.null(locations.possibly.with.n.data))
                     stop(paste0(error.prefix, "'", private$i.denominator.outcome.for.data, "' could not be found for the required observation locations"))
                 if (post.time.checkpoint.flag) print(paste0("Calculate obs.n: ", Sys.time()))
-                
+                # browser()
                 obs.n.info = private$get.obs.n(data.manager = data.manager,
                                                stratification = model.stratification, # may be character(0)
                                                locations.with.n.data = locations.possibly.with.n.data,
@@ -1337,17 +1316,11 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                                                                                                     keep.dimensions = private$i.sim.keep.dimensions,
                                                                                                                     dimension.values = private$i.sim.dimension.values,
                                                                                                                     drop.single.sim.dimension = T)
-            if (is.null(private$i.denominator.outcome.for.sim))
-                private$i.optimized.get.instructions[['sim.n.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
-                                                                                                                        keep.dimensions = private$i.sim.keep.dimensions,
-                                                                                                                        dimension.values = private$i.sim.dimension.values,
-                                                                                                                        output = 'denominator',
-                                                                                                                        drop.single.sim.dimension = T)
-            else
-                private$i.optimized.get.instructions[['sim.n.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.denominator.outcome.for.sim,
-                                                                                                                        keep.dimensions = private$i.sim.keep.dimensions,
-                                                                                                                        dimension.values = private$i.sim.dimension.values,
-                                                                                                                        drop.single.sim.dimension = T)
+            private$i.optimized.get.instructions[['sim.n.instr']] = sim.metadata$prepare.optimized.get.instructions(outcome = private$i.outcome.for.sim,
+                                                                                                                    keep.dimensions = private$i.sim.keep.dimensions,
+                                                                                                                    dimension.values = private$i.sim.dimension.values,
+                                                                                                                    output = 'denominator',
+                                                                                                                    drop.single.sim.dimension = T)
             
             ptm = Sys.time()
             if (post.time.checkpoint.flag) print(paste0("End time: ", ptm))
@@ -1399,7 +1372,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         
         i.outcome.for.data = NULL,
         i.denominator.outcome.for.data = NULL,
-        i.denominator.outcome.for.sim = NULL,
         i.outcome.for.n.multipliers = NULL,
         
         i.optimized.get.instructions = NULL,
@@ -1430,27 +1402,19 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
         {
             if (use.optimized.get) {
                 sim.p = sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])
-                if (is.null(private$i.denominator.outcome.for.sim))
-                    sim.n = sim$optimized.get(private$i.optimized.get.instructions[["sim.n.instr"]])
-                else
-                    sim.n = sim$optimized.get(private$i.optimized.get.instructions[["sim.n.instr"]])
+                sim.n = sim$optimized.get(private$i.optimized.get.instructions[["sim.n.instr"]])
             }
             else {
                 sim.p = sim$get(outcome = private$i.outcome.for.sim,
                                 keep.dimensions = private$i.sim.keep.dimensions,
                                 dimension.values = private$i.sim.dimension.values,
                                 drop.single.sim.dimension = T)
-                if (is.null(private$i.denominator.outcome.for.sim))
-                    sim.n = sim$get(outcome = private$i.outcome.for.sim,
-                                    keep.dimensions = private$i.sim.keep.dimensions,
-                                    dimension.values = private$i.sim.dimension.values,
-                                    output = 'denominator',
-                                    drop.single.sim.dimension = T)
-                else
-                    sim.n = sim$get(outcome = private$i.denominator.outcome.for.sim,
-                                    keep.dimensions = private$i.sim.keep.dimensions,
-                                    dimension.values = private$i.sim.dimension.values,
-                                    drop.single.sim.dimension = T)
+                
+                sim.n = sim$get(outcome = private$i.outcome.for.sim,
+                                keep.dimensions = private$i.sim.keep.dimensions,
+                                dimension.values = private$i.sim.dimension.values,
+                                output = 'denominator',
+                                drop.single.sim.dimension = T)
             }
             
             flattened.dims = c(year = dim(sim.p)[['year']], stratum = prod(dim(sim.p)[names(dim(sim.p)) != 'year']))

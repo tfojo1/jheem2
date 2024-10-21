@@ -500,7 +500,7 @@ prepare.plot <- function(simset.list=NULL,
             
             # Remove NAs or Infs generated in this process
             df.truth = df.truth[!is.na(df.truth$value) & !is.infinite(df.truth$value),]
-
+            
             #If we end up with 0 rows, we need to consider the df.truth to be NULL
             if (nrow(df.truth)==0) df.truth=NULL
         }
@@ -753,6 +753,6 @@ execute.simplot <- function(prepared.plot.data,
         rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
     
     if (plot.year.lag.ratio) rv = rv + ggplot2::xlab("latter year")
-
+    
     rv
 }

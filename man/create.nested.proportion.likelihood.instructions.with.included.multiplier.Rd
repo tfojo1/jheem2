@@ -8,7 +8,6 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier(
   outcome.for.data,
   denominator.outcome.for.data,
   outcome.for.sim,
-  denominator.outcome.for.sim = NULL,
   outcome.for.n.multipliers = denominator.outcome.for.data,
   location.types,
   minimum.geographic.resolution.type,
@@ -52,8 +51,6 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier(
 \item{outcome.for.data}{A single character vector specifying the outcome that data managers will use to find data.}
 
 \item{outcome.for.sim}{A single character vector specifying the simulation outcome to use.}
-
-\item{denominator.outcome.for.sim}{(Optional) A single character vector specifying the simulation outcome to use a denominator if the outcome.for.sim is a ratio, proportion, or rate.}
 
 \item{location.types}{The types of the locations that contain or are contained by the model location.}
 

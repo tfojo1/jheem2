@@ -247,12 +247,13 @@ register.parent.data.source <- function(data.manager = get.default.data.manager(
 
 #'@title Put data into a data manager
 #'
+#'@inheritParams distribute.dimension.values
 #'@param data.manager A jheem.data.manager object
 #'@param data A numeric array or scalar value containing the data to store. If it is an array, it must have named dimnames set
 #'@param outcome The outcome type for the data. Must be an outcome previously registered with \code{\link{register.data.outcome}}
 #'@param metric The type of measurement. The default value is "estimate", but other options include "cv", "variance", and "sd".
 #'@param ontology.name The name of the ontology which the data follow. Must be an ontology previously registered with \code{\link{register.data.ontology}}
-#'@param dimension.values A named list that indicates what subset of a bigger data element these particular data should be stored into. The names of dimension values. The values of dimension.values can be either (1) character vectors
+#'@param dimension.values A named list that indicates what subset of a bigger data element these particular data should be stored into. Each element must be a named character, numeric, or logical vector.
 #'@param source The (single) character name of the source from which these data derive. Must be a source previously registered with \code{\link{register.data.source}} Note: a source is conceived such that one source cannot contain two sets of data for the same set of dimension values
 #'@param url A character vector with at least one element giving one or more URLs indicating where the data derive from
 #'@param details A character vector with at least one element giving one or more URLs giving data collection details. In general, data collected and tabulated using the same approach should have the same details, whereas data with different methods/tabulation should have different details
@@ -265,10 +266,12 @@ put.data <- function(data.manager = get.default.data.manager(),
                      metric,
                      source,
                      ontology.name,
-                     dimension.values,
+                     dimension.values=NULL,
                      url,
                      details,
                      allow.na.to.overwrite=F,
+                     dimension.values.to.distribute=list(),
+                     round.distributed.dimension.values=T,
                      debug=F,
                      printouts=F)
 {
@@ -284,12 +287,15 @@ put.data <- function(data.manager = get.default.data.manager(),
                      url=url,
                      details=details,
                      allow.na.to.overwrite=allow.na.to.overwrite,
+                     dimension.values.to.distribute = dimension.values.to.distribute,
+                     round.distributed.dimension.values = round.distributed.dimension.values,
                      debug=F,
                      printouts=printouts)
 }
 
 #'@title Put long-form data into a data manager
 #'
+#'#'@inheritParams distribute.dimension.values
 #'@inheritParams put.data
 #'@param data A data frame or other 2-dimensional data structure with named columns. Must contain a column named 'value' of numeric values. If the 'source' argument is NULL, then data must also have a column named 'source' that gives the source for each row. May contain additional columns with names matching the specified ontology, which have the dimension values for each row. Any other columns are ignored
 #'
@@ -300,10 +306,12 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                metric,
                                source,
                                ontology.name,
-                               dimension.values,
+                               dimension.values=NULL,
                                url,
                                details,
                                allow.na.to.overwrite=F,
+                               dimension.values.to.distribute=list(),
+                               round.distributed.dimension.values=T,
                                debug=F,
                                printouts=F)
 {
@@ -319,6 +327,8 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                url=url,
                                details=details,
                                allow.na.to.overwrite=allow.na.to.overwrite,
+                               dimension.values.to.distribute = dimension.values.to.distribute,
+                               round.distributed.dimension.values=round.distributed.dimension.values,
                                debug=F,
                                printouts=printouts)
 }
@@ -922,10 +932,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                        metric = 'estimate',
                        source,
                        ontology.name,
-                       dimension.values,
+                       dimension.values=NULL,
                        url,
                        details,
                        allow.na.to.overwrite=F,
+                       dimension.values.to.distribute=list(),
+                       round.distributed.dimension.values=T,
                        debug=F,
                        printouts=F)
         {
@@ -934,6 +946,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 puttime=Sys.time()
                 print(paste0("Beginning put for outcome '", outcome, "', source '", source, "' at ", puttime))
             }
+            if (debug) browser()
             #------------------------#
             #-- Validate arguments --#
             #------------------------#
@@ -988,6 +1001,27 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                 variable.name.for.error = 'data',
                                                 error.prefix = error.prefix)
             
+            if (is.null(dimension.values)) dimension.values = list()
+            
+            # *dimension.values.to.distribute* must be a named list with
+            # names that are dimensions of the array
+            # and values that are in the dimnames of the array
+            # and can only be used if the scale is non.negative.number
+            # and the input is an array
+            if (!is.list(dimension.values.to.distribute))
+                stop(paste0(error.prefix, "'dimension.values.to.distribute' must be a named list; defaults to list()"))
+            if (length(dimension.values.to.distribute) > 0 && !is.array(data))
+                stop(paste0(error.prefix, "'dimension.values.to.distribute' can only be used when the data is an array; should be left as the default, list(), otherwise"))
+            if (length(dimension.values.to.distribute) > 0 && outcome.info$metadata$scale != 'non.negative.number')
+                stop(paste0(error.prefix, "'dimension.values.to.distribute' can only be used when the data has scale 'non.negative.number'; should be left as the default, list(), otherwise"))
+            # We cannot distribute on incomplete dimensions
+            if (any(names(dimension.values.to.distribute) %in% incomplete.dimensions(ont)))
+                stop(paste0(error.prefix, "'dimension.values.to.distribute' cannot contain any incomplete dimensions"))
+            
+            # *round.distributed.dimension.values* is logical
+            if (!is.logical(round.distributed.dimension.values) || length(round.distributed.dimension.values)!=1 || is.na(round.distributed.dimension.values))
+                stop(paste0(error.prefix, "'round.distributed.dimension.values' must be a single, non-NA logical value"))
+            
             if (is.array(data))
             {
                 if (is.null(dimnames(data)))
@@ -997,6 +1031,34 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 if (is.null(names(dimnames(data))))
                     stop(paste0(error.prefix,
                                 "If 'data' is an array, then it must be an array with NAMED dimnames"))
+                
+                # Distribute dimension values, if applicable, BEFORE checks on the data dimnames. Note that we won't distribute dimensions we don't have, but no error
+                if (length(dimension.values.to.distribute) > 0) {
+                    dvtd.names = intersect(names(dimension.values.to.distribute), names(dimnames(data)))
+                    if (is.null(dvtd.names) || any(is.na(dvtd.names)))
+                        stop(paste0(error.prefix, "'dimension.values.to.distribute' must be a named list"))
+                    if (any(sapply(dvtd.names, function(d) {
+                        length(dimension.values.to.distribute[[d]])==0 ||
+                            any(is.na(dimension.values.to.distribute[[d]])) ||
+                            any(duplicated(dimension.values.to.distribute[[d]]))
+                    })))
+                        stop(paste0(error.prefix, "the elements of 'dimension.values.to.distribute' must have positive length and contain no NAs or repeats"))
+                    # Use only the values we actually have without throwing error if there are extras, which may leave us with none
+                    dimension.values.to.distribute = lapply(dvtd.names, function(d) {
+                        intersect(dimension.values.to.distribute[[d]], dimnames(data)[[d]])
+                    })
+                    names(dimension.values.to.distribute)=dvtd.names
+                    dimension.values.to.distribute = dimension.values.to.distribute[sapply(dimension.values.to.distribute, length)>0]
+                }
+                
+                if (length(dimension.values.to.distribute) > 0) {
+                    data = distribute.dimension.values(data, dimension.values.to.distribute[names(dimension.values.to.distribute) %in% dvtd.names], round.distributed.dimension.values)
+                    # We must now have exactly the dimension values in the ontology for distributed dimensions
+                    if (any(sapply(dvtd.names, function(d) {
+                        length(setdiff(ont[[d]], dimnames(data)[[d]]))>0
+                    })))
+                        stop(paste0(error.prefix, "'dimension.values.to.distribute' can only be used when the dataset contains all values in the ontology for relevant dimensions"))
+                }
 
                 invalid.dimensions = setdiff(names(dimnames(data)), names(ont))
                 if (length(invalid.dimensions)>0)
@@ -1077,7 +1139,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (is.null(source.info))
                 stop(paste0(error.prefix, "'", source, "' is not a registered data source. Call register.data.source() to register it before putting data from that source"))
             
-            
             # 5) *url, and details* are
             #    -- character vectors
             #    -- with at least one value
@@ -1134,6 +1195,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 phase3time = Sys.time()
                 print(paste0(dots, "Hashtime took ", phase3time - hashtime))
             }
+            
             #--------------------------------#
             #-- Set up to receive the data --#
             #--------------------------------#
@@ -1160,6 +1222,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 reqstratdimtime = Sys.time()
                 print(paste0(dots, "preparing put dimnames took ", reqstratdimtime-prepdntime))
             }
+            
+            # Check that our data doesn't have year ranges if our ontology has single years or vice versa.
+            
+            if (!is.null(ont$year)) {
+                if (all(is.year.range(ont$year)) && any(!is.year.range(put.dim.names$year)))
+                    stop(paste0(error.prefix, "the data has single years while the existing ontology has year ranges"))
+                if (all(!is.year.range(ont$year)) && any(is.year.range(put.dim.names$year)))
+                    stop(paste0(error.prefix, "the data has year ranges while the existing ontology has single years"))
+            }
+            
             ## @AZ re-order the put.dim.names to ensure it has the same order of dimensions as the stratification does.
             stratification.dimensions = private$get.required.stratification(dimension.values = dimension.values,
                                                                             data = data,
@@ -1171,7 +1243,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 print(paste0(dots, "getting required strat dimensions took ", metrictime-reqstratdimtime))
                 print(paste0(dots, "Phase three stuff took ", metrictime-phase3time))
             }
-            if (debug) browser()
+            # if (debug) browser()
             ## ANDREW'S NEW LOGIC TO ACCOMMODATE MULTIPLE METRICS AND ENSURING ALIGNED DIMNAMES AMONG ALL
             existing.dim.names.this.metric = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
             data.already.present.this.metric = !is.null(existing.dim.names.this.metric)
@@ -1279,10 +1351,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                  metric = 'estimate',
                                  source,
                                  ontology.name,
-                                 dimension.values,
+                                 dimension.values=NULL,
                                  url,
                                  details,
                                  allow.na.to.overwrite=F,
+                                 dimension.values.to.distribute=list(),
+                                 round.distributed.dimension.values=T,
                                  debug=F,
                                  printouts=F)
         {
@@ -1310,6 +1384,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                        data = data[data[['outcome']]==one.outcome,],
                                        url = url,
                                        details = details,
+                                       allow.na.to.overwrite=F,
+                                       dimension.values.to.distribute = dimension.values.to.distribute,
+                                       round.distributed.dimension.values = round.distributed.dimension.values,
                                        debug=debug,
                                        printouts=printouts)
                 }
@@ -1342,9 +1419,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         stop(paste0(error.prefix, "Column '", d, "' in 'data' must contain character or numeric values"))
                     T
                 })
+                # browser()
                 
-                data[dimensions] = resolve.ontology.dimension.values(ont=ont, dimension.values=data[dimensions],
-                                                                     error.prefix=paste0(error.prefix, " Error resolving dimension values - "))
+                # NOTE: We will no longer check the dimension values here, because that intereferes with the possibility of redistributing them.
+                # Instead, we'll check like we already do in the put function
+                # data[dimensions] = resolve.ontology.dimension.values(ont=ont, dimension.values=data[dimensions],
+                                                                     # error.prefix=paste0(error.prefix, " Error resolving dimension values - "))
                 
                 # Hydrate it to an array
                 dim.names = lapply(dimensions, function(d){
@@ -1352,12 +1432,19 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 })
                 names(dim.names) = dimensions
                 
-                
                 arr.data = array(as.numeric(NA), dim=sapply(dim.names, length), dimnames=dim.names)
-                for (i in 1:nrow(data))
-                {
-                    array.access(arr.data, dimension.values = as.list(data[i,dimensions])) = data[i,'value']
-                }
+                indices.arr = array(1:length(arr.data), dim=sapply(dim.names, length), dimnames=dim.names)
+                dimensions = names(dim.names)
+                indices.for.rows = sapply(1:nrow(data), function(i){
+                    do.call('[', args=c(list(indices.arr), as.list(data[i,dimensions])))
+                })
+                na.mask = is.na(data[,'value'])
+                arr.data[indices.for.rows[!na.mask]] = data[!na.mask,'value']
+                
+    #            for (i in 1:nrow(data))
+    #            {
+    #                array.access(arr.data, dimension.values = as.list(data[i,dimensions])) = data[i,'value']
+    #            }
 
                 #-- Pass through to main put function --#
                 self$put(outcome = outcome,
@@ -1369,9 +1456,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                          url = url,
                          details = details,
                          allow.na.to.overwrite = allow.na.to.overwrite,
+                         dimension.values.to.distribute = dimension.values.to.distribute,
+                         round.distributed.dimension.values= round.distributed.dimension.values,
                          debug=debug,
                          printouts=printouts)
             }
+            
+            if (printouts) print('done with put long form')
         },
 
         pull = function(data.manager,
