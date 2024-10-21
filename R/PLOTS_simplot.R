@@ -355,6 +355,7 @@ prepare.plot <- function(simset.list=NULL,
             if (!is.null(outcome.data)) {
                 
                 # If the scale is proportion, multiply data by 100 to match the "%" symbol the label will have
+                # browser()
                 if (data.manager$outcome.info[[outcomes.for.data[[i]]]]$metadata$display.as.percent)
                     outcome.data = outcome.data * 100
                 
@@ -542,6 +543,8 @@ prepare.plot <- function(simset.list=NULL,
         y.label = sapply(outcomes, function(outcome) {data.manager$outcome.info[[outcome]]$metadata$units})
     else
         y.label = paste0(sapply(outcomes, function(outcome) {simset.list[[1]][['outcome.metadata']][[outcome]][['units']]}), collapse='/')
+    if (plot.year.lag.ratio)
+        y.label = paste0("Log difference in ", y.label)
     if (title=="location" && plot.which=="data.only") {
         plot.title = paste0(get.location.name(locations[[1]]), " (", locations[[1]], ")") # need to check we've got valid location
     }
