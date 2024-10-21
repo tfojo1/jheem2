@@ -1230,7 +1230,7 @@ do.create.simulation.set.from.metadata <- function(metadata,
     if (finalize)
     {
         data$seed = round(runif(1, 0, .Machine$integer.max))
-        sampled.parameters.distribution = get.parameters.distribution.for.version(version, type='sampled')
+        sampled.parameters.distribution = get.parameters.distribution.for.version(jheem.kernel$version, type='sampled')
         
         if (!is.null(sampled.parameters.distribution))
         {

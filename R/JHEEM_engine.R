@@ -6134,7 +6134,6 @@ JHEEM = R6::R6Class(
                         
                         if (length(times.to.pull)==0)
                         {
-                            browser()
                             raw.value = list()
                         }
                         else

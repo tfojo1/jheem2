@@ -1521,6 +1521,26 @@ track.cumulative.proportion.from.rate <- function(specification,
                                                         save = save)
 }
 
+#'@title Change the keep.dimensions of an outcome registered to an ancestor specification
+#'
+#'@inheritParams track.dynamic.outcome
+#'
+#'@param outcome.name The name of the outcome to update keep.dimensions for
+#'
+#'@export
+update.outcome.keep.dimensions <- function(specification,
+                                           outcome.name,
+                                           keep.dimensions,
+                                           exclude.dimensions = NULL)
+{
+    if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
+        stop("'specification' must be an R6 object with class 'jheem.specification")
+    
+    specification$update.outcome.keep.dimensions(outcome.name = outcome.name,
+                                                 keep.dimensions = keep.dimensions,
+                                                 exclude.dimensions = exclude.dimensions)
+}
+
 #'@title Create a metadata object for tracked quantities or tracked transitions
 #'
 #'@param scale The scale of the quantity. Either "rate", "ratio", "proportion", "time", "number", "non.negative.number"
@@ -1867,6 +1887,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
             private$i.quantities = list()
             private$i.core.components = list()
             private$i.mechanisms = list()
+            private$i.outcomes = list()
+            private$i.outcome.updates = list()
             
             private$i.foregrounds = list()
             if (is.null(parent.specification))
@@ -2879,6 +2901,74 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                      error.prefix = "Error tracking rate-to-proportion outcome: ")
         },
         
+        update.outcome.keep.dimensions = function(outcome.name, 
+                                                  keep.dimensions,
+                                                  exclude.dimensions)
+        {
+            #-- Validate Arguments --#
+            validate.outcome.name(outcome.name, 
+                                  descriptor = 'outcome',
+                                  error.prefix = paste0("Error updating keep.dimensions for outcome: "))
+            
+            error.prefix = paste0("Cannot update keep.dimensions for outcome '", outcome.name, "'")
+               
+            # Validate keep.dimension
+            # Validate exclude.dimensions
+            if (length(keep.dimensions)==0)
+            {
+                keep.dimensions = NULL
+                
+                if (length(exclude.dimensions)==0)
+                    exclude.dimensions = NULL
+                else
+                {
+                    if (!is.character(exclude.dimensions) || any(is.na(exclude.dimensions)))
+                        stop(paste0(error.prefix, "'exclude.dimensions' must be a character vector with no NA values"))
+                }
+            }
+            else
+            {
+                if (length(exclude.dimensions)==0)
+                    exclude.dimensions = NULL
+                else
+                    stop(paste0(error.prefix, "You cannot specify BOTH 'keep.dimensions' and 'exclude.dimensions' - one or the other must be NULL"))
+                
+                if (!is.character(keep.dimensions) || any(is.na(keep.dimensions)))
+                    stop(paste0(error.prefix, "'keep.dimensions' must be a character vector with no NA values"))
+            }
+            
+            
+            #-- Create the update and store --#
+            update = list(outcome.name = outcome.name,
+                          what = 'keep.dimensions',
+                          keep.dimensions = keep.dimensions,
+                          exclude.dimensions = exclude.dimensions)
+            
+            # Check: this should be an outcome in an ancestor specification but not this specification
+            if (any(self$outcome.names==outcome.name))
+                stop(paste0("Outcome '", outcome.name, "' has already been registered in the '", private$i.version, 
+                            "' specification. You can only update ", update$what,
+                            " for outcomes registered in ancestor specifications. Just change the ",
+                            outcome$what, " in your track...outcome() call"))
+            
+            found.in.ancestor = F
+            ancestor.spec = private$i.parent.specification
+            while (!found.in.ancestor && !is.null(ancestor.spec))
+            {
+                found.in.ancestor = any(ancestor.spec$outcome.names==outcome.name)
+                if (!found.in.ancestor)
+                    ancestor.spec = get.specification.for.version(ancestor.spec$parent.version)
+            }
+            if (!found.in.ancestor)
+                stop(paste0("Cannot update the ",
+                            update$what, " for outcome '", outcome$name, "', but no outcome named '",
+                            outcome$name, "' has been registered in any ancestor specification of '", private$i.version, "'"))
+            
+            # Store it
+            private$i.outcome.updates = c(private$i.outcome.updates,
+                                          list(update))
+        },
+        
         ##---------------##
         ##-- COMPILING --##
         ##---------------##
@@ -2914,6 +3004,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                   fixed.strata.info = private$i.fixed.strata.info,
                                                   quantities = private$i.quantities,
                                                   outcomes = private$i.outcomes,
+                                                  outcome.updates = private$i.outcome.updates,
                                                   core.components = private$i.core.components,
                                                   mechanisms = private$i.mechanisms,
                                                   
@@ -3124,6 +3215,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         i.fixed.strata.info = NULL,
         i.quantities = NULL,
         i.outcomes = NULL,
+        i.outcome.updates = NULL,
         i.core.components = NULL,
         i.mechanisms = NULL,
         
@@ -3303,7 +3395,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
             # Silently return self
             invisible(self)
         },
-    
     
         do.register.core.component = function(type, args, error.prefix)
         {
@@ -7303,6 +7394,39 @@ MODEL.OUTCOME = R6::R6Class(
             private$i.save = F
             private$i.name = name
             self
+        },
+        
+        update.keep.dimensions = function(keep.dimensions,
+                                          exclude.dimensions,
+                                          error.prefix)
+        {
+            # Validate keep.dimension
+            # Validate exclude.dimensions
+            if (length(keep.dimensions)==0)
+            {
+                keep.dimensions = NULL
+                
+                if (length(exclude.dimensions)==0)
+                    exclude.dimensions = NULL
+                else
+                {
+                    if (!is.character(exclude.dimensions) || any(is.na(exclude.dimensions)))
+                        stop(paste0(error.prefix, "'exclude.dimensions' must be a character vector with no NA values"))
+                }
+            }
+            else
+            {
+                if (length(exclude.dimensions)==0)
+                    exclude.dimensions = NULL
+                else
+                    stop(paste0(error.prefix, "You cannot specify BOTH 'keep.dimensions' and 'exclude.dimensions' - one or the other must be NULL"))
+                
+                if (!is.character(keep.dimensions) || any(is.na(keep.dimensions)))
+                    stop(paste0(error.prefix, "'keep.dimensions' must be a character vector with no NA values"))
+            }
+            
+            private$i.keep.dimensions = keep.dimensions
+            private$i.exclude.dimensions = exclude.dimensions
         },
         
         get.original.name = function(wrt.version, with.quotes=T)
