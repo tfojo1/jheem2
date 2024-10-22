@@ -31,7 +31,6 @@ simplot <- function(...,
                     style.manager = get.default.style.manager(),
                     debug = F)
 {
-  
     plot.data = plot.data.validation(list(...), 
                                      outcomes, 
                                      corresponding.data.outcomes, 
@@ -82,81 +81,80 @@ plot.data.validation = function(simset.args,
                                 corresponding.data.outcomes,
                                 plot.which,
                                 summary.type) {
-  rv = list()
-  
-  error.prefix = "Cannot generate simplot: "
-  
-  if (!(identical(plot.which, 'sim.and.data') || identical(plot.which, 'sim.only')))
-      stop(paste0(error.prefix, "'plot.which' must be either 'sim.and.data' or 'sim.only'"))
-  
-  if (!(identical(summary.type, 'individual.simulation') || identical(summary.type, 'mean.and.interval') || identical(summary.type, 'median.and.interval')))
-      stop(paste0(error.prefix, "'summary.type' must be one of 'individual.simulation', 'mean.and.interval', or 'median.and.interval'"))
-  
-  # *corresponding.data.outcomes' is NULL or a vector with outcomes as names
-  if (!is.null(corresponding.data.outcomes) && (!is.character(corresponding.data.outcomes) || any(is.na(corresponding.data.outcomes)) || is.null(names(corresponding.data.outcomes)) || !all(names(corresponding.data.outcomes) %in% outcomes)))
-      stop(paste0(error.prefix, "'corresponding.data.outcomes' must be NULL or a character vector with outcomes as names and all of those outcomes specified in either the 'outcomes' argument or in '...'"))
-  
-  #-- STEP 1: PRE-PROCESSING --#
-  # Get a list out of ... where each element is one simset (or sim for now)
-  
-  simset.args = list(...) # will later be SIMSETS
-  rv$outcomes = outcomes
-  
-  outcomes.found.in.simset.args = F
-  # each element of 'sim.list' should be either a sim or list containing only sims.
-  for (element in simset.args) {
-      if (!R6::is.R6(element) || !is(element, 'jheem.simulation.set')) {
-          if (is.list(element)) {
-              if (any(sapply(element, function(sub.element) {!R6::is.R6(sub.element) || !is(sub.element, 'jheem.simulation.set')}))) {
-                  stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation.set objects or lists containing only jheem.simulation.set objects"))
-              }
-          } else if (is.null(rv$outcomes) && is.character(element)) {
-              rv$outcomes = element
-              outcomes.found.in.simset.args = T
-          }
-          else
-              stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation.set objects or lists containing only jheem.simulation.set objects"))
-      }
-  }
-  
-  if (!is.character(rv$outcomes) || is.null(rv$outcomes) || any(is.na(rv$outcomes)) || any(duplicated(rv$outcomes))) {
-      if (outcomes.found.in.simset.args)
-          stop(paste0(error.prefix, "'outcomes' found as unnamed argument in '...' must be a character vector with no NAs or duplicates"))
-      else
-          stop(paste0(error.prefix, "'outcomes' must be a character vector with no NAs or duplicates"))
-  }
-  
-  if (outcomes.found.in.simset.args) {
-      if (length(simset.args) < 2)
-          stop(paste0(error.prefix, "one or more jheem.simulation.set objects or lists containing only jheem.simulation.set objects must be supplied"))
-      else
-          rv$simset.list = simset.args[1:(length(simset.args)-1)]
-  }
-  else {
-      if (length(simset.args) < 1)
-          stop(paste0(error.prefix, "one or more jheem.simulation.set objects or lists containing only jheem.simulation.set objects must be supplied"))
-      else
-          rv$simset.list = simset.args
-  }
-  
-  # Now simset.list contains only simsets and lists containing only simsets. It needs to be just a single-level list of simsets now
-  rv$simset.list = unlist(rv$simset.list, recursive = F)
-  
-  # - make sure they are all the same version and the location
-  if (length(unique(sapply(rv$simset.list, function(simset) {simset$version}))) > 1)
-      stop(paste0(error.prefix, "all simulation sets must have the same version"))
-  if (length(unique(sapply(rv$simset.list, function(simset) {simset$location}))) > 1)
-      stop(paste0(error.prefix, "all simulation sets must have the same location"))
-  
-  # Check outcomes
-  # - make sure each outcome is present in sim$outcomes for at least one sim/simset
-  if (any(sapply(rv$outcomes, function(outcome) {!any(sapply(rv$simset.list, function(simset) {outcome %in% simset$outcomes}))})))
-      stop(paste0("There weren't any simulation sets for one or more outcomes. Should this be an error?"))
-  
-  return (rv)
-
+    rv = list()
+    
+    error.prefix = "Cannot generate simplot: "
+    
+    if (!(identical(plot.which, 'sim.and.data') || identical(plot.which, 'sim.only')))
+        stop(paste0(error.prefix, "'plot.which' must be either 'sim.and.data' or 'sim.only'"))
+    
+    if (!(identical(summary.type, 'individual.simulation') || identical(summary.type, 'mean.and.interval') || identical(summary.type, 'median.and.interval')))
+        stop(paste0(error.prefix, "'summary.type' must be one of 'individual.simulation', 'mean.and.interval', or 'median.and.interval'"))
+    
+    # *corresponding.data.outcomes' is NULL or a vector with outcomes as names
+    if (!is.null(corresponding.data.outcomes) && (!is.character(corresponding.data.outcomes) || any(is.na(corresponding.data.outcomes)) || is.null(names(corresponding.data.outcomes)) || !all(names(corresponding.data.outcomes) %in% outcomes)))
+        stop(paste0(error.prefix, "'corresponding.data.outcomes' must be NULL or a character vector with outcomes as names and all of those outcomes specified in either the 'outcomes' argument or in '...'"))
+    
+    #-- STEP 1: PRE-PROCESSING --#
+    # Get a list out of ... where each element is one simset (or sim for now)
+    
+    rv$outcomes = outcomes
+    
+    outcomes.found.in.simset.args = F
+    # each element of 'sim.list' should be either a sim or list containing only sims.
+    for (element in simset.args) {
+        if (!R6::is.R6(element) || !is(element, 'jheem.simulation.set')) {
+            if (is.list(element)) {
+                if (any(sapply(element, function(sub.element) {!R6::is.R6(sub.element) || !is(sub.element, 'jheem.simulation.set')}))) {
+                    stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation.set objects or lists containing only jheem.simulation.set objects"))
+                }
+            } else if (is.null(rv$outcomes) && is.character(element)) {
+                rv$outcomes = element
+                outcomes.found.in.simset.args = T
+            }
+            else
+                stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation.set objects or lists containing only jheem.simulation.set objects"))
+        }
+    }
+    
+    if (!is.character(rv$outcomes) || is.null(rv$outcomes) || any(is.na(rv$outcomes)) || any(duplicated(rv$outcomes))) {
+        if (outcomes.found.in.simset.args)
+            stop(paste0(error.prefix, "'outcomes' found as unnamed argument in '...' must be a character vector with no NAs or duplicates"))
+        else
+            stop(paste0(error.prefix, "'outcomes' must be a character vector with no NAs or duplicates"))
+    }
+    
+    if (outcomes.found.in.simset.args) {
+        if (length(simset.args) < 2)
+            stop(paste0(error.prefix, "one or more jheem.simulation.set objects or lists containing only jheem.simulation.set objects must be supplied"))
+        else
+            rv$simset.list = simset.args[1:(length(simset.args)-1)]
+    }
+    else {
+        if (length(simset.args) < 1)
+            stop(paste0(error.prefix, "one or more jheem.simulation.set objects or lists containing only jheem.simulation.set objects must be supplied"))
+        else
+            rv$simset.list = simset.args
+    }
+    
+    # Now simset.list contains only simsets and lists containing only simsets. It needs to be just a single-level list of simsets now
+    rv$simset.list = unlist(rv$simset.list, recursive = F)
+    
+    # - make sure they are all the same version and the location
+    if (length(unique(sapply(rv$simset.list, function(simset) {simset$version}))) > 1)
+        stop(paste0(error.prefix, "all simulation sets must have the same version"))
+    if (length(unique(sapply(rv$simset.list, function(simset) {simset$location}))) > 1)
+        stop(paste0(error.prefix, "all simulation sets must have the same location"))
+    
+    # Check outcomes
+    # - make sure each outcome is present in sim$outcomes for at least one sim/simset
+    if (any(sapply(rv$outcomes, function(outcome) {!any(sapply(rv$simset.list, function(simset) {outcome %in% simset$outcomes}))})))
+        stop(paste0("There weren't any simulation sets for one or more outcomes. Should this be an error?"))
+    
+    return (rv)
+    
 }
-                                
+
 
 #' Simplot Data Only
 #'@inheritParams simplot
@@ -245,7 +243,7 @@ prepare.plot <- function(simset.list=NULL,
     
     if (!is.null(facet.by) && 'year' %in% facet.by)
         stop(paste0(error.prefix, "'facet.by' cannot contain 'year'"))
-
+    
     if (!is.null(target.ontology) &&
         !is.ontology(target.ontology) &&
         !(is.list(target.ontology) && all(sapply(target.ontology, function(x) {is.ontology((x))})) && !is.null(names(target.ontology))))
