@@ -1,3 +1,6 @@
+#' Create Basic Ratio Likelihood Instructions
+#'@inheritParams create.basic.likelihood.instructions
+#'@export
 create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
                                                        outcome.for.sim,dimensions = character(0),
                                                        denominator.dimensions = dimensions,
