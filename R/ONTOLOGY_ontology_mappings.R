@@ -1776,12 +1776,23 @@ create.overlapping.age.ontology.mapping <- function(from.values,
 
 
 ONTOLOGY.MAPPING.MANAGER = new.env()
-ONTOLOGY.MAPPING.MANAGER$mappings=list()
-ONTOLOGY.MAPPING.MANAGER$sorted.mappings.by.from.dimension=list()
-ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings=list()
-ONTOLOGY.MAPPING.MANAGER$cached.two.way.mappings=list()
-ONTOLOGY.MAPPING.MANAGER$dimensions.directly.linked.by.mappings=list()
-ONTOLOGY.MAPPING.MANAGER$dimensions.linked.by.mappings=list()
+
+#'@title Clear All Registered Ontology Mappings
+#'
+#'@details Clears all registered ontology mappings, such that new mappings can be added
+#'
+#'@export
+clear.ontology.mappings <- function()
+{
+    ONTOLOGY.MAPPING.MANAGER$mappings=list()
+    ONTOLOGY.MAPPING.MANAGER$sorted.mappings.by.from.dimension=list()
+    ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings=list()
+    ONTOLOGY.MAPPING.MANAGER$cached.two.way.mappings=list()
+    ONTOLOGY.MAPPING.MANAGER$dimensions.directly.linked.by.mappings=list()
+    ONTOLOGY.MAPPING.MANAGER$dimensions.linked.by.mappings=list()
+}
+
+clear.ontology.mappings()
 
 
 ##----------------------------------------##
