@@ -1102,7 +1102,7 @@ load.simulation.set <- function(file)
     if (length(x)!=1)
         stop("Error loading simset: the file to load must have only one object saved in it")
     
-    simset = load(x[1])
+    simset = get(x)
     if (!is(simset, 'jheem.simulation.set'))
         stop("Error loading simset: the file to load does not contain a jheem.simulation.set object")
     
