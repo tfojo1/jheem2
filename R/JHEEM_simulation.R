@@ -1136,7 +1136,7 @@ copy.simulation.set <- function(simset)
                              outcome.location.mapping = simset$outcome.location.mapping,
                              calibration.code = simset$calibration.code,
                              intervention.code = simset$intervention.code,
-                             run.metadata = simset$run.metadata,
+                             run.metadata = copy.run.metadata(simset$run.metadata),
                              solver.metadata = simset$solver.metadata,
                              is.degenerate = simset$is.degenerate,
                              finalize = simset$is.finalized)
