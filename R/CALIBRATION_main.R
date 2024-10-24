@@ -588,6 +588,7 @@ assemble.simulations.from.calibration <- function(version,
 #'@param is.preliminary
 #'@param end.year
 #'@param parameter.names
+#'@param parameter.aliases A named list of character vectors. Each character vector must be one or more parameter names from the parameter distribution, and the names represent the aliases to be used in sampling
 #'@param n.iter
 #'@param thin
 #'@param description
@@ -608,6 +609,7 @@ register.calibration.info <- function(code,
                                       is.preliminary,
                                       end.year,
                                       parameter.names,
+                                      parameter.aliases = NULL,
                                       n.iter,
                                       thin,
                                       description,
@@ -622,21 +624,53 @@ register.calibration.info <- function(code,
                                       pull.parameters.and.values.from.preceding = F,
                                       error.prefix = "Error registering calibration info: ")
 {
-    # Validate arguments
+    #-- Validate arguments --#
     
-    # code is
-    # - a single, non-NA character value
-    # - if already present, we need to check for equality
-    # - We should not let calibration code overlap with any intervention codes
+    # error.prefix
+    if (!is.character(error.prefix) || length(error.prefix)==1 || is.na(error.prefix))
+        stop("Cannot register.calibration.info(): 'error.prefix' must be a single, non-NA character value")
+    
+    # code
     validate.calibration.code(code = code,
-                              error.prefix = "Cannot register calibration info: ",
+                              error.prefix = error.prefix,
                               code.name.for.error = 'code')
+    # - We should not let calibration code overlap with any intervention codes?
     
-    # likelihood.instructions is a likelihood.instructions object
+    # likelihood.instructions
+    if (!is(likelihood.instructions, 'jheem.likelihood.instructions'))
+        stop(paste0(error.prefix, "'likelihood.instructions' must be an object of class 'jheem.likelihood.instructions'"))
     
-    # parameter names is a non-empty character vector with no NA values
+    # end.year
+    if (!is.numeric(end.year) || length(end.year)!=1 || is.na(end.year))
+        stop(paste0(error.prefix, "'end.year' must be a single, non-NA numeric value"))
+    
+    current.year = as.numeric(format(Sys.Date(), "%Y"))
+    if (end.year < current.year)
+        stop(paste0(error.prefix, "'end.year' must be no earlier than the current year (", current.year, ")"))
+    
+    # parameter.aliases
+    if (is.null(parameter.aliases))
+    {}
+    else
+    {
+        if (!is.list(parameter.aliases))
+            stop(paste0(error.prefix, "'parameter.aliases' must be a named LIST of character vectors"))
+        
+        if (any(!sapply(parameter.aliases, is.character)))
+            stop(paste0(error.prefix, "'parameter.aliases' must be a named list of CHARACTER VECTORS"))
+        
+        if (is.null(names(parameter.aliases)))
+            stop(paste0(error.prefix, "'parameter.aliases' must be a NAMED list of character vectors"))
+        
+        if (any(sapply(parameter.aliases, function(values){
+            length(values)==0 || any(is.na(values))
+        })))
+            stop(paste0(error.prefix, "The elements of 'parameter.aliases' must be non-empty and contain no NA values"))
+    }
     
     # n.chains is an integer >= 1
+    if (!is.numeric(n.chains) || length(n.chains)!=1 || is.na(n.chains) || round(n.chains)!=n.chains || n.chains<1)
+        stop(paste0(error.prefix, "'n.chains' must be a single, non-NA integer value greater than or equal to 1"))
     
     # draw.initial.parameter.values.from is a character vector, may be empty
     # - no NA values
@@ -696,6 +730,33 @@ register.calibration.info <- function(code,
 
 CALIBRATION.MANAGER = new.env()
 CALIBRATION.MANAGER$info = list()
+
+#'@title Copy Calibration Info to a New Code
+#'
+#'@param from.code The code for the the calibration info to copy
+#'@param to.code The calibration code to be used for the copied calibration info
+#'
+#'@export
+copy.calibration.info <- function(from.code,
+                                  to.code)
+{
+    validate.calibration.code(code = from.code,
+                              error.prefix = "Cannot copy calibration info: ",
+                              code.name.for.error = 'from.code')
+    validate.calibration.code(code = to.code,
+                              error.prefix = "Cannot copy calibration info: ",
+                              code.name.for.error = 'to.code')
+    
+    calibration.info = get.calibration.info(code = from.code,
+                                            throw.error.if.missing = T,
+                                            error.prefix = paste0("Cannot copy calibration info from '", from.code, "'"))
+    
+    calibration.info$code = to.code
+    CALIBRATION.MANAGER$info[[to.code]] = calibration.info
+    
+    invisible(NULL)
+}
+
 
 get.calibration.info <- function(code, throw.error.if.missing=T, error.prefix='')
 {
