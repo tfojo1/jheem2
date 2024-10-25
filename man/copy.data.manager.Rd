@@ -8,7 +8,9 @@ copy.data.manager(
   data.manager = get.default.data.manager(),
   name,
   description,
-  set.as.default = F
+  set.as.default = F,
+  preserve.original.creation.date = T,
+  preserve.original.last.modified.date = T
 )
 }
 \arguments{
@@ -19,6 +21,8 @@ copy.data.manager(
 \item{description}{A short description of the new data manager. If NULL, the description of the copied data manager.}
 
 \item{set.as.default}{Should the new data manager be set as the default data manager}
+
+\item{preserve.original.creation.date, preserve.original.last.modified.date}{Should the new data manager keep the copied data manager's creation date/last modified date (T) or set that date to now (F)?}
 }
 \description{
 Create a copy of a JHEEM Data Manager
