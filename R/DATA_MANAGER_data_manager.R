@@ -85,7 +85,8 @@ load.data.manager <- function(file,
                               description)
     new.data.manager = copy.data.manager(loaded.data.manager,
                                          name=copy.name,
-                                         description=copy.description)
+                                         description=copy.description,
+                                         preserve.original.creation.date=T)
     
     if (set.as.default)
         default.data.manager.holder$default.data.manager = new.data.manager
@@ -100,18 +101,23 @@ load.data.manager <- function(file,
 #'@param name The name of the new data manager
 #'@param description A short description of the new data manager. If NULL, the description of the copied data manager.
 #'@param set.as.default Should the new data manager be set as the default data manager
+#'@param preserve.original.creation.date,preserve.original.last.modified.date Should the new data manager keep the copied data manager's creation date/last modified date (T) or set that date to now (F)?
 #'
 #'@export
 copy.data.manager <- function(data.manager = get.default.data.manager(),
                               name,
                               description,
-                              set.as.default=F)
+                              set.as.default=F,
+                              preserve.original.creation.date=T,
+                              preserve.original.last.modified.date=T)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     new.data.manager = JHEEM.DATA.MANAGER$new(name=name,
                                               description=description,
-                                              copy.from.data.manager = data.manager)
+                                              copy.from.data.manager = data.manager,
+                                              preserve.copied.data.manager.creation.date = preserve.original.creation.date,
+                                              preserve.copied.data.manager.last.modified.date=preserve.original.last.modified.date)
     
     if (set.as.default) default.data.manager.holder$default.data.manager = new.data.manager
     invisible(new.data.manager)
@@ -537,7 +543,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             browser()
         },
         
-        initialize = function(name, description, copy.from.data.manager=NULL)
+        initialize = function(name, description, copy.from.data.manager=NULL, preserve.copied.data.manager.creation.date=T, preserve.copied.data.manager.last.modified.date=T)
         {
             # Validate arguments
             # *name* is a single, non-empty, non-NA character value
@@ -588,6 +594,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 private$i.parent.source.info = copy.from.data.manager$parent.source.info
                 private$i.source.info = copy.from.data.manager$source.info
             }
+            
+            # Set creation date and last modified date to now; make backwards compatible
+            if (!is.null(copy.from.data.manager) && preserve.copied.data.manager.creation.date && "creation.date" %in% allNames(copy.from.data.manager))
+                private$i.creation.date = copy.from.data.manager$creation.date
+            else
+                private$i.creation.date = Sys.time()
+            
+            if (!is.null(copy.from.data.manager) && preserve.copied.data.manager.last.modified.date && "last.modified.date" %in% allNames(copy.from.data.manager))
+                private$i.last.modified.date = copy.from.data.manager$last.modified.date
+            else
+                private$i.last.modified.date = Sys.time()
             
         },
         
@@ -656,12 +673,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 }
             }
             
-        },
-        
-        overwrite.with = function(other)
-        {
-            private$i.data = other$data
-            private$i.source
+            # Modified
+            private$i.last.modified = Sys.time()
+            
         },
         
         subset.data = function(dimension.values,
@@ -723,6 +737,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 })
             }
             
+            # Modified
+            private$i.last.modified = Sys.time()
+            
         },
 
         register.ontology = function(name, ont)
@@ -745,6 +762,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Store it
             private$i.ontologies[[name]] = ont
 
+            # Modified
+            private$i.last.modified = Sys.time()
+            
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
@@ -823,6 +843,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
 
             private$i.outcome.info[[outcome]] = outcome.info
 
+            # Modified
+            private$i.last.modified = Sys.time()
+            
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
@@ -877,6 +900,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix, "A data source named '", source, "' has already been registered. If you want to overwrite the previously registered source, use overwrite==T"))
             }
             
+            # Modified
+            private$i.last.modified = Sys.time()
+            
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
@@ -922,6 +948,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             {
                 stop(paste0(error.prefix, "A data parent source named '", parent.source, "' has already been registered. If you want to overwrite the previously registered parent source, use overwrite==T"))
             }
+            
+            # Modified
+            private$i.last.modified = Sys.time()
             
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
@@ -1342,6 +1371,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 print(paste0(dots, "Final putting took ", totalputtime-finalputtime))
                 print(paste0(dots, "Total put took ", totalputtime - puttime))
             }
+            
+            # Modified
+            private$i.last.modified = Sys.time()
+            
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
         },
@@ -2518,6 +2551,22 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else
                 stop("Cannot modify 'description' in jheem.data.manager - it is read-only")
         },
+        
+        creation.date = function(value)
+        {
+            if (missing(value))
+                private$i.creation.date
+            else
+                stop("Cannot modify 'creation.date' in jheem.data.manager - it is read-only")
+        },
+        
+        last.modified.date = function(value)
+        {
+            if (missing(value))
+                private$i.last.modified.date
+            else
+                stop("Cannot modify 'last.modified.date' in jheem.data.manager - it is read-only")
+        },
 
         outcomes = function(value)
         {
@@ -2622,6 +2671,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         i.name = NULL,
         i.description = NULL,
         i.code.iteration = NULL,
+        i.creation.date = NULL,
+        i.last.modified.date = NULL,
         
         #-- Storage structures for data and metadata --#
         # These three are lists of lists of lists of lists, indexed
