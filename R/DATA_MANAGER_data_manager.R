@@ -14,6 +14,22 @@ if (!exists('default.data.manager.holder'))
 }
 
 DATA.MANAGER.ONTOLOGY.ERRORS = new.env()
+DATA.MANAGER.ONTOLOGY.ERRORS$did.you.remember.details = list()
+
+#'@title Get Ontology Error Debug Info
+#'@description Returns information useful for debugging ontology mapping errors
+#'@export
+get.ontology.error.debug.info <- function()
+{
+    DATA.MANAGER.ONTOLOGY.ERRORS$did.you.remember.details # there's not an issue returning an environment, is there?
+}
+
+#'@title Clear Ontology Error Debug Info
+#'@export
+clear.ontology.error.debug.info <- function()
+{
+    DATA.MANAGER.ONTOLOGY.ERRORS$did.you.remember.details = list()
+}
 
 ##----------------------##
 ##-- PUBLIC INTERFACE --##
