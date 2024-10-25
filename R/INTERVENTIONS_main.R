@@ -208,6 +208,13 @@ is.no.intervention <- function(intervention)
 INTERVENTION.MANAGER = new.env()
 INTERVENTION.MANAGER$interventions = list()
 
+#'@title Clear JHEEM Interventions
+#'@export
+clear.interventions <- function()
+{
+    INTERVENTION.MANAGER$interventions = list()
+}
+
 #'@export
 get.intervention <- function(code, throw.error.if.missing=T, error.prefix='')
 {

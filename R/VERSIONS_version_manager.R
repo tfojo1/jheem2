@@ -16,11 +16,33 @@ VERSION.MANAGER.ELEMENTS = c(
 
 VERSION.MANAGER = new.env() #making this an environment allows us to modify by reference within functions
 
-VERSION.MANAGER$versions = character()
-VERSION.MANAGER$prior.versions = list()
+# This wrapper is also how we'll create the version manager
 
-for (element.name in VERSION.MANAGER.ELEMENTS)
-    VERSION.MANAGER[[element.name]] = list()
+#'@title Clear JHEEM Versions
+#'@export
+clear.versions <- function()
+{
+    VERSION.MANAGER$versions = character()
+    VERSION.MANAGER$prior.versions = list()
+    
+    for (element.name in VERSION.MANAGER.ELEMENTS)
+        VERSION.MANAGER[[element.name]] = list()
+    
+}
+
+clear.versions()
+
+# This is also where I'm putting a wrapper that will clear all our managers (Version, Calibration, Intervention, Ontology Mappings) at once.
+
+#'@title Clear JHEEM Version, Calibration, Intervention, and Ontology Mappings
+#'@export
+clear.all.managers <- function()
+{
+    clear.versions()
+    clear.calibrations()
+    clear.interventions()
+    clear.ontology.mappings()
+}
 
 ##--------------------------------------------------##
 ##-- SETTER and GETTERS for VERSION/SPECIFICATION --##

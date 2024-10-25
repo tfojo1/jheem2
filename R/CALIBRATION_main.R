@@ -731,6 +731,13 @@ register.calibration.info <- function(code,
 CALIBRATION.MANAGER = new.env()
 CALIBRATION.MANAGER$info = list()
 
+#'@title Clear JHEEM Calibrations
+#'@export
+clear.calibrations <- function()
+{
+    CALIBRATION.MANAGER$info = list()
+}
+
 #'@title Copy Calibration Info to a New Code
 #'
 #'@param from.code The code for the the calibration info to copy
