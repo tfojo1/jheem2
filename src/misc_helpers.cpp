@@ -22,7 +22,7 @@ bool sorted_vectors_overlap(NumericVector x, NumericVector y)
     int j=0;
     for (int i=0; i<x.length() && j<y.length(); i++)
     {
-        while(y[j]<x[i] && j<y.length())
+        while(y[j]<x[i] && j<(y.length()-1))
             j++;
         
         if (x[i] == y[j])
