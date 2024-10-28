@@ -1628,6 +1628,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 return (NULL)
             }
             
+            # Reduce ontology space by ignoring ontologies that don't have our locations if locations are in the dimension values
+            # We'll do this first even though we won't *technically* know that 'location' is an incomplete dimension in the ontology we'll end up in.
+            
+            if ('location' %in% names(dimension.values)) {
+                ontologies.with.these.locations = names(private$i.ontologies)[sapply(private$i.ontologies, function(ont) {any(dimension.values$location %in% ont[['location']])})]
+                if (!is.null(from.ontology.names))
+                    from.ontology.names = intersect(from.ontology.names, ontologies.with.these.locations)
+                else
+                    from.ontology.names = ontologies.with.these.locations
+            }
+            
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
             return.mapping.flag = !is.null(target.ontology) && allow.mapping.from.target.ontology
             target.from.arguments = target.ontology
@@ -1640,6 +1651,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                  target.ontology = target.ontology,
                                                                  debug=F)
             }
+            # This gets NULL if the ontologies which had the requested locations were not for this outcome
+            if (is.null(target.ontology)) return(NULL)
             
             dv.names = names(dimension.values)
             dimension.values = lapply(seq_along(dimension.values), function(d) {
@@ -2753,6 +2766,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (debug) browser()
             onts = self$get.ontologies.for.outcome(outcome, sources, exclude.ontology.names = exclude.ontology.names)
             if (!is.null(from.ontology.names)) onts = onts[names(onts) %in% from.ontology.names]
+            if (length(onts)==0) return(NULL) # means we have no ontologies in "from.ontology.names" that are for this outcome
             uni = onts[[1]]
             if (length(onts) > 1) {
                 for (i in 2:length(onts)) {
