@@ -34,9 +34,9 @@ set.up.calibration <- function(version,
     calibration.info = get.calibration.info(calibration.code,
                                             error.prefix = error.prefix)
     
-    #---------------------------------------#
-    #-- Pull Down the Prior and Subset it --#
-    #---------------------------------------#
+    #-------------------------#
+    #-- Pull Down the Prior --#
+    #-------------------------#
     
     if (verbose)
         print(paste0(verbose.prefix, "Pulling prior, setting up defaults..."))
@@ -44,23 +44,72 @@ set.up.calibration <- function(version,
     # Pull the prior for the version
     prior = get.parameters.distribution.for.version(version, type='calibrated')
     
+    missing.parameter.names = setdiff(calibration.info$parameter.names, prior@var.names)
+    if (length(missing.parameter.names)>0)
+        stop(paste0(error.prefix,
+                    length(missing.parameter.names), " ",
+                    ifelse(length(missing.parameter.names)==1, "parameter is", "parameters are"),
+                    " included in the calibration's 'parameter.names' but ", 
+                    ifelse(length(missing.parameter.names)==1, "is", "are"),
+                    " not present in the '", version,
+                    "' prior: ",
+                    collapse.with.and("'", missing.parameter.names, "'")))
+    
+    #------------------------------------#
+    #-- Sift Through Parameter Aliases --#
+    #------------------------------------#
+    
+    parsed.aliases = parse.calibration.parameter.aliases(calibration.info = calibration.info, prior = prior)
+
+    model.parameters.in.aliases = parsed.aliases$model.parameters.in.aliases
+    parameter.aliases = parsed.aliases$parameter.aliases
+    non.aliased.model.parameter.names = parsed.aliases$non.aliased.model.parameter.names
+    sorted.parameter.aliases = parsed.aliases$sorted.parameter.aliases
+    
+    mcmc.parameter.names = parsed.aliases$mcmc.parameter.names
+    model.parameter.names = parsed.aliases$model.parameter.names
+
+    missing.parameter.names = setdiff(model.parameters.in.aliases, prior@var.names)
+    if (length(missing.parameter.names)>0)
+        stop(paste0(error.prefix,
+                    length(missing.parameter.names), " ",
+                    ifelse(length(missing.parameter.names)==1, "parameter appears", "parameters appear"),
+                    " in the calibration's 'parameter.aliases' but ",
+                    ifelse(length(missing.parameter.names)==1, "is", "are"),
+                    " not present in the '", version,
+                    "' prior: ",
+                    collapse.with.and("'", missing.parameter.names, "'")))
+    
+    missing.fixed.parameter.names = setdiff(names(calibration.info$fixed.initial.parameter.values), 
+                                            model.parameter.names)
+    if (length(missing.fixed.parameter.names)>0)
+        stop(paste0(error.prefix,
+                    length(missing.fixed.parameter.names), " ",
+                    ifelse(length(missing.fixed.parameter.names)==1, "parameter appears", "parameters appear"),
+                    " in the calibration's 'fixed.initial.parameter.values' but ",
+                    ifelse(length(missing.fixed.parameter.names)==1, "is", "are"),
+                    " not present in among any of the listed 'parameter.names' nor among the values of 'parameter.aliases': ",
+                    collapse.with.and("'", missing.fixed.parameter.names, "'")))
+    
+    #----------------------#
+    #-- Subset the Prior --#
+    #----------------------#
+    
     # Subset the relevant parameters
-    relevant.prior = distributions::subset.distribution(prior, 
-                                                        calibration.info$parameter.names) # from calibration info
+    relevant.prior.for.sampled.model.parameters = distributions::subset.distribution(prior, model.parameter.names) 
     
     # Pull Basic Info We Are Going to Use from the Prior
+    all.parameter.scales = get.distribution.variable.transformation(prior, unknown.value='')
+    names(all.parameter.scales) = prior@var.names
     
-    parameter.scales = get.distribution.variable.transformation(prior, unknown.value='')
-    names(parameter.scales) = prior@var.names
+    all.prior.sds = suppressWarnings(get.sds(prior))
+    all.prior.medians = suppressWarnings(get.medians(prior))
+    all.prior.means = suppressWarnings(get.means(prior))
     
-    prior.sds = suppressWarnings(get.sds(prior))
-    prior.medians = suppressWarnings(get.medians(prior))
-    prior.means = suppressWarnings(get.means(prior))
     
     #---------------------------------#
     #-- Prepare the Sampling Blocks --#
     #---------------------------------#
-    
     
     # Pull down the sampling blocks
     sampling.blocks = get.parameter.sampling.blocks.for.version(version)
@@ -70,9 +119,9 @@ set.up.calibration <- function(version,
         intersect(block, calibration.info$parameter.names)
     })
     
-    # for now, we'll do this here
-    # I think when we incorporate prior MCMC runs, we may have to keep
-    #   the empty blocks and prune them later
+    sampling.blocks[names(calibration.info$parameter.aliases)] = 
+        as.list(names(calibration.info$parameter.aliases))
+
     sampling.blocks = sampling.blocks[sapply(sampling.blocks, length)>0]
     
     
@@ -83,26 +132,46 @@ set.up.calibration <- function(version,
     
     #-- Default parameter values --#
     
-    default.parameter.values = prior.medians
-    default.parameter.values[names(calibration.info$fixed.initial.parameter.values)] = 
+    all.default.model.parameter.values = all.prior.medians
+    all.default.model.parameter.values[names(calibration.info$fixed.initial.parameter.values)] = 
         calibration.info$fixed.initial.parameter.values
+    
+    default.model.parameter.values = all.default.model.parameter.values[model.parameter.names]
+    default.alias.parameter.values = rep(1, length(parameter.aliases))
+    names(default.alias.parameter.values) = names(parameter.aliases)
+    default.mcmc.parameter.values = c(all.default.model.parameter.values[non.aliased.model.parameter.names],
+                                      default.alias.parameter.values)[mcmc.parameter.names]
+    
+    #-- MCMC Parameter Scales --#
+    mcmc.parameter.scales = all.parameter.scales[non.aliased.model.parameter.names]
+    mcmc.parameter.scales[names(parameter.aliases)] = 'log'
 
     #-- Set up initial.cov.mat --#
     
-    DEFAULT.SD.REDUCTION.FACTOR = 20 # The 40 here is arbitrary, but seems to work well
+    DEFAULT.SD.REDUCTION.FACTOR = 20 # The 20 here is arbitrary, but seems to work well
     
-    raw.sds = prior.sds
-    raw.sds[prior@is.improper] = default.parameter.values[prior@is.improper]
+    all.raw.sds = all.prior.sds
+    improper.param.names = prior@var.names[prior@is.improper]
+    all.raw.sds[improper.param.names] = default.model.parameter.values[improper.param.names]
     
-    raw.means = prior.means
-    raw.means[prior@is.improper] = default.parameter.values[prior@is.improper]
+    all.raw.means = all.prior.means
+    all.raw.means[prior@is.improper] = default.model.parameter.values[prior@is.improper]
     
-    default.parameter.sds = raw.sds
-    default.parameter.sds[parameter.scales=='log'] = sqrt(log(raw.sds[parameter.scales=='log']^2 / raw.means[parameter.scales=='log']^2 + 1)) # This comes from the relationship between mean and SD in a lognormal
-    default.parameter.sds = default.parameter.sds / DEFAULT.SD.REDUCTION.FACTOR
+    all.default.parameter.sds = all.raw.sds
+    all.default.parameter.sds[all.parameter.scales=='log'] = sqrt(log(all.raw.sds[all.parameter.scales=='log']^2 / all.raw.means[all.parameter.scales=='log']^2 + 1)) # This comes from the relationship between mean and SD in a lognormal
+    all.default.parameter.sds = all.default.parameter.sds / DEFAULT.SD.REDUCTION.FACTOR
     
-    default.initial.cov.mat = diag(default.parameter.sds^2)
-    dimnames(default.initial.cov.mat) = list(names(default.parameter.values), names(default.parameter.values))
+    mcmc.parameter.sds = all.default.parameter.sds[non.aliased.model.parameter.names]
+    
+    if (length(parameter.aliases)>0)
+        mcmc.parameter.sds = c(mcmc.parameter.sds,
+                               sapply(parameter.aliases, function(aliased.param.names){
+                                   mean(all.default.parameter.sds[aliased.param.names])
+                               }))
+    mcmc.parameter.sds = mcmc.parameter.sds[mcmc.parameter.names]
+    
+    default.initial.cov.mat = diag(mcmc.parameter.sds[mcmc.parameter.names]^2)
+    dimnames(default.initial.cov.mat) = list(mcmc.parameter.names, mcmc.parameter.names)
     
     # Get the default scaling parameters
     default.initial.scaling.parameters = lapply(sampling.blocks, function(block){
@@ -118,34 +187,37 @@ set.up.calibration <- function(version,
     if (verbose)
         print(paste0(verbose.prefix, "Incorporating prior MCMC runs..."))
     
-    initial.cov.mat = default.initial.cov.mat[calibration.info$parameter.names, calibration.info$parameter.names]
+    initial.model.parameter.values = default.model.parameter.values
+    initial.cov.mat = default.initial.cov.mat[mcmc.parameter.names, mcmc.parameter.names]
     initial.scaling.parameters = default.initial.scaling.parameters
     
-    parameters.already.pulled.from.preceding = character()
     dynamic.preceding.codes = calibration.info$preceding.calibration.codes #we'll potentially add to this list in the while block below
+    mcmc.parameters.already.pulled.from.preceding = character()
     preceding.index = 1
     
     while (preceding.index <= length(dynamic.preceding.codes))
     {
-      preceding.code = dynamic.preceding.codes[preceding.index]
-        preceding.index = preceding.index + 1
-        
+        preceding.code = dynamic.preceding.codes[preceding.index]
         preceding.info = get.calibration.info(code = preceding.code, throw.error.if.missing = F)
         if (is.null(preceding.info))
             stop(paste0(error.prefix, "No calibration has been registered for the preceding.calibration.code of '", preceding.code, "'"))
         
-        dynamic.preceding.codes = union(dynamic.preceding.codes, preceding.info$preceding.calibration.codes)
+        # Separate out mcmc parameters from the preceding info
+        parsed.preceding.aliases = parse.calibration.parameter.aliases(calibration.info = preceding.info, prior = prior)
         
-        parameters.to.pull.from.preceding = intersect(prior@var.names,
-                                                      preceding.info$parameter.names)
-        parameters.to.pull.from.preceding = setdiff(parameters.to.pull.from.preceding,
-                                                    parameters.already.pulled.from.preceding)
+        # Figure out which mcmc parameters we want to pull covariance/scaling for
+        overlapping.non.aliased.model.parameter.names = intersect(non.aliased.model.parameter.names,
+                                                                  parsed.preceding.aliases$non.aliased.model.parameter.names)
+        overlapping.parameter.aliases = intersect(names(parameter.aliases),
+                                                  names(parsed.preceding.aliases$parameter.aliases))
+        overlapping.parameter.aliases = overlapping.parameter.aliases[sapply(overlapping.parameter.aliases, function(alias.name){
+            setequal(parameter.aliases[[alias.name]], parsed.preceding.aliases[[alias.name]])
+        })]
+        mcmc.parameters.to.pull.from.preceding = setdiff(c(overlapping.non.aliased.model.parameter.names, overlapping.parameter.aliases),
+                                                         mcmc.parameters.already.pulled.from.preceding)
         
-        parameters.to.pull.cov.from.preceding = intersect(parameters.to.pull.from.preceding,
-                                                          calibration.info$parameter.names)
-        
-        
-        if (length(parameters.to.pull.from.preceding)>0)
+        # Pull from preceding
+        if (preceding.index==1 || length(parameters.to.pull.from.preceding)>0)
         {
             mcmc.summary = prepare.mcmc.summary(version = version,
                                                 location = location,
@@ -154,29 +226,23 @@ set.up.calibration <- function(version,
                                                 get.one.set.of.parameters = calibration.info$is.preliminary,
                                                 error.prefix = error.prefix)
             
-            parameters.to.pull.from.preceding = intersect(parameters.to.pull.from.preceding, mcmc.summary$parameter.names)
-            parameters.to.pull.cov.from.preceding = intersect(parameters.to.pull.cov.from.preceding, mcmc.summary$parameter.names)
+            # Pull the model parameter values
+            if (preceding.index==1)
+            {
+                shared.parameter.names = intersect(names(mcmc.summary$last.sim.parameters),
+                                                   names(initial.model.parameter.values))
+                
+                initial.model.parameter.values[shared.parameter.names] = mcmc.summary$last.sim.parameters[shared.parameter.names]
+            }
             
-            other.parameters.for.cov = setdiff(calibration.info$parameter.names, parameters.to.pull.from.preceding)
+            other.parameters.for.cov = setdiff(mcmc.parameter.names, mcmc.parameters.to.pull.from.preceding)
+            mcmc.parameters.already.pulled.from.preceding = union(mcmc.parameters.already.pulled.from.preceding,
+                                                                  mcmc.parameters.to.pull.from.preceding)
             
-            parameters.already.pulled.from.preceding = union(parameters.already.pulled.from.preceding,
-                                                             parameters.to.pull.from.preceding)
-            
-            # default parameter values
-            transformed.parameter.values.to.pull = mcmc.summary$transformed.parameter.values[parameters.to.pull.from.preceding]
-            default.parameter.values[parameters.to.pull.from.preceding] = sapply(parameters.to.pull.from.preceding, function(param){
-                if (parameter.scales[param] == 'log')
-                    exp(transformed.parameter.values.to.pull[param])
-                else if (parameter.scales[param] == 'logit')
-                    1 / (1 + exp(-transformed.parameter.values.to.pull[param]))
-                else
-                    transformed.parameter.values.to.pull[param] 
-            })
-            
-            # cov mat
-            parameters.with.na.initial.cov.mat.mask = is.na(diag(initial.cov.mat)[parameters.to.pull.cov.from.preceding])
-            parameters.to.pull.all.cov.from.preceding = parameters.to.pull.cov.from.preceding[parameters.with.na.initial.cov.mat.mask]
-            parameters.to.pull.weighted.cov.from.preceding = parameters.to.pull.cov.from.preceding[!parameters.with.na.initial.cov.mat.mask]
+            # Pull for the cov mat
+            parameters.with.na.initial.cov.mat.mask = is.na(diag(initial.cov.mat)[mcmc.parameters.to.pull.from.preceding])
+            parameters.to.pull.all.cov.from.preceding = mcmc.parameters.to.pull.from.preceding[parameters.with.na.initial.cov.mat.mask]
+            parameters.to.pull.weighted.cov.from.preceding = mcmc.parameters.to.pull.from.preceding[!parameters.with.na.initial.cov.mat.mask]
             
             initial.cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.weighted.cov.from.preceding] = initial.cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.weighted.cov.from.preceding] * (1-calibration.info$weight.to.preceding.variance.estimates) +
                 mcmc.summary$cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.weighted.cov.from.preceding] * calibration.info$weight.to.preceding.variance.estimates
@@ -187,43 +253,61 @@ set.up.calibration <- function(version,
             initial.cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.all.cov.from.preceding] = 
                 mcmc.summary$cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.all.cov.from.preceding]
             
-            initial.cov.mat[parameters.to.pull.cov.from.preceding,other.parameters.for.cov] = initial.cov.mat[parameters.to.pull.cov.from.preceding,other.parameters.for.cov] = 0
-            initial.cov.mat[other.parameters.for.cov, parameters.to.pull.cov.from.preceding] = initial.cov.mat[other.parameters.for.cov, parameters.to.pull.cov.from.preceding] = 0
+            initial.cov.mat[mcmc.parameters.to.pull.from.preceding,other.parameters.for.cov] = initial.cov.mat[mcmc.parameters.to.pull.from.preceding,other.parameters.for.cov] = 0
+            initial.cov.mat[other.parameters.for.cov, mcmc.parameters.to.pull.from.preceding] = initial.cov.mat[other.parameters.for.cov, mcmc.parameters.to.pull.from.preceding] = 0
             
             initial.scaling.parameters.original=initial.scaling.parameters
-          
-            # scaling parameters
+            
+            # Pull for the scaling parameters
             initial.scaling.parameters.names = names(initial.scaling.parameters)
             initial.scaling.parameters = lapply(names(initial.scaling.parameters), function(scaling.name){
                 scaling = initial.scaling.parameters[[scaling.name]]
                 to.pull.scaling = mcmc.summary$initial.scaling.parameters[[scaling.name]]
                 if (!is.null(to.pull.scaling))
                 {
-                    to.pull.params = intersect(parameters.to.pull.cov.from.preceding, names(to.pull.scaling))
+                    to.pull.params = intersect(mcmc.parameters.to.pull.from.preceding, names(to.pull.scaling))
                     scaling[to.pull.params] = to.pull.scaling[to.pull.params]
                 }
                 
                 scaling
             })
             names(initial.scaling.parameters) = initial.scaling.parameters.names
-           }
+        }
+        
+        # add it's preceding codes to the pile
+        dynamic.preceding.codes = union(dynamic.preceding.codes, preceding.info$preceding.calibration.codes)
+        
+        # increment for the next iteration through the while loop
+        preceding.index = preceding.index + 1
     }
-
+    
+    all.initial.model.parameter.values = all.default.model.parameter.values
+    all.initial.model.parameter.values[names(initial.model.parameter.values)] = initial.model.parameter.values
+    
     # For starting values, we need one row for each chain
-    relevant.default.values = default.parameter.values[calibration.info$parameter.names]
-    starting.parameter.values = t(sapply(1:calibration.info$n.chains, function(chain){
-        relevant.default.values
-    }))
-    dim(starting.parameter.values) = c(calibration.info$n.chains, length(relevant.default.values))
-    dimnames(starting.parameter.values) = list(NULL, parameter=calibration.info$parameter.names)
-     
+    if (calibration.info$is.preliminary)
+    {
+        single.starting.mcmc.parameter.values = initial.model.parameter.values[non.aliased.model.parameter.names]
+        single.starting.mcmc.parameter.values[names(parameter.aliases)] = 1
+        
+        starting.mcmc.parameter.values = t(sapply(1:calibration.info$n.chains, function(chain){
+            single.starting.mcmc.parameter.values[mcmc.parameter.names]
+        }))
+        dim(starting.mcmc.parameter.values) = c(calibration.info$n.chains, length(single.starting.mcmc.parameter.values))
+        dimnames(starting.mcmc.parameter.values) = list(NULL, parameter=mcmc.parameter.names)
+    }
+    else
+    {
+        stop("We're not yet set up to run non-preliminary calibrations")
+    }
+    
     #-----------------#
     #-- Some Checks --#
     #-----------------#
     
-    if (any(is.na(starting.parameter.values)))
+    if (any(is.na(starting.mcmc.parameter.values)))
     {
-        na.parameters = calibration.info$parameter.names[apply(is.na(starting.parameter.values),2,any)]
+        na.parameters = calibration.info$parameter.names[apply(is.na(starting.mcmc.parameter.values),2,any)]
         stop(paste0(error.prefix,
                     "NA starting values are present for ",
                     ifelse(length(na.parameters)==1, "parameter ", "parameters "),
@@ -239,10 +323,10 @@ set.up.calibration <- function(version,
     if (verbose)
         print(paste0(verbose.prefix, "Instantiate the likelihood..."))
 
-   likelihood = calibration.info$likelihood.instructions$instantiate.likelihood(version=version,
-                                                                               location=location,
-                                                                              sub.version=sub.version,
-                                                                             data.manager=calibration.info$data.manager)
+   likelihood = calibration.info$likelihood.instructions$instantiate.likelihood(version = version,
+                                                                                location = location,
+                                                                                sub.version = sub.version,
+                                                                                data.manager = calibration.info$data.manager)
 
     compute.likelihood <- function(sim) {
         likelihood$compute(sim=sim, log=T, use.optimized.get=T, check.consistency=F)
@@ -264,21 +348,26 @@ set.up.calibration <- function(version,
                                     solver.metadata = calibration.info$solver.metadata,
                                     outcome.location.mapping = likelihood$get.outcome.location.mapping(),
                                     finalize = F)
-    engine$crunch(parameters = default.parameter.values)
+    
+    engine$crunch(parameters = all.initial.model.parameter.values)
 
     # 'params' is the subset of parameters that we will be modifying in the MCMC
     run.simulation <- function(params) {
-        all.parameters = default.parameter.values
-        all.parameters[names(params)] = params
+        all.parameters = all.initial.model.parameter.values
+        params.after.aliases = apply.calibration.parameter.aliases(sorted.parameter.aliases = sorted.parameter.aliases,
+                                                                   non.aliased.parameter.names = non.aliased.model.parameter.names,
+                                                                   parameter.initial.values = all.initial.model.parameter.values,
+                                                                   sampled.values = params)
+        all.parameters[names(params.after.aliases)] = params.after.aliases
         engine$run(all.parameters)
     }
     
     #-- Check the initial sims to make sure the likelihood computes (not to -Inf) --#
     if (verbose)
         print(paste0(verbose.prefix, "Making sure the likelihood computes on initial simulation(s)..."))
-    for (i in 1:dim(starting.parameter.values)[1])
+    for (i in 1:dim(starting.mcmc.parameter.values)[1])
     {
-        sim = run.simulation(starting.parameter.values[1,])
+        sim = run.simulation(starting.mcmc.parameter.values[i,])
         if (likelihood$compute(sim, use.optimized.get=T)==-Inf)
         {
             lik.pieces = likelihood$compute.piecewise(sim, use.optimized.get=T)
@@ -326,21 +415,31 @@ set.up.calibration <- function(version,
     if (verbose)
         print(paste0(verbose.prefix, "Set up the MCMC control..."))
 
+    prior.density.function = distributions::get.density.function(relevant.prior.for.sampled.model.parameters, default.log = T)
+    mcmc.prior = function(parameters){
+        parameters.after.aliases = apply.calibration.parameter.aliases(sorted.parameter.aliases = sorted.parameter.aliases,
+                                                                       non.aliased.parameter.names = non.aliased.model.parameter.names,
+                                                                       parameter.initial.values = initial.model.parameter.values,
+                                                                       sampled.values = parameters)
+        
+        prior.density.function(parameters.after.aliases)
+    }
+    
     ctrl = bayesian.simulations::create.adaptive.blockwise.metropolis.control(
-        var.names = calibration.info$parameter.names,
+        var.names = mcmc.parameter.names,
         simulation.function = run.simulation,
-        log.prior.distribution = distributions::get.density.function(relevant.prior),
+        log.prior.distribution = mcmc.prior,
         log.likelihood = compute.likelihood, # saves the data manager in here!
         burn = calibration.info$n.burn,
         thin = calibration.info$thin,
         var.blocks = sampling.blocks,
         reset.adaptive.scaling.update.after = 0,
-        transformations = parameter.scales[calibration.info$parameter.names],
+        transformations = mcmc.parameter.scales,
         
         initial.covariance.mat = initial.cov.mat,
         initial.scaling.parameters = initial.scaling.parameters,
         
-        target.acceptance.probability=target.acceptance.rate,
+        target.acceptance.probability = target.acceptance.rate,
         
         n.iter.before.use.adaptive.covariance = n.iter.before.cov,
         adaptive.covariance.base.update = cov.base.update,
@@ -369,7 +468,7 @@ set.up.calibration <- function(version,
         dir = calibration.dir,
         control = ctrl,
         n.iter = calibration.info$n.iter, # just get from calibration object info
-        starting.values = starting.parameter.values, # harder
+        starting.values = starting.mcmc.parameter.values, # harder
         prior.mcmc = NULL,
         cache.frequency = cache.frequency,
         allow.overwrite.cache = allow.overwrite.cache)
@@ -377,6 +476,57 @@ set.up.calibration <- function(version,
     
     if (verbose)
         print(paste0(verbose.prefix, "All Done!"))
+}
+
+##-------------------------------------------##
+##-- PARSING CALIBRATION PARAMETER ALIASES --##
+##-------------------------------------------##
+
+apply.calibration.parameter.aliases <- function(sorted.parameter.aliases,
+                                                non.aliased.parameter.names,
+                                                parameter.initial.values,
+                                                sampled.values)
+{
+    rv = sampled.values[non.aliased.parameter.names]
+    if (length(sorted.parameter.aliases)>0)
+        rv[names(sorted.parameter.aliases)] = sapply(names(sorted.parameter.aliases), function(aliased.parameter.name){
+            parameter.initial.values[aliased.parameter.name] * prod(sampled.values[ sorted.parameter.aliases[[aliased.parameter.name]] ])
+        })
+    
+    rv
+}
+
+parse.calibration.parameter.aliases <- function(calibration.info,
+                                                prior)
+{
+    model.parameters.in.aliases = unique(unlist(calibration.info$parameter.aliases))
+    parameter.aliases = calibration.info$parameter.aliases
+    model.parameters.to.be.overriden.as.aliases = intersect(model.parameters.in.aliases,
+                                                            calibration.info$parameter.names)
+    parameter.aliases[model.parameters.to.be.overriden.as.aliases] = 
+        as.list(model.parameters.to.be.overriden.as.aliases)
+    
+    non.aliased.model.parameter.names = setdiff(calibration.info$parameter.names, model.parameters.in.aliases)
+    
+    sorted.parameter.aliases = lapply(model.parameters.in.aliases, function(param.name){
+        alias.mask = sapply(parameter.aliases, function(aliased.parameters){
+            any(aliased.parameters==param.name)
+        })
+        names(parameter.aliases)[alias.mask]
+    })
+    names(sorted.parameter.aliases) = model.parameters.in.aliases
+    
+    mcmc.parameter.names = union(non.aliased.model.parameter.names, names(parameter.aliases))
+    model.parameter.names = union(non.aliased.model.parameter.names, model.parameters.in.aliases)
+    
+    list(
+        model.parameters.in.aliases = model.parameters.in.aliases,
+        parameter.aliases = parameter.aliases,
+        non.aliased.model.parameter.names = non.aliased.model.parameter.names,
+        sorted.parameter.aliases = sorted.parameter.aliases,
+        mcmc.parameter.names = mcmc.parameter.names,
+        model.parameter.names = model.parameter.names
+    )
 }
 
 #'@inheritParams set.up.calibration
@@ -627,7 +777,7 @@ register.calibration.info <- function(code,
     #-- Validate arguments --#
     
     # error.prefix
-    if (!is.character(error.prefix) || length(error.prefix)==1 || is.na(error.prefix))
+    if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
         stop("Cannot register.calibration.info(): 'error.prefix' must be a single, non-NA character value")
     
     # code
@@ -709,6 +859,7 @@ register.calibration.info <- function(code,
         data.manager = data.manager,
         end.year = end.year,
         parameter.names = parameter.names,
+        parameter.aliases = parameter.aliases,
         n.chains = n.chains,
         n.iter = n.iter,
         n.burn = n.burn,
@@ -837,7 +988,15 @@ prepare.mcmc.summary <- function(version,
     sample.cov = NULL
     n.samples = NULL
 
-samples = NULL
+    samples = NULL
+    
+    # Get the last set of parameters sampled
+    last.chunk.file = file.path(dir, "chain_1", paste0("chain1_chunk", global.control@n.chunks, ".Rdata"))
+    if (!file.exists(last.chunk.file))
+        stop("Cannot prepare MCMC summary - we have not finished the sampling for the prior calibration")
+    load(last.chunk.file)
+    last.sim.parameters = mcmc@simulations[[length(mcmc@simulations)]]$params
+    
     
     if (!get.one.set.of.parameters)
     {
@@ -874,7 +1033,7 @@ samples = NULL
             
             mean.new.samples = colMeans(new.samples)
             cov.new.samples = cov(new.samples)
-samples = rbind(samples, new.samples)
+            samples = rbind(samples, new.samples)
             
             # Incorporate into the overall mean and cov mat
             if (is.null(sample.mean))
@@ -930,8 +1089,8 @@ samples = rbind(samples, new.samples)
         parameter.names = names(transformed.parameter.values),
         sample.mean = sample.mean,
         sample.cov = sample.cov,
-        
-samples = samples
+        samples = samples,
+        last.sim.parameters = last.sim.parameters
     )
 }
 
