@@ -51,6 +51,21 @@ create.outcome.location.mapping <- function(location.mappings,
     )
 }
 
+copy.outcome.location.mapping <- function(to.copy,
+                                          jheem.kernel=to.copy$jheem.kernel)
+{
+    if (!is(jheem.kernel, 'jheem.kernel'))
+        stop("Cannot copy.outcome.loca")
+    
+    OUTCOME.LOCATION.MAPPING$new(
+        version = to.copy$version,
+        location = to.copy$location,
+        sub.version = to.copy$sub.version,
+        location.mappings.for.outcomes = to.copy$location.mappings.for.outcomes,
+        jheem.kernel = jheem.kernel
+    )
+}
+
 create.default.outcome.location.mapping <- function(version = jheem.kernel$version,
                                                   location = jheem.kernel$location,
                                                   sub.version = NULL,

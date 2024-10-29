@@ -629,6 +629,15 @@ create.solver.metadata = function(method = 'DP5',
                         rtol = rtol)
 }
 
+# Internal to package
+copy.solver.metadata = function(to.copy)
+{
+    SOLVER.METADATA$new(method = to.copy$method,
+                        package = to.copy$package,
+                        atol = to.copy$atol,
+                        rtol = to.copy$rtol)
+}
+
 SOLVER.METADATA = R6::R6Class(
     'solver.metadata',
     
@@ -1963,6 +1972,7 @@ JHEEM = R6::R6Class(
                     }
                     else
                         parameters.to.pass = parameters
+                    
                     
                     private$i.kernel$calibrated.parameters.apply.function(model.settings = model.settings,
                                                                                   parameters = parameters.to.pass)
