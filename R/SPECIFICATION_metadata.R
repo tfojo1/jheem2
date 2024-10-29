@@ -19,8 +19,12 @@ get.specification.metadata <- function(version, location,
                                   error.prefix = error.prefix)
 }
 
-# An internal helper
-# formulated here to avoid name clashes with R6 methods (eg, specification.kernel also has a $get.specification.metadata method)
+
+
+# Internal to the package
+# Contains all the 'smarts' to construct a new specification.metadata
+#  so that the actual constructor can be dumb to facilitate copying
+# also formulated to avoid name clashes with R6 methods (eg, specification.kernel also has a $get.specification.metadata method)
 do.get.specification.metadata <- function(specification,
                                           location,
                                           error.prefix = '')
@@ -28,9 +32,80 @@ do.get.specification.metadata <- function(specification,
     if (is.null(error.prefix))
         error.prefix = paste0("Error deriving the specification-metadata for '", version, "' and location '", location, "': ")
     
-    SPECIFICATION.METADATA$new(specification=specification,
-                               location=location,
-                               error.prefix=error.prefix)
+    #-- Pull and resolve aliases --#
+    resolved.function.aliases = lapply(names(specification$compartment.value.function.aliases), function(fn.name){
+        fn = specification$compartment.value.function.aliases[[fn.name]]
+        tryCatch({
+            aliases = fn(location=location)
+        },
+        error = function(e){
+            stop(paste0(error.prefix,
+                        "There was an error evaluating the function for compartment value alias for '",
+                        fn.name, "': ", e$message))
+        })
+        
+        if (!is.character(aliases))
+            stop(paste0(error.prefix,
+                        "Evaluating the function for compartment value alias for '",
+                        fn.name, "' did NOT yield a character value. It yielded an object of class ",
+                        collapse.with.and("'", class(aliases), "'")))
+        
+        if (length(aliases)==0)
+            stop(paste0(error.prefix,
+                        "Evaluating the function for compartment value alias for '",
+                        fn.name, "' yielded an empty (length-zero) character vector - aliases must have at least one value"))
+        
+        if (any(is.na(aliases)))
+            stop(paste0(error.prefix,
+                        "Evaluating the function for compartment value alias for '",
+                        fn.name, "' yielded NA values"))
+        
+        tabled.aliases = table(aliases)
+        if (any(tabled.aliases>1))
+            stop(paste0(error.prefix,
+                        "Evaluating the function for compartment value alias for '",
+                        fn.name, "' yielded a character vector with duplicate values (values ",
+                        collapse.with.and("'", names(tabled.aliases)[tabled.aliases>1], "'"),
+                        " were included more than once). Alias values must be unique"))
+        
+        aliases
+    })
+    names(resolved.function.aliases) = names(specification$compartment.value.function.aliases)
+    
+    character.aliases = lapply(specification$compartment.value.character.aliases, substitute.aliases.into.vector, aliases = resolved.function.aliases)
+    aliases = c(character.aliases, resolved.function.aliases)
+    
+    #-- Pull down dim names --#
+    dim.names = lapply(specification$ontologies$all, substitute.aliases.into.vector, aliases = aliases)
+    
+    
+    #-- All Done! - Call the Constructor --
+    
+    SPECIFICATION.METADATA$new(version = specification$version,
+                               location = location,
+                               specification.iteration = specification$iteration,
+                               
+                               aliases = aliases,
+                               dim.names = dim.names,
+                               
+                               age.lower.bounds = specification$age.info$lowers,
+                               age.upper.bounds = specification$age.info$uppers,
+                               age.endpoints = specification$age.info$endpoints)
+}
+
+# Internal to the package
+copy.specification.metadata <- function(to.copy)
+{
+    SPECIFICATION.METADATA$new(version = to.copy$versuib,
+                               location = to.copy$location,
+                               specification.iteration = to.copy$specification.iteration,
+                               
+                               aliases = to.copy$aliases,
+                               dim.names = to.copy$dim.names,
+                               
+                               age.lower.bounds = to.copy$age.lower.bounds,
+                               age.upper.bounds = to.copy$age.upper.bounds,
+                               age.endpoints = to.copy$age.endpoints)
 }
 
 SPECIFICATION.METADATA = R6::R6Class(
@@ -39,60 +114,29 @@ SPECIFICATION.METADATA = R6::R6Class(
     
     public = list(
         
-        initialize = function(specification,
+        # (Mostly) a dumb constructor
+        # The smarts are in do.get.specification.metadata to allow for copy-construction
+        initialize = function(version,
                               location,
-                              error.prefix)
+                              specification.iteration,
+                              
+                              aliases,
+                              dim.names,
+                              
+                              age.lower.bounds,
+                              age.upper.bounds,
+                              age.endpoints)
         {
-            #-- Store Basic Information --#
-            private$i.version = specification$version
+            private$i.version = version
             private$i.location = location
-            private$i.specification.iteration = specification$iteration
+            private$i.specification.iteration = specification.iteration
             
-            #-- Pull and resolve aliases --#
-            resolved.function.aliases = lapply(names(specification$compartment.value.function.aliases), function(fn.name){
-                fn = specification$compartment.value.function.aliases[[fn.name]]
-                tryCatch({
-                    aliases = fn(location=location)
-                },
-                error = function(e){
-                    stop(paste0(error.prefix,
-                                "There was an error evaluating the function for compartment value alias for '",
-                                fn.name, "': ", e$message))
-                })
-                
-                if (!is.character(aliases))
-                    stop(paste0(error.prefix,
-                                "Evaluating the function for compartment value alias for '",
-                                fn.name, "' did NOT yield a character value. It yielded an object of class ",
-                                collapse.with.and("'", class(aliases), "'")))
-                
-                if (length(aliases)==0)
-                    stop(paste0(error.prefix,
-                                "Evaluating the function for compartment value alias for '",
-                                fn.name, "' yielded an empty (length-zero) character vector - aliases must have at least one value"))
-                
-                if (any(is.na(aliases)))
-                    stop(paste0(error.prefix,
-                                "Evaluating the function for compartment value alias for '",
-                                fn.name, "' yielded NA values"))
-                    
-                tabled.aliases = table(aliases)
-                if (any(tabled.aliases>1))
-                    stop(paste0(error.prefix,
-                                "Evaluating the function for compartment value alias for '",
-                                fn.name, "' yielded a character vector with duplicate values (values ",
-                                collapse.with.and("'", names(tabled.aliases)[tabled.aliases>1], "'"),
-                                " were included more than once). Alias values must be unique"))
-                
-                aliases
-            })
-            names(resolved.function.aliases) = names(specification$compartment.value.function.aliases)
+            private$i.aliases = aliases
+            private$i.dim.names = dim.names
             
-            character.aliases = lapply(specification$compartment.value.character.aliases, substitute.aliases.into.vector, aliases = resolved.function.aliases)
-            private$i.aliases = c(character.aliases, resolved.function.aliases)
-            
-            #-- Pull down dim names --#
-            private$i.dim.names = lapply(specification$ontologies$all, substitute.aliases.into.vector, aliases = private$i.aliases)
+            private$i.age.lower.bounds = age.lower.bounds
+            private$i.age.upper.bounds = age.upper.bounds
+            private$i.age.endpoints = age.endpoints
             
             #-- Categorize aliases --#
             private$i.categorized.aliases = lapply(names(private$i.dim.names), function(d){
@@ -102,15 +146,6 @@ SPECIFICATION.METADATA = R6::R6Class(
                 private$i.aliases[aliases.apply.to.dimension.mask]
             })
             names(private$i.categorized.aliases) = names(private$i.dim.names)
-            
-            #-- Import age stuff --#
-            private$i.age.lower.bounds = specification$age.info$lowers
-            private$i.age.upper.bounds = specification$age.info$uppers
-            private$i.age.endpoints = specification$age.info$endpoints
-            
-            
-            #-- All Done! --#
-            
         },
         
         apply.aliases = function(dim.names, error.prefix='')

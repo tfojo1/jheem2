@@ -1125,7 +1125,7 @@ copy.simulation.set <- function(simset)
     #                          sub.version = simset$sub.version,
     #                          error.prefix = "Error loading simulation")
     
-    do.create.simulation.set(jheem.kernel = simset$jheem.kernel,
+    do.create.simulation.set(jheem.kernel = simset$jheem.kernel$update(),
                              sub.version = simset$sub.version,
                              outcome.numerators = simset$data$outcome.numerators,
                              outcome.denominators = simset$data$outcome.denominators,
@@ -1133,11 +1133,11 @@ copy.simulation.set <- function(simset)
                              from.year = simset$from.year,
                              to.year = simset$to.year,
                              n.sim = simset$n.sim,
-                             outcome.location.mapping = simset$outcome.location.mapping,
+                             outcome.location.mapping = copy.outcome.location.mapping(simset$outcome.location.mapping),
                              calibration.code = simset$calibration.code,
                              intervention.code = simset$intervention.code,
                              run.metadata = copy.run.metadata(simset$run.metadata),
-                             solver.metadata = simset$solver.metadata,
+                             solver.metadata = copy.solver.metadata(simset$solver.metadata),
                              is.degenerate = simset$is.degenerate,
                              finalize = simset$is.finalized)
 }
