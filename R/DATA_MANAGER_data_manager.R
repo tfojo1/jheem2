@@ -690,7 +690,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # Modified
-            private$i.last.modified = Sys.time()
+            private$i.last.modified.date = Sys.time()
             
         },
         
@@ -754,7 +754,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # Modified
-            private$i.last.modified = Sys.time()
+            private$i.last.modified.date = Sys.time()
             
         },
 
@@ -779,7 +779,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             private$i.ontologies[[name]] = ont
 
             # Modified
-            private$i.last.modified = Sys.time()
+            private$i.last.modified.date = Sys.time()
             
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
@@ -860,7 +860,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             private$i.outcome.info[[outcome]] = outcome.info
 
             # Modified
-            private$i.last.modified = Sys.time()
+            private$i.last.modified.date = Sys.time()
             
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
@@ -917,7 +917,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # Modified
-            private$i.last.modified = Sys.time()
+            private$i.last.modified.date = Sys.time()
             
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
@@ -966,7 +966,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # Modified
-            private$i.last.modified = Sys.time()
+            private$i.last.modified.date = Sys.time()
             
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
@@ -1389,7 +1389,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # Modified
-            private$i.last.modified = Sys.time()
+            private$i.last.modified.date = Sys.time()
             
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
