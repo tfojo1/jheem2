@@ -102,7 +102,8 @@ load.data.manager <- function(file,
     new.data.manager = copy.data.manager(loaded.data.manager,
                                          name=copy.name,
                                          description=copy.description,
-                                         preserve.original.creation.date=T)
+                                         preserve.original.creation.date=T,
+                                         preserve.original.last.modified.date=T)
     
     if (set.as.default)
         default.data.manager.holder$default.data.manager = new.data.manager
@@ -133,7 +134,7 @@ copy.data.manager <- function(data.manager = get.default.data.manager(),
                                               description=description,
                                               copy.from.data.manager = data.manager,
                                               preserve.copied.data.manager.creation.date = preserve.original.creation.date,
-                                              preserve.copied.data.manager.last.modified.date=preserve.original.last.modified.date)
+                                              preserve.copied.data.manager.last.modified.date = preserve.original.last.modified.date)
     
     if (set.as.default) default.data.manager.holder$default.data.manager = new.data.manager
     invisible(new.data.manager)
@@ -612,13 +613,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # Set creation date and last modified date to now; make backwards compatible
-            if (!is.null(copy.from.data.manager) && preserve.copied.data.manager.creation.date && "creation.date" %in% allNames(copy.from.data.manager))
-                private$i.creation.date = copy.from.data.manager$creation.date
+            if (!is.null(copy.from.data.manager) && preserve.copied.data.manager.creation.date)
+                private$i.creation.date = copy.from.data.manager[['creation.date']]
             else
                 private$i.creation.date = Sys.time()
             
-            if (!is.null(copy.from.data.manager) && preserve.copied.data.manager.last.modified.date && "last.modified.date" %in% allNames(copy.from.data.manager))
-                private$i.last.modified.date = copy.from.data.manager$last.modified.date
+            if (!is.null(copy.from.data.manager) && preserve.copied.data.manager.last.modified.date)
+                private$i.last.modified.date = copy.from.data.manager[['last.modified.date']]
             else
                 private$i.last.modified.date = Sys.time()
             
