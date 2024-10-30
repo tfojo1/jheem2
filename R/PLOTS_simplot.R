@@ -618,7 +618,12 @@ execute.simplot <- function(prepared.plot.data,
         df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
         df.truth['color.data.by'] = df.truth[style.manager$color.data.by]
         df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
-        df.truth['color.and.shade.data.by'] = if (!is.null(df.truth$stratum) && all(df.truth$stratum=="")) df.truth['shade.data.by'] else do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
+        if (style.manager$color.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum==""))
+            df.truth['color.and.shade.data.by'] = df.truth['shade.data.by']
+        else if (style.manager$shade.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum==""))
+            df.truth['color.and.shade.data.by'] = df.truth['color.data.by']
+        else
+            df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
     }
     
     ## COLORS
