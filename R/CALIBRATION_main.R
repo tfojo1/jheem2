@@ -230,7 +230,7 @@ set.up.calibration <- function(version,
             if (preceding.index==1)
             {
                 shared.parameter.names = intersect(names(mcmc.summary$last.sim.parameters),
-                                                   names(initial.model.parameter.values))
+                                                   names(all.default.model.parameter.values))
                 
                 initial.model.parameter.values[shared.parameter.names] = mcmc.summary$last.sim.parameters[shared.parameter.names]
             }
