@@ -217,7 +217,7 @@ set.up.calibration <- function(version,
                                                          mcmc.parameters.already.pulled.from.preceding)
         
         # Pull from preceding
-        if (preceding.index==1 || length(parameters.to.pull.from.preceding)>0)
+        if (preceding.index==1 || length(mcmc.parameters.to.pull.from.preceding)>0)
         {
             mcmc.summary = prepare.mcmc.summary(version = version,
                                                 location = location,
