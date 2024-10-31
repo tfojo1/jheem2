@@ -173,9 +173,12 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
                               intervention.code,
                               calibration.code,
                               outcome.location.mapping,
-                              error.prefix)
+                              error.prefix,
+                              simulation.chain = NA)
         {
             private$i.jheem.kernel = jheem.kernel
+            
+            private$i.simulation.chain = simulation.chain
             
             private$i.metadata = make.simulation.metadata.field(jheem.kernel.or.specification = jheem.kernel,
                                                                 specification.metadata = jheem.kernel$specification.metadata,
@@ -222,6 +225,7 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
                                                    outcome.numerators = outcome.numerators.with.sim.dimension,
                                                    outcome.denominators = outcome.denominators.with.sim.dimension,
                                                    parameters = parameters,
+                                                   simulation.chain = private$i.simulation.chain,
                                                    run.metadata = run.metadata,
                                                    is.degenerate = is.degenerate,
                                                    finalize = finalize,
@@ -242,52 +246,11 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
     
     private = list(
         i.jheem.kernel = NULL,
-        i.metadata = NULL   
+        i.metadata = NULL,
+        i.simulation.chain = NULL
     )
 )
 
-# create.single.simulation <- function(jheem.kernel,
-#                                      sub.version,
-#                                      outcome.numerators, # no sim dimension
-#                                      outcome.denominators, # no sim dimension
-#                                      parameters,
-#                                      from.year,
-#                                      to.year,
-#                                      intervention.code,
-#                                      calibration.code,
-#                                      outcome.location.mapping,
-#                                      solver.metadata,
-#                                      run.metadata,
-#                                      finalize,
-#                                      is.degenerate)
-# {
-#     outcome.numerators.with.sim.dimension = lapply(outcome.numerators, function(arr) {
-#         new.dimnames = c(dimnames(arr), sim=1)
-#         array(arr, dim=sapply(new.dimnames, length), new.dimnames)
-#     })
-#     outcome.denominators.with.sim.dimension = lapply(outcome.denominators, function(arr) {
-#         if (is.null(arr)) return(arr)
-#         new.dimnames = c(dimnames(arr), sim=1)
-#         array(arr, dim=sapply(new.dimnames, length), new.dimnames)
-#     })
-#     parameters = matrix(parameters, ncol=1, dimnames=list(parameter=names(parameters), sim=NULL)) # used to say "parameters.indexed.by.sim = list('1'=parameters)" but I don't think I need the character number there. When simsets are joined, the index is meaningless anyways
-#     
-#     do.create.simulation.set(jheem.kernel = jheem.kernel,
-#                              sub.version = sub.version,
-#                              outcome.numerators = outcome.numerators.with.sim.dimension,
-#                              outcome.denominators = outcome.denominators.with.sim.dimension,
-#                              parameters = parameters,
-#                              from.year = from.year,
-#                              to.year = to.year,
-#                              n.sim = 1,
-#                              intervention.code = intervention.code,
-#                              calibration.code = calibration.code,
-#                              outcome.location.mapping = outcome.location.mapping,
-#                              solver.metadata = solver.metadata,
-#                              run.metadata = run.metadata,
-#                              finalize = finalize,
-#                              is.degenerate = is.degenerate)
-# }
 
 derive.degenerate.simulation <- function(sim,
                                          from.year = sim$from.year,
@@ -326,7 +289,10 @@ derive.degenerate.simulation <- function(sim,
                           error.prefix = error.prefix)
 }
 
-join.simulation.sets <- function(..., finalize=T, run.metadata=NULL)
+join.simulation.sets <- function(..., 
+                                 simulation.chain=NULL,
+                                 finalize=T, 
+                                 run.metadata=NULL)
 {
     # Validate
     # each argument must be either a simset or a list of simsets
@@ -379,11 +345,27 @@ join.simulation.sets <- function(..., finalize=T, run.metadata=NULL)
     
     intervention.code = sample.simset$intervention.code
     
+    if (is.null(simulation.chain))
+    {
+        simulation.chain = as.integer(sapply(simset.list, function(sim){sim$simulation.chain}))
+    }
+    else
+    {
+        if (!is.numeric(simulation.chain) || any(is.na(simulation.chain)) || any(round(simulation.chain)!=simulation.chain))
+            stop(paste0(error.prefix, "If it is not NULL, 'simulation.chain' must be an integer vector with no NA values"))
+        
+        if (length(simulation.chain)!=new.n.sim)
+            stop(paste0(error.prefix, 
+                        "If it is not NULL, 'simulation.chain' must have the same length as the number of joined simulations (",
+                        new.n.sim, ")"))
+    }
+    
     do.create.simulation.set(jheem.kernel = sample.simset$jheem.kernel,
                              sub.version = sample.simset$sub.version,
                              outcome.numerators = combined.outcome.numerators,
                              outcome.denominators = combined.outcome.denominators,
                              parameters = combined.parameters,
+                             simulation.chain = simulation.chain,
                              from.year = sample.simset$from.year,
                              to.year = sample.simset$to.year,
                              n.sim = new.n.sim,
@@ -1125,11 +1107,24 @@ copy.simulation.set <- function(simset)
     #                          sub.version = simset$sub.version,
     #                          error.prefix = "Error loading simulation")
     
+    
+    # Eventually we can phase this out, but it lets us update chains from previously run simsets
+    if (is.null(simset$simulation.chain))
+    {
+        if (simset$n.sim==1)
+            simulation.chain = as.integer(NA)
+        else
+            simulation.chain = rep(1, simset$n.sim)
+    }
+    else
+        simulation.chain = simset$simulation.chain
+    
     do.create.simulation.set(jheem.kernel = simset$jheem.kernel$update(),
                              sub.version = simset$sub.version,
                              outcome.numerators = simset$data$outcome.numerators,
                              outcome.denominators = simset$data$outcome.denominators,
                              parameters = simset$parameters,
+                             simulation.chain = simulation.chain,
                              from.year = simset$from.year,
                              to.year = simset$to.year,
                              n.sim = simset$n.sim,
@@ -1147,6 +1142,7 @@ do.create.simulation.set <- function(jheem.kernel,
                                      outcome.numerators, # now must have sim dimension
                                      outcome.denominators, # now must have sim dimension
                                      parameters,
+                                     simulation.chain,
                                      from.year,
                                      to.year,
                                      n.sim,
@@ -1176,6 +1172,7 @@ do.create.simulation.set <- function(jheem.kernel,
                                            outcome.numerators = outcome.numerators,
                                            outcome.denominators = outcome.denominators,
                                            parameters = parameters,
+                                           simulation.chain = simulation.chain,
                                            run.metadata = run.metadata,
                                            is.degenerate = is.degenerate,
                                            finalize = finalize,
@@ -1187,6 +1184,7 @@ do.create.simulation.set.from.metadata <- function(metadata,
                                                    outcome.numerators,
                                                    outcome.denominators,
                                                    parameters,
+                                                   simulation.chain,
                                                    run.metadata,
                                                    is.degenerate,
                                                    finalize,
@@ -1219,6 +1217,8 @@ do.create.simulation.set.from.metadata <- function(metadata,
     data = list(outcome.numerators = outcome.numerators,
                 outcome.denominators = outcome.denominators,
                 parameters = parameters,
+                simulation.chain = simulation.chain,
+                unique.chains = sort(unique(simulation.chain[!is.na(simulation.chain)])),
                 run.metadata = run.metadata,
                 is.degenerate = is.degenerate,
                 finalized = finalize)
@@ -1570,11 +1570,14 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             })
             new.parameters = private$i.data$parameters[,x,drop=F]
             
+            new.simulation.chain = private$i.data$simulation.chain[x]
+            
             do.create.simulation.set(jheem.kernel = self$jheem.kernel,
                                      sub.version = self$sub.version,
                                      outcome.numerators = new.outcome.numerators,
                                      outcome.denominators = new.outcome.denominators,
                                      parameters = new.parameters,
+                                     simulation.chain = new.simulation.chain,
                                      from.year = self$from.year,
                                      to.year = self$to.year,
                                      n.sim = new.n.sim,
@@ -1633,30 +1636,75 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         get.params = function(match.names=NULL,
                               simulation.indices=self$n.sim)
         {
-            if (length(match.names)==0)
-                match.names = self$parameter.names
-            else
-            {
-                if (is.character(match.names))
-                {
-                    regexes = gsub("\\*", ".*", match.names)
-                    match.names = grepl(regexes[1], self$parameter.names)
-                    for (regex in regexes[-1])
-                        match.names = match.names | grepl(regex, self$parameter.names)
-                    
-                    if (!any(match.names))
-                        stop("The given match.names do not match any parameter.names")
-                }
-                else if (!is.numeric(match.names))
-                {
-                    stop("'match.names' must be either a charater or numeric vector")
-                }
-            }
+            param.names = private$match.parameter.names(match.names)
             
             if (!is.numeric(simulation.indices))
                 stop("'simulation.indices' must be a numeric vector")
             
-            self$parameters[match.names, simulation.indices]
+            self$parameters[param.names, simulation.indices]
+        },
+        
+        # Returns a vector indexed [parameter]
+        # if sort == TRUE - result should be ordered from highest to lowest
+        get.mcmc.mixing.statistic = function(match.names,
+                                             chains = self$unique.chains, # which chains to use
+                                             sort = T)
+        {
+            param.names = private$match.parameter.names(match.names)
+            
+            if (self$n.chains == 1)
+            {
+                # @Andrew - fill in here
+                # variance in first 1/4 of params divided by variance in last 1/4 of params
+            }
+            else if (self$n.chains > 1)
+            {
+                stop("We need to implement calculating Rhats")
+            }
+            else
+                stop("We cannot calculate MCMC statistics for a simulation set that was not generated from an MCMC process")
+        },
+        
+        traceplot = function(match.names,
+                             chains = self$unique.chains,
+                             burn = 0)
+        {
+            if (self$n.chains == 0)
+                stop("We cannot make a traceplot a simulation set that was not generated from an MCMC process")
+            
+            param.names = private$match.parameter.names(match.names)
+            
+            chain.counts = rep(0, self$n.chains)
+            iter = sapply(1:n.sim, function(i){
+                chain = self$simulation.chain[i]
+                chain.counts[chain] <<- chain.counts[chain] + 1
+                chain.counts[chain]
+            })
+            
+            df = reshape2::melt(t(private$i.data$parameters[param.names,,drop=F]))
+            df$Iteration = rep(iter, length(param.names))
+            df$Chain = rep(private$i.data$simulation.chain, length(param.names))
+
+            if (burn > 0)
+            {
+                df = df[df$Iteration <= burn]
+                if (dim(df)[1]==0)
+                    stop(paste0("After burning ", burn, " simulations, there are no simulations left from which to plot parameters"))
+            }
+            
+            if (!setequal(chains, self$unique.chains))
+            {
+                df = df[sapply(df$Chain, function(chain){any(chain==chains)}),]
+                if (dim(df)[1]==0)
+                    stop(paste0("After limiting to chains ", collapse.with.and(chains), ", there are no simulations left from which to plot parameters"))
+            }
+            
+            df$Chain = factor(df$Chain, levels = chains)
+            
+            ggplot2::ggplot(df, ggplot2::aes(x=Iteration, y=value, color=Chain)) + 
+                ggplot2::geom_line() +
+                ggplot2::facet_wrap(~parameter, scales = 'free_y') +
+                ggplot2::ylab("Parameter Value")
         },
         
         get.engine = function(start.year = NULL,
@@ -1867,6 +1915,30 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 private$i.jheem.kernel
             else
                 stop("Cannot modify a simulation.set's 'jheem.kernel' - it is read-only")
+        },
+        
+        simulation.chain = function(value)
+        {
+            if (missing(value))
+                private$i.data$simulation.chain
+            else
+                stop("Cannot modify a simulation.set's 'simulation.chain' - it is read-only")
+        },
+        
+        unique.chains = function(value)
+        {
+            if (missing(value))
+                private$i.data$unique.chains
+            else
+                stop("Cannot modify a simulation.set's 'unique.chains' - it is read-only")
+        },
+        
+        n.chains = function(value)
+        {
+            if (missing(value))
+                length(private$i.data$unique.chains)
+            else
+                stop("Cannot modify a simulation.set's 'n.chains' - it is read-only")
         }
     ),
     
@@ -1874,6 +1946,38 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         i.jheem.kernel = NULL,
         i.data = NULL,
+        
+        match.parameter.names = function(match.names)
+        {
+            if (length(match.names)==0)
+                self$parameter.names
+            else
+            {
+                if (is.character(match.names))
+                {
+                    regexes = gsub("\\*", ".*", match.names)
+                    match.mask = grepl(regexes[1], self$parameter.names)
+                    for (regex in regexes[-1])
+                        match.mask = match.mask | grepl(regex, self$parameter.names)
+                    
+                    if (!any(match.mask))
+                        stop("The given 'match.names' do not match any parameter.names")
+                    
+                    self$parameter.names[match.mask]
+                }
+                else if (is.numeric(match.names))
+                {
+                    if (any(match.names<1) || any(match.names>length(self$parameter.names)))
+                        stop(paste0("If 'match.names' is a numeric vector its values must be between 1 and ", length(self$parameter.names), " (the number of parameters)"))
+                    
+                    self$parameter.names[match.names]
+                }
+                else
+                {
+                    stop("'match.names' must be either a charater or numeric vector")
+                }
+            }
+        },
         
         eval.outcome.active.binding = function(value, outcome.name)
         {

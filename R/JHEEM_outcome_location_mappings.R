@@ -54,9 +54,9 @@ create.outcome.location.mapping <- function(location.mappings,
 copy.outcome.location.mapping <- function(to.copy,
                                           jheem.kernel=to.copy$jheem.kernel)
 {
-    if (!is(jheem.kernel, 'jheem.kernel'))
-        stop("Cannot copy.outcome.loca")
-    
+    if (!is.null(jheem.kernel) && !is(jheem.kernel, 'jheem.kernel'))
+        stop("Cannot copy.outcome.location.mapping - 'jheem.kernel' must be an object of class jheem.kernel")
+
     OUTCOME.LOCATION.MAPPING$new(
         version = to.copy$version,
         location = to.copy$location,
@@ -104,23 +104,6 @@ join.outcome.location.mappings <- function(mappings.to.join)
         jheem.kernel = mappings.to.join[[1]]$jheem.kernel
     )
 }
-
-
-# a helper that we use for now to force a reload of the class with the old data
-update.outcome.location.mapping <- function(mapping, jheem.kernel)
-{
-    if (is.null(jheem.kernel))
-        jheem.kernel = mapping$jheem.kernel
-    
-    OUTCOME.LOCATION.MAPPING$new(
-        version = mapping$version,
-        location = mapping$location,
-        sub.version = mapping$sub.version,
-        location.mappings.for.outcomes = mapping$location.mappings.for.outcomes,
-        jheem.kernel = jheem.kernel
-    )
-}
-
 
 OUTCOME.LOCATION.MAPPING = R6::R6Class(
     'outcome.location.mapping',

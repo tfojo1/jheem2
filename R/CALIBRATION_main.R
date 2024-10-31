@@ -22,17 +22,63 @@ set.up.calibration <- function(version,
     #-- Validate Arguments --#
     #------------------------#
     
-    # @Andrew to do
+    if (!is.character(version) || length(version)!=1 || is.na(version))
+        stop("Cannot set.up.calibration: version must be a single, non-NA character value")
+    if (!is.specification.registered.for.version(version))
+        stop(paste0("Cannot set.up.calibration: no specification has been registered for version '", version, "'"))
     
+    if (!is.character(calibration.code) || length(calibration.code)!=1 || is.na(calibration.code))
+        stop("Cannot set.up.calibration: calibration.code must be a single, non-NA character value")
+    
+    if (!is.character(location) || length(location)!=1 || is.na(location))
+        stop("Cannot set.up.calibration: location must be a single, non-NA character value")
+
     error.prefix = paste0("Cannot Set Up Calibration for code '", calibration.code, "' for version '", version, "' and location '", location, "': ")
     verbose.prefix = paste0("CALIBRATION '", calibration.code, "' (", version, " / ", location, "): ")
+    
+    if (!locations::is.location.valid(location))
+        stop(paste0(error.prefix, "'", location, "' is not a valid location code"))
+    
+    if (!is.character(root.dir) || length(root.dir)!=1 || is.na(root.dir))
+        stop(paste0(error.prefix, "'root.dir' must be a single, non-NA character value"))
+    if (!dir.exists(root.dir) && length(list.files(root.dir))==0)
+        stop(paste0(error.prefix, "The specified root.dir ('", root.dir, "') does not exist"))
+    
+    # sub-version
+    if (!is.null(sub.version) &&
+        (!is.character(sub.version) || length(sub.version)!=1 || is.na(sub.version)))
+        stop(paste0(error.prefix, "'sub.version' must be either NULL or a single, non-NA character value"))
+    
+    # cache frequency
+    if (!is.numeric(cache.frequency) || length(cache.frequency)!=1 || is.na(cache.frequency) || round(cache.frequency)!=cache.frequency)
+        stop(paste0(error.prefix, "'cache.frequency' must be a single, non-NA integer value"))
+    if (cache.frequency <= 0)
+        stop(paste0(error.prefix, "'cache.frequency' must be >= 1"))
+    
+    # allow.overwrite.cache
+    if (!is.logical(allow.overwrite.cache) || length(allow.overwrite.cache)!=1 || is.na(allow.overwrite.cache))
+        stop(paste0(error.prefix, "'allow.overwrite.cache must be a single, non-NA logical value (either TRUE or FALSE)"))
+    
+    # verbose
+    if (!is.logical(verbose) || length(verbose)!=1 || is.na(verbose))
+        stop(paste0(error.prefix, "'verbose must be a single, non-NA logical value (either TRUE or FALSE)"))
     
     #--------------------------------------#
     #-- Pull the calibration info object --#
     #--------------------------------------#
     
     calibration.info = get.calibration.info(calibration.code,
+                                            throw.error.if.missing = T,
                                             error.prefix = error.prefix)
+    
+    spec = get.compiled.specification.for.version(version)
+    if (calibration.info$draw.from.parent.version)
+    {
+        if (!is.null(spec$parent.version))
+            stop(paste0(error.prefix, "We were instructed to draw.from.parent.version in setting up the calibration, but there is no parent version for the '", version, "' specification"))   
+        if (!is.specification.registered.for.version(spec$parent.version))
+            stop(paste0(error.prefix, "We were instructed to draw.from.parent.version in setting up the calibration, but no specification has been registered for the parent version '", spec$parent.version, "'"))   
+    }
     
     #-------------------------#
     #-- Pull Down the Prior --#
@@ -195,6 +241,11 @@ set.up.calibration <- function(version,
     mcmc.parameters.already.pulled.from.preceding = character()
     preceding.index = 1
     
+    if (calibration.info$draw.from.parent.version)
+        version.for.preceding = spec$parent.version
+    else
+        version.for.preceding = version
+    
     while (preceding.index <= length(dynamic.preceding.codes))
     {
         preceding.code = dynamic.preceding.codes[preceding.index]
@@ -219,7 +270,7 @@ set.up.calibration <- function(version,
         # Pull from preceding
         if (preceding.index==1 || length(mcmc.parameters.to.pull.from.preceding)>0)
         {
-            mcmc.summary = prepare.mcmc.summary(version = version,
+            mcmc.summary = prepare.mcmc.summary(version = version.for.preceding,
                                                 location = location,
                                                 calibration.code = preceding.code,
                                                 root.dir = root.dir,
@@ -284,6 +335,7 @@ set.up.calibration <- function(version,
     all.initial.model.parameter.values = all.default.model.parameter.values
     all.initial.model.parameter.values[names(initial.model.parameter.values)] = initial.model.parameter.values
     
+    #-- Set up starting values --#
     # For starting values, we need one row for each chain
     if (calibration.info$is.preliminary)
     {
@@ -689,6 +741,7 @@ assemble.simulations.from.calibration <- function(version,
     
     
     sim.indices = as.integer(mcmc@simulation.indices)
+    sim.chain = rep(1:mcmc@n.chains, length(sim.indices)/mcmc@n.chains)
     if (any(is.na(sim.indices))) # This is a patch to the error in the MCMC package code with propagating NA values
     {
         print("Error in assembling simset - NAs introduced by MCMC package - we will try to recover")
@@ -730,7 +783,10 @@ assemble.simulations.from.calibration <- function(version,
     simulations = mcmc@simulations[sim.indices]
     
     # could choose to delete cache now but will not, undecided
-    join.simulation.sets(simulations, finalize = T, run.metadata = join.run.metadata(run.metadatas))
+    join.simulation.sets(simulations, 
+                         simulation.chain = sim.chain,
+                         finalize = T, 
+                         run.metadata = join.run.metadata(run.metadatas))
 }
 
 #'@param code
@@ -749,8 +805,8 @@ assemble.simulations.from.calibration <- function(version,
 #'@param n.burn
 #'@param data.manager
 #'@param preceding.calibration.codes
+#'@param draw.from.parent.version
 #'@param weight.to.preceding.variance.estimates
-#'@param pull.parameters.and.values.from.preceding
 #'@param error.prefix
 #'
 #'@export
@@ -770,8 +826,8 @@ register.calibration.info <- function(code,
                                       n.burn = if (is.preliminary) 0 else floor(n.iter / 2),
                                       data.manager = get.default.data.manager(),
                                       preceding.calibration.codes = character(),
+                                      draw.from.parent.version = F,
                                       weight.to.preceding.variance.estimates = 0.5,
-                                      pull.parameters.and.values.from.preceding = F,
                                       error.prefix = "Error registering calibration info: ")
 {
     #-- Validate arguments --#
@@ -832,6 +888,9 @@ register.calibration.info <- function(code,
     
     # description is a single, non-NA character value
     
+    if (!is.logical(draw.from.parent.version) || length(draw.from.parent.version)!=1 || is.na(draw.from.parent.version))
+        stop(paste0(error.prefix, "'draw.from.parent.version' must be a single, non-NA logical value (TRUE or FALSE)"))
+    
     if (length(preceding.calibration.codes)>0)
     {
         for (preceding.code in preceding.calibration.codes)
@@ -839,17 +898,12 @@ register.calibration.info <- function(code,
             preceding.info = get.calibration.info(code = preceding.code, throw.error.if.missing = F)
             if (is.null(preceding.info))
                 stop(paste0(error.prefix, "No calibration has been registered for the preceding.calibration.code of '", preceding.code, "'"))
-            
-            if (pull.parameters.and.values.from.preceding)
-            {
-                parameter.names = union(parameter.names, preceding.info$parameter.names)
-                fixed.initial.parameter.values = c(
-                    fixed.initial.parameter.values,
-                    preceding.info$fixed.initial.parameter.values[setdiff(names(preceding.info$fixed.initial.parameter.values),
-                                                                          names(fixed.initial.parameter.values))]
-                )
-            }
         }
+    }
+    else
+    {
+        if (draw.from.parent.version)
+            stop(paste0(error.prefix, "If 'draw.from.parent.version' is TRUE, 'preceding.calibration.codes' must contain at least one preceding calibration code"))
     }
     
     # For now, just going to package up and store it so things work
@@ -867,7 +921,7 @@ register.calibration.info <- function(code,
         solver.metadata = solver.metadata,
         preceding.calibration.codes = preceding.calibration.codes,
         fixed.initial.parameter.values = fixed.initial.parameter.values,
-        pull.parameters.and.values.from.preceding = pull.parameters.and.values.from.preceding,
+        draw.from.parent.version = draw.from.parent.version,
         weight.to.preceding.variance.estimates = weight.to.preceding.variance.estimates,
         is.preliminary = is.preliminary,
         max.run.time.seconds = max.run.time.seconds,
@@ -1083,14 +1137,15 @@ prepare.mcmc.summary <- function(version,
     
     #-- Return --#
     list(
-        transformed.parameter.values = transformed.parameter.values,
         cov.mat = cov.mat,
         initial.scaling.parameters = initial.scaling.parameters,
+        last.sim.parameters = last.sim.parameters,
+        
+        transformed.parameter.values = transformed.parameter.values,
         parameter.names = names(transformed.parameter.values),
         sample.mean = sample.mean,
         sample.cov = sample.cov,
-        samples = samples,
-        last.sim.parameters = last.sim.parameters
+        samples = samples
     )
 }
 
