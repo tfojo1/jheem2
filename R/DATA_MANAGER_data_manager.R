@@ -387,6 +387,7 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
 #'@param append.attributes A character vector indicating requested data attributes to include with the result. May be either "details", "url", or both
 #'
 #'@param na.rm Whether to disregard NA values when aggregating out dimensions not in keep.dimensions
+#'@param ignore.ontologies.without.requested.locations If 'dimension.values' includes a location dimension, should ontologies that don't have any of those locations for the requested outcome be ignored? See detailed documentation about how ontologies factor into the output. (NOT YET WRITTEN)
 #'@param ... Optional alternative way to specify dimension.values. Each element must be a named character, numeric, or logical vector.
 #'
 #'@return A numeric array with named dimnames, with one dimension for each value of 'keep.dimensions', plus an additional dimension, "source" at the beginning, with one value for each source from which data were pulled
@@ -410,6 +411,7 @@ pull.data <- function(data.manager = get.default.data.manager(),
                       append.metrics = NULL,
                       allow.other.sources.for.denominator = F,
                       na.rm = F,
+                      ignore.ontologies.without.requested.locations = T,
                       check.arguments = T,
                       debug = F,
                       ...)
@@ -429,6 +431,7 @@ pull.data <- function(data.manager = get.default.data.manager(),
                       append.metrics = append.metrics,
                       allow.other.sources.for.denominator = allow.other.sources.for.denominator,
                       na.rm = na.rm,
+                      ignore.ontologies.without.requested.locations = ignore.ontologies.without.requested.locations,
                       check.arguments = check.arguments,
                       debug = debug,
                       ...)
@@ -1529,6 +1532,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         append.metrics = NULL,
                         allow.other.sources.for.denominator = F,
                         na.rm = F,
+                        ignore.ontologies.without.requested.locations = T,
                         check.arguments = T,
                         debug = F,
                         ...)
@@ -1632,7 +1636,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             # Reduce ontology space by ignoring ontologies that don't have our locations if locations are in the dimension values
             # We'll do this first even though we won't *technically* know that 'location' is an incomplete dimension in the ontology we'll end up in.
             
-            if ('location' %in% names(dimension.values)) {
+            if (ignore.ontologies.without.requested.locations && 'location' %in% names(dimension.values)) {
                 ontologies.with.these.locations = names(private$i.ontologies)[sapply(private$i.ontologies, function(ont) {any(dimension.values$location %in% ont[['location']])})]
                 if (!is.null(from.ontology.names))
                     from.ontology.names = intersect(from.ontology.names, ontologies.with.these.locations)
