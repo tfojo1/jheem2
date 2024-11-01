@@ -879,7 +879,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                              dimension.values = list(year = as.character(years), location = all.locations),
                                              target.ontology = private$i.sim.ontology,
                                              allow.mapping.from.target.ontology = T,
-                                             append.attributes = 'details')
+                                             append.attributes = 'details',
+                                             ignore.ontologies.without.requested.locations = T) # ? any issue with this?
                     if (is.null(data)) {
                         if (throw.error.if.no.data)
                             stop(paste0(error.prefix, "no data was found for the stratification '", strat, "'"))
@@ -1751,8 +1752,28 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 model.mask.arr = aligning.mappings[[2]]$reverse.apply(obs.n.mask.array.aligned) # @AZ does this work??? verify with a test b/c is logical, not integer
                 # browser() ## ADDED FOR TODD
                 
-                if (any(is.na(model.arr)))
-                    stop(paste0("'", outcome.for.n, "' data could not be found for all needed locations/years/dimensions."))
+                if (any(is.na(model.arr))) {
+                    ERROR.MANAGER$code="NPL2"
+                    ERROR.MANAGER$contents = list(outcome=private$i.outcome.for.data,
+                                                  stratification=stratification,
+                                                  locations.with.n.data=locations.with.n.data,
+                                                  years.with.data=years.with.data,
+                                                  outcome.for.n=outcome.for.n,
+                                                  sim.ontology=sim.ontology,
+                                                  model.strata=model.strata,
+                                                  location=location,
+                                                  universal.ontology.for.n=universal.ontology.for.n,
+                                                  initial.aligning.mappings=initial.aligning.mappings,
+                                                  stratification.for.n=stratification.for.n,
+                                                  obs.n.array=obs.n.array,
+                                                  data.ontology=data.ontology,
+                                                  aligning.mappings=aligning.mappings,
+                                                  obs.n.array.aligned=obs.n.array.aligned,
+                                                  model.arr.dimnames=model.arr.dimnames,
+                                                  model.arr=model.arr)
+                    stop(paste0(error.prefix, "'", outcome.for.n, "' data could not be found for all needed locations/years/dimensions."))
+                }
+                    
                 
                 # use the partitioning function - VALIDATE THAT YOU GET AN ARRAY BACK WITH SAME DIMNAMES
                 partitioned.model.arr = partitioning.function(model.arr, version=version, location=location)
@@ -1796,7 +1817,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             list(obs.n = one.matrix.per.stratum, locations.with.n.data = locations.with.all.data, estimated.values = was.missing.arr)
         },
         
-        # hard code female msm as not needed so we can stop if it is NA? -> never implemented
         get.average = function(data.manager, stratification, locations.with.n.data, years.with.data, outcome.for.n, is.top.level = F, top.level.dimnames = NULL, cache, error.prefix, debug=F)
         {
             if (debug) browser()
@@ -1811,7 +1831,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                      keep.dimensions = c('year', 'location', stratification),
                                      dimension.values = list(location = locations.with.n.data, year = years.with.data),
                                      exclude.ontology.names = private$i.exclude.denominator.ontology.names,
-                                     na.rm=T)
+                                     na.rm=T,
+                                     ignore.ontologies.without.requested.locations = F)
             
             # # if we are at the top level but got nothing, throw an error because these are supposed to be locations with data
             # if (is.null(data) && is.top.level)
@@ -1857,7 +1878,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                 }
                 
                 ## NEW: If we're at top or 1-way and a stratum is missing at most 30% of its data, interpolate NAs across years
+                ## EVEN NEWER: We could also interpolate if this stratum, in years where it is not missing, comprises <10% of the total in those years (all years sum).
                 if (length(stratification)<=1 && any(is.na(data))) {
+                    stop(paste0(error.prefix, "Andrew is working on this"))
 
                     if (!any(apply(is.na(data), names(dim(data))[names(dim(data))!='year'], function(x) {sum(x)/length(x) >= 0.3})))
                         data = interpolate.array(data)
@@ -1984,7 +2007,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     # sim.ontology.years.replaced = sim.ontology[names(sim.ontology) != 'location']
                     # sim.ontology.years.replaced$year = arr.ontology$year
                     aligning.mappings = get.mappings.to.align.ontologies(arr.ontology, model.arr.ontology, allow.non.overlapping.incomplete.dimensions = T) # needs to be subset of sim.ontology?
-                    if (is.null(aligning.mappings)) stop(paste0("couldn't find mappings to align the metalocation data ontology and sim ontology"))
+                    if (is.null(aligning.mappings)) stop(paste0(error.prefix, "couldn't find mappings to align the metalocation data ontology and sim ontology"))
                     aligned.data = aligning.mappings[[1]]$apply(arr)
                     model.arr.indices = aligning.mappings[[2]]$get.reverse.mapping.indices(model.arr.dimnames, dimnames(aligned.data))
                     model.arr = array(aligned.data[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
@@ -2071,6 +2094,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                                          dimension.values = list(year = as.character(years), location = location),
                                          exclude.ontology.names = if (private$i.outcome.for.n.multipliers==private$i.denominator.outcome.for.data) private$i.exclude.denominator.ontology.names else NULL,
                                          na.rm = T,
+                                         ignore.ontologies.without.requested.locations = F,
                                          debug = F) # location.1 == '24035' && length(stratification)==0) #length(stratification)==1)
                 output.before.replacement = data
                 
@@ -2116,6 +2140,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
             # recurse
             stratification.ratios = lapply(recursive.stratifications.list, function(lower.stratification) {
                 lower.ratio.arr = get.outcome.ratios(location.1, location.2, lower.stratification, data.manager, outcome, years, universal.ontology, cache=cache, error.prefix=error.prefix)
+                
                 # if (!is.null(lower.ratio.arr) && !is.null(ratio.arr)) lower.ratio.arr = expand.array(to.expand = lower.ratio.arr, target.dim.names = dimnames(ratio.arr))
                 # lower.ratio.arr
             })
