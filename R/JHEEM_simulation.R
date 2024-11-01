@@ -1651,11 +1651,14 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                              sort = T)
         {
             param.names = private$match.parameter.names(match.names)
-            
             if (self$n.chains == 1)
             {
                 # @Andrew - fill in here
                 # variance in first 1/4 of params divided by variance in last 1/4 of params
+                parameter.values = self$parameters[param.names,,drop=F]
+                values.first.quarter = parameter.values[, 1:(floor(self$n.sim * 0.25) + 1), drop=F]
+                values.last.quarter = parameter.values[, (self$n.sim - ceiling(self$n.sim * 0.25) + 1):self$n.sim, drop=F]
+                apply(values.first.quarter, 1, function(values) {var(values)}) / apply(values.last.quarter, 1, function(values) {var(values)})
             }
             else if (self$n.chains > 1)
             {
