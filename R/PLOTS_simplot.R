@@ -97,7 +97,7 @@ plot.data.validation = function(simset.args,
     # *corresponding.data.outcomes' is NULL or a vector with outcomes as names
     if (!is.null(corresponding.data.outcomes) && (!is.character(corresponding.data.outcomes) || any(is.na(corresponding.data.outcomes)) || is.null(names(corresponding.data.outcomes)) || !all(names(corresponding.data.outcomes) %in% outcomes)))
         stop(paste0(error.prefix, "'corresponding.data.outcomes' must be NULL or a character vector with outcomes as names and all of those outcomes specified in either the 'outcomes' argument or in '...'"))
-
+    
     # each element of 'sim.list' should be a simset
     arg.is.simset = sapply(simset.args, function(element) {
         if (!R6::is.R6(element) || !is(element, 'jheem.simulation.set')) {
@@ -136,7 +136,7 @@ plot.data.validation = function(simset.args,
     else
         simset.explicitly.named = sapply(names(simset.args[arg.is.simset]), function(name) {nchar(name)>0})
     names(rv$simset.list)[simset.explicitly.named] = names(simset.args)[simset.explicitly.named]
-
+    
     # - make sure they are all the same version and the location
     if (length(unique(sapply(rv$simset.list, function(simset) {simset$version}))) > 1)
         stop(paste0(error.prefix, "all simulation sets must have the same version"))
@@ -387,11 +387,12 @@ prepare.plot <- function(simset.list=NULL,
                 
                 # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
                 one.df.outcome = reshape2::melt(outcome.data, na.rm = T, as.is=T)
-                one.df.outcome$year = as.numeric(one.df.outcome$year)
-                # one.df.outcome = as.data.frame(lapply(one.df.outcome, function(col) {
-                #     if (is.factor(col)) as.character(col)
-                #     else col
-                # }))
+                
+                # Check that we don't have year ranges if we are trying to do the year lag ratio thing
+                if (!any(sapply(one.df.outcome$year, is.year.range)))
+                    one.df.outcome$year = as.numeric(one.df.outcome$year)
+                else if (plot.year.lag.ratio)
+                    stop(paste0(error.prefix, "cannot use 'plot.year.lag.ratio' when data is in year ranges"))
                 
                 corresponding.outcome = names(outcomes.for.data)[[i]]
                 one.df.outcome['outcome'] = corresponding.outcome
@@ -422,7 +423,7 @@ prepare.plot <- function(simset.list=NULL,
             df.truth = df.truth[order(df.truth$stratum),]
     }
     names(outcome.mappings) = outcomes
-    
+    # browser()
     #-- STEP 3: MAKE A DATA FRAME WITH THE SIMULATION DATA --#
     
     df.sim = NULL
@@ -695,55 +696,65 @@ execute.simplot <- function(prepared.plot.data,
     #-- MAKE THE PLOT --#
     # browser()
     rv = ggplot2::ggplot()
-    if (!is.null(df.sim)) {
-        rv = rv + ggplot2::scale_color_manual(name = "sim color", values = color.sim.by)
-        rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = color.sim.by)
-        rv = rv + ggplot2::scale_linetype(name="sim linetype")
-    }
-    if (!is.null(df.truth)) {
-        rv = rv + ggplot2::scale_shape_manual(name = "data shape", values = all.shapes.for.scale)
-    }
+    rv = rv +
+        ggplot2::labs(y=y.label) +
+        ggplot2::ggtitle(plot.title) +
+        ggplot2::scale_alpha(guide='none')
     
-    if (!plot.year.lag.ratio) rv = rv + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
+    
+    if (!plot.year.lag.ratio)
+        rv = rv + ggplot2::scale_y_continuous(limits=c(0, NA), labels = scales::comma)
     else
         rv = rv + ggplot2::scale_y_continuous(labels = scales::comma)
     # browser()
-    # how data points are plotted is conditional on 'split.by', but the facet_wrap is not
-    if (!is.null(split.by)) {
-        if (!is.null(df.sim)) {
-            rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year,y=value,group=groupid,
-                                                                                         linetype = linetype.sim.by,
-                                                                                         color = color.sim.by,
-                                                                                         alpha = alpha,
-                                                                                         linewidth = linewidth)) +
-                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
-                                                                                          color = color.sim.by,
-                                                                                          shape = shape.sim.by))
-            if (summary.type != 'individual.simulation')
+    
+    # SIM ELEMENTS
+    if (!is.null(df.sim)) {
+        # SCALES
+        # Don't create a scale unless we use it!
+        rv = rv + ggplot2::scale_linetype(name="sim linetype")
+        rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
+
+        # PLOT
+        if (!is.null(split.by)) {
+            rv = rv + ggplot2::scale_color_manual(name = "sim color", values = color.sim.by)
+            if (nrow(df.sim.groupids.many.members)>0) {
+                rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year,y=value,group=groupid,
+                                                                                             linetype = linetype.sim.by,
+                                                                                             color = color.sim.by,
+                                                                                             alpha = alpha,
+                                                                                             linewidth = linewidth))
+            }
+            if (nrow(df.sim.groupids.one.member)>0) {
+                rv = rv +
+                    ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
+                                                                                              fill = color.sim.by,
+                                                                                              shape = shape.sim.by))
+                
+            }
+            if (summary.type != 'individual.simulation') {
                 rv = rv + ggplot2::geom_ribbon(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value,group=groupid,
                                                                                                fill = color.sim.by,
                                                                                                ymin = value.lower,
                                                                                                ymax = value.upper),
                                                alpha = style.manager$alpha.ribbon,
                                                outline.type = 'full')
-        }
-        if (!is.null(df.truth)) {
-            rv = rv + ggnewscale::new_scale_fill() + ggplot2::scale_fill_manual(values = color.data.shaded.colors)
-            rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("data color", override.aes = list(shape = 21)))
-            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,
-                                                                      fill=color.and.shade.data.by, # fill
-                                                                      shape=shape.data.by))
-        }
-        
-    } else {
-        if (!is.null(df.sim)) {
-            rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, group=groupid,
-                                                                                         linetype = linetype.sim.by,
-                                                                                         alpha = alpha,
-                                                                                         linewidth = linewidth)) +
-                ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
-                                                                                          color = color.sim.by,
-                                                                                          shape=shape.sim.by))
+                rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = color.sim.by)
+            }
+        } else {
+            if (nrow(df.sim.groupids.many.members)>0) {
+                rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, group=groupid,
+                                                                                             linetype = linetype.sim.by,
+                                                                                             alpha = alpha,
+                                                                                             linewidth = linewidth))
+            }
+            if (nrow(df.sim.groupids.one.member)>0) {
+                rv = rv +
+                    ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
+                                                                                              fill = color.sim.by,
+                                                                                              shape=shape.sim.by))
+                }
+
             if (summary.type != 'individual.simulation') {
                 rv = rv + ggplot2::geom_ribbon(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value,group=groupid,
                                                                                                fill = color.sim.by,
@@ -756,12 +767,38 @@ execute.simplot <- function(prepared.plot.data,
                     rv = rv + ggplot2::guides(fill = "none")
             }
         }
-        if (!is.null(df.truth)) {
-            rv = rv + ggnewscale::new_scale_fill() + ggplot2::scale_fill_manual(values = color.data.shaded.colors)
-            rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("data color", override.aes = list(shape = 21)))
-            rv = rv + ggplot2::geom_point(data=df.truth, size=2, ggplot2::aes(x=year, y=value, fill=color.and.shade.data.by, shape = shape.data.by))
-        } 
+        if (nrow(df.sim.groupids.one.member)>0) {
+            rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = color.sim.by)
+            rv = rv + ggplot2::scale_shape_manual(name = "sim shape", values = shapes.for.sim)
+        }
     }
+    # browser()
+    # DATA ELEMENTS
+    if (!is.null(df.truth)) {
+        # if we already have a shape scale, clear it before adding new points
+        if (!is.null(df.sim.groupids.one.member) && nrow(df.sim.groupids.one.member)>0)
+            rv = rv + ggnewscale::new_scale('shape')
+        rv = rv + ggnewscale::new_scale_fill() + ggplot2::scale_fill_manual(values = color.data.shaded.colors) # We're changing the scale because the data fills differently
+        rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("data color", override.aes = list(shape = 21)))
+        
+        # PLOT
+        if (!is.null(split.by)) {
+            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,
+                                                                      fill=color.and.shade.data.by, # fill
+                                                                      shape=shape.data.by))
+        } else {
+            # Why is this plotting all black fill, even though we remade the fill scale?? (in Melissa's outcome="new" simplot call)
+            rv = rv + ggplot2::geom_point(data=df.truth, size=2, ggplot2::aes(x=year, y=value, fill=color.and.shade.data.by, shape = shape.data.by))
+        }
+        
+        # Now create the shape scale, either for the first time or the second time
+        if (!is.null(df.sim.groupids.one.member) && nrow(df.sim.groupids.one.member)>0)
+            rv = rv + ggplot2::scale_shape_manual(name = "data shape", values = all.shapes.for.scale)
+        else
+            rv = rv + ggplot2::scale_shape_manual(name = "data shape", values = all.shapes.for.scale)
+    }
+    
+#----
     # If don't have a split.by, and thus only 1 color for sim, probably, then remove legend for it.
     if (style.manager$color.sim.by == 'stratum' && is.null(split.by))
         rv = rv + ggplot2::guides(color = "none")
@@ -778,13 +815,7 @@ execute.simplot <- function(prepared.plot.data,
         else
             rv = rv + ggplot2::facet_wrap(facet.formula, scales = 'free_y')
     }
-    
-    rv = rv +
-        ggplot2::scale_alpha(guide='none') +
-        ggplot2::labs(y=y.label) +
-        ggplot2::ggtitle(plot.title)
-    if (!is.null(df.sim))
-        rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
+    # browser()
     
     if (plot.year.lag.ratio) rv = rv + ggplot2::xlab("latter year")
     
