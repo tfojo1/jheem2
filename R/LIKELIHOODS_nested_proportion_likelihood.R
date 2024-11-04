@@ -1877,12 +1877,18 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     data = complete.array
                 }
                 
-                ## NEW: If we're at top or 1-way and a stratum is missing at most 30% of its data, interpolate NAs across years
-                ## EVEN NEWER: We could also interpolate if this stratum, in years where it is not missing, comprises <10% of the total in those years (all years sum).
+                # Interpolate if we're at top or 1-way levels and certain conditions are met per stratum
                 if (length(stratification)<=1 && any(is.na(data))) {
-                    # stop(paste0(error.prefix, "Andrew is working on this"))
+                    
+                    # Check if missing at most 30% of data a stratum
+                    not.missing.more.than.thirty.percent = !apply(is.na(data), names(dim(data))[names(dim(data))!='year'], function(x) {sum(x)/length(x) >= 0.3})
+                    
+                    # OR if a stratum accounts for <10% of total in years it has data
+                    sum.per.stratum = apply(data, setdiff(names(dim(data)), 'year'), function(col) {sum(col, na.rm=T)})
+                    each.mask.applied = apply(!is.na(data), setdiff(names(dim(data)), 'year'), function(mask) {sum(data[mask,,], na.rm=T)})
+                    comprises.less.than.ten.percent.of.total = sum.per.stratum / each.mask.applied < 0.1
 
-                    if (!any(apply(is.na(data), names(dim(data))[names(dim(data))!='year'], function(x) {sum(x)/length(x) >= 0.3})))
+                    if (all(not.missing.more.than.thirty.percent || comprises.less.than.ten.percent.of.total))
                         data = interpolate.array(data)
                 }
             }
