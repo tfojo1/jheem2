@@ -97,11 +97,6 @@ plot.data.validation = function(simset.args,
     # *corresponding.data.outcomes' is NULL or a vector with outcomes as names
     if (!is.null(corresponding.data.outcomes) && (!is.character(corresponding.data.outcomes) || any(is.na(corresponding.data.outcomes)) || is.null(names(corresponding.data.outcomes)) || !all(names(corresponding.data.outcomes) %in% outcomes)))
         stop(paste0(error.prefix, "'corresponding.data.outcomes' must be NULL or a character vector with outcomes as names and all of those outcomes specified in either the 'outcomes' argument or in '...'"))
-    
-    #-- STEP 1: PRE-PROCESSING --#
-    # Get a list out of ... where each element is one simset (or sim for now)
-    # browser()
-    
 
     # each element of 'sim.list' should be a simset
     arg.is.simset = sapply(simset.args, function(element) {
@@ -136,7 +131,10 @@ plot.data.validation = function(simset.args,
     # browser()
     # Add names to simsets
     rv$simset.list = setNames(simset.args[arg.is.simset], deparsed.substituted.args.simset.args[arg.is.simset])
-    simset.explicitly.named = sapply(names(simset.args[arg.is.simset]), function(name) {nchar(name)>0})
+    if (is.null(names(simset.args)))
+        simset.explicitly.named = rep(F, sum(arg.is.simset))
+    else
+        simset.explicitly.named = sapply(names(simset.args[arg.is.simset]), function(name) {nchar(name)>0})
     names(rv$simset.list)[simset.explicitly.named] = names(simset.args)[simset.explicitly.named]
 
     # - make sure they are all the same version and the location
@@ -695,7 +693,7 @@ execute.simplot <- function(prepared.plot.data,
     }
     
     #-- MAKE THE PLOT --#
-    
+    # browser()
     rv = ggplot2::ggplot()
     if (!is.null(df.sim)) {
         rv = rv + ggplot2::scale_color_manual(name = "sim color", values = color.sim.by)
