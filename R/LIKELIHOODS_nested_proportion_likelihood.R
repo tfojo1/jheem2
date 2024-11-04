@@ -1887,8 +1887,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD = R6::R6Class(
                     sum.per.stratum = apply(data, setdiff(names(dim(data)), 'year'), function(col) {sum(col, na.rm=T)})
                     each.mask.applied = apply(!is.na(data), setdiff(names(dim(data)), 'year'), function(mask) {sum(data[mask,,], na.rm=T)})
                     comprises.less.than.ten.percent.of.total = sum.per.stratum / each.mask.applied < 0.1
-
-                    if (all(not.missing.more.than.thirty.percent || comprises.less.than.ten.percent.of.total))
+                    if (all(not.missing.more.than.thirty.percent | comprises.less.than.ten.percent.of.total))
                         data = interpolate.array(data)
                 }
             }
