@@ -19,6 +19,7 @@ pull.data(
   append.metrics = NULL,
   allow.other.sources.for.denominator = F,
   na.rm = F,
+  ignore.ontologies.without.requested.locations = T,
   check.arguments = T,
   debug = F,
   ...
@@ -46,6 +47,8 @@ pull.data(
 \item{append.attributes}{A character vector indicating requested data attributes to include with the result. May be either "details", "url", or both}
 
 \item{na.rm}{Whether to disregard NA values when aggregating out dimensions not in keep.dimensions}
+
+\item{ignore.ontologies.without.requested.locations}{If 'dimension.values' includes a location dimension, should ontologies that don't have any of those locations for the requested outcome be ignored? See detailed documentation about how ontologies factor into the output. (NOT YET WRITTEN)}
 
 \item{...}{Optional alternative way to specify dimension.values. Each element must be a named character, numeric, or logical vector.}
 

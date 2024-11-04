@@ -6,6 +6,7 @@
 \usage{
 \method{plot}{data.validation}(
   simset.args,
+  deparsed.substituted.args.simset.args,
   outcomes,
   corresponding.data.outcomes,
   plot.which,
@@ -14,6 +15,8 @@
 }
 \arguments{
 \item{simset.args}{A list of the ... parameter in the previous function, containing simset data.  Will be processed and returned as $simset.list}
+
+\item{deparsed.substituted.args.simset.args}{The ... parameter with each argument converted to a character exactly as it is, without evaluating any expressions. Used to give un-named simsets names later.}
 
 \item{outcomes}{The outcomes asked for by the plotting function.  Will be processed and returned as $outcomes}
 
