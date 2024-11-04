@@ -1,5 +1,5 @@
 
-#'@param ... One or more of either (1) jheem.simulation objects or (2) jheem.simset objects or (3) lists containing only jheem.simulation or jheem.simset objects
+#'@param ... One or more jheem.simulation.set objects and at most one character vector of outcomes (as an alternative to the 'outcomes' argument)
 #'@param outcomes A character vector of which simulation outcomes to plot
 #'@param split.by At most one dimension
 #'@param facet.by Any number of dimensions but cannot include the split.by dimension
@@ -31,7 +31,8 @@ simplot <- function(...,
                     style.manager = get.default.style.manager(),
                     debug = F)
 {
-    plot.data = plot.data.validation(list(...), 
+    plot.data = plot.data.validation(list(...),
+                                     match.call(expand.dots = F)$...,
                                      outcomes, 
                                      corresponding.data.outcomes, 
                                      plot.which, 
@@ -71,12 +72,14 @@ simplot <- function(...,
 
 #' Cleaning and verifying the plotting data so it can be properly plotted
 #'@param simset.args A list of the ... parameter in the previous function, containing simset data.  Will be processed and returned as $simset.list
+#'@param deparsed.substituted.args.simset.args The ... parameter with each argument converted to a character exactly as it is, without evaluating any expressions. Used to give un-named simsets names later.
 #'@param outcomes The outcomes asked for by the plotting function.  Will be processed and returned as $outcomes
 #'@param corresponding.data.outcomes Checked for proper value, not passed out of the function
 #'@param plot.which Checked for proper value, not passed out of the function
 #'@param summary.type Checked for proper value, not passed out of the function
 #'@return A list containing processed $simset.list and $outcomes
 plot.data.validation = function(simset.args,
+                                deparsed.substituted.args.simset.args,
                                 outcomes,
                                 corresponding.data.outcomes,
                                 plot.which,
@@ -97,49 +100,45 @@ plot.data.validation = function(simset.args,
     
     #-- STEP 1: PRE-PROCESSING --#
     # Get a list out of ... where each element is one simset (or sim for now)
+    # browser()
     
-    rv$outcomes = outcomes
-    
-    outcomes.found.in.simset.args = F
-    # each element of 'sim.list' should be either a sim or list containing only sims.
-    for (element in simset.args) {
+
+    # each element of 'sim.list' should be a simset
+    arg.is.simset = sapply(simset.args, function(element) {
         if (!R6::is.R6(element) || !is(element, 'jheem.simulation.set')) {
-            if (is.list(element)) {
-                if (any(sapply(element, function(sub.element) {!R6::is.R6(sub.element) || !is(sub.element, 'jheem.simulation.set')}))) {
-                    stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation.set objects or lists containing only jheem.simulation.set objects"))
-                }
-            } else if (is.null(rv$outcomes) && is.character(element)) {
-                rv$outcomes = element
-                outcomes.found.in.simset.args = T
-            }
+            if (is.character(element))
+                return(FALSE)
             else
-                stop(paste0(error.prefix, "arguments supplied in '...' must either be jheem.simulation.set objects or lists containing only jheem.simulation.set objects"))
+                stop(paste0(error.prefix, "arguments supplied in '...' must be jheem.simulation.set objects and at most one character vector of outcomes"))
         }
-    }
+        return(TRUE)
+    })
     
+    # Pull out outcomes, which may be at most one element of the ...
+    rv$outcomes = outcomes
+    if (sum(!arg.is.simset)>0)
+    {
+        if (!is.null(outcomes))
+            stop(paste0(error.prefix, "outcomes must be specified either in '...' arguments or in the 'outcomes' argument, but not both"))
+        if (sum(!arg.is.simset)>1)
+            stop(paste0(error.prefix, "at most one character vector of outcomes may be suppied in '...' arguments as an alternative to the 'outcomes' argument"))
+        rv$outcomes = unlist(simset.args[!arg.is.simset])
+    }
     if (!is.character(rv$outcomes) || is.null(rv$outcomes) || any(is.na(rv$outcomes)) || any(duplicated(rv$outcomes))) {
-        if (outcomes.found.in.simset.args)
+        if (sum(!arg.is.simset)>0)
             stop(paste0(error.prefix, "'outcomes' found as unnamed argument in '...' must be a character vector with no NAs or duplicates"))
         else
             stop(paste0(error.prefix, "'outcomes' must be a character vector with no NAs or duplicates"))
     }
     
-    if (outcomes.found.in.simset.args) {
-        if (length(simset.args) < 2)
-            stop(paste0(error.prefix, "one or more jheem.simulation.set objects or lists containing only jheem.simulation.set objects must be supplied"))
-        else
-            rv$simset.list = simset.args[1:(length(simset.args)-1)]
-    }
-    else {
-        if (length(simset.args) < 1)
-            stop(paste0(error.prefix, "one or more jheem.simulation.set objects or lists containing only jheem.simulation.set objects must be supplied"))
-        else
-            rv$simset.list = simset.args
-    }
-    
-    # Now simset.list contains only simsets and lists containing only simsets. It needs to be just a single-level list of simsets now
-    rv$simset.list = unlist(rv$simset.list, recursive = F)
-    
+    if (sum(arg.is.simset)<1)
+        stop(paste0(error.prefix, "one or more jheem.simulation.set objects must be supplied"))
+    # browser()
+    # Add names to simsets
+    rv$simset.list = setNames(simset.args[arg.is.simset], deparsed.substituted.args.simset.args[arg.is.simset])
+    simset.explicitly.named = sapply(names(simset.args[arg.is.simset]), function(name) {nchar(name)>0})
+    names(rv$simset.list)[simset.explicitly.named] = names(simset.args)[simset.explicitly.named]
+
     # - make sure they are all the same version and the location
     if (length(unique(sapply(rv$simset.list, function(simset) {simset$version}))) > 1)
         stop(paste0(error.prefix, "all simulation sets must have the same version"))
@@ -152,7 +151,6 @@ plot.data.validation = function(simset.args,
         stop(paste0("There weren't any simulation sets for one or more outcomes. Should this be an error?"))
     
     return (rv)
-    
 }
 
 
@@ -462,7 +460,7 @@ prepare.plot <- function(simset.list=NULL,
                     else col
                 }))
                 
-                one.df.sim.this.outcome['simset'] = i
+                one.df.sim.this.outcome['simset'] = names(simset.list)[[i]]
                 one.df.sim.this.outcome['outcome'] = outcome
                 one.df.sim.this.outcome['linewidth'] = 1/sqrt(simset$n.sim) # have style manager create this later?
                 one.df.sim.this.outcome['alpha'] = one.df.sim.this.outcome['linewidth'] # same comment as above; USED to be 20 * this
