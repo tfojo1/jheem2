@@ -170,6 +170,9 @@ set.up.calibration <- function(version,
 
     sampling.blocks = sampling.blocks[sapply(sampling.blocks, length)>0]
     
+    unnamed.block.mask = is.na(names(sampling.blocks)) | names(sampling.blocks)==''
+    names(sampling.blocks)[unnamed.block.mask] = paste0('block', 1:sum(unnamed.block.mask))
+    
     
     #-------------------------------------------------------------#
     #-- Prepare Default Initial Values, Step Sizes, and Cov Mat --#
@@ -332,6 +335,7 @@ set.up.calibration <- function(version,
         preceding.index = preceding.index + 1
     }
     
+    browser()
     all.initial.model.parameter.values = all.default.model.parameter.values
     all.initial.model.parameter.values[names(initial.model.parameter.values)] = initial.model.parameter.values
     
