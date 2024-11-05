@@ -335,7 +335,6 @@ set.up.calibration <- function(version,
         preceding.index = preceding.index + 1
     }
     
-    browser()
     all.initial.model.parameter.values = all.default.model.parameter.values
     all.initial.model.parameter.values[names(initial.model.parameter.values)] = initial.model.parameter.values
     
