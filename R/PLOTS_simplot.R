@@ -624,7 +624,7 @@ execute.simplot <- function(prepared.plot.data,
     }
     
     ## COLORS
-    color.sim.by = NULL
+    colors.for.sim = NULL
     color.data.primary.colors = NULL
     
     sim.color.groups = sort(unique(df.sim$color.sim.by))
@@ -642,15 +642,15 @@ execute.simplot <- function(prepared.plot.data,
             all.colors = NULL # doesn't matter?
         
         names(all.colors) = all.color.groups
-        color.sim.by = all.colors[sim.color.groups]
+        colors.for.sim = all.colors[sim.color.groups]
         color.data.primary.colors = all.colors[data.color.groups]
     }
     
     # otherwise, assign colors individually
     else {
         if (!is.null(df.sim)) {
-            color.sim.by = style.manager$get.sim.colors(length(sim.color.groups))
-            names(color.sim.by) = sim.color.groups
+            colors.for.sim = style.manager$get.sim.colors(length(sim.color.groups))
+            names(colors.for.sim) = sim.color.groups
         }
         if (!is.null(df.truth)) {
             color.data.primary.colors = style.manager$get.data.colors(length(data.color.groups))
@@ -661,7 +661,7 @@ execute.simplot <- function(prepared.plot.data,
     ## RIBBON COLOR
     color.ribbon.by = NULL
     if (!is.null(df.sim)) {
-        color.ribbon.by = ggplot2::alpha(color.sim.by, style.manager$alpha.ribbon)
+        color.ribbon.by = ggplot2::alpha(colors.for.sim, style.manager$alpha.ribbon)
     }
     
     ## SHADES FOR DATA
@@ -683,6 +683,13 @@ execute.simplot <- function(prepared.plot.data,
         names(shapes.for.sim) = unique(df.sim$shape.sim.by)
     }
     all.shapes.for.scale = c(shapes.for.data, shapes.for.sim)
+    
+    ## LINETYPES
+    linetypes.for.sim = NULL
+    if (!is.null(df.sim)) {
+        linetypes.for.sim = style.manager$get.linetypes(length(unique(df.sim$linetype.sim.by)))
+        names(linetypes.for.sim) = unique(df.sim$linetype.sim.by)
+    }
     
     ## GROUPS
     # break df.sim into two data frames, one for outcomes where the sim will be lines and the other for where it will be points
@@ -710,14 +717,11 @@ execute.simplot <- function(prepared.plot.data,
     
     # SIM ELEMENTS
     if (!is.null(df.sim)) {
-        # SCALES
-        # Don't create a scale unless we use it!
-        rv = rv + ggplot2::scale_linetype(name="sim linetype")
-        rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
-
+        # Note: the key to avoiding warning messages about scale is to only add a scale if it is used by the data frames that are actually plotted.
+        
         # PLOT
         if (!is.null(split.by)) {
-            rv = rv + ggplot2::scale_color_manual(name = "sim color", values = color.sim.by)
+            rv = rv + ggplot2::scale_color_manual(name = "sim color", values = colors.for.sim)
             if (nrow(df.sim.groupids.many.members)>0) {
                 rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year,y=value,group=groupid,
                                                                                              linetype = linetype.sim.by,
@@ -767,8 +771,12 @@ execute.simplot <- function(prepared.plot.data,
                     rv = rv + ggplot2::guides(fill = "none")
             }
         }
+        if (nrow(df.sim.groupids.many.members)>0 && summary.type == 'individual.simulation') {
+            rv = rv + ggplot2::scale_linetype_manual(name="sim linetype", values = linetypes.for.sim, breaks = names(linetypes.for.sim))
+            rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
+        }
         if (nrow(df.sim.groupids.one.member)>0) {
-            rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = color.sim.by)
+            rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = colors.for.sim)
             rv = rv + ggplot2::scale_shape_manual(name = "sim shape", values = shapes.for.sim)
         }
     }
