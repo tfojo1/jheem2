@@ -152,7 +152,7 @@ OUTCOME.LOCATION.MAPPING = R6::R6Class(
                 {
                     if (is.null(private$i.jheem.kernel))
                     {
-                        specification = get.compiled.specification.for.version('ehe')
+                        specification = get.compiled.specification.for.version(private$i.version)
                         outcome = specification$get.outcome(outcome.name)
                     }
                     else
