@@ -4,32 +4,89 @@
 ##--------------------------##
 
 
-#@Andrew need to document more
-#'@param instructions.code A valid code containing only letters, numbers, dashes, and periods.
-#'@param version The name of a ....?
-#'@param location A single character vector specifying a location. Must be a valid location.
+#'@title Instantiate Likelihood
+#'@inheritParams jheem2-likelihood-params
 #'@param data.manager A jheem.data.manager object. May be NULL for Bernoulli likelihood instructions.
-#'@param error.prefix (Optional) A message to include in error messages.
-#'
+#'@param throw.error.if.no.data Should an error be thrown if no relevant data is found?
 #'@export
-instantiate.likelihood <- function(instructions.code,
+instantiate.likelihood <- function(instructions,
                                    version,
                                    location,
-                                   data.manager, # pass this to the child classes
+                                   sub.version = NULL,
+                                   data.manager=get.default.data.manager(), # pass this to the child classes; Bernoullis don't need this or next arg
+                                   throw.error.if.no.data = F,
                                    error.prefix = "Error instantiating likelihood from instructions: ")
 {
-    instr = get.likelihood.instructions(code=instructions.code, error.prefix=error.prefix)
-    
-    if (is.null(instr))
-        stop(paste0(error.prefix, "no instructions were found for code ", code))
-    
-    instr$instantiate.likelihood(version = version,
-                                 location = location,
-                                 data.manager = data.manager,
-                                 error.prefix = error.prefix)
+    if (!R6::is.R6(instructions) || !is(instructions, 'jheem.likelihood.instructions'))
+        stop(paste0(error.prefix, "'instructions' must be a 'jheem.likelihood.instructions' object"))
+    instructions$instantiate.likelihood(version=version,
+                                        sub.version=sub.version,
+                                        location=location,
+                                        data.manager=data.manager,
+                                        throw.error.if.no.data=throw.error.if.no.data,
+                                        error.prefix=error.prefix)
 }
 
+#'@title Compute Likelihood
+#'@inheritParams jheem2-likelihood-params
+#'@param use.optimized.get Should the optimized sim$get be used? The optimized get only works on simsets of the same internal structure as that defined in the specification at the time this likelihood was instantiated, so use it for the MCMC but leave it FALSE for analysis.
+#'@param check.consistency - Whether to spend time checking to make sure everything is internally consistent. Setting to F is faster, but may generate weird error messages if there are bugs
+#'@export
+compute.likelihood <- function(likelihood,
+                               sim,
+                               log=T,
+                               use.optimized.get=F,
+                               check.consistency=T,
+                               debug=F)
+{
+    error.prefix = "Error computing likelihood: "
+    if (!R6::is.R6(likelihood) || !is(likelihood, 'jheem.likelihood'))
+        stop(paste0(error.prefix, "'likelihood' must be a 'jheem.likelihood' object"))
+    likelihood$compute(sim=sim,
+                       log=log,
+                       use.optimized.get=use.optimized.get,
+                       check.consistency = check.consistency,
+                       error.prefix=error.prefix,
+                       debug=debug)
+}
 
+#'@title Compute Joint Likelihood Piecewise
+#'@inheritParams compute.likelihood
+#'@details For likelihoods that are not joint likelihoods, this is the same as \code{\link{compute.likelihood()}}
+#'@export
+compute.likelihood.piecewise <- function(likelihood,
+                                         sim,
+                                         log=T,
+                                         use.optimized.get=F,
+                                         check.consistency=T,
+                                         debug=F)
+{
+    error.prefix = "Error computing likelihood: "
+    if (!R6::is.R6(likelihood) || !is(likelihood, 'jheem.likelihood'))
+        stop(paste0(error.prefix, "'likelihood' must be a 'jheem.likelihood' object"))
+    likelihood$compute(sim=sim,
+                       log=log,
+                       use.optimized.get=use.optimized.get,
+                       check.consistency = check.consistency,
+                       debug=debug)
+}
+
+#'@title Compare Two Simsets
+#'@description Compare how two simsets score on a likelihood
+#'@inheritParams jheem2-likelihood-params
+#'@param sim1,sim2 'jheem.simulation.set' objects to compare
+#'@param piecewise Should they be compared on each likelihood individually, if a joint likelihood is supplied?
+compare.sims = function(likelihood, sim1, sim2, piecewise=T, log=F)
+{
+    error.prefix = "Error computing likelihood: "
+    if (!R6::is.R6(likelihood) || !is(likelihood, 'jheem.likelihood'))
+        stop(paste0(error.prefix, "'likelihood' must be a 'jheem.likelihood' object"))
+    likelihood$compare.sims(sim1=sim1,
+                            sim2=sim2,
+                            piecewise=piecewise,
+                            log=log,
+                            error.prefix = error.prefix)
+}
 
 ##---------------##
 ##-- CONSTANTS --##
@@ -45,10 +102,11 @@ JHEEM.LIKELIHOOD.CODE.ITERATION = '2.0'
 
 LIKELIHOOD.INSTRUCTIONS.MANAGER = new.env()
 
+#'@title Register Likelihood Instructions
+#'@inheritParams jheem2-params
 #'@param instructions A previously unregistered jheem.likelihood.instructions.object.
 #'@param code A valid code containing only letters, numbers, dashes, and periods.
 #'@param description A description of the likelihood for user reference.
-#'@param error.prefix (Optional) A message to include in error messages.
 #'
 #'@export
 register.likelihood.instructions = function(instructions,
@@ -66,6 +124,8 @@ register.likelihood.instructions = function(instructions,
     
 }
 
+#'@title Remove Likelihood Instructions
+#'@description Un-registers likelihood instructions by code
 #'@param codes One or more valid codes
 #'@param throw.error.if.code.not.registered Should an error be thrown listing any codes that are not already registered?
 #'
@@ -91,8 +151,9 @@ remove.likelihood.instructions = function(codes,
     
 }
 
+#'@title Get Likelihood Instructions
+#' @inheritParams jheem2-params
 #' @param code A valid code containing only letters, numbers, dashes, and periods.
-#' @param error.prefix A message to include in error messages.
 #' 
 get.likelihood.instructions = function(code, error.prefix = "Error getting likelihood instructions")
 {
@@ -517,25 +578,25 @@ JHEEM.LIKELIHOOD = R6::R6Class(
             
         },
         
-        #'@param sim A 'jheem.simulation.set' object
-        #'@param log Whether to use log likelihood
-        #'@param use.optimized.get Should the optimized sim$get be used? The optimized get only works on simsets of the same internal structure as that defined in the specification at the time this likelihood was instantiated, so use it for the MCMC but leave it FALSE for analysis.
-        #'@param check.consistency - Whether to spend time checking to make sure everything is internally consistent. Setting to F is faster, but may generate weird error messages if there are bugs
-        compute = function(sim, log=T, use.optimized.get=F, check.consistency=private$i.check.consistency.flag, debug=F)
+        compute = function(sim, log=T, use.optimized.get=F, check.consistency=private$i.check.consistency.flag, error.prefix='Error computing likelihood: ', debug=F)
         {
-            #@Andrew implement
-            error.prefix = "Error computing likelihood: "
-            
             # VALIDATION PURPOSELY SKIPPED FOR TIME SAVING. ENSURE SIM IS A SIMULATION!
-            
-            if (!is(sim, 'jheem.simulation.set'))
-                stop(paste0(error.prefix, "'sim' must be a 'jheem.simulation.set' object"))
-            
-            if (sim$n.sim != 1)
-                stop(paste0(error.prefix, "'sim' must have only one simulation in it"))
-            
+            if (!is.logical(check.consistency) || length(check.consistency)!=1 || is.na(check.consistency))
+                stop(paste0(error.prefix, "'check.consistency' must be TRUE or FALSE"))
+            if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
+                stop(paste0(error.prefix, "'error.prefix' must be a single character value"))
             if (check.consistency)
             {
+                if (!is(sim, 'jheem.simulation.set'))
+                    stop(paste0(error.prefix, "'sim' must be a 'jheem.simulation.set' object"))
+                if (!is.logical(log) || length(log)!=1 || is.na(log))
+                    stop(paste0(error.prefix, "'log' must be TRUE or FALSE"))
+                if (!is.logical(use.optimized.get) || length(use.optimized.get)!=1 || is.na(use.optimized.get))
+                    stop(paste0(error.prefix, "'use.optimized.get' must be TRUE or FALSE"))
+                if (sim$n.sim != 1)
+                    stop(paste0(error.prefix, "'sim' must have only one simulation in it"))
+                if (!is.logical(debug) || length(debug)!=1 || is.na(debug))
+                    stop(paste0(error.prefix, "'debug' must be TRUE or FALSE"))
                 # Make sure that the sim has the years needed for the likelihood
                 if (!all(private$i.years %in% sim$from.year:sim$to.year))
                     stop(paste0(error.prefix, "simulation does not have all needed years"))
@@ -565,14 +626,25 @@ JHEEM.LIKELIHOOD = R6::R6Class(
         },
         
         # Override at the sub-class level, just for joint likelihood
-        compute.piecewise = function(sim, log=T, use.optimized.get=F, check.consistency=T, debug=F)
+        compute.piecewise = function(sim, log=T, use.optimized.get=F, check.consistency=T, error.prefix='Error computing liklihood: ', debug=F)
         {
-            self$compute(sim=sim, log=log, use.optimized.get=use.optimized.get, check.consistency = check.consistency, debug=debug)
+            self$compute(sim=sim, log=log, use.optimized.get=use.optimized.get, check.consistency = check.consistency, error.prefix=error.prefix, debug=debug)
         },
         
         # compare sims
-        compare.sims = function(sim1, sim2, piecewise=T, log=F)
+        compare.sims = function(sim1, sim2, piecewise=T, log=F, error.prefix='Error comparing sims: ')
         {
+            if (!R6::is.R6(sim1) || !is(sim1, 'jheem.simulation.set'))
+                stop(paste0(error.prefix, "'sim1' must be a 'jheem.simulation.set' object"))
+            if (!R6::is.R6(sim2) || !is(sim2, 'jheem.simulation.set'))
+                stop(paste0(error.prefix, "'sim2' must be a 'jheem.simulation.set' object"))
+            if (!is.logical(piecewise) || length(piecewise)!=1 || is.na(piecewise))
+                stop(paste0(error.prefix, "'piecewise' must be TRUE or FALSE"))
+            if (!is.logical(log) || length(log)!=1 || is.na(log))
+                stop(paste0(error.prefix, "'log' must be TRUE or FALSE"))
+            if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
+                stop(paste0(error.prefix, "'error.prefix' must be a single character value"))
+            
             if (piecewise)
                 diff = self$compute.piecewise(sim2) - self$compute.piecewise(sim1)
             else
