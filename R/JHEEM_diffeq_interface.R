@@ -603,6 +603,7 @@ prepare.infections.info <- function(settings, quantity.dim.names,
         
 
         # Parse contact matrix
+   #     contact.dim.names = comp$mechanism.dim.names$contact
         contact.quantity.dim.names = quantity.dim.names[[comp$contact]]
         
         contact.from.dim.names = contact.quantity.dim.names[grepl(".from$", names(contact.quantity.dim.names))]
@@ -673,7 +674,7 @@ prepare.infections.info <- function(settings, quantity.dim.names,
         state.indices.for.to.contacts = lapply(susceptibility.indices.per.to.contact, function(susceptibility.indices){
             susceptibility.to.uninfected.indices[susceptibility.indices]
         })
-        
+ 
         susceptibility.to.quantity.indices = get.expand.array.indices(to.expand.dim.names = susceptibility.quantity.dim.names,
                                                                         target.dim.names = susceptibility.dim.names,
                                                                         index.from = 0)
@@ -740,6 +741,14 @@ prepare.infections.info <- function(settings, quantity.dim.names,
         # Pull dim names into which new infections can go
         new.infection.dim.names = new.infection.proportions.dim.names[infected.dimensions]
         
+        # Contact indices for to contacts
+        contact.indices.for.to.contacts = lapply(to.contact.categories, function(catg){
+            names(catg) = paste0(names(catg), ".to")
+            get.array.access.indices(arr.dim.names = contact.quantity.dim.names, 
+                                     dimension.values = catg,
+                                     index.from = 0)
+        })
+        
         # Package it up
         list(
             
@@ -762,6 +771,8 @@ prepare.infections.info <- function(settings, quantity.dim.names,
             
             new_infection_proportions_indices_for_to_contacts = new.infection.proportion.indices,
             new_infection_state_indices_for_to_contacts = new.infection.state.indices,
+            
+            contact_indices_for_to_contacts = contact.indices.for.to.contacts,
             
             by_incidence_trackers = prepare.and.pare.trackers(outcome.names[outcome.trackable.types=='incidence.by'], 
                                            settings = settings,

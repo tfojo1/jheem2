@@ -476,6 +476,8 @@ void do_tracking(List trackers,
 //      $new_infection_proportions_indices - An IntegerVector giving indices into the new_infections_proportions quantity. Represents a matrix with one column for each compartment in the uninfected state
 //      $new_infection_state_indices - An IntegerVector giving indices into the infected state array. Represents a matrix with one column for each compartment in the uninfected state
 //            
+//      $contact_indices_for_to_contacts - A List of n_to_contacts IntegerVectors. Each element is n_from_contacts long. contact_indices_for_to_contacts[[to]][from] gives the index into the contact matrix quantity corresponding to transmissions from [from] to [to]
+//
 //      $to_trackers - A list, with one "tracker" for every tracked quantity which tracks the infected ("to") state of individuals after they become infected
 //      $from_trackers - A list, with one "tracker" for every tracked quantity which tracks the uninfected ("from") state of individuals who will be infected before they become infected
 //      $by_trackers - A list, with one "tracker" for every tracked quantity which tracks the infected compartments that are responsible for generating infections ("by") in other compartments
@@ -969,6 +971,9 @@ if (debug)
         IntegerVector denominator_uninfected_indices = denominator_uninfected_indices_for_from_contacts[0];
         int n_denominator_uninfected_per_from_contact = denominator_uninfected_indices.length();
         
+        // Pull Contact Indices
+        List contact_indices_for_to_contacts =  one_infections_info["contact_indices_for_to_contacts"];
+        
         // STEP 1: Calculate the Aggregate Transmissibility Coming from each Category of From Compartments
         double numerator;
         double denominator;
@@ -1027,14 +1032,15 @@ if (debug)
             new_infection_state_indices_for_to_compartments = new_infection_state_indices_for_to_contacts[to];
             
             // Get the row in the matrix
-            double *contact_row = contact_matrix + to * n_from_contacts;
+            IntegerVector contact_indices_for_to = (IntegerVector) contact_indices_for_to_contacts[to];
+            //double *contact_row = contact_matrix + to * n_from_contacts;
             
             // STEP 2: Sum up the Contact Rates * From Transmissibility
             //          for All From Categories for a To Category
             // Iterate through the from categories in the matrix (rows)
             from_force_of_infection = 0;
             for (int from=0; from<n_from_contacts; from++)
-                from_force_of_infection += aggregate_from_transmissibility[from] * contact_row[from];
+                from_force_of_infection += aggregate_from_transmissibility[from] * contact_matrix[ contact_indices_for_to[from] ];
 
             // Iterate through each to compartment in the to category   
             for (int i=0; i<n_compartments_per_to_contact; i++)
