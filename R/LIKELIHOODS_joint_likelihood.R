@@ -154,7 +154,7 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
         i.sub.likelihoods = NULL,
         do.compute = function(sim, log, use.optimized.get, check.consistency, debug) {
             sub.values <- sapply(private$i.sub.likelihoods, function(like) {
-                like$compute(sim, log = log, use.optimized.get = use.optimized.get, check.consistency = check.consistency, debug)
+                like$compute(sim, log = log, use.optimized.get = use.optimized.get, check.consistency = check.consistency, error.prefix = "Error computing liklihood: ", debug)
             })
             # print(sub.values)
             if (log) {
