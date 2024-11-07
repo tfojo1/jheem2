@@ -38,7 +38,7 @@ RObject calculate_main_effect_indices(List target_dim_names,
     for (int i=n_dim-2; i>=0; i--)
         n_after_dim[i] = n_after_dim[i+1] * dims[i+1];
     
-
+    
     // Set up indexing in to alphas
     int alpha_dims[n_alphas];
     int alpha_indices[n_alphas];
@@ -95,14 +95,14 @@ RObject calculate_main_effect_indices(List target_dim_names,
         }
         else
             return (R_NilValue);
-            
+        
     }
     
     // Calculate the total number of indices we are going to calculate
     int n = 0;
     for (int i=0; i<n_alphas; i++)
         n += n_before_dim[ alpha_dims[i] ] * n_after_dim[ alpha_dims[i] ];
-
+    
     // Set up to iterate
     int index = 0;
     int d;
@@ -231,19 +231,19 @@ RObject calculate_two_way_interaction_indices(List target_dim_names,
     int dim2_values[n_interactions];
     
     if (!do_map_indices(dim1,
-                   dim1_values,
-                   alpha_dimension1,
-                   alpha_dim1_values,
-                   dimensions,
-                   target_dim_names))
+                        dim1_values,
+                        alpha_dimension1,
+                        alpha_dim1_values,
+                        dimensions,
+                        target_dim_names))
         return (R_NilValue);
     
     if (!do_map_indices(dim2,
-                   dim2_values,
-                   alpha_dimension2,
-                   alpha_dim2_values,
-                   dimensions,
-                   target_dim_names))
+                        dim2_values,
+                        alpha_dimension2,
+                        alpha_dim2_values,
+                        dimensions,
+                        target_dim_names))
         return (R_NilValue);
     
     // make sure dim 1 is less than dim 2
@@ -321,12 +321,12 @@ RObject calculate_two_way_interaction_indices(List target_dim_names,
 
 // [[Rcpp::export]]
 RObject calculate_three_way_interaction_indices(List target_dim_names,
-                                              CharacterVector alpha_dimension1,
-                                              List alpha_dim1_values,
-                                              CharacterVector alpha_dimension2,
-                                              List alpha_dim2_values,
-                                              CharacterVector alpha_dimension3,
-                                              List alpha_dim3_values)
+                                                CharacterVector alpha_dimension1,
+                                                List alpha_dim1_values,
+                                                CharacterVector alpha_dimension2,
+                                                List alpha_dim2_values,
+                                                CharacterVector alpha_dimension3,
+                                                List alpha_dim3_values)
 {
     // Initial set-up
     int n_interactions = alpha_dim1_values.length();
@@ -442,7 +442,7 @@ RObject calculate_three_way_interaction_indices(List target_dim_names,
         }
     }
     
-
+    
     // Calculate n for each section we'll iterate through
     int n_before_1 = 1;
     for (int i=0; i<dim1; i++)
@@ -492,7 +492,7 @@ RObject calculate_three_way_interaction_indices(List target_dim_names,
                             i_between_1_2*n_before_between_1_2 +
                             dv1[i_interaction]*n_before_1 +
                             i_before;
-                            
+                        
                         mapping_indices[index] = 1 + i_interaction; //the "1+" puts it into R indexing, which is from 1
                         
                         index++;
@@ -501,7 +501,7 @@ RObject calculate_three_way_interaction_indices(List target_dim_names,
             }
         }
     }
-
+    
     // Package up and return
     return(List::create(Named("access.indices") = access_indices,
                         _["mapping.indices"] = mapping_indices));
@@ -509,14 +509,14 @@ RObject calculate_three_way_interaction_indices(List target_dim_names,
 
 // [[Rcpp::export]]
 RObject calculate_four_way_interaction_indices(List target_dim_names,
-                                                CharacterVector alpha_dimension1,
-                                                List alpha_dim1_values,
-                                                CharacterVector alpha_dimension2,
-                                                List alpha_dim2_values,
-                                                CharacterVector alpha_dimension3,
-                                                List alpha_dim3_values,
-                                                CharacterVector alpha_dimension4,
-                                                List alpha_dim4_values)
+                                               CharacterVector alpha_dimension1,
+                                               List alpha_dim1_values,
+                                               CharacterVector alpha_dimension2,
+                                               List alpha_dim2_values,
+                                               CharacterVector alpha_dimension3,
+                                               List alpha_dim3_values,
+                                               CharacterVector alpha_dimension4,
+                                               List alpha_dim4_values)
 {
     // Initial set-up
     int n_interactions = alpha_dim1_values.length();
@@ -1006,7 +1006,7 @@ RObject calculate_four_way_interaction_indices(List target_dim_names,
 }
 
 
-    
+
 
 
 
@@ -1051,7 +1051,7 @@ void do_add_alphas_to_arr(NumericVector arr,
     double *a = arr.begin();
     
     int dim;
-
+    
     // iterate through the array
     for (int i=0; i<n_alphas; i++)
     {
@@ -1083,7 +1083,7 @@ void do_set_alphas_to_arr(NumericVector arr,
     // re-index alpha_dims and alpha_indices from zero
     for (int i=0; i<n_alphas; i++)
         alpha_indices[i]--;
-   
+    
     alpha_dim--;
     
     // calcualte before/after
@@ -1398,17 +1398,17 @@ void do_add_or_set_three_way_interaction_alphas_to_arr(NumericVector arr,
 
 // [[Rcpp::export]]
 void do_add_or_set_four_way_interaction_alphas_to_arr(NumericVector arr,
-                                                       IntegerVector dims,
-                                                       int dim1,
-                                                       IntegerVector dim1_values,
-                                                       int dim2,
-                                                       IntegerVector dim2_values,
-                                                       int dim3,
-                                                       IntegerVector dim3_values,
-                                                       int dim4,
-                                                       IntegerVector dim4_values,
-                                                       NumericVector values,
-                                                       bool add
+                                                      IntegerVector dims,
+                                                      int dim1,
+                                                      IntegerVector dim1_values,
+                                                      int dim2,
+                                                      IntegerVector dim2_values,
+                                                      int dim3,
+                                                      IntegerVector dim3_values,
+                                                      int dim4,
+                                                      IntegerVector dim4_values,
+                                                      NumericVector values,
+                                                      bool add
 )
 {
     // order dim1, dim2, dim3 ascending
@@ -1906,7 +1906,7 @@ RObject do_project_logistic_tail(NumericVector intercept,
     
     for (int i=0; i<n; i++)
         logistic_slope_sans_additional[i] = slope[i] * slope_to_logistic_multiplier;
-
+    
     
     //-- Set up logistic_slope_with_additional --//
     double logistic_slope_with_additional[n];
@@ -1916,16 +1916,16 @@ RObject do_project_logistic_tail(NumericVector intercept,
         for (int i=0; i<n; i++)
             logistic_slope_with_additional[i] = slope_with_future[i] * slope_to_logistic_multiplier;
     }
-        
+    
     
     //-- Set up logistic_after_year --//
     double logistic_after_year[n];
-        
+    
     if (use_future_slope)
     {
         double val_at_additional_year;
         double delta = future_slope_after_year - anchor_year;
-            
+        
         for (int i=0; i<n; i++)
         {
             val_at_additional_year = intercept[i] + slope[i] * delta;
@@ -1941,10 +1941,10 @@ RObject do_project_logistic_tail(NumericVector intercept,
         for (int i=0; i<n; i++)
             logistic_after_year[i] = anchor_year + (logistic_after_value - intercept[i]) / slope[i];
     }
-
+    
     //-- Set up logistic intercept --//
     double logistic_intercept[n];
-        
+    
     double default_logistic_intercept = log(logistic_after_value - min) - log(max - logistic_after_value);
     
     for (int i=0; i<n; i++)    
@@ -1964,7 +1964,7 @@ RObject do_project_logistic_tail(NumericVector intercept,
             logistic_intercept[i] -= logistic_slope_with_additional[i] * (logistic_after_year[i] - future_slope_after_year);
         }
     }
-
+    
     
     //-- Loop through and create the rv --//
     
@@ -1985,7 +1985,7 @@ RObject do_project_logistic_tail(NumericVector intercept,
         double delta;
         double* slope_to_use;
         double* logistic_slope_to_use;
-
+        
         if (use_future_slope && year > future_slope_after_year)
         {
             delta = year - future_slope_after_year;
@@ -2011,10 +2011,10 @@ RObject do_project_logistic_tail(NumericVector intercept,
             if (sub_rv[i] < min)
                 sub_rv[i] = min;
         }
-       
+        
         rv[y] = sub_rv;
     }
-
+    
     
     return (rv);
 }

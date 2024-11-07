@@ -254,13 +254,13 @@ NumericVector do_foreground_overwrite(NumericVector arr,
                              scale, effect_scale,
                              indices.begin(), n_indices);
             
-//            Rcout << "   arr[" << indices[0] << "] = " << arr[indices[0]] << "\n";
-//            Rcout << "     multiply by " << val << "\n";
+            //            Rcout << "   arr[" << indices[0] << "] = " << arr[indices[0]] << "\n";
+            //            Rcout << "     multiply by " << val << "\n";
             
             for (int k=0; k<n_indices; k++)
                 arr[ indices[k] ] *= val;
-
-//            Rcout << "   --> " << arr[indices[0]] << "\n";
+            
+            //            Rcout << "   --> " << arr[indices[0]] << "\n";
             
             do_convert_scale(arr.begin(),
                              effect_scale, scale,
@@ -498,12 +498,12 @@ List apply_foregrounds(List values,
         }
     }
     
- //   return(List::create(Named("values") = values , _["after.values"] = after_values));
+    //   return(List::create(Named("values") = values , _["after.values"] = after_values));
     if (n_values_to_apply_to > 0)
     {
         //-- Now, make sure each value points to a distinct object --//
         //   (if not, we need to make a copy before we go modifying them)
-    
+        
         int i_last = n_times-1;
         while (value_times[i_last] > last_end_time && i_last>0)
             i_last--;
@@ -615,8 +615,8 @@ List apply_foregrounds(List values,
                 double val_before = 0;
                 if (effect_is_multiplier)
                     val_before = 1;
-             //   else if (effect_is_addend)
-            //        val_before = 0;
+                //   else if (effect_is_addend)
+                //        val_before = 0;
                 double val_after = effect_values[0];
                 double val;
                 double val_to_write_after;
@@ -631,7 +631,7 @@ List apply_foregrounds(List values,
                 bool have_copied_start_val = false;
                 bool have_copied_end_val = false;
                 
-// Rcout << "n_values_to_apply_to = " << n_values_to_apply_to << ", n_effect_times = " << n_effect_times << "\n";
+                // Rcout << "n_values_to_apply_to = " << n_values_to_apply_to << ", n_effect_times = " << n_effect_times << "\n";
                 // We're going to do two nested loops
                 // 1) An outer loop (over j) that goes through effect times
                 // 2) An inner loop (over i_index/i) that goes through all the value times for which this effect time j applies
@@ -639,20 +639,20 @@ List apply_foregrounds(List values,
                 {
                     if (j > 1)
                         return(List::create());
-// Rcout << "**** j = " << j << ", time_before = " << time_before << ", time_after = " << time_after << "\n";
+                    // Rcout << "**** j = " << j << ", time_before = " << time_before << ", time_after = " << time_after << "\n";
                     // at the start of this loop, we know that
                     //   value_times[i] >= time_before
                     while (i_index < n_values_to_apply_to && value_times[i] <= time_after)
                     {
                         // Figure out what we need to overwrite
                         
-// Rcout << "** i = " << i << ", value_times[i] = " << value_times[i] << "\n";
+                        // Rcout << "** i = " << i << ", value_times[i] = " << value_times[i] << "\n";
                         
                         if (time_before == time_after)
-                        // we need to write values[i] using with val_before
-                        // and after_values[i] using val_after
-                        // we don't need to interpolate here - we know we're right at
-                        //  value_times[i] == time_before == time_after
+                            // we need to write values[i] using with val_before
+                            // and after_values[i] using val_after
+                            // we don't need to interpolate here - we know we're right at
+                            //  value_times[i] == time_before == time_after
                         {
                             if (j==-1) //we're at the start time and don't need to overwrite values
                                 write_value = false;
@@ -719,9 +719,9 @@ List apply_foregrounds(List values,
                             int start_value_index = i;
                             while (value_times[start_value_index] != start_time && start_value_index > 0)
                                 start_value_index--;
-                                // Assuming that one of the value_times == start_time, then start_value index will point at that value/time
-                                //  And in our R code in the engine, we require that if any time between the start time and first effect time is 
-                                //  in foreground times, then foreground times must also include the start time
+                            // Assuming that one of the value_times == start_time, then start_value index will point at that value/time
+                            //  And in our R code in the engine, we require that if any time between the start time and first effect time is 
+                            //  in foreground times, then foreground times must also include the start time
                             
                             arr = (NumericVector) values[start_value_index];
                             for (int k=0; k<n_indices; k++)
@@ -758,15 +758,15 @@ List apply_foregrounds(List values,
                             have_copied_end_val = true;
                         }
                         
-// Rcout << "   write_value? -> " << write_value << "\n";
+                        // Rcout << "   write_value? -> " << write_value << "\n";
                         
                         // If we need to, copy the start or end values into scratch_arr
                         // do the overwrite
                         if (write_value)
                         {
                             
-//                            Rcout << "   weight_before = " << weight_before << "\n";
-// Rcout << "Overwrite at time " << value_times[i] << "\n";
+                            //                            Rcout << "   weight_before = " << weight_before << "\n";
+                            // Rcout << "Overwrite at time " << value_times[i] << "\n";
                             values[i] = do_foreground_overwrite(values[i],
                                                                 scratch_arr,
                                                                 effect_is_multiplier,
@@ -840,7 +840,7 @@ List apply_foregrounds(List values,
             
         }
     }
-        
+    
     // make the list and return
     List rv = List::create(Named("values") = values , _["after.values"] = after_values);
     

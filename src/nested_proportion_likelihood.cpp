@@ -55,9 +55,9 @@ void multiply_arr1_by_1_minus_arr2(double *arr1,
 
 // arr1 - arr2
 void subtract_arrs(double *arr1,
-              double *arr2,
-              double *dst,
-              int len)
+                   double *arr2,
+                   double *dst,
+                   int len)
 {
     for (int i=0; i<len; i++)
         dst[i] = arr1[i] - arr2[i];
@@ -87,11 +87,11 @@ void apply_arr_mask(double *arr,
 //== STRAIGHT-UP MATRIX MULTIPLICATION ==//
 
 void do_matrix_multiply(double *A,
-                     double *B,
-                     double *dst,
-                     int m_A,
-                     int shared_dimension,
-                     int n_B)
+                        double *B,
+                        double *dst,
+                        int m_A,
+                        int shared_dimension,
+                        int n_B)
 {
     double sum;
     
@@ -265,7 +265,7 @@ void do_matrix_multiply_A_block_diagonal(double *A,
         for (int i_in_block=0; i_in_block<n_per_block; i_in_block++)
         {
             i = block * n_per_block + i_in_block;
-           
+            
             for (int j=0; j<n_B; j++)
             {
                 sum = 0;
@@ -410,7 +410,7 @@ void do_matrix_multiply_A_interpolated_block_B_double_masked(double *A,
     
     int m_per_block = m_A / n_blocks;
     int n_per_block = m_B / n_blocks; //m_B = n_A
-
+    
     
     // set up index mappings
     
@@ -455,7 +455,7 @@ void do_matrix_multiply_A_interpolated_block_B_double_masked(double *A,
                 {
                     k = k_in_block*n_blocks + block;
                     k_mapped = mapped_row_indices[k];
-                  
+                    
                     sum += A[k*m_A + i] * B[j_mapped*row_mask_len + k_mapped];
                 }
                 dst[j*m_A + i] = sum;
@@ -463,7 +463,7 @@ void do_matrix_multiply_A_interpolated_block_B_double_masked(double *A,
         }
     }
 }
- 
+
 void do_matrix_multiply_A_interpolated_block_B_row_masked(double *A,
                                                           double *B,
                                                           double *dst,
@@ -542,7 +542,7 @@ void do_matrix_multiply_A_interpolated_block_B_row_masked_symmetric_result(doubl
             k++;
         }
     }
-
+    
     int i, k_mapped;
     double sum;
     
@@ -585,7 +585,7 @@ void do_matrix_multiply_A_col_masked_B_interpolated_block_transposed(double *A,
     for (int k_mapped=0; k_mapped<mask_len; k_mapped++)
         n_A += mask[k_mapped];
     int n_per_block = n_A / n_blocks;
-
+    
     int mapped_indices[n_A];
     int k=0;
     for (int k_mapped=0; k_mapped<mask_len; k_mapped++)
@@ -599,7 +599,7 @@ void do_matrix_multiply_A_col_masked_B_interpolated_block_transposed(double *A,
     
     int j, k_mapped;
     double sum;
-
+    
     for (int i=0; i<m_A; i++)
     {
         for (int block=0; block<n_blocks; block++)
@@ -890,7 +890,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                                                  NumericVector obs_p,
                                                  
                                                  NumericMatrix obs_error
-                                                 )
+)
 {   
     //-- Some General Variables --//
     int n_years = p.nrow();
@@ -939,7 +939,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
     double *scratch3 = scratch2 + scratch_span;
     double *scratch4 = scratch3 + scratch_span;
     
-
+    
     double testing[n_obs * n_obs * n_strata];
     
     
@@ -954,8 +954,8 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
     
     //-- Set up the mean and covariance for n --//
     
-  
-//== THE MEAN AND COVARIANCE MATRICES *BY STRATUM* ==//
+    
+    //== THE MEAN AND COVARIANCE MATRICES *BY STRATUM* ==//
     
     
     double *stratum_n;
@@ -970,7 +970,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
     double T_Mt[n_year_metalocation * max_n_stratum_obs_n]; // not sure if we could optimize these into a scratch array
     double gamma[n_year_metalocation * max_n_stratum_obs_n];
     
-
+    
     // some short vectors. Not worth doubling with scratch because they are so small
     double tau[n_year_metalocation];
     double lambda[n_year_metalocation];
@@ -1007,10 +1007,10 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
     
     for (int d=0; d<n_strata; d++)
     {   
-    //== General variables ==//
+        //== General variables ==//
         stratum_n = n.begin() + d*n_years;
         
-    //== Set up the mean and covariance for n ==//
+        //== Set up the mean and covariance for n ==//
         // Calculate tau
         NumericMatrix mat1 = year_metalocation_n_multiplier_sd[d];
         for (int i=0; i<n_metalocations; i++)
@@ -1022,7 +1022,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         }
         
         // Calculate T matrix
-  //      double *T = scratch3;
+        //      double *T = scratch3;
         fill_arr(T, 0, n_year_metalocation*n_year_metalocation);
         
         for (int i=0; i<n_metalocations; i++)
@@ -1031,7 +1031,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
             {
                 index1 = i*n_years + t;
                 T[index1*n_year_metalocation + index1] = tau[index1] * tau[index1];
-
+                
                 for (int s=t+1; s<n_years; s++)
                 {
                     index2 = i*n_years + s;
@@ -1041,7 +1041,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
             }
         }
         
-    //== Condition on observed n's ==//    
+        //== Condition on observed n's ==//    
         // Fold in mapped obs n together with metalocation n's
         stratum_mapped_obs_n = ((NumericVector) obs_n[d]).begin();
         int stratum_n_mapped_obs_n = ((NumericVector) obs_n[d]).length();
@@ -1051,7 +1051,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
             stratum_obs_n[i] = stratum_mapped_obs_n[i];
         for (int i=0; i<n_years; i++)
             stratum_obs_n[stratum_n_mapped_obs_n + i] = stratum_n[i];
-                
+        
         // Calculate Gamma Matrix        
         NumericMatrix mat2 = year_metalocation_to_year_obs_n_mapping[d];
         M = mat2.begin(); //M is interpolated block diagonal - one block for each year
@@ -1090,11 +1090,11 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         
         
         // Calculate Nu    
-         
+        
         do_matrix_multiply_A_interpolated_block(M, lambda, scratch1, n_years, n_stratum_obs_n/n_years, n_metalocations, 1);
         subtract_arrs(stratum_obs_n, scratch1, scratch1, n_stratum_obs_n);
         do_matrix_multiply(gamma, scratch1, nu,
-                        n_year_metalocation, n_stratum_obs_n, 1);
+                           n_year_metalocation, n_stratum_obs_n, 1);
         
         
         //Rcout << "made it here\n";
@@ -1125,16 +1125,16 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
             nu_next[i] = nu[i];
         }
         /*
-        return (List::create(Named("out_nu") = out_nu,
-                             _["nu"] = nu_next,
-                             _["n_year_metalocation"] = n_year_metalocation,
-                             _["n_years"] = n_years,
-                             _["n_stratum_obs_n"] = n_stratum_obs_n,
-                             _["scratch1"] = out_sc1,
-                             _["gamma"] = out_gamma,
-                             _["scratch1_pre_invert"] = scratch1_pre_invert,
-                             _["T"] = out_T,
-                             _["d"] = d));
+         return (List::create(Named("out_nu") = out_nu,
+         _["nu"] = nu_next,
+         _["n_year_metalocation"] = n_year_metalocation,
+         _["n_years"] = n_years,
+         _["n_stratum_obs_n"] = n_stratum_obs_n,
+         _["scratch1"] = out_sc1,
+         _["gamma"] = out_gamma,
+         _["scratch1_pre_invert"] = scratch1_pre_invert,
+         _["T"] = out_T,
+         _["d"] = d));
          */
         
         // Calculate Psi
@@ -1146,7 +1146,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         
         double *gamma_omega_gamma_t = scratch1;
         do_matrix_multiply_M_D_M_transpose(gamma, stratum_obs_n_plus_conditioned_error_variances, gamma_omega_gamma_t,
-                                    n_year_metalocation, n_stratum_obs_n);
+                                           n_year_metalocation, n_stratum_obs_n);
         
         
         double *gamma_M_t = scratch2;
@@ -1158,7 +1158,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         add_arrs(psi, gamma_omega_gamma_t, psi, n_year_metalocation*n_year_metalocation);
         
         
-    //== Set up the mean vectors and covariance matrices for metalocation y's (n*p) ==//
+        //== Set up the mean vectors and covariance matrices for metalocation y's (n*p) ==//
         
         // the mean (mu) - p + bias
         NumericMatrix stratum_year_metalocation_p_bias = year_metalocation_p_bias[d];
@@ -1174,8 +1174,8 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         double *sigma = mat4.begin();
         
         multiply_arrs(mu, nu, alpha, n_year_metalocation);
-       
-       
+        
+        
         // The delta matrix (which we can overwrite into psi)
         double *delta = psi;
         for (int i=0; i<n_metalocations; i++)
@@ -1185,13 +1185,13 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                 index1 = i*n_years + t;
                 // for i==j
                 //  for s==t and i==j
-
+                
                 total_index = index1*n_year_metalocation + index1;
                 
                 delta[total_index] = nu[index1] * mu[index1] * (1-mu[index1]) +
                     psi[total_index] * mu[index1] * mu[index1] +
                     sigma[index1] * sigma[index1] * (nu[index1] * (nu[index1] - 1) + psi[total_index]);
-                    
+                
                 // this is the fully written out version of the above, which collapses terms
                 //   kept here for future checking the math
                 //   
@@ -1199,7 +1199,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                 //      sigma[index1] * sigma[index1] * nu[index1] * (nu[index1] - 1) +
                 //      psi[total_index] * mu[index1] * mu[index1] +
                 //      sigma[index1] * sigma[index1] * psi[total_index];
-                                
+                
                 //  for s!=t and i==j
                 for (int s=t+1; s<n_years; s++)
                 {
@@ -1210,7 +1210,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                         delta[index1*n_year_metalocation + index2] =
                         mu[index1] * mu[index2] * psi[total_index] +
                         phi[i] * sigma[index1] * sigma[index2] *
-                            (nu[index1] * nu[index2] + psi[total_index]);
+                        (nu[index1] * nu[index2] + psi[total_index]);
                 }
                 
                 // for i!=j
@@ -1228,8 +1228,8 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                 }
             }
         }
-
-    //== Condition on MSA (y) totals ==//
+        
+        //== Condition on MSA (y) totals ==//
         
         // B is interpolated block diagonal 
         //      n_years blocks  x  n_obs_location rows, n_metalocations columns per block
@@ -1244,14 +1244,14 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         
         double *delta_Mt = scratch1;
         
-       
+        
         do_matrix_multiply_A_col_masked_B_interpolated_block_transposed(delta, M, delta_Mt,
                                                                         n_year_metalocation,
                                                                         mask, n_year_metalocation,
                                                                         n_years,
                                                                         n_condition_on);
         
-
+        
         do_matrix_multiply_A_interpolated_block_B_row_masked_symmetric_result(M, delta_Mt, scratch2,
                                                                               n_years,
                                                                               n_condition_on,
@@ -1260,7 +1260,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                                                                               n_year_metalocation);
         
         do_invert_matrix(scratch2, scratch2, n_years * n_condition_on, scratch3);    
-            
+        
         double *B_delta_Mt = scratch3;
         do_matrix_multiply_A_interpolated_block_B_row_masked(B, delta_Mt, scratch3,
                                                              n_years,
@@ -1277,7 +1277,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                            n_years * n_condition_on,
                            n_years * n_condition_on);
         // ^ this gamma is n_year_obs_location x n_years*n_condition_on
-
+        
         //^ gamma is calculated, scratch1 and scratch2 are free
         //  scratch3 is holding B_delta_Mt
         
@@ -1351,7 +1351,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                                                                             n_year_obs_location,
                                                                             n_year_metalocation,
                                                                             n_years);
-
+        
         // B_delta_Bt is now in scratch1
         // B_delta_Mt is still in scratch3
         // scratch2 is free
@@ -1387,11 +1387,11 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         // scratch2 and scratch3 are free
         
         
-    //== AGGREGATE ACROSS STRATA ==//  
-
+        //== AGGREGATE ACROSS STRATA ==//  
+        
         NumericMatrix mapping_mat = year_loc_stratum_to_obs_mapping[d];
         M = mapping_mat.begin();
-
+        
         
         // The mean
         do_matrix_multiply_A_specified_interpolated_blocks_increment(M,
@@ -1413,7 +1413,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                                                                       n_years,
                                                                       obs_year_index_arr);
         
-
+        
         do_matrix_multiply_A_specified_interpolated_blocks_result_symmetric_increment(M,
                                                                                       big_scratch,
                                                                                       cov_mat,
@@ -1425,7 +1425,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         // The aggregated n's
         NumericMatrix mapping_mat2 = year_metalocation_to_obs_mapping[d];
         M = mapping_mat2.begin();
-            
+        
         do_matrix_multiply_A_specified_interpolated_blocks_increment(M,
                                                                      nu,
                                                                      obs_n_aggregated,
@@ -1434,11 +1434,11 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                                                                      1,
                                                                      n_years,
                                                                      obs_year_index_arr);
-                                                                                      
         
         
         
-
+        
+        
         //-- for testing --//
     }
     
@@ -1447,7 +1447,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
     
     do_matrix_multiply_D_M_D(obs_n_aggregated, obs_error.begin(), big_scratch, n_obs);
     add_arrs(cov_mat, big_scratch, cov_mat, n_obs*n_obs);
-//    multiply_arrs(cov_mat, var_inflation.begin(), cov_mat, n_obs*n_obs);
+    //    multiply_arrs(cov_mat, var_inflation.begin(), cov_mat, n_obs*n_obs);
     
     
     //== UPDATE THE OBS VECTOR TO A COUNT (MULTIPLY BY n_obs) ==//
@@ -1463,8 +1463,8 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
     
     
     // saved for testing
-//    _["test"] = double_to_numeric_vector(testing,
-  //                                   n_obs*n_obs *
+    //    _["test"] = double_to_numeric_vector(testing,
+    //                                   n_obs*n_obs *
     //                                     n_strata)
     
     return (rv);

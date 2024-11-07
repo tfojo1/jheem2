@@ -3,9 +3,9 @@ using namespace Rcpp;
 
 // [[Rcpp::export]]
 IntegerVector generate_transformation_matrix_indices(
-    NumericVector transformation_matrix,
-    int m,
-    int n) {
+        NumericVector transformation_matrix,
+        int m,
+        int n) {
     
     // Create sparse representation of the transformation matrix 
     int sparse_indices[n*m];
@@ -92,9 +92,9 @@ IntegerVector OLD_generate_transformation_matrix_indices(
 
 // [[Rcpp::export]]
 RObject generate_transformation_matrix_row_oriented_indices(
-    NumericVector transformation_matrix,
-    int m,
-    int n) {
+        NumericVector transformation_matrix,
+        int m,
+        int n) {
     
     // Create sparse representation of the transformation matrix
     List sparse_indices (m);
@@ -110,16 +110,16 @@ RObject generate_transformation_matrix_row_oriented_indices(
     
     // Return the List
     return sparse_indices;
-
+    
 }
 
 
 // [[Rcpp::export]]
 NumericVector get_basic_likelihood_mean(
-    const NumericVector sim_numerator,
-    const List transformation_matrix_row_oriented_indices,
-    int m,
-    NumericVector mean
+        const NumericVector sim_numerator,
+        const List transformation_matrix_row_oriented_indices,
+        int m,
+        NumericVector mean
 ) {
     for (int i=0; i<m; i++) {
         IntegerVector sparse_row = transformation_matrix_row_oriented_indices[i];
@@ -163,27 +163,27 @@ NumericVector get_basic_likelihood_mean(
 
 // [[Rcpp::export]]
 NumericVector get_basic_likelihood_sigma(
-    const NumericVector sim_numerator,
-    const NumericVector sim_denominator,
-    const NumericVector transformation_matrix_indices,
-    const NumericVector measurement_error_cov_matrix,
-    int m,
-    NumericVector sigma,
-    const bool Poisson
+        const NumericVector sim_numerator,
+        const NumericVector sim_denominator,
+        const NumericVector transformation_matrix_indices,
+        const NumericVector measurement_error_cov_matrix,
+        int m,
+        NumericVector sigma,
+        const bool Poisson
 ) {
     // generate model imperfection covariance diagonal matrix
     /*
-    double* V;
-    double binomial_variance[sim_numerator.length() * !Poisson]; // no allocation of memory because it's on the stack, so no more expensive regardless of saying * !Poisson
-
-    if (Poisson) {
-        V = *sim_numerator;
-    } else {
-        for (int i=0; i<sim_numerator.length(); i++) {
-            binomial_variance[i] = sim_numerator[i] * (1 - sim_numerator[i] / sim_denominator[i]);
-        }
-        V = binomial_variance;
-    }*/
+     double* V;
+     double binomial_variance[sim_numerator.length() * !Poisson]; // no allocation of memory because it's on the stack, so no more expensive regardless of saying * !Poisson
+     
+     if (Poisson) {
+     V = *sim_numerator;
+     } else {
+     for (int i=0; i<sim_numerator.length(); i++) {
+     binomial_variance[i] = sim_numerator[i] * (1 - sim_numerator[i] / sim_denominator[i]);
+     }
+     V = binomial_variance;
+     }*/
     
     
     // copy measurement_error_cov_matrix into sigma

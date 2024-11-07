@@ -19,10 +19,10 @@ const int UNINFECTED_GROUP = 1;
 //-------------//
 
 //double* do_interpolate_quantity_elementwise(List quant,
-  //                                          double time,
-    //                                        double *scratch,
-      //                                      int i_before,
-        //                                    int i_after)
+//                                          double time,
+//                                        double *scratch,
+//                                      int i_before,
+//                                    int i_after)
 void do_interpolate_quantity_elementwise(double *dst,
                                          List values,
                                          List after_values,
@@ -34,17 +34,17 @@ void do_interpolate_quantity_elementwise(double *dst,
                                          int i_after)
 {
     int n_times = times.length();
-
+    
     NumericVector one_val = values[0];
     LogicalVector one_val_applies;
     int len = one_val.length();
- 
+    
     if (i_before < 0)
         i_before = 0;
     
     if (i_after >= n_times)
         i_after = n_times-1;
- 
+    
     one_val_applies = after_value_applies[i_before];
     bool before_all_applies = one_val_applies.length()==1 && one_val_applies[0];
     
@@ -310,15 +310,15 @@ double *get_quantity_value_for_time(List quant,
                         NumericVector val_before = (NumericVector) after_values[i_before];
                         NumericVector val_after = (NumericVector) values[i_after];
                         
-//Rcout << "i_before = " << i_before<< ", i_after = " << i_after << "\n";    
-//Rcout << "val_before.length() = " << val_before.length() << ", val_after.length() = " << val_after.length() << ", len = " << len << "\n";                        
-
+                        //Rcout << "i_before = " << i_before<< ", i_after = " << i_after << "\n";    
+                        //Rcout << "val_before.length() = " << val_before.length() << ", val_after.length() = " << val_after.length() << ", len = " << len << "\n";                        
+                        
                         double before_weight = (times[i_after] - time) / (times[i_after] - times[i_before]);
                         double after_weight = (time - times[i_before]) / (times[i_after] - times[i_before]);
                         
-//Rcout << "before_weight = " << before_weight << ", after_weight = " << after_weight << "\n";
-//Rcout << "scratch_offset = " << scratch_offset << ", scratch_offset + len = " << scratch_offset + len << "\n";
-//return (one_val.begin()); 
+                        //Rcout << "before_weight = " << before_weight << ", after_weight = " << after_weight << "\n";
+                        //Rcout << "scratch_offset = " << scratch_offset << ", scratch_offset + len = " << scratch_offset + len << "\n";
+                        //return (one_val.begin()); 
                         for (int k=0; k<len; k++)
                             scratch[k] = before_weight * val_before[k] + after_weight * val_after[k];
                     }
@@ -560,9 +560,9 @@ NumericVector compute_dx(NumericVector state,
                          List fixed_strata_info,
                          List population_trackers)
 {
-bool debug = false;
-if (debug)
-    Rcout << "Starting compute_dx()\n";
+    bool debug = false;
+    if (debug)
+        Rcout << "Starting compute_dx()\n";
     //--------------------//
     //-- INITIAL SET-UP --//
     //--------------------//
@@ -595,39 +595,39 @@ if (debug)
     
     double *dx_infected = dx.begin() + indices_into_state_and_dx["infected"];
     double *dx_uninfected = dx.begin() + indices_into_state_and_dx["uninfected"];
-//    double *dx_tracked_transitions = dx.begin() + indices_into_state_and_dx["tracked_transitions"];
-//    double *dx_tracked_births = dx.begin() + indices_into_state_and_dx["tracked_births"];
-//    double *dx_tracked_mortality = dx.begin() + indices_into_state_and_dx["tracked_mortality"];
-//    double *dx_tracked_incidence = dx.begin() + indices_into_state_and_dx["tracked_incidence"];
-//    double *dx_tracked_remission = dx.begin() + indices_into_state_and_dx["tracked_remission"];
-//    double *dx_tracked_population = dx.begin() + indices_into_state_and_dx["tracked_population"];
+    //    double *dx_tracked_transitions = dx.begin() + indices_into_state_and_dx["tracked_transitions"];
+    //    double *dx_tracked_births = dx.begin() + indices_into_state_and_dx["tracked_births"];
+    //    double *dx_tracked_mortality = dx.begin() + indices_into_state_and_dx["tracked_mortality"];
+    //    double *dx_tracked_incidence = dx.begin() + indices_into_state_and_dx["tracked_incidence"];
+    //    double *dx_tracked_remission = dx.begin() + indices_into_state_and_dx["tracked_remission"];
+    //    double *dx_tracked_population = dx.begin() + indices_into_state_and_dx["tracked_population"];
     
     double *dx_for_group[N_GROUPS];
     dx_for_group[INFECTED_GROUP] = dx_infected;
     dx_for_group[UNINFECTED_GROUP] = dx_uninfected;
     
     
-if (debug)
-    Rcout << "Done with initial set up\n";
-
-
-
-if (debug)
-    Rcout << "Setting up quantity values for time...\n";
+    if (debug)
+        Rcout << "Done with initial set up\n";
+    
+    
+    
+    if (debug)
+        Rcout << "Setting up quantity values for time...\n";
     //-- Get the Values for Each Quantity for this time --//
     double *quantities[quantities_info.length()];
     
-//test 
-//int i_test = 77;
-//quantities[i_test] = get_quantity_value_for_time((List) quantities_info[i_test], quantity_scratch_vector.begin(), time);
-
+    //test 
+    //int i_test = 77;
+    //quantities[i_test] = get_quantity_value_for_time((List) quantities_info[i_test], quantity_scratch_vector.begin(), time);
+    
     for (int i_quant=0; i_quant<quantities_info.length(); i_quant++)
     {
-//        Rcout << "- quantity " << i_quant << "\n";
+        //        Rcout << "- quantity " << i_quant << "\n";
         quantities[i_quant] = get_quantity_value_for_time((List) quantities_info[i_quant], quantity_scratch_vector.begin(), time);
     }
-if (debug)
-    Rcout << "  Done.\n";
+    if (debug)
+        Rcout << "  Done.\n";
     
     //-- Alias the scratch vector --//
     double *scratch = scratch_vector.begin();
@@ -656,9 +656,9 @@ if (debug)
     //------------//
     //-- BIRTHS --//
     //------------//
-
-if (debug)
-    Rcout << "Doing natality...";
+    
+    if (debug)
+        Rcout << "Doing natality...";
     int n_natalities = natality_info.length();
     for (int i_natality=0; i_natality<n_natalities; i_natality++)
     {
@@ -678,10 +678,10 @@ if (debug)
         // Pull the Quantities (Fertility Rates, Birth Proportions)
         int quantity_index = one_natality_info["fertility_quantity_index"];
         double *fertility_rates = quantities[quantity_index];
-
+        
         quantity_index = one_natality_info["birth_proportions_quantity_index"];
         double *birth_proportions = quantities[quantity_index];
-
+        
         // Figure out if we need to track
         List from_birth_trackers = one_natality_info["from_birth_trackers"];
         List by_incidence_trackers = one_natality_info["by_incidence_trackers"];
@@ -692,7 +692,7 @@ if (debug)
             by_incidence_trackers.length() > 0;
         bool need_to_track_to = to_birth_trackers.length() > 0 ||
             to_incidence_trackers.length() > 0;
-         
+        
         
         if (need_to_track_to)
         {
@@ -703,7 +703,7 @@ if (debug)
         // Pull indices for the from group
         List state_indices_for_parent_categories = one_natality_info["state_indices_for_parent_categories"];
         List fertility_rate_indices_for_parent_categories = one_natality_info["fertility_rate_indices_for_parent_categories"];
-
+        
         // Pull indices for the to group
         List offspring_indices_for_parent_categories = one_natality_info["offspring_indices_for_parent_categories"];
         List birth_proportion_indices_for_parent_categories = one_natality_info["birth_proportion_indices_for_parent_categories"];
@@ -767,16 +767,16 @@ if (debug)
                     dx.begin());
         
     }
-if (debug)
-    Rcout << "Done.\n";
-
-
+    if (debug)
+        Rcout << "Done.\n";
+    
+    
     //---------------//
     //-- MORTALITY --//
     //---------------//
-
-if (debug)
-    Rcout << "Doing Mortality...";
+    
+    if (debug)
+        Rcout << "Doing Mortality...";
     int n_mortalities = mortality_info.length();
     
     for (int i_mort=0; i_mort<n_mortalities; i_mort++)
@@ -785,7 +785,7 @@ if (debug)
         
         // Set up indices into state and dx
         int group = one_mort_info["group"];
-
+        
         int n = one_mort_info["n"];
         double *dx_for_mort = dx_for_group[group];
         double *sub_state = sub_states_for_group[group];
@@ -799,7 +799,7 @@ if (debug)
         // Set up for tracking
         List trackers = one_mort_info["trackers"];
         bool need_to_track = trackers.length() > 0;
-
+        
         double deaths;
         for (int i=0; i<n; i++)
         {
@@ -809,7 +809,7 @@ if (debug)
             if (need_to_track)
                 scratch[i] = deaths;
         }
-
+        
         // Track the mortality if needed
         if (need_to_track)
         {
@@ -821,16 +821,16 @@ if (debug)
         }
         
     }
-if (debug)
-    Rcout << "Done.\n"; 
+    if (debug)
+        Rcout << "Done.\n"; 
     
     //-----------------//
     //-- TRANSITIONS --//
     //-----------------//
     
     
-if (debug)
-    Rcout << "Doing Transitions...";    
+    if (debug)
+        Rcout << "Doing Transitions...";    
     int n_transitions = transitions_info.length();
     
     for (int i_trans=0; i_trans<n_transitions; i_trans++)
@@ -863,7 +863,7 @@ if (debug)
         // Set up for tracking
         List trackers = trans["trackers"];
         bool need_to_track = trackers.length() > 0;
-    
+        
         // Iterate through state_sub and calculate the dx
         // Fold into dx and store into scratch
         double val;
@@ -879,7 +879,7 @@ if (debug)
             if (need_to_track)
                 scratch[from_index] = val;
         }
-    
+        
         // Track the transition if needed
         if (need_to_track)
         {
@@ -890,15 +890,15 @@ if (debug)
         }
     }
     
-if (debug)
-    Rcout << "Done.\n";
+    if (debug)
+        Rcout << "Done.\n";
     
     //----------------//
     //-- INFECTIONS --//
     //----------------//
-
-if (debug)
-    Rcout << "Doing infections...";
+    
+    if (debug)
+        Rcout << "Doing infections...";
     double *aggregate_from_transmissibility = scratch1;
     double *to_infection_tracking = scratch2;
     double *from_infection_tracking = scratch3;
@@ -926,7 +926,7 @@ if (debug)
         // Pull the Relevant Quantities (Contact Matrix, Susceptibility, Transmissibility)
         int quantity_index = one_infections_info["contact_quantity_index"];
         double *contact_matrix = quantities[quantity_index];
-
+        
         quantity_index = one_infections_info["susceptibility_quantity_index"];
         double *susceptibility = quantities[quantity_index];
         
@@ -943,7 +943,7 @@ if (debug)
         IntegerVector to_state_indices = state_indices_for_to_contacts[0];
         IntegerVector susceptibility_indices;
         int n_compartments_per_to_contact = to_state_indices.length();
-
+        
         List new_infection_proportions_indices_for_to_contacts = one_infections_info["new_infection_proportions_indices_for_to_contacts"];
         List new_infection_state_indices_for_to_contacts = one_infections_info["new_infection_state_indices_for_to_contacts"]; 
         
@@ -1000,7 +1000,7 @@ if (debug)
                 for (int i=0; i<n_transmitting_per_from_contact; i++)
                     numerator += infected[ from_state_indices[i] ] *
                         transmissibility[ transmissibility_indices[i] ];
-
+                
                 aggregate_from_transmissibility[from] = numerator / denominator;
             }
             
@@ -1041,7 +1041,7 @@ if (debug)
             from_force_of_infection = 0;
             for (int from=0; from<n_from_contacts; from++)
                 from_force_of_infection += aggregate_from_transmissibility[from] * contact_matrix[ contact_indices_for_to[from] ];
-
+            
             // Iterate through each to compartment in the to category   
             for (int i=0; i<n_compartments_per_to_contact; i++)
             {
@@ -1092,7 +1092,7 @@ if (debug)
         }
         
         if (need_to_track_by) // we are not optimizing for this since it is not usual to do it
-                                // it's basically another nested for loop over the contact matrix, so inefficient
+            // it's basically another nested for loop over the contact matrix, so inefficient
         {
             double *by_infection_tracking = scratch2;
             double aggregate_susceptibility;
@@ -1121,7 +1121,7 @@ if (debug)
                 for (int i=0; i<n_transmitting_per_from_contact; i++)
                 {
                     from_state_index = from_state_indices[i];
-                
+                    
                     if (denominator==0)
                         by_infection_tracking[from_state_index] = 0;
                     else
@@ -1140,15 +1140,15 @@ if (debug)
         }
     }
     
-if (debug)
-    Rcout << "Done.\n";
+    if (debug)
+        Rcout << "Done.\n";
     
     //---------------//
     //-- REMISSION --//
     //---------------//
-
-if (debug)
-    Rcout << "Doing remission...";
+    
+    if (debug)
+        Rcout << "Doing remission...";
     int n_remissions = remission_info.length();
     for (int i_remission=0; i_remission<n_remissions; i_remission++)
     {
@@ -1233,17 +1233,17 @@ if (debug)
         }
     }
     
-if (debug)
-    Rcout << "Done.\n"; 
+    if (debug)
+        Rcout << "Done.\n"; 
     //------------------------//
     //-- FIXED STRATA SIZES --//
     //------------------------//
     
-
+    
     // Decide if we need to keep strata sizes constant
     // And, if so, what strata we need to keep constant
-if (debug)
-    Rcout << "Doing fixed strata...";    
+    if (debug)
+        Rcout << "Doing fixed strata...";    
     int apply_fixed_strata_index = -1;
     for (int i=0; i<fixed_strata_info.length(); i++)
     {
@@ -1261,7 +1261,7 @@ if (debug)
         }
     }
     
-
+    
     if (apply_fixed_strata_index != -1)
     {
         List apply_fixed_strata_info = fixed_strata_info[apply_fixed_strata_index];
@@ -1323,15 +1323,15 @@ if (debug)
             }
         }
     }
-if (debug)
-    Rcout << "Done.\n";    
+    if (debug)
+        Rcout << "Done.\n";    
     
     //-------------------------//
     //-- TRACKED POPULATIONS --//
     //-------------------------//
     
-if (debug)
-    Rcout << "Doing population trackers...";    
+    if (debug)
+        Rcout << "Doing population trackers...";    
     for (int group=0; group<N_GROUPS; group++)
     {
         List trackers_for_group = population_trackers[group];
@@ -1339,12 +1339,12 @@ if (debug)
         {
             do_tracking(trackers_for_group,
                         sub_states_for_group[group], //values
-                        quantities,
-                        dx.begin());
+                                            quantities,
+                                            dx.begin());
         }
     }    
-if (debug)
-    Rcout << "Done.\n";   
+    if (debug)
+        Rcout << "Done.\n";   
     //------------//
     //-- RETURN --//
     //------------//
@@ -1383,8 +1383,8 @@ List interpolate_values_when_do_not_apply(List values,
                                                 value_applies_for_time, //List value_applies,
                                                 value_applies_for_time, //List after_value_applies,
                                                 times[i], //double time,
-                                                i, //int i_before,
-                                                i+1//int i_after)
+                                                     i, //int i_before,
+                                                     i+1//int i_after)
             );
             
             values[i] = new_value;

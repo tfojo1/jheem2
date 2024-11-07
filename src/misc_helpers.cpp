@@ -84,7 +84,7 @@ RObject union_sorted_vectors(List vectors)
             {
                 non_empty_vector_indices[n_non_empty_vectors] = i;
                 n_non_empty_vectors++;
-        
+                
                 summed_v_len += len;
             }
         }
@@ -103,10 +103,10 @@ RObject union_sorted_vectors(List vectors)
     
     // set up our temporarty holding array
     double sorted_values[summed_v_len];
-        // stack memory is cheap. We'll set up an array with potentially WAY more space than we need
-        //      because doing something clever with malloc to reduce memory is probably still
-        //      more expensive
-
+    // stack memory is cheap. We'll set up an array with potentially WAY more space than we need
+    //      because doing something clever with malloc to reduce memory is probably still
+    //      more expensive
+    
     // Initial set-up
     
     int indices_into_vectors[n_non_empty_vectors];
@@ -150,7 +150,7 @@ RObject union_sorted_vectors(List vectors)
             if (indices_into_vectors[i] < v.length())
             {
                 all_done = false;
-            
+                
                 if (v[ indices_into_vectors[i] ] < proposed_value || proposed_value==current_value)
                     proposed_value = v[ indices_into_vectors[i] ];
             }
@@ -251,7 +251,7 @@ RObject intersect_sorted_vectors(List vectors)
             }
         }
         
-//        indices_into_vectors[k]++;
+        //        indices_into_vectors[k]++;
         
         k++;
         if (k == n_non_empty_vectors)

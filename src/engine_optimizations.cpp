@@ -243,7 +243,7 @@ RObject do_calculate_quantity_background_value(List quantity,
                                 List i_quantity_component_depends_on_scratch = engine.find("i.quantity.component.depends.on.scratch");
                                 List quantity_component_depends_on_scratch = i_quantity_component_depends_on_scratch[quantity_name];
                                 List component_depends_on_scratch = quantity_component_depends_on_scratch[c];
-       
+                                
                                 if (component_depends_on_scratch[d] == R_NilValue)
                                 {
                                     component_depends_on_scratch[d] = NumericVector(dep_on_indices.length());
@@ -528,10 +528,10 @@ List do_get_outcome_value_from_ode_output(const char* outcome_name,
     
     int first_row = settings_indices_into_state_and_dx[outcome_name];
     int n_rows = settings_state_and_dx_sizes[outcome_name];
-
+    
     int first_col = ((int) outcome_years[1]) - first_ode_year;
     int n_cols = ((int) outcome_years[outcome_years.length()]) - first_ode_year + 1;
-
+    
     List rv(n_cols);
     
     if (outcome["is.cumulative"])    
@@ -591,15 +591,15 @@ bool can_get_outcome_value_from_ode_output(const char* outcome_name,
         if (outcome_names[i] == outcome_name)
             return (true);
     }
-
+    
     return (false);
 }
 
 RObject do_interpolate_impl(List values,
-                         double *value_times,
-                         int n_value_times,
-                         double *desired_times,
-                         int n_desired_times)
+                            double *value_times,
+                            int n_value_times,
+                            double *desired_times,
+                            int n_desired_times)
 {
     List rv(n_desired_times);
     for (int i=0; i<n_desired_times; i++)
@@ -695,7 +695,7 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
     Function calculate_outcome_non_cumulative_value_times = engine.find("calculate.outcome.non.cumulative.value.times");
     Function set_up_outcome_depends_on_bindings = engine.find("set.up.outcome.depends.on.bindings");
     Function calculate_outcome_indices_from_outcome = engine.find("calculate.outcome.indices.from.outcome");
-        
+    
     
     // Pull some kernel functions
     Function get_outcome_kernel = kernel.find("get.outcome.kernel");
@@ -742,7 +742,7 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
     
     
     //-- Calculate the raw "value" of the outcome --//
-        
+    
     List raw_value;    
     // If this is a dynamic or intrinsic outcome, pull the values from the ode results
     if (can_get_outcome_value_from_ode_output(outcome_name, i_diffeq_settings))
@@ -802,7 +802,7 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
         //-- Map the bindings for dependee OUTCOMES to a list --//
         List i_outcome_depends_on_outcome_bindings = engine.find("i.outcome.depends.on.outcome.bindings");
         List bindings_of_outcomes = i_outcome_depends_on_outcome_bindings[outcome_name];
-
+        
         for (int i=0; i<outcome_numerator_direct_dependee_outcome_names.length(); i++)
         {
             const char* dep_on_outcome_name = outcome_numerator_direct_dependee_outcome_names[i];

@@ -18,7 +18,7 @@ NumericVector populate_outcomes_array(NumericVector desired_times,
     double last_new_time = R_PosInf;
     if (new_times.length()>0)
         first_new_time = new_times[0];
-        last_new_time = new_times[new_times.length()-1];
+    last_new_time = new_times[new_times.length()-1];
     
     int n_old_times = old_times.length();
     int old_time_index = 0;
