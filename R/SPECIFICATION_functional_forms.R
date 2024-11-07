@@ -503,7 +503,7 @@ FUNCTIONAL.FORM = R6::R6Class(
                     if (!are.dim.names.compatible(dim.names, beta.dim.names))
                         stop(paste0("The dimension names for '", beta.name, 
                                     "' are not compatible with the dimension.names for ",
-                                    paste0("'", names(betas)[1:i], "'", collapse=', ')))
+                                    paste0("'", names(betas)[1:(i-1)], "'", collapse=', ')))
                     
                     dim.names = union.matching.dim.names(dim.names, beta.dim.names)
                 }

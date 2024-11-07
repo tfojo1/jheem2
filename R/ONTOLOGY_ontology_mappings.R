@@ -2785,7 +2785,6 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
                 {
                     if (throw.errors)
                     {
-                        browser()
                         stop(paste0(error.prefix, 
                                     "from.dim.names ['", d, "'] is missing ", 
                                     length(missing.values),
