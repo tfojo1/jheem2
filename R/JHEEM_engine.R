@@ -3316,13 +3316,17 @@ JHEEM = R6::R6Class(
                 top.level.quantities = private$i.kernel$get.dependent.top.level.quantity.names(quantity.name)
                 dynamic.top.level.quantities = top.level.quantities[ !private$i.quantity.is.static[top.level.quantities] ]
                 null.top.level.times.mask = vapply(private$i.top.level.self.times[dynamic.top.level.quantities], is.null, FUN.VALUE = logical(1))
-                lapply(dynamic.top.level.quantities[null.top.level.times.mask], private$calculate.top.level.self.times)
+                for (top.level.name in dynamic.top.level.quantities[null.top.level.times.mask])
+                    private$calculate.top.level.self.times(top.level.name)
+#                lapply(dynamic.top.level.quantities[null.top.level.times.mask], private$calculate.top.level.self.times)
                 
                 # Pull the outcomes that have a non-cumulative dependency on this, and make sure their self-times are calculated
                 outcomes = private$i.kernel$get.non.cumulative.dependent.outcome.names(quantity.name)
                 dynamic.outcomes = outcomes[ !private$i.outcome.non.cumulative.is.static[outcomes] ]
                 null.outcome.times.mask = as.logical(sapply(private$i.outcome.non.cumulative.self.times[dynamic.outcomes], is.null))
-                lapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
+                for (outcome.name in dynamic.outcomes[null.outcome.times.mask])
+                    private$calculate.outcome.non.cumulative.self.times(outcome.name)
+#                lapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
                 
                 # Value times is the union of these times
                 
@@ -3838,7 +3842,9 @@ JHEEM = R6::R6Class(
                 dependee.elements = private$i.kernel$get.dependee.element.names(top.level.name)
                 dynamic.dependee.elements = dependee.elements[ !private$i.quantity.is.static[dependee.elements] ]
                 null.dependee.element.times.mask = vapply(private$i.element.background.self.times[dynamic.dependee.elements], is.null, FUN.VALUE = logical(1))
-                lapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
+                for (element.name in dynamic.dependee.elements[null.dependee.element.times.mask])
+                    private$calculate.element.background.self.times(element.name)
+#                lapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
                 
                 # union the background.self.times
                 all.background.times = union_sorted_vectors(private$i.element.background.self.times[dynamic.dependee.elements])
@@ -3887,7 +3893,9 @@ JHEEM = R6::R6Class(
                 dependee.elements = private$i.kernel$get.outcome.dependee.element.names(outcome.name)
                 dynamic.dependee.elements = dependee.elements[ !private$i.quantity.is.static[dependee.elements] ]
                 null.dependee.element.times.mask = vapply(private$i.element.background.self.times[dynamic.dependee.elements], is.null, FUN.VALUE = logical(1))
-                lapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
+                for (element.name in dynamic.dependee.elements[null.dependee.element.times.mask])
+                    private$calculate.element.background.self.times(element.name)
+#                lapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
                 
                 # union the background.self.times
                 all.background.times = union_sorted_vectors(private$i.element.background.self.times[dynamic.dependee.elements])
@@ -3932,7 +3940,9 @@ JHEEM = R6::R6Class(
                 outcomes = private$i.kernel$get.outcome.non.cumulative.dependent.outcome.names(outcome.name)
                 dynamic.outcomes = outcomes[ !private$i.outcome.non.cumulative.is.static[outcomes] ]
                 null.outcome.times.mask = vapply(private$i.outcome.non.cumulative.self.times[dynamic.outcomes], is.null, FUN.VALUE = logical(1))
-                lapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
+                for (dependent.outcome.name in dynamic.outcomes[null.outcome.times.mask])
+                    private$calculate.outcome.non.cumulative.self.times(dependent.outcome.name)
+#                lapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
                 
                 # The value times and after value times are the union of these times
                 
@@ -5577,10 +5587,12 @@ JHEEM = R6::R6Class(
             {
 #            sapply(private$i.kernel$get.dependent.quantity.names(quantity.name), function(dependent.name){
                 dependent.quantity = private$i.kernel$get.quantity.kernel(dependent.name)
-                lapply(1:dependent.quantity$n.components, function(i){
+                #lapply(1:dependent.quantity$n.components, function(i){
+                for (i in 1:dependent.quantity$n.components)
+                {
                     if (any(dependent.quantity$components[[i]]$depends.on==quantity.name))
                         private$i.quantity.mapping.indices[[dependent.on]]$components.depends.on[[component.index]][[quantity.name]] = NULL
-                })
+                }
             }#)
             
             # Clear value applies masks
@@ -6299,8 +6311,10 @@ JHEEM = R6::R6Class(
             dependee.quantity.names = private$i.kernel$get.outcome.direct.dependee.quantity.names(outcome.name)
             
             calculate.dependee.outcome.mask = as.logical(vapply(private$i.outcome.non.cumulative.value.applies.masks[dependee.outcome.names], is.null, FUN.VALUE=logical(1)))
-            lapply(dependee.outcome.names[calculate.dependee.outcome.mask], 
-                   private$calculate.outcome.non.cumulative.value.applies.masks)
+            for (dependee.outcome.name in dependee.outcome.names[calculate.dependee.outcome.mask])
+                    private$calculate.outcome.non.cumulative.value.applies.masks(dependee.outcome.name)
+#            lapply(dependee.outcome.names[calculate.dependee.outcome.mask], 
+ #                  private$calculate.outcome.non.cumulative.value.applies.masks)
                             
             private$i.outcome.non.cumulative.value.applies.masks[[outcome.name]] = lapply(1:n.times, function(i){
                 

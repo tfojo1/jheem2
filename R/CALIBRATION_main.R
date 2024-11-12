@@ -953,7 +953,10 @@ clear.calibrations <- function()
 #'
 #'@export
 copy.calibration.info <- function(from.code,
-                                  to.code)
+                                  to.code,
+                                  n.iter = NULL,
+                                  n.burn = NULL,
+                                  thin = NULL)
 {
     validate.calibration.code(code = from.code,
                               error.prefix = "Cannot copy calibration info: ",
@@ -967,7 +970,16 @@ copy.calibration.info <- function(from.code,
                                             error.prefix = paste0("Cannot copy calibration info from '", from.code, "'"))
     
     calibration.info$code = to.code
+    if (!is.null(n.iter))
+        calibration.info$n.iter = n.iter
+    if (!is.null(thin))
+        calibration.info$thin = thin
+    if (!is.null(n.burn))
+        calibration.info$n.burn = n.burn
+        
     CALIBRATION.MANAGER$info[[to.code]] = calibration.info
+    
+        
     
     invisible(NULL)
 }
