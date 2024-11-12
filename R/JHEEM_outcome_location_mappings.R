@@ -161,8 +161,12 @@ OUTCOME.LOCATION.MAPPING = R6::R6Class(
                     if (is.null(outcome))
                         stop(paste0(error.prefix, "'", outcome.name, "' is not a valid outcome in the '", private$i.version, "' model specification"))
                     
-                    if (outcome$scale=='number' || outcome$scale=='non.negative.number')
+                    weighting.outcome = 'diagnosed.prevalence'
+                    if (outcome$scale!='proportion' || 
+                        !any(data.manager$outcomes==weighting.outcome))
+                    {
                         modeled.location
+                    }
                     else
                     {
                         max.n.states = 3
@@ -173,7 +177,6 @@ OUTCOME.LOCATION.MAPPING = R6::R6Class(
                         
                         if (length(states)>max.n.states || length(counties)>max.n.counties)
                         {
-                            weighting.outcome = 'diagnosed.prevalence'
                             weight.by.county = data.manager$pull(outcome = weighting.outcome,
                                                                  dimension.values = list(location=counties),
                                                                  keep.dimensions = c('year', 'location'))
