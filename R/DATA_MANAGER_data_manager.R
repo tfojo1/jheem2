@@ -1638,10 +1638,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             if (ignore.ontologies.without.requested.locations && 'location' %in% names(dimension.values)) {
                 ontologies.with.these.locations = names(private$i.ontologies)[sapply(private$i.ontologies, function(ont) {any(dimension.values$location %in% ont[['location']])})]
+                ontologies.in.this.outcome = unique(unlist(sapply(private$i.data[[outcome]][[metric]], function(source) {names(source)})))
+                relevant.ontologies = intersect(ontologies.with.these.locations, ontologies.in.this.outcome)
                 if (!is.null(from.ontology.names))
-                    from.ontology.names = intersect(from.ontology.names, ontologies.with.these.locations)
+                    from.ontology.names = intersect(from.ontology.names, relevant.ontologies)
                 else
-                    from.ontology.names = ontologies.with.these.locations
+                    from.ontology.names = relevant.ontologies
+                
             }
             
             # Get the universal ontology (replaces 'target.ontology') and the returned mapping, which may be replaced with an identity mapping if keep.dimensions are not in the mapping's 'to' dimensions
@@ -1850,7 +1853,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 for (denominator.source in denominator.sources) {
                                     denominator.array = self$pull(outcome = denominator.outcome,
                                                                   metric = 'estimate',
-                                                                  keep.dimensions = union(keep.dimensions, dv.names),
+                                                                  keep.dimensions = strat.dimensions,
                                                                   dimension.values = denom.dim.vals,
                                                                   sources = denominator.source,
                                                                   target.ontology = strat.dimnames,
