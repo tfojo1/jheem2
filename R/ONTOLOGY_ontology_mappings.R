@@ -2935,14 +2935,29 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
                                  na.rm,
                                  error.prefix)
         {
+            from.dim.names = dimnames(from.arr)
+            dimensions.unaffected.by.mappings = names(from.dim.names)
+            for (sub.mapping in private$i.sub.mappings)
+                dimensions.unaffected.by.mappings = setdiff(dimensions.unaffected.by.mappings,
+                                                            c(sub.mapping$from.dimensions, sub.mapping$to.dimensions))
+            
             rv = from.arr
             for (i in 1:length(private$i.sub.mappings))
             {
                 sub.mapping = private$i.sub.mappings[[i]]
+                
                 if (i == length(private$i.sub.mappings))
-                    rv = sub.mapping$apply(rv, to.dim.names=to.dim.names, na.rm=na.rm, error.prefix=error.prefix)
+                    next.to.dim.names = to.dim.names
                 else
-                    rv = sub.mapping$apply(rv, to.dim.names=NULL, na.rm=na.rm, error.prefix=error.prefix)
+                {
+                    next.to.dim.names = sub.mapping$apply.to.dim.names(from.dim.names, error.prefix=error.prefix)
+                    if (i==1)
+                        next.to.dim.names[dimensions.unaffected.by.mappings] = to.dim.names[dimensions.unaffected.by.mappings]
+                }
+                
+                rv = sub.mapping$apply(rv, to.dim.names=next.to.dim.names, na.rm=na.rm, error.prefix=error.prefix)
+
+                from.dim.names = next.to.dim.names
             }
             
             rv
@@ -2952,22 +2967,33 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
                                   to.dim.names,
                                   error.prefix)
         {
+            dimensions.unaffected.by.mappings = names(from.dim.names)
+            for (sub.mapping in private$i.sub.mappings)
+                dimensions.unaffected.by.mappings = setdiff(dimensions.unaffected.by.mappings,
+                                                            c(sub.mapping$from.dimensions, sub.mapping$to.dimensions))
+            
             rv = NULL
             for (i in 1:length(private$i.sub.mappings))
             {
                 sub.mapping = private$i.sub.mappings[[i]]
+                
                 if (i == length(private$i.sub.mappings))
-                    to.add = sub.mapping$get.matrix(from.dim.names, to.dim.names, error.prefix=error.prefix)
+                    next.to.dim.names = to.dim.names
                 else
-                    to.add = sub.mapping$get.matrix(from.dim.names, NULL, error.prefix=error.prefix)
+                {
+                    next.to.dim.names = sub.mapping$apply.to.dim.names(from.dim.names, error.prefix=error.prefix)
+                    if (i==1)
+                        next.to.dim.names[dimensions.unaffected.by.mappings] = to.dim.names[dimensions.unaffected.by.mappings]
+                }
+                
+                to.add = sub.mapping$get.matrix(from.dim.names, next.to.dim.names, error.prefix=error.prefix)
                 
                 if (is.null(rv))
                     rv = to.add
                 else
                     rv = to.add %*% rv
                 
-                if (i < length(private$i.sub.mappings))
-                    from.dim.names = sub.mapping$apply.to.dim.names(from.dim.names, error.prefix=error.prefix)
+                from.dim.names = next.to.dim.names
             }
             
             rv
@@ -2977,15 +3003,27 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
                                           to.dim.names,
                                           error.prefix)
         {
+            dimensions.unaffected.by.mappings = names(from.dim.names)
+            for (sub.mapping in private$i.sub.mappings)
+                dimensions.unaffected.by.mappings = setdiff(dimensions.unaffected.by.mappings,
+                                                            c(sub.mapping$from.dimensions, sub.mapping$to.dimensions))
+            
             rv = NULL
             for (i in 1:length(private$i.sub.mappings))
             {
                 sub.mapping = private$i.sub.mappings[[i]]
-                if (i == length(private$i.sub.mappings))
-                    indices = sub.mapping$get.mapping.indices(from.dim.names, to.dim.names=to.dim.names, error.prefix=error.prefix)
-                else
-                    indices = sub.mapping$get.mapping.indices(from.dim.names, to.dim.names=NULL, error.prefix=error.prefix)
                 
+                if (i == length(private$i.sub.mappings))
+                    next.to.dim.names = to.dim.names
+                else
+                {
+                    next.to.dim.names = sub.mapping$apply.to.dim.names(from.dim.names, error.prefix=error.prefix)
+                    if (i==1)
+                        next.to.dim.names[dimensions.unaffected.by.mappings] = to.dim.names[dimensions.unaffected.by.mappings]
+                }
+
+                indices = sub.mapping$get.mapping.indices(from.dim.names, to.dim.names=next.to.dim.names, error.prefix=error.prefix)
+
                 if (is.null(rv))
                     rv = indices
                 else
@@ -2993,8 +3031,7 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
                         unique(unlist(rv[indices.for.one.dst.elem]))
                     })
                 
-                if (i < length(private$i.sub.mappings))
-                    from.dim.names = sub.mapping$apply.to.dim.names(from.dim.names, error.prefix=error.prefix)
+                from.dim.names = next.to.dim.names
             }
             
             rv
