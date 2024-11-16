@@ -2937,10 +2937,16 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
         {
             from.dim.names = dimnames(from.arr)
             dimensions.unaffected.by.mappings = names(from.dim.names)
+            dimensions.that.will.be.dropped = setdiff(names(from.dim.names), names(to.dim.names))
             for (sub.mapping in private$i.sub.mappings)
+            {
                 dimensions.unaffected.by.mappings = setdiff(dimensions.unaffected.by.mappings,
                                                             c(sub.mapping$from.dimensions, sub.mapping$to.dimensions))
+                dimensions.that.will.be.dropped = setdiff(dimensions.that.will.be.dropped, sub.mapping$from.dimensions)
             
+            }
+            dimensions.unaffected.by.mappings = setdiff(dimensions.unaffected.by.mappings, dimensions.that.will.be.dropped)
+
             rv = from.arr
             for (i in 1:length(private$i.sub.mappings))
             {
@@ -2952,7 +2958,10 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
                 {
                     next.to.dim.names = sub.mapping$apply.to.dim.names(from.dim.names, error.prefix=error.prefix)
                     if (i==1)
+                    {
+                        next.to.dim.names = next.to.dim.names[setdiff(names(next.to.dim.names), dimensions.that.will.be.dropped)]
                         next.to.dim.names[dimensions.unaffected.by.mappings] = to.dim.names[dimensions.unaffected.by.mappings]
+                    }
                 }
                 
                 rv = sub.mapping$apply(rv, to.dim.names=next.to.dim.names, na.rm=na.rm, error.prefix=error.prefix)
@@ -2968,9 +2977,16 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
                                   error.prefix)
         {
             dimensions.unaffected.by.mappings = names(from.dim.names)
+            dimensions.unaffected.by.mappings = names(from.dim.names)
+            dimensions.that.will.be.dropped = setdiff(names(from.dim.names), names(to.dim.names))
             for (sub.mapping in private$i.sub.mappings)
+            {
                 dimensions.unaffected.by.mappings = setdiff(dimensions.unaffected.by.mappings,
                                                             c(sub.mapping$from.dimensions, sub.mapping$to.dimensions))
+                dimensions.that.will.be.dropped = setdiff(dimensions.that.will.be.dropped, sub.mapping$from.dimensions)
+                
+            }
+            dimensions.unaffected.by.mappings = setdiff(dimensions.unaffected.by.mappings, dimensions.that.will.be.dropped)
             
             rv = NULL
             for (i in 1:length(private$i.sub.mappings))
@@ -2983,7 +2999,10 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
                 {
                     next.to.dim.names = sub.mapping$apply.to.dim.names(from.dim.names, error.prefix=error.prefix)
                     if (i==1)
+                    {
+                        next.to.dim.names = next.to.dim.names[setdiff(names(next.to.dim.names), dimensions.that.will.be.dropped)]
                         next.to.dim.names[dimensions.unaffected.by.mappings] = to.dim.names[dimensions.unaffected.by.mappings]
+                    }
                 }
                 
                 to.add = sub.mapping$get.matrix(from.dim.names, next.to.dim.names, error.prefix=error.prefix)
@@ -3004,9 +3023,15 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
                                           error.prefix)
         {
             dimensions.unaffected.by.mappings = names(from.dim.names)
+            dimensions.that.will.be.dropped = setdiff(names(from.dim.names), names(to.dim.names))
             for (sub.mapping in private$i.sub.mappings)
+            {
                 dimensions.unaffected.by.mappings = setdiff(dimensions.unaffected.by.mappings,
                                                             c(sub.mapping$from.dimensions, sub.mapping$to.dimensions))
+                dimensions.that.will.be.dropped = setdiff(dimensions.that.will.be.dropped, sub.mapping$from.dimensions)
+                
+            }
+            dimensions.unaffected.by.mappings = setdiff(dimensions.unaffected.by.mappings, dimensions.that.will.be.dropped)
             
             rv = NULL
             for (i in 1:length(private$i.sub.mappings))
@@ -3019,7 +3044,10 @@ COMBINATION.ONTOLOGY.MAPPING = R6::R6Class(
                 {
                     next.to.dim.names = sub.mapping$apply.to.dim.names(from.dim.names, error.prefix=error.prefix)
                     if (i==1)
+                    {
+                        next.to.dim.names = next.to.dim.names[setdiff(names(next.to.dim.names), dimensions.that.will.be.dropped)]
                         next.to.dim.names[dimensions.unaffected.by.mappings] = to.dim.names[dimensions.unaffected.by.mappings]
+                    }
                 }
 
                 indices = sub.mapping$get.mapping.indices(from.dim.names, to.dim.names=next.to.dim.names, error.prefix=error.prefix)
