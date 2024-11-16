@@ -441,8 +441,8 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             #     stop(paste0(error.prefix, "'measurement.error.coefficient.of.variance' must be a numeric value between 0 and 1 inclusive"))
 
             # *error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.ci',  or 'data.variance'
-            if (!(error.variance.type %in% c("sd", "variance", "cv", "data.sd", "data.ci", "data.variance"))) {
-                stop(paste0(error.prefix, "'error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.ci', or 'data.variance'"))
+            if (!(error.variance.type %in% c("sd", "variance", "cv", "data.sd", "data.ci", "data.variance", "function.sd"))) {
+                stop(paste0(error.prefix, "'error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.ci', 'data.variance', or 'function.sd'"))
             }
 
             if (error.variance.type %in% c("sd", "variance", "cv") && (!is.numeric(error.variance.term) || length(error.variance.term) != 1 || is.na(error.variance.term) || error.variance.term < 0)) {
