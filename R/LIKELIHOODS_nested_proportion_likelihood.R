@@ -418,9 +418,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 stop(paste0(error.prefix, "'included.multiplier.correlation.structure' must be either 'compound.symmetry' or 'autoregressive.1'"))
             }
 
-            # *p.error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', or 'data.ci'
-            if (!(p.error.variance.type %in% c("sd", "variance", "cv", "data.sd", "data.variance", "data.cv", "data.ci"))) {
-                stop(paste0(error.prefix, "'p.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', or 'data.ci'"))
+            # *p.error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.ci', or 'function.sd'
+            if (!(p.error.variance.type %in% c("sd", "variance", "cv", "data.sd", "data.variance", "data.cv", "data.ci", "function.sd"))) {
+                stop(paste0(error.prefix, "'p.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', 'data.ci', or 'function.sd'"))
             }
 
             if (p.error.variance.type %in% c("sd", "variance", "cv") && (!is.numeric(p.error.variance.term) || length(p.error.variance.term) != 1 || is.na(p.error.variance.term) || p.error.variance.term < 0)) {
@@ -437,10 +437,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             if (p.error.variance.type %in% c("data.sd", "data.variance", "data.cv", "data.ci")) {
                 p.error.variance.term <- 1
             }
+            
+            if (p.error.variance.type %in% c("function.sd") && (!is.function(p.error.variance.term) || !setequal(names(formals(p.error.variance.term)), c('data', 'details'))))
+                stop(paste0(error.prefix, "if 'p.error.variance.type' is 'function.sd', then the 'p.error.variance.term' must be a function that takes arguments 'data' and 'details' and returns a numeric array of the same dimensions as ‘data’, with no NA values, that represents the sd for each measurement in data."))
 
-            # *n.error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', or 'data.ci'
-            if (!(n.error.variance.type %in% c("sd", "variance", "cv", "data.sd", "data.variance", "data.cv", "data.ci"))) {
-                stop(paste0(error.prefix, "'n.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', or 'data.ci'"))
+            # *n.error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.ci', or 'function.sd'
+            if (!(n.error.variance.type %in% c("sd", "variance", "cv", "data.sd", "data.variance", "data.cv", "data.ci", "function.sd"))) {
+                stop(paste0(error.prefix, "'n.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', 'data.ci', or 'function.sd'"))
             }
 
             if (n.error.variance.type %in% c("sd", "variance", "cv") && (!is.numeric(n.error.variance.term) || length(n.error.variance.term) != 1 || is.na(n.error.variance.term) || n.error.variance.term < 0)) {
@@ -450,7 +453,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 stop(paste0(error.prefix, "'n.error.variance.term' must be NULL if 'n.error.variance.type' is one of 'data.sd', 'data.variance', 'data.cv', or 'data.ci'"))
             }
 
-            if (n.error.variance.type %in% c("sd", "variance", "data.sd", "data.variance", "data.cv", "data.ci")) {
+            if (n.error.variance.type %in% c("sd", "variance", "data.sd", "data.variance", "data.cv", "data.ci", "function.sd")) {
                 stop(paste0(error.prefix, "only 'cv' is currently supported for 'n.error.variance.type'"))
             }
 
@@ -916,6 +919,19 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
 
                         private$i.p.error.vector <- c(private$i.p.error.vector, one.p.error.data)
                     }
+                    
+                    # If using a function to generate variance data, follow similar pattern to above
+                    if (instructions$parameters$p.error.variance.type %in% c("function.sd")) {
+                        p.error.data <- tryCatch({instructions$parameters$p.error.variance.term(data, one.details)},
+                                               error=function(e) {stop(paste0(error.prefix, "there was an error during execution of the user-specified 'p.error.variance.term' function"))})
+                        if (is.null(p.error.data))
+                            stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function returned NULL"))
+                        if (!is.array(p.error.data) || !is.numeric(p.error.data) || !identical(dimnames(p.error.data), dimnames(data)))
+                            stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function did not return a numeric array with the same dimnames as the data"))
+                        if (any(is.na(p.error.data)))
+                            stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function returned at least one NA and must not"))
+                        private$i.p.error.vector <- c(private$i.p.error.vector, p.error.data)
+                    }
 
                     # If we have lognormal approximation on, we should transform the observations right now, after converting zeroes to NA so that they are ignored in the same ways.
                     if (private$i.use.lognormal.approximation) {
@@ -1141,7 +1157,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     private$i.parameters$observation.correlation.form == "autoregressive.1"
                 )
                 # All forms of error will be converted to sd and then we use cov = corr * sd %*% t(sd), the last part sometimes being just sd squared
-                if (private$i.parameters$p.error.variance.type %in% c("data.sd", "data.variance", "data.cv")) {
+                if (private$i.parameters$p.error.variance.type %in% c("data.sd", "data.variance", "data.cv", "function.sd")) {
                     # all have been converted to sd earlier, including data.cv
                     measurement.error.sd.matrix <- private$i.p.error.vector %*% t(private$i.p.error.vector)
                     private$i.obs.error <- measurement.error.correlation.matrix * measurement.error.sd.matrix
