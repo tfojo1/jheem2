@@ -68,13 +68,13 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             private$i.age.info = age.info
             private$i.start.year = start.year
             
-            
+            private$i.parent.version = parent.specification$version
             private$i.parent.specification = parent.specification
             private$i.do.not.inherit.model.quantity.names = do.not.inherit.model.quantity.names
             private$i.do.not.inherit.model.outcome.names = do.not.inherit.model.outcome.names
             private$i.do.not.inherit.transitions.for.dimension = do.not.inherit.transitions.for.dimension
             private$i.do.not.inherit.components.with.tags = do.not.inherit.components.with.tags
-            
+    
             private$i.quantity.name.mappings = list()
             private$i.quantity.name.mappings[[version]] = names(private$i.quantities)
             names(private$i.quantity.name.mappings[[version]]) = names(private$i.quantities)
@@ -406,6 +406,16 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
     
     active = list(
         
+        parent.version = function(value)
+        {
+            if (missing(value))
+            {
+                private$i.parent.version
+            }
+            else
+                stop("Cannot modify 'parent.version' for a jheem.specification - it is read-only")  
+        },
+        
         ancestor.specifications = function(value)
         {
             if (missing(value))
@@ -570,6 +580,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
     private = list(
         
         i.ancestor.specifications = NULL,
+        i.parent.version = NULL,
         
         i.verbose = NULL,
         
