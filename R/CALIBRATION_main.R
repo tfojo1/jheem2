@@ -297,6 +297,8 @@ set.up.calibration <- function(version,
             parameters.with.na.initial.cov.mat.mask = is.na(diag(initial.cov.mat)[mcmc.parameters.to.pull.from.preceding])
             parameters.to.pull.all.cov.from.preceding = mcmc.parameters.to.pull.from.preceding[parameters.with.na.initial.cov.mat.mask]
             parameters.to.pull.weighted.cov.from.preceding = mcmc.parameters.to.pull.from.preceding[!parameters.with.na.initial.cov.mat.mask]
+            parameters.to.pull.weighted.cov.from.preceding = intersect(parameters.to.pull.weighted.cov.from.preceding,
+                                                                       dimnames(mcmc.summary$cov.mat)[[1]])
             
             initial.cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.weighted.cov.from.preceding] = initial.cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.weighted.cov.from.preceding] * (1-calibration.info$weight.to.preceding.variance.estimates) +
                 mcmc.summary$cov.mat[parameters.to.pull.weighted.cov.from.preceding,parameters.to.pull.weighted.cov.from.preceding] * calibration.info$weight.to.preceding.variance.estimates
