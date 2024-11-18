@@ -4,7 +4,13 @@
 \alias{copy.calibration.info}
 \title{Copy Calibration Info to a New Code}
 \usage{
-copy.calibration.info(from.code, to.code)
+copy.calibration.info(
+  from.code,
+  to.code,
+  n.iter = NULL,
+  n.burn = NULL,
+  thin = NULL
+)
 }
 \arguments{
 \item{from.code}{The code for the the calibration info to copy}
