@@ -301,14 +301,6 @@ JHEEM.KERNEL = R6::R6Class(
             # browser()
         },
         
-        # Makes sure all contained R6 objects (just the specification metadata at this point)
-        # are up to date
-        update = function()
-        {
-            private$i.specification.metadata = copy.specification.metadata(private$i.specification.metadata)
-            self
-        },
-
         get.quantity.kernel = function(quantity.name)
         {
             private$i.quantity.kernels[[quantity.name]]

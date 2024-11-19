@@ -1119,7 +1119,7 @@ copy.simulation.set <- function(simset)
     else
         simulation.chain = simset$simulation.chain
     
-    do.create.simulation.set(jheem.kernel = simset$jheem.kernel$update(),
+    do.create.simulation.set(jheem.kernel = simset$jheem.kernel,
                              sub.version = simset$sub.version,
                              outcome.numerators = simset$data$outcome.numerators,
                              outcome.denominators = simset$data$outcome.denominators,
