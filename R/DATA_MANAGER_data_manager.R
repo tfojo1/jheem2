@@ -1822,8 +1822,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             else {
                                 data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
-                                if (data.type == 'url') data.to.process = self$unhash.url(data.to.process)
-                                if (data.type == 'details') data.to.process = self$unhash.details(data.to.process)
                                 function.to.apply = function(x) {list(unique(unlist(x)))}
                             }
                             if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion', 'ratio') && !mapping.to.apply$is.identity.mapping) {
@@ -1941,12 +1939,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     mapped.data.by.type = mapped.data.by.type / estimate.data.for.cv
                                 }
                             }
+                            if (data.type == "url")
+                                mapped.data.by.type = self$unhash.url(mapped.data.by.type, sort=T)
+                            if (data.type == "details")
+                                mapped.data.by.type = self$unhash.details(mapped.data.by.type, sort=T)
                             
-                            if (data.type != 'data') {
-                                mapped.data.by.type = lapply(mapped.data.by.type, function(x) {x[[1]]})
-                                dim(mapped.data.by.type) = sapply(dimnames.for.apply, length)
-                                dimnames(mapped.data.by.type) = dimnames.for.apply
-                            }
                             mapped.data.by.type
                         })
                         if (incompatible.mapped.stratification) {
@@ -2554,17 +2551,25 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             private$get.universal.ontology(outcome, exclude.ontology.names=exclude.ontology.names, return.target.to.universal.mapping = F)
         },
         
-        unhash.url = function(arr)
+        unhash.url = function(arr, sort=T)
         {
-            new.arr = lapply(arr, function(hashed.value) {private$i.url.list[[hashed.value]]})
+            # Each array cell is a vector of potentially multiple hashed.values
+            new.arr = lapply(arr, function(hashed.values) {
+                unhashed = sapply(hashed.values, function(hashed.value) {private$i.url.list[[hashed.value]]})
+                if (sort) sort(unhashed) else unhashed
+            })
             dim(new.arr) = dim(arr)
             dimnames(new.arr) = dimnames(arr)
             new.arr
         },
         
-        unhash.details = function(arr)
+        unhash.details = function(arr, sort=T)
         {
-            new.arr = lapply(arr, function(hashed.value) {private$i.details.list[[hashed.value]]})
+            # Each array cell is a vector of potentially multiple hashed.values
+            new.arr = lapply(arr, function(hashed.values) {
+                unhashed = sapply(hashed.values, function(hashed.value) {private$i.details.list[[hashed.value]]})
+                if (sort) sort(unhashed) else unhashed
+            })
             dim(new.arr) = dim(arr)
             dimnames(new.arr) = dimnames(arr)
             new.arr
