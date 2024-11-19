@@ -2555,8 +2555,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         {
             # Each array cell is a vector of potentially multiple hashed.values
             new.arr = lapply(arr, function(hashed.values) {
-                unhashed = sapply(hashed.values, function(hashed.value) {private$i.url.list[[hashed.value]]})
-                if (sort) sort(unhashed) else unhashed
+                if (any(is.na(hashed.values))) NA
+                else {
+                    unhashed = sapply(hashed.values, function(hashed.value) {private$i.url.list[[hashed.value]]})
+                    if (sort) sort(unhashed) else unhashed
+                }
             })
             dim(new.arr) = dim(arr)
             dimnames(new.arr) = dimnames(arr)
@@ -2567,8 +2570,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         {
             # Each array cell is a vector of potentially multiple hashed.values
             new.arr = lapply(arr, function(hashed.values) {
-                unhashed = sapply(hashed.values, function(hashed.value) {private$i.details.list[[hashed.value]]})
-                if (sort) sort(unhashed) else unhashed
+                if (any(is.na(hashed.values))) NA
+                else {
+                    unhashed = sapply(hashed.values, function(hashed.value) {private$i.details.list[[hashed.value]]})
+                    if (sort) sort(unhashed) else unhashed
+                }
             })
             dim(new.arr) = dim(arr)
             dimnames(new.arr) = dimnames(arr)
