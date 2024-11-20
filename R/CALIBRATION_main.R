@@ -74,7 +74,7 @@ set.up.calibration <- function(version,
     spec = get.compiled.specification.for.version(version)
     if (calibration.info$draw.from.parent.version)
     {
-        if (!is.null(spec$parent.version))
+        if (is.null(spec$parent.version))
             stop(paste0(error.prefix, "We were instructed to draw.from.parent.version in setting up the calibration, but there is no parent version for the '", version, "' specification"))   
         if (!is.specification.registered.for.version(spec$parent.version))
             stop(paste0(error.prefix, "We were instructed to draw.from.parent.version in setting up the calibration, but no specification has been registered for the parent version '", spec$parent.version, "'"))   
