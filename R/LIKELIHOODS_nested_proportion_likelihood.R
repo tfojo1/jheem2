@@ -2060,6 +2060,19 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 }
                 expand.array(lower.data, top.level.dimnames[names(top.level.dimnames) %in% c("year", "location", stratification)])
             })
+            
+            # If any of these data returned NULL, then we have to throw an error, because it was needed.
+            # This happened when we removed ethnicity-only stratifications, thinking that we didn't use one when the other wasn't present (we do)
+            if (any(sapply(k.minus.2.way.data, is.null))) {
+                missing.strat.names = k.minus.2.way.stratifications[sapply(k.minus.2.way.data, is.null)]
+                missing.strat.names = paste(sapply(missing.strat.names, function(x) {paste(c('year', 'location', x), collapse="__")}), collapse=", ")
+                stop(paste0(error.prefix, "obs-n code could not find data for stratification(s) ", missing.strat.names))
+            }
+            if (any(sapply(k.minus.1.way.data, is.null))) {
+                missing.strat.names = k.minus.1.way.stratifications[sapply(k.minus.1.way.data, is.null)]
+                missing.strat.names = paste(sapply(missing.strat.names, function(x) {paste(c('year', 'location', x), collapse="__")}), collapse=", ")
+                stop(paste0(error.prefix, "obs-n code could not find data for stratification(s) ", missing.strat.names))
+            }
 
             # Now we build our average... We need to know which numerators (product of two k-1 stratifications) go with which denominators (a single k-2 stratification)
             # We will build terms out of denominators since there are no repeated denominators. The numerator for a denominator is the product of the two k-1 stratifications that include all the dimensions of the denominator.
