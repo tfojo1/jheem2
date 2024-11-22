@@ -55,26 +55,50 @@ source("R/DATA_MANAGER_data_manager.R")
 #     -> (cached objects)
 # and my project is setup in the JHEEM directory
 
+# simplot <- function(...,
+#                     outcomes=NULL,
+#                     corresponding.data.outcomes = NULL,
+#                     split.by = NULL,
+#                     facet.by = NULL,
+#                     dimension.values = list(),
+#                     target.ontology = NULL,
+#                     plot.which = c('sim.and.data', 'sim.only')[1],
+#                     summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
+#                     plot.year.lag.ratio = F,
+#                     title = "location",
+#                     n.facet.rows = NULL,
+#                     data.manager = get.default.data.manager(),
+#                     style.manager = get.default.style.manager(),
+#                     debug = F)
+
 
 plot.simulations <- function(...,
                             outcomes,
                             corresponding.data.outcomes = NULL,
-                            split.by = character(),
-                            facet.by = character(),
+                            split.by = NULL,
+                            facet.by = NULL,
                             dimension.values = list(),
                             target.ontology = NULL,
-                            summary.type = c('individual.simulations','mean.and.interval','median.and.interval')[1],
+                            summary.type = c('individual.simulation','mean.and.interval','median.and.interval')[1],
                             plot.year.lag.ratio = F,
                             title = "location",
                             n.facet.rows = NULL,
                             interval.coverate = 0.95,
-                            data.manager,
+                            data.manager = get.default.data.manager(),
                             style.manager = get.default.style.manager('plotly'))
 {
   
     plot.which = "sim.and.data"
+
+    plot.data = plot.data.validation(list(...), 
+                                     match.call(expand.dots = F)$...,
+                                     outcomes, 
+                                     corresponding.data.outcomes, 
+                                     plot.which, 
+                                     summary.type)
     
-    plot.data = plot.data.validation(list(...), outcomes, corresponding.data.outcomes, plot.which, summary.type)
+    # These values are possibly modified by the plot.data.validation call, so 
+    # they need to be extracted from the returned list.
     simset.list = plot.data$simset.list
     outcomes = plot.data$outcomes
     
@@ -108,18 +132,16 @@ execute.plotly.plot <- function(prepared.plot.data,
                             outcomes=NULL,
                             split.by=NULL,
                             facet.by=NULL,
-                            plot.which = 'both',
+                            plot.which = 'sim.and.data',
                             summary.type=c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                             plot.year.lag.ratio=F,
                             n.facet.rows=NULL,
                             style.manager=get.default.style.manager(),
                             debug=F)
 {
-  if (debug) {
-    browser()
-  }
+  browser()
   
-  print(prepared.plot.data)
+  # print(prepared.plot.data)
     
 }
 
