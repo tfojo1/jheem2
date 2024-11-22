@@ -158,7 +158,7 @@ rerun.simulations <- function(simset,
 #'@description For one chain, the mixing statistic is the variance in the first
 #' quarter of simulations divided by the variance in the last quarter of simulations.
 #'
-#'@param jheem2-params
+#'@param jheem2-simset-params
 #'@param match.names (Optional) A regex on parameter names for which to compute the mixing statistic. If NULL, all parameters are used.
 #'@param chains (Optional) Which chains to use, defaulting to all chains.
 #'@param sort (Optional) Whether to sort the output in decreasing order by mixing statistic value, defaulting to TRUE.
@@ -166,7 +166,7 @@ rerun.simulations <- function(simset,
 #'@export
 get.mcmc.mixing.statistic = function(simset,
                                      match.names=NULL,
-                                     chains = self$unique.chains, # which chains to use
+                                     chains = simset$unique.chains, # which chains to use
                                      sort = T)
 {
     error.prefix = "Cannot get.mcmc.mixing.statistic: "
@@ -176,6 +176,92 @@ get.mcmc.mixing.statistic = function(simset,
     simset$get.mcmc.mixing.statistic(match.names=match.names,
                                      chains=chains,
                                      sort=sort)
+}
+
+#'@title Subset a Simulation Set
+#'@inheritParams jheem2-simset-params
+#'@param simulation.indices An integer or logical vector specifying which simulations to keep.
+#'@export
+subset.simset = function(simset,
+                         simulation.indices)
+{
+    error.prefix = "Error subsetting jheem.simulation.set: "
+    if (!is(simset, 'jheem.simulation.set'))
+        stop(paste0(error.prefix, "'simset' must be an object of class 'jheem.simulation.set'"))
+    
+    simset$subset(simulation.indices)
+}
+
+#'@title Thin A Simulation Set
+#'@description Subset a simulation set either by keeping every Nth simulation
+#'or keeping a fraction of all simulations. One of 'n' or 'keep' can be specified,
+#'with the other left as NULL.
+#'@inheritParams jheem2-simset-params
+#'@param n Every Nth simulation will be kept, counting backwards from the last sim (ie., if n=3, the last simulation and the fourth-to-last simulation will be kept, etc.).
+#'@param k Either a number of simulations to keep or a fraction to keep (between 0 and 1). Simulations will be drawn uniformly from the set.
+#'@details Decimal values above 1 are rounded down to the nearest whole number.
+#'@export
+thin.simset = function(simset,
+                       n=NULL,
+                       keep=NULL)
+{
+    error.prefix = "Error thinning simulation.set: "
+    if (!is(simset, 'jheem.simulation.set'))
+        stop(paste0(error.prefix, "'simset' must be an object of class 'jheem.simulation.set'"))
+    simset$thin(n=n,
+                keep=keep)
+}
+
+#'@title Burn Simulations From a Simulation Set
+#'@description Subset a simulation set by trimming off a portion of earlier simulations.
+#'@inheritParams jheem2-simset-params
+#'@param keep Either a number of simulations to keep or a fraction to keep (between 0 and 1). The latest simulations will be kept.
+#'@details Decimal values above 1 are rounded down to the nearest whole number.
+#'@export
+burn.simset = function(simset,
+                       keep=NULL)
+{
+    error.prefix = "Error burning sims from simulation.set: "
+    if (!is(simset, 'jheem.simulation.set'))
+        stop(paste0(error.prefix, "'simset' must be an object of class 'jheem.simulation.set'"))
+    simset$burn(keep=keep)
+}
+
+#'@title Get Simulation Set Paramater Values
+#'@inheritParams jheem2-simset-params
+#'@param simulation.indices An integer or logical vector specifying which simulations to show in output. Defaults to the last simulation.
+#'@param drop If the default TRUE, then an output with only one simulation will be coerced to a vector.
+#'@value A vector of parameter values for a simulation or an array indexed by parameter name and simulation.
+#'@export
+get.simset.params = function(simset,
+                             match.names=NULL,
+                             simulation.indices=simset$n.sim,
+                             drop=T)
+{
+    error.prefix = "Error getting params from simulation.set: "
+    if (!is(simset, 'jheem.simulation.set'))
+        stop(paste0(error.prefix, "'simset' must be an object of class 'jheem.simulation.set'"))
+    simset$get.params(match.names=match.names,
+                      simulation.indices=simulation.indices,
+                      drop=drop)
+}
+
+#'@title Create Traceplot of MCMC
+#'@inheritParams jheem2-simset-params
+#'@param burn How many iterations to burn and thus ignore on the plot, defaulting to 0.
+#'@va;ie A ggplot of parameter value vs. iteration, faceted by parameter and colored by chain.
+#'@export
+mcmc.traceplot = function(simset,
+                          match.names,
+                          chains = simset$unique.chains,
+                          burn = 0)
+{
+    error.prefix = "Error creating traceplot from simulation.set: "
+    if (!is(simset, 'jheem.simulation.set'))
+        stop(paste0(error.prefix, "'simset' must be an object of class 'jheem.simulation.set'"))
+    simset$traceplot(match.names=match.names,
+                     chains=chains,
+                     burn=burn)
 }
 
 ##-----------------------------------------------------------##
@@ -1566,35 +1652,35 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             rv
         },
         
-        subset = function(x)
+        subset = function(simulation.indices)
         {
             error.prefix = "Error subsetting jheem.simulation.set: "
-            # 'x' must be either an integer or logical vector with valid length and values
-            if ((!is.numeric(x) && !is.logical(x)) || any(is.na(x)) || any(duplicated(x)))
-                stop(paste0(error.prefix, "'x' must be a numeric or logical vector with no NAs or repeats"))
-            if (is.numeric(x) && (any(x < 1) || any(x > self$n.sim)))
-                stop(paste0(error.prefix, "if 'x' is a numeric vector, all values must be integers between 1 and this simulation.set's 'n.sim'"))
-            if (is.logical(x) && length(x) != self$n.sim)
-                stop(paste0(error.prefix, "if 'x' is a logical vector, it must have length equal to this simulation.set's 'n.sim'"))
-
-            if (is.logical(x)) x = (1:self$n.sim)[x]
+            # 'simulation.indices' must be either an integer or logical vector with valid length and values
+            if ((!is.numeric(simulation.indices) && !is.logical(simulation.indices)) || any(is.na(simulation.indices)) || any(duplicated(simulation.indices)))
+                stop(paste0(error.prefix, "'simulation.indices' must be a numeric or logical vector with no NAs or repeats"))
+            if (is.numeric(simulation.indices) && (any(simulation.indices < 1) || any(simulation.indices > self$n.sim)))
+                stop(paste0(error.prefix, "if 'simulation.indices' is a numeric vector, all values must be integers between 1 and this simulation.set's 'n.sim'"))
+            if (is.logical(simulation.indices) && length(simulation.indices) != self$n.sim)
+                stop(paste0(error.prefix, "if 'simulation.indices' is a logical vector, it must have length equal to this simulation.set's 'n.sim'"))
             
-            new.n.sim = length(x)
+            if (is.logical(simulation.indices)) simulation.indices = (1:self$n.sim)[simulation.indices]
+            
+            new.n.sim = length(simulation.indices)
             new.outcome.numerators = lapply(private$i.data$outcome.numerators, function(outcome.arr) {
                 if (is.null(outcome.arr) || length(outcome.arr) == 0) return(NULL)
-                new.arr = array.access(outcome.arr, sim=x, drop=F)
+                new.arr = array.access(outcome.arr, sim=simulation.indices, drop=F)
                 dimnames(new.arr)[['sim']] = 1:new.n.sim
                 new.arr
             })
             new.outcome.denominators = lapply(private$i.data$outcome.denominators, function(outcome.arr) {
                 if (is.null(outcome.arr) || length(outcome.arr) == 0) return(NULL)
-                new.arr = array.access(outcome.arr, sim=x, drop=F)
+                new.arr = array.access(outcome.arr, sim=simulation.indices, drop=F)
                 dimnames(new.arr)[['sim']] = 1:new.n.sim
                 new.arr
             })
-            new.parameters = private$i.data$parameters[,x,drop=F]
+            new.parameters = private$i.data$parameters[,simulation.indices,drop=F]
             
-            new.simulation.chain = private$i.data$simulation.chain[x]
+            new.simulation.chain = private$i.data$simulation.chain[simulation.indices]
             
             do.create.simulation.set(jheem.kernel = self$jheem.kernel,
                                      sub.version = self$sub.version,
@@ -1608,9 +1694,9 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                                      outcome.location.mapping = self$outcome.location.mapping,
                                      calibration.code = self$calibration.code,
                                      intervention.code = self$intervention.code,
-                                     run.metadata = self$run.metadata$subset(x),
+                                     run.metadata = self$run.metadata$subset(simulation.indices),
                                      solver.metadata = self$solver.metadata,
-                                     is.degenerate = self$is.degenerate[x],
+                                     is.degenerate = self$is.degenerate[simulation.indices],
                                      finalize = self$is.finalized)
         },
         
@@ -1658,14 +1744,15 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         },
         
         get.params = function(match.names=NULL,
-                              simulation.indices=self$n.sim)
+                              simulation.indices=self$n.sim,
+                              drop=T)
         {
             param.names = private$match.parameter.names(match.names)
             
             if (!is.numeric(simulation.indices))
                 stop("'simulation.indices' must be a numeric vector")
             
-            self$parameters[param.names, simulation.indices]
+            self$parameters[param.names, simulation.indices, drop=drop]
         },
         
         get.mcmc.mixing.statistic = function(match.names=NULL,

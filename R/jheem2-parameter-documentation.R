@@ -32,3 +32,8 @@ NULL
 #' @param instructions A 'jheem.likelihood.instructions' object
 #' @name jheem2-likelihood-params
 NULL
+
+#' @inheritParams jheem2-params
+#' @param match.names A regex to select parameters by name. If NULL, all parameters are used.
+#'@param chains Which chains to use, defaulting to all.
+#' @name jheem2-simset-params
