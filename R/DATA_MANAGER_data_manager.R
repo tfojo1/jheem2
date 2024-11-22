@@ -1939,6 +1939,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     mapped.data.by.type = mapped.data.by.type / estimate.data.for.cv
                                 }
                             }
+                            if (data.type != 'data') {
+                                # This line is critical for converting the output of the list(unique(unlist(x))) back into the right number of list levels
+                                mapped.data.by.type = lapply(mapped.data.by.type, function(x) {x[[1]]})
+                                dim(mapped.data.by.type) = sapply(dimnames.for.apply, length)
+                                dimnames(mapped.data.by.type) = dimnames.for.apply
+                            }
                             if (data.type == "url")
                                 mapped.data.by.type = self$unhash.url(mapped.data.by.type, sort=T)
                             if (data.type == "details")
