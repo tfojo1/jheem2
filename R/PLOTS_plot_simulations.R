@@ -139,10 +139,180 @@ execute.plotly.plot <- function(prepared.plot.data,
                             style.manager=get.default.style.manager(),
                             debug=F)
 {
-  browser()
-  
-  # print(prepared.plot.data)
-    
-}
 
-# plot.simulations(simset, "Incidence", data.manager = get.default.data.manager())
+  #-- UNPACK DATA --#
+  df.sim=prepared.plot.data$df.sim
+  df.truth=prepared.plot.data$df.truth
+  y.label = prepared.plot.data$details$y.label
+  plot.title = prepared.plot.data$details$plot.title
+  
+  #-- PREPARE PLOT COLORS, SHADES, SHAPES, ETC. --#
+  
+  # Here we can assume that we always have sim data and truth data
+  # This is heavily borrowed and only slightly modified code from execute_simplot()
+  
+  # Here we are setting linetype, shape and colour for the simulation data
+  df.sim['linetype.sim.by'] = df.sim[style.manager$linetype.sim.by]
+  df.sim['shape.sim.by'] = df.sim[style.manager$shape.sim.by]
+  df.sim['color.sim.by'] = df.sim[style.manager$color.sim.by]
+  
+  # make some other columns
+  # Her we are setting attribute for the truth
+  df.truth['location.type'] = locations::get.location.type(df.truth$location)
+  df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
+  df.truth['color.data.by'] = df.truth[style.manager$color.data.by]
+  df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
+  
+  if (style.manager$color.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum=="")) {
+    df.truth['color.and.shade.data.by'] = df.truth['shade.data.by']
+  } else if (style.manager$shade.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum=="")) {
+    df.truth['color.and.shade.data.by'] = df.truth['color.data.by']
+  } else {
+    df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
+  }
+  
+  ## COLORS
+  colors.for.sim = NULL
+  color.data.primary.colors = NULL
+  
+  sim.color.groups = sort(unique(df.sim$color.sim.by))
+  data.color.groups = sort(unique(df.truth$color.data.by))
+  
+  # if coloring by the same thing, use the same palette (defaulting to SIM's palette) unless one is missing
+  if (style.manager$color.sim.by == style.manager$color.data.by) {
+    all.color.groups = sort(union(sim.color.groups, data.color.groups))
+      
+    # Both df.sim and df.truth will be non-NULL here; I suspect that means
+    # I should do the get.sim.colors() call (as that is how the code would
+    # got in the original) but will leave it as-is for now
+    
+    if (!is.null(df.sim)) {
+      all.colors = style.manager$get.sim.colors(length(all.color.groups))
+    } else if (!is.null(df.truth)) {
+      all.colors = style.manager$get.data.colors(length(all.color.groups))
+    } else {
+      all.colors = NULL # doesn't matter?
+    }
+      
+    names(all.colors) = all.color.groups
+    colors.for.sim = all.colors[sim.color.groups]
+    color.data.primary.colors = all.colors[data.color.groups]
+  } else {
+    # otherwise, assign colors individually
+    colors.for.sim = style.manager$get.sim.colors(length(sim.color.groups))
+    names(colors.for.sim) = sim.color.groups
+    color.data.primary.colors = style.manager$get.data.colors(length(data.color.groups))
+    names(color.data.primary.colors) = data.color.groups
+  }
+  
+  ## RIBBON COLOR
+  color.ribbon.by = NULL
+  # For now I'm going to leave the ggplot2 call in; we will have the library loaded and 
+  # I can use it until I find a suitable plotly replacement.
+  color.ribbon.by = ggplot2::alpha(colors.for.sim, style.manager$alpha.ribbon)
+  
+  ## SHADES FOR DATA
+  color.data.shaded.colors = NULL
+  color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
+  names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
+  
+  ## SHAPES
+  shapes.for.data = NULL
+  shapes.for.sim = NULL
+  shapes.for.data = style.manager$get.shapes(length(unique(df.truth$shape.data.by)))
+  names(shapes.for.data) = unique(df.truth$shape.data.by)
+  shapes.for.sim = style.manager$get.shapes(length(unique(df.sim$shape.sim.by)))
+  names(shapes.for.sim) = unique(df.sim$shape.sim.by)
+  all.shapes.for.scale = c(shapes.for.data, shapes.for.sim)
+  
+  ## LINETYPES
+  linetypes.for.sim = NULL
+  linetypes.for.sim = style.manager$get.linetypes(length(unique(df.sim$linetype.sim.by)))
+  names(linetypes.for.sim) = unique(df.sim$linetype.sim.by)
+  
+  ## GROUPS
+  # break df.sim into two data frames, one for outcomes where the sim will be lines and the other for where it will be points
+  groupids.with.one.member = setdiff(unique(df.sim$groupid), df.sim$groupid[which(duplicated(df.sim$groupid))])
+  df.sim$groupid_has_one_member = with(df.sim, groupid %in% groupids.with.one.member)
+  df.sim.groupids.one.member = subset(df.sim, groupid_has_one_member)
+  df.sim.groupids.many.members = subset(df.sim, !groupid_has_one_member)
+
+  # Draw the plots
+  
+  fig = plot_ly()
+  # We plot the sim Data first.
+  
+  if (!is.null(split.by)) {
+    # Split.by is per-plot; these are the groups that are being varied within the plot
+    # For example, a plot with split.by = "race" would have multiple races in each plot
+      
+    #In this example plot, we have a df.sim.groupids.man.members > 0
+    if (nrow(df.sim.groupids.many.members) > 0) {
+          
+      fig = plot_ly(
+              type="scatter",
+              x = df.sim.groupids.many.members$year,
+              y = df.sim.groupids.many.members$value,
+              # color = df.sim.groupids.many.members$groupid,
+              color = df.sim.groupids.many.members$color.sim.by,
+              color_continuous_scale = colors.for.sim,
+              # transforms = list(
+              #   list(
+              #     type = "groupby",
+              #     groups = df.sim.groupids.many.members$groupid,
+              #     styles = list (
+              #       list(target = 4, value = list(marker = list(color = 'blue'))),
+              #       list(target = 2, value = list(marker = list(color = 'red'))),
+              #       list(target = 6, value = list(marker = list(color = 'green')))
+              #     )
+              #
+              #   ),
+              mode = "lines+markers"
+              )
+        
+      #       %>% 
+      #       group_by (data = df.sim.groupids.many.members, age) %>%
+      #     
+      #       do(p=plot_ly(.)) %>%
+      #       subplot(nrows = 2, shareX = TRUE, shareY = TRUE)
+        
+      # df.sim.groupids.many.members %>%
+      #       group_by (age) %>%
+      #       do(p = plot_ly(., x = ~year, y = ~value, color = ~color.sim.by, type = "scatter", mode="lines+markers")) %>%
+      #       subplot(nrows = 2, shareX = TRUE, shareY = TRUE)
+      
+      # df.sim.groupids.many.members %>%
+      #       group_by (age) %>%
+      #       group_map(~ plot_ly(data=., x = ~year, y = ~value, color = ~color.sim.by, type = "scatter", mode="lines+markers"), .keep = TRUE) %>% 
+      #       subplot(nrows = 2, shareX = TRUE, shareY = TRUE)
+              
+      
+      # one_plot = function(d) {
+      #     return (plot_ly(data = d, x = ~year, y = ~value, color = ~color.sim.by, type = "scatter", mode="lines") )
+      # }
+      # df.sim.groupids.many.members <- df.sim.groupids.many.members %>% group_by(age)
+      # df.sim.groupids.many.members <- df.sim.groupids.many.members %>% do(mafig = one_plot(.))
+      # fig <- df.sim.groupids.many.members %>% subplot(nrows = 2)
+      
+      one_plot = function(sim_data, world_data) {
+          print(world_data)
+          fig = plot_ly()
+          # Add the Simulation Trace
+          fig <- fig %>% add_trace(data = sim_data, x = ~year, y = ~value, color = ~color.sim.by, type = "scatter", mode = "markers")
+          # Add the Data Trace
+          fig <- fig %>% add_trace(data = world_data, x = ~year, y = ~value, color = ~color.data.by, type = "scatter", mode = "lines")
+          return (fig)
+          # return (plot_ly(data = d, x = ~year, y = ~value, color = ~color.sim.by, type = "scatter", mode="lines") )
+      }
+      df.sim.groupids.many.members <- df.sim.groupids.many.members %>% group_by(age)
+      df.sim.groupids.many.members <- df.sim.groupids.many.members %>% do(mafig = one_plot(., df.truth))
+      fig <- df.sim.groupids.many.members %>% subplot(nrows = 2)
+            
+      print (fig)
+    }
+     
+    browser()
+  }
+
+  
+}
