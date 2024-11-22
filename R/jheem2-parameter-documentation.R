@@ -4,6 +4,7 @@
 #' @param data.manager A jheem.data.manager object
 #' @param error.prefix (Optional) A message to prepend to error messages.
 #' @param sim A 'jheem.simulation.set' object
+#' @param simset A 'jheem.simulation.set' object
 #' @param likelihood A 'jheem.likelihood' object
 #' @param likelihood.instructions A 'jheem.likelihood.instructions' object
 #' @param debug (dev argument)

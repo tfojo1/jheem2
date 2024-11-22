@@ -154,6 +154,30 @@ rerun.simulations <- function(simset,
     join.simulation.sets(new.sims)
 }
 
+#'@title Get MCMC Mixing Statistic
+#'@description For one chain, the mixing statistic is the variance in the first
+#' quarter of simulations divided by the variance in the last quarter of simulations.
+#'
+#'@param jheem2-params
+#'@param match.names (Optional) A regex on parameter names for which to compute the mixing statistic. If NULL, all parameters are used.
+#'@param chains (Optional) Which chains to use, defaulting to all chains.
+#'@param sort (Optional) Whether to sort the output in decreasing order by mixing statistic value, defaulting to TRUE.
+#'@value A vector indexed by parameter
+#'@export
+get.mcmc.mixing.statistic = function(simset,
+                                     match.names=NULL,
+                                     chains = self$unique.chains, # which chains to use
+                                     sort = T)
+{
+    error.prefix = "Cannot get.mcmc.mixing.statistic: "
+    if (!is(simset, 'jheem.simulation.set'))
+        stop(paste0(error.prefix, "'simset' must be an object of class 'jheem.simulation.set'"))
+    
+    simset$get.mcmc.mixing.statistic(match.names=match.names,
+                                     chains=chains,
+                                     sort=sort)
+}
+
 ##-----------------------------------------------------------##
 ##-----------------------------------------------------------##
 ##-- INTERNAL (to the package) WRAPPERS OF THE CONSTRUCTOR --##
@@ -1644,28 +1668,27 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             self$parameters[param.names, simulation.indices]
         },
         
-        # Returns a vector indexed [parameter]
-        # if sort == TRUE - result should be ordered from highest to lowest
-        get.mcmc.mixing.statistic = function(match.names,
+        get.mcmc.mixing.statistic = function(match.names=NULL,
                                              chains = self$unique.chains, # which chains to use
                                              sort = T)
         {
+            error.prefix="Cannot get.mcmc.mixing.statistic: "
             param.names = private$match.parameter.names(match.names)
             if (self$n.chains == 1)
             {
-                # @Andrew - fill in here
                 # variance in first 1/4 of params divided by variance in last 1/4 of params
                 parameter.values = self$parameters[param.names,,drop=F]
                 values.first.quarter = parameter.values[, 1:(floor(self$n.sim * 0.25) + 1), drop=F]
                 values.last.quarter = parameter.values[, (self$n.sim - ceiling(self$n.sim * 0.25) + 1):self$n.sim, drop=F]
-                apply(values.first.quarter, 1, function(values) {var(values)}) / apply(values.last.quarter, 1, function(values) {var(values)})
+                mixing.statistic = apply(values.first.quarter, 1, function(values) {var(values)}) / apply(values.last.quarter, 1, function(values) {var(values)})
             }
             else if (self$n.chains > 1)
             {
-                stop("We need to implement calculating Rhats")
+                stop(paste0(error.prefix, "We need to implement calculating Rhats"))
             }
             else
-                stop("We cannot calculate MCMC statistics for a simulation set that was not generated from an MCMC process")
+                stop(paste0(error.prefix, "We cannot calculate MCMC statistics for a simulation set that was not generated from an MCMC process"))
+            if (sort) sort(mixing.statistic, decreasing=T) else mixing.statistic
         },
         
         traceplot = function(match.names,
