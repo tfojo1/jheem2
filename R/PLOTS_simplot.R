@@ -784,7 +784,7 @@ execute.simplot <- function(prepared.plot.data,
     # DATA ELEMENTS
     if (!is.null(df.truth)) {
         # if we already have a shape scale, clear it before adding new points
-        if (!is.null(df.sim.groupids.one.member) && nrow(df.sim.groupids.one.member)>0)
+        if (!is.null(df.sim) && !is.null(df.sim.groupids.one.member) && nrow(df.sim.groupids.one.member)>0)
             rv = rv + ggnewscale::new_scale('shape')
         rv = rv + ggnewscale::new_scale_fill() + ggplot2::scale_fill_manual(values = color.data.shaded.colors) # We're changing the scale because the data fills differently
         rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("data color", override.aes = list(shape = 21)))
@@ -800,7 +800,7 @@ execute.simplot <- function(prepared.plot.data,
         }
         
         # Now create the shape scale, either for the first time or the second time
-        if (!is.null(df.sim.groupids.one.member) && nrow(df.sim.groupids.one.member)>0)
+        if (!is.null(df.sim) && !is.null(df.sim.groupids.one.member) && nrow(df.sim.groupids.one.member)>0)
             rv = rv + ggplot2::scale_shape_manual(name = "data shape", values = all.shapes.for.scale)
         else
             rv = rv + ggplot2::scale_shape_manual(name = "data shape", values = all.shapes.for.scale)
