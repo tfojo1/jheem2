@@ -17,6 +17,8 @@ create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
                                                        observation.correlation.form = c("compound.symmetry", "autoregressive.1")[1],
                                                        error.variance.term = NULL,
                                                        error.variance.type = NULL,
+                                                       ratio.cv = NULL,
+                                                       ratio.correlation = NULL,
                                                        weights = list(),
                                                        equalize.weight.by.year = T) {
     JHEEM.BASIC.RATIO.LIKELIHOOD.INSTRUCTIONS$new(
@@ -42,6 +44,8 @@ create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
         observation.correlation.form = observation.correlation.form,
         error.variance.term = error.variance.term,
         error.variance.type = error.variance.type,
+        ratio.cv = ratio.cv,
+        ratio.correlation = ratio.correlation,
         weights = weights,
         equalize.weight.by.year = equalize.weight.by.year,
         use.lognormal.approximation = F,
@@ -77,12 +81,12 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
                 throw.error.if.no.data = throw.error.if.no.data,
                 error.prefix = error.prefix
             )
-
+            
             # We must have a denominator, so we cannot be a "count", just "rate" or "proportion"... is that what Todd said? Maybe not?
             if (private$i.outcome.is.count) {
                 stop(paste0(error.prefix, "outcome must have scale 'rate' or 'proportion' to use 'jheem.basic.ratio.likelihood'"))
             }
-
+            
             ## ---- GENERATE SIM LAG MATRIX ---- ##
             sim.years.to <- private$i.years[-1] # private$i.years is already sorted and same as the sim.required.dimnames$year
             sim.years.from <- private$i.years[-length(private$i.years)]
@@ -94,24 +98,65 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
                 row[private$i.from.indices[i]] <- -1
                 row
             }))
-
+            
             ## ---- FIND LAGGED TRANSFORMATION MATRIX ---- ##
             # ASSUMPTION: sim years are contiguous (no gaps) according to Todd
             private$i.obs.indices <- private$i.lagged.pairs[2 * (1:(length(private$i.lagged.pairs) / 2)) - 1] + 1
             private$i.transformation.matrix <- private$i.transformation.matrix[private$i.obs.indices, private$i.to.indices]
-
+            
             ## ---- GENERATE SPARSE REPRESENTATIONS OF TRANSFORMATION MATRIX ---- ##
             private$i.transformation.matrix.indices <- generate_transformation_matrix_indices(
                 private$i.transformation.matrix,
                 private$i.n.lagged.obs,
                 length(private$i.transformation.matrix) / private$i.n.lagged.obs
             )
-
+            
             private$i.transformation.matrix.row.oriented.indices <- generate_transformation_matrix_row_oriented_indices(
                 private$i.transformation.matrix,
                 private$i.n.lagged.obs,
                 length(private$i.transformation.matrix) / private$i.n.lagged.obs
             )
+
+            log.obs.sigma <- log(private$i.measurement.error.covariance.matrix / private$i.obs.vector + 1) # we're going to abuse slightly by treating the obs themselves as the mean of the LN dist
+            log.obs.mean <- log(private$i.obs.vector) - diag(log.obs.sigma) / 2
+            log.obs <- log(private$i.obs.vector)
+            
+            lagged.log.obs <- apply_lag_to_vector(
+                log.obs,
+                private$i.lagged.pairs,
+                rep(0, private$i.n.lagged.obs),
+                private$i.n.obs
+            )
+            lagged.log.obs.mean <- apply_lag_to_vector(
+                log.obs.mean,
+                private$i.lagged.pairs,
+                rep(0, private$i.n.lagged.obs),
+                private$i.n.obs
+            )
+            lagged.log.obs.sigma <- apply_lag_to_matrix(
+                log.obs.sigma,
+                private$i.lagged.pairs,
+                rep(0, private$i.n.lagged.obs**2),
+                private$i.n.obs
+            )
+            
+            # lagged.log.obs = obs.lag.matrix %*% log.obs
+            # lagged.log.obs.sigma = obs.lag.matrix %*% log.obs.sigma %*% t(obs.lag.matrix)
+            
+            private$i.lagged.obs <- exp(lagged.log.obs)
+            private$i.lagged.obs.sigma <- lagged.log.obs.mean %*% t(lagged.log.obs.mean) * (exp(lagged.log.obs.sigma) - 1)
+            
+            ## ---- MAKE A COMPOUND SYMMETRY MATRIX ---- ## to be renamed once I understand what it's for
+            if (!is.null(private$i.parameters$ratio.cv)) {
+                val = (log(private$i.parameters$ratio.cv) / qnorm(0.975))**2
+                compound.symmetry.matrix = matrix(
+                    val * private$i.parameters$ratio.correlation,
+                    nrow = nrow(private$i.lagged.obs.sigma),
+                    ncol = ncol(private$i.lagged.obs.sigma))
+                diag(compound.symmetry.matrix) = val
+                
+                private$i.lagged.obs.sigma = private$i.lagged.obs.sigma + compound.symmetry.matrix
+            }
         }
     ),
     private = list(
@@ -119,7 +164,7 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
             # browser()
             use.poisson <- private$i.outcome.is.rate || private$i.outcome.is.count
             use.denominator <- !private$i.outcome.is.count
-
+            
             if (use.optimized.get) {
                 sim.numerator.data <- sim$optimized.get(private$i.optimized.get.instructions[["sim.num.instr"]])
             } else {
@@ -133,7 +178,7 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
             }
             sim.dim.names <- dimnames(sim.numerator.data)
             sim.numerator.data <- as.numeric(sim.numerator.data)
-
+            
             if (use.denominator) {
                 if (use.optimized.get) {
                     sim.denominator.data <- as.numeric(sim$optimized.get(private$i.optimized.get.instructions[["sim.denom.instr"]]))
@@ -156,26 +201,26 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
                 stop(paste0("Cannot compute basic ratio likelihood for outcome '", private$i.outcome.for.sim, "' - some of the denominator values for that outcome are zero"))
             
             raw.sim.mean <- sim.numerator.data / sim.denominator.data
-
+            
             if (use.poisson) {
                 raw.sim.variance <- sim.numerator.data / sim.denominator.data^2
             } # x / n^2
             else {
                 raw.sim.variance <- raw.sim.mean * (1 - raw.sim.mean) / sim.denominator.data
             } # mu * (1 - mu) / n which is np(1-p) / n^2
-
+            
             log.sim.variance <- log(raw.sim.variance / (raw.sim.mean^2) + 1)
             log.sim.mean <- log(raw.sim.mean) - log.sim.variance / 2
             log.sim.sigma <- diag(log.sim.variance)
-
+            
             lagged.log.sim.mean <- private$i.sim.lag.matrix %*% log.sim.mean
             lagged.log.sim.sigma <- private$i.sim.lag.matrix %*% log.sim.sigma %*% t(private$i.sim.lag.matrix)
-
+            
             lagged.sim.mean <- exp(lagged.log.sim.mean + diag(lagged.log.sim.sigma) / 2)
             lagged.sim.sigma <- lagged.sim.mean %*% t(lagged.sim.mean) * (exp(lagged.log.sim.sigma) - 1)
-
+            
             lagged.n <- (sim.denominator.data[private$i.to.indices] + sim.denominator.data[private$i.from.indices]) / 2
-
+            
             # lagged.log.sim.mean = apply_lag_to_vector(log.sim.mean,
             #                                           private$i.lagged.pairs,
             #                                           rep(0, private$i.n.lagged.obs),
@@ -187,7 +232,7 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
             #
             # lagged.sim.mean = exp(lagged.log.sim.mean + diag(lagged.log.sim.sigma)/2)
             # lagged.sim.sigma = lagged.sim.mean %*% t(lagged.sim.mean) * (exp(lagged.log.sim.sigma) - 1)
-
+            
             aggregated.lagged.sim.n <- get_basic_likelihood_mean(
                 lagged.n,
                 private$i.transformation.matrix.row.oriented.indices,
@@ -200,57 +245,24 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
                 private$i.n.lagged.obs,
                 numeric(private$i.n.lagged.obs)
             )
-
+            
             # @Andrew This can probably be optimized since it is sparse. Unfortunately, "lagged.sim.sigma" is not diagonal, so we can't use the get_basic_likelihood_sigma algorithm.
             aggregated.lagged.sim.sigma <- private$i.transformation.matrix %*% lagged.sim.sigma %*% t(private$i.transformation.matrix)
             # aggregated.lagged.sim.n = sim.aggregation.matrix %*% lagged.n
             # aggregated.lagged.sim.mean = sim.aggregation.matrix %*% lagged.sim.mean
-
-            # obs
-            # put it on the log scale
-
-            log.obs.sigma <- log(private$i.measurement.error.covariance.matrix / private$i.obs.vector + 1) # we're going to abuse slightly by treating the obs themselves as the mean of the LN dist
-            log.obs.mean <- log(private$i.obs.vector) - diag(log.obs.sigma) / 2
-            log.obs <- log(private$i.obs.vector)
-
-            lagged.log.obs <- apply_lag_to_vector(
-                log.obs,
-                private$i.lagged.pairs,
-                rep(0, private$i.n.lagged.obs),
-                private$i.n.obs
-            )
-            lagged.log.obs.mean <- apply_lag_to_vector(
-                log.obs.mean,
-                private$i.lagged.pairs,
-                rep(0, private$i.n.lagged.obs),
-                private$i.n.obs
-            )
-            lagged.log.obs.sigma <- apply_lag_to_matrix(
-                log.obs.sigma,
-                private$i.lagged.pairs,
-                rep(0, private$i.n.lagged.obs**2),
-                private$i.n.obs
-            )
-
-            # lagged.log.obs = obs.lag.matrix %*% log.obs
-            # lagged.log.obs.sigma = obs.lag.matrix %*% log.obs.sigma %*% t(obs.lag.matrix)
-
-            lagged.obs <- exp(lagged.log.obs)
-            lagged.obs.sigma <- lagged.log.obs.mean %*% t(lagged.log.obs.mean) * (exp(lagged.log.obs.sigma) - 1)
-
-            final.sigma <- lagged.obs.sigma + aggregated.lagged.sim.sigma
+            
+            final.sigma <- private$i.lagged.obs.sigma + aggregated.lagged.sim.sigma
             final.mean <- aggregated.lagged.sim.mean
-
-
-            likelihood <- mvtnorm::dmvnorm(lagged.obs,
-                mean = final.mean,
-                sigma = final.sigma,
-                log = T,
-                checkSymmetry = F
+            
+            likelihood <- mvtnorm::dmvnorm(private$i.lagged.obs,
+                                           mean = final.mean,
+                                           sigma = final.sigma,
+                                           log = T,
+                                           checkSymmetry = F
             )
-
+            
             if (debug) {
-                lik.summary <- cbind(private$i.metadata.for.lag, obs = lagged.obs, mean = final.mean, sd = sqrt(diag(final.sigma)))
+                lik.summary <- cbind(private$i.metadata.for.lag, obs = private$i.lagged.obs, mean = final.mean, sd = sqrt(diag(final.sigma)))
                 lik.summary$z <- (lik.summary$obs - lik.summary$mean) / lik.summary$sd
                 rownames(lik.summary) <- 1:nrow(lik.summary)
                 browser()
@@ -260,6 +272,8 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
         i.sim.lag.matrix = NULL,
         i.to.indices = NULL,
         i.from.indices = NULL,
-        i.obs.indices = NULL
+        i.obs.indices = NULL,
+        i.lagged.obs = NULL,
+        i.lagged.obs.sigma = NULL
     )
 )
