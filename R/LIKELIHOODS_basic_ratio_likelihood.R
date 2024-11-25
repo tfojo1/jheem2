@@ -116,8 +116,7 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
                 private$i.n.lagged.obs,
                 length(private$i.transformation.matrix) / private$i.n.lagged.obs
             )
-            
-            ## ---- LOG AND LAG DATA ---- ##
+
             log.obs.sigma <- log(private$i.measurement.error.covariance.matrix / private$i.obs.vector + 1) # we're going to abuse slightly by treating the obs themselves as the mean of the LN dist
             log.obs.mean <- log(private$i.obs.vector) - diag(log.obs.sigma) / 2
             log.obs <- log(private$i.obs.vector)
@@ -164,7 +163,7 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
         do.compute = function(sim, log, use.optimized.get, check.consistency, debug) {
             # browser()
             use.poisson <- private$i.outcome.is.rate || private$i.outcome.is.count
-            use.denominator <- private$i.outcome.is.count
+            use.denominator <- !private$i.outcome.is.count
             
             if (use.optimized.get) {
                 sim.numerator.data <- sim$optimized.get(private$i.optimized.get.instructions[["sim.num.instr"]])
@@ -195,6 +194,11 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
             } else {
                 sim.denominator.data <- 1
             }
+            
+            if (any(sim.numerator.data==0))
+                stop(paste0("Cannot compute basic ratio likelihood for outcome '", private$i.outcome.for.sim, "' - some of the numerator values for that outcome are zero"))
+            if (any(sim.denominator.data==0))
+                stop(paste0("Cannot compute basic ratio likelihood for outcome '", private$i.outcome.for.sim, "' - some of the denominator values for that outcome are zero"))
             
             raw.sim.mean <- sim.numerator.data / sim.denominator.data
             

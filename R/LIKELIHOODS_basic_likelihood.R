@@ -197,6 +197,8 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
                                                                   observation.correlation.form = c("compound.symmetry", "autoregressive.1")[1],
                                                                   error.variance.term = NULL,
                                                                   error.variance.type = NULL,
+                                                                  ratio.cv = NULL,
+                                                                  ratio.correlation = NULL,
                                                                   weights = list(),
                                                                   equalize.weight.by.year = T,
                                                                   use.lognormal.approximation = T) {
@@ -222,6 +224,8 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
         observation.correlation.form = observation.correlation.form,
         error.variance.term = error.variance.term,
         error.variance.type = error.variance.type,
+        ratio.cv = ratio.cv,
+        ratio.correlation = ratio.correlation,
         weights = weights,
         equalize.weight.by.year = equalize.weight.by.year,
         use.lognormal.approximation = use.lognormal.approximation,
@@ -1150,6 +1154,15 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                 }
                 private$i.n.lagged.obs <- length(private$i.lagged.pairs) / 2
                 
+                if (!is.null(private$i.parameters$ratio.cv)) {
+                    val = (log(private$i.parameters$ratio.cv) / qnorm(0.975))**2
+                    private$i.log.ratio.uncertainty.matrix = matrix(
+                        val * private$i.parameters$ratio.correlation,
+                        nrow = private$i.n.lagged.obs,
+                        ncol = private$i.n.lagged.obs)
+                    diag(private$i.log.ratio.uncertainty.matrix) = val
+                }
+                
                 # Keep only the latter years for each pair
                 private$i.metadata.for.lag <- private$i.metadata[private$i.lagged.pairs[rep(c(T, F), private$i.n.lagged.obs)] + 1, ]
             }
@@ -1201,150 +1214,9 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
         i.lagged.pairs = NULL,
         i.metadata.for.lag = NULL,
         i.error.vector = NULL,
-        do.compute.lognormal.lagged = function(sim, log, use.optimized.get, check.consistency, debug) {
-            use.binomial <- private$i.outcome.is.proportion
-            use.denominator <- !is.null(private$i.denominator.outcome.for.sim)
-            
-            if (use.optimized.get) {
-                sim.numerator.data <- sim$optimized.get(private$i.optimized.get.instructions[["sim.num.instr"]])
-            } else {
-                sim.numerator.data <- sim$get(
-                    outcomes = private$i.outcome.for.sim,
-                    keep.dimensions = names(private$i.sim.required.dimnames),
-                    dimension.values = private$i.sim.dimension.values,
-                    output = "numerator",
-                    drop.single.sim.dimension = T
-                )
-            }
-            sim.dim.names <- dimnames(sim.numerator.data)
-            sim.numerator.data <- as.numeric(sim.numerator.data)
-            
-            
-            
-            if (use.denominator) {
-                if (use.optimized.get) {
-                    sim.denominator.data <- as.numeric(sim$optimized.get(private$i.optimized.get.instructions[["sim.denom.instr"]]))
-                } else if (is.null(private$i.denominator.outcome.for.sim)) {
-                    sim.denominator.data <- as.numeric(sim$get(
-                        outcome = private$i.outcome.for.sim,
-                        keep.dimensions = names(private$i.denominator.required.dimnames),
-                        dimension.values = private$i.denominator.dimension.values,
-                        output = "denominator",
-                        drop.single.sim.dimension = T
-                    ))
-                } else {
-                    sim.denominator.data <- as.numeric(sim$get(
-                        outcome = private$i.denominator.outcome.for.sim,
-                        keep.dimensions = names(private$i.denominator.required.dimnames),
-                        dimension.values = private$i.denominator.dimension.values,
-                        drop.single.sim.dimension = T
-                    ))
-                }
-            } else {
-                sim.denominator.data <- 1
-            }
-            
-            raw.sim.mean <- sim.numerator.data / sim.denominator.data
-            
-            if (use.binomial) {
-                raw.sim.variance <- raw.sim.mean * (1 - raw.sim.mean) / sim.denominator.data
-            } # mu * (1 - mu) / n which is np(1-p) / n^2
-            else {
-                raw.sim.variance <- sim.numerator.data / sim.denominator.data^2
-            } # x / n^2
-            
-            # prepare sim lag matrix
-            
-            # This can eventually be done at instantiate time
-            years <- sort(sim.dim.names$year)
-            years.to <- years[-1]
-            years.from <- years[-length(years)]
-            to.indices <- get.array.access.indices(sim.dim.names, dimension.values = list(year = years.to))
-            from.indices <- get.array.access.indices(sim.dim.names, dimension.values = list(year = years.from))
-            
-            sim.lagged.pairs <- rep(to.indices, each = 2)
-            sim.lagged.pairs[2 * (1:length(from.indices))] <- from.indices
-            
-            lagged.n <- (sim.denominator.data[to.indices] + sim.denominator.data[from.indices]) / 2
-            
-            sim.lag.matrix <- t(sapply(1:length(to.indices), function(i) {
-                row <- rep(0, length(sim.numerator.data))
-                row[to.indices[i]] <- 1
-                row[from.indices[i]] <- -1
-                row
-            }))
-            
-            log.sim.variance <- log(raw.sim.variance / (raw.sim.mean^2) + 1)
-            log.sim.mean <- log(raw.sim.mean) - log.sim.variance / 2
-            log.sim.sigma <- diag(log.sim.variance)
-            
-            lagged.log.sim.mean <- sim.lag.matrix %*% log.sim.mean
-            lagged.log.sim.sigma <- sim.lag.matrix %*% log.sim.sigma %*% t(sim.lag.matrix)
-            
-            lagged.sim.mean <- exp(lagged.log.sim.mean + diag(lagged.log.sim.sigma) / 2)
-            lagged.sim.sigma <- lagged.sim.mean %*% t(lagged.sim.mean) * (exp(lagged.log.sim.sigma) - 1)
-            
-            # lagged.n = abs(sim.lag.matrix) %*% sim.denominator.data / 2
-            
-            
-            # hack to make aggregation matrix
-            obs.indices <- private$i.lagged.pairs[2 * (1:(length(private$i.lagged.pairs) / 2)) - 1] + 1
-            sim.aggregation.matrix <- private$i.transformation.matrix[obs.indices, to.indices]
-            
-            
-            aggregated.lagged.sim.n <- sim.aggregation.matrix %*% lagged.n
-            aggregated.lagged.sim.mean <- sim.aggregation.matrix %*% lagged.sim.mean
-            aggregated.lagged.sim.sigma <- sim.aggregation.matrix %*% lagged.sim.sigma %*% t(sim.aggregation.matrix)
-            
-            
-            # obs
-            # put it on the log scale
-            
-            log.obs.sigma <- log(private$i.measurement.error.covariance.matrix / private$i.obs.vector + 1) # we're going to abuse slightly by treating the obs themselves as the mean of the LN dist
-            log.obs.mean <- log(private$i.obs.vector) - diag(log.obs.sigma) / 2
-            log.obs <- log(private$i.obs.vector)
-            
-            lagged.log.obs <- apply_lag_to_vector(
-                log.obs,
-                private$i.lagged.pairs,
-                rep(0, private$i.n.lagged.obs),
-                private$i.n.obs
-            )
-            lagged.log.obs.mean <- apply_lag_to_vector(
-                log.obs.mean,
-                private$i.lagged.pairs,
-                rep(0, private$i.n.lagged.obs),
-                private$i.n.obs
-            )
-            lagged.log.obs.sigma <- apply_lag_to_matrix(
-                log.obs.sigma,
-                private$i.lagged.pairs,
-                rep(0, private$i.n.lagged.obs**2),
-                private$i.n.obs
-            )
-            
-            
-            # lagged.log.obs = obs.lag.matrix %*% log.obs
-            # lagged.log.obs.sigma = obs.lag.matrix %*% log.obs.sigma %*% t(obs.lag.matrix)
-            
-            lagged.obs <- exp(lagged.log.obs)
-            lagged.obs.sigma <- lagged.log.obs.mean %*% t(lagged.log.obs.mean) * (exp(lagged.log.obs.sigma) - 1)
-            
-            final.sigma <- lagged.obs.sigma + aggregated.lagged.sim.sigma
-            final.mean <- aggregated.lagged.sim.mean
-            
-            
-            likelihood <- mvtnorm::dmvnorm(lagged.obs,
-                                           mean = final.mean,
-                                           sigma = final.sigma,
-                                           log = T,
-                                           checkSymmetry = F
-            )
-        },
+        i.log.ratio.uncertainty.matrix = NULL,
+       
         do.compute = function(sim, log, use.optimized.get, check.consistency, debug) {
-            if (private$i.use.lognormal.approximation) {
-                return(private$do.compute.lognormal.lagged(sim, log, check.consistency, debug))
-            }
             
             if (use.optimized.get) {
                 sim.numerator.data <- sim$optimized.get(private$i.optimized.get.instructions[["sim.num.instr"]])
@@ -1460,6 +1332,9 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                 
                 # to do at instantiate time: obs = private$i.lag.matrix %*% obs
             }
+            
+            if (!is.null(private$i.log.ratio.uncertainty.matrix))
+                sigma = sigma + private$i.log.ratio.uncertainty.matrix
             
             likelihood <- mvtnorm::dmvnorm(obs,
                                            mean = mean,
