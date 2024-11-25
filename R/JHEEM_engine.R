@@ -1577,7 +1577,8 @@ JHEEM = R6::R6Class(
             outcome.numerators.and.denominators = private$prepare.outcomes.for.sim(ode.results,
                                                                                    prior.simulation.set = prior.simulation.set,
                                                                                    prior.sim.index = prior.sim.index,
-                                                                                   is.degenerate = ode.results$terminated.for.time)
+                                                                                   is.degenerate = ode.results$terminated.for.time,
+                                                                                   check.consistency = check.consistency)
 
             run.end.time = as.numeric(Sys.time())
             
@@ -5690,7 +5691,8 @@ JHEEM = R6::R6Class(
         prepare.outcomes.for.sim = function(ode.results,
                                             prior.simulation.set,
                                             prior.sim.index,
-                                            is.degenerate)
+                                            is.degenerate,
+                                            check.consistency)
         {
             outcome.names = private$i.kernel$get.outcome.names.for.sub.version(private$i.sub.version)
             
@@ -5708,6 +5710,7 @@ JHEEM = R6::R6Class(
 #                sapply(outcome.names, function(outcome.name){
                     private$calculate.outcome.numerator.and.denominator(outcome.name = outcome.name,
                                                                         ode.results = ode.results,
+                                                                        check.consistency = check.consistency,
                                                                         error.prefix = paste0("Error calculating the value for outcome '", outcome.name, "': "))  
                 }#)
             }
@@ -5955,6 +5958,7 @@ JHEEM = R6::R6Class(
 
         calculate.outcome.numerator.and.denominator = function(outcome.name,
                                                                ode.results,
+                                                               check.consistency,
                                                                error.prefix = '')
         {
             error.prefix = paste0(error.prefix, "Error calculating the outcome values for '", outcome.name, "': ")
@@ -5978,7 +5982,9 @@ JHEEM = R6::R6Class(
                     {
                         if (is.null(private$i.outcome.numerators[[dep.on.outcome]]))
                             private$calculate.outcome.numerator.and.denominator(outcome.name = dep.on.outcome,
-                                                                                ode.results = ode.results)
+                                                                                ode.results = ode.results,
+                                                                                check.consistency = check.consistency,
+                                                                                error.prefix = error.prefix)
                     }
                     # sapply(depends.on.outcomes, 
                     #        private$calculate.outcome.numerator.and.denominator,
@@ -6048,7 +6054,7 @@ JHEEM = R6::R6Class(
                                 else
                                 {
                                     if (is.null(private$i.interpolated.outcome.numerators.when.values.dont.apply[[dep.on.outcome.name]]))
-                                        private$calculate.interpolated.outcome.numerator.and.denominator.when.values.dont.apply(dep.on.outcome.name)
+                                        private$calculate.interpolated.outcome.numerator.and.denominator.when.values.dont.apply(dep.on.outcome.name, check.consistency = check.consistency)
                                     
                                     pull.numerators.from = private$i.interpolated.outcome.numerators.when.values.dont.apply[[dep.on.outcome.name]]
                                     dep.on.numerators = lapply(char.times.to.pull, function(time){
@@ -6063,7 +6069,7 @@ JHEEM = R6::R6Class(
                             if (!is.null(dep.on.outcome$denominator.outcome))
                             {
                                 if (dep.on.outcome$is.cumulative)
-                                  pull.denominators.from = private$i.outcome.denominators[[dep.on.outcome.name]]
+                                    pull.denominators.from = private$i.outcome.denominators[[dep.on.outcome.name]]
                                 else
                                     pull.denominators.from = private$i.interpolated.outcome.denominators.when.values.dont.apply[[dep.on.outcome.name]]
                                 
@@ -6079,7 +6085,8 @@ JHEEM = R6::R6Class(
                                 numerator = collapse.array.according.to.indices(arr = dep.on.numerators[[i]],
                                                                                 small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
                                                                                 large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
-                                                                                small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n)
+                                                                                small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n,
+                                                                                check.consistency = check.consistency)
                                 if (is.null(dep.on.outcome$denominator.outcome))
                                 {
                                     numerator
@@ -6091,7 +6098,8 @@ JHEEM = R6::R6Class(
                                     denominator = collapse.array.according.to.indices(arr = dep.on.denominators[[i]],
                                                                                       small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
                                                                                       large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
-                                                                                      small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n)
+                                                                                      small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n,
+                                                                                      check.consistency = check.consistency)
                                     
                                     rv = numerator / denominator
                                     
@@ -6206,7 +6214,8 @@ JHEEM = R6::R6Class(
                             collapsed.denominator = collapse.array.according.to.indices(arr = denominator[[time]],
                                                                                      small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.indices,
                                                                                      large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$large.indices,
-                                                                                     small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.n)           
+                                                                                     small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.n,
+                                                                                     check.consistency = check.consistency)           
                             raw.value[[i]] * collapsed.denominator
                                 
                         })
@@ -6217,7 +6226,8 @@ JHEEM = R6::R6Class(
                                        collapse.array.according.to.indices,
                                        small.indices = private$i.outcome.indices[[outcome.name]]$collapse.numerator$small.indices,
                                        large.indices = private$i.outcome.indices[[outcome.name]]$collapse.numerator$large.indices,
-                                       small.n = private$i.outcome.indices[[outcome.name]]$collapse.numerator$small.n)
+                                       small.n = private$i.outcome.indices[[outcome.name]]$collapse.numerator$small.n,
+                                       check.consistency = check.consistency)
                     
                     if (!is.null(denominator))
                     {
@@ -6228,7 +6238,8 @@ JHEEM = R6::R6Class(
                                                  collapse.array.according.to.indices,
                                                  small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.indices,
                                                  large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$large.indices,
-                                                 small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n)
+                                                 small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n,
+                                                 check.consistency = check.consistency)
                         }
                         else
                         {
@@ -6239,11 +6250,13 @@ JHEEM = R6::R6Class(
                                 collapse.array.according.to.indices(private$i.outcome.numerators[[outcome$denominator.outcome]][[time]],
                                                                     small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.indices,
                                                                     large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$large.indices,
-                                                                    small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n) /
+                                                                    small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n,
+                                                                    check.consistency = check.consistency) /
                                     collapse.array.according.to.indices(private$i.outcome.denominators[[outcome$denominator.outcome]][[time]],
                                                                         small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.indices,
                                                                         large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator$large.indices,
-                                                                        small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n)
+                                                                        small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator$small.n,
+                                                                        check.consistency = check.consistency)
                             })
                             names(denominator) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
                         }
@@ -6272,10 +6285,10 @@ JHEEM = R6::R6Class(
                 as.character(private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]])
         },
 
-        calculate.interpolated.outcome.numerator.and.denominator.when.values.dont.apply = function(outcome.name)
+        calculate.interpolated.outcome.numerator.and.denominator.when.values.dont.apply = function(outcome.name, check.consistency)
         {
             if (is.null(private$i.outcome.non.cumulative.value.applies.masks[[outcome.name]]))
-                private$calculate.outcome.non.cumulative.value.applies.masks(outcome.name)
+                private$calculate.outcome.non.cumulative.value.applies.masks(outcome.name, check.consistency = check.consistency)
             
             private$i.interpolated.outcome.numerators.when.values.dont.apply[[outcome.name]] = private$i.outcome.numerators[[outcome.name]]
             
@@ -6294,7 +6307,7 @@ JHEEM = R6::R6Class(
             
         },
 
-        calculate.outcome.non.cumulative.value.applies.masks = function(outcome.name)
+        calculate.outcome.non.cumulative.value.applies.masks = function(outcome.name, check.consistency)
         {
             # Pull the quantity
             outcome = private$i.kernel$get.outcome.kernel(outcome.name)
@@ -6312,7 +6325,7 @@ JHEEM = R6::R6Class(
             
             calculate.dependee.outcome.mask = as.logical(vapply(private$i.outcome.non.cumulative.value.applies.masks[dependee.outcome.names], is.null, FUN.VALUE=logical(1)))
             for (dependee.outcome.name in dependee.outcome.names[calculate.dependee.outcome.mask])
-                    private$calculate.outcome.non.cumulative.value.applies.masks(dependee.outcome.name)
+                    private$calculate.outcome.non.cumulative.value.applies.masks(dependee.outcome.name, check.consistency = check.consistency)
 #            lapply(dependee.outcome.names[calculate.dependee.outcome.mask], 
  #                  private$calculate.outcome.non.cumulative.value.applies.masks)
                             
@@ -6348,7 +6361,8 @@ JHEEM = R6::R6Class(
                             collapse.array.according.to.indices(arr = as.numeric(mask),
                                                                 small.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.indices,
                                                                 large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
-                                                                small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n) > 0
+                                                                small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n,
+                                                                check.consistency = check.consistency) > 0
                                 # equivalent to doing any on all the mask values that collapse to an index
                         }
                     })
