@@ -317,6 +317,8 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                               observation.correlation.form,
                               error.variance.term,
                               error.variance.type,
+                              ratio.cv = NULL,
+                              ratio.correlation = NULL,
                               weights,
                               equalize.weight.by.year,
                               use.lognormal.approximation = F,
@@ -479,6 +481,13 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 stop(paste0(error.prefix, "'is.basic.ratio.likelihood' must be a single logical value (T/F)"))
             }
             
+            # if *ratio.cv* is not NULL, then *ratio.correlation* can default to 0
+            if (!is.null(ratio.cv) && is.null(ratio.correlation)) ratio.correlation = 0
+            if (!is.null(ratio.cv) && (!is.numeric(ratio.cv) || length(ratio.cv)!=1 || is.na(ratio.cv)))
+                stop(paste0(error.prefix, "'ratio.cv' must be NULL or a single, numeric value"))
+            if (!is.null(ratio.correlation) && (!is.numeric(ratio.correlation) || length(ratio.correlation)!=1 || is.na(ratio.correlation) || ratio.correlation>1 || ratio.correlation< -1))
+                stop(paste0(error.prefix, "'ratio.correlation' must be NULL or a single, numeric value between 1 and -1, inclusive"))
+            
             super$initialize(
                 outcome.for.sim = outcome.for.sim,
                 dimensions = dimensions,
@@ -514,7 +523,9 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 correlation.same.source.different.details = correlation.same.source.different.details,
                 observation.correlation.form = observation.correlation.form,
                 error.variance.term = error.variance.term,
-                error.variance.type = error.variance.type
+                error.variance.type = error.variance.type,
+                ratio.cv = ratio.cv,
+                ratio.correlation = ratio.correlation
             )
             private$i.dimension.values <- dimension.values # EXPERIMENTAL
             private$i.use.lognormal.approximation <- use.lognormal.approximation

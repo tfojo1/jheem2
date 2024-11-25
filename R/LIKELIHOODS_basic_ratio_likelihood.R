@@ -17,6 +17,8 @@ create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
                                                        observation.correlation.form = c("compound.symmetry", "autoregressive.1")[1],
                                                        error.variance.term = NULL,
                                                        error.variance.type = NULL,
+                                                       ratio.cv = NULL,
+                                                       ratio.correlation = NULL,
                                                        weights = list(),
                                                        equalize.weight.by.year = T) {
     JHEEM.BASIC.RATIO.LIKELIHOOD.INSTRUCTIONS$new(
@@ -42,6 +44,8 @@ create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
         observation.correlation.form = observation.correlation.form,
         error.variance.term = error.variance.term,
         error.variance.type = error.variance.type,
+        ratio.cv = ratio.cv,
+        ratio.correlation = ratio.correlation,
         weights = weights,
         equalize.weight.by.year = equalize.weight.by.year,
         use.lognormal.approximation = F,
@@ -142,6 +146,18 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
             
             private$i.lagged.obs <- exp(lagged.log.obs)
             private$i.lagged.obs.sigma <- lagged.log.obs.mean %*% t(lagged.log.obs.mean) * (exp(lagged.log.obs.sigma) - 1)
+            
+            ## ---- MAKE A COMPOUND SYMMETRY MATRIX ---- ## to be renamed once I understand what it's for
+            if (!is.null(private$i.parameters$ratio.cv)) {
+                val = (log(private$i.parameters$ratio.cv) / qnorm(0.975))**2
+                compound.symmetry.matrix = matrix(
+                    val * private$i.parameters$ratio.correlation,
+                    nrow = nrow(private$i.lagged.obs.sigma),
+                    ncol = ncol(private$i.lagged.obs.sigma))
+                diag(compound.symmetry.matrix) = val
+                
+                private$i.lagged.obs.sigma = private$i.lagged.obs.sigma + compound.symmetry.matrix
+            }
         }
     ),
     private = list(
