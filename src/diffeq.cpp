@@ -18,11 +18,7 @@ const int UNINFECTED_GROUP = 1;
 //-------------//
 //-------------//
 
-//double* do_interpolate_quantity_elementwise(List quant,
-//                                          double time,
-//                                        double *scratch,
-//                                      int i_before,
-//                                    int i_after)
+// this is duplicated in engine_optimizations.cpp
 void do_interpolate_quantity_elementwise(double *dst,
                                          List values,
                                          List after_values,
@@ -1354,42 +1350,3 @@ NumericVector compute_dx(NumericVector state,
 }
 
 
-//-- A HELPER FOR INTERPOLATING WHEN VALUE DOES NOT APPLY --//
-//--   (Used in JHEEM_engine.R in calculating outcomes)   --//
-
-
-// [[Rcpp::export]]
-List interpolate_values_when_do_not_apply(List values,
-                                          NumericVector times,
-                                          List value_applies_for_time)
-{
-    int n = values.length();
-    List rv = List::create();
-    LogicalVector one_value_applies;
-    NumericVector one_value;
-    
-    for (int i=0; i<n; i++)
-    {
-        one_value_applies = value_applies_for_time[i];
-        if (one_value_applies.length()!=1 || !one_value_applies[0])
-        {
-            one_value = values[i];
-            NumericVector new_value(one_value.length());  
-            
-            do_interpolate_quantity_elementwise(new_value.begin(), // double *dst,
-                                                values, //List values,
-                                                values, //List after_values,
-                                                times, //NumericVector times,
-                                                value_applies_for_time, //List value_applies,
-                                                value_applies_for_time, //List after_value_applies,
-                                                times[i], //double time,
-                                                     i, //int i_before,
-                                                     i+1//int i_after)
-            );
-            
-            values[i] = new_value;
-        }
-    }
-    
-    return (values);
-}

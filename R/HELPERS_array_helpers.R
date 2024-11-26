@@ -455,6 +455,7 @@ get.collapse.array.indices <- function(large.arr.dim.names, small.arr.dim.names)
     if (any(rv$large.indices>rv$large.n) || any(rv$large.indices<1))
         stop(paste0("Internal error in get.collapse.array.indices(): large.indices must be between 1 and large.n (", rv$large.n, ")"))
     
+    rv$no.need.to.collapse = rv$small.n==rv$large.n && all(rv$small.indices==rv$large.indices)
     
     rv
 }
@@ -463,15 +464,16 @@ get.collapse.array.indices <- function(large.arr.dim.names, small.arr.dim.names)
 collapse.array.according.to.indices <- function(arr,
                                                 small.indices,
                                                 large.indices,
-                                                small.n)
+                                                small.n,
+                                                check.consistency=T)
 {
-    if (length(small.indices) != length(large.indices))
+    if (check.consistency && length(small.indices) != length(large.indices))
         stop("Cannot collapse array; small.indices and large.indices must have the same length")
     
-    if (any(small.indices>small.n) || any(small.indices<1))
+    if (check.consistency && any(small.indices>small.n) || any(small.indices<1))
         stop(paste0("Cannot collapse array; small.indices must be between 1 and small.n (", small.n, ")"))
     
-    if (any(large.indices>length(arr)) || any(large.indices<1))
+    if (check.consistency && any(large.indices>length(arr)) || any(large.indices<1))
         stop(paste0("Cannot collapse array; large.indices must be between 1 and length(arr) (", length(arr), ")"))
     
     do_collapse_according_to_indices(arr = arr,
