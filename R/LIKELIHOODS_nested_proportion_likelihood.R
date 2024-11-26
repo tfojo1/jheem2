@@ -124,6 +124,8 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
                                                                                     p.error.variance.type = NULL,
                                                                                     n.error.variance.term = 0.05, # placeholder
                                                                                     n.error.variance.type = "cv", # placeholder # same as old "denominator.measurement.error.cv"?
+                                                                                    ratio.cv = NULL,
+                                                                                    ratio.correlation = NULL,
                                                                                     weights,
                                                                                     equalize.weight.by.year = T,
                                                                                     partitioning.function,
@@ -165,6 +167,8 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
         p.error.variance.type = p.error.variance.type,
         n.error.variance.term = n.error.variance.term,
         n.error.variance.type = n.error.variance.type,
+        ratio.cv = ratio.cv,
+        ratio.correlation = ratio.correlation,
         weights = weights,
         equalize.weight.by.year = equalize.weight.by.year,
         partitioning.function = partitioning.function,
@@ -307,6 +311,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                               p.error.variance.type,
                               n.error.variance.term,
                               n.error.variance.type,
+                              ratio.cv = NULL,
+                              ratio.correlation = NULL,
                               weights,
                               equalize.weight.by.year,
                               partitioning.function,
@@ -460,6 +466,14 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             if (n.error.variance.type %in% c("data.sd", "data.variance", "data.cv", "data.ci")) {
                 n.error.variance.term <- 1
             }
+            
+            # if *ratio.cv* is not NULL, then *ratio.correlation* can default to 0
+            if (!is.null(ratio.cv) && is.null(ratio.correlation)) ratio.correlation = 0
+            if (!is.null(ratio.cv) && (!is.numeric(ratio.cv) || length(ratio.cv)!=1 || is.na(ratio.cv)))
+                stop(paste0(error.prefix, "'ratio.cv' must be NULL or a single, numeric value"))
+            if (!is.null(ratio.correlation) && (!is.numeric(ratio.correlation) || length(ratio.correlation)!=1 || is.na(ratio.correlation) || ratio.correlation>1 || ratio.correlation< -1))
+                stop(paste0(error.prefix, "'ratio.correlation' must be NULL or a single, numeric value between 1 and -1, inclusive"))
+            
 
             # *p.bias* constants, *correlation.multipliers*, *within.location* error correlations, *metalocation* correlations, *measurement.error.sd*, and *n.multiplier.cv* are all single numeric values with values between 0 and 1 inclusive
             between.negative.one.and.positive.one <- list(
@@ -563,7 +577,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 p.error.variance.term = p.error.variance.term,
                 p.error.variance.type = p.error.variance.type,
                 n.error.variance.term = n.error.variance.term,
-                n.error.variance.type = n.error.variance.type
+                n.error.variance.type = n.error.variance.type,
+                ratio.cv = ratio.cv,
+                ratio.correlation = ratio.correlation
             )
 
             private$i.partitioning.function <- partitioning.function
@@ -710,7 +726,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
         i.redundant.location.threshold = NULL,
         i.partitioning.function = NULL,
         i.use.lognormal.approximation = NULL,
-        i.calculate.lagged.difference = NULL
+        i.calculate.lagged.difference = NULL,
+        i.log.ratio.uncertainty.matrix = NULL
     )
 )
 
@@ -1118,7 +1135,16 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                         stop(paste0(error.prefix, "no data found for lagged-year pairs"))
                     }
                     private$i.n.lagged.obs <- length(private$i.lagged.pairs) / 2
-
+                    
+                    if (!is.null(private$i.parameters$ratio.cv)) {
+                        val = (log(private$i.parameters$ratio.cv) / qnorm(0.975))**2
+                        private$i.log.ratio.uncertainty.matrix = matrix(
+                            val * private$i.parameters$ratio.correlation,
+                            nrow = private$i.n.lagged.obs,
+                            ncol = private$i.n.lagged.obs)
+                        diag(private$i.log.ratio.uncertainty.matrix) = val
+                    }
+                    
                     # Keep only the latter years for each pair
                     private$i.metadata.for.lag <- private$i.metadata[private$i.lagged.pairs[rep(c(T, F), private$i.n.lagged.obs)] + 1, ]
                 }
@@ -1548,6 +1574,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
 
                 # to do at instantiate time: obs = private$i.lag.matrix %*% obs
             }
+            
+            if (!is.null(private$i.log.ratio.uncertainty.matrix))
+                sigma = sigma + private$i.log.ratio.uncertainty.matrix
 
             likelihood <- mvtnorm::dmvnorm(obs.vector,
                 mean = mean,
