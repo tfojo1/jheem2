@@ -62,18 +62,5 @@ The return value may have several attributes:
 (3) If append.attributes includes "details", an with the same dimensions as the returned array, where each element is one or more details about data collection separated by "__"
 }
 \description{
-#'@export
-pull.data <- function(data.manager,
-                      outcome,
-                      keep.dimensions,
-                      dimensions.values = NULL,
-                      target.ontology,
-                      debug = F)
-{
-    data.manager$pull(outcome=outcome,
-                      keep.dimensions=keep.dimensions,
-                      dimensions.values=dimensions.values,
-                      target.ontology=target.ontology,
-                      debug=debug)
-}
+Pull data from a data manager
 }
