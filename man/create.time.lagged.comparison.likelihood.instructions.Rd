@@ -22,6 +22,8 @@ create.time.lagged.comparison.likelihood.instructions(
   observation.correlation.form = c("compound.symmetry", "autoregressive.1")[1],
   error.variance.term = NULL,
   error.variance.type = NULL,
+  ratio.cv = NULL,
+  ratio.correlation = NULL,
   weights = list(),
   equalize.weight.by.year = T,
   use.lognormal.approximation = T

@@ -1130,8 +1130,10 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
                 
                 // collapse for dimensions to be set right
                 List dep_on_outcome_values = List::create();
-                
-                List collapse_indices = ((List) ((List) i_outcome_indices[outcome_name])["value.from.outcome"])[dep_on_outcome_name];
+                List outcome_indices_for_this_outcome = i_outcome_indices[outcome_name];
+                List value_from_this_outcome_indices = outcome_indices_for_this_outcome["value.from.outcome"];
+                List collapse_indices = value_from_this_outcome_indices[dep_on_outcome_name];
+            
                 IntegerVector large_indices = collapse_indices["large.indices"];
                 IntegerVector small_indices = collapse_indices["small.indices"];
                 int small_n = collapse_indices["small.n"];

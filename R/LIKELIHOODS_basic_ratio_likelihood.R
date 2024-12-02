@@ -1,5 +1,6 @@
 #' Create Basic Ratio Likelihood Instructions
 #' @inheritParams create.basic.likelihood.instructions
+#' @param ratio.cv,ratio.correlation Covariance and correlation coefficients for a compound symmetry matrix representing...? Must be greater than 0, and between -1 and 1, respectively. If 'ratio.cv' is not NULL, 'ratio.correlation' will default to 0.
 #' @export
 create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
                                                        outcome.for.sim, dimensions = character(0),

@@ -17,10 +17,6 @@ add_scalar_to_arr <- function(dst, to_add) {
     .Call(`_jheem2_add_scalar_to_arr`, dst, to_add)
 }
 
-do_collapse_according_to_indices <- function(arr, large_indices, small_indices, small_n) {
-    .Call(`_jheem2_do_collapse_according_to_indices`, arr, large_indices, small_indices, small_n)
-}
-
 do_array_overwrite <- function(dst_array, src_array, dimension_values) {
     .Call(`_jheem2_do_array_overwrite`, dst_array, src_array, dimension_values)
 }
@@ -65,10 +61,6 @@ compute_dx <- function(state, time, settings, quantity_scratch_vector, scratch_v
     .Call(`_jheem2_compute_dx`, state, time, settings, quantity_scratch_vector, scratch_vector, quantities_info, natality_info, mortality_info, transitions_info, infections_info, remission_info, fixed_strata_info, population_trackers)
 }
 
-interpolate_values_when_do_not_apply <- function(values, times, value_applies_for_time) {
-    .Call(`_jheem2_interpolate_values_when_do_not_apply`, values, times, value_applies_for_time)
-}
-
 apply_foregrounds <- function(values, value_times, after_values, times_to_apply_to, foregrounds, indices_per_effect_per_foreground, scale) {
     .Call(`_jheem2_apply_foregrounds`, values, value_times, after_values, times_to_apply_to, foregrounds, indices_per_effect_per_foreground, scale)
 }
@@ -77,12 +69,20 @@ do_calculate_quantity_background_value <- function(quantity, missing_times, spec
     .Call(`_jheem2_do_calculate_quantity_background_value`, quantity, missing_times, specification_metadata, location, engine, check_consistency, error_prefix)
 }
 
+do_collapse_according_to_indices <- function(arr, large_indices, small_indices, small_n) {
+    .Call(`_jheem2_do_collapse_according_to_indices`, arr, large_indices, small_indices, small_n)
+}
+
 do_interpolate <- function(values, value_times, desired_times) {
     .Call(`_jheem2_do_interpolate`, values, value_times, desired_times)
 }
 
-do_calculate_outcome_numerator_and_denominator <- function(outcome_name, ode_results, engine) {
-    invisible(.Call(`_jheem2_do_calculate_outcome_numerator_and_denominator`, outcome_name, ode_results, engine))
+interpolate_values_when_do_not_apply <- function(values, times, value_applies_for_time) {
+    .Call(`_jheem2_interpolate_values_when_do_not_apply`, values, times, value_applies_for_time)
+}
+
+do_calculate_outcome_numerator_and_denominator <- function(outcome_name, ode_results, engine, check_consistency) {
+    invisible(.Call(`_jheem2_do_calculate_outcome_numerator_and_denominator`, outcome_name, ode_results, engine, check_consistency))
 }
 
 calculate_main_effect_indices <- function(target_dim_names, alpha_dimensions, alpha_dim_values) {

@@ -23,7 +23,8 @@
 ##          
 ## Ontologies are implemented as S3 objects, so that they can be used as a dimnames attribute
 
-
+# INTERNAL NOTE:
+# We duplicate some of the functionality of creating ontologies in the 
 #'@title Create an ontology object
 #'
 #'@details An ontology is a set of dimnames with specific characteristics: (1) the dimnames must be named, (2) some of the dimensions may be noted as "incomplete". An incomplete dimension is one for which the given values for a dimension may not represent all possible values for that dimension

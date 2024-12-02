@@ -58,22 +58,9 @@ pull.data(
 A numeric array with named dimnames, with one dimension for each value of 'keep.dimensions', plus an additional dimension, "source" at the beginning, with one value for each source from which data were pulled
 The return value may have several attributes:
 (1) If target.ontology is not-NULL and allow.mapping.from.target.ontology==T, 'ontology.mapping' with refer to an ontology.mapping object that can be applied to data in the target.ontology to make them align with the returned array
-(2) If append.attributes includes "url", a list array (a list with dim and dimnames attributes set), with the same dimensions as the returned array, where each element is a character vector of URLs
-(3) If append.attributes includes "details", a list array (a list with dim and dimnames attributes set), with the same dimensions as the returned array, where each element is a character vector of strings giving the details about data collection
+(2) If append.attributes includes "url", an array with the same dimensions as the returned array, where each element is one or more URLs separated by "__"
+(3) If append.attributes includes "details", an with the same dimensions as the returned array, where each element is one or more details about data collection separated by "__"
 }
 \description{
-#'@export
-pull.data <- function(data.manager,
-                      outcome,
-                      keep.dimensions,
-                      dimensions.values = NULL,
-                      target.ontology,
-                      debug = F)
-{
-    data.manager$pull(outcome=outcome,
-                      keep.dimensions=keep.dimensions,
-                      dimensions.values=dimensions.values,
-                      target.ontology=target.ontology,
-                      debug=debug)
-}
+Pull data from a data manager
 }

@@ -159,7 +159,11 @@ SPECIFICATION.METADATA = R6::R6Class(
             else if (is.ontology(dim.names))
             {
                 rv = self$apply.aliases(dim.names=as.list(dim.names), error.prefix=error.prefix)
-                as.ontology(rv, incomplete.dimensions = incomplete.dimensions(dim.names))
+                #as.ontology(rv, incomplete.dimensions = incomplete.dimensions(dim.names))
+                
+                attr(rv, 'is.complete') = attr(dim.names, 'is.complete')
+                class(rv) = c('ontology', 'list')
+                rv
             }
             else if (is.list(dim.names))
             {
@@ -174,7 +178,8 @@ SPECIFICATION.METADATA = R6::R6Class(
                     if (length(invalid.dimensions)>0)
                         stop(paste0(error.prefix, "In apply.aliases(), ",
                                     ifelse(length(invalid.dimensions)==1, "dimension ", "dimensions "),
-                                    collapse.with.and("'", invalid.dimensions, "'"),
+                                    #collapse.with.and("'", invalid.dimensions, "'"),
+                                    paste0("'", invalid.dimensions, "'", collapse=', '),
                                     ifelse(length(invalid.dimensions)==1, " is not a valid dimension", " are not valid dimensions"),
                                     " for the specification for version '", private$i.version, "'"))
                     

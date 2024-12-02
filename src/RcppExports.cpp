@@ -62,20 +62,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// do_collapse_according_to_indices
-NumericVector do_collapse_according_to_indices(NumericVector arr, IntegerVector large_indices, IntegerVector small_indices, int small_n);
-RcppExport SEXP _jheem2_do_collapse_according_to_indices(SEXP arrSEXP, SEXP large_indicesSEXP, SEXP small_indicesSEXP, SEXP small_nSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type arr(arrSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type large_indices(large_indicesSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type small_indices(small_indicesSEXP);
-    Rcpp::traits::input_parameter< int >::type small_n(small_nSEXP);
-    rcpp_result_gen = Rcpp::wrap(do_collapse_according_to_indices(arr, large_indices, small_indices, small_n));
-    return rcpp_result_gen;
-END_RCPP
-}
 // do_array_overwrite
 RObject do_array_overwrite(NumericVector dst_array, NumericVector src_array, List dimension_values);
 RcppExport SEXP _jheem2_do_array_overwrite(SEXP dst_arraySEXP, SEXP src_arraySEXP, SEXP dimension_valuesSEXP) {
@@ -245,19 +231,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// interpolate_values_when_do_not_apply
-List interpolate_values_when_do_not_apply(List values, NumericVector times, List value_applies_for_time);
-RcppExport SEXP _jheem2_interpolate_values_when_do_not_apply(SEXP valuesSEXP, SEXP timesSEXP, SEXP value_applies_for_timeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< List >::type values(valuesSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type times(timesSEXP);
-    Rcpp::traits::input_parameter< List >::type value_applies_for_time(value_applies_for_timeSEXP);
-    rcpp_result_gen = Rcpp::wrap(interpolate_values_when_do_not_apply(values, times, value_applies_for_time));
-    return rcpp_result_gen;
-END_RCPP
-}
 // apply_foregrounds
 List apply_foregrounds(List values, NumericVector value_times, List after_values, NumericVector times_to_apply_to, List foregrounds, List indices_per_effect_per_foreground, CharacterVector scale);
 RcppExport SEXP _jheem2_apply_foregrounds(SEXP valuesSEXP, SEXP value_timesSEXP, SEXP after_valuesSEXP, SEXP times_to_apply_toSEXP, SEXP foregroundsSEXP, SEXP indices_per_effect_per_foregroundSEXP, SEXP scaleSEXP) {
@@ -292,6 +265,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// do_collapse_according_to_indices
+NumericVector do_collapse_according_to_indices(NumericVector arr, IntegerVector large_indices, IntegerVector small_indices, int small_n);
+RcppExport SEXP _jheem2_do_collapse_according_to_indices(SEXP arrSEXP, SEXP large_indicesSEXP, SEXP small_indicesSEXP, SEXP small_nSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type arr(arrSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type large_indices(large_indicesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type small_indices(small_indicesSEXP);
+    Rcpp::traits::input_parameter< int >::type small_n(small_nSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_collapse_according_to_indices(arr, large_indices, small_indices, small_n));
+    return rcpp_result_gen;
+END_RCPP
+}
 // do_interpolate
 RObject do_interpolate(List values, NumericVector value_times, NumericVector desired_times);
 RcppExport SEXP _jheem2_do_interpolate(SEXP valuesSEXP, SEXP value_timesSEXP, SEXP desired_timesSEXP) {
@@ -305,15 +292,29 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// interpolate_values_when_do_not_apply
+List interpolate_values_when_do_not_apply(List values, NumericVector times, List value_applies_for_time);
+RcppExport SEXP _jheem2_interpolate_values_when_do_not_apply(SEXP valuesSEXP, SEXP timesSEXP, SEXP value_applies_for_timeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type times(timesSEXP);
+    Rcpp::traits::input_parameter< List >::type value_applies_for_time(value_applies_for_timeSEXP);
+    rcpp_result_gen = Rcpp::wrap(interpolate_values_when_do_not_apply(values, times, value_applies_for_time));
+    return rcpp_result_gen;
+END_RCPP
+}
 // do_calculate_outcome_numerator_and_denominator
-void do_calculate_outcome_numerator_and_denominator(const char* outcome_name, List ode_results, Environment engine);
-RcppExport SEXP _jheem2_do_calculate_outcome_numerator_and_denominator(SEXP outcome_nameSEXP, SEXP ode_resultsSEXP, SEXP engineSEXP) {
+void do_calculate_outcome_numerator_and_denominator(const char* outcome_name, List ode_results, Environment engine, bool check_consistency);
+RcppExport SEXP _jheem2_do_calculate_outcome_numerator_and_denominator(SEXP outcome_nameSEXP, SEXP ode_resultsSEXP, SEXP engineSEXP, SEXP check_consistencySEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const char* >::type outcome_name(outcome_nameSEXP);
     Rcpp::traits::input_parameter< List >::type ode_results(ode_resultsSEXP);
     Rcpp::traits::input_parameter< Environment >::type engine(engineSEXP);
-    do_calculate_outcome_numerator_and_denominator(outcome_name, ode_results, engine);
+    Rcpp::traits::input_parameter< bool >::type check_consistency(check_consistencySEXP);
+    do_calculate_outcome_numerator_and_denominator(outcome_name, ode_results, engine, check_consistency);
     return R_NilValue;
 END_RCPP
 }
@@ -821,7 +822,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_jheem2_add_to_arr", (DL_FUNC) &_jheem2_add_to_arr, 4},
     {"_jheem2_overwrite_arr_with_scalar", (DL_FUNC) &_jheem2_overwrite_arr_with_scalar, 2},
     {"_jheem2_add_scalar_to_arr", (DL_FUNC) &_jheem2_add_scalar_to_arr, 2},
-    {"_jheem2_do_collapse_according_to_indices", (DL_FUNC) &_jheem2_do_collapse_according_to_indices, 4},
     {"_jheem2_do_array_overwrite", (DL_FUNC) &_jheem2_do_array_overwrite, 3},
     {"_jheem2_do_expand_array", (DL_FUNC) &_jheem2_do_expand_array, 2},
     {"_jheem2_do_get_expand_indices", (DL_FUNC) &_jheem2_do_get_expand_indices, 3},
@@ -833,11 +833,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_jheem2_get_obs_error_correlation_matrix", (DL_FUNC) &_jheem2_get_obs_error_correlation_matrix, 13},
     {"_jheem2_get_multiplier_correlation_matrix", (DL_FUNC) &_jheem2_get_multiplier_correlation_matrix, 5},
     {"_jheem2_compute_dx", (DL_FUNC) &_jheem2_compute_dx, 13},
-    {"_jheem2_interpolate_values_when_do_not_apply", (DL_FUNC) &_jheem2_interpolate_values_when_do_not_apply, 3},
     {"_jheem2_apply_foregrounds", (DL_FUNC) &_jheem2_apply_foregrounds, 7},
     {"_jheem2_do_calculate_quantity_background_value", (DL_FUNC) &_jheem2_do_calculate_quantity_background_value, 7},
+    {"_jheem2_do_collapse_according_to_indices", (DL_FUNC) &_jheem2_do_collapse_according_to_indices, 4},
     {"_jheem2_do_interpolate", (DL_FUNC) &_jheem2_do_interpolate, 3},
-    {"_jheem2_do_calculate_outcome_numerator_and_denominator", (DL_FUNC) &_jheem2_do_calculate_outcome_numerator_and_denominator, 3},
+    {"_jheem2_interpolate_values_when_do_not_apply", (DL_FUNC) &_jheem2_interpolate_values_when_do_not_apply, 3},
+    {"_jheem2_do_calculate_outcome_numerator_and_denominator", (DL_FUNC) &_jheem2_do_calculate_outcome_numerator_and_denominator, 4},
     {"_jheem2_calculate_main_effect_indices", (DL_FUNC) &_jheem2_calculate_main_effect_indices, 3},
     {"_jheem2_calculate_two_way_interaction_indices", (DL_FUNC) &_jheem2_calculate_two_way_interaction_indices, 5},
     {"_jheem2_calculate_three_way_interaction_indices", (DL_FUNC) &_jheem2_calculate_three_way_interaction_indices, 7},
