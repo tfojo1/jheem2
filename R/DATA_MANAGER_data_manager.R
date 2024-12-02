@@ -356,22 +356,6 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                printouts=printouts)
 }
 
-#' #'@export
-#' pull.data <- function(data.manager,
-#'                       outcome,
-#'                       keep.dimensions,
-#'                       dimensions.values = NULL,
-#'                       target.ontology,
-#'                       debug = F)
-#' {
-#'     data.manager$pull(outcome=outcome,
-#'                       keep.dimensions=keep.dimensions,
-#'                       dimensions.values=dimensions.values,
-#'                       target.ontology=target.ontology,
-#'                       debug=debug)
-#' }
-
-
 #'@title Pull data from a data manager
 #'
 #'@param data.manager A jheem.data.manager object
@@ -688,17 +672,20 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             for (stratification in names(data[[outcome]][[metric]][[source]][[ontology]])) {
                                 
                                 # We must do one put PER unique pair of details/url, because every put() can have only one url and details
-                                hashed.details.this.strat = unique(as.vector(details[[outcome]][[metric]][[source]][[ontology]][[stratification]]))
-                                hashed.url.this.strat = unique(as.vector(url[[outcome]][[metric]][[source]][[ontology]][[stratification]]))
+                                details.this.strat = details[[outcome]][[metric]][[source]][[ontology]][[stratification]]
+                                url.this.strat = url[[outcome]][[metric]][[source]][[ontology]][[stratification]]
+                                hashed.details.this.strat = unique(as.vector(details.this.strat))
+                                hashed.url.this.strat = unique(as.vector(url.this.strat))
                                 
                                 for (one.details in hashed.details.this.strat) {
                                     for (one.url in hashed.url.this.strat) {
                                         if (is.na(one.details) || is.na(one.url)) next
-                                        array.indices = details[details==one.details] & url[url==one.url]
-                                        
+                                        # browser()
+                                        array.indices = details.this.strat[details.this.strat==one.details] & url.this.strat[url.this.strat==one.url]
+                                        array.indices[is.na(array.indices)] = F
                                         # Figure out what the details and url actually are in the from.data.manager
                                         unhashed.one.details = from.data.manager$unhash.details(one.details)
-                                        unhashed.one.url = from.data.manager$unhashed.url(one.url)
+                                        unhashed.one.url = from.data.manager$unhash.url(one.url)
                                         
                                         # Because we have to put arrays, not vectors corresponding to sporadic locations in an array, we fill one with NA everywhere else
                                         one.data = array(NA,
@@ -724,6 +711,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Modified
             private$i.last.modified.date = Sys.time()
+            invisible(self)
             
         },
         
@@ -732,7 +720,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         {
             # --- Validate arguments ---
             error.prefix = paste0("Unable to subset data.manager '", private$i.name, "': ")
-            
+            stop(paste0(error.prefix, "This function is not yet implemented"))
             # *ontology* is NULL or a single, non-empty, non-NA character value which refers to a registered ontology
             # *dimension.values* is a named list of character vectors. If an 'ontology.name' is specified, logical and numeric vectors may also be used.
             
