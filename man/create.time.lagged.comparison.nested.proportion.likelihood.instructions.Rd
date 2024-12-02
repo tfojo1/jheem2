@@ -37,6 +37,8 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions(
   p.error.variance.type = NULL,
   n.error.variance.term = 0.05,
   n.error.variance.type = "cv",
+  ratio.cv = NULL,
+  ratio.correlation = NULL,
   weights,
   equalize.weight.by.year = T,
   partitioning.function,

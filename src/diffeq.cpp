@@ -19,7 +19,8 @@ const int UNINFECTED_GROUP = 1;
 //-------------//
 
 // this is duplicated in engine_optimizations.cpp
-void do_interpolate_quantity_elementwise(double *dst,
+
+void do_diffeq_interpolate_quantity_elementwise(double *dst,
                                          List values,
                                          List after_values,
                                          NumericVector times,
@@ -321,15 +322,15 @@ double *get_quantity_value_for_time(List quant,
                     else
                     {
                         // We have to find before or after index (or both) for each element
-                        do_interpolate_quantity_elementwise(scratch, //double *dst,
-                                                            values, //List values,
-                                                            after_values, //List after_values,
-                                                            times, //NumericVector times,
-                                                            value_applies, //List value_applies,
-                                                            after_value_applies, //List after_value_applies,
-                                                            time,
-                                                            i_before,
-                                                            i_after);
+                        do_diffeq_interpolate_quantity_elementwise(scratch, //double *dst,
+                                                                   values, //List values,
+                                                                   after_values, //List after_values,
+                                                                   times, //NumericVector times,
+                                                                   value_applies, //List value_applies,
+                                                                   after_value_applies, //List after_value_applies,
+                                                                   time,
+                                                                   i_before,
+                                                                   i_after);
                     }
                     
                     return (scratch);
