@@ -693,6 +693,8 @@ execute.simplot <- function(prepared.plot.data,
     
     ## GROUPS
     # break df.sim into two data frames, one for outcomes where the sim will be lines and the other for where it will be points
+    df.sim.groupids.one.member = NULL
+    df.sim.groupids.many.members = NULL
     if (!is.null(df.sim)) {
         groupids.with.one.member = setdiff(unique(df.sim$groupid), df.sim$groupid[which(duplicated(df.sim$groupid))])
         df.sim$groupid_has_one_member = with(df.sim, groupid %in% groupids.with.one.member)
