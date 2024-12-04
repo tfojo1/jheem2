@@ -2045,7 +2045,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     if (metric %in% c('standard.deviation', 'coefficient.of.variance')) data.by.data.type = data.by.data.type**2
                                     scale = outcome.info[['metadata']][['scale']]
                                     if (scale %in% c('non.negative.number', 'number')) {
-                                        data.by.data.type = apply(data.by.data.type, keep.dimensions, FUN = sum, na.rm = na.rm)
+                                        data.by.data.type = apply(data.by.data.type, names(post.agg.dimnames), FUN = sum, na.rm = na.rm)
                                         dim(data.by.data.type) = sapply(post.agg.dimnames, length)
                                         dimnames(data.by.data.type) = post.agg.dimnames
                                     } else if (scale %in% c('rate', 'time', 'proportion', 'ratio')) {
@@ -2116,13 +2116,13 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         
                                         # We should find totals by aggregating the denominator.array rather than pulling less stratified data
                                         # because less stratified data might not equal the sum of the more stratified data in denominator.array
-                                        denominator.totals.array = apply(denominator.array, keep.dimensions, FUN = sum, na.rm=na.rm)
+                                        denominator.totals.array = apply(denominator.array, names(post.agg.dimnames), FUN = sum, na.rm=na.rm)
                                         dim(denominator.totals.array) = sapply(post.agg.dimnames, length)
                                         dimnames(denominator.totals.array) = post.agg.dimnames
                                         
                                         weighted.value.array = data.by.data.type * denominator.array
                                         
-                                        data.by.data.type = apply(weighted.value.array, keep.dimensions, FUN = sum, na.rm=na.rm)
+                                        data.by.data.type = apply(weighted.value.array, names(post.agg.dimnames), FUN = sum, na.rm=na.rm)
                                         dim(data.by.data.type) = sapply(post.agg.dimnames, length)
                                         dimnames(data.by.data.type) = post.agg.dimnames
                                         
@@ -2157,12 +2157,12 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         data.by.data.type = data.by.data.type / estimate.data.for.cv
                                     }
                                 } else {
-                                    data.by.data.type = apply(data.by.data.type, keep.dimensions, function(x) {list(unique(unlist(x)))})
+                                    data.by.data.type = apply(data.by.data.type, names(post.agg.dimnames), function(x) {list(unique(unlist(x)))})
                                     dim(data.by.data.type) = sapply(post.agg.dimnames, length)
                                     dimnames(data.by.data.type) = post.agg.dimnames
-                                    data.by.data.type = lapply(data.by.data.type, function(x) {x[[1]]})
-                                    dim(data.by.data.type) = sapply(post.agg.dimnames, length)
-                                    dimnames(data.by.data.type) = post.agg.dimnames
+                                    # data.by.data.type = lapply(data.by.data.type, function(x) {x[[1]]})
+                                    # dim(data.by.data.type) = sapply(post.agg.dimnames, length)
+                                    # dimnames(data.by.data.type) = post.agg.dimnames
                                 }
                             }
                             dimnames(data.by.data.type) = as.list(dimnames(data.by.data.type))
