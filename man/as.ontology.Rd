@@ -7,7 +7,7 @@
 as.ontology(x, incomplete.dimensions = NULL)
 }
 \arguments{
-\item{x}{A named list of charactera vectors}
+\item{x}{A named list of character vectors or NULL elements}
 }
 \description{
 Convert a named list to an ontology
