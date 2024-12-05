@@ -781,13 +781,27 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         
         register.ontology = function(name, ont)
         {
+            error.prefix = "Cannot register.ontology: "
             # Validate arguments
             # - name is a single, non-empty, non-NA character value
             # - ont is an ontology
+            if (!is.character(name) || length(name)!=1 || is.na(name))
+                stop(paste0(error.prefix, "'name' must be a single, non-NA character value"))
+            if (!is.ontology(ont))
+                stop(paste0(error.prefix, "'ont' must be an ontology"))
             
-            #@need to implement
+            if (name %in% names(private$i.ontologies)) {
+                if (identical(ont, private$i.ontologies[[name]]))
+                    return(invisible(self))
+                else
+                    stop(paste0(error.prefix, "an ontology with this name has already been registered in this data manager"))
+            }
             
             # If this name has not already been registered, store it
+            
+            # Todd's old instructions. I'm choosing not to do this because
+            # it's too complex to modify the data stored under the old ontology.
+            
             # If it has, make sure the new ontology is a 'superset'
             # - all dimensions in the old are still present in the new
             # - dimensions present in the old have the same values as in the new
@@ -796,8 +810,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             #@need to implement
             
-            # Store it
-            private$i.ontologies[[name]] = ont
+            # Store it in sorted form
+            sorted.ont = as.ontology(lapply(ont, function(d) {sort(d)}), incomplete.dimensions=incomplete.dimensions(ont))
+            private$i.ontologies[[name]] = sorted.ont
             
             # Modified
             private$i.last.modified.date = Sys.time()
