@@ -801,7 +801,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
             if (!is.null(private$i.outcome.value)) {
                 private$i.obs.vector <- rep(private$i.outcome.value, length(years)) # need input.data
                 private$i.details <- rep("supplied", length(years))
-                private$i.metadata <- data.frame(year = years, stratum = ".TOTAL.", source = "supplied") # need to get years
+                private$i.metadata <- data.frame(year = years, stratum = ".TOTAL.", dimensions = ".TOTAL.", source = "supplied") # need to get years
                 dimnames.list <- list(list(year = as.character(years), source = "supplied"))
                 remove.mask.list <- list(rep(F, length(years)))
                 dv.remove.mask.list <- remove.mask.list
