@@ -152,7 +152,7 @@ print.ontology <- function(ont)
 
 #'@title Convert a named list to an ontology
 #'
-#'@param x A named list of charactera vectors
+#'@param x A named list of character vectors or NULL elements
 #'
 #'@export
 as.ontology <- function(x, incomplete.dimensions=NULL)
@@ -164,8 +164,8 @@ as.ontology <- function(x, incomplete.dimensions=NULL)
     if (length(x)>0 && is.null(names(x)))
         stop("Can only convert NAMED lists to ontologies with as.ontology()")
     
-    if (any(!sapply(x, is.character)))
-        stop("Lists to be converted to ontologies using as.ontology() must contain only character vectors")
+    if (any(!sapply(x, function(x) {is.character(x) || is.null(x)})))
+        stop("Lists to be converted to ontologies using as.ontology() must contain only character vectors or NULL elements")
     
     do.call(ontology, args = c(x, list(incomplete.dimensions=incomplete.dimensions)))
 }
