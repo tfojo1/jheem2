@@ -681,7 +681,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     for (one.url in hashed.url.this.strat) {
                                         if (is.na(one.details) || is.na(one.url)) next
                                         # browser()
-                                        array.indices = details.this.strat[details.this.strat==one.details] & url.this.strat[url.this.strat==one.url]
+                                        array.indices = which(details.this.strat==one.details & url.this.strat==one.url)
+                                        
                                         array.indices[is.na(array.indices)] = F
                                         # Figure out what the details and url actually are in the from.data.manager
                                         unhashed.one.details = from.data.manager$unhash.details(one.details)
