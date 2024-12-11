@@ -86,6 +86,12 @@ join.outcome.location.mappings <- function(mappings.to.join)
     if (!is.list(mappings.to.join))
         stop("Cannot join outcome.location.mappings: 'mappings.to.join' must be a list of outcome.location.mapping objects")
     
+    mappings.to.join = mappings.to.join[!sapply(mappings.to.join, is.null)]
+    if (length(mappings.to.join)==0)
+        return (NULL)
+    if (length(mappings.to.join)==1)
+        mappings.to.join[[1]]
+    
     if (any(!sapply(mappings.to.join, is, 'outcome.location.mapping')))
         stop("Cannot join outcome.location.mappings: 'mappings.to.join' must be a list of outcome.location.mapping objects")
     

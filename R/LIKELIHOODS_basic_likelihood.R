@@ -1168,12 +1168,16 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
             }
         },
         get.outcome.location.mapping = function() {
-            create.outcome.location.mapping(
-                location.mappings = setNames(list(private$i.location), private$i.location),
-                outcome.name = private$i.outcome.for.data,
-                version = private$i.version,
-                location = private$i.location,
-                sub.version = private$i.sub.version
+            
+            if (is.null(private$i.outcome.for.data))
+                NULL
+            else
+                create.outcome.location.mapping(
+                    location.mappings = setNames(list(private$i.location), private$i.location),
+                    outcome.name = private$i.outcome.for.data,
+                    version = private$i.version,
+                    location = private$i.location,
+                    sub.version = private$i.sub.version
             )
         },
         check = function() {

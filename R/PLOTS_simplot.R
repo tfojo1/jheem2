@@ -200,7 +200,16 @@ simplot.data.only <- function(outcomes,
                     debug=debug)
 }
 
-
+#' Prepare Plot Data
+#' A utility that performs the data-pulling half of the simplot operation
+#' for applications like webtools that need the step to be separate.
+#' @inheritParams simplot
+#' @param plot.which Should simulation data and calibration data be plotted ('sim.and.data'), or only simulation data ('sim.only'), or only calibration data ('data.only')
+#' @value A list with three components:
+#' df.sim, a data frame containing simulation data (may be NULL)
+#' df.truth, a data frame containing calibration data (may be NULL)
+#' details, a list with components "y.label" and "plot.title"
+#' @export
 prepare.plot <- function(simset.list=NULL,
                          outcomes=NULL,
                          locations=NULL,
@@ -582,6 +591,14 @@ prepare.plot <- function(simset.list=NULL,
     return(list(df.sim=df.sim, df.truth=df.truth, details=list(y.label=y.label, plot.title=plot.title)))
 }
 
+#' Execute Simplot
+#' A utility that performs the plot-rendering half of the simplot operation
+#' for applicationslike webtools that need the step to be separate.
+#' @inheritParams simplot
+#' @param prepared.plot.data The named list output by "prepare.plot"
+#' @param n.facet.rows An optional argument to specify how many rows the figure should facet plots into
+#' @value A ggplot object
+#' @export
 execute.simplot <- function(prepared.plot.data,
                             outcomes=NULL,
                             split.by=NULL,
