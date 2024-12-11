@@ -7545,11 +7545,21 @@ MODEL.OUTCOME = R6::R6Class(
                                                                                  set = F)
                     denominator.dim.names = apply.outcome.dimension.aliases.to.dim.names(self,
                                                                                          denominator.dim.names)
+                    
+                    subset.dimensions.missing.from.dim.names = setdiff(names(private$i.subset.dimension.values),
+                                                                       names(renamed.dim.names))
+                    subset.dimensions.missing.but.equal.to.denominator.subset.mask = vapply(subset.dimensions.missing.from.dim.names, function(d){
+                        setequal(private$i.subset.dimension.values[[d]], denominator.outcome$subset.dimension.values[[d]])
+                    }, FUN.VALUE = logical(1))
+                    subset.dimensions.missing.from.dim.names = subset.dimensions.missing.from.dim.names[!subset.dimensions.missing.but.equal.to.denominator.subset.mask]
+                    
+                    renamed.dim.names.plus.subset = as.list(renamed.dim.names)
+                    renamed.dim.names.plus.subset[subset.dimensions.missing.from.dim.names] = private$i.subset.dimension.values[subset.dimensions.missing.from.dim.names]
       
                     # A lot of work below into printing a useful error message
-                    if (!dim.names.are.subset(sub.dim.names=renamed.dim.names, super.dim.names=denominator.dim.names))
+                    if (!dim.names.are.subset(sub.dim.names=renamed.dim.names.plus.subset, super.dim.names=denominator.dim.names))
                     {
-                        dimensions = names(renamed.dim.names)
+                        dimensions = names(renamed.dim.names.plus.subset)
                         denominator.dimensions = names(denominator.dim.names)
                         
                         missing.dimensions = setdiff(dimensions, denominator.dimensions)
@@ -7567,7 +7577,7 @@ MODEL.OUTCOME = R6::R6Class(
                         else
                         {
                             missing.values.per.dimension = sapply(dimensions, function(d){
-                                setdiff(renamed.dim.names[[d]], denominator.dim.names[[d]])
+                                setdiff(renamed.dim.names.plus.subset[[d]], denominator.dim.names[[d]])
                             })
                             dimensions.with.missing.mask = sapply(missing.values.per.dimension, length)>0
                             
@@ -7579,7 +7589,7 @@ MODEL.OUTCOME = R6::R6Class(
                                     paste0("values ", collapse.with.and("'", val, "'"))
                             })
                             
-                            error.details = paste0("Dimension values which are present in the outcome's calculated dim.names are missing from the denominator's dim.names: ",
+                            error.details = paste0("Dimension values which are present in the outcome's calculated dim.names and subset.dimension.values are missing from the denominator's dim.names: ",
                                                    paste0("Dimension '", dimensions.with.missing, "' is missing ", missing.values.text,
                                                           collapse='. '),
                                                    ".")

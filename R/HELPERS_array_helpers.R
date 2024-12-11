@@ -460,6 +460,35 @@ get.collapse.array.indices <- function(large.arr.dim.names, small.arr.dim.names)
     rv
 }
 
+get.collapse.array.indices.with.intermediate <- function(large.arr.dim.names,
+                                                         intermediate.arr.dim.names,
+                                                         small.arr.dim.names)
+{
+    indices.large.to.intermediate = get.collapse.array.indices(large.arr.dim.names = large.arr.dim.names,
+                                                               small.arr.dim.names = intermediate.arr.dim.names)
+    
+    indices.intermediate.to.small = get.collapse.array.indices(large.arr.dim.names = intermediate.arr.dim.names,
+                                                               small.arr.dim.names = small.arr.dim.names)
+    
+    names(indices.intermediate.to.small$small.indices) = as.character(indices.intermediate.to.small$large.indices)
+    
+    rv = list(
+        small.indices = indices.intermediate.to.small$small.indices[as.character(indices.large.to.intermediate$small.indices)],
+        large.indices = indices.large.to.intermediate$large.indices,
+        small.n = indices.intermediate.to.small$small.n,
+        large.n = indices.large.to.intermediate$large.n
+    )
+    
+    keep.mask = !is.na(rv$small.indices)
+    rv$small.indices = rv$small.indices[keep.mask]
+    rv$large.indices = rv$large.indices[keep.mask]
+    
+    rv$no.need.to.collapse = rv$small.n==rv$large.n && all(rv$small.indices==rv$large.indices)
+    
+    rv
+}
+
+
 #'@export
 collapse.array.according.to.indices <- function(arr,
                                                 small.indices,
