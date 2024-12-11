@@ -1,5 +1,7 @@
 # We need access to the prepare.plot function from PLOTS_simplot.R
 
+library(plotly)
+
 source("R/PLOTS_simplot.R")
 
 # Need access to the Data Manager
@@ -295,7 +297,7 @@ execute.plotly.plot <- function(prepared.plot.data,
       # fig <- df.sim.groupids.many.members %>% subplot(nrows = 2)
       
       one_plot = function(sim_data, world_data) {
-          print(world_data)
+          # print(world_data)
           fig = plot_ly()
           # Add the Simulation Trace
           fig <- fig %>% add_trace(data = sim_data, x = ~year, y = ~value, color = ~color.sim.by, type = "scatter", mode = "markers")
@@ -307,8 +309,165 @@ execute.plotly.plot <- function(prepared.plot.data,
       df.sim.groupids.many.members <- df.sim.groupids.many.members %>% group_by(age)
       df.sim.groupids.many.members <- df.sim.groupids.many.members %>% do(mafig = one_plot(., df.truth))
       fig <- df.sim.groupids.many.members %>% subplot(nrows = 2)
+      
+      jfig = plotly_json(fig, pretty = T)
+      
+      # browser()
+      
+      # Looking to use the list build:
+      
+      # Using the description retrieved from the add_trace() calls above, to get more than one plot
+      # Seems to not be working, will try the simpler way found online 
+      
+      # fig = list (
+      #   x = list (
+      #     data = list (
+      #         list (
+      #             x = seq(2000,2025),
+      #             y = c(150703.0,150703.0,150703.0,150703.0,150703.0,150703.0,150701.1,151067.1,152113.7,153732.0,155840.6,158379.5,161295.3,164538.1,168060.5,171816.7,175761.3,179848.9,184033.5,188268.1,192503.7,196693.0,200794.1,204774.1,208608.6,212281.6),
+      #             type = "scatter",
+      #             mode = "markers",
+      #             marker = list(
+      #                 color = "rgba(255,0,0,1)",
+      #                 line = list (
+      #                     color = "rgba(255,0,0,1)"
+      #                 )
+      #             )
+      #         ),
+      #         list (
+      #             x = seq(2000,2025),
+      #             y = c(21222.00,21222.00,21222.00,21222.00,21222.00,21222.00,21226.45,20675.77,19591.21,18583.49,17672.87,16849.59,16104.66,15429.89,14817.91,14262.17,13756.82,13296.71,12877.26,12494.43,12144.65,11824.71,11531.72,11263.05,11016.31,10789.32),
+      #             type = "scatter",
+      #             mode = "markers",
+      #             marker = list(
+      #                 color = "rgba(0,255,0,1)",
+      #                 line = list (
+      #                     color = "rgba(0,255,0,1)"
+      #                 )
+      #             )
+      #         )
+      #     )
+      #   )
+      # )
+      
+      fig = list(
+          data = list (
+              list (
+                  x = seq(2000,2025),
+                  y = c(21222.00,21222.00,21222.00,21222.00,21222.00,21222.00,21226.45,20675.77,19591.21,18583.49,17672.87,16849.59,16104.66,15429.89,14817.91,14262.17,13756.82,13296.71,12877.26,12494.43,12144.65,11824.71,11531.72,11263.05,11016.31,10789.32),
+                  type = "scatter"
+              ),
+              list (
+                  x = seq(2000,2025),
+                  y = c(150703.0,150703.0,150703.0,150703.0,150703.0,150703.0,150701.1,151067.1,152113.7,153732.0,155840.6,158379.5,161295.3,164538.1,168060.5,171816.7,175761.3,179848.9,184033.5,188268.1,192503.7,196693.0,200794.1,204774.1,208608.6,212281.6),
+                  type = "scatter"
+              )
+          ),
+          layout = list (
+                      title = 'A Figure Specified By R List',
+                      plot_bgcolor='#e5ecf6', 
+                      xaxis = list( 
+                          zerolinecolor = '#ffff', 
+                          zerolinewidth = 2, 
+                          gridcolor = 'ffff'), 
+                      yaxis = list( 
+                          zerolinecolor = '#ffff', 
+                          zerolinewidth = 2, 
+                          gridcolor = 'ffff')
+              # ), list (
+              #         title = 'A Second Figure',
+              #         plot_bgcolor='#e5acf6', 
+              #         xaxis = list( 
+              #             zerolinecolor = '#ffff', 
+              #             zerolinewidth = 2, 
+              #             gridcolor = 'ffff'), 
+              #         yaxis = list( 
+              #             zerolinecolor = '#ffff', 
+              #             zerolinewidth = 2, 
+              #             gridcolor = 'ffff')
+              )
+          )
             
-      print (fig)
+      plotly_build(fig)
+      
+      # Define the traces
+      trace1 <- list(
+          x = rnorm(100),
+          type = "histogram",
+          name = "Histogram 1",
+          xaxis = "x1",
+          yaxis = "y1"
+      )
+      
+      trace2 <- list(
+          x = rnorm(100, mean = 5),
+          type = "histogram",
+          name = "Histogram 2",
+          xaxis = "x1",
+          yaxis = "y1"
+      )
+      
+      trace3 <- list(
+          x = 1:10,
+          y = (1:10)^2,
+          type = "scatter",
+          mode = "lines",
+          name = "Line 1",
+          xaxis = "x2",
+          yaxis = "y2"
+      )
+      
+      trace4 <- list(
+          x = 1:10,
+          y = (1:10)^3,
+          type = "scatter",
+          mode = "lines",
+          name = "Line 2",
+          xaxis = "x2",
+          yaxis = "y2"
+      )
+      
+      trace5 <- list(
+          z = volcano,
+          type = "heatmap",
+          name = "Heatmap 1",
+          xaxis = "x3",
+          yaxis = "y3"
+      )
+      
+      trace6 <- list(
+          z = matrix(runif(100, min = -2, max = 2), nrow = 10),
+          type = "heatmap",
+          name = "Heatmap 2",
+          xaxis = "x4",
+          yaxis = "y4"
+      )
+      
+      # Define the layout
+      layout <- list(
+          title = "Multiple Figures with Multiple Traces",
+          grid = list(rows = 2, columns = 2, pattern = "independent"),
+          xaxis = list(title = "Histogram X-Axis", domain = c(0, 0.45), anchor = "y1"),
+          yaxis = list(title = "Histogram Y-Axis", domain = c(0.55, 1), anchor = "x1"),
+          xaxis2 = list(title = "Scatter X-Axis", domain = c(0.55, 1), anchor = "y2"),
+          yaxis2 = list(title = "Scatter Y-Axis", domain = c(0.55, 1), anchor = "x2"),
+          xaxis3 = list(title = "Heatmap 1 X-Axis", domain = c(0, 0.45), anchor = "y3"),
+          yaxis3 = list(title = "Heatmap 1 Y-Axis", domain = c(0, 0.45), anchor = "x3"),
+          xaxis4 = list(title = "Heatmap 2 X-Axis", domain = c(0.55, 1), anchor = "y4"),
+          yaxis4 = list(title = "Heatmap 2 Y-Axis", domain = c(0, 0.45), anchor = "x4")
+      )
+      
+      # Combine traces and layout into a single object
+      plot_data <- list(trace1, trace2, trace3, trace4, trace5, trace6)
+      plot_object <- list(data = plot_data, layout = layout)
+      
+      # Build the plotly object
+      final_plot <- plotly_build(plot_object)
+      
+      # Render the plot
+      final_plot
+      
+      # print (fig)
     }
      
     browser()
