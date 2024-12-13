@@ -239,239 +239,413 @@ execute.plotly.plot <- function(prepared.plot.data,
   df.sim.groupids.one.member = subset(df.sim, groupid_has_one_member)
   df.sim.groupids.many.members = subset(df.sim, !groupid_has_one_member)
 
-  # Draw the plots
+  # Plotly uses 'dash' instead of 'dashed' for dashed lines, so 
+  # convert the value in linetypes.for.sim
+  linetypes.for.sim = gsub ("dashed", "dash", linetypes.for.sim)
   
-  fig = plot_ly()
-  # We plot the sim Data first.
-  
-  if (!is.null(split.by)) {
-    # Split.by is per-plot; these are the groups that are being varied within the plot
-    # For example, a plot with split.by = "race" would have multiple races in each plot
-      
-    #In this example plot, we have a df.sim.groupids.man.members > 0
-    if (nrow(df.sim.groupids.many.members) > 0) {
-          
-      fig = plot_ly(
-              type="scatter",
-              x = df.sim.groupids.many.members$year,
-              y = df.sim.groupids.many.members$value,
-              # color = df.sim.groupids.many.members$groupid,
-              color = df.sim.groupids.many.members$color.sim.by,
-              color_continuous_scale = colors.for.sim,
-              # transforms = list(
-              #   list(
-              #     type = "groupby",
-              #     groups = df.sim.groupids.many.members$groupid,
-              #     styles = list (
-              #       list(target = 4, value = list(marker = list(color = 'blue'))),
-              #       list(target = 2, value = list(marker = list(color = 'red'))),
-              #       list(target = 6, value = list(marker = list(color = 'green')))
-              #     )
-              #
-              #   ),
-              mode = "lines+markers"
-              )
-        
-      #       %>% 
-      #       group_by (data = df.sim.groupids.many.members, age) %>%
-      #     
-      #       do(p=plot_ly(.)) %>%
-      #       subplot(nrows = 2, shareX = TRUE, shareY = TRUE)
-        
-      # df.sim.groupids.many.members %>%
-      #       group_by (age) %>%
-      #       do(p = plot_ly(., x = ~year, y = ~value, color = ~color.sim.by, type = "scatter", mode="lines+markers")) %>%
-      #       subplot(nrows = 2, shareX = TRUE, shareY = TRUE)
-      
-      # df.sim.groupids.many.members %>%
-      #       group_by (age) %>%
-      #       group_map(~ plot_ly(data=., x = ~year, y = ~value, color = ~color.sim.by, type = "scatter", mode="lines+markers"), .keep = TRUE) %>% 
-      #       subplot(nrows = 2, shareX = TRUE, shareY = TRUE)
+  # Helper function definition
+  collect.traces.for.facet = function (split.categories, 
+                                      data.for.this.facet, 
+                                      local.split.by, 
+                                      trace.column, 
+                                      marker.type, 
+                                      current.facet) {
+    rv = list()
+    for (spl.cat in split.categories) {
+      data.for.this.trace = subset(data.for.this.facet,
+                                     data.for.this.facet[[local.split.by]] == spl.cat)
+      # One trace for each category
+        category.list = unique(data.for.this.trace[[trace.column]])
+        traces = lapply (category.list, function(trace_id) {
+          trace.data = subset(data.for.this.trace,
+                              data.for.this.trace[[trace.column]] == trace_id)
               
-      
-      # one_plot = function(d) {
-      #     return (plot_ly(data = d, x = ~year, y = ~value, color = ~color.sim.by, type = "scatter", mode="lines") )
-      # }
-      # df.sim.groupids.many.members <- df.sim.groupids.many.members %>% group_by(age)
-      # df.sim.groupids.many.members <- df.sim.groupids.many.members %>% do(mafig = one_plot(.))
-      # fig <- df.sim.groupids.many.members %>% subplot(nrows = 2)
-      
-      one_plot = function(sim_data, world_data) {
-          # print(world_data)
-          fig = plot_ly()
-          # Add the Simulation Trace
-          fig <- fig %>% add_trace(data = sim_data, x = ~year, y = ~value, color = ~color.sim.by, type = "scatter", mode = "markers")
-          # Add the Data Trace
-          fig <- fig %>% add_trace(data = world_data, x = ~year, y = ~value, color = ~color.data.by, type = "scatter", mode = "lines")
-          return (fig)
-          # return (plot_ly(data = d, x = ~year, y = ~value, color = ~color.sim.by, type = "scatter", mode="lines") )
-      }
-      df.sim.groupids.many.members <- df.sim.groupids.many.members %>% group_by(age)
-      df.sim.groupids.many.members <- df.sim.groupids.many.members %>% do(mafig = one_plot(., df.truth))
-      fig <- df.sim.groupids.many.members %>% subplot(nrows = 2)
-      
-      jfig = plotly_json(fig, pretty = T)
-      
-      # browser()
-      
-      # Looking to use the list build:
-      
-      # Using the description retrieved from the add_trace() calls above, to get more than one plot
-      # Seems to not be working, will try the simpler way found online 
-      
-      # fig = list (
-      #   x = list (
-      #     data = list (
-      #         list (
-      #             x = seq(2000,2025),
-      #             y = c(150703.0,150703.0,150703.0,150703.0,150703.0,150703.0,150701.1,151067.1,152113.7,153732.0,155840.6,158379.5,161295.3,164538.1,168060.5,171816.7,175761.3,179848.9,184033.5,188268.1,192503.7,196693.0,200794.1,204774.1,208608.6,212281.6),
-      #             type = "scatter",
-      #             mode = "markers",
-      #             marker = list(
-      #                 color = "rgba(255,0,0,1)",
-      #                 line = list (
-      #                     color = "rgba(255,0,0,1)"
-      #                 )
-      #             )
-      #         ),
-      #         list (
-      #             x = seq(2000,2025),
-      #             y = c(21222.00,21222.00,21222.00,21222.00,21222.00,21222.00,21226.45,20675.77,19591.21,18583.49,17672.87,16849.59,16104.66,15429.89,14817.91,14262.17,13756.82,13296.71,12877.26,12494.43,12144.65,11824.71,11531.72,11263.05,11016.31,10789.32),
-      #             type = "scatter",
-      #             mode = "markers",
-      #             marker = list(
-      #                 color = "rgba(0,255,0,1)",
-      #                 line = list (
-      #                     color = "rgba(0,255,0,1)"
-      #                 )
-      #             )
-      #         )
-      #     )
-      #   )
-      # )
-      
-      fig = list(
-          data = list (
-              list (
-                  x = seq(2000,2025),
-                  y = c(21222.00,21222.00,21222.00,21222.00,21222.00,21222.00,21226.45,20675.77,19591.21,18583.49,17672.87,16849.59,16104.66,15429.89,14817.91,14262.17,13756.82,13296.71,12877.26,12494.43,12144.65,11824.71,11531.72,11263.05,11016.31,10789.32),
-                  type = "scatter"
-              ),
-              list (
-                  x = seq(2000,2025),
-                  y = c(150703.0,150703.0,150703.0,150703.0,150703.0,150703.0,150701.1,151067.1,152113.7,153732.0,155840.6,158379.5,161295.3,164538.1,168060.5,171816.7,175761.3,179848.9,184033.5,188268.1,192503.7,196693.0,200794.1,204774.1,208608.6,212281.6),
-                  type = "scatter"
-              )
-          ),
-          layout = list (
-                      title = 'A Figure Specified By R List',
-                      plot_bgcolor='#e5ecf6', 
-                      xaxis = list( 
-                          zerolinecolor = '#ffff', 
-                          zerolinewidth = 2, 
-                          gridcolor = 'ffff'), 
-                      yaxis = list( 
-                          zerolinecolor = '#ffff', 
-                          zerolinewidth = 2, 
-                          gridcolor = 'ffff')
-              # ), list (
-              #         title = 'A Second Figure',
-              #         plot_bgcolor='#e5acf6', 
-              #         xaxis = list( 
-              #             zerolinecolor = '#ffff', 
-              #             zerolinewidth = 2, 
-              #             gridcolor = 'ffff'), 
-              #         yaxis = list( 
-              #             zerolinecolor = '#ffff', 
-              #             zerolinewidth = 2, 
-              #             gridcolor = 'ffff')
-              )
+          clean.group.id = gsub("^population_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
+          d = list (
+            type = "scatter",
+            mode = paste0(marker.type, "s"),
+            name = clean.group.id,
+            x = trace.data$year,
+            y = trace.data$value,
+            xaxis = paste0("x", current.facet),
+            yaxis = paste0("y", current.facet)
           )
-            
-      plotly_build(fig)
-      
-      # Define the traces
-      trace1 <- list(
-          x = rnorm(100),
-          type = "histogram",
-          name = "Histogram 1",
-          xaxis = "x1",
-          yaxis = "y1"
-      )
-      
-      trace2 <- list(
-          x = rnorm(100, mean = 5),
-          type = "histogram",
-          name = "Histogram 2",
-          xaxis = "x1",
-          yaxis = "y1"
-      )
-      
-      trace3 <- list(
-          x = 1:10,
-          y = (1:10)^2,
-          type = "scatter",
-          mode = "lines",
-          name = "Line 1",
-          xaxis = "x2",
-          yaxis = "y2"
-      )
-      
-      trace4 <- list(
-          x = 1:10,
-          y = (1:10)^3,
-          type = "scatter",
-          mode = "lines",
-          name = "Line 2",
-          xaxis = "x2",
-          yaxis = "y2"
-      )
-      
-      trace5 <- list(
-          z = volcano,
-          type = "heatmap",
-          name = "Heatmap 1",
-          xaxis = "x3",
-          yaxis = "y3"
-      )
-      
-      trace6 <- list(
-          z = matrix(runif(100, min = -2, max = 2), nrow = 10),
-          type = "heatmap",
-          name = "Heatmap 2",
-          xaxis = "x4",
-          yaxis = "y4"
-      )
-      
-      # Define the layout
-      layout <- list(
-          title = "Multiple Figures with Multiple Traces",
-          grid = list(rows = 2, columns = 2, pattern = "independent"),
-          xaxis = list(title = "Histogram X-Axis", domain = c(0, 0.45), anchor = "y1"),
-          yaxis = list(title = "Histogram Y-Axis", domain = c(0.55, 1), anchor = "x1"),
-          xaxis2 = list(title = "Scatter X-Axis", domain = c(0.55, 1), anchor = "y2"),
-          yaxis2 = list(title = "Scatter Y-Axis", domain = c(0.55, 1), anchor = "x2"),
-          xaxis3 = list(title = "Heatmap 1 X-Axis", domain = c(0, 0.45), anchor = "y3"),
-          yaxis3 = list(title = "Heatmap 1 Y-Axis", domain = c(0, 0.45), anchor = "x3"),
-          xaxis4 = list(title = "Heatmap 2 X-Axis", domain = c(0.55, 1), anchor = "y4"),
-          yaxis4 = list(title = "Heatmap 2 Y-Axis", domain = c(0, 0.45), anchor = "x4")
-      )
-      
-      # Combine traces and layout into a single object
-      plot_data <- list(trace1, trace2, trace3, trace4, trace5, trace6)
-      plot_object <- list(data = plot_data, layout = layout)
-      
-      # Build the plotly object
-      final_plot <- plotly_build(plot_object)
-      
-      # Render the plot
-      final_plot
-      
-      # print (fig)
-    }
-     
-    browser()
+          if (marker.type == "line") {
+            d[[marker.type]] = list (
+              dash = linetypes.for.sim[[clean.group.id]],
+              color = colors.for.sim[[spl.cat]]
+            )
+          } else if (marker.type == "marker") {
+            d[[marker.type]] = list (
+              color = colors.for.sim[[spl.cat]]
+              #  Add additional information here; shape of marker, size
+            )
+          }
+          d    
+        })
+        
+        rv = append(rv, traces)
+    } # End of splits
+    rv
   }
+  # Draw the plots
+      
+  # Define the list structure
+  # Initialize the plotly object as a list
+  fig <- list(data = list(), layout = list())
+  
+  
+  # Add labels for the y-axis and a title for the plot
+  fig$layout$title <- list(text = plot.title)
+  
+  
+  # Remove alpha guide (no direct equivalent in Plotly)
+  # Nothing to do for alpha guides since they don’t exist in Plotly
+  
+  # if (!plot.year.lag.ratio) {
+  #     # Set y-axis limits and format labels with commas
+  #     rv$layout$yaxis <- modifyList(rv$layout$yaxis, list(range = c(0, NULL), tickformat = ","))
+  # } else {
+  #     # Format y-axis labels with commas
+  #     rv$layout$yaxis <- modifyList(rv$layout$yaxis, list(tickformat = ","))
+  # }
+  
+  # This will be changed if facet.by is set, but set it to 1 initially
+  figure.count = 1
+  facet.categories = NULL
+  all.traces = list ()
+  figures.per.row = 3
+  
+  # SIMULATION ELEMENTS
+  if (!is.null(df.sim)) {
+      if (!is.null(split.by)) {
+          if (nrow(df.sim.groupids.many.members) > 0) {
+              # Add lines for multiple simulation groups
+              # we know split.by has a value
+              split.categories = unique (df.sim.groupids.many.members[[split.by]])
+              # At this point we don't know if facet.by is non-null
+              if (is.null(facet.by)) {
+                print("facet.by is null")
+                # TODO
+                # If it is null, we want only one figure
+                # Add as many traces to the figure as we have split.categories
+                  
+              } else {
+                current.facet = 1
+                # If it is non null, we want multiple figures within this plot
+                facet.categories = unique (df.sim.groupids.many.members[[facet.by]])
+                figure.count = length(facet.categories)
+                # For each figure, assign the split.by traces
+                for (fac.cat in facet.categories) {
+                    data.for.this.facet = subset(df.sim.groupids.many.members,
+                                                 df.sim.groupids.many.members[[facet.by]] == fac.cat)
+                    # For each facet, we need to collect the trace for each split.by category
+                    traces = collect.traces.for.facet(split.categories, data.for.this.facet, split.by, "groupid", "line",current.facet)
+                    current.facet = current.facet + 1
+                    fig$data = append(fig$data, traces)
+                } # End of facets
+              }
+          }
+          
+          if (nrow(df.sim.groupids.one.member) > 0) {
+              # Add points for single-member groups
+              print ("df.sim.groupids.one.member > 0")
+              # TODO - incomplete example :
+              # trace <- list(
+              #     type = "scatter",
+              #     mode = "markers",
+              #     x = df.sim.groupids.one.member$year,
+              #     y = df.sim.groupids.one.member$value,
+              #     marker = list(
+              #         color = df.sim.groupids.one.member$color.sim.by,
+              #         symbol = df.sim.groupids.one.member$shape.sim.by,
+              #         size = 8
+              #     )
+              # )
+              # rv$data <- append(rv$data, list(trace))
+          }
+          
+          if (summary.type != 'individual.simulation') {
+              print ("summary.type != 'individual.simulations")
+              # TODO - incomplete example :
+              # # Add ribbons for simulation confidence intervals
+              # trace <- list(
+              #     type = "scatter",
+              #     mode = "lines",
+              #     x = c(df.sim.groupids.many.members$year, rev(df.sim.groupids.many.members$year)),
+              #     y = c(df.sim.groupids.many.members$value.upper, rev(df.sim.groupids.many.members$value.lower)),
+              #     fill = "tonexty",
+              #     fillcolor = df.sim.groupids.many.members$color.sim.by,
+              #     line = list(color = "transparent"),
+              #     opacity = style.manager$alpha.ribbon
+              # )
+              # rv$data <- append(rv$data, list(trace))
+          }
+      } else {
+          # Split.by is null; no splits on the plots
+          print ("Split.by is null")
+          if (nrow(df.sim.groupids.many.members) > 0) {
+              print ("nrow(df.sim.groupids.many.members) > 0")
+              # TODO
+              # Add lines for grouped simulation data
+              # trace <- list(
+              #     type = "scatter",
+              #     mode = "lines",
+              #     x = df.sim.groupids.many.members$year,
+              #     y = df.sim.groupids.many.members$value,
+              #     line = list(color = df.sim.groupids.many.members$color.sim.by),
+              #     opacity = df.sim.groupids.many.members$alpha
+              # )
+              # rv$data <- append(rv$data, list(trace))
+          }
+          
+          if (nrow(df.sim.groupids.one.member) > 0) {
+              print ("nrow(df.sim.groupids.one.member) > 0")
+              # TODO
+              # Add points for single-member simulation groups
+              # trace <- list(
+              #     type = "scatter",
+              #     mode = "markers",
+              #     x = df.sim.groupids.one.member$year,
+              #     y = df.sim.groupids.one.member$value,
+              #     marker = list(
+              #         color = df.sim.groupids.one.member$color.sim.by,
+              #         symbol = df.sim.groupids.one.member$shape.sim.by,
+              #         size = 8
+              #     )
+              # )
+              # rv$data <- append(rv$data, list(trace))
+          }
+          
+          if (summary.type != 'individual.simulation') {
+              print ("summary.type != 'individual.simulations'")
+              # TODO
+              # Add ribbons for simulation confidence intervals
+              # trace <- list(
+              #     type = "scatter",
+              #     mode = "lines",
+              #     x = c(df.sim.groupids.many.members$year, rev(df.sim.groupids.many.members$year)),
+              #     y = c(df.sim.groupids.many.members$value.upper, rev(df.sim.groupids.many.members$value.lower)),
+              #     fill = "tonexty",
+              #     fillcolor = df.sim.groupids.many.members$color.sim.by,
+              #     line = list(color = "transparent"),
+              #     opacity = style.manager$alpha.ribbon
+              # )
+              # rv$data <- append(rv$data, list(trace))
+          }
+      }
+  } #End of df.sim traces
+  
+  # DATA ELEMENTS
+  if (!is.null(df.truth)) {
+      if (!is.null(split.by)) {
+          # Add points for truth data with split groups
+          # Add lines for multiple simulation groups
+          # we know split.by has a value
+          split.categories = unique (df.truth$stratum)
+          # At this point we don't know if facet.by is non-null
+          if (is.null(facet.by)) {
+            print("facet.by is null")
+            # TODO
+            # If it is null, we want only one figure
+            # Add as many traces to the figure as we have split.categories
+              
+          } else {
+            current.facet = 1
+            # If it is non null, we want multiple figures within this plot
+            facet.categories = unique (df.sim.groupids.many.members$facet.by1)
+            # For each figure, assign the split.by traces
+            for (fac.cat in facet.categories) {
+                data.for.this.facet = subset(df.truth,
+                                             df.truth$facet.by1 == fac.cat)
+                # For each facet, we need to collect the trace for each split.by category
+                traces = collect.traces.for.facet(split.categories, data.for.this.facet, "stratum", "stratum", "marker",current.facet)
+                current.facet = current.facet + 1
+                fig$data = append(fig$data, traces)
+            } # End of facets
+          }
+          
+          # trace <- list(
+          #     type = "scatter",
+          #     mode = "markers",
+          #     x = df.truth$year,
+          #     y = df.truth$value,
+          #     marker = list(
+          #         color = df.truth$color.and.shade.data.by,
+          #         symbol = df.truth$shape.data.by,
+          #         size = 8
+          #     )
+          # )
+          # rv$data <- append(rv$data, list(trace))
+      } else {
+          # Add points for truth data without split groups
+          print ("Truth no Split.by")
+          # trace <- list(
+          #     type = "scatter",
+          #     mode = "markers",
+          #     x = df.truth$year,
+          #     y = df.truth$value,
+          #     marker = list(
+          #         color = df.truth$color.and.shade.data.by,
+          #         symbol = df.truth$shape.data.by,
+          #         size = 8
+          #     )
+          # )
+          # rv$data <- append(rv$data, list(trace))
+      }
+  }
+  
+  # At this point we have processed all the traces and now need to lay them out
+  
+  # How many figures do we need? One for each facet.
+  if (figure.count > 1) {
+    # How many full rows of figures do we have?
+    plot.rows = ceiling(figure.count / figures.per.row)
+    
+    fig$layout$grid = list(rows = plot.rows, columns = figures.per.row, pattern = "independent")
+    fig$layout$annotations = list()
+    
+    # Layout constants
+    x_i = 1
+    y_i = 1
+    buffer = 0.05
+    xdelta = 1 / figures.per.row
+    ydelta = 1 / plot.rows
+    
+    for (i in 1:figure.count) {
+        # Start at the beginning
+        x_left = ((x_i - 1) * xdelta) + buffer
+        x_right = (x_i * xdelta) - buffer
+        y_left = (1-((y_i - 1) * ydelta))+ buffer
+        y_right = (1-(y_i * ydelta)) - buffer
+        
+        fig$layout[[paste0("xaxis", i)]] = list(title = "years", domain = c(x_left,x_right), anchor = paste0("y",i))
+        fig$layout[[paste0("yaxis", i)]] = list(title = y.label, domain = c(y_left,y_right), anchor = paste0("x",i))
+        fig$layout$annotations = append ( fig$layout$annotations, list(list ( 
+            text = facet.categories[i],
+            showarrow = F,
+            xref = "paper",
+            yref = "paper"
+            # x = #halfway between the right and the left side of the figure
+            # y = #A buffer-space away from the top 
+        ))) 
+        
+        if (x_i == figures.per.row) {
+            x_i = 1
+            y_i = y_i + 1
+        } else {
+            x_i = x_i + 1
+        }
+    }
+    
+    
+    
+  } else {
+      print("Layout for a single figure")
+      # TODO
+  }
+  
+  # 
+  # # FACETING
+  # if (is.null(facet.by)) {
+  #     # Define faceting by outcome display name
+  #     rv$layout$facet <- list(row = ~outcome.display.name)
+  # } else {
+  #     # Define faceting by outcome display name and additional variables
+  #     rv$layout$facet <- list(row = ~outcome.display.name, col = paste(facet.by, collapse = " + "))
+  # }
+  # 
+  # if (plot.year.lag.ratio) {
+  #     # Set the x-axis label to "latter year"
+  #     rv$layout$xaxis <- list(title = "latter year")
+  # }
+  
+  # Return the final plot object
+  plotly_build(fig)
+  
+  browser()
+  # Start with the sim traces
+  
+  # Define the traces
+  trace1 <- list(
+      x = rnorm(100),
+      type = "histogram",
+      name = "Histogram 1",
+      xaxis = "x1",
+      yaxis = "y1"
+  )
+  
+  trace2 <- list(
+      x = rnorm(100, mean = 5),
+      type = "histogram",
+      name = "Histogram 2",
+      xaxis = "x1",
+      yaxis = "y1"
+  )
+  
+  trace3 <- list(
+      x = 1:10,
+      y = (1:10)^2,
+      type = "scatter",
+      mode = "lines",
+      name = "Line 1",
+      xaxis = "x2",
+      yaxis = "y2"
+  )
+  
+  trace4 <- list(
+      x = 1:10,
+      y = (1:10)^3,
+      type = "scatter",
+      mode = "lines",
+      name = "Line 2",
+      xaxis = "x2",
+      yaxis = "y2"
+  )
+  
+  trace5 <- list(
+      z = volcano,
+      type = "heatmap",
+      name = "Heatmap 1",
+      xaxis = "x3",
+      yaxis = "y3"
+  )
+  
+  trace6 <- list(
+      z = matrix(runif(100, min = -2, max = 2), nrow = 10),
+      type = "heatmap",
+      name = "Heatmap 2",
+      xaxis = "x4",
+      yaxis = "y4"
+  )
+  
+  # Define the layout
+  layout <- list(
+      title = "Multiple Figures with Multiple Traces",
+      grid = list(rows = 2, columns = 2, pattern = "independent"),
+      xaxis = list(title = "Histogram X-Axis", domain = c(0, 0.45), anchor = "y1"),
+      yaxis = list(title = "Histogram Y-Axis", domain = c(0.55, 1), anchor = "x1"),
+      xaxis2 = list(title = "Scatter X-Axis", domain = c(0.55, 1), anchor = "y2"),
+      yaxis2 = list(title = "Scatter Y-Axis", domain = c(0.55, 1), anchor = "x2"),
+      xaxis3 = list(title = "Heatmap 1 X-Axis", domain = c(0, 0.45), anchor = "y3"),
+      yaxis3 = list(title = "Heatmap 1 Y-Axis", domain = c(0, 0.45), anchor = "x3"),
+      xaxis4 = list(title = "Heatmap 2 X-Axis", domain = c(0.55, 1), anchor = "y4"),
+      yaxis4 = list(title = "Heatmap 2 Y-Axis", domain = c(0, 0.45), anchor = "x4")
+  )
+  
+  # Combine traces and layout into a single object
+  plot_data <- list(trace1, trace2, trace3, trace4, trace5, trace6)
+  plot_object <- list(data = plot_data, layout = layout)
+  
+  # Build the plotly object
+  final_plot <- plotly_build(plot_object)
+  
+  # Render the plot
+  final_plot
+  
+  # print (fig)
+ 
+    browser()
 
   
 }
