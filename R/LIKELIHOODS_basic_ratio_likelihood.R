@@ -196,10 +196,18 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
                 sim.denominator.data <- 1
             }
             
-            if (any(sim.numerator.data==0))
-                stop(paste0("Cannot compute basic ratio likelihood for outcome '", private$i.outcome.for.sim, "' - some of the numerator values for that outcome are zero"))
-            if (any(sim.denominator.data==0))
-                stop(paste0("Cannot compute basic ratio likelihood for outcome '", private$i.outcome.for.sim, "' - some of the denominator values for that outcome are zero"))
+            # if (any(sim.numerator.data==0))
+            #     stop(paste0("Cannot compute basic ratio likelihood for outcome '", private$i.outcome.for.sim, "' - some of the numerator values for that outcome are zero"))
+            # if (any(sim.denominator.data==0))
+            #     stop(paste0("Cannot compute basic ratio likelihood for outcome '", private$i.outcome.for.sim, "' - some of the denominator values for that outcome are zero"))
+            
+            if (any(sim.numerator.data==0) || any(sim.denominator.data==0))
+            {
+                if (log)
+                    return (-Inf)
+                else
+                    return (0)
+            }
             
             raw.sim.mean <- sim.numerator.data / sim.denominator.data
             
@@ -260,7 +268,13 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
                                            sigma = final.sigma,
                                            log = T,
                                            checkSymmetry = F
-            )
+            ) 
+            
+            lognormal.dx.term = -sum(private$i.lagged.obs)
+            if (log)
+                likelihood = likelihood + lognormal.dx.term
+            else
+                likelihood = likelihood * lognormal.dx.term
             
             if (debug) {
                 lik.summary <- cbind(private$i.metadata.for.lag, obs = private$i.lagged.obs, mean = final.mean, sd = sqrt(diag(final.sigma)))
