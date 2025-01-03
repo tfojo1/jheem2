@@ -201,6 +201,18 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
             # if (any(sim.denominator.data==0))
             #     stop(paste0("Cannot compute basic ratio likelihood for outcome '", private$i.outcome.for.sim, "' - some of the denominator values for that outcome are zero"))
             
+            if (any(is.na(sim.numerator.data)) || any(is.na(sim.denominator.data)))
+            {
+                print(paste0("THERE WERE NAs IN THE BASIC RATIO LIKELIHOOD'S NUMERATOR OR DENOMINATOR FOR OUTCOME '", private$i.outcome.for.sim, "'"))
+                error.file.name = file.path("test", paste0(private$i.location, "_error.sim.Rdata"))
+                print(paste0("  WE WILL CONTINUE BY RETURNING -Inf, BUT THE SIM IS SAVED IN '", error.file.name, "'"))
+                save(sim, file=error.file.name)
+                
+                if (log)
+                    return (-Inf)
+                else
+                    return (0)
+            }
             if (any(sim.numerator.data==0) || any(sim.denominator.data==0))
             {
                 if (log)
