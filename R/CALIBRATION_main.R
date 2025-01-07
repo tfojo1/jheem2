@@ -386,7 +386,24 @@ set.up.calibration <- function(version,
                                                                                 data.manager = calibration.info$data.manager)
 
     compute.likelihood <- function(sim) {
-        likelihood$compute(sim=sim, log=T, use.optimized.get=T, check.consistency=F)
+        lik = likelihood$compute(sim=sim, log=T, use.optimized.get=T, check.consistency=F)
+        
+        if (is.na(lik))
+        {
+            error.dir = file.path(get.jheem.root.directory(), 'errors')
+            if (!dir.exists(error.dir))
+                dir.create(error.dir)
+            error.filename = filepath(error.dir, 
+                                      paste0("NA_lik_", location, "_", Sys.Date(), ".Rdata"))
+            
+            print(paste0("THE LIKELIHOOD FOR THE SIMULATION EVALUATED TO NA"))
+            print(paste0("  TO ALLOW THE MCMC TO KEEP RUNNING, WILL RETURN log likelihood = -Inf"))
+            print(paste0("  SAVING THE SIM THAT GENERATED THIS ERROR TO FILE: '", error.filename, "'"))
+            
+            -Inf
+        }
+        else
+            lik
     }
     
 

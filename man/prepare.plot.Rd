@@ -25,6 +25,8 @@ prepare.plot(
 )
 }
 \arguments{
+\item{simset.list}{A list of jheem.simulation.set objects}
+
 \item{outcomes}{A character vector of which simulation outcomes to plot}
 
 \item{split.by}{At most one dimension}

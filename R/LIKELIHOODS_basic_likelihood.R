@@ -1346,6 +1346,14 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                                            log = T,
                                            checkSymmetry = F
             )
+            if (private$i.use.lognormal.approximation)
+            {
+                lognormal.dx.term = -sum(obs)
+                if (log)
+                    likelihood = likelihood + lognormal.dx.term
+                else
+                    likelihood = likelihood * lognormal.dx.term
+            }
             
             if (debug) {
                 if (private$i.calculate.lagged.difference) {

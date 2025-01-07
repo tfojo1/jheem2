@@ -27,7 +27,7 @@
 \item{summary.type}{Checked for proper value, not passed out of the function}
 }
 \value{
-A list containing processed $simset.list and $outcomes
+A list containing processed $simset.list and $outcomes (a vector)
 }
 \description{
 Cleaning and verifying the plotting data so it can be properly plotted

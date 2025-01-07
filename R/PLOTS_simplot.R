@@ -77,7 +77,7 @@ simplot <- function(...,
 #'@param corresponding.data.outcomes Checked for proper value, not passed out of the function
 #'@param plot.which Checked for proper value, not passed out of the function
 #'@param summary.type Checked for proper value, not passed out of the function
-#'@return A list containing processed $simset.list and $outcomes
+#'@return A list containing processed $simset.list and $outcomes (a vector)
 plot.data.validation = function(simset.args,
                                 deparsed.substituted.args.simset.args,
                                 outcomes,
@@ -204,6 +204,7 @@ simplot.data.only <- function(outcomes,
 #' A utility that performs the data-pulling half of the simplot operation
 #' for applications like webtools that need the step to be separate.
 #' @inheritParams simplot
+#' @param simset.list A list of jheem.simulation.set objects
 #' @param plot.which Should simulation data and calibration data be plotted ('sim.and.data'), or only simulation data ('sim.only'), or only calibration data ('data.only')
 #' @value A list with three components:
 #' df.sim, a data frame containing simulation data (may be NULL)
@@ -562,7 +563,7 @@ prepare.plot <- function(simset.list=NULL,
             sim.n.lag.pairs = length(sim.lag.indices)/2
             
             sim.lag.values = apply_lag_to_vector(df.sim$value, sim.lag.indices, rep(0, sim.n.lag.pairs), sim.n.lag.pairs)
-            sim.rows.to.keep = sim.lag.indices[rep(c(T,F), sim.n.lag.pairs)] # add one because CPP is zero-indexed
+            sim.rows.to.keep = sim.lag.indices[rep(c(T,F), sim.n.lag.pairs)] + 1 # add one because CPP is zero-indexed
             df.sim = df.sim[sim.rows.to.keep,]
             df.sim$value = exp(sim.lag.values)
             
