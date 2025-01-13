@@ -393,7 +393,7 @@ set.up.calibration <- function(version,
             error.dir = file.path(get.jheem.root.directory(), 'errors')
             if (!dir.exists(error.dir))
                 dir.create(error.dir)
-            error.filename = filepath(error.dir, 
+            error.filename = file.path(error.dir, 
                                       paste0("NA_lik_", location, "_", Sys.Date(), ".Rdata"))
             
             print(paste0("THE LIKELIHOOD FOR THE SIMULATION EVALUATED TO NA"))
