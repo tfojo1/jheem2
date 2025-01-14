@@ -151,7 +151,7 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
             })
             join.outcome.location.mappings(sub.lik.mappings)
         },
-        compute.piecewise = function(sim, log = T, use.optimized.get = F, check.consistency = T, error.prefix = "Error computing liklihood: ", debug = F) {
+        compute.piecewise = function(sim, log = T, use.optimized.get = F, check.consistency = T, error.prefix = "Error computing likelihood: ", debug = F) {
             # why do I need to use return here?
             return(sub.values = sapply(private$i.sub.likelihoods, function(like) {
                 like$compute(sim, log = log, use.optimized.get = use.optimized.get, check.consistency = check.consistency, error.prefix = error.prefix, debug = debug)
