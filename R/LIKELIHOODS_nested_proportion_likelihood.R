@@ -42,7 +42,8 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
                                                                                       n.error.variance.type = "cv", # placeholder # same as old "denominator.measurement.error.cv"?
                                                                                       weights,
                                                                                       equalize.weight.by.year = T,
-                                                                                      partitioning.function) {
+                                                                                      partitioning.function,
+                                                                                      name = outcome.for.sim) {
     JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS$new(
         outcome.for.data = outcome.for.data,
         denominator.outcome.for.data = denominator.outcome.for.data,
@@ -84,7 +85,8 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
         equalize.weight.by.year = equalize.weight.by.year,
         partitioning.function = partitioning.function,
         use.lognormal.approximation = F,
-        calculate.lagged.difference = F
+        calculate.lagged.difference = F,
+        name = name
     )
 }
 
@@ -129,7 +131,8 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
                                                                                     weights,
                                                                                     equalize.weight.by.year = T,
                                                                                     partitioning.function,
-                                                                                    use.lognormal.approximation = T) # only change compared to generic
+                                                                                    use.lognormal.approximation = T,
+                                                                                    name = outcome.for.sim) # only change compared to generic
 {
     JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS$new(
         outcome.for.data = outcome.for.data,
@@ -173,7 +176,8 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
         equalize.weight.by.year = equalize.weight.by.year,
         partitioning.function = partitioning.function,
         use.lognormal.approximation = use.lognormal.approximation, # changed vs generic
-        calculate.lagged.difference = T
+        calculate.lagged.difference = T,
+        name = name
     ) # changed vs generic
 }
 
@@ -226,7 +230,8 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              n.error.variance.type = "cv", # placeholder # same as old "denominator.measurement.error.cv"?
                                                              weights,
                                                              equalize.weight.by.year = T,
-                                                             partitioning.function) {
+                                                             partitioning.function,
+                                                             name = outcome.for.sim) {
     JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS$new(
         outcome.for.data = outcome.for.data,
         denominator.outcome.for.data = denominator.outcome.for.data,
@@ -267,7 +272,8 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
         equalize.weight.by.year = equalize.weight.by.year,
         partitioning.function = partitioning.function,
         use.lognormal.approximation = F,
-        calculate.lagged.difference = F
+        calculate.lagged.difference = F,
+        name = name
     )
 }
 
@@ -317,7 +323,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                               equalize.weight.by.year,
                               partitioning.function,
                               use.lognormal.approximation,
-                              calculate.lagged.difference) {
+                              calculate.lagged.difference,
+                              name) {
             error.prefix <- paste0("Error creating nested proportion likelihood instructions for outcome '", outcome.for.sim, "': ")
 
             # validated in the super$initialize:
@@ -333,6 +340,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 levels.of.stratification = levels.of.stratification,
                 weights,
                 likelihood.class.generator = JHEEM.NESTED.PROPORTION.LIKELIHOOD,
+                name = name,
                 error.prefix = error.prefix
             )
 

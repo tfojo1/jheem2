@@ -7,18 +7,21 @@
 #'
 #' @export
 create.bernoulli.likelihood.instructions <- function(outcome.for.sim,
-                                                     dimensions = character(0),
-                                                     levels.of.stratification = NULL,
                                                      years,
                                                      probability.decreasing,
-                                                     weights) {
+                                                     weights,
+                                                     dimensions = character(0),
+                                                     levels.of.stratification = NULL,
+                                                     name = outcome.for.sim
+                                                     ) {
     JHEEM.BERNOULLI.LIKELIHOOD.INSTRUCTIONS$new(
         outcome.for.sim = outcome.for.sim,
-        dimensions = dimensions,
-        levels.of.stratification = levels.of.stratification,
         years,
         probability.decreasing = probability.decreasing,
-        weights = weights
+        weights = weights,
+        dimensions = dimensions,
+        levels.of.stratification = levels.of.stratification,
+        name = name
     )
 }
 
@@ -27,12 +30,13 @@ JHEEM.BERNOULLI.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
     inherit = JHEEM.LIKELIHOOD.INSTRUCTIONS,
     public = list(
         initialize = function(outcome.for.sim,
-                              dimensions,
-                              levels.of.stratification,
                               years,
                               probability.decreasing,
-                              weights) {
-            error.prefix <- paste0("Error creating basic likelihood instructions: ")
+                              weights,
+                              dimensions,
+                              levels.of.stratification,
+                              name) {
+            error.prefix <- paste0("Error creating Bernoulli likelihood instructions: ")
 
             # *probability.decreasing* is a single numeric value between 0 and 1
             if (!is.numeric(probability.decreasing) || is.null(probability.decreasing) || length(probability.decreasing) > 1 || is.na(probability.decreasing) || probability.decreasing > 1 || probability.decreasing < 0) {
@@ -46,13 +50,13 @@ JHEEM.BERNOULLI.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             }
             private$i.years <- as.integer(years)
 
-            super$initialize(
-                outcome.for.sim = outcome.for.sim,
-                dimensions = dimensions,
-                levels.of.stratification = levels.of.stratification,
-                weights = weights,
-                likelihood.class.generator = JHEEM.BERNOULLI.LIKELIHOOD
-            )
+            super$initialize(outcome.for.sim = outcome.for.sim,
+                             dimensions = dimensions,
+                             levels.of.stratification = levels.of.stratification,
+                             weights = weights,
+                             likelihood.class.generator = JHEEM.BERNOULLI.LIKELIHOOD,
+                             name = name,
+                             error.prefix = error.prefix)
         },
         equals = function(other) {
             if (!is(other, "jheem.likelihood.instructions")) {

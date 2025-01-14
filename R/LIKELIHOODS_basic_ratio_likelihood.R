@@ -3,7 +3,8 @@
 #' @param ratio.cv,ratio.correlation Covariance and correlation coefficients for a compound symmetry matrix representing...? Must be greater than 0, and between -1 and 1, respectively. If 'ratio.cv' is not NULL, 'ratio.correlation' will default to 0.
 #' @export
 create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
-                                                       outcome.for.sim, dimensions = character(0),
+                                                       outcome.for.sim,
+                                                       dimensions = character(0),
                                                        denominator.dimensions = dimensions,
                                                        dimension.values = NULL, # EXPERIMENTAL
                                                        levels.of.stratification = NULL,
@@ -21,7 +22,8 @@ create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
                                                        ratio.cv = NULL,
                                                        ratio.correlation = NULL,
                                                        weights = list(),
-                                                       equalize.weight.by.year = T) {
+                                                       equalize.weight.by.year = T,
+                                                       name = outcome.for.sim) {
     JHEEM.BASIC.RATIO.LIKELIHOOD.INSTRUCTIONS$new(
         outcome.for.data = outcome.for.data,
         outcome.for.sim = outcome.for.sim,
@@ -51,7 +53,8 @@ create.basic.ratio.likelihood.instructions <- function(outcome.for.data,
         equalize.weight.by.year = equalize.weight.by.year,
         use.lognormal.approximation = F,
         calculate.lagged.difference = TRUE,
-        is.basic.ratio.likelihood = TRUE
+        is.basic.ratio.likelihood = TRUE,
+        name = name
     )
 }
 

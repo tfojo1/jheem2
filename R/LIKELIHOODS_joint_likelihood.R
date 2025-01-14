@@ -26,15 +26,18 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             # Make sure to flatten out list of sub-instructions
 
             for (sub.instr in sub.instructions) {
-                private$i.outcomes <- paste(private$i.outcomes, sub.instr$outcomes, sep = "__")
+                private$i.name <- paste0(private$i.name, sub.instr$name, sep = "__")
+                # private$i.outcomes <- paste(private$i.outcomes, sub.instr$outcomes, sep = "__")
                 if (is(sub.instr, "jheem.joint.likelihood.instructions")) {
                     private$i.sub.instructions <- c(private$i.sub.instructions, sub.instr$sub.instructions)
                 } else {
                     private$i.sub.instructions <- c(private$i.sub.instructions, sub.instr)
                 }
             }
-            private$i.outcomes <- trimws(private$i.outcomes, "left", "[__]")
-            names(private$i.sub.instructions) <- strsplit(private$i.outcomes, "__")[[1]]
+            private$i.name <- trimws(private$i.name, "left", "[__]")
+            names(private$i.sub.instructions) <- strsplit(private$i.name, "__")[[1]]
+            # private$i.outcomes <- trimws(private$i.outcomes, "left", "[__]")
+            # names(private$i.sub.instructions) <- strsplit(private$i.outcomes, "__")[[1]]
         },
         equals = function(other) {
             if (!is.null(self$code) && !is.null(other$code)) {
@@ -55,14 +58,13 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             # Validate location
             # Check that these instructions are registered?
             # Make sure all outcomes for the instructions are registered to the specification of the version
-            JHEEM.JOINT.LIKELIHOOD$new(
-                instructions = self,
-                version = version,
-                sub.version = sub.version,
-                location = location,
-                data.manager = data.manager,
-                throw.error.if.no.data = throw.error.if.no.data,
-                error.prefix = error.prefix
+            JHEEM.JOINT.LIKELIHOOD$new(instructions = self,
+                                       version = version,
+                                       sub.version = sub.version,
+                                       location = location,
+                                       data.manager = data.manager,
+                                       throw.error.if.no.data = throw.error.if.no.data,
+                                       error.prefix = error.prefix
             )
         }
     ),
@@ -84,17 +86,25 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 stop("Cannot modify a jheem.likelihood.instruction's 'details' - they are read-only")
             }
         },
-        outcomes = function(value) {
+        name = function(value) {
             if (missing(value)) {
-                private$i.outcomes
+                private$i.name
             } else {
                 stop("Cannot modify a jheem.joint.likelihood.instruction's 'outcomes' - they are read-only")
             }
         }
+        # outcomes = function(value) {
+        #     if (missing(value)) {
+        #         private$i.outcomes
+        #     } else {
+        #         stop("Cannot modify a jheem.joint.likelihood.instruction's 'outcomes' - they are read-only")
+        #     }
+        # }
     ),
     private = list(
         i.sub.instructions = NULL,
-        i.outcomes = NULL
+        i.name = NULL
+        # i.outcomes = NULL
     )
 )
 
@@ -111,26 +121,27 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                               data.manager,
                               throw.error.if.no.data,
                               error.prefix) {
-            super$initialize(
-                instructions = instructions,
-                version = version,
-                sub.version = sub.version,
-                location = location,
-                error.prefix = error.prefix
+            super$initialize(instructions = instructions,
+                             version = version,
+                             sub.version = sub.version,
+                             location = location,
+                             error.prefix = error.prefix
             )
 
             private$i.sub.likelihoods <- lapply(instructions$sub.instructions, function(instr) {
-                instr$instantiate.likelihood(
-                    version = version,
-                    sub.version = sub.version,
-                    location = location,
-                    data.manager = data.manager,
-                    throw.error.if.no.data = throw.error.if.no.data,
-                    error.prefix = error.prefix
-                )
+                if (is(instr, 'jheem.custom.likelihood.instructions'))
+                    instr$instantiate.likelihood()
+                else
+                    instr$instantiate.likelihood(version = version,
+                                                 sub.version = sub.version,
+                                                 location = location,
+                                                 data.manager = data.manager,
+                                                 throw.error.if.no.data = throw.error.if.no.data,
+                                                 error.prefix = error.prefix)
             })
+            
             names(private$i.sub.likelihoods) <- sapply(private$i.sub.likelihoods, function(lik) {
-                lik$outcome.for.sim
+                lik$name # was outcomes
             })
             private$i.sub.likelihoods
         },
