@@ -326,7 +326,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                               calculate.lagged.difference,
                               name) {
             error.prefix <- paste0("Error creating nested proportion likelihood instructions for outcome '", outcome.for.sim, "': ")
-
+            
             # validated in the super$initialize:
             # *outcome.for.sim* (although more validation follows)
             # *dimensions*
@@ -343,6 +343,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 name = name,
                 error.prefix = error.prefix
             )
+            
+            if (!is.list(p.error.variance.term)) p.error.variance.term=list(p.error.variance.term)
+            if (!is.list(n.error.variance.term)) n.error.variance.term=list(n.error.variance.term)
 
             # outcome.for.sim *MUST* be a proportion (suppression, linkage, engagement, aware, heroine use, retention), but this is checked at instantiate time.
 
@@ -431,48 +434,42 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             if (!is.character(included.multiplier.correlation.structure) || length(included.multiplier.correlation.structure) != 1 || !(included.multiplier.correlation.structure) %in% c("compound.symmetry", "autoregressive.1")) {
                 stop(paste0(error.prefix, "'included.multiplier.correlation.structure' must be either 'compound.symmetry' or 'autoregressive.1'"))
             }
-
-            # *p.error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.ci', or 'function.sd'
-            if (!(p.error.variance.type %in% c("sd", "variance", "cv", "data.sd", "data.variance", "data.cv", "data.ci", "function.sd"))) {
-                stop(paste0(error.prefix, "'p.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', 'data.ci', or 'function.sd'"))
-            }
-
-            if (p.error.variance.type %in% c("sd", "variance", "cv") && (!is.numeric(p.error.variance.term) || length(p.error.variance.term) != 1 || is.na(p.error.variance.term) || p.error.variance.term < 0)) {
-                stop(paste0(error.prefix, "'p.error.variance.term' must be a single, nonnegative, numeric value if 'p.error.variance.type' is one of 'sd', 'variance', or 'cv'"))
-            }
-            if (p.error.variance.type %in% c("data.sd", "data.variance", "data.ci") && !is.null(p.error.variance.term)) {
-                stop(paste0(error.prefix, "'p.error.variance.term' must be NULL if 'p.error.variance.type' is one of 'data.sd', 'data.variance', or 'data.ci'"))
-            }
-
-            if (p.error.variance.type %in% c("data.ci")) {
-                stop(paste0(error.prefix, "'data.ci' is not yet supported as a 'p.error.variance.type'"))
-            }
-
-            if (p.error.variance.type %in% c("data.sd", "data.variance", "data.cv", "data.ci")) {
-                p.error.variance.term <- 1
-            }
             
-            if (p.error.variance.type %in% c("function.sd") && (!is.function(p.error.variance.term) || !setequal(names(formals(p.error.variance.term)), c('data', 'details'))))
-                stop(paste0(error.prefix, "if 'p.error.variance.type' is 'function.sd', then the 'p.error.variance.term' must be a function that takes arguments 'data' and 'details' and returns a numeric array of the same dimensions as ‘data’, with no NA values, that represents the sd for each measurement in data."))
-
-            # *n.error.variance.type* must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.ci', or 'function.sd'
-            if (!(n.error.variance.type %in% c("sd", "variance", "cv", "data.sd", "data.variance", "data.cv", "data.ci", "function.sd"))) {
-                stop(paste0(error.prefix, "'n.error.variance.type' must be one of 'sd', 'variance', 'cv', 'data.sd', 'data.variance', 'data.cv', 'data.ci', or 'function.sd'"))
+            # *p.error.variance.type* must be a vector and one of 'sd', 'variance', 'cv', 'exp.of.variance', 'data.sd', 'data.variance', 'data.cv', or 'function.sd'
+            if (!is.character(p.error.variance.type) || length(p.error.variance.type)==0 ||
+                any(is.na(p.error.variance.type)) ||
+                length(setdiff(p.error.variance.type, c("sd", "variance", "cv", "exp.of.variance", "data.sd", "data.cv", "data.variance", "function.sd")))>0)
+                stop(paste0(error.prefix, "'p.error.variance.type' must be a character vector with all elements one of 'sd', 'variance', 'cv', 'exp.of.variance', 'data.sd', 'data.ci', 'data.variance', or 'function.sd'"))
+            
+            for (i in seq_along(p.error.variance.type)) {
+                type = p.error.variance.type[i]
+                term = p.error.variance.term[[i]]
+                
+                if (type %in% c("sd", "variance", "cv", "exp.of.variance") && (!is.numeric(term) || length(term) != 1 || is.na(term) || term < 0))
+                    stop(paste0(error.prefix, "The 'p.error.variance.term' corresponding to a type of 'sd', 'variance', 'cv', or 'exp.of.variance' must be a single, nonnegative, numeric value"))
+                ## TO DO: I ORIGINALLY HAD "DATA.SD" AND "DATA.CI", BUT I ENDED UP ACTUALLY IMPLEMENTING "DATA.SD", "DATA.CV", AND "DATA.VARIANCE" -- ASK TODD
+                if (type %in% c("data.sd", "data.cv", "data.variance") && !is.null(term))
+                    stop(paste0(error.prefix, "The 'p.error.variance.term' corresponding to a type of 'data.sd', 'data.cv', or 'data.variance' must be NULL"))
+                if (type %in% c("function.sd") && (!is.function(term) || !setequal(names(formals(term)), c('data', 'details'))))
+                    stop(paste0(error.prefix, "The 'p.error.variance.term' corresponding to a type of 'function.sd', must be a function that takes arguments 'data' and 'details' and returns a numeric array of the same dimensions as ‘data’, with no NA values, that represents the sd for each measurement in data."))
             }
 
-            if (n.error.variance.type %in% c("sd", "variance", "cv") && (!is.numeric(n.error.variance.term) || length(n.error.variance.term) != 1 || is.na(n.error.variance.term) || n.error.variance.term < 0)) {
-                stop(paste0(error.prefix, "'n.error.variance.term' must be a single, nonnegative, numeric value if 'n.error.variance.type' is one of 'sd', 'variance', or 'cv'"))
-            }
-            if (n.error.variance.type %in% c("data.sd", "data.variance", "data.ci") && !is.null(n.error.variance.term)) {
-                stop(paste0(error.prefix, "'n.error.variance.term' must be NULL if 'n.error.variance.type' is one of 'data.sd', 'data.variance', 'data.cv', or 'data.ci'"))
-            }
-
-            if (n.error.variance.type %in% c("sd", "variance", "data.sd", "data.variance", "data.cv", "data.ci", "function.sd")) {
-                stop(paste0(error.prefix, "only 'cv' is currently supported for 'n.error.variance.type'"))
-            }
-
-            if (n.error.variance.type %in% c("data.sd", "data.variance", "data.cv", "data.ci")) {
-                n.error.variance.term <- 1
+            ## WHAT'S THIS ABOUT?
+            # if (p.error.variance.type %in% c("data.sd", "data.variance", "data.cv", "data.ci")) {
+            #     p.error.variance.term <- 1
+            # }
+            
+            # *n.error.variance.type* must be a vector and all 'cv'
+            if (!is.character(n.error.variance.type) || length(n.error.variance.type)==0 ||
+                any(is.na(n.error.variance.type)) || length(setdiff(n.error.variance.type, c("cv"))>0))
+                stop(paste0(error.prefix, "'n.error.variance.type' must be a character vector with all elements 'cv'"))
+            
+            for (i in seq_along(n.error.variance.type)) {
+                type = n.error.variance.type[i]
+                term = n.error.variance.term[[i]]
+                
+                if (type %in% c("sd", "variance", "cv", "exp.of.variance") && (!is.numeric(term) || length(term) != 1 || is.na(term) || term < 0))
+                    stop(paste0(error.prefix, "The 'p.error.variance.term' corresponding to a type of 'cv' must be a single, nonnegative, numeric value"))
             }
             
             # if *ratio.cv* is not NULL, then *ratio.correlation* can default to 0
@@ -504,9 +501,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             non.negative.not.infinity <- list(
                 p.bias.sd.inside.location = p.bias.sd.inside.location,
                 p.bias.sd.outside.location = p.bias.sd.outside.location,
-                n.multiplier.cv = n.multiplier.cv,
-                p.error.variance.term = p.error.variance.term,
-                n.error.variance.term = n.error.variance.term
+                n.multiplier.cv = n.multiplier.cv
             )
             for (i in seq_along(non.negative.not.infinity)) {
                 if (!is.numeric(non.negative.not.infinity[[i]]) || length(non.negative.not.infinity[[i]]) > 1 || is.na(non.negative.not.infinity[[i]]) || non.negative.not.infinity[[i]] < 0 || non.negative.not.infinity[[i]] == Inf) {
@@ -862,7 +857,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     stratum = character(0),
                     source = character(0)
                 )
-                private$i.p.error.vector <- c()
+                private$i.p.error.vector.list = lapply(seq_along(private$i.parameters$p.error.variance.type), function(i) {numeric(0)})
+                
                 mappings.list <- list()
                 dimnames.list <- list()
                 locations.list <- list()
@@ -903,59 +899,63 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     one.details <- attr(data, "details")
 
                     ## Pull measurement error variance if needed
-                    if (instructions$parameters$p.error.variance.type %in% c("data.sd", "data.variance", "data.cv")) {
+                    terms.of.relevant.type = intersect(private$i.parameters$p.error.variance.type, c("data.sd", "data.variance", "data.cv", "function.sd"))
+                    if (length(terms.of.relevant.type)>0) {
+                        
                         metric.map <- list(data.sd = "sd", data.variance = "variance", data.cv = "coefficient.of.variance")
-                        p.error.data <- data.manager$pull(
-                            outcome = private$i.outcome.for.data,
-                            metric = metric.map[[private$i.parameters$p.error.variance.type]],
-                            sources = private$i.sources.to.use,
-                            keep.dimensions = keep.dimensions,
-                            dimension.values = list(year = as.character(years), location = all.locations),
-                            target.ontology = private$i.sim.ontology,
-                            allow.mapping.from.target.ontology = T
-                        )
-
-                        if (is.null(p.error.data)) {
-                            if (throw.error.if.no.data) {
-                                stop(paste0(error.prefix, "no ", metric.map[[private$i.parameters$p.error.variance.type]], ", data was found for the stratification '", strat, "'"))
-                            } else {
-                                next
+                        
+                        for (i in seq_along(private$i.parameters$p.error.variance.type)) {
+                            type = private$i.parameters$p.error.variance.type[i]
+                            if (!(type %in% terms.of.relevant.type)) next
+                            
+                            if (type %in% c("data.sd", "data.variance", "data.cv")) {
+                                
+                                p.error.data <- data.manager$pull(outcome = private$i.outcome.for.data,
+                                                                  metric = metric.map[[private$i.parameters$p.error.variance.type]],
+                                                                  sources = private$i.sources.to.use,
+                                                                  keep.dimensions = keep.dimensions,
+                                                                  dimension.values = list(year = as.character(years), location = all.locations),
+                                                                  target.ontology = private$i.sim.ontology,
+                                                                  allow.mapping.from.target.ontology = T)
+                                
+                                if (is.null(p.error.data)) {
+                                    if (throw.error.if.no.data)
+                                        stop(paste0(error.prefix, "no ", metric.map[[type]], ", data was found for the stratification '", strat, "'"))
+                                    else next
+                                }
+                                
+                                common.dimnames <- get.dimension.values.overlap(dimnames(data), dimnames(p.error.data))
+                                one.details <- array.access(one.details, common.dimnames)
+                                p.error.data <- array.access(p.error.data, common.dimnames)
+                                data <- array.access(data, common.dimnames)
+                                
+                                # Convert all to variance.
+                                # sd = cv * mean ... Note that "data" has not been lognormal transformed yet, so we don't need to do exp(data)
+                                if (type == "data.cv")
+                                    p.error.data <- (data * p.error.data)**2
+                                if (type == "data.sd")
+                                    p.error.data <- p.error.data**2
+                                
+                                data[is.na(p.error.data)] <- NA
+                                p.error.data <- p.error.data[!is.na(p.error.data)]
                             }
+                            
+                            else if (type == "function.sd") {
+                                function.sd = private$i.parameters$p.error.variance.term[[i]]
+                                p.error.data <- tryCatch({function.sd(data, one.details)},
+                                                         error=function(e) {stop(paste0(error.prefix, "there was an error during execution of the user-specified 'p.error.variance.term' function"))})
+                                if (is.null(p.error.data))
+                                    stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function returned NULL"))
+                                if (!is.array(p.error.data) || !is.numeric(p.error.data) || !identical(dimnames(p.error.data), dimnames(data)))
+                                    stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function did not return a numeric array with the same dimnames as the data"))
+                                if (any(is.na(p.error.data)))
+                                    stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function returned at least one NA and must not"))
+                            }
+                            
+                            # One vector per error var term, even those that don't involve data
+                            p.error.data <- as.numeric(p.error.data) # I think this is because p.error.data was array previously. NA masks will align perfectly with obs p mask
+                            private$i.p.error.vector.list[[i]] <- c(private$i.p.error.vector.list[[i]], p.error.data)
                         }
-
-                        # find overlapping dimnames, limit both, then flip data to NA if cv for that value is NA
-                        common.dimnames <- get.dimension.values.overlap(dimnames(data), dimnames(p.error.data))
-                        p.error.data <- array.access(p.error.data, common.dimnames)
-                        data <- array.access(data, common.dimnames)
-
-                        if (instructions$parameters$p.error.variance.type == "data.cv") {
-                            p.error.data <- data * p.error.data
-                        } # sd = cv * mean
-
-                        data[is.na(p.error.data)] <- NA
-                        one.details <- array.access(one.details, common.dimnames)
-
-                        one.p.error.data <- as.numeric(p.error.data) # na masks will align perfectly with obs p mask
-                        one.p.error.data <- one.p.error.data[!is.na(one.p.error.data)]
-
-                        if (instructions$parameters$p.error.variance.type == "data.variance") {
-                            one.p.error.data <- sqrt(one.p.error.data)
-                        }
-
-                        private$i.p.error.vector <- c(private$i.p.error.vector, one.p.error.data)
-                    }
-                    
-                    # If using a function to generate variance data, follow similar pattern to above
-                    if (instructions$parameters$p.error.variance.type %in% c("function.sd")) {
-                        p.error.data <- tryCatch({instructions$parameters$p.error.variance.term(data, one.details)},
-                                               error=function(e) {stop(paste0(error.prefix, "there was an error during execution of the user-specified 'p.error.variance.term' function"))})
-                        if (is.null(p.error.data))
-                            stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function returned NULL"))
-                        if (!is.array(p.error.data) || !is.numeric(p.error.data) || !identical(dimnames(p.error.data), dimnames(data)))
-                            stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function did not return a numeric array with the same dimnames as the data"))
-                        if (any(is.na(p.error.data)))
-                            stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function returned at least one NA and must not"))
-                        private$i.p.error.vector <- c(private$i.p.error.vector, p.error.data)
                     }
 
                     # If we have lognormal approximation on, we should transform the observations right now, after converting zeroes to NA so that they are ignored in the same ways.
@@ -1190,22 +1190,28 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     private$i.parameters$correlation.same.source.different.details,
                     private$i.parameters$observation.correlation.form == "autoregressive.1"
                 )
-                # All forms of error will be converted to sd and then we use cov = corr * sd %*% t(sd), the last part sometimes being just sd squared
-                if (private$i.parameters$p.error.variance.type %in% c("data.sd", "data.variance", "data.cv", "function.sd")) {
-                    # all have been converted to sd earlier, including data.cv
-                    measurement.error.sd.matrix <- private$i.p.error.vector %*% t(private$i.p.error.vector)
-                    private$i.obs.error <- measurement.error.correlation.matrix * measurement.error.sd.matrix
-                } else if (private$i.parameters$p.error.variance.type == "sd") {
-                    private$i.obs.error <- measurement.error.correlation.matrix * private$i.parameters$p.error.variance.term^2
-                } # this reflects our choice to make measurement error sd constant, not scaling with level of suppression (or other p)
-                else if (private$i.parameters$p.error.variance.type == "variance") {
-                    private$i.obs.error <- measurement.error.correlation.matrix * private$i.parameters$p.error.variance.term
-                } else if (private$i.parameters$p.error.variance.type == "cv") {
-                    measurement.error.sd <- private$i.obs.p * private$i.parameters$p.error.variance.term
-                    private$i.obs.error <- measurement.error.correlation.matrix * (measurement.error.sd %*% t(measurement.error.sd))
-                }
+                
+                # Collect all variances by term, sum them, sqrt the sum, make sd mat, then multiply by corr mat to get cov mat
+                measurement.error.variances <- lapply(seq_along(private$i.parameters$p.error.variance.type), function(i) {
+                    type = private$i.parameters$p.error.variance.type[i]
+                    term = private$i.parameters$p.error.variance.term[[i]]
+                    
+                    if (type %in% c("data.sd", "data.variance", "data.cv", "function.sd"))
+                        private$i.p.error.vector.list[[i]] # already Variance
+                    else if (type == "sd")
+                        rep(term**2, private$i.n.obs)
+                    else if (type == "variance")
+                        rep(term, private$i.n.obs)
+                    else if (type == "cv")
+                        (private$i.obs.p * term)**2
+                    else if (type == "exp.of.variance")
+                        private$i.obs.p**(2*term)
+                })
+                
+                total.measurement.error.sd <- sqrt(colSums(do.call(rbind, measurement.error.variances)))
+                private$i.obs.error <- measurement.error.correlation.matrix * (total.measurement.error.sd %*% t(total.measurement.error.sd))
                 dim(private$i.obs.error) <- c(private$i.n.obs, private$i.n.obs)
-
+                
                 # ------ THINGS THAT DEPEND ON OBSERVATION-LOCATIONS ------ #
                 observation.locations <- union(as.vector(unique(private$i.metadata$location)), location) # otherwise is factor
                 n.obs.locations <- length(observation.locations) # we have ensured the main location is always in here because it will be used for metalocations and therefore must be accounted for everywhere else too
@@ -1337,9 +1343,17 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             # --- CONDITIONING --- #
             if (post.time.checkpoint.flag) print(paste0("Do conditioning: ", Sys.time()))
             private$i.obs.n.plus.conditioned.error.variances <- lapply(1:n.strata, function(i) {
+                # Implementing infrastructure for summing variances from multiple terms/types
+                # even though only "cv" used so far, just because p error does.
                 obs.n.variance <- sapply(private$i.obs.n[[i]], function(x) {
-                    x * private$i.parameters$n.error.variance.term
-                }) # HERE
+                    variance.by.term <- lapply(seq_along(private$i.parameters$n.error.variance.type), function(j) {
+                        type = private$i.parameters$n.error.variance.type[j]
+                        term = private$i.parameters$n.error.variance.term[[j]]
+                        if (type == "cv")
+                            (x * term)**2
+                    })
+                    colSums(do.call(rbind, variance.by.term))
+                })
                 year.mask <- array(0, dim = c(n.years, length(locations.with.n.data), n.years, n.metalocations.for.conditioning))
                 for (y in 1:n.years) {
                     year.mask[y, , y, ] <- metalocation.info.for.conditioning.without.msa
@@ -1467,7 +1481,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
         i.version = NULL,
         i.sub.version = NULL,
         i.parameters = NULL,
-        i.p.error.vector = NULL,
+        i.p.error.vector.list = NULL,
         i.outcome.for.data = NULL,
         i.denominator.outcome.for.data = NULL,
         i.outcome.for.n.multipliers = NULL,

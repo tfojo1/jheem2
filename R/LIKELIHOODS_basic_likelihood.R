@@ -480,7 +480,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             # *error.variance.type* must be a vector and one of 'sd', 'variance', 'cv', 'exp.of.variance', 'data.sd', 'data.ci', 'data.variance', or 'function.sd'.
             # *error.variance.term* must be a single value or a list with possibilities determined by the corresponding type.
             if (!is.character(error.variance.type) || length(error.variance.type)==0 || any(is.na(error.variance.type)) ||
-                length(setdiff(error.variance.type, c("sd", "variance", "cv", "exp.of.variance", "data.sd", "data.ci", "data.variance", "function.sd")))>0)
+                length(setdiff(error.variance.type, c("sd", "variance", "cv", "exp.of.variance", "data.sd", "data.cv", "data.variance", "function.sd")))>0)
                 stop(paste0(error.prefix, "'error.variance.type' must be a character vector with all elements one of 'sd', 'variance', 'cv', 'exp.of.variance', 'data.sd', 'data.ci', 'data.variance', or 'function.sd'"))
 
             for (i in seq_along(error.variance.type)) {
@@ -915,10 +915,10 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                                 if (type == "data.cv")
                                     error.data <- (data * error.data)**2
                                 if (type == "data.sd")
-                                    one.error.data <- one.error.data**2
+                                    error.data <- error.data**2
                                 
                                 data[is.na(error.data)] <- NA
-                                one.error.data <- one.error.data[!is.na(one.error.data)]
+                                error.data <- error.data[!is.na(error.data)]
                             }
                             
                             else if (type == "function.sd") {
@@ -934,8 +934,8 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                             }
                             
                             # One vector per error var term, even those that don't involve data
-                            one.error.data <- as.numeric(error.data) # I think this is because error.data was array previously. NA masks will align perfectly with obs p mask
-                            private$i.error.vector.list[[i]] <- c(private$i.error.vector.list[[i]], one.error.data)
+                            error.data <- as.numeric(error.data) # I think this is because error.data was array previously. NA masks will align perfectly with obs p mask
+                            private$i.error.vector.list[[i]] <- c(private$i.error.vector.list[[i]], error.data)
                             
                         }
                     }
