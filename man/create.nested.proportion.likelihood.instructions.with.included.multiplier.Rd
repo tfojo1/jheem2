@@ -44,7 +44,8 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier(
   n.error.variance.type = "cv",
   weights,
   equalize.weight.by.year = T,
-  partitioning.function
+  partitioning.function,
+  name = outcome.for.sim
 )
 }
 \arguments{

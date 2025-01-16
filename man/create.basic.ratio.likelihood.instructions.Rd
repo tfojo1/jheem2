@@ -25,7 +25,8 @@ create.basic.ratio.likelihood.instructions(
   ratio.cv = NULL,
   ratio.correlation = NULL,
   weights = list(),
-  equalize.weight.by.year = T
+  equalize.weight.by.year = T,
+  name = outcome.for.sim
 )
 }
 \arguments{

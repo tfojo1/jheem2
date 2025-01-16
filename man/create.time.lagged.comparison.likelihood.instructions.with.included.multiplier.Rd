@@ -29,7 +29,8 @@ create.time.lagged.comparison.likelihood.instructions.with.included.multiplier(
   error.variance.type = NULL,
   weights = list(),
   equalize.weight.by.year = T,
-  use.lognormal.approximation = T
+  use.lognormal.approximation = T,
+  name = outcome.for.sim
 )
 }
 \arguments{
