@@ -42,7 +42,8 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions(
   weights,
   equalize.weight.by.year = T,
   partitioning.function,
-  use.lognormal.approximation = T
+  use.lognormal.approximation = T,
+  name = outcome.for.sim
 )
 }
 \arguments{

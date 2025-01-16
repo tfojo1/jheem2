@@ -15,7 +15,8 @@ create.basic.likelihood.instructions.with.specified.outcome(
   error.variance.term = NULL,
   error.variance.type = NULL,
   weights = list(),
-  equalize.weight.by.year = T
+  equalize.weight.by.year = T,
+  name = outcome.for.sim
 )
 }
 \arguments{

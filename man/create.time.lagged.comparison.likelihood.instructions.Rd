@@ -26,7 +26,8 @@ create.time.lagged.comparison.likelihood.instructions(
   ratio.correlation = NULL,
   weights = list(),
   equalize.weight.by.year = T,
-  use.lognormal.approximation = T
+  use.lognormal.approximation = T,
+  name = outcome.for.sim
 )
 }
 \arguments{

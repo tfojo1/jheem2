@@ -202,10 +202,11 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                               levels.of.stratification,
                               weights,
                               likelihood.class.generator,
+                              name,
                               error.prefix = "Error initializing 'jheem.likelihood.instructions': ") {
             # *error.prefix* is a single non-NA, non-empty character vector
             if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix)) {
-                stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
+                stop(paste0("Error initializing 'jheem.likelihood.instructions': ", "'error.prefix' must be a single non-NA, non-empty character vector"))
             }
 
             # *outcome.for.sim* is a single character vector
@@ -213,6 +214,12 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 stop(paste0(error.prefix, "'outcome.for.sim' must be a character vector of length 1"))
             }
             private$i.outcome.for.sim <- outcome.for.sim
+            
+            # *name* is a single character vector
+            if (!is.character(name) || length(name) > 1 || is.null(name) || is.na(name)) {
+                stop(paste0(error.prefix, "'name' must be a character vector of length 1"))
+            }
+            private$i.name = name
 
             # *dimensions* is a character vector with no NAs or duplicates, post conversion if NULL
             if (is.null(dimensions)) dimensions <- character(0)
@@ -265,7 +272,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                           throw.error.if.no.data = F,
                                           error.prefix = NULL) {
             if (is.null(error.prefix)) {
-                error.prefix <- paste0("Error instantiating likelihood for '", private$i.outcome.for.sim, "': ")
+                error.prefix <- paste0("Error initializing likelihood for '", private$i.outcome.for.sim, "': ")
             }
             # *error.prefix* is a single non-NA, non-empty character vector
             if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix)) {
@@ -343,6 +350,13 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
         check = function() browser()
     ),
     active = list(
+        name = function(value) {
+            if (missing(value)) {
+                private$i.name
+            } else {
+                stop("Cannot modify a jheem.likelihood.instruction's 'name' - it is read-only")
+            }
+        },
         code = function(value) {
             if (missing(value)) {
                 private$i.code
@@ -410,6 +424,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
         # }
     ),
     private = list(
+        i.name = NULL,
         i.description = NULL,
         i.code = NULL,
         i.outcome.for.sim = NULL,
@@ -463,86 +478,6 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
 )
 
 
-
-## ----------------------------------##
-## -- THE LIKELIHOOD WEIGHTS CLASS --##
-## ----------------------------------##
-
-#' @title Create Weights to Be Applied in Calculating a JHEEM Likelihood
-#'
-#' @param total.weight The weight that is applied to all observations in the
-#' @param dimension.values
-#'
-#' @export
-create.likelihood.weights <- function(total.weight = 1,
-                                      dimension.values = list()) {
-    JHEEM.LIKELIHOOD.WEIGHTS$new(
-        total.weight = total.weight,
-        dimension.values = dimension.values
-    )
-}
-
-JHEEM.LIKELIHOOD.WEIGHTS <- R6::R6Class(
-    "jheem.likelihood.weights",
-    portable = F,
-    public = list(
-        initialize = function(total.weight,
-                              dimension.values) {
-            error.prefix <- "Error creating likelihood weights: "
-
-            # *total.weight* is a single numeric value that is not NA and > 0
-            if (!is.numeric(total.weight) || length(total.weight) > 1 || is.null(total.weight) || is.na(total.weight) || !(total.weight > 0)) {
-                stop(paste0(error.prefix, "'total.weight' must be a single non-NA, positive numeric value"))
-            }
-            private$i.total.weight <- total.weight
-
-            # *dimension.values* is either (a) an empty list or (b) a named list with no duplicate names
-            # we want to reorder the list to be in alphabetical order by dimension
-            if (!is.list(dimension.values) || (length(dimension.values) > 0 && is.null(names(dimension.values))) || any(duplicated(names(dimension.values)))) {
-                stop(paste0(error.prefix, "'dimension.values' must be an empty list or a named list with no duplicate names"))
-            }
-            private$i.dimension.values <- dimension.values[sort(names(dimension.values))]
-        },
-        equals = function(other) {
-            if (!is(other, "jheem.likelihood.weights")) {
-                stop(paste0(error.prefix, "'other' must be a 'jheem.likelihood.weights' object"))
-            }
-            if (self$total.weight == other$total.weight) {
-                if (setequal(names(self$dimension.values), names(other$dimension.values))) {
-                    all(sapply(names(self$dimension.values), function(d) {
-                        setequal(self$dimension.values[[d]], other$dimension.values[[d]])
-                    }))
-                } else {
-                    F
-                }
-            } else {
-                F
-            }
-        }
-    ),
-    active = list(
-        total.weight = function(value) {
-            if (missing(value)) {
-                private$i.total.weight
-            } else {
-                stop("Cannot modify a jheem.likelihood.weights' 'total.weight' - it is read-only")
-            }
-        },
-        dimension.values = function(value) {
-            if (missing(value)) {
-                private$i.dimension.values
-            } else {
-                stop("Cannot modify a jheem.likelihood.weights' 'dimension.values' - it is read-only")
-            }
-        }
-    ),
-    private = list(
-        i.total.weight = NULL,
-        i.dimension.values = NULL
-    )
-)
-
-
 ## --------------------------##
 ## -- THE LIKELIHOOD CLASS --##
 ## --------------------------##
@@ -560,7 +495,6 @@ JHEEM.LIKELIHOOD <- R6::R6Class(
                               sub.version,
                               location,
                               error.prefix) {
-            # @Andrew implement
             # Validate instructions
             # (the superclass constructor will validate version and location)
 
@@ -581,7 +515,8 @@ JHEEM.LIKELIHOOD <- R6::R6Class(
                 type = "likelihood",
                 error.prefix = error.prefix
             )
-
+            
+            private$i.name <- instructions$name
             private$i.outcome.for.sim <- instructions$outcome.for.sim
             private$i.stratifications <- instructions$stratifications
             private$i.weights <- instructions$weights
@@ -589,7 +524,8 @@ JHEEM.LIKELIHOOD <- R6::R6Class(
             # Set check.consistency flag
             private$i.check.consistency.flag <- T
         },
-        compute = function(sim, log = T, use.optimized.get = F, check.consistency = private$i.check.consistency.flag, error.prefix = "Error computing likelihood: ", debug = F) {
+        compute = function(sim, log = T, use.optimized.get = F, check.consistency = private$i.check.consistency.flag, error.prefix = "Error computing likelihood: ", debug = F)
+            {
             # VALIDATION PURPOSELY SKIPPED FOR TIME SAVING. ENSURE SIM IS A SIMULATION!
             if (!is.logical(check.consistency) || length(check.consistency) != 1 || is.na(check.consistency)) {
                 stop(paste0(error.prefix, "'check.consistency' must be TRUE or FALSE"))
@@ -690,6 +626,13 @@ JHEEM.LIKELIHOOD <- R6::R6Class(
         }
     ),
     active = list(
+        name = function(value) {
+            if (missing(value)) {
+                private$i.name
+            } else {
+                stop("Cannot modify a jheem.likelihood.instruction's 'name' - it is read-only")
+            }
+        },
         outcome.for.sim = function(value) {
             if (missing(value)) {
                 private$i.outcome.for.sim
@@ -699,6 +642,7 @@ JHEEM.LIKELIHOOD <- R6::R6Class(
         }
     ),
     private = list(
+        i.name = NULL,
         i.check.consistency.flag = NULL,
         i.years = NULL,
         i.outcome.for.sim = NULL,
@@ -727,5 +671,83 @@ JHEEM.LIKELIHOOD <- R6::R6Class(
             }
             setdiff(from.year:to.year, omit.years)
         }
+    )
+)
+
+## ----------------------------------##
+## -- THE LIKELIHOOD WEIGHTS CLASS --##
+## ----------------------------------##
+
+#' @title Create Weights to Be Applied in Calculating a JHEEM Likelihood
+#'
+#' @param total.weight The weight that is applied to all observations in the
+#' @param dimension.values
+#'
+#' @export
+create.likelihood.weights <- function(total.weight = 1,
+                                      dimension.values = list()) {
+    JHEEM.LIKELIHOOD.WEIGHTS$new(
+        total.weight = total.weight,
+        dimension.values = dimension.values
+    )
+}
+
+JHEEM.LIKELIHOOD.WEIGHTS <- R6::R6Class(
+    "jheem.likelihood.weights",
+    portable = F,
+    public = list(
+        initialize = function(total.weight,
+                              dimension.values) {
+            error.prefix <- "Error creating likelihood weights: "
+            
+            # *total.weight* is a single numeric value that is not NA and > 0
+            if (!is.numeric(total.weight) || length(total.weight) > 1 || is.null(total.weight) || is.na(total.weight) || !(total.weight > 0)) {
+                stop(paste0(error.prefix, "'total.weight' must be a single non-NA, positive numeric value"))
+            }
+            private$i.total.weight <- total.weight
+            
+            # *dimension.values* is either (a) an empty list or (b) a named list with no duplicate names
+            # we want to reorder the list to be in alphabetical order by dimension
+            if (!is.list(dimension.values) || (length(dimension.values) > 0 && is.null(names(dimension.values))) || any(duplicated(names(dimension.values)))) {
+                stop(paste0(error.prefix, "'dimension.values' must be an empty list or a named list with no duplicate names"))
+            }
+            private$i.dimension.values <- dimension.values[sort(names(dimension.values))]
+        },
+        equals = function(other) {
+            if (!is(other, "jheem.likelihood.weights")) {
+                stop(paste0(error.prefix, "'other' must be a 'jheem.likelihood.weights' object"))
+            }
+            if (self$total.weight == other$total.weight) {
+                if (setequal(names(self$dimension.values), names(other$dimension.values))) {
+                    all(sapply(names(self$dimension.values), function(d) {
+                        setequal(self$dimension.values[[d]], other$dimension.values[[d]])
+                    }))
+                } else {
+                    F
+                }
+            } else {
+                F
+            }
+        }
+    ),
+    active = list(
+        total.weight = function(value) {
+            if (missing(value)) {
+                private$i.total.weight
+            } else {
+                stop("Cannot modify a jheem.likelihood.weights' 'total.weight' - it is read-only")
+            }
+        },
+        dimension.values = function(value) {
+            if (missing(value)) {
+                private$i.dimension.values
+            } else {
+                stop("Cannot modify a jheem.likelihood.weights' 'dimension.values' - it is read-only")
+            }
+        }
+    ),
+    private = list(
+        i.total.weight = NULL,
+        i.dimension.values = NULL
     )
 )

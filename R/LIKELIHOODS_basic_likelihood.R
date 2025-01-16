@@ -59,7 +59,8 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  error.variance.term = NULL,
                                                  error.variance.type = NULL,
                                                  weights = list(),
-                                                 equalize.weight.by.year = T) {
+                                                 equalize.weight.by.year = T,
+                                                 name = outcome.for.sim) {
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(
         outcome.for.data = outcome.for.data,
         outcome.for.sim = outcome.for.sim,
@@ -85,7 +86,8 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
         error.variance.type = error.variance.type,
         weights = weights,
         equalize.weight.by.year = equalize.weight.by.year,
-        is.basic.ratio.likelihood = F
+        is.basic.ratio.likelihood = F,
+        name = name
     )
 }
 
@@ -95,7 +97,8 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
 #' @param outcome.value A single, non-NA numeric value that is the value of the outcome at the totals level (i.e., not stratified).
 #'
 #' @export
-create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.for.sim, outcome.value,
+create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.for.sim,
+                                                                        outcome.value,
                                                                         from.year,
                                                                         to.year,
                                                                         omit.years = NULL,
@@ -104,7 +107,8 @@ create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.
                                                                         error.variance.term = NULL,
                                                                         error.variance.type = NULL,
                                                                         weights = list(),
-                                                                        equalize.weight.by.year = T) {
+                                                                        equalize.weight.by.year = T,
+                                                                        name = outcome.for.sim) {
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(
         outcome.for.data = NULL,
         outcome.for.sim = outcome.for.sim,
@@ -130,7 +134,8 @@ create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.
         error.variance.type = error.variance.type,
         weights = weights,
         equalize.weight.by.year = equalize.weight.by.year,
-        is.basic.ratio.likelihood = F
+        is.basic.ratio.likelihood = F,
+        name = name
     )
 }
 
@@ -165,7 +170,8 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
                                                                           error.variance.term = NULL,
                                                                           error.variance.type = NULL,
                                                                           weights = list(),
-                                                                          equalize.weight.by.year = T) {
+                                                                          equalize.weight.by.year = T,
+                                                                          name = outcome.for.sim) {
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(
         outcome.for.data = outcome.for.data,
         outcome.for.sim = outcome.for.sim,
@@ -191,7 +197,8 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
         error.variance.type = error.variance.type,
         weights = weights,
         equalize.weight.by.year = equalize.weight.by.year,
-        is.basic.ratio.likelihood = F
+        is.basic.ratio.likelihood = F,
+        name = name
     )
 }
 
@@ -221,7 +228,8 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
                                                                   ratio.correlation = NULL,
                                                                   weights = list(),
                                                                   equalize.weight.by.year = T,
-                                                                  use.lognormal.approximation = T) {
+                                                                  use.lognormal.approximation = T,
+                                                                  name = outcome.for.sim) {
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(
         outcome.for.data = outcome.for.data,
         outcome.for.sim = outcome.for.sim,
@@ -250,7 +258,8 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
         equalize.weight.by.year = equalize.weight.by.year,
         use.lognormal.approximation = use.lognormal.approximation,
         calculate.lagged.difference = T,
-        is.basic.ratio.likelihood = F
+        is.basic.ratio.likelihood = F,
+        name = name
     )
 }
 
@@ -283,7 +292,8 @@ create.time.lagged.comparison.likelihood.instructions.with.included.multiplier <
                                                                                            error.variance.type = NULL,
                                                                                            weights = list(),
                                                                                            equalize.weight.by.year = T,
-                                                                                           use.lognormal.approximation = T) {
+                                                                                           use.lognormal.approximation = T,
+                                                                                           name = outcome.for.sim) {
     JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS$new(
         outcome.for.data = outcome.for.data,
         outcome.for.sim = outcome.for.sim,
@@ -311,7 +321,8 @@ create.time.lagged.comparison.likelihood.instructions.with.included.multiplier <
         equalize.weight.by.year = equalize.weight.by.year,
         use.lognormal.approximation = use.lognormal.approximation,
         calculate.lagged.difference = T,
-        is.basic.ratio.likelihood = F
+        is.basic.ratio.likelihood = F,
+        name = name
     )
 }
 
@@ -347,7 +358,8 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                               equalize.weight.by.year,
                               use.lognormal.approximation = F,
                               calculate.lagged.difference = F,
-                              is.basic.ratio.likelihood = F) {
+                              is.basic.ratio.likelihood = F,
+                              name) {
             # browser()
             error.prefix <- paste0("Error creating basic likelihood instructions for outcome '", outcome.for.sim, "': ")
             
@@ -468,7 +480,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             # *error.variance.type* must be a vector and one of 'sd', 'variance', 'cv', 'exp.of.variance', 'data.sd', 'data.ci', 'data.variance', or 'function.sd'.
             # *error.variance.term* must be a single value or a list with possibilities determined by the corresponding type.
             if (!is.character(error.variance.type) || length(error.variance.type)==0 || any(is.na(error.variance.type)) ||
-                length(setdiff(error.variance.type, c("sd", "variance", "cv", "exp.of.variance", "data.sd", "data.ci", "data.variance", "function.sd")))>0)
+                length(setdiff(error.variance.type, c("sd", "variance", "cv", "exp.of.variance", "data.sd", "data.cv", "data.variance", "function.sd")))>0)
                 stop(paste0(error.prefix, "'error.variance.type' must be a character vector with all elements one of 'sd', 'variance', 'cv', 'exp.of.variance', 'data.sd', 'data.ci', 'data.variance', or 'function.sd'"))
 
             for (i in seq_along(error.variance.type)) {
@@ -522,6 +534,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 levels.of.stratification = levels.of.stratification,
                 weights = weights,
                 likelihood.class.generator = if (is.basic.ratio.likelihood) JHEEM.BASIC.RATIO.LIKELIHOOD else JHEEM.BASIC.LIKELIHOOD,
+                name = name,
                 error.prefix = error.prefix
             )
             
@@ -902,10 +915,10 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                                 if (type == "data.cv")
                                     error.data <- (data * error.data)**2
                                 if (type == "data.sd")
-                                    one.error.data <- one.error.data**2
+                                    error.data <- error.data**2
                                 
                                 data[is.na(error.data)] <- NA
-                                one.error.data <- one.error.data[!is.na(one.error.data)]
+                                error.data <- error.data[!is.na(error.data)]
                             }
                             
                             else if (type == "function.sd") {
@@ -921,8 +934,8 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                             }
                             
                             # One vector per error var term, even those that don't involve data
-                            one.error.data <- as.numeric(error.data) # I think this is because error.data was array previously. NA masks will align perfectly with obs p mask
-                            private$i.error.vector.list[[i]] <- c(private$i.error.vector.list[[i]], one.error.data)
+                            error.data <- as.numeric(error.data) # I think this is because error.data was array previously. NA masks will align perfectly with obs p mask
+                            private$i.error.vector.list[[i]] <- c(private$i.error.vector.list[[i]], error.data)
                             
                         }
                     }
