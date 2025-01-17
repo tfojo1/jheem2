@@ -1,7 +1,135 @@
-#' @title Created Nested Proportion Likelihood Instructions With Included Multiplier
+
+#' @title Create Nested Proportion Likelihood Instructions
+#' @inheritParams create.basic.likelihood.instructions
+#' @param location.types The types of the locations that contain or are contained by the model location.
+#' @param minimum.geographic.resolution.type The type of location used to partition locations. The type of the model location AND 'location.types' types must all completely enclose regions of this type
+#' @param p.bias.inside.location A single numeric value specifying the bias in the outcome proportion between locations inside the model location and the model location itself
+#' @param p.bias.outside.location A single numeric value specifying the bias in the outcome proportion between locations outside the model location and the model location itself
+#' @param p.bias.sd.inside.location The standard deviation associated with 'p.bias.inside.location'
+#' @param p.bias.sd.outsidde.location The standard deviation associated with 'p.bias.outside.location'
+#' @param within.location.p.error.correlation,within.location.n.error.correlation Single numeric values specifying the correlation between p or n values from the same location and stratum
+#' @param correlation.different.locations A single numeric value specifying the correlation between observations of different locations.
+#' @param n.multiplier.cv A single numeric value specifying the covariance term used to find the n.multipliers.
+#' @param p.error.variance.type,p.error.variance.term The type of error variance(s) to be used for the outcome proportion and the corresponding value or function required for each. See details for the allowable values. For more than one type, supply them in a vector. If you therefore need more than one term, supply these in a list.
+#' @param n.error.variance.type,n.error.variance.type The 'p.error.variance.type/term' analog for the denominator outcome. Has fewer options of type. See details for more information.
+#' @param partitioning.function A function that partitions values in the data ontology into values in the model ontology. Must have two arguments, "arr" and "version" and return an array with the same dimnames as the input array.
+#'
+#' @details P error variance may be specified in a variety of ways, and more
+#' than one can be used in the same likelihood. 'error.variance.type' is a
+#' vector containing single character values describing the type(s) of variance
+#' to use, and there is one 'error.variance.term' corresponding to each. The
+#' types "sd" (standard deviation), "variance", "cv" (covariance), and
+#' "exp.of.variance" (exponent of variance) require a single numeric value as
+#' their term. The types "data.sd", "data.variance", and "data.cv" indicate that
+#' error data will be pulled from the data manager and matched directly to data
+#' points, and they require NULL as their term. Finally, the type "function.sd"
+#' requires as its term a function that takes only arguments "data" and
+#' "details" and returns a numeric array of the same dimensions as "data".
+#' Supplying multiple types (and therefore terms) results in the variances
+#' created by each being summed prior to use in the measurement error covariance
+#' matrix.
+#' 
+#' As an example, one type could be specified with a 'p.error.variance.type' of
+#' "cv" and a 'p.error.variance.term' of 0.13 (or list(0.13)). Two or more
+#' types might look like a 'p.error.variance.type' of `c("data.sd",
+#' "function.sd") and a 'p.error.variance.term' of list(NULL, my_sd_function).
+#' It is possible to use the same type multiple times, although this is not
+#' recommended.
+#' 
+#' N error variance works the same way but only one type is currently supported:
+#' "cv" (covariance).
+#' 
+#' @family Nested Proportion Likelihoods
+#' 
+#' @export
+create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
+                                                             denominator.outcome.for.data, # is NEVER null here because we are working with proportions
+                                                             outcome.for.sim,
+                                                             outcome.for.n.multipliers = denominator.outcome.for.data,
+                                                             location.types, # test is c('county', 'state')
+                                                             minimum.geographic.resolution.type, # test with 'county' #metalocations MUST contain these
+                                                             maximum.locations.per.type = 3,
+                                                             dimensions = NULL, # this can be NULL because it's more intuitive to most users, but I'll change it to character(0) later
+                                                             levels.of.stratification = 0:length(dimensions), # default 0:length(dimensions)
+                                                             from.year = -Inf,
+                                                             to.year = Inf,
+                                                             omit.years = NULL,
+                                                             sources.to.use = NULL,
+                                                             exclude.denominator.ontology.names = NULL,
+                                                             redundant.location.threshold = 5,
+                                                             p.bias.inside.location,
+                                                             p.bias.outside.location,
+                                                             p.bias.sd.inside.location,
+                                                             p.bias.sd.outside.location,
+                                                             within.location.p.error.correlation = 0.5,
+                                                             within.location.n.error.correlation = 0.5,
+                                                             correlation.different.locations = 0,
+                                                             correlation.different.years = 0.5,
+                                                             correlation.different.strata = 0.1,
+                                                             correlation.different.sources = 0.3,
+                                                             correlation.same.source.different.details = 0.3,
+                                                             observation.correlation.form = c("compound.symmetry", "autoregressive.1")[1],
+                                                             n.multiplier.cv = 0.1, # keeping this one
+                                                             p.error.variance.term = NULL,
+                                                             p.error.variance.type = NULL,
+                                                             n.error.variance.term = 0.05, # placeholder
+                                                             n.error.variance.type = "cv", # placeholder # same as old "denominator.measurement.error.cv"?
+                                                             weights,
+                                                             equalize.weight.by.year = T,
+                                                             partitioning.function,
+                                                             name = outcome.for.sim) {
+    JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS$new(
+        outcome.for.data = outcome.for.data,
+        denominator.outcome.for.data = denominator.outcome.for.data,
+        outcome.for.sim = outcome.for.sim,
+        outcome.for.n.multipliers = outcome.for.n.multipliers,
+        location.types = location.types,
+        minimum.geographic.resolution.type = minimum.geographic.resolution.type,
+        maximum.locations.per.type = maximum.locations.per.type,
+        dimensions = dimensions,
+        levels.of.stratification = levels.of.stratification,
+        from.year = from.year,
+        to.year = to.year,
+        omit.years = omit.years,
+        sources.to.use = sources.to.use,
+        exclude.denominator.ontology.names = exclude.denominator.ontology.names,
+        redundant.location.threshold = redundant.location.threshold,
+        included.multiplier = NULL,
+        included.multiplier.sd = NULL,
+        included.multiplier.correlation = NULL,
+        p.bias.inside.location = p.bias.inside.location,
+        p.bias.outside.location = p.bias.outside.location,
+        p.bias.sd.inside.location = p.bias.sd.inside.location,
+        p.bias.sd.outside.location = p.bias.sd.outside.location,
+        within.location.p.error.correlation = within.location.p.error.correlation,
+        within.location.n.error.correlation = within.location.n.error.correlation,
+        correlation.different.locations = correlation.different.locations,
+        correlation.different.years = correlation.different.years,
+        correlation.different.strata = correlation.different.strata,
+        correlation.different.sources = correlation.different.sources,
+        correlation.same.source.different.details = correlation.same.source.different.details,
+        observation.correlation.form = observation.correlation.form,
+        n.multiplier.cv = n.multiplier.cv,
+        p.error.variance.term = p.error.variance.term,
+        p.error.variance.type = p.error.variance.type,
+        n.error.variance.term = n.error.variance.term,
+        n.error.variance.type = n.error.variance.type,
+        weights = weights,
+        equalize.weight.by.year = equalize.weight.by.year,
+        partitioning.function = partitioning.function,
+        use.lognormal.approximation = F,
+        calculate.lagged.difference = F,
+        name = name
+    )
+}
+
+#' @title Create Nested Proportion Likelihood Instructions With Included Multiplier
 #'
 #' @inheritParams create.basic.likelihood.instructions.with.included.multiplier
 #' @inheritParams create.nested.proportion.likelihood.instructions
+#' @inherit create.nested.proportion.likelihood.instructions details
+#' 
+#' @family Nested Proportion Likelihoods
 #'
 #' @export
 create.nested.proportion.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
@@ -93,6 +221,9 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
 #' @title Create Time Lagged Comparison Nested Proportion Likelihood Instructions
 #' @inheritParams create.time.lagged.comparison.likelihood.instructions
 #' @inheritParams create.nested.proportion.likelihood.instructions
+#' @inherit create.nested.proportion.likelihood.instructions details
+#' 
+#' @family Nested Proportion Likelihoods
 #' @export
 create.time.lagged.comparison.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                                                     denominator.outcome.for.data, # is NEVER null here because we are working with proportions
@@ -179,102 +310,6 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
         calculate.lagged.difference = T,
         name = name
     ) # changed vs generic
-}
-
-#' @inheritParams create.basic.likelihood.instructions
-#' @param location.types The types of the locations that contain or are contained by the model location.
-#' @param minimum.geographic.resolution.type The type of location used to partition locations. The type of the model location AND 'location.types' types must all completely enclose regions of this type
-#' @param p.bias.inside.location A single numeric value specifying the bias in the outcome proportion between locations inside the model location and the model location itself
-#' @param p.bias.outside.location A single numeric value specifying the bias in the outcome proportion between locations outside the model location and the model location itself
-#' @param p.bias.sd.inside.location The standard deviation associated with 'p.bias.inside.location'
-#' @param p.bias.sd.outsidde.location The standard deviation associated with 'p.bias.outside.location'
-#' @param within.location.p.error.correlation Corre
-#' @param within.location.n.error.correlation
-#' @param correlation.different.locations
-#' @param denominator.measurement.error.cv
-#' @param n.multiplier.cv
-#' @param partitioning.function A function that partitions values in the data ontology into values in the model ontology. Must have two arguments, "arr" and "version" and return an array with the same dimnames as the input array.
-#'
-#' @export
-create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
-                                                             denominator.outcome.for.data, # is NEVER null here because we are working with proportions
-                                                             outcome.for.sim,
-                                                             outcome.for.n.multipliers = denominator.outcome.for.data,
-                                                             location.types, # test is c('county', 'state')
-                                                             minimum.geographic.resolution.type, # test with 'county' #metalocations MUST contain these
-                                                             maximum.locations.per.type = 3,
-                                                             dimensions = NULL, # this can be NULL because it's more intuitive to most users, but I'll change it to character(0) later
-                                                             levels.of.stratification = 0:length(dimensions), # default 0:length(dimensions)
-                                                             from.year = -Inf,
-                                                             to.year = Inf,
-                                                             omit.years = NULL,
-                                                             sources.to.use = NULL,
-                                                             exclude.denominator.ontology.names = NULL,
-                                                             redundant.location.threshold = 5,
-                                                             p.bias.inside.location,
-                                                             p.bias.outside.location,
-                                                             p.bias.sd.inside.location,
-                                                             p.bias.sd.outside.location,
-                                                             within.location.p.error.correlation = 0.5,
-                                                             within.location.n.error.correlation = 0.5,
-                                                             correlation.different.locations = 0,
-                                                             correlation.different.years = 0.5,
-                                                             correlation.different.strata = 0.1,
-                                                             correlation.different.sources = 0.3,
-                                                             correlation.same.source.different.details = 0.3,
-                                                             observation.correlation.form = c("compound.symmetry", "autoregressive.1")[1],
-                                                             n.multiplier.cv = 0.1, # keeping this one
-                                                             p.error.variance.term = NULL,
-                                                             p.error.variance.type = NULL,
-                                                             n.error.variance.term = 0.05, # placeholder
-                                                             n.error.variance.type = "cv", # placeholder # same as old "denominator.measurement.error.cv"?
-                                                             weights,
-                                                             equalize.weight.by.year = T,
-                                                             partitioning.function,
-                                                             name = outcome.for.sim) {
-    JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS$new(
-        outcome.for.data = outcome.for.data,
-        denominator.outcome.for.data = denominator.outcome.for.data,
-        outcome.for.sim = outcome.for.sim,
-        outcome.for.n.multipliers = outcome.for.n.multipliers,
-        location.types = location.types,
-        minimum.geographic.resolution.type = minimum.geographic.resolution.type,
-        maximum.locations.per.type = maximum.locations.per.type,
-        dimensions = dimensions,
-        levels.of.stratification = levels.of.stratification,
-        from.year = from.year,
-        to.year = to.year,
-        omit.years = omit.years,
-        sources.to.use = sources.to.use,
-        exclude.denominator.ontology.names = exclude.denominator.ontology.names,
-        redundant.location.threshold = redundant.location.threshold,
-        included.multiplier = NULL,
-        included.multiplier.sd = NULL,
-        included.multiplier.correlation = NULL,
-        p.bias.inside.location = p.bias.inside.location,
-        p.bias.outside.location = p.bias.outside.location,
-        p.bias.sd.inside.location = p.bias.sd.inside.location,
-        p.bias.sd.outside.location = p.bias.sd.outside.location,
-        within.location.p.error.correlation = within.location.p.error.correlation,
-        within.location.n.error.correlation = within.location.n.error.correlation,
-        correlation.different.locations = correlation.different.locations,
-        correlation.different.years = correlation.different.years,
-        correlation.different.strata = correlation.different.strata,
-        correlation.different.sources = correlation.different.sources,
-        correlation.same.source.different.details = correlation.same.source.different.details,
-        observation.correlation.form = observation.correlation.form,
-        n.multiplier.cv = n.multiplier.cv,
-        p.error.variance.term = p.error.variance.term,
-        p.error.variance.type = p.error.variance.type,
-        n.error.variance.term = n.error.variance.term,
-        n.error.variance.type = n.error.variance.type,
-        weights = weights,
-        equalize.weight.by.year = equalize.weight.by.year,
-        partitioning.function = partitioning.function,
-        use.lognormal.approximation = F,
-        calculate.lagged.difference = F,
-        name = name
-    )
 }
 
 JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
@@ -453,11 +488,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 if (type %in% c("function.sd") && (!is.function(term) || !setequal(names(formals(term)), c('data', 'details'))))
                     stop(paste0(error.prefix, "The 'p.error.variance.term' corresponding to a type of 'function.sd', must be a function that takes arguments 'data' and 'details' and returns a numeric array of the same dimensions as ‘data’, with no NA values, that represents the sd for each measurement in data."))
             }
-
-            ## WHAT'S THIS ABOUT?
-            # if (p.error.variance.type %in% c("data.sd", "data.variance", "data.cv", "data.ci")) {
-            #     p.error.variance.term <- 1
-            # }
             
             # *n.error.variance.type* must be a vector and all 'cv'
             if (!is.character(n.error.variance.type) || length(n.error.variance.type)==0 ||
@@ -2464,6 +2494,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
 #' @param main.location.type The location type that serves as the basis of comparison.
 #' @param minimum.sample.size Numeric value specifying the minimum number of sub-main location pairs (or super-main location pairs) that must be found in order to calculate p-bias estimates
 #' @return A list containing mean and sd for p-bias "inside" and p-bias "outside" estimates. Some or all of these may be NA if 'sub.location.type' and/or 'super.location.type' were left NULL.
+#'
+#' @family Nested Proportion Likelihoods
 #'
 #' @export
 get.p.bias.estimates <- function(data.manager = get.default.data.manager(),

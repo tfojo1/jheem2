@@ -35,5 +35,6 @@ NULL
 
 #' @inheritParams jheem2-params
 #' @param match.names A regex to select parameters by name. If NULL, all parameters are used.
-#'@param chains Which chains to use, defaulting to all.
+#' @param chains Which chains to use, defaulting to all.
 #' @name jheem2-simset-params
+NULL
