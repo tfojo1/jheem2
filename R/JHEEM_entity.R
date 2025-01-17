@@ -25,16 +25,16 @@ JHEEM.ENTITY = R6::R6Class(
             if (!is.character(version) || length(version)!=1 || is.na(version))
                 stop(paste0(error.prefix, "'version' must be a single, non-NA character value"))
         
-            if (!is.specification.registered.for.version(version))
-                stop(paste0(error.prefix, "No specification has been registered for version '", version, "'"))
+#            if (!is.specification.registered.for.version(version))
+#                stop(paste0(error.prefix, "No specification has been registered for version '", version, "'"))
         
             
             # Validate location
             if (!is.character(location) || length(location)!=1 || is.na(location) || nchar(location)==0)
                 stop(paste0(error.prefix, "'location' must be a single, non-NA, non-empty character value"))
             
-            if (!locations::is.location.valid(location))
-                stop(paste0("'", location, "' is not recognized as a registered as a location"))
+#            if (!locations::is.location.valid(location))
+#                stop(paste0("'", location, "' is not recognized as a registered as a location"))
             
             
             # Validate sub-version
@@ -43,8 +43,8 @@ JHEEM.ENTITY = R6::R6Class(
                 if (!is.character(sub.version) || length(sub.version)!=1 || is.na(sub.version) || nchar(sub.version)==0)
                     stop(paste0(error.prefix, "'sub.version' must be a single, non-NA, non-empty character value"))
                 
-                if (!any(sub.version==jheem.kernel$sub.versions))
-                    stop(paste0(error.prefix, "'", sub.version, "' is not a registered sub-version for the '", version, "' specification"))
+#                if (!any(sub.version==jheem.kernel$sub.versions))
+#                    stop(paste0(error.prefix, "'", sub.version, "' is not a registered sub-version for the '", version, "' specification"))
             }
             
             

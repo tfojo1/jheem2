@@ -1901,9 +1901,9 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                     missing.from.max = setdiff(quantity$fixed.dimensions, names(max.dim.names))
                     if (length(missing.from.max)>0)
                     {
-                        aliases.for.missing.mask = sapply(names(dimension.aliases), function(alias){
+                        aliases.for.missing.mask = vapply(names(dimension.aliases), function(alias){
                             any(alias==missing.from.max)
-                        })
+                        }, FUN.VALUE = logical(1))
                         names(max.dim.names) = replace.with.aliases(names(max.dim.names), dimension.aliases[aliases.for.missing.mask])
                         dimension.aliases = dimension.aliases[!aliases.for.missing.mask]
                         
