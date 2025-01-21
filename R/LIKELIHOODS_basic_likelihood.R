@@ -34,11 +34,13 @@
 #' to use in the measurement error covariance matrix.
 #' 
 #' As an example, one type could be specified with an 'error.variance.type' of
-#' `"cv"` and an 'error.variance.term' of `0.13` (or `list(0.13)`). Two or more
+#' "cv" and an 'error.variance.term' of 0.13 (or list(0.13)). Two or more
 #' types might look like an 'error.variance.type' of `c("data.sd",
-#' `"function.sd")` and an 'error.variance.term' of
-#' `list(NULL, my_sd_function)`. It is possible to use the same type multiple
-#' times, although this is not recommended.
+#' "function.sd") and an 'error.variance.term' of list(NULL, my_sd_function). It
+#' is possible to use the same type multiple times, although this is not
+#' recommended.
+#' 
+#' @family Basic Likelihoods
 #' 
 #' @export
 create.basic.likelihood.instructions <- function(outcome.for.data,
@@ -94,7 +96,10 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
 #' @title Create JHEEM Basic Likelihood Instructions With Specified Outcome
 #'
 #' @inheritParams create.basic.likelihood.instructions
+#' @inherit create.basic.likelihood.instructions details
 #' @param outcome.value A single, non-NA numeric value that is the value of the outcome at the totals level (i.e., not stratified).
+#' 
+#' @family Basic Likelihoods
 #'
 #' @export
 create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.for.sim,
@@ -142,10 +147,13 @@ create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.
 #' @title Create JHEEM Basic Likelihood Instructions With Included Multiplier
 #'
 #' @inheritParams create.basic.likelihood.instructions
+#' @inherit create.basic.likelihood.instructions details
 #' @param included.multiplier The value of the multiplier that has already been used in calculating the simulation value of the outcome (represents the mean of the distribution around the multiplier).
 #' @param included.multiplier.sd The standard deviation of the uncertainty around the included multiplier.
 #' @param included.multiplier.correlation The correlation between values of the multiplier across different strata and years.
 #' @param included.multiplier.correlation.structure Which correlation form to use for values of the multiplier across various strata and years.
+#' 
+#' @family Basic Likelihoods
 #'
 #' @export
 create.basic.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
@@ -205,7 +213,10 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
 #' @title Create JHEEM Basic Likelihood Instructions
 #'
 #' @inheritParams create.basic.likelihood.instructions
+#' @inherit create.basic.likelihood.instructions details
 #' @param use.lognormal.approximation A single logical value.
+#' 
+#' @family Basic Likelihoods
 #' @export
 create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.data,
                                                                   outcome.for.sim,
@@ -266,7 +277,10 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
 #' @title Create JHEEM Basic Likelihood Instructions
 #'
 #' @inheritParams create.basic.likelihood.instructions.with.included.multiplier
+#' @inherit create.basic.likelihood.instructions details
 #' @param use.lognormal.approximation A single logical value.
+#' 
+#' @family Basic Likelihoods
 #'
 #' @export
 create.time.lagged.comparison.likelihood.instructions.with.included.multiplier <- function(outcome.for.data,
