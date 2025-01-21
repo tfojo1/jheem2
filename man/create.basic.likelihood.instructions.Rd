@@ -83,9 +83,17 @@ therefore terms) results in the variances created by each being summed prior
 to use in the measurement error covariance matrix.
 
 As an example, one type could be specified with an 'error.variance.type' of
-`"cv"` and an 'error.variance.term' of `0.13` (or `list(0.13)`). Two or more
+"cv" and an 'error.variance.term' of 0.13 (or list(0.13)). Two or more
 types might look like an 'error.variance.type' of `c("data.sd",
-`"function.sd")` and an 'error.variance.term' of
-`list(NULL, my_sd_function)`. It is possible to use the same type multiple
-times, although this is not recommended.
+"function.sd") and an 'error.variance.term' of list(NULL, my_sd_function). It
+is possible to use the same type multiple times, although this is not
+recommended.
 }
+\seealso{
+Other Basic Likelihoods: 
+\code{\link{create.basic.likelihood.instructions.with.included.multiplier}()},
+\code{\link{create.basic.likelihood.instructions.with.specified.outcome}()},
+\code{\link{create.time.lagged.comparison.likelihood.instructions.with.included.multiplier}()},
+\code{\link{create.time.lagged.comparison.likelihood.instructions}()}
+}
+\concept{Basic Likelihoods}

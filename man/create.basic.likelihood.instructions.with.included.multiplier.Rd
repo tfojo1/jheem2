@@ -78,3 +78,33 @@ create.basic.likelihood.instructions.with.included.multiplier(
 \description{
 Create JHEEM Basic Likelihood Instructions With Included Multiplier
 }
+\details{
+Error variance may be specified in a variety of ways, and more than
+one can be used in the same likelihood. 'error.variance.type' is a vector
+containing single character values describing the type(s) of variance to use,
+and there is one 'error.variance.term' corresponding to each. The types "sd"
+(standard deviation), "variance", "cv" (covariance), and "exp.of.variance"
+(exponent of variance) require a single numeric value as their term. The
+types "data.sd", "data.variance", and "data.cv" indicate that error data will
+be pulled from the data manager and matched directly to data points, and they
+require NULL as their term. Finally, the type "function.sd" requires as its
+term a function that takes only arguments "data" and "details" and returns a
+numeric array of the same dimensions as "data". Supplying multiple types (and
+therefore terms) results in the variances created by each being summed prior
+to use in the measurement error covariance matrix.
+
+As an example, one type could be specified with an 'error.variance.type' of
+"cv" and an 'error.variance.term' of 0.13 (or list(0.13)). Two or more
+types might look like an 'error.variance.type' of `c("data.sd",
+"function.sd") and an 'error.variance.term' of list(NULL, my_sd_function). It
+is possible to use the same type multiple times, although this is not
+recommended.
+}
+\seealso{
+Other Basic Likelihoods: 
+\code{\link{create.basic.likelihood.instructions.with.specified.outcome}()},
+\code{\link{create.basic.likelihood.instructions}()},
+\code{\link{create.time.lagged.comparison.likelihood.instructions.with.included.multiplier}()},
+\code{\link{create.time.lagged.comparison.likelihood.instructions}()}
+}
+\concept{Basic Likelihoods}
