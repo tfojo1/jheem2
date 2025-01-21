@@ -7,6 +7,10 @@
 mcmc.traceplot(simset, match.names, chains = simset$unique.chains, burn = 0)
 }
 \arguments{
+\item{match.names}{A regex to select parameters by name. If NULL, all parameters are used.}
+
+\item{chains}{Which chains to use, defaulting to all.}
+
 \item{burn}{How many iterations to burn and thus ignore on the plot, defaulting to 0.}
 }
 \description{

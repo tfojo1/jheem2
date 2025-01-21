@@ -12,6 +12,8 @@ get.simset.params(
 )
 }
 \arguments{
+\item{match.names}{A regex to select parameters by name. If NULL, all parameters are used.}
+
 \item{simulation.indices}{An integer or logical vector specifying which simulations to show in output. Defaults to the last simulation.}
 
 \item{drop}{If the default TRUE, then an output with only one simulation will be coerced to a vector.}
