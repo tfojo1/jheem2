@@ -1094,7 +1094,7 @@ prepare.mcmc.summary <- function(version,
             file.path(paste0("chain_", chain),
                       paste0("chain", chain, "_chunk", chunks.to.use, ".Rdata"))
         }))
-        chunk.files = chunk.files[sapply(file.path(dir, hypothetical.chunk.files), file.exists)]
+        chunk.files = hypothetical.chunk.files[sapply(file.path(dir, hypothetical.chunk.files), file.exists)]
         
         if (length(chunk.files)/length(hypothetical.chunk.files) < 1)
             stop("Cannot prepare MCMC summary - we have not finished the sampling for the prior calibration")
