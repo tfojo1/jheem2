@@ -753,6 +753,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                               location, # combinations of version and location tell us sublocations
                               sub.version,
                               data.manager,
+                              additional.weights,
                               throw.error.if.no.data,
                               error.prefix) {
             super$initialize(
@@ -760,6 +761,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                 sub.version = sub.version,
                 version = version,
                 location = location,
+                additional.weights = additional.weights,
                 error.prefix = error.prefix
             )
             

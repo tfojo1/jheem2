@@ -1,9 +1,9 @@
 #' @title Make a single (joint) set of likelihood instructions out of two or more likelihood instructions objects
 #'
 #' @param ... One or more jheem.likelihood.instructions objects or lists which contain only jheem.likelihood.instructions objects #OR it could just be codes
-#'
+#' @param additional.weights
 #' @export
-join.likelihood.instructions <- function(...) {
+join.likelihood.instructions <- function(..., additional.weights=list()) {
     # Each argument is either an instructions object or a code.
     sub.instructions <- lapply(list(...), function(x) {
         if (is(x, "jheem.likelihood.instructions")) {
@@ -13,7 +13,8 @@ join.likelihood.instructions <- function(...) {
         }
     })
 
-    JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS$new(sub.instructions = sub.instructions)
+    JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS$new(sub.instructions,
+                                            additional.weights = additional.weights)
 }
 
 
@@ -21,9 +22,12 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
     "jheem.joint.likelihood.instructions",
     inherit = JHEEM.LIKELIHOOD.INSTRUCTIONS,
     public = list(
-        initialize = function(sub.instructions) {
+        initialize = function(sub.instructions,
+                              additional.weights=list()) {
             # Validate sub-instructions
             # Make sure to flatten out list of sub-instructions
+            
+            LIKELIHOOD.CLASS.GENERATORS[[class(self)[1]]] = JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS
 
             for (sub.instr in sub.instructions) {
                 private$i.name <- paste0(private$i.name, sub.instr$name, sep = "__")
@@ -38,6 +42,7 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             names(private$i.sub.instructions) <- strsplit(private$i.name, "__")[[1]]
             # private$i.outcomes <- trimws(private$i.outcomes, "left", "[__]")
             # names(private$i.sub.instructions) <- strsplit(private$i.outcomes, "__")[[1]]
+            private$i.additional.weights <- private$generate.weights.from.weights.list(additional.weights)
         },
         equals = function(other) {
             if (!is.null(self$code) && !is.null(other$code)) {
@@ -54,26 +59,31 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 }
             }
         },
-        instantiate.likelihood = function(version, location, sub.version = NULL, data.manager = get.default.data.manager(), throw.error.if.no.data = F, error.prefix = "") {
+        instantiate.likelihood = function(version,
+                                          location,
+                                          sub.version = NULL,
+                                          data.manager = get.default.data.manager(),
+                                          throw.error.if.no.data = F,
+                                          error.prefix = "") {
             # Validate location
             # Check that these instructions are registered?
             # Make sure all outcomes for the instructions are registered to the specification of the version
-            JHEEM.JOINT.LIKELIHOOD$new(instructions = self,
-                                       version = version,
-                                       sub.version = sub.version,
-                                       location = location,
-                                       data.manager = data.manager,
+            JHEEM.JOINT.LIKELIHOOD$new(instructions=self,
+                                       version=version,
+                                       sub.version=sub.version,
+                                       location=location,
+                                       data.manager=data.manager,
+                                       additional.weights=list(),
                                        throw.error.if.no.data = throw.error.if.no.data,
-                                       error.prefix = error.prefix
-            )
+                                       error.prefix=error.prefix)
         }
     ),
     active = list(
-
-        # @Andrew - fill in getters
         sub.instructions = function(value) {
             if (missing(value)) {
                 private$i.sub.instructions
+            } else {
+                stop("Cannot modify a jheem.likelihood.instruction's 'sub.instructions' - they are read-only")
             }
         },
         details = function(value) {
@@ -92,6 +102,13 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             } else {
                 stop("Cannot modify a jheem.joint.likelihood.instruction's 'outcomes' - they are read-only")
             }
+        },
+        additional.weights = function(value) {
+            if (missing(value)) {
+                private$i.additional.weights
+            } else {
+                stop("Cannot modify a jheem.joint.likelihood.instruction's 'additional.weights' - they are read-only")
+            }
         }
         # outcomes = function(value) {
         #     if (missing(value)) {
@@ -103,7 +120,8 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
     ),
     private = list(
         i.sub.instructions = NULL,
-        i.name = NULL
+        i.name = NULL,
+        i.additional.weights = NULL
         # i.outcomes = NULL
     )
 )
@@ -119,6 +137,7 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                               sub.version,
                               location,
                               data.manager,
+                              additional.weights,
                               throw.error.if.no.data,
                               error.prefix) {
             super$initialize(instructions = instructions,
@@ -126,18 +145,30 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                              sub.version = sub.version,
                              location = location,
                              error.prefix = error.prefix
+                             # additional.weights = additional.weights
             )
 
             private$i.sub.likelihoods <- lapply(instructions$sub.instructions, function(instr) {
                 if (is(instr, 'jheem.custom.likelihood.instructions'))
                     instr$instantiate.likelihood()
+                else if (is(instr,'jheem.ifelse.likelihood.instructions'))
+                    do.ifelse.instantiate.likelihood(instructions = instr,
+                                                     version = version,
+                                                     sub.version = sub.version,
+                                                     location = location,
+                                                     data.manager=data.manager,
+                                                     additional.weights = instructions$additional.weights,
+                                                     throw.error.if.no.data=throw.error.if.no.data,
+                                                     error.prefix=error.prefix)
                 else
-                    instr$instantiate.likelihood(version = version,
-                                                 sub.version = sub.version,
-                                                 location = location,
-                                                 data.manager = data.manager,
-                                                 throw.error.if.no.data = throw.error.if.no.data,
-                                                 error.prefix = error.prefix)
+                    do.instantiate.likelihood(instructions = instr,
+                                              version = version,
+                                              sub.version = sub.version,
+                                              location = location,
+                                              data.manager=data.manager,
+                                              additional.weights = instructions$additional.weights,
+                                              throw.error.if.no.data=throw.error.if.no.data,
+                                              error.prefix=error.prefix)
             })
             
             names(private$i.sub.likelihoods) <- sapply(private$i.sub.likelihoods, function(lik) {

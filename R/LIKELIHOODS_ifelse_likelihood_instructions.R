@@ -51,18 +51,23 @@ JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
         },
         # NOT YET IMPLEMENTED
         equals = function(other) {},
-        instantiate.likelihood = function(version, location, sub.version = NULL, data.manager = get.default.data.manager(), throw.error.if.no.data = F, error.prefix = "") {
+        instantiate.likelihood = function(version,
+                                          location,
+                                          sub.version = NULL,
+                                          data.manager = get.default.data.manager(),
+                                          throw.error.if.no.data = F,
+                                          error.prefix = "") {
             for (sub.instr in private$i.sub.instructions) {
-                rv <- tryCatch(
+                rv <- tryCatch( # won't work for custom right now!
                     {
-                        (sub.instr$instantiate.likelihood(
-                            version = version,
-                            location = location,
-                            sub.version = sub.version,
-                            data.manager = data.manager,
-                            throw.error.if.no.data = throw.error.if.no.data,
-                            error.prefix = error.prefix
-                        ))
+                        do.ifelse.instantiate.likelihood(sub.instr,
+                                                         version = version,
+                                                         location = location,
+                                                         sub.version = sub.version,
+                                                         data.manager = data.manager,
+                                                         additional.weights = list(),
+                                                         throw.error.if.no.data = throw.error.if.no.data,
+                                                         error.prefix = error.prefix)
                     },
                     error = function(e) {
                         NULL
@@ -76,7 +81,54 @@ JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             stop("Error instantiating 'jheem.ifelse.likelihood.instructions': All likelihood instructions failed to instantiate")
         }
     ),
+    active = list(
+        sub.instructions = function(value) {
+            if (missing(value)) {
+                private$i.sub.instructions
+            } else {
+                stop("Cannot modify a jheem.likelihood.instruction's 'sub.instructions' - they are read-only")
+            }
+        }
+    ),
     private = list(
         i.sub.instructions = NULL
     )
 )
+
+do.ifelse.instantiate.likelihood <- function(instructions,
+                                             version,
+                                             sub.version,
+                                             location,
+                                             data.manager,
+                                             additional.weights,
+                                             throw.error.if.no.data,
+                                             error.prefix) {
+    if (is.null(error.prefix)) {
+        error.prefix <- paste0("Error initializing likelihood for '", instructions$outcome.for.sim, "': ")
+    }
+    # *error.prefix* is a single non-NA, non-empty character vector
+    if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix)) {
+        stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
+    }
+
+    for (sub.instr in instructions$sub.instructions) {
+        rv <- tryCatch( # won't work for custom right now!
+            {
+                do.instantiate.likelihood(sub.instr,
+                                          version = version,
+                                          location = location,
+                                          sub.version = sub.version,
+                                          data.manager = data.manager,
+                                          additional.weights = additional.weights,
+                                          throw.error.if.no.data = throw.error.if.no.data,
+                                          error.prefix = error.prefix)
+            },
+            error = function(e) {
+                NULL
+            }
+        )
+        if (!is.null(rv)) {
+            return(rv)
+        }
+    }
+}

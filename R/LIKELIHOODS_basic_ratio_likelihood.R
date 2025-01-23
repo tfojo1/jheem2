@@ -73,17 +73,18 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
                               location, # combinations of version and location tell us sublocations
                               sub.version,
                               data.manager,
+                              additional.weights,
                               throw.error.if.no.data,
                               error.prefix) {
             # 'super' here is the basic likelihood, not main likelihood
-            super$initialize(
-                instructions = instructions,
-                version = version,
-                sub.version = sub.version,
-                location = location,
-                data.manager = data.manager,
-                throw.error.if.no.data = throw.error.if.no.data,
-                error.prefix = error.prefix
+            super$initialize(instructions = instructions,
+                             version = version,
+                             sub.version = sub.version,
+                             location = location,
+                             data.manager = data.manager,
+                             additional.weights = additional.weights,
+                             throw.error.if.no.data = throw.error.if.no.data,
+                             error.prefix = error.prefix
             )
             
             # We must have a denominator, so we cannot be a "count", just "rate" or "proportion"... is that what Todd said? Maybe not?
@@ -244,18 +245,6 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
             lagged.sim.sigma <- lagged.sim.mean %*% t(lagged.sim.mean) * (exp(lagged.log.sim.sigma) - 1)
             
             lagged.n <- (sim.denominator.data[private$i.to.indices] + sim.denominator.data[private$i.from.indices]) / 2
-            
-            # lagged.log.sim.mean = apply_lag_to_vector(log.sim.mean,
-            #                                           private$i.lagged.pairs,
-            #                                           rep(0, private$i.n.lagged.obs),
-            #                                           private$i.n.obs)
-            # lagged.log.sim.sigma = apply_lag_to_matrix(log.sim.sigma,
-            #                                            private$i.lagged.pairs,
-            #                                            rep(0, private$i.n.lagged.obs**2),
-            #                                            private$i.n.obs)
-            #
-            # lagged.sim.mean = exp(lagged.log.sim.mean + diag(lagged.log.sim.sigma)/2)
-            # lagged.sim.sigma = lagged.sim.mean %*% t(lagged.sim.mean) * (exp(lagged.log.sim.sigma) - 1)
             
             aggregated.lagged.sim.n <- get_basic_likelihood_mean(
                 lagged.n,

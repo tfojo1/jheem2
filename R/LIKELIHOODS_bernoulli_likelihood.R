@@ -131,12 +131,14 @@ JHEEM.BERNOULLI.LIKELIHOOD <- R6::R6Class(
                               version,
                               location,
                               data.manager,
+                              additional.weights,
                               throw.error.if.no.data,
                               error.prefix) {
             super$initialize(
                 instructions = instructions,
                 version = version,
                 location = location,
+                additional.weights = additional.weights,
                 error.prefix = error.prefix
             )
 
