@@ -453,7 +453,6 @@ restratify.age.counts <- function(counts,
                                               check.consistency=F)
         
         rv = smoother(lower = parsed.desired.brackets$lower, upper = parsed.desired.brackets$upper)
-        
         names(rv) = parsed.desired.brackets$names
     }
     
@@ -712,7 +711,7 @@ parse.age.brackets <- function(age.brackets,
         upper = parsed.age.brackets$upper
         mapped.mask = parsed.age.brackets$mapped.mask
         
-        names = age.brackets
+        names = age.brackets[o]
     }    
     else if (is.numeric(age.brackets))
     {

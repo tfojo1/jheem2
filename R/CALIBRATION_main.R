@@ -975,7 +975,8 @@ copy.calibration.info <- function(from.code,
                                   to.code,
                                   n.iter = NULL,
                                   n.burn = NULL,
-                                  thin = NULL)
+                                  thin = NULL,
+                                  solver.metadata = NULL)
 {
     validate.calibration.code(code = from.code,
                               error.prefix = "Cannot copy calibration info: ",
@@ -995,6 +996,8 @@ copy.calibration.info <- function(from.code,
         calibration.info$thin = thin
     if (!is.null(n.burn))
         calibration.info$n.burn = n.burn
+    if (!is.null(solver.metadata))
+        calibration.info$solver.metadata = solver.metadata
         
     CALIBRATION.MANAGER$info[[to.code]] = calibration.info
     
