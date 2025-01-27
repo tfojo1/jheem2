@@ -1,15 +1,18 @@
-N.SIM = 200
-RUN.RPROF = T
-SOLVER.METHOD = 'adams'
+N.SIM = 2000
+RUN.RPROF = F
+SOLVER.METHOD = 'DP5'
 ATOL = 2
 RTOL = 3
+
+SOLVER.DESCRIPTION = paste0(SOLVER.METHOD, '.', ATOL, '.', RTOL)
+print(paste0("STARTING TEST FOR **", SOLVER.DESCRIPTION, "**"))
 
 source('../jheem_analyses/applications/EHE/calibration_runs/ehe_register_calibrations.R')
 
 print("STARTING PROFILING")
 
 LOCATION = 'C.12580'
-CALIBRATION.CODE.TO.RUN = paste0('test.', SOLVER.METHOD, '.', ATOL, '.', RTOL)
+CALIBRATION.CODE.TO.RUN = paste0('test.', SOLVER.DESCRIPTION)
 
 
 copy.calibration.info(from.code = 'init.transmission.ehe',
@@ -72,7 +75,8 @@ if (RUN.RPROF)
     Rprof(NULL)
 }
 
-print(paste0("DONE RUNNING MCMC: Took ",
+print(paste0("DONE RUNNING **", SOLVER.DESCRIPTION,
+             "**: Took ",
              round(run.time/60, 0), " minutes to run ",
              format(N.SIM, big.mark = ","),
              " simulations (",

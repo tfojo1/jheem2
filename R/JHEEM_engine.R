@@ -605,9 +605,9 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
 
 SUPPORTED.SOLVER.METHODS = list(
     odeintr = 'DP5',
-    deSolve = c('lsoda','bdf','adams'),
+    deSolve = c('ode45','lsoda','bdf','adams','impAdams','ode23','radau','rk4')
 #    diffeqr = c('BS3','DP5'),
-    r2sundials = c('BDF','Adams')
+#    r2sundials = c('BDF','Adams')
 )
 
 # internal to the package
@@ -620,7 +620,7 @@ SUPPORTED.SOLVER.METHODS = list(
 #}
 #DIFFEQR.ENGINE = NULL
 
-create.solver.metadata = function(method = 'DP5',
+create.solver.metadata = function(method = 'ode45',
                                   package = NULL,
                                   atol = 1e-02,
                                   rtol = 1e-03)
@@ -742,11 +742,6 @@ SOLVER.METADATA = R6::R6Class(
                 
                 times = run.from.time:(run.to.time+1)
                 
-                if (private$i.method=='rk23')
-                    ode.fn = pracma::ode23
-                else
-                    ode.fn = pracma::ode45
-                
                 ode.results = deSolve::ode(
                     y = diffeq.settings$initial_state,
                     times = times,
@@ -761,57 +756,57 @@ SOLVER.METADATA = R6::R6Class(
                      values = t(as.matrix(ode.results[,-1])),
                      terminated.for.time = terminated.for.time)           
             }
-            else if (private$i.package=='r2sundials')
-            {
-                frhs = function(t, y, param, psens)
-                {
-                    run.time = as.numeric(Sys.time()) - start.time
-                    if (run.time > max.run.time.seconds)
-                        terminated.for.time <<- T
-                    
-                    if (terminated.for.time)
-                    {
-                        rep(0, length(yx))
-                    }
-                    else
-                    {
-                        compute_dx(state = y,
-                                   time = t,
-                                   settings = diffeq.settings,
-                                   quantities_info = diffeq.settings$quantities.info,
-                                   quantity_scratch_vector = diffeq.settings$quantity_scratch_vector,
-                                   scratch_vector = diffeq.settings$scratch.vector,
-                                   natality_info = diffeq.settings$natality.info,
-                                   mortality_info = diffeq.settings$mortality.info,
-                                   transitions_info = diffeq.settings$transitions.info,
-                                   infections_info = diffeq.settings$infections.info,
-                                   remission_info = diffeq.settings$remission.info,
-                                   fixed_strata_info = diffeq.settings$fixed.strata.info,
-                                   population_trackers = diffeq.settings$population_trackers)
-                    }
-                }
-                
-                
-                times = run.from.time:(run.to.time+1)
-                
-                if (private$i.method=='Adams')
-                    method = r2sundials::CV_ADAMS
-                else
-                    method = r2sundials::CV_BDF
-                
-                ode.results = r2sundials::r2cvodes(
-                    yv = diffeq.settings$initial_state,
-                    times = times,
-                    frhs = frhs,
-              #      abstol = private$i.atol,
-               #     reltol = private$i.rtol,
-                    integrator = method
-                )
-                
-                list(times = as.numeric(attr(ode.results, 'time')),
-                     values = ode.results,
-                     terminated.for.time = terminated.for.time)
-            }
+            # else if (private$i.package=='r2sundials')
+            # {
+            #     frhs = function(t, y, param, psens)
+            #     {
+            #         run.time = as.numeric(Sys.time()) - start.time
+            #         if (run.time > max.run.time.seconds)
+            #             terminated.for.time <<- T
+            #         
+            #         if (terminated.for.time)
+            #         {
+            #             rep(0, length(yx))
+            #         }
+            #         else
+            #         {
+            #             compute_dx(state = y,
+            #                        time = t,
+            #                        settings = diffeq.settings,
+            #                        quantities_info = diffeq.settings$quantities.info,
+            #                        quantity_scratch_vector = diffeq.settings$quantity_scratch_vector,
+            #                        scratch_vector = diffeq.settings$scratch.vector,
+            #                        natality_info = diffeq.settings$natality.info,
+            #                        mortality_info = diffeq.settings$mortality.info,
+            #                        transitions_info = diffeq.settings$transitions.info,
+            #                        infections_info = diffeq.settings$infections.info,
+            #                        remission_info = diffeq.settings$remission.info,
+            #                        fixed_strata_info = diffeq.settings$fixed.strata.info,
+            #                        population_trackers = diffeq.settings$population_trackers)
+            #         }
+            #     }
+            #     
+            #     
+            #     times = run.from.time:(run.to.time+1)
+            #     
+            #     if (private$i.method=='Adams')
+            #         method = r2sundials::CV_ADAMS
+            #     else
+            #         method = r2sundials::CV_BDF
+            #     
+            #     ode.results = r2sundials::r2cvodes(
+            #         yv = diffeq.settings$initial_state,
+            #         times = times,
+            #         frhs = frhs,
+            #         abstol = private$i.atol,
+            #         reltol = private$i.rtol,
+            #         integrator = method
+            #     )
+            #     
+            #     list(times = as.numeric(attr(ode.results, 'time')),
+            #          values = ode.results,
+            #          terminated.for.time = terminated.for.time)
+            # }
             else if (private$i.package=='odeintr')
             {
                 compute.fn = function(x, t){
@@ -922,7 +917,7 @@ SOLVER.METADATA = R6::R6Class(
             # }
             else
             {
-                stop(paste0("Cannot solve ODEs - we only support packages 'odeintr' and 'r2sundials' - not '", private$i.package, "'"))
+                stop(paste0("Cannot solve ODEs - we only support packages 'odeintr' and 'deSolve' - not '", private$i.package, "'"))
             }
         }
     ),
