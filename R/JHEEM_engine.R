@@ -717,7 +717,7 @@ SOLVER.METADATA = R6::R6Class(
                     
                     if (terminated.for.time)
                     {
-                        rep(0, length(y))
+                        dx = rep(0, length(y))
                     }
                     else
                     {
@@ -734,14 +734,15 @@ SOLVER.METADATA = R6::R6Class(
                                    remission_info = diffeq.settings$remission.info,
                                    fixed_strata_info = diffeq.settings$fixed.strata.info,
                                    population_trackers = diffeq.settings$population_trackers)
-                        
-                        list(dx)
                     }
+                    
+                    list(dx)
                 }
                 
                 
                 times = run.from.time:(run.to.time+1)
                 
+
                 ode.results = deSolve::ode(
                     y = diffeq.settings$initial_state,
                     times = times,
@@ -751,7 +752,7 @@ SOLVER.METADATA = R6::R6Class(
                     rtol = private$i.rtol,
                     method = private$i.method
                 )
-                
+
                 list(times = ode.results[,1],
                      values = t(as.matrix(ode.results[,-1])),
                      terminated.for.time = terminated.for.time)           
