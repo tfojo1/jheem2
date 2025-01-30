@@ -1,3 +1,5 @@
+LIKELIHOOD.CLASS.GENERATORS <- new.env()
+
 ## --------------------------##
 ## -- THE PUBLIC INTERFACE --##
 ## --------------------------##
@@ -109,84 +111,62 @@ JHEEM.LIKELIHOOD.CODE.ITERATION <- "2.0"
 
 LIKELIHOOD.INSTRUCTIONS.MANAGER <- new.env()
 
-#' @title Register Likelihood Instructions
-#' @inheritParams jheem2-params
-#' @param instructions A previously unregistered jheem.likelihood.instructions.object.
-#' @param code A valid code containing only letters, numbers, dashes, and periods.
-#' @param description A description of the likelihood for user reference.
-#'
-#' @export
-register.likelihood.instructions <- function(instructions,
-                                             code,
-                                             description,
-                                             error.prefix = "Error registering likelihood instructions: ") {
-    # if (!R6::is.R6(instructions) || !is(instructions, 'jheem.likelihood.instructions'))
-    if (!R6::is.R6(instructions)) {
-        stop("'instructions' must be an R6 object with parent class 'jheem.likelihood.instructions'")
-    }
-    instructions$register(
-        code = code,
-        description = description,
-        error.prefix = error.prefix
-    )
-}
-
-#' @title Remove Likelihood Instructions
-#' @description Un-registers likelihood instructions by code
-#' @param codes One or more valid codes
-#' @param throw.error.if.code.not.registered Should an error be thrown listing any codes that are not already registered?
-#'
-#' @export
-remove.likelihood.instructions <- function(codes,
-                                           throw.error.if.code.not.registered = F,
-                                           error.prefix = "Error removing likelihood instructions: ") {
-    # *code* is no more than 5 characters and contains only numbers, letters, periods, and dashes
-    if (!is.character(code) || any(is.na(code)) || any(duplicated(codes))) {
-        stop(paste0(error.prefix, "'codes' must be a character vector containing no NAs or duplicates"))
-    }
-
-    if (any(nchar(code) > 5) || any(sapply(codes, function(code) {
-        string.contains.invalid.characters(code, NUMBERS.LETTERS.DASH.PERIOD)
-    }))) {
-        stop(paste0(error.prefix, "all codes in 'codes' must be no more than 5 characters and contain only numbers, letters, periods, and dashes"))
-    }
-
-    code.is.registered <- sapply(codes, function(code) {
-        code %in% names(LIKELIHOOD.INSTRUCTIONS.MANAGER)
-    })
-
-    if (throw.error.if.code.not.registered && any(!code.is.registered)) {
-        stop(paste0(error.prefix, "the following codes are not registered: ", paste0(names(code.is.registered)[!code.is.registered], collapse = ", ")))
-    }
-
-    rm(list = codes[code.is.registered], envir = LIKELIHOOD.INSTRUCTIONS.MANAGER)
-}
-
-#' @title Get Likelihood Instructions
-#' @inheritParams jheem2-params
-#' @param code A valid code containing only letters, numbers, dashes, and periods.
-#'
-get.likelihood.instructions <- function(code, error.prefix = "Error getting likelihood instructions") {
-    # *error.prefix* is a single non-NA, non-empty character vector
-    if (!is.character(error.prefix) || length(error.prefix) > 1 || is.na(error.prefix)) {
-        stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
-    }
-
-    # *code* is no more than 5 characters and contains only numbers, letters, periods, and dashes
-    if (!is.character(code) || length(code) > 1 || is.na(code) || nchar(code) > 5 || string.contains.invalid.characters(code, NUMBERS.LETTERS.DASH.PERIOD)) {
-        stop(paste0(error.prefix, "'code' must be no more than 5 characters and contain only numbers, letters, periods, and dashes"))
-    }
-
-    LIKELIHOOD.INSTRUCTIONS.MANAGER[[code]]
-}
-
-
 ## -----------------------------------------##
 ## -- THE LIKELIHOOD *INSTRUCTIONS* CLASS --##
 ## -----------------------------------------##
 
+#'
+do.instantiate.likelihood <- function(instructions,
+                                      version,
+                                      sub.version,
+                                      location,
+                                      data.manager,
+                                      additional.weights,
+                                      throw.error.if.no.data,
+                                      error.prefix) {
+    if (is.null(error.prefix)) {
+        error.prefix <- paste0("Error initializing likelihood for '", instructions$outcome.for.sim, "': ")
+    }
+    # *error.prefix* is a single non-NA, non-empty character vector
+    if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix)) {
+        stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
+    }
+    
+    likelihood.class.generator = LIKELIHOOD.CLASS.GENERATORS[[class(instructions)[1]]]
+    if (is.null(likelihood.class.generator))
+        stop(paste0(error.prefix, "'", class(instructions)[1], "' was not index in the environment (bug)"))
 
-
+    # *version* and *location* -- validated by 'jheem.likelihood' parent class 'jheem.entity'
+    
+    # *data.manager*  -- validated at the sub-class level if needed (maybe I'll REQUIRE NULL for Bernoulli at some point)
+    
+    # *throw.error.if.no.data* is a single boolean
+    if (!is.logical(throw.error.if.no.data) || length(throw.error.if.no.data) > 1 || is.null(throw.error.if.no.data) || is.na(throw.error.if.no.data)) {
+        stop(paste0(error.prefix, "'throw.error.if.no.data' must be a single logical value"))
+    }
+    
+    # # Check that likelihood instructions are registered
+    # if (is.null(private$i.code))
+    #     stop(paste0(error.prefix, "likelihood instructions must be registered before instantiating a likelihood with them"))
+    
+    # All outcomes must be registered for the specification. *denominator.outcome.for.sim* will be checked at the subclass level when relevant
+    simulation.metadata <- get.simulation.metadata(version = version,
+                                                   location = location)
+    if (!(instructions$outcome.for.sim %in% simulation.metadata$outcomes)) {
+        stop(paste0(error.prefix, "likelihood instructions' 'outcome.for.sim' must be a registered outcome in the specification"))
+    }
+    
+    likelihood.class.generator$new(
+        instructions = instructions,
+        version = version,
+        sub.version = sub.version,
+        location = location,
+        data.manager = data.manager,
+        additional.weights = additional.weights,
+        throw.error.if.no.data = throw.error.if.no.data,
+        error.prefix = error.prefix
+    )
+}
 
 
 # An abstract class
@@ -263,7 +243,8 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 }
                 current.class <- current.class$get_inherit()
             }
-            private$i.likelihood.class.generator <- likelihood.class.generator
+            # Add this class generator to the environment
+            LIKELIHOOD.CLASS.GENERATORS[[class(self)[1]]] = likelihood.class.generator
         },
         instantiate.likelihood = function(version,
                                           location,
@@ -271,45 +252,17 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                           data.manager = get.default.data.manager(), # Bernoulli's don't need this or the next argument
                                           throw.error.if.no.data = F,
                                           error.prefix = NULL) {
-            if (is.null(error.prefix)) {
-                error.prefix <- paste0("Error initializing likelihood for '", private$i.outcome.for.sim, "': ")
-            }
-            # *error.prefix* is a single non-NA, non-empty character vector
-            if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix)) {
-                stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
-            }
-
-            # *version* and *location* -- validated by 'jheem.likelihood' parent class 'jheem.entity'
-
-            # *data.manager*  -- validated at the sub-class level if needed (maybe I'll REQUIRE NULL for Bernoulli at some point)
-
-            # *throw.error.if.no.data* is a single boolean
-            if (!is.logical(throw.error.if.no.data) || length(throw.error.if.no.data) > 1 || is.null(throw.error.if.no.data) || is.na(throw.error.if.no.data)) {
-                stop(paste0(error.prefix, "'throw.error.if.no.data' must be a single logical value"))
-            }
-
-            # # Check that likelihood instructions are registered
-            # if (is.null(private$i.code))
-            #     stop(paste0(error.prefix, "likelihood instructions must be registered before instanting a likelihood with them"))
-
-            # All outcomes must be registered for the specification. *denominator.outcome.for.sim* will be checked at the subclass level when relevant
-            simulation.metadata <- get.simulation.metadata(
-                version = version,
-                location = location
-            )
-            if (!(self$outcome.for.sim %in% simulation.metadata$outcomes)) {
-                stop(paste0(error.prefix, "likelihood instructions' 'outcome.for.sim' must be a registered outcome in the specification"))
-            }
-
-            private$i.likelihood.class.generator$new(
-                instructions = self,
-                version = version,
-                sub.version = sub.version,
-                location = location,
-                data.manager = data.manager,
-                throw.error.if.no.data = throw.error.if.no.data,
-                error.prefix = error.prefix
-            )
+            
+            do.instantiate.likelihood(instructions = self,
+                                      version = version,
+                                      sub.version = sub.version,
+                                      location=location,
+                                      data.manager = data.manager,
+                                      additional.weights=NULL,
+                                      throw.error.if.no.data = throw.error.if.no.data,
+                                      error.prefix = error.prefix)
+            
+            
         },
         register = function(code,
                             description,
@@ -494,7 +447,8 @@ JHEEM.LIKELIHOOD <- R6::R6Class(
                               version,
                               sub.version,
                               location,
-                              error.prefix) {
+                              error.prefix,
+                              additional.weights=list()) {
             # Validate instructions
             # (the superclass constructor will validate version and location)
 
@@ -516,10 +470,12 @@ JHEEM.LIKELIHOOD <- R6::R6Class(
                 error.prefix = error.prefix
             )
             
+            ## VALIDATE weights
+            
             private$i.name <- instructions$name
             private$i.outcome.for.sim <- instructions$outcome.for.sim
             private$i.stratifications <- instructions$stratifications
-            private$i.weights <- instructions$weights
+            private$i.weights <- c(instructions$weights, additional.weights)
 
             # Set check.consistency flag
             private$i.check.consistency.flag <- T

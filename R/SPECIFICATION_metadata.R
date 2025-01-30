@@ -148,13 +148,23 @@ SPECIFICATION.METADATA = R6::R6Class(
             names(private$i.categorized.aliases) = names(private$i.dim.names)
         },
         
-        apply.aliases = function(dim.names, error.prefix='')
+        apply.aliases = function(dim.names, dimension=NULL, error.prefix='')
         {
             if (is.null(dim.names))
                 NULL
             else if (is.character(dim.names))
             {
-                private$substitute.aliases.into.vector(dim.names, aliases = private$i.aliases)
+                if (length(dim.names)==1 && dim.names=='.')
+                {
+                    if (is.null(dimension))
+                        stop(paste0(error.prefix, "Cannot apply dim.names to a character vector unless 'dimension' is supplied (ie, not NULL)"))
+                    else if (all(names(private$i.ontologies)!=dimension))
+                        stop(paste0(error.prefix, "'", dimension, "' is not a valid dimension for the '", private$i.version, "' specification"))
+                    else
+                        private$i.dim.names[dimension]
+                }
+                else
+                    private$substitute.aliases.into.vector(dim.names, aliases = private$i.aliases)
             }
             else if (is.ontology(dim.names))
             {
@@ -304,6 +314,7 @@ SPECIFICATION.METADATA = R6::R6Class(
         i.age.upper.bounds = NULL,
         i.age.endpoints = NULL,
         
+        i.ontologies = NULL,
         
         #-- Alias Helpers --#
         

@@ -753,6 +753,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                               location, # combinations of version and location tell us sublocations
                               sub.version,
                               data.manager,
+                              additional.weights,
                               throw.error.if.no.data,
                               error.prefix) {
             super$initialize(
@@ -760,6 +761,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                 sub.version = sub.version,
                 version = version,
                 location = location,
+                additional.weights = additional.weights,
                 error.prefix = error.prefix
             )
             
@@ -945,8 +947,10 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                                     stop(paste0(error.prefix, "user-specified 'error.variance.term' function did not return a numeric array with the same dimnames as the data"))
                                 if (any(is.na(error.data)))
                                     stop(paste0(error.prefix, "user-specified 'error.variance.term' function returned at least one NA and must not"))
+                                
+                                error.data = error.data ** 2
                             }
-                            
+
                             # One vector per error var term, even those that don't involve data
                             error.data <- as.numeric(error.data) # I think this is because error.data was array previously. NA masks will align perfectly with obs p mask
                             private$i.error.vector.list[[i]] <- c(private$i.error.vector.list[[i]], error.data)

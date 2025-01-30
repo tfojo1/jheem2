@@ -499,14 +499,27 @@ run.new.algorithm <- function(version,
         
         prior.density.function(parameters.after.aliases)
     }
-    #----
+
+    # run MCMC ----
+    run.mcmc <- function(start.params,
+                         n.iterations) {
+        modified.ctrl = 
+        bayesian.simulations::run.mcmc.with.cache(ctrl, n.iterations, starting.values = matrix(start.params, nrow=1), update.frequency = 1, cache.frequency = 500, cache.dir = tempdir())
+    }
+    # browser()
+    # Plop in my whole algorithm here, which uses the run.mcmc above
+    
+    K=6
+    ptK=2
+    thin.by=2
+    
     ctrl = bayesian.simulations::create.adaptive.blockwise.metropolis.control(
         var.names = mcmc.parameter.names,
         simulation.function = run.simulation,
         log.prior.distribution = mcmc.prior,
         log.likelihood = compute.likelihood, # saves the data manager in here!
         burn = calibration.info$n.burn,
-        thin = calibration.info$thin, # this will need to change
+        thin = thin.by, # this will need to change
         var.blocks = sampling.blocks,
         reset.adaptive.scaling.update.after = 0,
         transformations = mcmc.parameter.scales,
@@ -525,18 +538,6 @@ run.new.algorithm <- function(version,
         adaptive.scaling.update.prior.iter= scaling.update.prior,
         adaptive.scaling.update.decay = scaling.update.decay
     )
-    
-    # run MCMC ----
-    run.mcmc <- function(start.params,
-                         n.iterations) {
-        bayesian.simulations::run.mcmc.with.cache(ctrl, n.iterations, starting.values = matrix(start.params, nrow=1), cache.frequency = 500, cache.dir = tempdir())
-    }
-    # browser()
-    # Plop in my whole algorithm here, which uses the run.mcmc above
-    
-    K=6
-    ptK=2
-    thin.by=2
     
     start.params = starting.mcmc.parameter.values # 10 by 80
     
@@ -560,23 +561,19 @@ run.new.algorithm <- function(version,
         h = 0.5 * (g.values[ptK] + g.values[ptK + 1]) # pt-percentile of ordered set
         n = sum(g.values <= max(h, 0))
         if (h < 0) h = 0
-        
-        # # randomize our selection of samples... wait, why? There's no reason to randomize them, nor do they need to be sorted.
-        # g.values = sample(g.values)
-        # current.sample = current.sample[as.numeric(names(g.values))]
-        
+
         # run n Markov chains with K * thin / n iterations each,
         # so that we end up with K samples for the next round
-
         new.sample = lapply(as.numeric(names(g.values)), function(k) {
-            run.mcmc(start.params[k,],
-                     n.iterations = K * thin.by/n)
+            tryCatch({run.mcmc(start.params[k,],
+                               n.iterations = K * thin.by/n)}, error=function(e) {browser()})
+            
         })
         browser()
-        new.sample = lapply(new.sample, function(s) {
-            s$thin(keep=thin.by)
-        })
-        sample.likelihoods = sapply(new.sample, function(s) {likelihood$compute(s, log=T)})
+        
+        new.sample.simulations = unlist(lapply(new.sample, function(x) {x@simulations}))
+        
+        sample.likelihoods = sapply(new.sample.simulations, function(s) {likelihood$compute(s, log=T)})
         
         # update the value of the scaling constant "l"
         l.new = max(l, sample.likelihoods)

@@ -168,7 +168,7 @@ make.age.strata.names <- function(endpoints=NULL,
     
     rv = paste0(lowers, "-", uppers-1, " years")
     rv[is.infinite(uppers)] = paste0(lowers[is.infinite(uppers)], "+ years")
-    rv[(lowers+1)==uppers] = paste0(lowers, " years")
+    rv[(lowers+1)==uppers] = paste0(lowers[(lowers+1)==uppers], " years")
     rv[lowers==1 & uppers==2] = '1 year'
     
     rv
@@ -453,7 +453,6 @@ restratify.age.counts <- function(counts,
                                               check.consistency=F)
         
         rv = smoother(lower = parsed.desired.brackets$lower, upper = parsed.desired.brackets$upper)
-        
         names(rv) = parsed.desired.brackets$names
     }
     
@@ -712,7 +711,7 @@ parse.age.brackets <- function(age.brackets,
         upper = parsed.age.brackets$upper
         mapped.mask = parsed.age.brackets$mapped.mask
         
-        names = age.brackets
+        names = age.brackets[o]
     }    
     else if (is.numeric(age.brackets))
     {

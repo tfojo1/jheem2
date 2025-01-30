@@ -774,6 +774,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                               location,
                               sub.version,
                               data.manager,
+                              additional.weights,
                               throw.error.if.no.data,
                               error.prefix) {
             super$initialize(
@@ -781,6 +782,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 version = version,
                 sub.version = sub.version,
                 location = location,
+                additional.weights = additional.weights,
                 error.prefix = error.prefix
             )
 
@@ -980,6 +982,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                                     stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function did not return a numeric array with the same dimnames as the data"))
                                 if (any(is.na(p.error.data)))
                                     stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function returned at least one NA and must not"))
+                                
+                                p.error.data = p.error.data**2
                             }
                             
                             # One vector per error var term, even those that don't involve data

@@ -1316,6 +1316,7 @@ track.transition <- function(specification,
 #'
 #'@inheritParams track.dynamic.outcome
 #'
+#'@param force.dim.names.to.keep.dimensions A logical indicating whether the dim.names of the outcome should be forced to match keep.dimensions (based on dimension values in compartments.for.infected.only, compartments.for.uninfected.only, and compartments.for.infected.and.uninfected) regardless of the dimensions of the underlying model quantities that it comprises.
 #'@param value.to.integrate Either (1) a single character value referencing a separately-registered "point" (non-cumulative) outcome or a quantity, or (2) an expression that includes only the names of point outcomes and model quantities and operators +, -, *, /, ^, sqrt, log, and exp
 #'@param value.is.numerator In the case where the outcome's scale is proportion, rate, or ratio (any scale that results from a numerator or a denominator), an indicator of whether the value.to.integrate represents just the numerator or the actual proportion/rate/ratio
 #'
@@ -1335,6 +1336,7 @@ track.integrated.outcome <- function(specification,
                                      exclude.dimensions = NULL,
                                      subset.dimension.values = NULL,
                                      rename.dimension.values = NULL,
+                                     force.dim.names.to.keep.dimensions = F,
                                      dimension.aliases = NULL,
                                      dimension.alias.suffix = NULL,
                                      scale = NULL,
@@ -1357,6 +1359,7 @@ track.integrated.outcome <- function(specification,
                                            exclude.dimensions = exclude.dimensions,
                                            subset.dimension.values = subset.dimension.values,
                                            rename.dimension.values = rename.dimension.values,
+                                           force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
                                            dimension.aliases = dimension.aliases,
                                            dimension.alias.suffix = dimension.alias.suffix,
                                            from.year = from.year,
@@ -1369,7 +1372,7 @@ track.integrated.outcome <- function(specification,
 #'
 #'@details Creates a cumulative outcome to track by combining other cumulative outcomes and static quantities
 #'
-#'@inheritParams track.dynamic.outcome
+#'@inheritParams track.integrated.outcome
 #'
 #'@param value Either (1) a single character value referencing a separately-registered cumulative outcome or a static (value does not change over time) quantity, or (2) an expression that includes only the names of cumulative outcomes and static model quantities and operators +, -, *, /, ^, sqrt, log, and exp
 #'@param denominator.outcome A denominator for aggregating the outcome or calculating proportions. Required if the scale of this outcome is not 'number' or 'non.negative.number', otherwise optional. Must be the name of a separately registered cumulative outcome that has type 'non.negative.number'
@@ -1389,6 +1392,7 @@ track.cumulative.outcome <- function(specification,
                                      exclude.dimensions = NULL,
                                      subset.dimension.values = NULL,
                                      rename.dimension.values = NULL,
+                                     force.dim.names.to.keep.dimensions = F,
                                      dimension.aliases = NULL,
                                      dimension.alias.suffix = NULL,
                                      scale = NULL,
@@ -1410,6 +1414,7 @@ track.cumulative.outcome <- function(specification,
                                          exclude.dimensions = exclude.dimensions,
                                          subset.dimension.values = subset.dimension.values,
                                          rename.dimension.values = rename.dimension.values,
+                                         force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
                                          dimension.aliases = dimension.aliases,
                                          dimension.alias.suffix = dimension.alias.suffix,
                                          scale = scale,
@@ -1441,6 +1446,7 @@ track.point.outcome <- function(specification,
                                 exclude.dimensions = NULL,
                                 subset.dimension.values = NULL,
                                 rename.dimension.values = NULL,
+                                force.dim.names.to.keep.dimensions = F,
                                 dimension.aliases = NULL,
                                 dimension.alias.suffix = NULL,
                                 scale = NULL,
@@ -1462,6 +1468,7 @@ track.point.outcome <- function(specification,
                                       exclude.dimensions = exclude.dimensions,
                                       subset.dimension.values = subset.dimension.values,
                                       rename.dimension.values = rename.dimension.values,
+                                      force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
                                       dimension.aliases = dimension.aliases,
                                       dimension.alias.suffix = dimension.alias.suffix,
                                       scale = scale,
@@ -1474,7 +1481,7 @@ track.point.outcome <- function(specification,
 #'
 #'@details Calculates a proportion derived from having a 'compartment' which people leave at a given rate, and calculates the proportion who either leave or remain in that compartment over time
 #'
-#'@inheritParams track.dynamic.outcome
+#'@inheritParams track.integrated.outcome
 #'
 #'@param rate.value The rate to be integrated. Either (1) a single character value referencing a separately-registered "point" (non-cumulative) outcome or a quantity, or (2) an expression that includes only the names of point outcomes and model quantities and operators +, -, *, /, ^, sqrt, log, and exp
 #'@param denominator.outcome A denominator for aggregating the outcome or calculating proportions. Required if the scale of this outcome is not 'number' or 'non.negative.number', otherwise optional. Must be the name of a separately registered cumulative outcome that has type 'non.negative.number'
@@ -1494,6 +1501,7 @@ track.cumulative.proportion.from.rate <- function(specification,
                                                   exclude.dimensions = NULL,
                                                   subset.dimension.values = NULL,
                                                   rename.dimension.values = NULL,
+                                                  force.dim.names.to.keep.dimensions = F,
                                                   dimension.aliases = NULL,
                                                   dimension.alias.suffix = NULL,
                                                   from.year = -Inf,
@@ -1514,6 +1522,7 @@ track.cumulative.proportion.from.rate <- function(specification,
                                                         exclude.dimensions = exclude.dimensions,
                                                         subset.dimension.values = subset.dimension.values,
                                                         rename.dimension.values = rename.dimension.values,
+                                                        force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
                                                         dimension.aliases = dimension.aliases,
                                                         dimension.alias.suffix = dimension.alias.suffix,
                                                         from.year = from.year,
@@ -2597,9 +2606,9 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                           error.prefix = error.prefix)   
         },
 
-        ##---------------------------------##
-        ##-- REGISTER TRACKED QUANTITIES --##
-        ##---------------------------------##
+        ##-------------------------------##
+        ##-- REGISTER TRACKED OUTCOMES --##
+        ##-------------------------------##
 
         
         track.dynamic.outcome = function(name,
@@ -2734,6 +2743,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                             exclude.dimensions = NULL,
                                             subset.dimension.values = NULL,
                                             rename.dimension.values = NULL,
+                                            force.dim.names.to.keep.dimensions = F,
                                             dimension.aliases = NULL,
                                             dimension.alias.suffix = NULL,
                                             from.year = -Inf,
@@ -2754,6 +2764,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    exclude.dimensions = exclude.dimensions,
                                                    subset.dimension.values = subset.dimension.values,
                                                    rename.dimension.values = rename.dimension.values,
+                                                   force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
                                                    dimension.aliases = dimension.aliases,
                                                    dimension.alias.suffix = dimension.alias.suffix,
                                                    from.year = from.year,
@@ -2780,6 +2791,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                             exclude.dimensions = NULL,
                                             subset.dimension.values = NULL,
                                             rename.dimension.values = NULL,
+                                            force.dim.names.to.keep.dimensions = F,
                                             dimension.aliases = NULL,
                                             dimension.alias.suffix = NULL,
                                             scale = NULL,
@@ -2799,6 +2811,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    exclude.dimensions = exclude.dimensions,
                                                    subset.dimension.values = subset.dimension.values,
                                                    rename.dimension.values = rename.dimension.values,
+                                                   force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
                                                    dimension.aliases = dimension.aliases,
                                                    dimension.alias.suffix = dimension.alias.suffix,
                                                    from.year = from.year,
@@ -2825,6 +2838,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                        exclude.dimensions = NULL,
                                        subset.dimension.values = NULL,
                                        rename.dimension.values = NULL,
+                                       force.dim.names.to.keep.dimensions = F,
                                        dimension.aliases = NULL,
                                        dimension.alias.suffix = NULL,
                                        scale = NULL,
@@ -2844,6 +2858,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                               exclude.dimensions = exclude.dimensions,
                                               subset.dimension.values = subset.dimension.values,
                                               rename.dimension.values = rename.dimension.values,
+                                              force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
                                               dimension.aliases = dimension.aliases,
                                               dimension.alias.suffix = dimension.alias.suffix,
                                               scale = scale,
@@ -2870,6 +2885,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                          exclude.dimensions = NULL,
                                                          subset.dimension.values = NULL,
                                                          rename.dimension.values = NULL,
+                                                         force.dim.names.to.keep.dimensions = F,
                                                          dimension.aliases = NULL,
                                                          dimension.alias.suffix = NULL,
                                                          from.year = -Inf,
@@ -2888,6 +2904,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                            exclude.dimensions = exclude.dimensions,
                                                            subset.dimension.values = subset.dimension.values,
                                                            rename.dimension.values = rename.dimension.values,
+                                                           force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
                                                            dimension.aliases = dimension.aliases,
                                                            dimension.alias.suffix = dimension.alias.suffix,
                                                            from.year = from.year,
@@ -3689,6 +3706,12 @@ MODEL.QUANTITY = R6::R6Class(
                                                        dimension.aliases, 
                                                        error.prefix)
         {
+            if (private$i.name == 'single.year.age.sexual.availability')
+            {
+                if (length(max.dim.names)>1)
+                    stop('trigger error')
+            }
+            
             # Set the max dim names
             private$i.maximum.dim.names = max.dim.names
             
@@ -4036,37 +4059,91 @@ recursively.set.dim.names.and.aliases <- function(quantity,
                                                   dimension.aliases,
                                                   error.prefix)
 {
-    quantity$set.dim.names.and.dimension.aliases(max.dim.names = max.dim.names,
-                                              required.dim.names = required.dim.names,
-                                              max.dimensions = max.dimensions,
-                                              dimension.aliases = dimension.aliases,
-                                              error.prefix = paste0(error.prefix, "Cannot set aliases when recursively setting dimnames for quantity ", quantity$get.original.name(specification$version), " - "))
-    
-    for (dep.on.name in quantity$depends.on)
+    if (is.null(quantity$max.dim.names))
     {
-        dep.on.quant = specification$get.quantity(dep.on.name)
-        recursively.set.dim.names.and.aliases(quantity = dep.on.quant,
-                                              specification = specification,
-                                              max.dim.names = max.dim.names,
-                                              required.dim.names = required.dim.names,
-                                              max.dimensions = max.dimensions,
-                                              dimension.aliases = dimension.aliases,
-                                              error.prefix = error.prefix)
-    }
-    
-    for (possible.parent.quant in specification$quantities)
-    {
-        if (is.null(possible.parent.quant$max.dim.names) && any(possible.parent.quant$depends.on==quantity$name))
-        {
-            recursively.set.dim.names.and.aliases(quantity = possible.parent.quant,
-                                                  specification = specification,
-                                                  max.dim.names = max.dim.names,
+        quantity$set.dim.names.and.dimension.aliases(max.dim.names = max.dim.names,
                                                   required.dim.names = required.dim.names,
                                                   max.dimensions = max.dimensions,
                                                   dimension.aliases = dimension.aliases,
-                                                  error.prefix = error.prefix)
+                                                  error.prefix = paste0(error.prefix, "Cannot set aliases when recursively setting dimnames for quantity ", quantity$get.original.name(specification$version), " - "))
+
+        for (comp in quantity$components)
+        {
+            if (comp$value.type != 'function')
+            {
+                max.dim.names.to.recurse.with = max.dim.names
+                if (length(comp$applies.to)>0)
+                    max.dim.names[names(comp$applies.to)] = comp$applies.to
+                
+                for (dep.on.name in comp$depends.on)
+                {
+                    dep.on.quant = specification$get.quantity(dep.on.name)
+                    recursively.set.dim.names.and.aliases(quantity = dep.on.quant,
+                                                          specification = specification,
+                                                          max.dim.names = max.dim.names.to.recurse.with,
+                                                          required.dim.names = NULL,
+                                                          max.dimensions = max.dimensions,
+                                                          dimension.aliases = dimension.aliases,
+                                                          error.prefix = error.prefix)
+                }
+            }
+        }
+        
+        # For now, we're not going to try to recurse up to set parent dim names that way (bottom up)
+        # for (possible.parent.quant in specification$quantities)
+        # {
+        #     if (is.null(possible.parent.quant$max.dim.names) && any(possible.parent.quant$depends.on==quantity$name))
+        #     {
+        #         recursively.set.dim.names.and.aliases(quantity = possible.parent.quant,
+        #                                               specification = specification,
+        #                                               max.dim.names = max.dim.names,
+        #                                               required.dim.names = NULL,
+        #                                               max.dimensions = max.dimensions,
+        #                                               dimension.aliases = dimension.aliases,
+        #                                               error.prefix = error.prefix)
+        #     }
+        # }
+    }
+    else
+    {
+        quant.max.dim.names = apply.outcome.dimension.aliases.to.dim.names(specification,
+                                                                           quantity$max.dim.names)
+        extra.dimensions.in.quantity = setdiff(names(quant.max.dim.names), names(max.dim.names))
+        if (length(extra.dimensions.in.quantity)>0)
+            stop(paste0(error.prefix,
+                        "The calculated possible dimensions which quantity ", quantity$get.original.name(specification$version),
+                        ", on which the outcome (ultimately) depends, can have, are broader than the inferred dimensions for the outcome. ",
+                        ifelse(length(extra.dimensions.in.quantity)==1, "Dimension ", "Dimensions "),
+                        collapse.with.and("'", extra.dimensions.in.quantity, "'"),
+                        " present in the quantity ('", quantity$get.original.name(specification$version),
+                        "') but not in the outcome ('",
+                        specification$get.original.name(specification$version),"')"))
+        
+        
+        missing.values.per.dimension = sapply(names(quant.max.dim.names), function(d){
+            setdiff(max.dim.names[[d]], quant.max.dim.names[[d]])
+        })
+        dimensions.with.missing.mask = sapply(missing.values.per.dimension, length)>0
+        
+        if (any(dimensions.with.missing.mask))
+        {
+            dimensions = names(quant.max.dim.names)
+            dimensions.with.missing = dimensions[dimensions.with.missing.mask]
+            missing.values.text = sapply(missing.values.per.dimension[dimensions.with.missing.mask], function(val){
+                if (length(val)==1)
+                    paste0("value '", val, "'")
+                else
+                    paste0("values ", collapse.with.and("'", val, "'"))
+            })
+            
+            error.details = paste0("Dimension values which are present in the calculated dim.names of quantity ", quantity$get.original.name(specification$version),
+                                   ", on which the outcome (ultimately) depends, are missing from the outcome's dim.names: ",
+                                   paste0("Dimension '", dimensions.with.missing, "' is missing ", missing.values.text,
+                                          collapse='. '),
+                                   ".")
         }
     }
+    
 }
 
 
@@ -7151,6 +7228,7 @@ MODEL.OUTCOME = R6::R6Class(
                               exclude.dimensions,
                               subset.dimension.values,
                               rename.dimension.values,
+                              force.dim.names.to.keep.dimensions,
                               save,
                               from.year,
                               to.year,
@@ -7342,7 +7420,9 @@ MODEL.OUTCOME = R6::R6Class(
 
             }
             
-            
+            # Validate force.dim.names.to.keep.dimensions
+            if (!is.logical(force.dim.names.to.keep.dimensions) || length(force.dim.names.to.keep.dimensions)!=1 || is.na(force.dim.names.to.keep.dimensions))
+                stop(paste0(error.prefix, "'force.dim.names.to.keep.dimensions' must be a single, non-NA logical value (ie, TRUE or FALSE)"))
             
             # Store variables
             private$i.name = private$i.original.name = name
@@ -7363,6 +7443,7 @@ MODEL.OUTCOME = R6::R6Class(
             private$i.to.year = to.year
             private$i.dimension.alias.suffix = dimension.alias.suffix
             private$i.dimension.aliases = dimension.aliases
+            private$i.force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions
         },
         
         compile = function(specification, error.prefix)
@@ -7452,135 +7533,210 @@ MODEL.OUTCOME = R6::R6Class(
             # Nothing to do in default version of the method
         },
         
-        derive.dim.names = function(specification, all.outcomes, error.prefix, set=F)
+        derive.dim.names = function(specification, all.outcomes, error.prefix, already.calculated.dim.names=new.env(), set=F)
         {
             error.prefix = paste0(error.prefix, "Cannot derive dim.names for outcome ",
                                   self$get.original.name(specification$version), " - ")
             
-            dim.names = max.dim.names = 
-                private$derive.max.dim.names(specification = specification, 
-                                             all.outcomes = all.outcomes,
-                                             include.denominator.outcome = F,
-                                             error.prefix = error.prefix)
-            
-            if (set && is.null(dim.names) && length(private$i.keep.dimensions)>0)
+            if (!is.null(already.calculated.dim.names[[private$i.name]]))
+                already.calculated.dim.names[[private$i.name]]
+            else
             {
-                # Would it be better to do a top-down calculation here?
+                dim.names = max.dim.names = 
+                    private$derive.max.dim.names(specification = specification, 
+                                                 all.outcomes = all.outcomes,
+                                                 include.denominator.outcome = F,
+                                                 throw.dim.names.errors = set,
+                                                 already.calculated.dim.names = already.calculated.dim.names,
+                                                 error.prefix = error.prefix)
                 
-                invalid.dimensions = setdiff(private$i.keep.dimensions, names(specification$ontologies$all))
-                if (length(invalid.dimensions)>0)
+                if (set && is.null(dim.names) && length(private$i.keep.dimensions)>0)
                 {
-                    stop(paste0(error.prefix,
-                                "Outcome ", self$get.original.name(wrt.version=specification$version),
-                                " cannot infer its dim.names and so will derive them from the specifications ontologies. However, ",
-                                ifelse(length(invalid.dimensions)==1, "dimension ", "dimensions "),
-                                collapse.with.and("'", invalid.dimensions, "'"),
-                                " are not present in the specification ontologies"))
-                }
-                
-                dim.names = max.dim.names = specification$ontologies$all[private$i.keep.dimensions]
-            }
-            
-            if (set || !is.null(dim.names))
-            {
-                if (!is.null(private$i.keep.dimensions))
-                {
-                    missing.dimensions = setdiff(private$i.keep.dimensions, names(dim.names))
-                    if (length(missing.dimensions)>0)
+                    # Would it be better to do a top-down calculation here?
+                    
+                    invalid.dimensions = setdiff(private$i.keep.dimensions, names(specification$ontologies$all))
+                    if (length(invalid.dimensions)>0)
                     {
                         stop(paste0(error.prefix,
                                     "Outcome ", self$get.original.name(wrt.version=specification$version),
-                                    " has ",
-                                    ifelse(length(missing.dimensions)==1, "keep.dimension ", "keep.dimensions "),
-                                    collapse.with.and("'", missing.dimensions, "'"),
-                                    " but ",
-                                    ifelse(length(dim.names)==0,
-                                           "the derived dimensions for the outcome indicate it must be dimensionless",
-                                           paste0(ifelse(length(missing.dimensions)==1, " it is ", " they are "),
-                                                  "not present in the derived set of possible for the dimensions for the outcome (",
-                                                  collapse.with.and("'", names(dim.names), "'"), ")"))
-                                    ))
+                                    " cannot infer its dim.names and so will derive them from the specifications ontologies. However, ",
+                                    ifelse(length(invalid.dimensions)==1, "dimension ", "dimensions "),
+                                    collapse.with.and("'", invalid.dimensions, "'"),
+                                    " are not present in the specification ontologies"))
                     }
                     
-                    dim.names = dim.names[private$i.keep.dimensions]
+                    dim.names = max.dim.names = specification$ontologies$all[private$i.keep.dimensions]
                 }
                 
-                if (!is.null(private$i.exclude.dimensions))
+                if (set || !is.null(dim.names))
                 {
-                    dim.names = dim.names[setdiff(names(dim.names), private$i.exclude.dimensions)]
-                }
-            }
-            
-            
-            # Generate the renamed ontology
-            missing.rename.dimensions = setdiff(names(private$i.rename.dimension.values), names(dim.names))
-            if (length(missing.rename.dimensions)>0)
-            {
-                stop(paste0(error.prefix,
-                            "The rename.dimension.values argument for the outcome '",
-                            self$get.original.name(specification$version), 
-                            "' contained ",
-                            ifelse(length(missing.rename.dimensions)==1, "dimension ", "dimensions "),
-                            collapse.with.and("'", missing.rename.dimensions, "'"),
-                            ". ",
-                            ifelse(length(missing.rename.dimensions)==1, "It is", "They are"),
-                            " not present in the calculated dimnames for the outcome"))
-            }
-            
-            renamed.dim.names = do.rename.dim.names(outcome = self,
-                                                    dim.names,
-                                                    rename.dimension.values = private$i.rename.dimension.values,
-                                                    error.prefix = paste0(error.prefix, "Error renaming outcome's dimnames - "))
-            
-            
-            if (set)
-            {
-                # Check that the denominator can accommodate (are supsersets of) renamed.dim.names
-                if (!is.null(private$i.denominator.outcome))
-                {
-                    denominator.outcome = all.outcomes[[private$i.denominator.outcome]]
-                    denominator.dim.names = denominator.outcome$derive.dim.names(specification,
-                                                                                 all.outcomes = all.outcomes,
-                                                                                 error.prefix = error.prefix,
-                                                                                 set = F)
-                    denominator.dim.names = apply.outcome.dimension.aliases.to.dim.names(self,
-                                                                                         denominator.dim.names)
-                    
-                    subset.dimensions.missing.from.dim.names = setdiff(names(private$i.subset.dimension.values),
-                                                                       names(renamed.dim.names))
-                    subset.dimensions.missing.but.equal.to.denominator.subset.mask = vapply(subset.dimensions.missing.from.dim.names, function(d){
-                        setequal(private$i.subset.dimension.values[[d]], denominator.outcome$subset.dimension.values[[d]])
-                    }, FUN.VALUE = logical(1))
-                    subset.dimensions.missing.from.dim.names = subset.dimensions.missing.from.dim.names[!subset.dimensions.missing.but.equal.to.denominator.subset.mask]
-                    
-                    renamed.dim.names.plus.subset = as.list(renamed.dim.names)
-                    renamed.dim.names.plus.subset[subset.dimensions.missing.from.dim.names] = private$i.subset.dimension.values[subset.dimensions.missing.from.dim.names]
-      
-                    # A lot of work below into printing a useful error message
-                    if (!dim.names.are.subset(sub.dim.names=renamed.dim.names.plus.subset, super.dim.names=denominator.dim.names))
+                    if (!is.null(private$i.keep.dimensions))
                     {
-                        dimensions = names(renamed.dim.names.plus.subset)
-                        denominator.dimensions = names(denominator.dim.names)
-                        
-                        missing.dimensions = setdiff(dimensions, denominator.dimensions)
+                        missing.dimensions = setdiff(private$i.keep.dimensions, names(dim.names))
                         if (length(missing.dimensions)>0)
                         {
-                            error.details = paste0("The denominator outcome (with ",
-                                                   ifelse(length(denominator.dimensions)==0, "no dimensions",
-                                                          ifelse(length(denominator.dimensions)==1, "dimension", "dimensions")),
-                                                   collapse.with.and("'", denominator.dimensions, "'"),
-                                                   ") is missing ",
-                                                   ifelse(length(missing.dimensions)==1, "dimension ", "dimensions "),
-                                                   collapse.with.and("'", missing.dimensions, "'"),
-                                                   ", which are present in the outcome's calculated dimensions.")
+                            stop(paste0(error.prefix,
+                                        "Outcome ", self$get.original.name(wrt.version=specification$version),
+                                        " has ",
+                                        ifelse(length(missing.dimensions)==1, "keep.dimension ", "keep.dimensions "),
+                                        collapse.with.and("'", missing.dimensions, "'"),
+                                        " but ",
+                                        ifelse(length(dim.names)==0,
+                                               "the derived dimensions for the outcome indicate it must be dimensionless",
+                                               paste0(ifelse(length(missing.dimensions)==1, " it is ", " they are "),
+                                                      "not present in the derived set of possible for the dimensions for the outcome (",
+                                                      collapse.with.and("'", names(dim.names), "'"), ")"))
+                                        ))
                         }
-                        else
+                        
+                        dim.names = dim.names[private$i.keep.dimensions]
+                    }
+                    
+                    if (!is.null(private$i.exclude.dimensions))
+                    {
+                        dim.names = dim.names[setdiff(names(dim.names), private$i.exclude.dimensions)]
+                    }
+                }
+                
+                
+                # Generate the renamed ontology
+                missing.rename.dimensions = setdiff(names(private$i.rename.dimension.values), names(dim.names))
+                if (length(missing.rename.dimensions)>0)
+                {
+                    stop(paste0(error.prefix,
+                                "The rename.dimension.values argument for the outcome '",
+                                self$get.original.name(specification$version), 
+                                "' contained ",
+                                ifelse(length(missing.rename.dimensions)==1, "dimension ", "dimensions "),
+                                collapse.with.and("'", missing.rename.dimensions, "'"),
+                                ". ",
+                                ifelse(length(missing.rename.dimensions)==1, "It is", "They are"),
+                                " not present in the calculated dimnames for the outcome"))
+                }
+                
+                renamed.dim.names = do.rename.dim.names(outcome = self,
+                                                        dim.names,
+                                                        rename.dimension.values = private$i.rename.dimension.values,
+                                                        error.prefix = paste0(error.prefix, "Error renaming outcome's dimnames - "))
+                
+                
+                if (set)
+                {
+                    # Check that the denominator can accommodate (are supsersets of) renamed.dim.names
+                    if (!is.null(private$i.denominator.outcome))
+                    {
+                        denominator.outcome = all.outcomes[[private$i.denominator.outcome]]
+                        denominator.dim.names = denominator.outcome$derive.dim.names(specification,
+                                                                                     all.outcomes = all.outcomes,
+                                                                                     error.prefix = error.prefix,
+                                                                                     already.calculated.dim.names = already.calculated.dim.names,
+                                                                                     set = F)
+                        denominator.dim.names = apply.outcome.dimension.aliases.to.dim.names(self,
+                                                                                             denominator.dim.names)
+                        
+                        subset.dimensions.missing.from.dim.names = setdiff(names(private$i.subset.dimension.values),
+                                                                           names(renamed.dim.names))
+                        subset.dimensions.missing.but.equal.to.denominator.subset.mask = vapply(subset.dimensions.missing.from.dim.names, function(d){
+                            setequal(private$i.subset.dimension.values[[d]], denominator.outcome$subset.dimension.values[[d]])
+                        }, FUN.VALUE = logical(1))
+                        subset.dimensions.missing.from.dim.names = subset.dimensions.missing.from.dim.names[!subset.dimensions.missing.but.equal.to.denominator.subset.mask]
+                        
+                        renamed.dim.names.plus.subset = as.list(renamed.dim.names)
+                        renamed.dim.names.plus.subset[subset.dimensions.missing.from.dim.names] = private$i.subset.dimension.values[subset.dimensions.missing.from.dim.names]
+          
+                        # A lot of work below into printing a useful error message
+                        if (!dim.names.are.subset(sub.dim.names=renamed.dim.names.plus.subset, super.dim.names=denominator.dim.names))
                         {
-                            missing.values.per.dimension = sapply(dimensions, function(d){
-                                setdiff(renamed.dim.names.plus.subset[[d]], denominator.dim.names[[d]])
-                            })
-                            dimensions.with.missing.mask = sapply(missing.values.per.dimension, length)>0
+                            dimensions = names(renamed.dim.names.plus.subset)
+                            denominator.dimensions = names(denominator.dim.names)
                             
+                            missing.dimensions = setdiff(dimensions, denominator.dimensions)
+                            if (length(missing.dimensions)>0)
+                            {
+                                error.details = paste0("The denominator outcome (with ",
+                                                       ifelse(length(denominator.dimensions)==0, "no dimensions",
+                                                              ifelse(length(denominator.dimensions)==1, "dimension", "dimensions")),
+                                                       collapse.with.and("'", denominator.dimensions, "'"),
+                                                       ") is missing ",
+                                                       ifelse(length(missing.dimensions)==1, "dimension ", "dimensions "),
+                                                       collapse.with.and("'", missing.dimensions, "'"),
+                                                       ", which are present in the outcome's calculated dimensions.")
+                            }
+                            else
+                            {
+                                missing.values.per.dimension = sapply(dimensions, function(d){
+                                    setdiff(renamed.dim.names.plus.subset[[d]], denominator.dim.names[[d]])
+                                })
+                                dimensions.with.missing.mask = sapply(missing.values.per.dimension, length)>0
+                                
+                                dimensions.with.missing = dimensions[dimensions.with.missing.mask]
+                                missing.values.text = sapply(missing.values.per.dimension[dimensions.with.missing.mask], function(val){
+                                    if (length(val)==1)
+                                        paste0("value '", val, "'")
+                                    else
+                                        paste0("values ", collapse.with.and("'", val, "'"))
+                                })
+                                
+                                error.details = paste0("Dimension values which are present in the outcome's calculated dim.names and subset.dimension.values are missing from the denominator's dim.names: ",
+                                                       paste0("Dimension '", dimensions.with.missing, "' is missing ", missing.values.text,
+                                                              collapse='. '),
+                                                       ".")
+                            }
+                            
+                            stop(paste0(error.prefix,
+                                        "The denominator outcome (",
+                                        denominator.outcome$get.original.name(specification$version),
+                                        ") cannot accomodate the dimensions for the outcome",
+                                        ifelse(private$i.value.is.numerator, '', ' prior to aggregating'),
+                                        ". ",
+                                        error.details))
+                        }
+                    }
+                    
+                    # Check that all quantities can accommodate (are subsets of) max.dim.names
+                    # (and confirm that quantities do not have NULL max.dim.names)
+                    for (quant in private$get.all.depends.on.quantities(specification, all.outcomes=all.outcomes, error.prefix=error.prefix))
+                    {
+                        if (is.null(quant$max.dim.names))
+                        {
+                            # I believe this is opening us up to an error here
+                            # the max dim names set here might be incompatible with max dim names set on the same quantity from
+                            #  this same block of code for another outcome
+                            #   will deal with it when it comes up
+                            recursively.set.dim.names.and.aliases(quantity = quant, 
+                                                                  specification = specification,
+                                                                  max.dim.names = max.dim.names,
+                                                                  required.dim.names = NULL,
+                                                                  max.dimensions = NULL,
+                                                                  dimension.aliases = NULL,
+                                                                  error.prefix = error.prefix)
+                            
+                            # stop(paste0(error.prefix,
+                            #             "The max.dim.names of quantity ", quant$get.original.name(specification$version),
+                            #             ", on which the outcome depends, cannot be inferred from the model specification"))
+                        }
+                        
+                        quant.max.dim.names = apply.outcome.dimension.aliases.to.dim.names(self,
+                                                                                           quant$max.dim.names)
+                        extra.dimensions.in.quantity = setdiff(names(quant.max.dim.names), names(max.dim.names))
+                        if (length(extra.dimensions.in.quantity)>0)
+                            stop(paste0(error.prefix,
+                                        "The calculated possible dimensions which quantity ", quant$get.original.name(specification$version),
+                                        ", on which the outcome depends, can have, are broader than the inferred dimensions for the outcome. ",
+                                        ifelse(length(extra.dimensions.in.quantity)==1, "Dimension ", "Dimensions "),
+                                        collapse.with.and("'", extra.dimensions.in.quantity, "'"),
+                                        " present in the quantity ('", quant$get.original.name(specification$version),
+                                        "') but not in the outcome ('",
+                                        self$get.original.name(specification$version),"')"))
+                        
+                        
+                        missing.values.per.dimension = sapply(names(quant.max.dim.names), function(d){
+                            setdiff(max.dim.names[[d]], quant.max.dim.names[[d]])
+                        })
+                        dimensions.with.missing.mask = sapply(missing.values.per.dimension, length)>0
+                        
+                        if (any(dimensions.with.missing.mask))
+                        {
                             dimensions.with.missing = dimensions[dimensions.with.missing.mask]
                             missing.values.text = sapply(missing.values.per.dimension[dimensions.with.missing.mask], function(val){
                                 if (length(val)==1)
@@ -7589,93 +7745,26 @@ MODEL.OUTCOME = R6::R6Class(
                                     paste0("values ", collapse.with.and("'", val, "'"))
                             })
                             
-                            error.details = paste0("Dimension values which are present in the outcome's calculated dim.names and subset.dimension.values are missing from the denominator's dim.names: ",
+                            error.details = paste0("Dimension values which are present in the calculated dim.names of quantity ", quant$get.original.name(specification$version),
+                                                   ", on which the outcome depends, are missing from the outcome's dim.names: ",
                                                    paste0("Dimension '", dimensions.with.missing, "' is missing ", missing.values.text,
                                                           collapse='. '),
                                                    ".")
                         }
-                        
-                        stop(paste0(error.prefix,
-                                    "The denominator outcome (",
-                                    denominator.outcome$get.original.name(specification$version),
-                                    ") cannot accomodate the dimensions for the outcome",
-                                    ifelse(private$i.value.is.numerator, '', ' prior to aggregating'),
-                                    ". ",
-                                    error.details))
                     }
+                
+                    # Set the ontologies
+                    to.be.incomplete = intersect(names(dim.names), incomplete.dimensions(specification$ontologies$all))
+                    private$i.unrenamed.ontology = as.ontology(dim.names, incomplete.dimensions = to.be.incomplete)
+                    private$i.ontology = as.ontology(renamed.dim.names, incomplete.dimensions = to.be.incomplete)
                 }
                 
-                # Check that all quantities can accommodate (are subsets of) max.dim.names
-                # (and confirm that quantities do not have NULL max.dim.names)
-                for (quant in private$get.all.depends.on.quantities(specification, all.outcomes=all.outcomes, error.prefix=error.prefix))
-                {
-                    if (is.null(quant$max.dim.names))
-                    {
-                        # I believe this is opening us up to an error here
-                        # the max dim names set here might be incompatible with max dim names set on the same quantity from
-                        #  this same block of code for another outcome
-                        #   will deal with it when it comes up
-                        recursively.set.dim.names.and.aliases(quantity = quant, 
-                                                              specification = specification,
-                                                              max.dim.names = max.dim.names,
-                                                              required.dim.names = NULL,
-                                                              max.dimensions = NULL,
-                                                              dimension.aliases = NULL,
-                                                              error.prefix = error.prefix)
-                        
-                        # stop(paste0(error.prefix,
-                        #             "The max.dim.names of quantity ", quant$get.original.name(specification$version),
-                        #             ", on which the outcome depends, cannot be inferred from the model specification"))
-                    }
-                    
-                    quant.max.dim.names = apply.outcome.dimension.aliases.to.dim.names(self,
-                                                                                       quant$max.dim.names)
-                    extra.dimensions.in.quantity = setdiff(names(quant.max.dim.names), names(max.dim.names))
-                    if (length(extra.dimensions.in.quantity)>0)
-                        stop(paste0(error.prefix,
-                                    "The calculated possible dimensions which quantity ", quant$get.original.name(specification$version),
-                                    ", on which the outcome depends, can have, are broader than the inferred dimensions for the outcome. ",
-                                    ifelse(length(extra.dimensions.in.quantity)==1, "Dimension ", "Dimensions "),
-                                    collapse.with.and("'", extra.dimensions.in.quantity, "'"),
-                                    " present in the quantity ('", quant$get.original.name(specification$version),
-                                    "') but not in the outcome ('",
-                                    self$get.original.name(specification$version),"')"))
-                    
-                    
-                    missing.values.per.dimension = sapply(names(quant.max.dim.names), function(d){
-                        setdiff(max.dim.names[[d]], quant.max.dim.names[[d]])
-                    })
-                    dimensions.with.missing.mask = sapply(missing.values.per.dimension, length)>0
-                    
-                    if (any(dimensions.with.missing.mask))
-                    {
-                        dimensions.with.missing = dimensions[dimensions.with.missing.mask]
-                        missing.values.text = sapply(missing.values.per.dimension[dimensions.with.missing.mask], function(val){
-                            if (length(val)==1)
-                                paste0("value '", val, "'")
-                            else
-                                paste0("values ", collapse.with.and("'", val, "'"))
-                        })
-                        
-                        error.details = paste0("Dimension values which are present in the calculated dim.names of quantity ", quant$get.original.name(specification$version),
-                                               ", on which the outcome depends, are missing from the outcome's dim.names: ",
-                                               paste0("Dimension '", dimensions.with.missing, "' is missing ", missing.values.text,
-                                                      collapse='. '),
-                                               ".")
-                    }
-                }
-            
-                # Set the ontologies
-                to.be.incomplete = intersect(names(dim.names), incomplete.dimensions(specification$ontologies$all))
-                private$i.unrenamed.ontology = as.ontology(dim.names, incomplete.dimensions = to.be.incomplete)
-                private$i.ontology = as.ontology(renamed.dim.names, incomplete.dimensions = to.be.incomplete)
+                renamed.dim.names
             }
-            
-            renamed.dim.names
         },
         
         
-        create.top.level.references = function(specification, all.outcomes, error.prefix)
+        create.top.level.references = function(specification, all.outcomes, already.calculated.dim.names, error.prefix)
         {
             dep.on.quantity.names = setdiff(union(self$depends.on.quantities,
                                                   self$depends.on.quantities.or.outcomes),
@@ -7686,6 +7775,8 @@ MODEL.OUTCOME = R6::R6Class(
             dim.names = private$derive.max.dim.names(specification = specification, 
                                                      all.outcomes = all.outcomes,
                                                      include.denominator.outcome = F,
+                                                     throw.dim.names.errors = F,
+                                                     already.calculated.dim.names = already.calculated.dim.names,
                                                      error.prefix = error.prefix)
             # 
             # if (is.null(dim.names))
@@ -7699,6 +7790,7 @@ MODEL.OUTCOME = R6::R6Class(
                 max.dimensions = names(denominator.outcome$derive.dim.names(specification,
                                                                             all.outcomes = all.outcomes,
                                                                             error.prefix = error.prefix,
+                                                                            already.calculated.dim.names = already.calculated.dim.names,
                                                                             set = F))
             }
             
@@ -8076,6 +8168,7 @@ MODEL.OUTCOME = R6::R6Class(
         i.rename.dimension.values = NULL,
         i.dimension.alias.suffix = NULL,
         i.dimension.aliases = NULL,
+        i.force.dim.names.to.keep.dimensions = NULL,
         
         i.save = NULL,
         
@@ -8088,17 +8181,21 @@ MODEL.OUTCOME = R6::R6Class(
         # will check the max possible dim.names to make sure they are compatible with subset.dimension.values
         derive.max.dim.names = function(specification, all.outcomes, 
                                         include.denominator.outcome,
+                                        throw.dim.names.errors,
+                                        already.calculated.dim.names,
                                         error.prefix)
         {
             dim.names = private$derive.max.possible.dim.names(specification = specification,
                                                               include.denominator.outcome = include.denominator.outcome,
                                                               all.outcomes = all.outcomes,
+                                                              already.calculated.dim.names = already.calculated.dim.names,
                                                               error.prefix = error.prefix)
-
-            if (!is.null(private$i.subset.dimension.values))
+            
+            if (!is.null(private$i.subset.dimension.values) && throw.dim.names.errors)
             {
                 missing.dimensions = setdiff(names(private$i.subset.dimension.values), names(dim.names))
                 if (length(missing.dimensions)>0)
+                {
                     stop(paste0(error.prefix,
                                 "Outcome ", self$get.original.name(wrt.version=specification$version),
                                 " has subset.dimension.values that include ",
@@ -8111,6 +8208,7 @@ MODEL.OUTCOME = R6::R6Class(
                                               "not present in the derived set of possible for the dimensions for the outcome (",
                                               collapse.with.and("'", names(dim.names), "'"), ")"))
                     ))
+                }
                 
                 for (d in names(private$i.subset.dimension.values))
                 {
@@ -8130,26 +8228,69 @@ MODEL.OUTCOME = R6::R6Class(
                 dim.names[names(private$i.subset.dimension.values)] = private$i.subset.dimension.values
             }
             
+            already.calculated.dim.names[[private$i.name]] = dim.names
+        
             dim.names
         },
         
         # max dim.names before taking into account subset.dimension.values
         derive.max.possible.dim.names = function(specification, all.outcomes, 
                                                  include.denominator.outcome,
+                                                 already.calculated.dim.names,
                                                  error.prefix)
         {
+            if (private$i.force.dim.names.to.keep.dimensions && !is.null(private$i.keep.dimensions))
+            {
+                keep.dimensions.not.in.ontologies = setdiff(private$i.keep.dimensions, names(specification$ontologies$all))
+                if (length(keep.dimensions.not.in.ontologies)>0)
+                    stop(paste0(error.prefix,
+                                "'keep.dimensions' include ",
+                                collapse.with.and("'", keep.dimensions.not.in.ontologies, "'"),
+                                ", but ",
+                                ifelse(length(keep.dimensions.not.in.ontologies)==1, "it is", "they are",
+                                       " not present as dimensions in the specification's 'compartments.for.uninfected.only', ",
+                                       "'compartments.for.infected.only', or 'compartments.for.infected.and.uninfected. ",
+                                       "Unless force.dim.names.to.keep.dimensions=F, keep.dimensions must come from these compartments")))
+                
+                forced.dim.names = as.list(specification$ontologies$all[private$i.keep.dimensions])
+                
+                forced.dim.names[names(private$i.subset.dimension.values)] = private$i.subset.dimension.values
+                
+                rv = forced.dim.names
+            }
+            else
+                rv = forced.dim.names = NULL
+            
+            
             dep.on.outcomes = private$get.all.depends.on.outcomes(all.outcomes = all.outcomes,
                                                                   include.denominator.outcome = include.denominator.outcome,
                                                                   error.prefix = error.prefix)
-
-            rv = NULL
 
             for (dep.on in dep.on.outcomes)
             {
                 dep.on.dim.names = dep.on$derive.dim.names(specification = specification,
                                                            all.outcomes = all.outcomes,
+                                                           already.calculated.dim.names = already.calculated.dim.names,
                                                            error.prefix = error.prefix)
                 dep.on.dim.names = apply.outcome.dimension.aliases.to.dim.names(self, dep.on.dim.names)
+                
+                if (!is.null(forced.dim.names) && !is.null(dep.on.dim.names))
+                {
+                    # All the dimensions in forced.dim.names must be present in dep.on.dim.names
+                    missing.dimensions = setdiff(names(forced.dim.names), names(dep.on.dim.names))
+                    if (length(missing.dimensions)>0)
+                    {
+                        stop(paste0(error.prefix,
+                                    "'keep.dimensions' includes ",
+                                    collapse.with.and("'", missing.dimensions, "'"),
+                                    ". However ",
+                                    ifelse(length(missing.dimensions)==1, "this is", "these are"),
+                                    " not present in the dim.names of outcome '",
+                                    dep.on$get.original.name(specification$version),
+                                    "', on which this outcome ."))
+                    }
+                }
+                
                 rv = intersect.shared.dim.names(rv, dep.on.dim.names)
             }
             
@@ -8157,9 +8298,43 @@ MODEL.OUTCOME = R6::R6Class(
                                                               all.outcomes = all.outcomes,
                                                               error.prefix = error.prefix)
 
+            dim.names.from.outcomes = rv
+            
             for (quant in dep.on.quantities)
             {
                 quant.max.dim.names = apply.outcome.dimension.aliases.to.dim.names(self, quant$max.dim.names)
+                
+                if (!is.null(forced.dim.names))
+                {
+                    excess.dimensions = setdiff(names(quant.max.dim.names), names(forced.dim.names))
+                    if (length(excess.dimensions)>0)
+                    {
+                        stop(paste0(error.prefix,
+                                    "The dimensions for quantity '", quant$name, "' include ",
+                                    collapse.with.and("'", excess.dimensions, "'"),
+                                    ". However ",
+                                    ifelse(length(missing.dimensions)==1, "this dimension is", "these dimensions are"),
+                                    " not present in the keep.dimensions and subset.dimensions of this outcome."))
+                    }
+                }
+                
+                if (!is.null(dim.names.from.outcomes))
+                {
+                    excess.dimensions = setdiff(names(quant.max.dim.names), names(dim.names.from.outcomes))
+                    if (length(excess.dimensions)>0)
+                    {
+                        stop(paste0(error.prefix,
+                                    "The dimensions for quantity '", quant$name, "' include ",
+                                    collapse.with.and("'", excess.dimensions, "'"),
+                                    ". However ",
+                                    ifelse(length(missing.dimensions)==1, "this dimension is", "these dimensions are"),
+                                    " not present in the outcome dim.names inferred from the other outcomes '",
+                                    private$i.name, "' depend on (",
+                                    collapse.with.and("'", dep.on.outcomes, "'"),
+                                    "'."))
+                    }
+                }
+                
                 if (!is.null(quant$max.dim.names))
                     rv = intersect.joined.dim.names(rv, quant.max.dim.names)
             }
@@ -8353,6 +8528,7 @@ INTRINSIC.MODEL.OUTCOME = R6::R6Class(
                              exclude.dimensions = NULL,
                              subset.dimension.values = NULL,
                              rename.dimension.values = NULL,
+                             force.dim.names.to.keep.dimensions = F,
                              save = save,
                              from.year = -Inf,
                              to.year = Inf,
@@ -8402,6 +8578,7 @@ INTRINSIC.MODEL.OUTCOME = R6::R6Class(
         
         derive.max.possible.dim.names = function(specification, all.outcomes,  
                                                  include.denominator.outcome,
+                                                 already.calculated.dim.names,
                                                  error.prefix)
         {
             specification$ontologies[[private$i.ontology.name]]
@@ -8456,6 +8633,7 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
                              rename.dimension.values = rename.dimension.values,
                              dimension.aliases = dimension.aliases,
                              dimension.alias.suffix = dimension.alias.suffix,
+                             force.dim.names.to.keep.dimensions = F,
                              save = save,
                              from.year = from.year,
                              to.year = to.year)
@@ -8685,6 +8863,7 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
         
         derive.max.possible.dim.names = function(specification, all.outcomes,  
                                                  include.denominator.outcome,
+                                                 already.calculated.dim.names,
                                                  error.prefix)
         {
             # identify the relevant core components
@@ -8899,6 +9078,7 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                               exclude.dimensions,
                               subset.dimension.values,
                               rename.dimension.values,
+                              force.dim.names.to.keep.dimensions,
                               dimension.aliases,
                               dimension.alias.suffix,
                               scale,
@@ -8919,6 +9099,7 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                              exclude.dimensions = exclude.dimensions,
                              subset.dimension.values = subset.dimension.values,
                              rename.dimension.values = rename.dimension.values,
+                             force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
                              dimension.aliases = dimension.aliases,
                              dimension.alias.suffix = dimension.alias.suffix,
                              save = save,
@@ -9222,6 +9403,7 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
                               exclude.dimensions,
                               subset.dimension.values,
                               rename.dimension.values,
+                              force.dim.names.to.keep.dimensions,
                               dimension.aliases,
                               dimension.alias.suffix,
                               scale,
@@ -9242,6 +9424,7 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
                              exclude.dimensions = exclude.dimensions,
                              subset.dimension.values = subset.dimension.values,
                              rename.dimension.values = rename.dimension.values,
+                             force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
                              dimension.aliases = dimension.aliases,
                              dimension.alias.suffix = dimension.alias.suffix,
                              save = save,
@@ -9422,6 +9605,7 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                               exclude.dimensions = NULL,
                               subset.dimension.values = NULL,
                               rename.dimension.values = NULL,
+                              force.dim.names.to.keep.dimensions,
                               dimension.aliases = NULL,
                               dimension.alias.suffix = NULL,
                               save = T,
@@ -9451,6 +9635,7 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                              exclude.dimensions = exclude.dimensions,
                              subset.dimension.values = subset.dimension.values,
                              rename.dimension.values = rename.dimension.values,
+                             force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
                              dimension.aliases = dimension.aliases,
                              dimension.alias.suffix = dimension.alias.suffix,
                              save = save,
@@ -10522,6 +10707,7 @@ verify.dim.names.for.quantity <- function(dim.names,
         })
         
         if (any(mismatched.dimensions))
+        {
             stop(paste0(error.prefix,
                         variable.name.for.error, " does not match expected dimnames for ",
                         ifelse(component.index==1, '', paste0("the ", get.ordinal(component.index-1), " subset of ")),
@@ -10534,5 +10720,6 @@ verify.dim.names.for.quantity <- function(dim.names,
                                    " but ", variable.name.for.error, " has values ",
                                    collapse.with.and("'", dim.names[[d]], "'"))
                         }), collapse='\n') ))
+        }
     }
 }

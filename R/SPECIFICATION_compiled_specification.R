@@ -620,6 +620,8 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         i.quantity.name.mappings = NULL,
         i.element.name.mappings = NULL,
         
+        i.quantity.names.to.recalculate.dim.names = NULL,
+        
         #----------------------------------#
         #-- COMPILE FUNCTION and HELPERS --#
         #----------------------------------#
@@ -681,12 +683,14 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             }
             
             #-- (First of twice) Pull top-level references FROM OUTCOMES --#
+            already.calculated.dim.names = new.env()
             references.from.outcomes = list()
             for (outcome in outcomes.to.use)
             {
                 references.from.outcomes = c(references.from.outcomes,
                                              outcome$create.top.level.references(specification = self,
                                                                                  all.outcomes = outcomes.to.use,
+                                                                                 already.calculated.dim.names = already.calculated.dim.names,
                                                                                  error.prefix = error.prefix))
             }
             
@@ -829,11 +833,17 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             null.dim.names.mask = sapply(private$i.quantities, function(quant){
                 is.null(quant$max.dim.names)
             })
+            
+            private$i.quantity.names.to.recalculate.dim.names = list()
             for (quantity in private$i.quantities)
             {
                 if (is.null(quantity$max.dim.names))
                     private$calculate.quantity.dim.names.bottom.up(quantity, error.prefix=error.prefix)
             }
+            
+            # Now try again for quantity's that we can do top down after doing the bottom up
+            for (quantity.name in private$i.quantity.names.to.recalculate.dim.names)
+                private$calculate.quantity.dim.names(self$get.quantity(quantity.name), error.prefix=error.prefix)
             
             do.cat("done\n")
             
@@ -847,11 +857,13 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             # 2B: Update the top-level references from outcomes
             references.from.outcomes = list()
+            already.calculated.dim.names = new.env()
             for (outcome in outcomes.to.use)
             {
                 references.from.outcomes = c(references.from.outcomes,
                                              outcome$create.top.level.references(specification = self,
                                                                                  all.outcomes = outcomes.to.use,
+                                                                                 already.calculated.dim.names = already.calculated.dim.names,
                                                                                  error.prefix = error.prefix))
             }
             private$i.top.level.references = c(references.from.core.components, references.from.outcomes)
@@ -1550,7 +1562,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             max.dim.names = max.dim.names.and.aliases$dim.names
             dimension.aliases = max.dim.names.and.aliases$aliases
             max.dimensions = max.dim.names.and.aliases$dimensions
-            
+
             #-- Reconcile fixed.dim.names --#
             max.dim.names.and.aliases = private$incorporate.quantity.fixed.dimensions(quantity = quantity,
                                                                                       max.dim.names = max.dim.names,
@@ -1609,7 +1621,6 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 })
             }
             
-            
             #-- Set it and return --#
             quantity$set.dim.names.and.dimension.aliases(max.dim.names = max.dim.names,
                                                          required.dim.names = required.dim.names,
@@ -1628,13 +1639,40 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             #-- Step 1: Process the quantities this quantity depends on --#
             #   - make sure that each has max.dim.names set. if not, give up
             
+            any.dep.on.dim.names.are.present = F
+            dep.on.quantity.names.unknown.dimension = character()
             for (dep.on in quantity$depends.on)
             {
                 dep.on.quant = self$get.quantity(dep.on)
                 if (is.null(dep.on.quant$max.dim.names))
                     private$calculate.quantity.dim.names.bottom.up(quantity = dep.on.quant, error.prefix = error.prefix)
+                
                 if (is.null(dep.on.quant$max.dim.names))
-                    return() # we can't unless every depends on has dim.names set
+                    dep.on.quantity.names.unknown.dimension = c(dep.on.quantity.names.unknown.dimension, dep.on)
+                #return() # we can't unless every depends on has dim.names set
+                else
+                    any.dep.on.dim.names.are.present = T
+            }
+            
+            # If none of the quantities this depends on have dim.names, we're not
+            #   going to be able to calculate anything
+            # Just try to incorporate fixed dim names, then call it a day
+            if (!any.dep.on.dim.names.are.present)
+            {
+                final.dim.names.and.aliases = 
+                    private$incorporate.quantity.fixed.dimensions(quantity = quantity,
+                                                                  max.dim.names = NULL,
+                                                                  dimension.aliases = NULL,
+                                                                  apply.even.if.max.dim.names.null = T,
+                                                                  error.prefix = error.prefix)
+                
+                #-- Set it and return --#
+                quantity$set.dim.names.and.dimension.aliases(max.dim.names = final.dim.names.and.aliases$dim.names,
+                                                             required.dim.names = NULL,
+                                                             dimension.aliases = final.dim.names.and.aliases$aliases,
+                                                             error.prefix = paste0(error.prefix, "Cannot set aliases when calculating dimnames for quantity ", quantity$get.original.name(private$i.version), " - "))
+                
+                return()
             }
             
             #-- Step 2: Process each component and its applies.to --#
@@ -1668,34 +1706,36 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 for (dep.on in comp$depends.on)
                 {
                     dep.on.quant = self$get.quantity(dep.on)
-                    merged.with.applies.to.dn = intersect.joined.dim.names.with.reverse.aliases(dim.names.1 = dep.on.quant$max.dim.names, 
-                                                                                                aliases.1 = dep.on.quant$dimension.aliases,
-                                                                                                dim.names.2 = comp$applies.to,
-                                                                                                aliases.2 = character())
-                    
-                    # Make sure it fits into the applies.to for the component
-                    for (d in names(comp$applies.to))
+                    if (!is.null(dep.on.quant$max.dim.names))
                     {
-                        if (length(setdiff(comp$applies.to[[d]], merged.with.applies.to.dn$dim.names[[d]]))>0)
-                        {
-                            stop(paste0("Cannot infer dim.names, bottom-up, for quantity ",
-                                        quantity$get.original.name(wrt.version=self$version),
-                                        " - the dim.names of ",
-                                        dep.on.quant$get.original.name(wrt.version=self$version),
-                                        ", on which ",
-                                        quantity$get.original.name(wrt.version=self$version),
-                                        " depends, do not align with the applies.to setting for the ",
-                                        get.ordinal(i-1), " subset"))
-                        } 
-                    }
+                        merged.with.applies.to.dn = intersect.joined.dim.names.with.reverse.aliases(dim.names.1 = dep.on.quant$max.dim.names, 
+                                                                                                    aliases.1 = dep.on.quant$dimension.aliases,
+                                                                                                    dim.names.2 = comp$applies.to,
+                                                                                                    aliases.2 = character())
                     
-                    bk = comp.dn.and.aliases
-                    # Merge into the comp.dn
-                    comp.dn.and.aliases = 
-                        intersect.joined.dim.names.with.reverse.aliases(dim.names.1 = comp.dn.and.aliases$dim.names, 
-                                                                        aliases.1 = comp.dn.and.aliases$aliases,
-                                                                        dim.names.2 = merged.with.applies.to.dn$dim.names,
-                                                                        aliases.2 = merged.with.applies.to.dn$aliases)
+                        # Make sure it fits into the applies.to for the component
+                        for (d in names(comp$applies.to))
+                        {
+                            if (length(setdiff(comp$applies.to[[d]], merged.with.applies.to.dn$dim.names[[d]]))>0)
+                            {
+                                stop(paste0("Cannot infer dim.names, bottom-up, for quantity ",
+                                            quantity$get.original.name(wrt.version=self$version),
+                                            " - the dim.names of ",
+                                            dep.on.quant$get.original.name(wrt.version=self$version),
+                                            ", on which ",
+                                            quantity$get.original.name(wrt.version=self$version),
+                                            " depends, do not align with the applies.to setting for the ",
+                                            get.ordinal(i-1), " subset"))
+                            } 
+                        }
+                        
+                        # Merge into the comp.dn
+                        comp.dn.and.aliases = 
+                            intersect.joined.dim.names.with.reverse.aliases(dim.names.1 = comp.dn.and.aliases$dim.names, 
+                                                                            aliases.1 = comp.dn.and.aliases$aliases,
+                                                                            dim.names.2 = merged.with.applies.to.dn$dim.names,
+                                                                            aliases.2 = merged.with.applies.to.dn$aliases)
+                    }
                 }
                 
                 # Save the component's max dim.names and aliases
@@ -1801,6 +1841,38 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                                 collapse.with.and("'", comp$depends.on, "'"),
                                 ") do not overlap (their intersection is empty) and cannot be removed from the quantity's dependees"))
             }
+            
+            #-- STEP 5: Flag any dependee quantities with unknown dim.names for a top-down calculation of dim.names --#
+            
+            for (dep.on in dep.on.quantity.names.unknown.dimension)
+            {   
+                for (i in 1:quantity$n.components)
+                {
+                    comp = quantity$components[[i]]
+                    
+                    if (any(comp$depends.on == dep.on))
+                    {
+                        comp.dn.and.aliases = comp.max.dim.names.and.aliases[[i]]
+                        private$i.top.level.references = c(
+                            private$i.top.level.references,
+                            list(TOP.LEVEL.REFERENCE$new(specification = self,
+                                                         version = self$version,
+                                                         dim.names = comp.dn.and.aliases$dim.names,
+                                                         value.quantity.name = dep.on,
+                                                         source = paste0("After bottom-up names on  ", quantity$get.original.name(wrt.version=self$version)),
+                                                         applies.to = comp$applies.to,
+                                                         alias.suffix = NULL,
+                                                         for.core.component.type = NULL,
+                                                         dimension.aliases = comp.dn.and.aliases$aliases,
+                                                         error.prefix = error.prefix)))
+                    }
+                    
+                }
+            }
+            
+            private$i.quantity.names.to.recalculate.dim.names = union(private$i.quantity.names.to.recalculate.dim.names, dep.on.quantity.names.unknown.dimension)
+            
+            #-- RETURN --#
             
             invisible(self)
         },
@@ -1923,7 +1995,10 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 
                 if (apply.even.if.max.dim.names.null || !is.null(max.dim.names))
                 {
-                    fixed.dim.names = max.dim.names[quantity$fixed.dimensions]
+                    if (is.null(max.dim.names))
+                        fixed.dim.names = private$i.ontologies$all[quantity$fixed.dimensions]
+                    else
+                        fixed.dim.names = max.dim.names[quantity$fixed.dimensions]
                     fixed.dim.names[names(quantity$fixed.dimension.values)] = quantity$fixed.dimension.values
                     
                     if (!is.null(max.dim.names))
@@ -1949,7 +2024,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             }
             else if (!is.null(quantity$fixed.dimension.values)) # this echoes the logic above, but with some different error messages
             {
-                if (!is.null(max.dim.names))
+                if (!is.null(max.dim.names)) 
                 {
                     # make sure we are not missing any dimensions (after reconciling with aliases)
                     missing.from.max = setdiff(names(quantity$fixed.dimension.values), names(max.dim.names))
@@ -2459,6 +2534,7 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                               max.dimensions = NULL,
                               for.core.component.type,
                               alias.suffix,
+                              dimension.aliases = NULL,
                               error.prefix)
         {
             # Validate dim.names or ontology.name
@@ -2543,6 +2619,21 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
                     (alias.suffix != 'from' && alias.suffix != 'to'))
                     stop(paste0(error.prefix, "If it is not NULL, 'alias.suffix' for a ", self$descriptor,
                                 " must be a single, non-NA character value that is either 'from' or 'to'"))
+                
+                if (!is.null(dimension.aliases))
+                    stop(paste0(error.prefix, "'dimension.aliases' and 'alias.suffix' cannot BOTH be supplied. One or the other must be NULL"))
+            }
+            
+            # Validate dimension.aliases
+            if (!is.null(dimension.aliases))
+            {
+                if (!is.character(dimension.aliases) || any(is.na(dimension.aliases)))
+                    stop(paste0(error.prefix, "If it is not NULL, 'dimension.aliases' for a ", self$descriptor,
+                                " must be a non-empty character vector with no NA values"))
+                
+                if (length(dimension.aliases)>0 && is.null(names(dimension.aliases)))
+                    stop(paste0(error.prefix, "If it is not NULL, 'dimension.aliases' for a ", self$descriptor,
+                                " must be a NAMED character vector"))
             }
             
             # Validate for.core.component.type
@@ -2559,6 +2650,7 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
             private$i.type = type
             private$i.source = source
             private$i.alias.suffix = alias.suffix
+            private$i.dimension.aliases = dimension.aliases
             private$i.applies.to = applies.to
             private$i.required.sub.ontology.name = required.sub.ontology.name
             private$i.exclude.ontology.dimensions = exclude.ontology.dimensions
@@ -2678,7 +2770,9 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
         
         get.dimension.aliases = function(specification, error.prefix)
         {
-            if (is.null(private$i.alias.suffix))
+            if (!is.null(private$i.dimension.aliases))
+                private$i.dimension.aliases
+            else if (is.null(private$i.alias.suffix))
                 character()
             else
             {
@@ -2779,6 +2873,7 @@ TOP.LEVEL.REFERENCE = R6::R6Class(
         i.type = NULL,
         i.source = NULL,
         i.alias.suffix = NULL,
+        i.dimension.aliases = NULL,
         i.applies.to = NULL,
         i.required.sub.ontology.name = NULL,
         i.exclude.ontology.dimensions = NULL,
