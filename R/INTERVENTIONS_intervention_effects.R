@@ -141,6 +141,32 @@ create.intervention.effect <- function(quantity.name,
         rv
 }
 
+#' @param intervention.effect A 'jheem.intervention.effect' object that does not have a location or version set
+#' @param location
+#' @param specification.metadata A 'jheem.specification.metadata' object for the desired version. Its location need not match the location given as argument to this function.
+#' @return A new intervention effect that has location and version set
+#' @export
+anchor.intervention.effect.location.and.version <- function(intervention.effect,
+                                                            location,
+                                                            specification.metadata,
+                                                            error.prefix='')
+{
+    if (!R6::is.R6(intervention.effect) || !is(intervention.effect, 'jheem.intervention.effect'))
+        stop(paste0("Cannot 'anchor.intervention.effect.location.and.version': 'intervention.effect' must be a 'jheem.intervention.effect' object"))
+    
+    intervention.effect$anchor.location.and.version(location=location,
+                                                    specification.metadata=specification.metadata,
+                                                    error.prefix=error.prefix)
+}
+
+#' #@export
+resolve.intervention.effect <- function(intervention.effect,
+                                        bindings,
+                                        error.prefix='')
+{
+    1==2#
+}
+
 ##---------------------------##
 ##-- CONSTANTS and HELPERS --##
 ##---------------------------##
@@ -461,6 +487,7 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
                 rv
         },
         
+        ## WHAT DOES THIS DO? DOES IT RETURN A NEW INTERVENTION EFFECT?
         resolve = function(bindings, error.prefix='')
         {
             if (private$i.is.resolved)
@@ -533,26 +560,29 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
         
         equals = function(other)
         {
-            stop("need to finish implementing")
-            private$i.quantity.name == other$quantity.name &&
-                identical(private$i.version, other$version) &&
-                identical(private$i.location, other$location) 
+            # Do I need to check that are both int effect class?
+            if (!is(other, 'jheem.intervention.effect')) return(F)
             
-            # i.start.time = NULL,
-            # i.effect.values = NULL,
-            # i.times = NULL,
-            # i.end.time = NULL,
-            # i.all.times = NULL,
-            # i.apply.effects.as = NULL,
-            # i.scale = NULL,
-            # i.allow.values.less.than.otherwise = NULL,
-            # i.allow.values.greater.than.otherwise = NULL,
-            # i.bindings = NULL,
-            # i.depends.on = NULL,
-            # i.effect.values.depend.on = NULL,
-            # i.all.times.depend.on = NULL,
-            # i.is.resolved = NULL,
-            # i.times.are.resolved = NULL,
+            vars.to.check = c('quantity.name',
+                              'start.time',
+                              'effect.values',
+                              'times',
+                              'end.time',
+                              'apply.effects.as',
+                              'scale',
+                              'allow.values.less.than.otherwise',
+                              'allow.values.greater.than.otherwise',
+                              'bindings',
+                              'all.times',
+                              'location',
+                              'version',
+                              'error.prefix',
+                              'depends.on',
+                              'effect.values.depend.on',
+                              'all.times.depend.on',
+                              'is.resolved',
+                              'times.are.resolved')
+            all(sapply(vars.to.check, function(var) {identical(self[[var]], other[[var]])}))
         }
     ),
     
@@ -565,7 +595,6 @@ JHEEM.INTERVENTION.EFFECT = R6::R6Class(
             else
                 stop("Cannot set a jheem.intervention.effect's 'bindings' - they are read only")
         },
-        
         
         is.anchored = function(value)
         {
