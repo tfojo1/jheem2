@@ -176,6 +176,8 @@ join.standard.interventions <- function(interventions, code, name, parameter.dis
                                     "(", collapse.with.and("'", overlapping.parameter.names, "'"), ")",
                                     ifelse(length(overlapping.parameter.names)==1, "is", "are"),
                                     " referenced by the parameter.distribution from more than one intervention to combine. Consider explicitly specifying parameter.distribution in the call to join.interventions() to override automatic combination"))
+                    
+                    # join distributions
                 }
             }
         }

@@ -1507,7 +1507,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 })
                 # browser()
                 
-                # NOTE: We will no longer check the dimension values here, because that intereferes with the possibility of redistributing them.
+                # NOTE: We will no longer check the dimension values here, because that interferes with the possibility of redistributing them.
                 # Instead, we'll check like we already do in the put function
                 # data[dimensions] = resolve.ontology.dimension.values(ont=ont, dimension.values=data[dimensions],
                 # error.prefix=paste0(error.prefix, " Error resolving dimension values - "))
@@ -1526,11 +1526,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 })
                 na.mask = is.na(data[,'value'])
                 arr.data[indices.for.rows[!na.mask]] = data[!na.mask,'value']
-                
-                #            for (i in 1:nrow(data))
-                #            {
-                #                array.access(arr.data, dimension.values = as.list(data[i,dimensions])) = data[i,'value']
-                #            }
                 
                 #-- Pass through to main put function --#
                 self$put(outcome = outcome,

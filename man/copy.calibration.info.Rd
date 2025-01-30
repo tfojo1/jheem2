@@ -9,7 +9,8 @@ copy.calibration.info(
   to.code,
   n.iter = NULL,
   n.burn = NULL,
-  thin = NULL
+  thin = NULL,
+  solver.metadata = NULL
 )
 }
 \arguments{
