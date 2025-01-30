@@ -110,8 +110,6 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                               name,
                               overwrite.existing.intervention)
         {
-            #@Andrew
-            # browser()
             super$initialize(code = code,
                              name = name,
                              parameter.distribution = base.intervention$parameter.distribution,
@@ -228,7 +226,6 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         i.max.failure.rate = NULL,
         i.method = NULL,
         
-        #@Andrew - I think you'll need these, but feel free to remove
         # run-time parameters - updated for each run
         i.previous.parameter.means = NULL, # a vector that gets updated
         i.parameters.to.optimize.names = NULL,
@@ -243,10 +240,27 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         
         i.total.iterations = NULL,
         
-        # is.equal.to = function(other)
-        # {
-        #     stop("need to implement is.equal.to for criteria-based-intervention")
-        # },
+        is.equal.to = function(other)
+        {
+            # stop("need to implement is.equal.to for criteria-based-intervention")
+            # We've already checked the name and code. Need to check all our parameters,
+            # the base intervention, and the criteria.
+            params.to.check.equal = c('max.iterations',
+                                      'n.iterations.after.satisfying.criteria',
+                                      'max.iterations.first.sim',
+                                      'n.iterations.after.satisfying.criteria.first.sim',
+                                      'max.failure.rate',
+                                      'discount.prior.n')
+            
+            if (!private$i.base.intervention$equals(other$base.intervention)) F
+            
+            else if (!all(sapply(params.to.check.equal, function(param) {
+                identical(self[[param]], other[[param]])})))
+                F
+            
+            # Check completion criteria
+            else T
+        },
         
         prepare.to.run = function(engine, sim, keep.from.year, keep.to.year, verbose)
         {
@@ -973,7 +987,28 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
 
         equals = function(other)
         {
-            stop('need to implement equals for outcome-based criterion')
+            # stop('need to implement equals for outcome-based criterion')
+            
+            params.to.check.equal = c('parameter.name',
+                                      'outcome',
+                                      'parameter.scale',
+                                      'parameter.initial.value',
+                                      'min.acceptable.parameter.value',
+                                      'max.acceptable.parameter.value',
+                                      'target.value',
+                                      'min.acceptable.value',
+                                      'max.acceptable.value',
+                                      'subsequent.thresholds.apply.after.iteration',
+                                      'draw.parameter.from.previous.sims',
+                                      'score.metric',
+                                      'score.coefficient.of.variance')
+            
+            if (!is(other, 'monotonic.outcome.intervention.criterion')) F
+            
+            else if (!dimension.values.equal(self$dimension.values, other$dimension.values)) F
+            
+            else !all(sapply(params.to.check.equal, function(param) {
+                identical(self[[param]], other[[param]])}))
         },
         
         validate = function(jheem.kernel,
@@ -1061,6 +1096,78 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                 private$i.parameter.scale
             else
                 stop("Cannot modify 'parameter.scale' for a jheem.intervention - it is read-only")
+        },
+        
+        outcome = function(value)
+        {
+            if (missing(value))
+                private$i.outcome
+            else
+                stop("Cannot modify 'outcome' for a jheem.intervention - it is read-only")
+        },
+        
+        min.acceptable.parameter.value = function(value)
+        {
+            if (missing(value))
+                private$i.min.acceptable.parameter.value
+            else
+                stop("Cannot modify 'min.acceptable.parameter.value' for a jheem.intervention - it is read-only")
+        },
+        
+        max.acceptable.parameter.value = function(value)
+        {
+            if (missing(value))
+                private$i.max.acceptable.parameter.value
+            else
+                stop("Cannot modify 'max.acceptable.parameter.value' for a jheem.intervention - it is read-only")
+        },
+        
+        target.value = function(value)
+        {
+            if (missing(value))
+                private$i.target.value
+            else
+                stop("Cannot modify 'target.value' for a jheem.intervention - it is read-only")
+        },
+        
+        min.acceptable.value = function(value)
+        {
+            if (missing(value))
+                private$i.min.acceptable.value
+            else
+                stop("Cannot modify 'min.acceptable.value' for a jheem.intervention - it is read-only")
+        },
+        
+        max.acceptable.value = function(value)
+        {
+            if (missing(value))
+                private$i.max.acceptable.value
+            else
+                stop("Cannot modify 'max.acceptable.value' for a jheem.intervention - it is read-only")
+        },
+        
+        subsequent.thresholds.apply.after.iteration = function(value)
+        {
+            if (missing(value))
+                private$i.subsequent.thresholds.apply.after.iteration
+            else
+                stop("Cannot modify 'subsequent.thresholds.apply.after.iteration' for a jheem.intervention - it is read-only")
+        },
+        
+        score.metric = function(value)
+        {
+            if (missing(value))
+                private$i.score.metric
+            else
+                stop("Cannot modify 'score.metric' for a jheem.intervention - it is read-only")
+        },
+        
+        score.coefficient.of.variance = function(value)
+        {
+            if (missing(value))
+                private$i.score.coefficient.of.variance
+            else
+                stop("Cannot modify 'score.coefficient.of.variance' for a jheem.intervention - it is read-only")
         }
     ),
     

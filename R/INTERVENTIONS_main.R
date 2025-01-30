@@ -257,7 +257,7 @@ register.intervention <- function(intervention, overwrite.existing = F, error.pr
     # Is something already registered?
     if (!overwrite.existing) {
         already.registered = get.intervention(intervention$code, throw.error.if.missing = F)
-        if (!is.null(already.registered) && !already.registered$equals(intervention, trust.codes.to.indicate.equality = F))
+        if (!is.null(already.registered) && !already.registered$equals(intervention))
             stop(paste0("A different intervention has already been registered with the code '", intervention$code, "'"))
     }
 
@@ -472,14 +472,15 @@ JHEEM.INTERVENTION = R6::R6Class(
             stop("The method 'get.description' must be implemented in a descendant class of jheem.intervention")
         },
         
-        equals = function(other, trust.codes.to.indicate.equality=T)
+        equals = function(other)
         {
             if (!setequal(class(self), class(other)))
                 F
-            else if (trust.codes.to.indicate.equality &&
-                     !is.null(private$i.code) && !is.null(other$code) &&
-                     private$i.code == other$code)
-                T
+            else if (private$i.name != other$name)
+                F
+            else if (!distributions::distributions.equal(private$i.parameter.distribution,
+                                                         other$parameter.distribution))
+                F
             else
                 private$is.equal.to(other)
         },
@@ -580,9 +581,9 @@ JHEEM.INTERVENTION = R6::R6Class(
         
         is.equal.to = function(other)
         {
-            print("for now, testing equality of interventions with code alone")
-            F
-#            stop("The method 'is.equal.to' must be implemented in a descendant class of jheem.intervention")
+            # print("for now, testing equality of interventions with code alone")
+            # F
+           stop("The method 'is.equal.to' must be implemented in a descendant class of jheem.intervention")
         },
 
         do.validate = function(jheem.kernel,
