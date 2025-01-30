@@ -10,5 +10,5 @@
 #' @useDynLib jheem2, .registration = TRUE
 #' @import Rcpp
 #' @import locations
-#' @import odeintr
+#' @import deSolve
 NULL
