@@ -168,7 +168,7 @@ make.age.strata.names <- function(endpoints=NULL,
     
     rv = paste0(lowers, "-", uppers-1, " years")
     rv[is.infinite(uppers)] = paste0(lowers[is.infinite(uppers)], "+ years")
-    rv[(lowers+1)==uppers] = paste0(lowers, " years")
+    rv[(lowers+1)==uppers] = paste0(lowers[(lowers+1)==uppers], " years")
     rv[lowers==1 & uppers==2] = '1 year'
     
     rv
