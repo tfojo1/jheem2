@@ -1877,6 +1877,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 
                                 denominator.array = NULL
                                 for (denominator.source in denominator.sources) {
+                                    # Note: this might not return all of our desired incomplete dimension values
                                     denominator.array = self$pull(outcome = denominator.outcome,
                                                                   metric = 'estimate',
                                                                   keep.dimensions = strat.dimensions,
@@ -1917,6 +1918,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     stop(paste0(error.prefix, 'bug in aggregation code: denominator array dimensions cannot be mapped to main data dimensions'))
                                 
                                 # It's possible that we didn't find as many years or locations in the denominator as we did in the data.to.process
+                                # In fact, we might have lost years/locations that we needed to have according to our dimension.values
                                 if (!setequal(dimnames(denominator.array)$year, dimnames(data.to.process)$year) || !setequal(dimnames(denominator.array)$location, dimnames(data.to.process)$location))
                                     data.to.process = array.access(data.to.process, year=dimnames(denominator.array)$year, location=dimnames(denominator.array)$location)
                                 
@@ -1935,10 +1937,21 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 # Perform weighted average
                                 unmapped.numerator = data.to.process * denominator.array
                                 
-                                mapped.numerator = mapping.to.apply$apply(unmapped.numerator,
-                                                                          na.rm = na.rm,
-                                                                          to.dim.names = dimnames.for.apply,
-                                                                          fun = function.to.apply)
+                                
+                                ## I'D LIKE TO HAVE A CHECK FOR WHETHER THIS MAPPING CAN BE APPLIED, NOW THAT WE HAVE DIFFERENT DIMENSION VALUES, LIKE MISSING LOCATIONS
+                                ## BUT CHECK.CAN.APPLY.TO.DIM.NAMES METHOD OF MAPPINGS DOESN'T WORK YET
+                                # Context: Asking for Baltimore in dimnames.for.apply, but denominator data doesn't have it. The mapping will fail.
+                                probably.dont.have.needed.loc = F
+                                tryCatch({mapped.numerator = mapping.to.apply$apply(unmapped.numerator,
+                                                                                   na.rm = na.rm,
+                                                                                   to.dim.names = dimnames.for.apply,
+                                                                                   fun = function.to.apply)},
+                                         error=function(e) {probably.dont.have.needed.loc<<-T})
+                                if (probably.dont.have.needed.loc) {
+                                    incompatible.mapped.stratification<<-T
+                                    return(NULL)
+                                }
+                                
                                 mapped.denominator = mapping.to.apply$apply(denominator.array,
                                                                             na.rm = na.rm,
                                                                             to.dim.names = dimnames.for.apply,
