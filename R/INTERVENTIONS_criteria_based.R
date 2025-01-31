@@ -180,6 +180,9 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             private$i.max.failure.rate = max.failure.rate
             private$i.dx.discount.prior.n = discount.prior.n
             
+            # Register to the intervention manager
+            if (!is.null(code))
+                register.intervention(self, overwrite.existing = overwrite.existing.intervention)
         },
         
         get.intervention.foregrounds = function()
@@ -211,6 +214,54 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 private$i.base.intervention
             else
                 stop("Cannot modify 'base.intervention' for a jheem.intervention - it is read-only")
+        },
+        
+        completion.criteria = function(value)
+        {
+            if (missing(value))
+                private$i.completion.criteria
+            else
+                stop("Cannot modify 'completion.criteria' for a jheem.intervention - it is read-only")
+        },
+        
+        n.iterations.after.satisfying.criteria = function(value)
+        {
+            if (missing(value))
+                private$i.n.iterations.after.satisfying.criteria
+            else
+                stop("Cannot modify 'n.iterations.after.satisfying.criteria' for a jheem.intervention - it is read-only")
+        },
+        
+        max.iterations = function(value)
+        {
+            if (missing(value))
+                private$i.max.iterations
+            else
+                stop("Cannot modify 'max.iterations' for a jheem.intervention - it is read-only")
+        },
+        
+        n.iterations.after.satisfying.criteria.first.sim = function(value)
+        {
+            if (missing(value))
+                private$i.n.iterations.after.satisfying.criteria.first.sim
+            else
+                stop("Cannot modify 'n.iterations.after.satisfying.criteria.first.sim' for a jheem.intervention - it is read-only")
+        },
+        
+        max.iterations.first.sim = function(value)
+        {
+            if (missing(value))
+                private$i.max.iterations.first.sim
+            else
+                stop("Cannot modify 'max.iterations.first.sim' for a jheem.intervention - it is read-only")
+        },
+        
+        max.failure.rate = function(value)
+        {
+            if (missing(value))
+                private$i.max.failure.rate
+            else
+                stop("Cannot modify 'max.failure.rate' for a jheem.intervention - it is read-only")
         }
     ),
     
@@ -224,7 +275,6 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         i.n.iterations.after.satisfying.criteria.first.sim = NULL,
         i.max.iterations.first.sim = NULL,
         i.max.failure.rate = NULL,
-        i.method = NULL,
         
         # run-time parameters - updated for each run
         i.previous.parameter.means = NULL, # a vector that gets updated
@@ -242,7 +292,6 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         
         is.equal.to = function(other)
         {
-            # stop("need to implement is.equal.to for criteria-based-intervention")
             # We've already checked the name and code. Need to check all our parameters,
             # the base intervention, and the criteria.
             params.to.check.equal = c('max.iterations',
@@ -254,12 +303,14 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
             
             if (!private$i.base.intervention$equals(other$base.intervention)) F
             
-            else if (!all(sapply(params.to.check.equal, function(param) {
-                identical(self[[param]], other[[param]])})))
-                F
+            else if (!setequal(names(self$completion.criteria), names(other$completion.criteria))) F
             
-            # Check completion criteria
-            else T
+            else if (!all(sapply(names(private$i.completion.criteria), function(param.name) {
+                private$i.completion.criteria[[param.name]]$equals(other$completion.criteria[[param.name]])}))) F
+            
+            else all(sapply(params.to.check.equal, function(param) {
+                identical(self[[param]], other[[param]])}))
+            
         },
         
         prepare.to.run = function(engine, sim, keep.from.year, keep.to.year, verbose)
@@ -769,14 +820,12 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
                                          allow.duplicate.values.within.dimensions = F,
                                          error.prefix=error.prefix)
             
-            #@Todd didn't make these
             if (!is.character(score.metric) || length(score.metric)!=1 || is.na(score.metric))
                 stop(paste0(error.prefix, "'score.metric' must be a single character value"))
             if (!is.numeric(score.coefficient.of.variance) || length(score.coefficient.of.variance)!=1 || is.na(score.coefficient.of.variance) || score.coefficient.of.variance<=0)
                 stop(paste0(error.prefix, "'score.coefficient.of.variance' must be a single, positive numeric value")) # right?
             
             # Store variables
-            #@Andrew - store parameter stuff
             
             private$i.parameter.name = parameter.name
             private$i.parameter.scale = parameter.scale
@@ -795,7 +844,6 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             # private$i.stratify.outcome.by.dimensions = stratify.outcome.by.dimensions
             private$i.dimension.values = dimension.values
             
-            # Todd didn't make this:
             private$i.score.metric = score.metric
             private$i.coefficient.of.variance = score.coefficient.of.variance
         },
@@ -987,8 +1035,6 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
 
         equals = function(other)
         {
-            # stop('need to implement equals for outcome-based criterion')
-            
             params.to.check.equal = c('parameter.name',
                                       'outcome',
                                       'parameter.scale',
@@ -1007,7 +1053,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             
             else if (!dimension.values.equal(self$dimension.values, other$dimension.values)) F
             
-            else !all(sapply(params.to.check.equal, function(param) {
+            else all(sapply(params.to.check.equal, function(param) {
                 identical(self[[param]], other[[param]])}))
         },
         

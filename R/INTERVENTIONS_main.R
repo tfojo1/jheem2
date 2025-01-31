@@ -383,10 +383,6 @@ JHEEM.INTERVENTION = R6::R6Class(
             private$i.name = name
             private$i.code = code
             private$i.parameter.distribution = parameter.distribution
-
-            # Register to the intervention manager
-            if (!is.null(code))
-                register.intervention(self, overwrite.existing = overwrite.existing.intervention)
         },
         
         run = function(sim,
@@ -475,14 +471,15 @@ JHEEM.INTERVENTION = R6::R6Class(
         equals = function(other)
         {
             if (!setequal(class(self), class(other)))
-                F
-            else if (private$i.name != other$name)
-                F
-            else if (!distributions::distributions.equal(private$i.parameter.distribution,
-                                                         other$parameter.distribution))
-                F
-            else
-                private$is.equal.to(other)
+                return(F)
+            if (xor(is.null(private$i.parameter.distribution), is.null(other$parameter.distribution)))
+                return(F)
+            if (!is.null(private$i.parameter.distribution)) {
+                if (!distributions::distributions.equal(private$i.parameter.distribution,
+                                                        other$parameter.distribution))
+                    return(F)
+            }
+            else private$is.equal.to(other)
         },
         
         get.intervention.foregrounds = function()
@@ -608,6 +605,8 @@ NULL.INTERVENTION = R6::R6Class(
                              name = "No Intervention",
                              parameter.distribution = NULL,
                              overwrite.existing.intervention = F)
+            # Register to the intervention manager
+            register.intervention(self, overwrite.existing = F)
         },
         
         get.intervention.foregrounds = function()
@@ -661,6 +660,9 @@ SINGLE.ITERATION.INTERVENTION = R6::R6Class(
                              name = name,
                              parameter.distribution = parameter.distribution,
                              overwrite.existing.intervention = overwrite.existing.intervention)
+            # Register to the intervention manager
+            if (!is.null(code))
+                register.intervention(self, overwrite.existing = overwrite.existing.intervention)
         },
         
         
@@ -705,6 +707,9 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
                 frgd$quantity.name
             })
             private$i.foregrounds = private$i.foregrounds[order(names(private$i.foregrounds))]
+            # Register to the intervention manager
+            if (!is.null(code))
+                register.intervention(self, overwrite.existing = overwrite.existing.intervention)
         },
         
         get.description = function(jheem.kernel)
