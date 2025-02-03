@@ -56,6 +56,7 @@ JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                           sub.version = NULL,
                                           data.manager = get.default.data.manager(),
                                           throw.error.if.no.data = F,
+                                          verbose = F,
                                           error.prefix = "") {
             for (sub.instr in private$i.sub.instructions) {
                 rv <- tryCatch( # won't work for custom right now!
@@ -67,6 +68,7 @@ JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                                          data.manager = data.manager,
                                                          additional.weights = list(),
                                                          throw.error.if.no.data = throw.error.if.no.data,
+                                                         verbose = verbose,
                                                          error.prefix = error.prefix)
                     },
                     error = function(e) {
@@ -102,6 +104,7 @@ do.ifelse.instantiate.likelihood <- function(instructions,
                                              data.manager,
                                              additional.weights,
                                              throw.error.if.no.data,
+                                             verbose,
                                              error.prefix) {
     if (is.null(error.prefix)) {
         error.prefix <- paste0("Error initializing likelihood for '", instructions$outcome.for.sim, "': ")
@@ -121,6 +124,7 @@ do.ifelse.instantiate.likelihood <- function(instructions,
                                           data.manager = data.manager,
                                           additional.weights = additional.weights,
                                           throw.error.if.no.data = throw.error.if.no.data,
+                                          verbose = verbose,
                                           error.prefix = error.prefix)
             },
             error = function(e) {

@@ -1,5 +1,6 @@
 create.custom.likelihood.instructions <- function(name,
-                                                  compute.function) {
+                                                  compute.function,
+                                                  verbose = F) {
     JHEEM.CUSTOM.LIKELIHOOD.INSTRUCTIONS$new(name = name,
                                              compute.function = compute.function)
 }
@@ -48,7 +49,8 @@ JHEEM.CUSTOM.LIKELIHOOD <- R6::R6Class(
     inherit = JHEEM.LIKELIHOOD,
     portable = F, # necessary??
     public = list(
-        initialize = function(instructions) {
+        initialize = function(instructions,
+                              verbose) {
             
             # Purposely SKIP the super$initialize for likelihoods
             

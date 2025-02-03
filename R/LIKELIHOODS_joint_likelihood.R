@@ -64,6 +64,7 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                           sub.version = NULL,
                                           data.manager = get.default.data.manager(),
                                           throw.error.if.no.data = F,
+                                          verbose = F,
                                           error.prefix = "") {
             # Validate location
             # Check that these instructions are registered?
@@ -75,6 +76,7 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                        data.manager=data.manager,
                                        additional.weights=list(),
                                        throw.error.if.no.data = throw.error.if.no.data,
+                                       verbose = verbose,
                                        error.prefix=error.prefix)
         }
     ),
@@ -139,18 +141,26 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                               data.manager,
                               additional.weights,
                               throw.error.if.no.data,
+                              verbose,
                               error.prefix) {
             super$initialize(instructions = instructions,
                              version = version,
                              sub.version = sub.version,
                              location = location,
+                             verbose = verbose,
                              error.prefix = error.prefix
                              # additional.weights = additional.weights
             )
 
             private$i.sub.likelihoods <- lapply(instructions$sub.instructions, function(instr) {
+                
+                if (verbose)
+                    print(paste0("Instantiating sub '",
+                                 class(instr)[1], "' for '",
+                                 instr$name, "'..."))
+                
                 if (is(instr, 'jheem.custom.likelihood.instructions'))
-                    instr$instantiate.likelihood()
+                    instr$instantiate.likelihood(verbose = verbose)
                 else if (is(instr,'jheem.ifelse.likelihood.instructions'))
                     do.ifelse.instantiate.likelihood(instructions = instr,
                                                      version = version,
@@ -159,6 +169,7 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                                                      data.manager=data.manager,
                                                      additional.weights = instructions$additional.weights,
                                                      throw.error.if.no.data=throw.error.if.no.data,
+                                                     verbose = verbose,
                                                      error.prefix=error.prefix)
                 else
                     do.instantiate.likelihood(instructions = instr,
@@ -168,6 +179,7 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                                               data.manager=data.manager,
                                               additional.weights = instructions$additional.weights,
                                               throw.error.if.no.data=throw.error.if.no.data,
+                                              verbose = verbose,
                                               error.prefix=error.prefix)
             })
             
