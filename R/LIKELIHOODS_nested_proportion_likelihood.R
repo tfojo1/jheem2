@@ -1248,6 +1248,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 private$i.obs.error <- measurement.error.correlation.matrix * (total.measurement.error.sd %*% t(total.measurement.error.sd))
                 dim(private$i.obs.error) <- c(private$i.n.obs, private$i.n.obs)
                 
+                
                 # ------ THINGS THAT DEPEND ON OBSERVATION-LOCATIONS ------ #
                 observation.locations <- union(as.vector(unique(private$i.metadata$location)), location) # otherwise is factor
                 n.obs.locations <- length(observation.locations) # we have ensured the main location is always in here because it will be used for metalocations and therefore must be accounted for everywhere else too
@@ -1261,7 +1262,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     stop(paste0(error.prefix, "'", private$i.denominator.outcome.for.data, "' could not be found for the required observation locations"))
                 }
                 if (post.time.checkpoint.flag) print(paste0("Calculate obs.n: ", Sys.time()))
-                # browser()
+                
                 obs.n.info <- private$get.obs.n(
                     data.manager = data.manager,
                     stratification = model.stratification, # may be character(0)
@@ -1278,7 +1279,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 private$i.obs.n <- obs.n.info$obs.n
                 locations.with.n.data <- obs.n.info$locations.with.n.data
                 # missing stuff also stored in info
-                # browser()
+                
                 obs.n.cv <- NULL
                 obs.n.variance.inflation.if.estimated <- NULL
 
@@ -1298,6 +1299,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     stratum.transformation.array
                 })
 
+                
                 # ------ THINGS THAT DEPEND ON METALOCATION INFO ------ #
                 metalocation.info <- private$get.metalocations(
                     location = location,
@@ -1306,33 +1308,41 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 )
                 metalocation.type <- metalocation.info$metalocation.type
                 metalocation.to.minimal.component.map <- metalocation.info$metalocation.to.minimal.component.map
-                n.metalocations <- length(metalocation.type)
                 metalocation.to.obs.location.mapping <- metalocation.info$metalocation.to.obs.location.mapping
-
+                
+                # Find metalocations that have any n data. Others can be ignored. From here out 'n.metalocations' only includes these.
+                metalocations.with.n.data.mask <- apply(metalocation.to.obs.location.mapping[c(locations.with.n.data, location), ] != 0, 2, any)
+                metalocation.to.minimal.component.map <- metalocation.to.minimal.component.map[metalocations.with.n.data.mask]
+                metalocation.type <- metalocation.type[metalocations.with.n.data.mask]
+                n.metalocations <- sum(metalocations.with.n.data.mask)
+                metalocation.to.obs.location.mapping <- metalocation.to.obs.location.mapping[,metalocations.with.n.data.mask]
+                
+                # Make year-metalocation-to-year-obs-location-mapping
                 private$i.year.metalocation.to.year.obs.location.mapping <- array(0, dim = c(n.years, n.obs.locations, n.years, n.metalocations))
                 for (y in 1:n.years) {
                     private$i.year.metalocation.to.year.obs.location.mapping[y, , y, ] <- metalocation.to.obs.location.mapping
                 }
                 dim(private$i.year.metalocation.to.year.obs.location.mapping) <- c(n.obs.locations * n.years, n.metalocations * n.years)
-                private$i.year.metalocation.to.year.obs.location.mask <- apply(private$i.year.metalocation.to.year.obs.location.mapping != 0, 2, any)
-                private$i.year.metalocation.to.year.obs.location.mapping <-
-                    private$i.year.metalocation.to.year.obs.location.mapping[, private$i.year.metalocation.to.year.obs.location.mask]
-
+                
                 private$i.year.metalocation.to.obs.mapping <- lapply(1:n.strata, function(i) {
                     private$i.year.loc.stratum.to.obs.mapping[[i]] %*% private$i.year.metalocation.to.year.obs.location.mapping
                 })
-
-                year.metalocation.to.year.obs.n.mapping.per.stratum <- array(0, dim = c(n.years, length(locations.with.n.data) + 1, n.years, n.metalocations))
-                metalocation.info.for.conditioning <- metalocation.info$metalocation.to.obs.location.mapping[c(locations.with.n.data, location), ]
-                metalocation.info.for.conditioning <- metalocation.info.for.conditioning[, apply(metalocation.info.for.conditioning != 0, 2, any)]
-                n.metalocations.for.conditioning <- ncol(metalocation.info.for.conditioning)
+                
+                # Make year-metalocation-to-year-obs-n-mapping and
+                metalocation.info.for.conditioning.without.msa <- metalocation.to.obs.location.mapping[locations.with.n.data, ]
+                metalocation.info.for.conditioning <- metalocation.to.obs.location.mapping[c(locations.with.n.data, location), ]
+                year.metalocation.to.year.obs.n.mapping.per.stratum <- array(0, dim = c(n.years,
+                                                                                        length(locations.with.n.data) + 1,
+                                                                                        n.years,
+                                                                                        n.metalocations))
+                
                 for (y in 1:n.years) {
                     year.metalocation.to.year.obs.n.mapping.per.stratum[y, , y, ] <- metalocation.info.for.conditioning
                 }
-                dim(year.metalocation.to.year.obs.n.mapping.per.stratum) <- c((length(locations.with.n.data) + 1) * n.years, n.metalocations.for.conditioning * n.years)
+                dim(year.metalocation.to.year.obs.n.mapping.per.stratum) <- c((length(locations.with.n.data) + 1) * n.years, n.metalocations * n.years)
                 private$i.year.metalocation.to.year.obs.n.mapping <- rep(list(year.metalocation.to.year.obs.n.mapping.per.stratum), n.strata)
-                metalocation.info.for.conditioning.without.msa <- metalocation.info.for.conditioning[locations.with.n.data, ]
-
+                
+                
                 # --- N MULTIPLIERS --- #
                 if (post.time.checkpoint.flag) print(paste0("Calculate n multipliers: ", Sys.time()))
                 private$i.year.metalocation.n.multipliers <- private$get.n.multipliers(
@@ -1359,6 +1369,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 mult * private$i.parameters$n.multiplier.cv
             })
 
+            
             # --- P.BIAS --- #
             if (post.time.checkpoint.flag) print(paste0("Generate p bias matrices: ", Sys.time()))
             private$i.year.metalocation.p.bias <- private$get.p.bias.matrices(
@@ -1376,6 +1387,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 p.bias.out = instructions$parameters$p.bias.sd.outside.location
             )
 
+            
             # --- CONDITIONING --- #
             if (post.time.checkpoint.flag) print(paste0("Do conditioning: ", Sys.time()))
             private$i.obs.n.plus.conditioned.error.variances <- lapply(1:n.strata, function(i) {
@@ -1390,24 +1402,25 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     })
                     colSums(do.call(rbind, variance.by.term))
                 })
-                year.mask <- array(0, dim = c(n.years, length(locations.with.n.data), n.years, n.metalocations.for.conditioning))
+                year.mask <- array(0, dim = c(n.years, length(locations.with.n.data), n.years, n.metalocations))
                 for (y in 1:n.years) {
                     year.mask[y, , y, ] <- metalocation.info.for.conditioning.without.msa
                 }
-                variance.arr <- array(rep(obs.n.variance, n.metalocations.for.conditioning * n.years), dim = c(n.years, length(locations.with.n.data), n.years, n.metalocations.for.conditioning))
+                variance.arr <- array(rep(obs.n.variance, n.metalocations * n.years), dim = c(n.years, length(locations.with.n.data), n.years, n.metalocations))
                 variance.arr[!year.mask] <- 0
-                dim(variance.arr) <- c(length(locations.with.n.data) * n.years, n.metalocations.for.conditioning * n.years)
+                dim(variance.arr) <- c(length(locations.with.n.data) * n.years, n.metalocations * n.years)
 
                 # now add a bunch of zero rows for the msa
                 rbind(variance.arr, matrix(0, nrow = n.years, ncol = dim(variance.arr)[[2]]))
             })
 
-            private$i.year.metalocation.to.year.condition.on.location.mask <- rep(metalocation.info$metalocation.to.obs.location.mapping[location, ], each = n.years)
+            private$i.year.metalocation.to.year.condition.on.location.mask <- rep(metalocation.to.obs.location.mapping[location, ], each = n.years)
             private$i.year.metalocation.to.year.condition.on.location.mapping <- private$i.year.metalocation.to.year.obs.n.mapping[[1]][dim(private$i.year.metalocation.to.year.obs.n.mapping[[1]])[[1]] - (n.years:1) + 1, private$i.year.metalocation.to.year.condition.on.location.mask]
             if (!is.matrix(private$i.year.metalocation.to.year.condition.on.location.mapping)) {
                 dim(private$i.year.metalocation.to.year.condition.on.location.mapping) <- c(1, length(private$i.year.metalocation.to.year.condition.on.location.mapping))
             }
 
+            
             # --- INVERSE VARIANCE WEIGHTS MATRIX --- #
 
             ## included multiplier to make inverse multiplier matrix times covariance matrix
@@ -1457,6 +1470,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 weights = private$i.weights
             )
 
+            
             # --- SAVE SIM$GET INSTRUCTIONS --- #
             private$i.optimized.get.instructions <- list()
             private$i.optimized.get.instructions[["sim.p.instr"]] <- sim.metadata$prepare.optimized.get.instructions(
@@ -2232,7 +2246,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                         stratification = stratification.for.n, data.manager = data.manager, outcome = outcome, years = years, universal.ontology = universal.ontology, cache = n.mult.cache, error.prefix = error.prefix
                     )
 
-                    if (is.null(arr)) stop("bug in get.outcome.ratios: returned NULL")
+                    if (is.null(arr)) browser() #stop("bug in get.outcome.ratios: returned NULL")
                     # Map this back to the model ontology
                     arr.ontology <- as.ontology(dimnames(arr), incomplete.dimensions = "year")
                     # sim.ontology.years.replaced = sim.ontology[names(sim.ontology) != 'location']
