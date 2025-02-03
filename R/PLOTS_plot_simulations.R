@@ -91,6 +91,8 @@ plot.simulations <- function(...,
 {
   
     plot.which = "sim.and.data"
+    
+    simset = list(...)[[1]]
 
     plot.data = plot.data.validation(list(...), 
                                      match.call(expand.dots = F)$...,
@@ -118,7 +120,10 @@ plot.simulations <- function(...,
                                       title = title,
                                       data.manager=data.manager,
                                       debug=F)
-   
+    
+    # Waiting on data returned from prepare.plot; stopgap
+    outcome.metadata = simset.list[[1]]$outcome.metadata
+    
     execute.plotly.plot(prepared.plot.data,
                         outcomes=outcomes,
                         split.by=split.by,
@@ -251,16 +256,49 @@ execute.plotly.plot <- function(prepared.plot.data,
                                       marker.type, 
                                       current.facet) {
     rv = list()
-    for (spl.cat in split.categories) {
-      data.for.this.trace = subset(data.for.this.facet,
+    if (is.null(split.categories)) {
+      # No splits
+      category.list = unique(data.for.this.facet[[trace.column]])
+      traces = lapply (category.list, function(trace_id) {
+        trace.data = subset(data.for.this.facet,
+                            data.for.this.facet[[trace.column]] == trace_id)
+            
+        clean.group.id = gsub("^[a-zA-Z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
+        d = list (
+          type = "scatter",
+          mode = paste0(marker.type, "s"),
+          name = clean.group.id,
+          x = trace.data$year,
+          y = trace.data$value,
+          xaxis = paste0("x", current.facet),
+          yaxis = paste0("y", current.facet)
+        )
+        if (marker.type == "line") {
+          d[[marker.type]] = list (
+            dash = linetypes.for.sim[[clean.group.id]],
+            color = colors.for.sim
+          )
+        } else if (marker.type == "marker") {
+          d[[marker.type]] = list (
+            color = colors.for.sim
+            #  Add additional information here; shape of marker, size
+          )
+        }
+        d    
+      })
+      
+      rv = append(rv, traces)
+    } else {
+      for (spl.cat in split.categories) {
+        data.for.this.trace = subset(data.for.this.facet,
                                      data.for.this.facet[[local.split.by]] == spl.cat)
-      # One trace for each category
+        # One trace for each category
         category.list = unique(data.for.this.trace[[trace.column]])
         traces = lapply (category.list, function(trace_id) {
           trace.data = subset(data.for.this.trace,
                               data.for.this.trace[[trace.column]] == trace_id)
               
-          clean.group.id = gsub("^population_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
+          clean.group.id = gsub("^[a-zA-Z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
           d = list (
             type = "scatter",
             mode = paste0(marker.type, "s"),
@@ -285,7 +323,8 @@ execute.plotly.plot <- function(prepared.plot.data,
         })
         
         rv = append(rv, traces)
-    } # End of splits
+      } # End of splits
+    }
     rv
   }
   # Draw the plots
@@ -314,191 +353,300 @@ execute.plotly.plot <- function(prepared.plot.data,
   figure.count = 1
   facet.categories = NULL
   all.traces = list ()
-  figures.per.row = 3
+  # figures.per.row = 3
   
   # SIMULATION ELEMENTS
   if (!is.null(df.sim)) {
-      if (!is.null(split.by)) {
-          if (nrow(df.sim.groupids.many.members) > 0) {
-              # Add lines for multiple simulation groups
-              # we know split.by has a value
-              split.categories = unique (df.sim.groupids.many.members[[split.by]])
-              # At this point we don't know if facet.by is non-null
-              if (is.null(facet.by)) {
-                print("facet.by is null")
-                # TODO
-                # If it is null, we want only one figure
-                # Add as many traces to the figure as we have split.categories
-                  
-              } else {
-                current.facet = 1
-                # If it is non null, we want multiple figures within this plot
-                facet.categories = unique (df.sim.groupids.many.members[[facet.by]])
-                figure.count = length(facet.categories)
-                # For each figure, assign the split.by traces
-                for (fac.cat in facet.categories) {
-                    data.for.this.facet = subset(df.sim.groupids.many.members,
-                                                 df.sim.groupids.many.members[[facet.by]] == fac.cat)
-                    # For each facet, we need to collect the trace for each split.by category
-                    traces = collect.traces.for.facet(split.categories, data.for.this.facet, split.by, "groupid", "line",current.facet)
-                    current.facet = current.facet + 1
-                    fig$data = append(fig$data, traces)
-                } # End of facets
-              }
-          }
-          
-          if (nrow(df.sim.groupids.one.member) > 0) {
-              # Add points for single-member groups
-              print ("df.sim.groupids.one.member > 0")
-              # TODO - incomplete example :
-              # trace <- list(
-              #     type = "scatter",
-              #     mode = "markers",
-              #     x = df.sim.groupids.one.member$year,
-              #     y = df.sim.groupids.one.member$value,
-              #     marker = list(
-              #         color = df.sim.groupids.one.member$color.sim.by,
-              #         symbol = df.sim.groupids.one.member$shape.sim.by,
-              #         size = 8
-              #     )
-              # )
-              # rv$data <- append(rv$data, list(trace))
-          }
-          
-          if (summary.type != 'individual.simulation') {
-              print ("summary.type != 'individual.simulations")
-              # TODO - incomplete example :
-              # # Add ribbons for simulation confidence intervals
-              # trace <- list(
-              #     type = "scatter",
-              #     mode = "lines",
-              #     x = c(df.sim.groupids.many.members$year, rev(df.sim.groupids.many.members$year)),
-              #     y = c(df.sim.groupids.many.members$value.upper, rev(df.sim.groupids.many.members$value.lower)),
-              #     fill = "tonexty",
-              #     fillcolor = df.sim.groupids.many.members$color.sim.by,
-              #     line = list(color = "transparent"),
-              #     opacity = style.manager$alpha.ribbon
-              # )
-              # rv$data <- append(rv$data, list(trace))
-          }
-      } else {
-          # Split.by is null; no splits on the plots
-          print ("Split.by is null")
-          if (nrow(df.sim.groupids.many.members) > 0) {
-              print ("nrow(df.sim.groupids.many.members) > 0")
-              # TODO
-              # Add lines for grouped simulation data
-              # trace <- list(
-              #     type = "scatter",
-              #     mode = "lines",
-              #     x = df.sim.groupids.many.members$year,
-              #     y = df.sim.groupids.many.members$value,
-              #     line = list(color = df.sim.groupids.many.members$color.sim.by),
-              #     opacity = df.sim.groupids.many.members$alpha
-              # )
-              # rv$data <- append(rv$data, list(trace))
-          }
-          
-          if (nrow(df.sim.groupids.one.member) > 0) {
-              print ("nrow(df.sim.groupids.one.member) > 0")
-              # TODO
-              # Add points for single-member simulation groups
-              # trace <- list(
-              #     type = "scatter",
-              #     mode = "markers",
-              #     x = df.sim.groupids.one.member$year,
-              #     y = df.sim.groupids.one.member$value,
-              #     marker = list(
-              #         color = df.sim.groupids.one.member$color.sim.by,
-              #         symbol = df.sim.groupids.one.member$shape.sim.by,
-              #         size = 8
-              #     )
-              # )
-              # rv$data <- append(rv$data, list(trace))
-          }
-          
-          if (summary.type != 'individual.simulation') {
-              print ("summary.type != 'individual.simulations'")
-              # TODO
-              # Add ribbons for simulation confidence intervals
-              # trace <- list(
-              #     type = "scatter",
-              #     mode = "lines",
-              #     x = c(df.sim.groupids.many.members$year, rev(df.sim.groupids.many.members$year)),
-              #     y = c(df.sim.groupids.many.members$value.upper, rev(df.sim.groupids.many.members$value.lower)),
-              #     fill = "tonexty",
-              #     fillcolor = df.sim.groupids.many.members$color.sim.by,
-              #     line = list(color = "transparent"),
-              #     opacity = style.manager$alpha.ribbon
-              # )
-              # rv$data <- append(rv$data, list(trace))
-          }
+    if (!is.null(split.by)) {
+      if (nrow(df.sim.groupids.many.members) > 0) {
+        # Add lines for multiple simulation groups
+        # we know split.by has a value
+        split.categories = unique (df.sim.groupids.many.members[[split.by]])
+        # At this point we don't know if facet.by is non-null
+        if (is.null(facet.by)) {
+          # print("facet.by is null")
+          # TODO
+          # If it is null, we want only one figure
+          # Add as many traces to the figure as we have split.categories
+            
+        } else {
+          current.facet = 1
+          # If it is non null, we want multiple figures within this plot
+          facet.categories = unique (df.sim.groupids.many.members[[facet.by]])
+          figure.count = length(facet.categories)
+          # For each figure, assign the split.by traces
+          for (fac.cat in facet.categories) {
+            data.for.this.facet = subset(df.sim.groupids.many.members,
+                                         df.sim.groupids.many.members[[facet.by]] == fac.cat)
+            # For each facet, we need to collect the trace for each split.by category
+            traces = collect.traces.for.facet(split.categories, data.for.this.facet, split.by, "groupid", "line",current.facet)
+            current.facet = current.facet + 1
+            fig$data = append(fig$data, traces)
+          } # End of facets
+        }
       }
+      
+      if (nrow(df.sim.groupids.one.member) > 0) {
+        # Add points for single-member groups
+        # print ("df.sim.groupids.one.member > 0")
+        # TODO - incomplete example :
+        # trace <- list(
+        #     type = "scatter",
+        #     mode = "markers",
+        #     x = df.sim.groupids.one.member$year,
+        #     y = df.sim.groupids.one.member$value,
+        #     marker = list(
+        #         color = df.sim.groupids.one.member$color.sim.by,
+        #         symbol = df.sim.groupids.one.member$shape.sim.by,
+        #         size = 8
+        #     )
+        # )
+        # rv$data <- append(rv$data, list(trace))
+      }
+      
+      if (summary.type != 'individual.simulation') {
+        # print ("summary.type != 'individual.simulations")
+        # TODO - incomplete example :
+        # # Add ribbons for simulation confidence intervals
+        # trace <- list(
+        #     type = "scatter",
+        #     mode = "lines",
+        #     x = c(df.sim.groupids.many.members$year, rev(df.sim.groupids.many.members$year)),
+        #     y = c(df.sim.groupids.many.members$value.upper, rev(df.sim.groupids.many.members$value.lower)),
+        #     fill = "tonexty",
+        #     fillcolor = df.sim.groupids.many.members$color.sim.by,
+        #     line = list(color = "transparent"),
+        #     opacity = style.manager$alpha.ribbon
+        # )
+        # rv$data <- append(rv$data, list(trace))
+      }
+    } else {
+      # Split.by is null; no splits on the plots
+      if (nrow(df.sim.groupids.many.members) > 0) {
+        # Collect the single trace
+        if (is.null(facet.by)) {
+          # No Faceting
+          # single outcome vs multiple outcome
+          # In multiple outcomes we have multiple "facets" (one
+          # for each outcome)
+          current.facet = 1
+          if (length(outcomes) > 1) {
+            # Collect the trace for each outcome, treating each as a different facet    
+            facet.categories = outcomes
+            figure.count = length(facet.categories)
+            # For each figure, assign the split.by traces
+            for (fac.cat in facet.categories) {
+              data.for.this.facet = subset(df.sim.groupids.many.members,
+                                           df.sim.groupids.many.members[["outcome"]] == fac.cat)
+              # For each facet, we need to collect the trace for each split.by category
+              traces = collect.traces.for.facet(NULL, data.for.this.facet, split.by, "groupid", "line",current.facet)
+              current.facet = current.facet + 1
+              fig$data = append(fig$data, traces)
+            } # End of facets
+          } else {
+            # Since this is simulation data, the marker type is "line"
+            marker.type = "line"
+            
+            category.list = unique(df.sim.groupids.many.members[["groupid"]])
+            
+            
+            # Collect all the traces along groupid
+            traces = lapply (category.list, function(trace_id) {
+                
+              trace.data = subset(df.sim.groupids.many.members,
+                                  df.sim.groupids.many.members[["groupid"]] == trace_id)
+                  
+              clean.group.id = gsub("^[A-Za-z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
+              d = list (
+                type = "scatter",
+                mode = paste0(marker.type, "s"),
+                name = clean.group.id,
+                x = trace.data$year,
+                y = trace.data$value,
+                xaxis = paste0("x", current.facet),
+                yaxis = paste0("y", current.facet)
+              )
+              if (marker.type == "line") {
+                d[[marker.type]] = list (
+                  dash = linetypes.for.sim[[clean.group.id]],
+                  color = colors.for.sim
+                )
+              } else if (marker.type == "marker") {
+                d[[marker.type]] = list (
+                  color = colors.for.sim
+                  #  Add additional information here; shape of marker, size
+                )
+              }
+              d    
+            })
+            
+            fig$data = append(fig$data, traces)
+          }
+        } else {
+          # Faceting but no split by
+          current.facet = 1
+          # If it is non null, we want multiple figures within this plot
+          facet.categories = unique (df.sim.groupids.many.members[[facet.by]])
+          figure.count = length(facet.categories)
+          # For each figure, assign the split.by traces
+          for (fac.cat in facet.categories) {
+            data.for.this.facet = subset(df.sim.groupids.many.members,
+                                         df.sim.groupids.many.members[[facet.by]] == fac.cat)
+            # For each facet, we need to collect the trace for each split.by category
+            traces = collect.traces.for.facet(NULL, data.for.this.facet, split.by, "groupid", "line",current.facet)
+            current.facet = current.facet + 1
+            fig$data = append(fig$data, traces)
+          } # End of facets
+        }
+      }
+      
+      if (nrow(df.sim.groupids.one.member) > 0) {
+        # print ("nrow(df.sim.groupids.one.member) > 0")
+        # TODO
+        # Add points for single-member simulation groups
+        # trace = list(
+        #   type = "scatter",
+        #   mode = "markers",
+        #   x = df.sim.groupids.one.member$year,
+        #   y = df.sim.groupids.one.member$value,
+        #   marker = list(
+        #     color = df.sim.groupids.one.member$color.sim.by,
+        #     symbol = df.sim.groupids.one.member$shape.sim.by,
+        #     size = 8
+        #   )
+        # )
+        # rv$data = append(rv$data, list(trace))
+      }
+      
+      if (summary.type != 'individual.simulation') {
+        # print ("summary.type != 'individual.simulations'")
+        # TODO
+        # Add ribbons for simulation confidence intervals
+        # trace = list(
+        #   type = "scatter",
+        #   mode = "lines",
+        #   x = c(df.sim.groupids.many.members$year, rev(df.sim.groupids.many.members$year)),
+        #   y = c(df.sim.groupids.many.members$value.upper, rev(df.sim.groupids.many.members$value.lower)),
+        #   fill = "tonexty",
+        #   fillcolor = df.sim.groupids.many.members$color.sim.by,
+        #   line = list(color = "transparent"),
+        #   opacity = style.manager$alpha.ribbon
+        # )
+        # rv$data = append(rv$data, list(trace))
+      }
+    }
   } #End of df.sim traces
   
   # DATA ELEMENTS
   if (!is.null(df.truth)) {
-      if (!is.null(split.by)) {
-          # Add points for truth data with split groups
-          # Add lines for multiple simulation groups
-          # we know split.by has a value
-          split.categories = unique (df.truth$stratum)
-          # At this point we don't know if facet.by is non-null
-          if (is.null(facet.by)) {
-            print("facet.by is null")
-            # TODO
-            # If it is null, we want only one figure
-            # Add as many traces to the figure as we have split.categories
-              
-          } else {
-            current.facet = 1
-            # If it is non null, we want multiple figures within this plot
-            facet.categories = unique (df.sim.groupids.many.members$facet.by1)
-            # For each figure, assign the split.by traces
-            for (fac.cat in facet.categories) {
-                data.for.this.facet = subset(df.truth,
-                                             df.truth$facet.by1 == fac.cat)
-                # For each facet, we need to collect the trace for each split.by category
-                traces = collect.traces.for.facet(split.categories, data.for.this.facet, "stratum", "stratum", "marker",current.facet)
-                current.facet = current.facet + 1
-                fig$data = append(fig$data, traces)
-            } # End of facets
-          }
+    if (!is.null(split.by)) {
+      # Add points for truth data with split groups
+      # Add lines for multiple simulation groups
+      # we know split.by has a value
+      split.categories = unique (df.truth$stratum)
+      # At this point we don't know if facet.by is non-null
+      if (is.null(facet.by)) {
+        # print("facet.by is null")
+        # TODO
+        # If it is null, we want only one figure
+        # Add as many traces to the figure as we have split.categories
           
-          # trace <- list(
-          #     type = "scatter",
-          #     mode = "markers",
-          #     x = df.truth$year,
-          #     y = df.truth$value,
-          #     marker = list(
-          #         color = df.truth$color.and.shade.data.by,
-          #         symbol = df.truth$shape.data.by,
-          #         size = 8
-          #     )
-          # )
-          # rv$data <- append(rv$data, list(trace))
       } else {
-          # Add points for truth data without split groups
-          print ("Truth no Split.by")
-          # trace <- list(
-          #     type = "scatter",
-          #     mode = "markers",
-          #     x = df.truth$year,
-          #     y = df.truth$value,
-          #     marker = list(
-          #         color = df.truth$color.and.shade.data.by,
-          #         symbol = df.truth$shape.data.by,
-          #         size = 8
-          #     )
-          # )
-          # rv$data <- append(rv$data, list(trace))
+        current.facet = 1
+        # If it is non null, we want multiple figures within this plot
+        facet.categories = unique (df.sim.groupids.many.members$facet.by1)
+        # For each figure, assign the split.by traces
+        for (fac.cat in facet.categories) {
+          data.for.this.facet = subset(df.truth,
+                                       df.truth$facet.by1 == fac.cat)
+          # For each facet, we need to collect the trace for each split.by category
+          traces = collect.traces.for.facet(split.categories, data.for.this.facet, "stratum", "stratum", "marker",current.facet)
+          current.facet = current.facet + 1
+          fig$data = append(fig$data, traces)
+        } # End of facets
       }
+    } else {
+      # Add points for truth data without split groups
+      # We have to be careful about multiple outcomes but no faceting
+      current.facet = 1
+      if (length(outcomes) > 1) {
+        # print("Multiple Outcomes for Data")
+        facet.categories = outcomes
+        figure.count = length(facet.categories)
+        # For each figure, assign the split.by traces
+        for (fac.cat in facet.categories) {
+          data.for.this.facet = subset(df.truth,
+                                       df.truth[["outcome"]] == fac.cat)
+          # For each facet, we need to collect the trace for each split.by category
+          traces = collect.traces.for.facet(NULL, data.for.this.facet, split.by, "outcome", "marker",current.facet)
+          current.facet = current.facet + 1
+          fig$data = append(fig$data, traces)
+        } # End of facets
+          
+      } else {
+        if (figure.count > 1) {
+          # Facet these results
+          current.facet = 1
+          # print("Multiple Facet no split by")
+          facet.categories = unique(df.truth[['facet.by1']])
+          figure.count = length(facet.categories)
+          # For each figure, assign the split.by traces
+          for (fac.cat in facet.categories) {
+            data.for.this.facet = subset(df.truth,
+                                         df.truth[["facet.by1"]] == fac.cat)
+            # For each facet, we need to collect the trace for each split.by category
+            traces = collect.traces.for.facet(NULL, data.for.this.facet, split.by, "outcome", "marker",current.facet)
+            current.facet = current.facet + 1
+            fig$data = append(fig$data, traces)
+          } # End of facets
+        } else {
+          marker.type = "marker"
+          
+          category.list = unique(df.truth[["stratum"]])
+          
+          traces = lapply (category.list, function(trace_id) {
+              
+            trace.data = subset(df.truth,
+                                df.truth[["stratum"]] == trace_id)
+              
+            clean.group.id = gsub("^[A-Za-z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
+            d = list (
+              type = "scatter",
+              mode = paste0(marker.type, "s"),
+              name = clean.group.id,
+              x = trace.data$year,
+              y = trace.data$value,
+              xaxis = paste0("x", current.facet),
+              yaxis = paste0("y", current.facet)
+            )
+            if (marker.type == "line") {
+              d[[marker.type]] = list (
+                dash = linetypes.for.sim[[clean.group.id]],
+                color = colors.for.sim
+              )
+            } else if (marker.type == "marker") {
+              d[[marker.type]] = list (
+                color = colors.for.sim
+                #  Add additional information here; shape of marker, size
+              )
+            }
+            d    
+          })
+        }
+      }
+      fig$data = append(fig$data,traces)
+    }
   }
   
   # At this point we have processed all the traces and now need to lay them out
   
   # How many figures do we need? One for each facet.
   if (figure.count > 1) {
+    if (figure.count >= 3) {
+      figures.per.row = 3
+    } else if (figure.count < 3) {
+      figures.per.row = figure.count
+    }
     # How many full rows of figures do we have?
     plot.rows = ceiling(figure.count / figures.per.row)
     
@@ -513,139 +661,37 @@ execute.plotly.plot <- function(prepared.plot.data,
     ydelta = 1 / plot.rows
     
     for (i in 1:figure.count) {
-        # Start at the beginning
-        x_left = ((x_i - 1) * xdelta) + buffer
-        x_right = (x_i * xdelta) - buffer
-        y_left = (1-((y_i - 1) * ydelta))+ buffer
-        y_right = (1-(y_i * ydelta)) - buffer
+      # Start at the beginning
+      # 0,0 is the top left corner
+      x_left = ((x_i - 1) * xdelta) + buffer
+      x_right = (x_i * xdelta) - buffer
+      y_bottom = (1-((y_i - 1) * ydelta))- buffer
+      y_top = (1-(y_i * ydelta)) + buffer
         
-        fig$layout[[paste0("xaxis", i)]] = list(title = "years", domain = c(x_left,x_right), anchor = paste0("y",i))
-        fig$layout[[paste0("yaxis", i)]] = list(title = y.label, domain = c(y_left,y_right), anchor = paste0("x",i))
-        fig$layout$annotations = append ( fig$layout$annotations, list(list ( 
-            text = facet.categories[i],
-            showarrow = F,
-            xref = "paper",
-            yref = "paper"
-            # x = #halfway between the right and the left side of the figure
-            # y = #A buffer-space away from the top 
-        ))) 
+      fig$layout[[paste0("xaxis", i)]] = list(title = "years", domain = c(x_left,x_right), anchor = paste0("y",i))
+      fig$layout[[paste0("yaxis", i)]] = list(title = y.label, domain = c(y_bottom,y_top), anchor = paste0("x",i))
+      fig$layout$annotations = append ( fig$layout$annotations, list(list ( 
+        text = facet.categories[i],
+        showarrow = F,
+        xref = "paper",
+        yref = "paper",
+        x = (x_right - x_left) / 2 + (x_left + 0.05), # x = #halfway between the right and the left side of the figure
+        y = y_bottom + (buffer + buffer) #Two buffer-spaces away from the top 
+      ))) 
         
-        if (x_i == figures.per.row) {
-            x_i = 1
-            y_i = y_i + 1
-        } else {
-            x_i = x_i + 1
-        }
+      if (x_i == figures.per.row) {
+        x_i = 1
+        y_i = y_i + 1
+      } else {
+        x_i = x_i + 1
+      }
     }
-    
-    
-    
   } else {
-      print("Layout for a single figure")
-      # TODO
+    # print("Layout for a single figure")
+    # TODO
   }
   
-  # 
-  # # FACETING
-  # if (is.null(facet.by)) {
-  #     # Define faceting by outcome display name
-  #     rv$layout$facet <- list(row = ~outcome.display.name)
-  # } else {
-  #     # Define faceting by outcome display name and additional variables
-  #     rv$layout$facet <- list(row = ~outcome.display.name, col = paste(facet.by, collapse = " + "))
-  # }
-  # 
-  # if (plot.year.lag.ratio) {
-  #     # Set the x-axis label to "latter year"
-  #     rv$layout$xaxis <- list(title = "latter year")
-  # }
-  
   # Return the final plot object
-  plotly_build(fig)
-  
-  browser()
-  # Start with the sim traces
-  
-  # Define the traces
-  trace1 <- list(
-      x = rnorm(100),
-      type = "histogram",
-      name = "Histogram 1",
-      xaxis = "x1",
-      yaxis = "y1"
-  )
-  
-  trace2 <- list(
-      x = rnorm(100, mean = 5),
-      type = "histogram",
-      name = "Histogram 2",
-      xaxis = "x1",
-      yaxis = "y1"
-  )
-  
-  trace3 <- list(
-      x = 1:10,
-      y = (1:10)^2,
-      type = "scatter",
-      mode = "lines",
-      name = "Line 1",
-      xaxis = "x2",
-      yaxis = "y2"
-  )
-  
-  trace4 <- list(
-      x = 1:10,
-      y = (1:10)^3,
-      type = "scatter",
-      mode = "lines",
-      name = "Line 2",
-      xaxis = "x2",
-      yaxis = "y2"
-  )
-  
-  trace5 <- list(
-      z = volcano,
-      type = "heatmap",
-      name = "Heatmap 1",
-      xaxis = "x3",
-      yaxis = "y3"
-  )
-  
-  trace6 <- list(
-      z = matrix(runif(100, min = -2, max = 2), nrow = 10),
-      type = "heatmap",
-      name = "Heatmap 2",
-      xaxis = "x4",
-      yaxis = "y4"
-  )
-  
-  # Define the layout
-  layout <- list(
-      title = "Multiple Figures with Multiple Traces",
-      grid = list(rows = 2, columns = 2, pattern = "independent"),
-      xaxis = list(title = "Histogram X-Axis", domain = c(0, 0.45), anchor = "y1"),
-      yaxis = list(title = "Histogram Y-Axis", domain = c(0.55, 1), anchor = "x1"),
-      xaxis2 = list(title = "Scatter X-Axis", domain = c(0.55, 1), anchor = "y2"),
-      yaxis2 = list(title = "Scatter Y-Axis", domain = c(0.55, 1), anchor = "x2"),
-      xaxis3 = list(title = "Heatmap 1 X-Axis", domain = c(0, 0.45), anchor = "y3"),
-      yaxis3 = list(title = "Heatmap 1 Y-Axis", domain = c(0, 0.45), anchor = "x3"),
-      xaxis4 = list(title = "Heatmap 2 X-Axis", domain = c(0.55, 1), anchor = "y4"),
-      yaxis4 = list(title = "Heatmap 2 Y-Axis", domain = c(0, 0.45), anchor = "x4")
-  )
-  
-  # Combine traces and layout into a single object
-  plot_data <- list(trace1, trace2, trace3, trace4, trace5, trace6)
-  plot_object <- list(data = plot_data, layout = layout)
-  
-  # Build the plotly object
-  final_plot <- plotly_build(plot_object)
-  
-  # Render the plot
-  final_plot
-  
-  # print (fig)
- 
-    browser()
-
+  return(plotly_build(fig))
   
 }
