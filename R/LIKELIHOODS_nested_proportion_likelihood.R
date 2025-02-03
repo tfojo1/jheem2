@@ -1323,12 +1323,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     private$i.year.metalocation.to.year.obs.location.mapping[y, , y, ] <- metalocation.to.obs.location.mapping
                 }
                 dim(private$i.year.metalocation.to.year.obs.location.mapping) <- c(n.obs.locations * n.years, n.metalocations * n.years)
-                
+
+                private$i.year.metalocation.to.year.obs.location.mask = apply(private$i.year.metalocation.to.year.obs.location.mapping != 0, 2, any)
                 private$i.year.metalocation.to.obs.mapping <- lapply(1:n.strata, function(i) {
                     private$i.year.loc.stratum.to.obs.mapping[[i]] %*% private$i.year.metalocation.to.year.obs.location.mapping
                 })
                 
-                # Make year-metalocation-to-year-obs-n-mapping and
+                # Make year-metalocation-to-year-obs-n-mapping
                 metalocation.info.for.conditioning.without.msa <- metalocation.to.obs.location.mapping[locations.with.n.data, ]
                 metalocation.info.for.conditioning <- metalocation.to.obs.location.mapping[c(locations.with.n.data, location), ]
                 year.metalocation.to.year.obs.n.mapping.per.stratum <- array(0, dim = c(n.years,
@@ -1695,6 +1696,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
 
         # find all locations that we will check for data
         get.all.locations = function(location, location.types, maximum.locations.per.type, minimum.geographic.resolution.type, data.manager, years) {
+            
             main.contained.locs <- unlist(locations::get.location.code(locations::get.contained.locations(location, minimum.geographic.resolution.type), minimum.geographic.resolution.type))
             # This is slower than I expected
             sort(unique(unlist(lapply(location.types, function(type) {
