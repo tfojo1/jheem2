@@ -9,12 +9,14 @@ LIKELIHOOD.CLASS.GENERATORS <- new.env()
 #' @inheritParams jheem2-likelihood-params
 #' @param data.manager A jheem.data.manager object. May be NULL for Bernoulli likelihood instructions.
 #' @param throw.error.if.no.data Should an error be thrown if no relevant data is found?
+#' @param verbose Should detailed messages be printed out as we go
 #' @export
 instantiate.likelihood <- function(instructions,
                                    version,
                                    location,
                                    sub.version = NULL,
                                    data.manager = get.default.data.manager(), # pass this to the child classes; Bernoullis don't need this or next arg
+                                   verbose = F,
                                    throw.error.if.no.data = F,
                                    error.prefix = "Error instantiating likelihood from instructions: ") {
     if (!R6::is.R6(instructions) || !is(instructions, "jheem.likelihood.instructions")) {
@@ -25,6 +27,7 @@ instantiate.likelihood <- function(instructions,
         sub.version = sub.version,
         location = location,
         data.manager = data.manager,
+        verbose = verbose,
         throw.error.if.no.data = throw.error.if.no.data,
         error.prefix = error.prefix
     )
@@ -123,6 +126,7 @@ do.instantiate.likelihood <- function(instructions,
                                       data.manager,
                                       additional.weights,
                                       throw.error.if.no.data,
+                                      verbose,
                                       error.prefix) {
     if (is.null(error.prefix)) {
         error.prefix <- paste0("Error initializing likelihood for '", instructions$outcome.for.sim, "': ")
@@ -163,6 +167,7 @@ do.instantiate.likelihood <- function(instructions,
         location = location,
         data.manager = data.manager,
         additional.weights = additional.weights,
+        verbose = verbose,
         throw.error.if.no.data = throw.error.if.no.data,
         error.prefix = error.prefix
     )
@@ -251,6 +256,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                           sub.version = NULL,
                                           data.manager = get.default.data.manager(), # Bernoulli's don't need this or the next argument
                                           throw.error.if.no.data = F,
+                                          verbose = F,
                                           error.prefix = NULL) {
             
             do.instantiate.likelihood(instructions = self,
@@ -260,6 +266,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                       data.manager = data.manager,
                                       additional.weights=NULL,
                                       throw.error.if.no.data = throw.error.if.no.data,
+                                      verbose = verbose,
                                       error.prefix = error.prefix)
             
             
@@ -447,6 +454,7 @@ JHEEM.LIKELIHOOD <- R6::R6Class(
                               version,
                               sub.version,
                               location,
+                              verbose,
                               error.prefix,
                               additional.weights=list()) {
             # Validate instructions

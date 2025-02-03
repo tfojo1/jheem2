@@ -75,6 +75,7 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
                               data.manager,
                               additional.weights,
                               throw.error.if.no.data,
+                              verbose,
                               error.prefix) {
             # 'super' here is the basic likelihood, not main likelihood
             super$initialize(instructions = instructions,
@@ -84,6 +85,7 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
                              data.manager = data.manager,
                              additional.weights = additional.weights,
                              throw.error.if.no.data = throw.error.if.no.data,
+                             verbose = verbose,
                              error.prefix = error.prefix
             )
             

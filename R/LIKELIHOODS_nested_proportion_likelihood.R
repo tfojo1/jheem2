@@ -776,6 +776,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                               data.manager,
                               additional.weights,
                               throw.error.if.no.data,
+                              verbose,
                               error.prefix) {
             super$initialize(
                 instructions = instructions,
@@ -783,6 +784,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 sub.version = sub.version,
                 location = location,
                 additional.weights = additional.weights,
+                verbose = verbose,
                 error.prefix = error.prefix
             )
 

@@ -755,6 +755,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                               data.manager,
                               additional.weights,
                               throw.error.if.no.data,
+                              verbose,
                               error.prefix) {
             super$initialize(
                 instructions = instructions,
@@ -762,6 +763,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                 version = version,
                 location = location,
                 additional.weights = additional.weights,
+                verbose = verbose,
                 error.prefix = error.prefix
             )
             
