@@ -215,6 +215,9 @@ INTERVENTION.MANAGER$interventions = list()
 clear.interventions <- function()
 {
     INTERVENTION.MANAGER$interventions = list()
+    
+    # Make the NULL intervention
+    NULL.INTERVENTION$new()
 }
 
 #'@export
