@@ -57,30 +57,16 @@ JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                           data.manager = get.default.data.manager(),
                                           throw.error.if.no.data = F,
                                           verbose = F,
-                                          error.prefix = "") {
-            for (sub.instr in private$i.sub.instructions) {
-                rv <- tryCatch( # won't work for custom right now!
-                    {
-                        do.ifelse.instantiate.likelihood(sub.instr,
-                                                         version = version,
-                                                         location = location,
-                                                         sub.version = sub.version,
-                                                         data.manager = data.manager,
-                                                         additional.weights = list(),
-                                                         throw.error.if.no.data = throw.error.if.no.data,
-                                                         verbose = verbose,
-                                                         error.prefix = error.prefix)
-                    },
-                    error = function(e) {
-                        NULL
-                    }
-                )
-                if (!is.null(rv)) {
-                    return(rv)
-                }
-            }
-            # If didn't return anything,
-            stop("Error instantiating 'jheem.ifelse.likelihood.instructions': All likelihood instructions failed to instantiate")
+                                          error.prefix = NULL) {
+            do.ifelse.instantiate.likelihood(sub.instr,
+                                             version = version,
+                                             location = location,
+                                             sub.version = sub.version,
+                                             data.manager = data.manager,
+                                             additional.weights = list(),
+                                             throw.error.if.no.data = throw.error.if.no.data,
+                                             verbose = verbose,
+                                             error.prefix = error.prefix)
         }
     ),
     active = list(
@@ -135,4 +121,6 @@ do.ifelse.instantiate.likelihood <- function(instructions,
             return(rv)
         }
     }
+    if (is.null(rv))
+        stop(paste0(error.prefix, "all alternative likelihoods failed"))
 }

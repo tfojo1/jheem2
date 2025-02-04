@@ -148,9 +148,7 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                              sub.version = sub.version,
                              location = location,
                              verbose = verbose,
-                             error.prefix = error.prefix
-                             # additional.weights = additional.weights
-            )
+                             error.prefix = error.prefix)
 
             private$i.sub.likelihoods <- lapply(instructions$sub.instructions, function(instr) {
                 
@@ -208,7 +206,7 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
         i.sub.likelihoods = NULL,
         do.compute = function(sim, log, use.optimized.get, check.consistency, debug) {
             sub.values <- sapply(private$i.sub.likelihoods, function(like) {
-                like$compute(sim, log = log, use.optimized.get = use.optimized.get, check.consistency = check.consistency, error.prefix = "Error computing liklihood: ", debug)
+                like$compute(sim, log = log, use.optimized.get = use.optimized.get, check.consistency = check.consistency, error.prefix = "Error computing likelihood: ", debug)
             })
             # print(sub.values)
             if (log) {
