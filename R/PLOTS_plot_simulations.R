@@ -279,9 +279,16 @@ execute.plotly.plot <- function(prepared.plot.data,
         yaxis = paste0("y", current.facet)
       )
       if (marker.type == "line") {
+        col = colors.for.sim
+        # browser()
+        if(is.null(trace.data$line.color[1])) {
+          print("Line color not implemented")
+        } else {
+          col = trace.data$line.color[1]
+        }
         d[[marker.type]] = list (
           dash = linetypes.for.sim[[clean.group.id]],
-          color = colors.for.sim
+          color = col
         )
       } else if (marker.type == "marker") {
         # browser()
@@ -370,6 +377,18 @@ execute.plotly.plot <- function(prepared.plot.data,
   
   # SIMULATION ELEMENTS
   if (!is.null(df.sim)) {
+    
+    df.sim.groupids.many.members$line.color = 
+      unlist(lapply(df.sim.groupids.many.members$color.sim.by, function(val) {colors.for.sim[val]}))
+    df.sim.groupids.many.members$line.shape = 
+      unlist(lapply(df.sim.groupids.many.members$linetype.sim.by, function(val) {linetypes.for.sim[val]}))
+    
+    df.sim.groupids.one.member$line.color = 
+      unlist(lapply(df.sim.groupids.one.member$color.sim.by, function(val) {colors.for.sim[val]}))
+    df.sim.groupids.one.member$line.shape = 
+      unlist(lapply(df.sim.groupids.one.member$linetype.sim.by, function(val) {linetypes.for.sim[val]}))
+    
+    # browser()
     if (!is.null(split.by)) {
       if (nrow(df.sim.groupids.many.members) > 0) {
         # Add lines for multiple simulation groups
