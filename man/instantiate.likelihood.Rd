@@ -10,6 +10,7 @@ instantiate.likelihood(
   location,
   sub.version = NULL,
   data.manager = get.default.data.manager(),
+  verbose = F,
   throw.error.if.no.data = F,
   error.prefix = "Error instantiating likelihood from instructions: "
 )
@@ -18,6 +19,8 @@ instantiate.likelihood(
 \item{instructions}{A 'jheem.likelihood.instructions' object}
 
 \item{data.manager}{A jheem.data.manager object. May be NULL for Bernoulli likelihood instructions.}
+
+\item{verbose}{Should detailed messages be printed out as we go}
 
 \item{throw.error.if.no.data}{Should an error be thrown if no relevant data is found?}
 }

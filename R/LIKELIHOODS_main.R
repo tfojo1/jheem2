@@ -138,7 +138,7 @@ do.instantiate.likelihood <- function(instructions,
     
     likelihood.class.generator = LIKELIHOOD.CLASS.GENERATORS[[class(instructions)[1]]]
     if (is.null(likelihood.class.generator))
-        stop(paste0(error.prefix, "'", class(instructions)[1], "' was not index in the environment (bug)"))
+        stop(paste0(error.prefix, "' Please source your '", class(instructions)[1], "' for this likelihood again."))
 
     # *version* and *location* -- validated by 'jheem.likelihood' parent class 'jheem.entity'
     
