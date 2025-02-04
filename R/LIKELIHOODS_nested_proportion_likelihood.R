@@ -759,8 +759,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
         i.redundant.location.threshold = NULL,
         i.partitioning.function = NULL,
         i.use.lognormal.approximation = NULL,
-        i.calculate.lagged.difference = NULL,
-        i.log.ratio.uncertainty.matrix = NULL
+        i.calculate.lagged.difference = NULL
     )
 )
 
@@ -1556,6 +1555,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
         i.calculate.lagged.difference = NULL,
         i.lagged.pairs = NULL,
         i.metadata.for.lag = NULL,
+        i.log.ratio.uncertainty.matrix = NULL,
         do.compute = function(sim, log = T, use.optimized.get = F, check.consistency = T, debug = F) {
             if (use.optimized.get) {
                 sim.p <- sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])
