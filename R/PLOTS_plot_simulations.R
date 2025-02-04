@@ -249,6 +249,43 @@ execute.plotly.plot <- function(prepared.plot.data,
   linetypes.for.sim = gsub ("dashed", "dash", linetypes.for.sim)
   
   # Helper function definition
+  inner.collector = function(cat.list, 
+                             data.for.this.facet, 
+                             trace.column, 
+                             marker.type, 
+                             current.facet) {
+    
+    lapply( cat.list, function (trace_id) {
+      trace.data = subset(data.for.this.facet,
+                          data.for.this.facet[[trace.column]] == trace_id)
+          
+      clean.group.id = gsub("^[a-zA-Z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
+      d = list (
+        type = "scatter",
+        mode = paste0(marker.type, "s"),
+        name = clean.group.id,
+        x = trace.data$year,
+        y = trace.data$value,
+        xaxis = paste0("x", current.facet),
+        yaxis = paste0("y", current.facet)
+      )
+      if (marker.type == "line") {
+        d[[marker.type]] = list (
+          dash = linetypes.for.sim[[clean.group.id]],
+          color = colors.for.sim
+        )
+      } else if (marker.type == "marker") {
+        d[[marker.type]] = list (
+          color = colors.for.sim
+          #  Add additional information here; shape of marker, size
+        )
+      }
+      return (d)    
+    })
+  }
+
+  
+  
   collect.traces.for.facet = function (split.categories, 
                                       data.for.this.facet, 
                                       local.split.by, 
@@ -259,69 +296,24 @@ execute.plotly.plot <- function(prepared.plot.data,
     if (is.null(split.categories)) {
       # No splits
       category.list = unique(data.for.this.facet[[trace.column]])
-      traces = lapply (category.list, function(trace_id) {
-        trace.data = subset(data.for.this.facet,
-                            data.for.this.facet[[trace.column]] == trace_id)
-            
-        clean.group.id = gsub("^[a-zA-Z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
-        d = list (
-          type = "scatter",
-          mode = paste0(marker.type, "s"),
-          name = clean.group.id,
-          x = trace.data$year,
-          y = trace.data$value,
-          xaxis = paste0("x", current.facet),
-          yaxis = paste0("y", current.facet)
-        )
-        if (marker.type == "line") {
-          d[[marker.type]] = list (
-            dash = linetypes.for.sim[[clean.group.id]],
-            color = colors.for.sim
-          )
-        } else if (marker.type == "marker") {
-          d[[marker.type]] = list (
-            color = colors.for.sim
-            #  Add additional information here; shape of marker, size
-          )
-        }
-        d    
-      })
+      traces = inner.collector(category.list, 
+                               data.for.this.facet, 
+                               trace.column,
+                               marker.type,
+                               current.facet)
       
       rv = append(rv, traces)
     } else {
+        # There are splits to collect
       for (spl.cat in split.categories) {
         data.for.this.trace = subset(data.for.this.facet,
                                      data.for.this.facet[[local.split.by]] == spl.cat)
         # One trace for each category
         category.list = unique(data.for.this.trace[[trace.column]])
-        traces = lapply (category.list, function(trace_id) {
-          trace.data = subset(data.for.this.trace,
-                              data.for.this.trace[[trace.column]] == trace_id)
-              
-          clean.group.id = gsub("^[a-zA-Z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
-          d = list (
-            type = "scatter",
-            mode = paste0(marker.type, "s"),
-            name = clean.group.id,
-            x = trace.data$year,
-            y = trace.data$value,
-            xaxis = paste0("x", current.facet),
-            yaxis = paste0("y", current.facet)
-          )
-          if (marker.type == "line") {
-            d[[marker.type]] = list (
-              dash = linetypes.for.sim[[clean.group.id]],
-              color = colors.for.sim[[spl.cat]]
-            )
-          } else if (marker.type == "marker") {
-            d[[marker.type]] = list (
-              color = colors.for.sim[[spl.cat]]
-              #  Add additional information here; shape of marker, size
-            )
-          }
-          d    
-        })
-        
+        traces = inner.collector(category.list, 
+                                 data.for.this.facet, 
+                                 trace.column,marker.type,
+                                 current.facet)
         rv = append(rv, traces)
       } # End of splits
     }
@@ -450,35 +442,11 @@ execute.plotly.plot <- function(prepared.plot.data,
             category.list = unique(df.sim.groupids.many.members[["groupid"]])
             
             
-            # Collect all the traces along groupid
-            traces = lapply (category.list, function(trace_id) {
-                
-              trace.data = subset(df.sim.groupids.many.members,
-                                  df.sim.groupids.many.members[["groupid"]] == trace_id)
-                  
-              clean.group.id = gsub("^[A-Za-z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
-              d = list (
-                type = "scatter",
-                mode = paste0(marker.type, "s"),
-                name = clean.group.id,
-                x = trace.data$year,
-                y = trace.data$value,
-                xaxis = paste0("x", current.facet),
-                yaxis = paste0("y", current.facet)
-              )
-              if (marker.type == "line") {
-                d[[marker.type]] = list (
-                  dash = linetypes.for.sim[[clean.group.id]],
-                  color = colors.for.sim
-                )
-              } else if (marker.type == "marker") {
-                d[[marker.type]] = list (
-                  color = colors.for.sim
-                  #  Add additional information here; shape of marker, size
-                )
-              }
-              d    
-            })
+            traces = inner.collector(category.list,
+                            df.sim.groupids.many.members, 
+                            "groupid",
+                            marker.type,
+                            current.facet)
             
             fig$data = append(fig$data, traces)
           }
@@ -604,34 +572,11 @@ execute.plotly.plot <- function(prepared.plot.data,
           
           category.list = unique(df.truth[["stratum"]])
           
-          traces = lapply (category.list, function(trace_id) {
-              
-            trace.data = subset(df.truth,
-                                df.truth[["stratum"]] == trace_id)
-              
-            clean.group.id = gsub("^[A-Za-z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
-            d = list (
-              type = "scatter",
-              mode = paste0(marker.type, "s"),
-              name = clean.group.id,
-              x = trace.data$year,
-              y = trace.data$value,
-              xaxis = paste0("x", current.facet),
-              yaxis = paste0("y", current.facet)
-            )
-            if (marker.type == "line") {
-              d[[marker.type]] = list (
-                dash = linetypes.for.sim[[clean.group.id]],
-                color = colors.for.sim
-              )
-            } else if (marker.type == "marker") {
-              d[[marker.type]] = list (
-                color = colors.for.sim
-                #  Add additional information here; shape of marker, size
-              )
-            }
-            d    
-          })
+          traces = inner.collector(category.list, 
+                                   df.truth, 
+                                   "stratum",
+                                   marker.type,
+                                   current.facet)
         }
       }
       fig$data = append(fig$data,traces)
