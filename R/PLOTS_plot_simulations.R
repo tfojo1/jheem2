@@ -244,9 +244,18 @@ execute.plotly.plot <- function(prepared.plot.data,
   df.sim.groupids.one.member = subset(df.sim, groupid_has_one_member)
   df.sim.groupids.many.members = subset(df.sim, !groupid_has_one_member)
 
+  # browser()
   # Plotly uses 'dash' instead of 'dashed' for dashed lines, so 
   # convert the value in linetypes.for.sim
   linetypes.for.sim = gsub ("dashed", "dash", linetypes.for.sim)
+  # Mapping the ggplot marker shapes into plotly
+  marker.mappings = lapply(shapes.for.data, function(gg_shape) {
+    if (gg_shape == 21) return (0) # Circle
+    if (gg_shape == 22) return (1) # Square
+    if (gg_shape == 23) return (2) # Diamond
+    if (gg_shape == 24) return (5) # Triangle UP
+    if (gg_shape == 25) return (6) # Triangle DOWN
+  })
   
   # Helper function definition
   inner.collector = function(cat.list, 
@@ -275,8 +284,21 @@ execute.plotly.plot <- function(prepared.plot.data,
           color = colors.for.sim
         )
       } else if (marker.type == "marker") {
+        # browser()
+        col = colors.for.sim
+        if (is.null(trace.data$marker.color[1])) {
+          print("Marker color not implemented")
+        } else {
+          col = trace.data$marker.color[1]
+          # print(paste0(trace.data$shape.data.by[1]," ", col))
+        }
+          
         d[[marker.type]] = list (
-          color = colors.for.sim
+          color = col,
+          line = list (
+            color = "#202020",
+            width = 1
+          )
           #  Add additional information here; shape of marker, size
         )
       }
@@ -344,7 +366,6 @@ execute.plotly.plot <- function(prepared.plot.data,
   # This will be changed if facet.by is set, but set it to 1 initially
   figure.count = 1
   facet.categories = NULL
-  all.traces = list ()
   # figures.per.row = 3
   
   # SIMULATION ELEMENTS
@@ -507,6 +528,13 @@ execute.plotly.plot <- function(prepared.plot.data,
   
   # DATA ELEMENTS
   if (!is.null(df.truth)) {
+    
+    df.truth$marker.shapes = unlist(lapply(df.truth$shape.data.by, function(val) { marker.mappings[[val]] }))
+    df.truth$marker.colors = unlist(lapply(df.truth$color.data.by, function(val) { color.data.primary.colors[val] }))
+    if (length(df.truth$marker.colors) != length(df.truth$marker.shapes)) {
+      stop("df.truth: We cannot have different numbers of shapes and colors")
+    }
+    
     if (!is.null(split.by)) {
       # Add points for truth data with split groups
       # Add lines for multiple simulation groups
@@ -520,6 +548,7 @@ execute.plotly.plot <- function(prepared.plot.data,
         # Add as many traces to the figure as we have split.categories
           
       } else {
+        # browser()
         current.facet = 1
         # If it is non null, we want multiple figures within this plot
         facet.categories = unique (df.sim.groupids.many.members$facet.by1)
@@ -568,18 +597,24 @@ execute.plotly.plot <- function(prepared.plot.data,
             fig$data = append(fig$data, traces)
           } # End of facets
         } else {
-          marker.type = "marker"
+          # Only one figure
+          # We need to check here if there are multiple sources for truth data
           
-          category.list = unique(df.truth[["stratum"]])
+          # browser()
           
-          traces = inner.collector(category.list, 
-                                   df.truth, 
-                                   "stratum",
-                                   marker.type,
-                                   current.facet)
+          marker.types = unique(df.truth$color.data.by)
+          # The way I understand this this could be either 
+          # color.data.by or shape.data.by above
+          
+          # for (m.type in marker.types) {
+          traces = inner.collector(marker.types,
+                                  df.truth,
+                                  "color.data.by",
+                                  "marker",
+                                  current.facet)
+          fig$data = append(fig$data,traces)
         }
       }
-      fig$data = append(fig$data,traces)
     }
   }
   
@@ -587,11 +622,12 @@ execute.plotly.plot <- function(prepared.plot.data,
   
   # How many figures do we need? One for each facet.
   if (figure.count > 1) {
-    if (figure.count >= 3) {
-      figures.per.row = 3
-    } else if (figure.count < 3) {
-      figures.per.row = figure.count
-    }
+    figures.per.row = ceiling(sqrt(figure.count))
+    # if (figure.count >= 3) {
+    #   figures.per.row = 3
+    # } else if (figure.count < 3) {
+    #   figures.per.row = figure.count
+    # }
     # How many full rows of figures do we have?
     plot.rows = ceiling(figure.count / figures.per.row)
     
