@@ -31,7 +31,7 @@ JHEEM.CUSTOM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             private$i.name = name
             private$i.compute.function = compute.function
         },
-        instantiate.likelihood = function() {
+        instantiate.likelihood = function(verbose=F) {
             JHEEM.CUSTOM.LIKELIHOOD$new(instructions = self)
         },
         equals = function(other) {}
