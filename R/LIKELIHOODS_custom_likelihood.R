@@ -1,3 +1,9 @@
+#' @title Create Custom Likelihood Instructions
+#' @description
+#' Create instructions for a likelihood that computes using a custom function.
+#' @inheritParams create.basic.likelihood.instructions
+#' @param compute.function A function that takes only two arguments: 'sim' and 'log'.
+#' @export
 create.custom.likelihood.instructions <- function(name,
                                                   compute.function,
                                                   verbose = F) {
