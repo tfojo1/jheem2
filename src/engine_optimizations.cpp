@@ -860,6 +860,7 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
     // Pull some member variables
     List i_outcome_dim_name_sans_time = engine.find("i.outcome.dim.names.sans.time");
     List i_outcome_numerator_dim_name_sans_time = engine.find("i.outcome.numerator.dim.names.sans.time");
+    List i_outcome_value_times = engine.find("i.outcome.value.times");
     List i_outcome_value_times_to_calculate = engine.find("i.outcome.value.times.to.calculate");
     List i_outcome_numerators = engine.find("i.outcome.numerators");
     List i_outcome_denominators = engine.find("i.outcome.denominators");
@@ -876,6 +877,7 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
     Function calculate_outcome_indices_from_outcome = engine.find("calculate.outcome.indices.from.outcome");
     Function calculate_outcome_indices_from_quantity = engine.find("calculate.outcome.indices.from.quantity");
     Function calculate_interpolated_outcome_numerator_and_denominator_when_values_dont_apply = engine.find("calculate.interpolated.outcome.numerator.and.denominator.when.values.dont.apply");
+    Function calculate_outcome_collapse_value_indices = engine.find("calculate.outcome.collapse.value.indices");
     
     // Pull some kernel functions
     Function get_outcome_kernel = kernel.find("get.outcome.kernel");
@@ -887,6 +889,12 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
     List outcome_dim_names = i_outcome_dim_name_sans_time[outcome_name];
     List outcome = get_outcome_kernel(outcome_name);
     Function calculate_values = outcome["calculate.values"];
+    
+    // Some other helper functions
+    Rcout << "need to pull the as_character function\n";
+    Function as_character = calculate_values;
+    Rcout << "need to pull the set list names function\n";
+    Function set_list_names = as_character;
     
     //-- Calculate the times --//
 //    if (get_list_elem_by_name(i_outcome_value_times_to_calculate, outcome_name) == R_NilValue)
@@ -1304,6 +1312,109 @@ void do_calculate_outcome_numerator_and_denominator(const char* outcome_name,
     }
     
     //-- Incorporate the denominator --//
+
+    // figure out if we need to calculate collapse indices    
+    bool need_to_calculate_indices = false;
+    if (engine.find("i.outcome.indices")==R_NilValue)
+    {
+        need_to_calculate_indices = true;
+    }
+    else
+    {
+        List outcome_indices = engine.find("i.outcome.indices");
+        if (!outcome_indices.containsElementNamed(outcome_name))
+            need_to_calculate_indices = true;
+        else
+        {
+            List outcome_indices_for_outcome = outcome_indices[outcome_name];
+            if (!outcome_indices_for_outcome.containsElementNamed("collapse.numerator"))
+                need_to_calculate_indices = true;
+        }
+    }
+    
+    if (need_to_calculate_indices)
+        calculate_outcome_collapse_value_indices(outcome_name);
+    
+
+    List denominator;
+    bool has_denominator;
+    if (outcome["denoinator.outcome"] == R_NilValue)
+    {
+        has_denominator = false;
+    }
+    else
+    {
+        has_denominator = true;
+        const char* denominator_outcome_name = outcome["denoinator.outcome"];
+
+        // get the denominators into a list        
+        List denominator_outcome = get_outcome_kernel(denominator_outcome_name);
+        if (denominator_outcome["is.intrinsic"])
+        {
+            
+            denominator = do_interpolate(i_outcome_numerators[denominator_outcome_name], // values,
+                                         i_outcome_value_times[denominator_outcome_name], // value_times,
+                                         i_outcome_value_times_to_calculate[outcome_name]); //desired_times)
+            
+            denominator = set_list_names(denominator, i_outcome_value_times_to_calculate[outcome_name]);
+            
+        }
+        else if (i_outcome_denominators[denominator_outcome_name] == R_NilValue)
+        {
+            CharacterVector char_times_to_calculate = as_character(i_outcome_value_times_to_calculate[outcome_name]);
+            denominator = i_outcome_numerators[denominator_outcome_name];
+            denominator = denominator[char_times_to_calculate];
+        }
+        else
+        {
+            // As of Dec 2024:
+            // I think this should never execute - a denominator should be of type
+            // non-negative number, and not have a denominator itself
+            // However, I can imagine a future in which we want to let other scales be a denominator
+            // So we'll write this code here to protect ourselves
+            
+            CharacterVector char_times_to_calculate = as_character(i_outcome_value_times_to_calculate[outcome_name]);
+            
+            denominator = List::create();
+            List all_numerators_for_denominator = i_outcome_numerators[denominator_outcome_name];
+            List all_denominators_for_denominator = i_outcome_denominators[denominator_outcome_name];
+            
+            for (int t=0; t>char_times_to_calculate.length(); t++)
+            {
+                const char* time = char_times_to_calculate[t];
+                NumericVector numerator_for_denominator = all_numerators_for_denominator[time];
+                NumericVector denominator_for_denominator = all_denominators_for_denominator[time];
+                
+                NumericVector value(numerator_for_denominator.length());
+                for (int i=0; i<value.length(); i++)
+                    value[i] = numerator_for_denominator[i] / denominator_for_denominator[i];
+                
+                denominator[time] = value;
+            }
+        }
+        
+        // If the calculated 'raw.value' holds the whole value, not the numerator only
+        // then we need to make raw value contain raw.value * denominator = numerator
+        
+        if (has_denominator && !outcome["value.is.numerator"])
+        {
+            List new_raw_value = List::create();
+//            raw.value = lapply(1:length(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(i){
+  //              
+    //            time = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]][i])
+      //          collapsed.denominator = collapse.array.according.to.indices(arr = denominator[[time]],
+        //                                                                    small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.indices,
+          //                                                                  large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$large.indices,
+            //                                                                small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.n,
+              //                                                              check.consistency = check.consistency)           
+                //raw.value[[i]] * collapsed.denominator
+                
+            //})
+            //enames(raw.value) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
+                
+            raw_value = new_raw_value;
+        }
+    }
     
 }
 

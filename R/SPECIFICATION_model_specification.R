@@ -146,7 +146,7 @@ create.jheem.specification <- function(version,
         if (!is.specification.registered.for.version(parent.version))
             stop(paste0(error.prefix,
                         "Invalid 'parent.version' - No JHEEM specification for version '", 
-                        version, "' has been registered"))
+                        parent.version, "' has been registered"))
         
         parent.specification = get.specification.for.version(parent.version)
     }    

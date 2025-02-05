@@ -759,8 +759,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
         i.redundant.location.threshold = NULL,
         i.partitioning.function = NULL,
         i.use.lognormal.approximation = NULL,
-        i.calculate.lagged.difference = NULL,
-        i.log.ratio.uncertainty.matrix = NULL
+        i.calculate.lagged.difference = NULL
     )
 )
 
@@ -795,7 +794,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 stop(paste0(error.prefix, "'data.manager' must be an R6 object with class 'jheem.data.manager'"))
             }
 
-            # --- UNPACK INSTRUCTIONS --- #
+            # ---- UNPACK INSTRUCTIONS ----
             # browser()
             if (post.time.checkpoint.flag) print(paste0("Start time: ", Sys.time()))
 
@@ -878,7 +877,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 )
                 # all.locations = c('24510', 'C.12580', 'MD')
 
-                ## ---- PREPARE DATA STRUCTURES ---- ##
+                ## ---- PREPARE DATA STRUCTURES ----
 
                 private$i.sim.ontology <- sim.metadata$outcome.ontologies[[private$i.outcome.for.sim]]
                 private$i.sim.ontology$year <- as.character(years)
@@ -904,7 +903,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 data.keep.dimensions <- c()
 
 
-                ## ---- PULL DATA ---- ##
+                ## ---- PULL DATA ----
                 if (post.time.checkpoint.flag) print(paste0("Begin pulling: ", Sys.time()))
                 # browser()
                 n.stratifications.with.data <- 0
@@ -1162,7 +1161,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     which(years.with.data == y)
                 })
 
-                ## ---- GENERATE LAGGED PAIRS IF REQUESTED ---- ##
+                ## ---- GENERATE LAGGED PAIRS IF REQUESTED ----
                 if (private$i.calculate.lagged.difference) {
                     year.for.lag <- suppressWarnings(as.numeric(private$i.metadata$year))
                     if (any(is.na(year.for.lag))) {
@@ -1249,7 +1248,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 dim(private$i.obs.error) <- c(private$i.n.obs, private$i.n.obs)
                 
                 
-                # ------ THINGS THAT DEPEND ON OBSERVATION-LOCATIONS ------ #
+                # ---- THINGS THAT DEPEND ON OBSERVATION-LOCATIONS ----
                 observation.locations <- union(as.vector(unique(private$i.metadata$location)), location) # otherwise is factor
                 n.obs.locations <- length(observation.locations) # we have ensured the main location is always in here because it will be used for metalocations and therefore must be accounted for everywhere else too
 
@@ -1300,7 +1299,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 })
 
                 
-                # ------ THINGS THAT DEPEND ON METALOCATION INFO ------ #
+                # ---- THINGS THAT DEPEND ON METALOCATION INFO ----
                 metalocation.info <- private$get.metalocations(
                     location = location,
                     observation.locations = observation.locations,
@@ -1371,7 +1370,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             })
 
             
-            # --- P.BIAS --- #
+            # ---- P.BIAS ----
             if (post.time.checkpoint.flag) print(paste0("Generate p bias matrices: ", Sys.time()))
             private$i.year.metalocation.p.bias <- private$get.p.bias.matrices(
                 n.strata = n.strata,
@@ -1389,7 +1388,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             )
 
             
-            # --- CONDITIONING --- #
+            # ---- CONDITIONING ----
             if (post.time.checkpoint.flag) print(paste0("Do conditioning: ", Sys.time()))
             private$i.obs.n.plus.conditioned.error.variances <- lapply(1:n.strata, function(i) {
                 # Implementing infrastructure for summing variances from multiple terms/types
@@ -1416,13 +1415,15 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             })
 
             private$i.year.metalocation.to.year.condition.on.location.mask <- rep(metalocation.to.obs.location.mapping[location, ], each = n.years)
-            private$i.year.metalocation.to.year.condition.on.location.mapping <- private$i.year.metalocation.to.year.obs.n.mapping[[1]][dim(private$i.year.metalocation.to.year.obs.n.mapping[[1]])[[1]] - (n.years:1) + 1, private$i.year.metalocation.to.year.condition.on.location.mask]
+            private$i.year.metalocation.to.year.condition.on.location.mapping <-
+                private$i.year.metalocation.to.year.obs.n.mapping[[1]][dim(private$i.year.metalocation.to.year.obs.n.mapping[[1]])[[1]] - (n.years:1) + 1,
+                                                                       private$i.year.metalocation.to.year.condition.on.location.mask]
             if (!is.matrix(private$i.year.metalocation.to.year.condition.on.location.mapping)) {
                 dim(private$i.year.metalocation.to.year.condition.on.location.mapping) <- c(1, length(private$i.year.metalocation.to.year.condition.on.location.mapping))
             }
 
             
-            # --- INVERSE VARIANCE WEIGHTS MATRIX --- #
+            # ---- INVERSE VARIANCE WEIGHTS MATRIX ----
 
             ## included multiplier to make inverse multiplier matrix times covariance matrix
             if (!is.null(private$i.parameters$included.multiplier)) {
@@ -1472,7 +1473,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             )
 
             
-            # --- SAVE SIM$GET INSTRUCTIONS --- #
+            # ---- SAVE SIM$GET INSTRUCTIONS ----
             private$i.optimized.get.instructions <- list()
             private$i.optimized.get.instructions[["sim.p.instr"]] <- sim.metadata$prepare.optimized.get.instructions(
                 outcome = private$i.outcome.for.sim,
@@ -1487,7 +1488,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 output = "denominator",
                 drop.single.sim.dimension = T
             )
-
+            # browser()
             ptm <- Sys.time()
             if (post.time.checkpoint.flag) print(paste0("End time: ", ptm))
         },
@@ -1556,6 +1557,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
         i.calculate.lagged.difference = NULL,
         i.lagged.pairs = NULL,
         i.metadata.for.lag = NULL,
+        i.log.ratio.uncertainty.matrix = NULL,
         do.compute = function(sim, log = T, use.optimized.get = F, check.consistency = T, debug = F) {
             if (use.optimized.get) {
                 sim.p <- sim$optimized.get(private$i.optimized.get.instructions[["sim.p.instr"]])

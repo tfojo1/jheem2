@@ -1,6 +1,5 @@
-N.SIM = 200
+N.SIM = 2000
 RUN.RPROF = T
-SOLVER.METHOD = 'DP5'
 
 source('../jheem_analyses/applications/EHE/calibration_runs/ehe_register_calibrations.R')
 
@@ -10,7 +9,7 @@ LOCATION = 'C.12580'
 CALIBRATION.CODE.TO.RUN = 'fullprof'
 
 
-copy.calibration.info(from.code = 'full.with.aids',
+copy.calibration.info(from.code = 'full.with.covid2',
                       to.code = CALIBRATION.CODE.TO.RUN,
                       n.iter = N.SIM,
                       thin = 5)
