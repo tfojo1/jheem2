@@ -2115,6 +2115,36 @@ JHEEM = R6::R6Class(
                         used.parameter.names = union(used.parameter.names, parameters.to.pass$accessed.elements)
                 }
                 
+                # For set parameters
+                if (!is.null(private$i.kernel$set.parameter.names) &&
+                    any_overlap_character(changed.parameter.names, private$i.kernel$set.parameter.names))
+                {
+                    if (check.consistency)
+                    {
+                        missing.parameters = setdiff(private$i.kernel$set.parameter.names, 
+                                                     names(parameters))
+                        if (length(missing.parameters)>0)
+                        {
+                            stop(paste0(error.prefix, length(missing.parameters),
+                                        ifelse(length(missing.parameters)==1, " parameter is", " parameters are"),
+                                        " expected from the set parameter names, but ",
+                                        ifelse(length(missing.parameters)==1, "is", "are"),
+                                        " missing from 'parameters'; ",
+                                        collapse.with.and("'", missing.parameters, "'")))
+                        }
+                        
+                        parameters.to.pass = PROTECTED.NUMERIC.VECTOR$new(parameters)
+                    }
+                    else
+                        parameters.to.pass = parameters
+                    
+                    private$i.kernel$set.parameters.apply.function(model.settings = model.settings,
+                                                                   parameters = parameters.to.pass)
+                    
+                    if (check.consistency)
+                        used.parameter.names = union(used.parameter.names, parameters.to.pass$accessed.elements)
+                }
+                
                 # Check that there are no missing parameters for foregrounds
                 if (check.consistency)
                 {
@@ -5065,11 +5095,11 @@ JHEEM = R6::R6Class(
                             #-- Pull the access/expand indices --#
                             expand.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]
                             access.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.access[[i]]
-                            
+                
                             if (length(comp.value.applies)==1)
                             {
                                 if (is.null(access.indices))
-                                    quant.value.applies = comp.value.applies
+                                    quant.value.applies = rep(comp.value.applies, length(expand.indices))
                                 else if (comp$apply.function=='overwrite')
                                     quant.value.applies[access.indices] = comp.value.applies
                                 else if (comp.value.applies)
