@@ -1186,6 +1186,29 @@ prepare.mcmc.summary <- function(version,
     )
 }
 
+#' Get Percentage of Run Cache Completed
+#' @return Matrix of percentages shape [chain x location]
+#' @export
+percentage.cache.complete <- function(version,
+                                      calibration.code,
+                                      locations,
+                                      chains) {
+    
+    all.percentages = lapply(locations, function(location) {
+        percentages.this.location = sapply(chains, function(chain) {
+            obj.path = file.path("../../files/mcmc_runs", version, location, calibration.code, "cache", paste0("chain", chain, "_control.Rdata"))
+            if (!file.exists(obj.path)) return(NA)
+            chain.control.obj = get(load(file.path))
+            mean(chain.control.obj@chunk.done)
+        })
+    })
+    names(all.percentages) = locations
+    percentage.matrix = do.call(cbind, all.percentages)
+    colnames(percentage.matrix) = locations
+    rownames(percentage.matrix) = chains
+    percentage.matrix
+}
+
 ##-------------##
 ##-- HELPERS --##
 ##-------------##
