@@ -1,3 +1,9 @@
+#' @title Create Custom Likelihood Instructions
+#' @description
+#' Create instructions for a likelihood that computes using a custom function.
+#' @inheritParams create.basic.likelihood.instructions
+#' @param compute.function A function that takes only two arguments: 'sim' and 'log'.
+#' @export
 create.custom.likelihood.instructions <- function(name,
                                                   compute.function,
                                                   verbose = F) {
@@ -25,7 +31,7 @@ JHEEM.CUSTOM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             private$i.name = name
             private$i.compute.function = compute.function
         },
-        instantiate.likelihood = function() {
+        instantiate.likelihood = function(verbose=F) {
             JHEEM.CUSTOM.LIKELIHOOD$new(instructions = self)
         },
         equals = function(other) {}
