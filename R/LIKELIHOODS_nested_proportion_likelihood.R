@@ -1582,7 +1582,27 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             flattened.dims <- c(year = dim(sim.p)[["year"]], stratum = prod(dim(sim.p)[names(dim(sim.p)) != "year"]))
             dim(sim.p) <- flattened.dims
             dim(sim.n) <- flattened.dims
-
+            # saved.lik.components = list(p = sim.p,
+            #                             n = sim.n,
+            #                             year_metalocation_n_multipliers = private$i.year.metalocation.n.multipliers,
+            #                             year_metalocation_n_multiplier_sd = private$i.year.metalocation.n.multiplier.sd,
+            #                             year_metalocation_p_bias = private$i.year.metalocation.p.bias,
+            #                             year_metalocation_p_sd = private$i.year.metalocation.p.sd,
+            #                             metalocation_p_correlation = private$i.within.location.p.error.correlation,
+            #                             metalocation_n_multiplier_correlation = private$i.within.location.n.error.correlation,
+            #                             year_metalocation_to_year_obs_n_mapping = private$i.year.metalocation.to.year.obs.n.mapping,
+            #                             obs_n = private$i.obs.n,
+            #                             obs_n_plus_conditioned_error_variances = private$i.obs.n.plus.conditioned.error.variances,
+            #                             year_metalocation_to_year_condition_on_location_mask = private$i.year.metalocation.to.year.condition.on.location.mask,
+            #                             year_metalocation_to_year_condition_on_location_mapping = private$i.year.metalocation.to.year.condition.on.location.mapping,
+            #                             year_metalocation_to_year_obs_location_mask = private$i.year.metalocation.to.year.obs.location.mask,
+            #                             year_metalocation_to_year_obs_location_mapping = private$i.year.metalocation.to.year.obs.location.mapping,
+            #                             year_loc_stratum_to_obs_mapping = private$i.year.loc.stratum.to.obs.mapping,
+            #                             year_metalocation_to_obs_mapping = private$i.year.metalocation.to.obs.mapping,
+            #                             obs_year_index = private$i.obs.year.index,
+            #                             obs_p = private$i.obs.p,
+            #                             obs_error = private$i.obs.error)
+            # save(saved.lik.components, file="R/tests/LA_heroin_components.rdata")
             lik.components <- get_nested_proportion_likelihood_components(
                 p = sim.p,
                 n = sim.n,
