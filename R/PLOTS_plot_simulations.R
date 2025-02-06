@@ -250,12 +250,15 @@ execute.plotly.plot <- function(prepared.plot.data,
   linetypes.for.sim = gsub ("dashed", "dash", linetypes.for.sim)
   # Mapping the ggplot marker shapes into plotly
   marker.mappings = lapply(shapes.for.data, function(gg_shape) {
-    if (gg_shape == 21) return (0) # Circle
-    if (gg_shape == 22) return (1) # Square
-    if (gg_shape == 23) return (2) # Diamond
-    if (gg_shape == 24) return (5) # Triangle UP
-    if (gg_shape == 25) return (6) # Triangle DOWN
+    if (gg_shape == 21) return ('circle') # Circle
+    if (gg_shape == 22) return ('square') # Square
+    if (gg_shape == 23) return ('diamond') # Diamond
+    if (gg_shape == 24) return ('triangleup') # Triangle UP
+    if (gg_shape == 25) return ('triangledown') # Triangle DOWN
   })
+  
+  sim.trace.count = 0
+  trace.in.legend = list()
   
   # Helper function definition
   inner.collector = function(cat.list, 
@@ -269,7 +272,8 @@ execute.plotly.plot <- function(prepared.plot.data,
                           data.for.this.facet[[trace.column]] == trace_id)
           
       clean.group.id = gsub("^[a-zA-Z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
-      d = list (
+      
+      base.trace = list (
         type = "scatter",
         mode = paste0(marker.type, "s"),
         name = clean.group.id,
@@ -278,38 +282,80 @@ execute.plotly.plot <- function(prepared.plot.data,
         xaxis = paste0("x", current.facet),
         yaxis = paste0("y", current.facet)
       )
+      
       if (marker.type == "line") {
-        col = colors.for.sim
-        # browser()
-        if(is.null(trace.data$line.color[1])) {
-          print("Line color not implemented")
+        sim.trace.count <<- sim.trace.count + 1
+        col = if(is.null(trace.data$line.color[1])) {
+          colors.for.sim
         } else {
-          col = trace.data$line.color[1]
+          trace.data$line.color[1]
         }
-        d[[marker.type]] = list (
-          dash = linetypes.for.sim[[clean.group.id]],
+        
+        mark = if(is.null(trace.data$line.shape[1])) {
+          linetypes.for.sim[[clean.group.id]]
+        } else {
+          trace.data$line.shape[1]
+        }
+        # Does this combination of color and style already exist in the legend?
+        trace.key = paste0(col, mark)
+        if (!is.null(trace.in.legend[[trace.key]])) {
+          base.trace$showlegend = FALSE
+        } else {
+          trace.in.legend[[trace.key]] <<- TRUE
+        }
+        
+        base.trace[["line"]] = list (
+          dash = mark,
           color = col
         )
+        return (base.trace)
+        
       } else if (marker.type == "marker") {
-        # browser()
-        col = colors.for.sim
-        if (is.null(trace.data$marker.color[1])) {
-          print("Marker color not implemented")
-        } else {
-          col = trace.data$marker.color[1]
-          # print(paste0(trace.data$shape.data.by[1]," ", col))
-        }
+        unique.shapes = unique(trace.data$marker.shapes)
+        
+        marker.traces = lapply(unique.shapes, function(shape) {
           
-        d[[marker.type]] = list (
-          color = col,
-          line = list (
-            color = "#202020",
-            width = 1
+          shape.data = subset(trace.data, marker.shapes == shape)
+          
+          col = if (is.null(shape.data$marker.color[1])) {
+            colors.for.sim
+          } else {
+            shape.data$marker.color[1]
+          }
+          sym = if(is.null(shape.data$marker.shapes[1])) {
+            'circle'
+          } else {
+            shape.data$marker.shapes[1]
+          }
+            
+          trace = base.trace
+          
+          trace$x = shape.data$year
+          trace$y = shape.data$value
+          
+          # Does this combination of color and style already exist in the legend?
+          trace.key = paste0(col, sym)
+          if (!is.null(trace.in.legend[[trace.key]])) {
+            trace$showlegend = FALSE
+          } else {
+            trace.in.legend[[trace.key]] <<- TRUE
+          }
+          
+          trace[["marker"]] = list (
+            color = col,
+            symbol = sym,
+            line = list (
+              color = "#202020",
+              width = 1
+            )
+            #  Add additional information here; shape of marker, size
           )
-          #  Add additional information here; shape of marker, size
-        )
+          return (trace)
+        })
+        
+        # browser()
+        return (marker.traces)    
       }
-      return (d)    
     })
   }
 
@@ -325,13 +371,13 @@ execute.plotly.plot <- function(prepared.plot.data,
     if (is.null(split.categories)) {
       # No splits
       category.list = unique(data.for.this.facet[[trace.column]])
-      traces = inner.collector(category.list, 
+      raw.traces = inner.collector(category.list, 
                                data.for.this.facet, 
                                trace.column,
                                marker.type,
                                current.facet)
-      
-      rv = append(rv, traces)
+      # traces = unlist(raw.traces, recursive = FALSE)
+      rv = append(rv, raw.traces)
     } else {
         # There are splits to collect
       for (spl.cat in split.categories) {
@@ -339,11 +385,12 @@ execute.plotly.plot <- function(prepared.plot.data,
                                      data.for.this.facet[[local.split.by]] == spl.cat)
         # One trace for each category
         category.list = unique(data.for.this.trace[[trace.column]])
-        traces = inner.collector(category.list, 
+        raw.traces = inner.collector(category.list, 
                                  data.for.this.facet, 
                                  trace.column,marker.type,
                                  current.facet)
-        rv = append(rv, traces)
+        # traces = unlist(raw.traces, recursive = FALSE)
+        rv = append(rv, raw.traces)
       } # End of splits
     }
     rv
@@ -379,16 +426,25 @@ execute.plotly.plot <- function(prepared.plot.data,
   if (!is.null(df.sim)) {
     
     df.sim.groupids.many.members$line.color = 
-      unlist(lapply(df.sim.groupids.many.members$color.sim.by, function(val) {colors.for.sim[val]}))
+      unlist(lapply(df.sim.groupids.many.members$color.sim.by, function(val) {
+        if (all(names(colors.for.sim) == "")) {
+          return(colors.for.sim)
+        }
+        colors.for.sim[val]
+      }))
     df.sim.groupids.many.members$line.shape = 
       unlist(lapply(df.sim.groupids.many.members$linetype.sim.by, function(val) {linetypes.for.sim[val]}))
     
     df.sim.groupids.one.member$line.color = 
-      unlist(lapply(df.sim.groupids.one.member$color.sim.by, function(val) {colors.for.sim[val]}))
+      unlist(lapply(df.sim.groupids.one.member$color.sim.by, function(val) {
+        if (all(names(colors.for.sim) == "")) {
+          return(colors.for.sim)
+        }
+        colors.for.sim[val]
+      }))
     df.sim.groupids.one.member$line.shape = 
       unlist(lapply(df.sim.groupids.one.member$linetype.sim.by, function(val) {linetypes.for.sim[val]}))
     
-    # browser()
     if (!is.null(split.by)) {
       if (nrow(df.sim.groupids.many.members) > 0) {
         # Add lines for multiple simulation groups
@@ -482,13 +538,13 @@ execute.plotly.plot <- function(prepared.plot.data,
             category.list = unique(df.sim.groupids.many.members[["groupid"]])
             
             
-            traces = inner.collector(category.list,
+            raw.traces = inner.collector(category.list,
                             df.sim.groupids.many.members, 
                             "groupid",
                             marker.type,
                             current.facet)
-            
-            fig$data = append(fig$data, traces)
+            # traces = unlist(raw.traces, recursive = FALSE)
+            fig$data = append(fig$data, raw.traces)
           }
         } else {
           # Faceting but no split by
@@ -626,12 +682,13 @@ execute.plotly.plot <- function(prepared.plot.data,
           # color.data.by or shape.data.by above
           
           # for (m.type in marker.types) {
-          traces = inner.collector(marker.types,
+          raw.traces = inner.collector(marker.types,
                                   df.truth,
                                   "color.data.by",
                                   "marker",
                                   current.facet)
-          fig$data = append(fig$data,traces)
+          # traces = unlist(raw.traces, recursive = FALSE)
+          fig$data = append(fig$data,raw.traces)
         }
       }
     }
@@ -690,7 +747,13 @@ execute.plotly.plot <- function(prepared.plot.data,
     # print("Layout for a single figure")
     # TODO
   }
-  
+  # The marker traces are nested one list() deep; this code will un-nest them
+  sim.traces = fig$data[1:sim.trace.count]
+  doubled.traces = fig$data[(sim.trace.count + 1):length(fig$data)]
+  flattened.traces = unlist(doubled.traces, recursive = FALSE)
+  fig$data = c(sim.traces, flattened.traces) 
+  # browser()
+  # print(fig)
   # Return the final plot object
   return(plotly_build(fig))
   
