@@ -1601,7 +1601,7 @@ find.ontology.mapping.for.dimensions <- function(from.ontology,
         }
         
         # Try with allow non overlapping incomplete mappings now
-        do.find.ontology.mapping.for.dimensions(from.ontology = from.ontology,
+        find.ontology.mapping.for.dimensions(from.ontology = from.ontology,
                                                to.ontology = to.ontology,
                                                required.dimensions = required.dimensions,
                                                required.dim.names = required.dim.names,
