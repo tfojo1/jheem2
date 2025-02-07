@@ -222,7 +222,7 @@ set.element.taper.values <- function(model.settings,
 #'@inheritParams set.element.value
 #'@param element.names One or more names of the model element to set the future.slope for
 #'@param slope A single numeric value representing the slope
-#'@param after.year The year after which the additional slope takes effect
+#'@param after.time The year after which the additional slope takes effect
 #'
 #'@family Functions to create and modify a model settings
 #'
@@ -246,14 +246,14 @@ set.element.functional.form.future.slope <- function(model.settings,
 #'@export
 set.element.functional.form.future.slope.after.time <- function(model.settings,
                                                                 element.names,
-                                                                after.year,
+                                                                after.time,
                                                                 wrt.version = model.settings$version)
 {
     if (!is(model.settings, "R6") || !is(model.settings, "jheem.model.settings"))
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.future.slope.after.time(element.names = element.names,
-                                                                     after.year = after.year,
+                                                                     after.time = after.time,
                                                                      wrt.version = wrt.version)
 }
 
@@ -972,6 +972,7 @@ SOLVER.METADATA = R6::R6Class(
 #'@param version,location,sub.version The JHEEM version, sub.version, and location for which to run simulations
 #'@param max.run.time.seconds The maximum amount of time to run simulations before terminating
 #'@param end.year The year to run simulations to
+#'@param solver.metadata A solver.metadata object, as created by \code{\link{create.solver.metadata}}, specifying what ODE solver to use in running simulations
 #'
 #'@export
 create.jheem.engine <- function(version,
@@ -2005,6 +2006,25 @@ JHEEM = R6::R6Class(
                 # overwrite into parameters vector
                 old.parameters = private$i.parameters
                 private$i.parameters[names(parameters)] = parameters
+                
+                # Sample any needed randomly sampled parameters
+                if (!is.null(private$i.kernel$sampled.parameter.names))
+                {
+                    # for now we'll throw an error
+                    # if we ever find a use case for sampled parameters without calibration, we can change
+                    # would need some other way to come up with the seed
+                    if (is.null(private$i.kernel$calibrated.parameter.names))
+                        stop(paste0(error.prefix, "We cannot set sampled parameters unless calibrated parameters are present"))
+                    
+                    reset.seed = runif(1, 0, .Machine$integer.max)
+                    set.seed(get.simulation.seed.from.parameters(private$i.parameters[private$i.kernel$calibrated.parameter.names]))
+                    
+                    unspecified.sampled.parameters = setdiff(private$i.kernel$sampled.parameter.names, names(parameters))
+                    private$i.parameters[unspecified.sampled.parameters] = generate.random.samples(private$i.kernel$sampled.parameters.distribution, n=1)[unspecified.sampled.parameters]
+                    parameters[unspecified.sampled.parameters] = private$i.parameters[unspecified.sampled.parameters]
+                    
+                    set.seed(reset.seed)
+                }
            
                 # Set the values for any elements with matching names
                 
@@ -2498,7 +2518,7 @@ JHEEM = R6::R6Class(
         {
             #-- Check Arguments --#
             
-            if (check.arguments)
+            if (check.consistency)
             {
                 private$validate.element.names(element.names = element.name,
                                               wrt.version = wrt.version,
@@ -2668,8 +2688,14 @@ JHEEM = R6::R6Class(
             
             # Clear values for all times after functional.form.future.slope.after.time
             for (element.name in element.names.to.modify)
+            {
+                if (is.null(private$i.element.backgrounds[[element.name]]$future.slope.after.time))
+                    stop(paste0("Cannot set functional.form future-slope for element '", element.name,
+                                " - no future.slope.after.time has been set. Call set.element.functional.form.future.slope.after.time() BEFORE calling  set.element.functional.form.future.slope()"))
+                
                 private$clear.dependent.values(element.name,
-                                               clear.after.time = i.element.backgrounds[[element.name]]$future.slope.after.time)
+                                               clear.after.time = private$i.element.backgrounds[[element.name]]$future.slope.after.time)
+            }
             
             # No need to clear times
             # No need to clear dim.names
@@ -2689,13 +2715,11 @@ JHEEM = R6::R6Class(
                                                                        check.consistency = !self$has.been.crunched(),
                                                                        wrt.version = self$version)
         {
-            previous.future.slope.after.time = i.element.backgrounds[[element.name]]$future.slope.after.time
-            
             #-- Check Arguments --#
-            if (check.arguments)
+            if (check.consistency)
             {
-                if (!is.numeric(after.year) || length(after.year)!=1 || is.na(after.year))
-                    stop("Cannot set functional.form future-slope-after-year: 'after.year' must be a single, non-NA, numeric value")
+                if (!is.numeric(after.time) || length(after.time)!=1 || is.na(after.time))
+                    stop("Cannot set functional.form future-slope-after-year: 'after.time' must be a single, non-NA, numeric value")
                 
                 private$validate.element.names(element.names = element.names,
                                                wrt.version = wrt.version,
@@ -2736,16 +2760,19 @@ JHEEM = R6::R6Class(
             
             # Clear values for all times after min(old, new functional.form.future.slope.after.time)
             for (element.name in element.names.to.modify)
+            {
+                previous.future.slope.after.time = private$i.element.backgrounds[[element.name]]$future.slope.after.time
+                
                 private$clear.dependent.values(element.name, 
-                                               clear.after.time = min(i.element.backgrounds[[element.name]]$future.slope.after.time,
-                                                                      previous.future.slope.after.time))
-
+                                               clear.after.time = min(after.time, previous.future.slope.after.time))
+            }
+            
             # No need to clear times
             # No need to clear dim.names
             
             #-- Set the Value --#
             for (element.name in element.names.to.modify)
-                private$i.element.backgrounds[[element.name]]$future.slope.after.year = after.year
+                private$i.element.backgrounds[[element.name]]$future.slope.after.time = after.time
             
             
             #-- Done --#

@@ -633,6 +633,8 @@ get.ontology.mapping.matrix <- function(ontology.mapping,
 #'@param na.rm Passed through to fun
 #'@param error.prefix A character value to be prepended to any error messages thrown by the function
 #'
+#'@family Functions to identify why ontologies fail to map
+#'
 #'@export
 apply.ontology.mapping <- function(ontology.mapping,
                                    from.arr,
@@ -654,6 +656,8 @@ apply.ontology.mapping <- function(ontology.mapping,
 #'
 #'@return An object of class "ontology.mapping"
 #'
+#'@family Functions to identify why ontologies fail to map
+#'
 #'@export
 get.identity.ontology.mapping <- function()
 {
@@ -670,6 +674,8 @@ get.identity.ontology.mapping <- function()
 #'@param allow.map.to.subset.of.target 
 #'@param na.rm
 #'@param error.prefix
+#'
+#'@family Functions to identify why ontologies fail to map
 #'
 #'@export
 map.value.ontology <- function(value,
@@ -829,11 +835,20 @@ examine.recent.failed.ontology.mapping <- function(which=1,
                     get.ordinal(which), " most recent failed attempt"))
     
     if (which > length(RECENT.FAILED.ONTOLOGY.MAPPINGS$calls))
-        stop(paste0("We have only had ", length(RECENT.FAILED.ONTOLOGY.MAPPINGS$calls),
-                    " failed attempt",
-                    ifelse(length(RECENT.FAILED.ONTOLOGY.MAPPINGS$calls)==1, '', 's'),
-                    " to map ontologies, so we can't examine the ",
-                    get.ordinal(which), " most recent failed attempt"))
+    {
+        if (length(RECENT.FAILED.ONTOLOGY.MAPPINGS$calls)==0)
+            stop(paste0("We have not had any failed attempts to map ontologies, so we can't examine the ",
+                        ifelse(which==1, "", paste0(get.ordinal(which), " ")),
+                        "most recent failed attempt"))
+            
+        else
+            stop(paste0("We have only had ", length(RECENT.FAILED.ONTOLOGY.MAPPINGS$calls),
+                        " failed attempt",
+                        ifelse(length(RECENT.FAILED.ONTOLOGY.MAPPINGS$calls)==1, '', 's'),
+                        " to map ontologies, so we can't examine the ",
+                        ifelse(which==1, "", paste0(get.ordinal(which), " ")),
+                        "most recent failed attempt"))
+    }
     
     failed.call = RECENT.FAILED.ONTOLOGY.MAPPINGS$calls[[which]]
     if (failed.call$call == 'get.ontology.mapping')
