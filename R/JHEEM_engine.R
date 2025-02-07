@@ -2005,6 +2005,22 @@ JHEEM = R6::R6Class(
                 # overwrite into parameters vector
                 old.parameters = private$i.parameters
                 private$i.parameters[names(parameters)] = parameters
+                
+                if (!is.null(private$i.kernel$sampled.parameter.names))
+                {
+                    # for now we'll throw an error
+                    # if we ever find a use case for sampled parameters without calibration, we can change
+                    # would need some other way to come up with the seed
+                    if (is.null(private$i.kernel$calibrated.parameter.names))
+                        stop(paste0(error.prefix, "We cannot set sampled parameters unless calibrated parameters are present"))
+                    
+                    reset.seed = runif(1, 0, .Machine$integer.max)
+                    set.seed(get.simulation.seed.from.parameters(private$i.parameters[private$i.kernel$calibrated.parameter.names]))
+                    
+                    private$i.parameters[private$i.kernel$sampled.parameter.names] = generate.random.samples(private$i.kernel$sampled.parameters.distribution, n=1)
+                    
+                    set.seed(reset.seed)
+                }
            
                 # Set the values for any elements with matching names
                 

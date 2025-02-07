@@ -130,7 +130,7 @@ rerun.simulations <- function(simset,
     print("We need to implement re-running the intervention here too")
     
     update.every = ceiling(simset$n.sim/10)
-    new.sims = sapply(1:simset$n.sim, function(i){
+    new.sims = lapply(1:simset$n.sim, function(i){
         
         if (verbose && ((i-1) %% update.every)==0)
         {
@@ -152,6 +152,99 @@ rerun.simulations <- function(simset,
     })
     
     join.simulation.sets(new.sims)
+}
+
+#'@title Run a Simulations from a Set of Parameters
+#'
+#'@param parameters The parameters to run simulations for. Can be either (a) a matrix with parameters on the rows, and one column for each set of parameters/simulation to run, with named rows or (b) a named numeric vector of parameters for a single simulation
+#'@param calibration.code If parameters were derived from a previous calibration, the calibration code that should be attached to the resulting simulation set
+#'@inheritParams create.jheem.engine
+#'
+#'@value An object of class jheem.simulation.set
+#'
+#'@export
+run.simulations.from.parameters <- function(version,
+                                            location,
+                                            parameters,
+                                            end.year,
+                                            sub.version = NULL,
+                                            max.run.time.seconds = Inf,
+                                            calibration.code = NULL,
+                                            solver.metadata = create.solver.metadata(),
+                                            keep.from.year = start.year,
+                                            keep.to.year = end.year,
+                                            verbose = F)
+{
+    specification = get.compiled.specification.for.version(version)
+    
+    if (verbose)
+        cat("Creating engine to run simulations...")
+    
+    if (!is.numeric(parameters) || any(is.na(parameters)))
+        stop("'parameters' must be a numeric vector or matrix with no NA values")
+    
+    if (is.null(dim(parameters)))
+    {
+        if (is.null(dimnames(parameters))[[1]])
+            stop("If 'parameters' is a matrix, it must have dimnames for the rows set")
+    }
+    else if (length(dim(parameters))==0)
+    {
+        if (is.null(names(parameters)))
+            stop("If 'parameters' is a vector, it must be NAMED")
+        
+        param.names = names(parameters)
+        dim(parameters) = c(length(parameters), 1)
+        dimnames(parameters) = list(param.names, NULL)
+    }
+    else
+        stop("'parameters' must be either a (numeric) vector or matrix")
+    
+    jheem.kernel = create.jheem.kernel(version = version,
+                                       location = location)
+    
+    engine = do.create.jheem.engine(jheem.kernel = jheem.kernel,
+                                    sub.version = sub.version,
+                                    start.year = specification$start.year,
+                                    end.year = end.year,
+                                    max.run.time.seconds = max.run.time.seconds,
+                                    prior.simulation.set = NULL,
+                                    keep.from.year = keep.from.year,
+                                    keep.to.year = keep.to.year,
+                                    intervention.code = NULL,
+                                    calibration.code = calibration.code,
+                                    solver.metadata = solver.metadata,
+                                    finalize = T,
+                                    error.prefix = "Error re-running simulations: ")
+    
+    if (verbose)
+        cat("done\n")    
+    
+    update.every = ceiling(simset$n.sim/10)
+    n.sim = dim(parameters)[1]
+    new.sims = lapply(1:n.sim, function(i){
+        
+        if (verbose && ((i-1) %% update.every)==0)
+        {
+            update.until = min(n.sim, i+update.every-1)
+            cat("Re-running ",
+                ifelse(update.until==i, "simulation", "simulations"),
+                " ", i,
+                ifelse(update.every==i, "", 
+                       paste0(" to ", update.until)),
+                "...", sep='')
+        }
+        
+        sim = engine$run(parameters = parameters[,i])
+        
+        if (verbose && (i%%update.every==0 || i==n.sim))
+            cat("done\n")
+        
+        sim
+    })
+    
+    join.simulation.sets(new.sims)
+    
 }
 
 #'@title Get MCMC Mixing Statistic
@@ -1336,31 +1429,8 @@ do.create.simulation.set.from.metadata <- function(metadata,
     #-- If we are going to finalize: --#
     #   - Add a random seed to base future numbers on
     #   - Generate sampled parameters
-    
-    if (finalize)
-    {
-        data$seed = round(runif(1, 0, .Machine$integer.max))
-        sampled.parameters.distribution = get.parameters.distribution.for.version(jheem.kernel$version, type='sampled')
-        
-        if (!is.null(sampled.parameters.distribution))
-        {
-            parameter.names = dimnames(parameters)[[1]]
-            sampled.parameters.to.generate = setdiff(sampled.parameters.distribution@var.names,
-                                                     parameter.names)
-            
-            if (length(sampled.parameters.to.generate)>0)
-            {
-                reset.seed = round(runif(1, 0, .Machine$integer.max))
-                set.seed(seed)
-                
-                new.parameters = generate.random.samples(sampled.parameters.to.generate, n=metadata$n.sim)
-                set.seed(reset.seed) # this keeps our code from always setting to the same seed  
-                
-                parameters = rbind(t(new.parameters[,sampled.parameters.to.generate,drop=F]))
-            }
-        }
-    }
-    
+    data$seed = apply(data$parameters, 2, get.simulation.seed.from.parameters)
+
     # let's standardize the dimnames here
     dimnames(parameters) = list(parameter = dimnames(parameters)[[1]],
                                 sim = as.character(1:metadata$n.sim))
@@ -2111,3 +2181,19 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         }
     )
 )
+
+# gets a seed that is deterministically derived from a set of parameters,
+#  but unique for a given set of parameters
+get.simulation.seed.from.parameters <- function(parameters)
+{
+    if (length(parameters)==0)
+        stop("Cannot get.simulation.seed.from.parameters() - parameters is an empty vector")
+    
+    if (any(is.na(parameters)))
+        stop("Cannot get.simulation.seed.from.parameters() - parameters cannot be NA")
+    
+    # we're going to transform each parameter such that it gives a value
+    #  >=10 or <= -10
+    # (so that even small numbers count towards the integer seed)
+    sum((parameters * 10^pmax(0, 1+ceiling(-log10(abs(parameters)))))[parameters!=0])
+}

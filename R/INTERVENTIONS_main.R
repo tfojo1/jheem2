@@ -429,8 +429,11 @@ JHEEM.INTERVENTION = R6::R6Class(
                 if (!is.numeric(seed) || length(seed)!=1 || is.na(seed))
                     stop(paste0(error.prefix, "'seed' must be a single, non-NA, integer value"))
                 
-                set.seed(seed)
-                new.parameters = generate.random.samples(private$i.parameter.distribution, n=sim$n.sim)
+                #new.parameters = generate.random.samples(private$i.parameter.distribution, n=sim$n.sim)
+                new.parameters = t(sapply(1:sim$n.sim, function(i){
+                    set.seed(seed + sim$seed[i])
+                    generate.random.samples(private$i.parameter.distribution, n=1)
+                }))
                 dim(new.parameters) = c(sim$n.sim, private$i.parameter.distribution@n.var)
                 new.param.names = private$i.parameter.distribution@var.names
                 
