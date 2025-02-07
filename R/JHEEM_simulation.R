@@ -1429,7 +1429,11 @@ do.create.simulation.set.from.metadata <- function(metadata,
     #-- If we are going to finalize: --#
     #   - Add a random seed to base future numbers on
     #   - Generate sampled parameters
-    data$seed = apply(data$parameters, 2, get.simulation.seed.from.parameters)
+    
+    if (is.null(jheem.kernel$calibrated.parameters))
+        data$seed = runif(metadata$n.sim, 0, .Machine$integer.max)
+    else
+        data$seed = apply(data$parameters[jheem.kernel$calibrated.parameters,,drop=F], 2, get.simulation.seed.from.parameters)
 
     # let's standardize the dimnames here
     dimnames(parameters) = list(parameter = dimnames(parameters)[[1]],
