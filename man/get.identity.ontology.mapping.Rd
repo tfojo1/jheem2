@@ -12,3 +12,9 @@ An object of class "ontology.mapping"
 \description{
 Get an "Identity" Ontology Mapping (that does not change data structure when applied)
 }
+\seealso{
+Other Functions to identify why ontologies fail to map: 
+\code{\link{apply.ontology.mapping}()},
+\code{\link{map.value.ontology}()}
+}
+\concept{Functions to identify why ontologies fail to map}

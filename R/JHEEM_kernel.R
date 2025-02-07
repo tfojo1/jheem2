@@ -223,10 +223,11 @@ JHEEM.KERNEL = R6::R6Class(
             private$i.foregrounds = specification$foregrounds
             
             #-- Parameter Mapping --#
-            calibrated.parameters.distribution = get.parameters.distribution.for.version(private$i.version, type='calibrated')
-            if (!is.null(calibrated.parameters.distribution))
+            calibrated.parameter.names = get.parameter.names.for.version(private$i.version, type='calibrated')
+            if (!is.null(calibrated.parameter.names))
             {
-                private$i.calibrated.parameter.names = calibrated.parameters.distribution@var.names
+                private$i.calibrated.parameter.names = calibrated.parameter.names
+                private$i.calibrated.parameters.distribution = get.parameters.distribution.for.version(private$i.version, type='calibrated')
                 calibrated.parameters.apply.fn = get.parameters.apply.function.for.version(private$i.version, type='calibrated')
                 private$i.calibrated.parameters.apply.function = bundle.function.and.dependees(calibrated.parameters.apply.fn,
                                                                                                parent.environment = self,
@@ -234,15 +235,27 @@ JHEEM.KERNEL = R6::R6Class(
                                                                                          error.prefix = error.prefix)
             }
                       
-            sampled.parameters.distribution = get.parameters.distribution.for.version(private$i.version, type='sampled')
-            if (!is.null(sampled.parameters.distribution))
+            sampled.parameter.names = get.parameter.names.for.version(private$i.version, type='sampled')
+            if (!is.null(sampled.parameter.names))
             {
-                private$i.sampled.parameter.names = sampled.parameters.distribution@var.names
+                private$i.sampled.parameter.names = sampled.parameter.names
+                private$i.sampled.parameters.distribution = get.parameters.distribution.for.version(private$i.version, type='sampled')
                 sampled.parameters.apply.fn = get.parameters.apply.function.for.version(private$i.version, type='sampled')
                 private$i.sampled.parameters.apply.function = bundle.function.and.dependees(sampled.parameters.apply.fn,
                                                                                             parent.environment = self,
                                                                                       fn.name.for.error = "The sampled parameters apply function",
                                                                                       error.prefix = error.prefix)
+            }
+            
+            set.parameter.names = get.parameter.names.for.version(private$i.version, type='set')
+            if (!is.null(set.parameter.names))
+            {
+                private$i.set.parameter.names = set.parameter.names
+                set.parameters.apply.fn = get.parameters.apply.function.for.version(private$i.version, type='set')
+                private$i.set.parameters.apply.function = bundle.function.and.dependees(set.parameters.apply.fn,
+                                                                                        parent.environment = self,
+                                                                                        fn.name.for.error = "The set parameters apply function",
+                                                                                        error.prefix = error.prefix)
             }
             
             #-- Ontologies --#
@@ -545,6 +558,30 @@ JHEEM.KERNEL = R6::R6Class(
                 stop("Cannot modify a specification kernel's sampled.parameter.names - they are read-only")
         },
         
+        set.parameter.names = function(value)
+        {
+            if (missing(value))
+                private$i.set.parameter.names
+            else
+                stop("Cannot modify a specification kernel's set.parameter.names - they are read-only")
+        },
+        
+        calibrated.parameters.distribution = function(value)
+        {
+            if (missing(value))
+                private$i.calibrated.parameters.distribution
+            else
+                stop("Cannot modify a specification kernel's calibrated.parameters.distribution - they are read-only")
+        },
+        
+        sampled.parameters.distribution = function(value)
+        {
+            if (missing(value))
+                private$i.sampled.parameters.distribution
+            else
+                stop("Cannot modify a specification kernel's sampled.parameters.distribution - they are read-only")
+        },
+        
         calibrated.parameters.apply.function = function(value)
         {
             if (missing(value))
@@ -559,6 +596,14 @@ JHEEM.KERNEL = R6::R6Class(
                 private$i.sampled.parameters.apply.function
             else
                 stop("Cannot modify a specification kernel's sampled.parameters.apply.function - they are read-only")
+        },
+        
+        set.parameters.apply.function = function(value)
+        {
+            if (missing(value))
+                private$i.set.parameters.apply.function
+            else
+                stop("Cannot modify a specification kernel's set.parameters.apply.function - they are read-only")
         },
         
         ontologies = function(value)
@@ -701,9 +746,14 @@ JHEEM.KERNEL = R6::R6Class(
         #-- Parameter Mappings --#
         i.calibrated.parameter.names = NULL,
         i.sampled.parameter.names = NULL,
+        i.set.parameter.names = NULL,
+        
+        i.calibrated.parameters.distribution = NULL,
+        i.sampled.parameters.distribution = NULL,
         
         i.calibrated.parameters.apply.function = NULL,
         i.sampled.parameters.apply.function = NULL,
+        i.set.parameters.apply.function = NULL,
         
         #-- Misc --#
         i.default.parameter.values = NULL,

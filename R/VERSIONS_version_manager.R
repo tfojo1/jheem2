@@ -7,6 +7,7 @@ DEBUG.VERSIONS = T # an internal flag for debugging and making error stack trace
 VERSION.MANAGER.ELEMENTS = c(
     'specification', 'compiled.specification',
     'prior.versions',
+    'calibrated.parameters', 'sampled.parameters', 'set.parameters',
     'apply.calibrated.parameters.function', 'apply.sampled.parameters.function',
     'calibrated.parameters.distribution', 'sampled.parameters.distribution',
     'calibrated.parameters.sampling.blocks', 
@@ -224,7 +225,7 @@ register.calibrated.parameters.for.version <- function(version,
 {
     
     # Try to figure out the function's name, so that we can print an intelligible error
-    fn.name = deparse(substitute(fn))
+    fn.name = deparse(substitute(apply.function))
     if (!is.character(fn.name) || length(fn.name) != 1)
         fn.name = NULL
     
@@ -300,6 +301,7 @@ register.calibrated.parameters.for.version <- function(version,
                                                            apply.function = apply.function,
                                                            join.with.previous.version = join.with.previous.version,
                                                            apply.function.name = fn.name,
+                                                           parameter.names = NULL,
                                                            type='calibrated',
                                                            error.prefix = error.prefix)
     
@@ -324,17 +326,16 @@ register.calibrated.parameters.for.version <- function(version,
 #'@details *Sampled* parameters have their values randomly chosen from a distribution prior to running projections PAST the calibration period
 #'
 #'@inheritParams register.calibrated.parameters.for.version
-#'@param version
-#'@param distribution
-#'@param apply.function
+#'@param join.with.previous.version Whether the distribution and apply.function should be merged with those of the previous version
 #'
 #'@export
 register.sampled.parameters.for.version <- function(version,
                                                     distribution,
-                                                    apply.function)
+                                                    apply.function,
+                                                    join.with.previous.version)
 {
     # Try to figure out the function's name, so that we can print an intelligible error
-    fn.name = deparse(substitute(fn))
+    fn.name = deparse(substitute(apply.function))
     if (!is.character(fn.name) || length(fn.name) != 1)
         fn.name = NULL
     
@@ -343,8 +344,37 @@ register.sampled.parameters.for.version <- function(version,
                                                            apply.function = apply.function,
                                                            join.with.previous.version = join.with.previous.version,
                                                            apply.function.name = fn.name,
+                                                           parameter.names = NULL,
+                                                           type='sampled',
+                                                           error.prefix = "Cannot register sampled parameters: ")
+}
+
+#'@title Register Parameters to Be Set for Running a Simulation
+#'
+#'@details *Set* parameters have their values set explicitly (neither sampled nor calibrated)
+#'
+#'@inheritParams register.calibrated.parameters.for.version
+#'@param parameter.names A character vector giving the names of parameters which will be set
+#'@param join.with.previous.version Whether the parameter.names and apply.function should be merged with those of the previous version
+#'
+register.set.parameters.for.version <- function(version,
+                                                parameter.names,
+                                                apply.function,
+                                                join.with.previous.version)
+{
+    # Try to figure out the function's name, so that we can print an intelligible error
+    fn.name = deparse(substitute(apply.function))
+    if (!is.character(fn.name) || length(fn.name) != 1)
+        fn.name = NULL
+    
+    do.register.parameters.distribution.and.apply.function(version = version,
+                                                           distribution = NULL,
+                                                           apply.function = apply.function,
+                                                           join.with.previous.version = join.with.previous.version,
+                                                           apply.function.name = fn.name,
+                                                           parameter.names = parameter.names,
                                                            type='calibrated',
-                                                           error.prefix = "Cannot register calibrated parameters: ")
+                                                           error.prefix = "Cannot register set parameters: ")
 }
 
 ##-----------------------------------------------##
@@ -414,7 +444,9 @@ do.register.parameters.distribution.and.apply.function <- function(version,
                                                                    apply.function,
                                                                    join.with.previous.version,
                                                                    apply.function.name,
-                                                                   type=c('calibrated','sampled'),
+                                                                   parameter.names,
+                                                                   require.distribution = T,
+                                                                   type=c('calibrated','sampled','set'),
                                                                    error.prefix)
 {
     #-- Validate Version --#
@@ -426,22 +458,35 @@ do.register.parameters.distribution.and.apply.function <- function(version,
     
     #-- Make Sure We Have Not Already Registered --#
     
-    distribution.name = paste0(type, '.parameters.distribution')
+    parameter.names.name = paste0(type, '.parameters')
     if (!is.null(do.get.for.version(version=version,
-                                    element.name = distribution.name,
+                                    element.name = parameter.names.name,
                                     pull.previous.version.value.if.missing = F,
                                     allow.null = T)))
         stop(paste0(error.prefix, "Calibrated parameters have already been registered for version '", version, "'"))
     
-    #-- Validate Distribution --#
-    if (!is(distribution, 'Distribution'))
-        stop(paste0(error.prefix, "'distribution' must be an object of class 'distribution'"))
-    
-    if (distribution@n.var==0)
-        stop(paste0(error.prefix, "'distribution' must have at least one variable in it"))
-    
-    if (is.null(distribution@var.names))
-        stop(paste0(error.prefix, "'distribution' must contain NAMED variables"))
+    #-- Validate Parameter Names/Distribution --#
+    if (type=='set')
+    {
+        if (!is.null(distribution))
+            stop(paste0(error.prefix, "Cannot set a distribution for 'set' parameters"))
+        
+        if (!is.character(parameter.names) || length(parameter.names)==0 || any(is.na(parameter.names)))
+            stop(paste0(error.prefix, "'parameter.names' must be a non-empty character vector with no NA values"))
+    }   
+    else
+    {
+        if (!is(distribution, 'Distribution'))
+            stop(paste0(error.prefix, "'distribution' must be an object of class 'distribution'"))
+        
+        if (distribution@n.var==0)
+            stop(paste0(error.prefix, "'distribution' must have at least one variable in it"))
+        
+        if (is.null(distribution@var.names))
+            stop(paste0(error.prefix, "'distribution' must contain NAMED variables"))
+        
+        parameter.names = distribution@var.names
+    }
     
     #-- Validate Apply Function --#
     # Make sure the function is a function and only requires arguments 'jheem.engine' and 'parameters' --#
@@ -472,12 +517,24 @@ do.register.parameters.distribution.and.apply.function <- function(version,
                     ", but the only arguments to the function should be 'jheem.engine' and 'parameters'"))
     
     #-- Register Them --#
+    
     do.register.for.version(version = version,
-                            element.name = distribution.name,
-                            element.value = distribution,
-                            element.class = 'Distribution',
+                            element.name = parameter.names.name,
+                            element.value = parameter.names,
+                            element.class = 'character',
                             join.with.previous.version.value = join.with.previous.version,
-                            join.function = join.distributions)
+                            join.function = union)
+    
+    if (type!='set')
+    {
+        distribution.name = paste0(type, '.parameters.distribution')
+        do.register.for.version(version = version,
+                                element.name = distribution.name,
+                                element.value = distribution,
+                                element.class = 'Distribution',
+                                join.with.previous.version.value = join.with.previous.version,
+                                join.function = join.distributions)
+    }
     
     do.register.for.version(version = version,
                             element.name = paste0('apply.', type, '.parameters.function'),
@@ -491,6 +548,17 @@ do.register.parameters.distribution.and.apply.function <- function(version,
 # Getters (all internal to the package)
 
 # This function is internal to the package
+
+get.parameter.names.for.version <- function(version,
+                                            type)
+{
+    distribution.name = paste0(type, '.parameters')
+    do.get.for.version(version=version,
+                       element.name = distribution.name,
+                       pull.previous.version.value.if.missing = T,
+                       allow.null = T)
+}
+
 get.parameters.distribution.for.version <- function(version,
                                                     type)
 {

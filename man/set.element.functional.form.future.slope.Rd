@@ -15,7 +15,7 @@ set.element.functional.form.future.slope(
 set.element.functional.form.future.slope.after.time(
   model.settings,
   element.names,
-  after.year,
+  after.time,
   wrt.version = model.settings$version
 )
 }
@@ -28,7 +28,7 @@ set.element.functional.form.future.slope.after.time(
 
 \item{wrt.version}{The version relative to which the element name is resolved (if an element.name is overwritten in a descendant version, using wrt.version can be used to select which specification's model element is to be modified)}
 
-\item{after.year}{The year after which the additional slope takes effect}
+\item{after.time}{The year after which the additional slope takes effect}
 }
 \description{
 Set a "Future Slope" and the time after which it applies, for a model element
