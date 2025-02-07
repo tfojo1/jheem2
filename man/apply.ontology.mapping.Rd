@@ -29,3 +29,9 @@ apply.ontology.mapping(
 \description{
 Apply an Ontology Mapping to Data
 }
+\seealso{
+Other Functions to identify why ontologies fail to map: 
+\code{\link{get.identity.ontology.mapping}()},
+\code{\link{map.value.ontology}()}
+}
+\concept{Functions to identify why ontologies fail to map}
