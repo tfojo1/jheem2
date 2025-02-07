@@ -227,7 +227,7 @@ JHEEM.KERNEL = R6::R6Class(
             if (!is.null(calibrated.parameter.names))
             {
                 private$i.calibrated.parameter.names = calibrated.parameter.names
-                private$i.calibrated.parameter.distribution = get.parameters.distribution.for.version(private$i.version, type='calibrated')
+                private$i.calibrated.parameters.distribution = get.parameters.distribution.for.version(private$i.version, type='calibrated')
                 calibrated.parameters.apply.fn = get.parameters.apply.function.for.version(private$i.version, type='calibrated')
                 private$i.calibrated.parameters.apply.function = bundle.function.and.dependees(calibrated.parameters.apply.fn,
                                                                                                parent.environment = self,
