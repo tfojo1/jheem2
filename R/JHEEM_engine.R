@@ -972,6 +972,7 @@ SOLVER.METADATA = R6::R6Class(
 #'@param version,location,sub.version The JHEEM version, sub.version, and location for which to run simulations
 #'@param max.run.time.seconds The maximum amount of time to run simulations before terminating
 #'@param end.year The year to run simulations to
+#'@param solver.metadata A solver.metadata object, as created by \code{\link{create.solver.metadata}}, specifying what ODE solver to use in running simulations
 #'
 #'@export
 create.jheem.engine <- function(version,
