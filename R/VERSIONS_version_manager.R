@@ -326,14 +326,12 @@ register.calibrated.parameters.for.version <- function(version,
 #'@details *Sampled* parameters have their values randomly chosen from a distribution prior to running projections PAST the calibration period
 #'
 #'@inheritParams register.calibrated.parameters.for.version
-#'@param sample.after.year The earliest year affected by sampled parameters
 #'@param join.with.previous.version Whether the distribution and apply.function should be merged with those of the previous version
 #'
 #'@export
 register.sampled.parameters.for.version <- function(version,
                                                     distribution,
                                                     apply.function,
-                                                    sample.after.year,
                                                     join.with.previous.version)
 {
     # Try to figure out the function's name, so that we can print an intelligible error
