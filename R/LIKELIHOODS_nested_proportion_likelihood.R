@@ -1303,7 +1303,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 metalocation.info <- private$get.metalocations(
                     location = location,
                     observation.locations = observation.locations,
-                    minimum.geographic.resolution.type = instructions$minimum.geographic.resolution.type
+                    minimum.geographic.resolution.type = instructions$minimum.geographic.resolution.type,
+                    error.prefix = error.prefix
                 )
                 metalocation.type <- metalocation.info$metalocation.type
                 metalocation.to.minimal.component.map <- metalocation.info$metalocation.to.minimal.component.map
@@ -1852,7 +1853,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             }
             transformation.matrix
         },
-        get.metalocations = function(location, observation.locations, minimum.geographic.resolution.type) {
+        get.metalocations = function(location, observation.locations, minimum.geographic.resolution.type, error.prefix) {
             minimum.components.list <- lapply(observation.locations, function(obs.location) {
                 locations::get.contained.locations(locations = obs.location, sub.type = minimum.geographic.resolution.type, return.list = F)
             })
@@ -1869,6 +1870,17 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 }
             })
             names(minimum.components.list) <- observation.locations
+            
+            # At this point, we check whether we have a collection of locations that fully and exactly fill the main location.
+            # This is a problem because it will lead to linearly dependent rows in resulting matrices.
+            # It is also the situation that renders the nested proportion likelihood unnecessary, so a basic should be used instead.
+            in.msa.location.coverage = unlist(lapply(minimum.components.list[names(minimum.components.list)!=location], function(obs.loc) {
+                if (length(setdiff(obs.loc, minimum.components.list[[location]]))==0) obs.loc
+                else NULL
+            }))
+            if (setequal(in.msa.location.coverage, minimum.components.list[[location]]))
+                stop(paste0(error.prefix, "data exist for locations that completely and exactly fill the main location (", location, ") boundaries, meaning data can be aggregated from them and put as the main location's data for this outcome in the data manager.
+                            The nested proportion likelihood cannot, and should not, be used in this situation. Instead, use a 'jheem.basic.likelihood'"))
 
             # make matrix with membership of each minimum component to an observation location (state, substate region, EMA, county, MSA)
             # find unique sets of columns; these are metalocations.
