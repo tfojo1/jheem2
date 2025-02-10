@@ -1602,7 +1602,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             #                             obs_year_index = private$i.obs.year.index,
             #                             obs_p = private$i.obs.p,
             #                             obs_error = private$i.obs.error)
-            # save(saved.lik.components, file="R/tests/LA_heroin_components.rdata")
+            # save(saved.lik.components, file="R/tests/Balt_heroin_components.rdata")
             lik.components <- get_nested_proportion_likelihood_components(
                 p = sim.p,
                 n = sim.n,
@@ -1736,7 +1736,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                         return(NULL)
                     }
                     overlapping.contained.locs <- intersect(contained.locs, main.contained.locs)
+                    if (length(overlapping.contained.locs)==0)
+                        stop(paste0(error.prefix, "cannot determine how much of ", location, " ", private$i.denominator.outcome.for.data, " comes from '", loc,
+                                    "' because the overlap is not on the level of ", minimum.geographic.resolution.type,
+                                    ". Consider either chaning the 'minimum.geographic.resolution.type' to one that accounts for the overlap or raise the 'maximum.locations.for.type' so that this check is not needed."))
                     denom.totals <- data.manager$pull(outcome = private$i.denominator.outcome.for.data, keep.dimensions = "year", dimension.values = list(location = overlapping.contained.locs))
+                    
                     if (is.null(denom.totals)) {
                         return(NULL)
                     }
