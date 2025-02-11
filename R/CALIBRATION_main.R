@@ -1198,7 +1198,7 @@ percentage.cache.complete <- function(version,
         percentages.this.location = sapply(chains, function(chain) {
             obj.path = file.path("../../files/mcmc_runs", version, location, calibration.code, "cache", paste0("chain", chain, "_control.Rdata"))
             if (!file.exists(obj.path)) return(NA)
-            chain.control.obj = get(load(file.path))
+            chain.control.obj = get(load(obj.path))
             mean(chain.control.obj@chunk.done)
         })
     })
