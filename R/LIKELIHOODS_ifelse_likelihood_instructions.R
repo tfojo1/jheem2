@@ -109,7 +109,7 @@ JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                           throw.error.if.no.data = F,
                                           verbose = F,
                                           error.prefix = NULL) {
-            do.ifelse.instantiate.likelihood(sub.instructions = self,
+            do.ifelse.instantiate.likelihood(instructions = self,
                                              version = version,
                                              location = location,
                                              sub.version = sub.version,
@@ -162,9 +162,10 @@ get.default.ifelse.function <- function() {
                                               verbose = verbose,
                                               error.prefix = error.prefix)
                 },
-                error = NULL)
+                error = function(e) {NULL})
             if (!is.null(resulting.likelihood)) return(resulting.likelihood)
         }
+        
         if (is.null(resulting.likelihood))
             stop(paste0(error.prefix, "all alternative likelihoods failed"))
     }
