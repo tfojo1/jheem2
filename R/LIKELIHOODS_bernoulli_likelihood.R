@@ -129,16 +129,20 @@ JHEEM.BERNOULLI.LIKELIHOOD <- R6::R6Class(
     public = list(
         initialize = function(instructions,
                               version,
+                              sub.version,
                               location,
                               data.manager,
                               additional.weights,
                               throw.error.if.no.data,
+                              verbose,
                               error.prefix) {
             super$initialize(
                 instructions = instructions,
+                sub.version = sub.version,
                 version = version,
                 location = location,
                 additional.weights = additional.weights,
+                verbose=verbose,
                 error.prefix = error.prefix
             )
 

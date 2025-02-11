@@ -254,7 +254,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
         instantiate.likelihood = function(version,
                                           location,
                                           sub.version = NULL,
-                                          data.manager = get.default.data.manager(), # Bernoulli's don't need this or the next argument
+                                          data.manager = get.default.data.manager(),
                                           throw.error.if.no.data = F,
                                           verbose = F,
                                           error.prefix = NULL) {
@@ -366,22 +366,6 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 stop("Cannot modify a jheem.likelihood.instruction's 'weights' - they are read-only")
             }
         }
-        # details = function(value)
-        # {
-        #     stop("'details' is not currently implemented")
-        #     if (missing(value))
-        #     {
-        #         data.frame(
-        #             outcome.for.data = private$i.outcome.for.data,
-        #             outcome.for.sim = private$i.outcome.for.sim,
-        #             from.year = private$i.from.year,
-        #             to.year = private$i.to.year,
-        #             omit.years = private$i.omit.years
-        #         )
-        #     }
-        #     else
-        #         stop("Cannot modify a jheem.likelihood.instruction's 'details' - they are read-only")
-        # }
     ),
     private = list(
         i.name = NULL,
