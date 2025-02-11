@@ -50,6 +50,29 @@ do.create.ifelse.likelihood.instructions <- function(sub.instructions, FUN=get.d
                                              FUN = FUN)
 }
 
+# We have to have this separate because we want to keep "additional.weights" out of the class's instantiate
+do.ifelse.instantiate.likelihood <- function(instructions,
+                                             version,
+                                             sub.version,
+                                             location,
+                                             data.manager,
+                                             additional.weights,
+                                             throw.error.if.no.data,
+                                             verbose,
+                                             error.prefix) {
+    FUN = instructions$get.FUN()
+
+    resulting.likelihood = FUN(sub.instructions = instructions$sub.instructions,
+                               version = version,
+                               location = location,
+                               sub.version = sub.version,
+                               data.manager = data.manager,
+                               additional.weights = additional.weights,
+                               throw.error.if.no.data = throw.error.if.no.data,
+                               verbose = verbose,
+                               error.prefix = error.prefix)
+}
+
 JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
     "jheem.ifelse.likelihood.instructions",
     inherit = JHEEM.LIKELIHOOD.INSTRUCTIONS,
@@ -86,19 +109,18 @@ JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                           throw.error.if.no.data = F,
                                           verbose = F,
                                           error.prefix = NULL) {
-            resulting.likelihood = private$i.FUN(sub.instructions = private$i.sub.instructions,
-                                                 version = version,
-                                                 location = location,
-                                                 sub.version = sub.version,
-                                                 data.manager = data.manager,
-                                                 throw.error.if.no.data = throw.error.if.no.data,
-                                                 verbose = verbose,
-                                                 error.prefix = error.prefix)
-            
-            ## TO DO: ERROR CHECK HERE... if I want to let people make their own (not now)
-            
-            resulting.likelihood
-        }
+            do.ifelse.instantiate.likelihood(sub.instructions = self,
+                                             version = version,
+                                             location = location,
+                                             sub.version = sub.version,
+                                             data.manager = data.manager,
+                                             additional.weights = list(),
+                                             throw.error.if.no.data = throw.error.if.no.data,
+                                             verbose = verbose,
+                                             error.prefix = error.prefix)
+        },
+        # This wasn't working as a typical active binding for some reason, maybe related to it being a function.
+        get.FUN = function() {private$i.FUN}
     ),
     active = list(
         sub.instructions = function(value) {
@@ -106,13 +128,6 @@ JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 private$i.sub.instructions
             } else {
                 stop("Cannot modify a jheem.likelihood.instruction's 'sub.instructions' - they are read-only")
-            }
-        },
-        FUN = function(valuie) {
-            if (missing(value)) {
-                private$i.FUN
-            } else {
-                stop("Cannot modify a jheem.ifelse.likelihood.instruction's 'FUN' - it is read-only")
             }
         }
     ),
@@ -128,10 +143,12 @@ get.default.ifelse.function <- function() {
              location,
              sub.version=NULL,
              data.manager=get.default.data.manager(),
+             additional.weights = list(),
              verbose=F,
              throw.error.if.no.data=F,
              error.prefix = "Error instantiating likelihood from instructions: ") {
         resulting.likelihood = NULL
+        
         for (sub.instr in sub.instructions) {
             resulting.likelihood <- tryCatch(
                 {
@@ -140,7 +157,7 @@ get.default.ifelse.function <- function() {
                                               location = location,
                                               sub.version = sub.version,
                                               data.manager = data.manager,
-                                              additional.weights = list(),
+                                              additional.weights = additional.weights,
                                               throw.error.if.no.data = throw.error.if.no.data,
                                               verbose = verbose,
                                               error.prefix = error.prefix)
@@ -159,6 +176,7 @@ get.location.based.ifelse.function <- function(locations.list) {
              location,
              sub.version=NULL,
              data.manager=get.default.data.manager(),
+             additional.weights = list(),
              verbose=F,
              throw.error.if.no.data=F,
              error.prefix = "Error instantiating likelihood from instructions: ") {
@@ -171,7 +189,7 @@ get.location.based.ifelse.function <- function(locations.list) {
                                   location = location,
                                   sub.version = sub.version,
                                   data.manager = data.manager,
-                                  additional.weights = list(),
+                                  additional.weights = additional.weights,
                                   throw.error.if.no.data = throw.error.if.no.data,
                                   verbose = verbose,
                                   error.prefix = error.prefix)

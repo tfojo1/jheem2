@@ -159,16 +159,16 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                 
                 if (is(instr, 'jheem.custom.likelihood.instructions'))
                     instr$instantiate.likelihood(verbose = verbose)
-                # else if (is(instr,'jheem.ifelse.likelihood.instructions'))
-                #     do.ifelse.instantiate.likelihood(instructions = instr,
-                #                                      version = version,
-                #                                      sub.version = sub.version,
-                #                                      location = location,
-                #                                      data.manager=data.manager,
-                #                                      additional.weights = instructions$additional.weights,
-                #                                      throw.error.if.no.data=throw.error.if.no.data,
-                #                                      verbose = verbose,
-                #                                      error.prefix=error.prefix)
+                else if (is(instr,'jheem.ifelse.likelihood.instructions'))
+                    do.ifelse.instantiate.likelihood(instructions = instr,
+                                                     version = version,
+                                                     sub.version = sub.version,
+                                                     location = location,
+                                                     data.manager=data.manager,
+                                                     additional.weights = instructions$additional.weights,
+                                                     throw.error.if.no.data=throw.error.if.no.data,
+                                                     verbose = verbose,
+                                                     error.prefix=error.prefix)
                 else
                     do.instantiate.likelihood(instructions = instr,
                                               version = version,
