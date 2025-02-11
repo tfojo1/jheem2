@@ -3,6 +3,7 @@
 #' Create instructions that can try a sequence of likelihood instructions until the first one that works without error.
 #' 
 #' @param ... 'jheem.likelihood.instructions' objects that all have the same 'outcome.for.sim'.
+#' @details The instructions are attempted in the order that they are supplied.
 #' @export
 create.ifelse.likelihood.instructions <- function(...) {
     do.create.ifelse.likelihood.instructions(list(...), FUN=get.default.ifelse.function())
