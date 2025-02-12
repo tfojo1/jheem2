@@ -226,7 +226,7 @@ prepare.plot <- function(simset.list=NULL,
                          data.manager = get.default.data.manager(),
                          debug = F)
 {
-    # -- VALIDATION -- #
+    #-- VALIDATION ----
     if (debug) browser()
     error.prefix = "Cannot generate simplot: "
     
@@ -273,6 +273,23 @@ prepare.plot <- function(simset.list=NULL,
     #   sim$outcome.metadata[[outcome]]$corresponding.observed.outcome
     # sims do not all have each outcome because of sub-versions
     
+    
+    #-- GET OUTCOME METADATA ----
+    if (plot.which=='data.only')
+        outcome.metadata.list = lapply(outcomes, function(outcome) {data.manager$outcome.info[[outcome]]$metadata})
+    else {
+        outcome.metadata.list = lapply(outcomes, function(outcome) {
+            i = 1
+            while (i <= length(simset.list)) {
+                if (outcome %in% names(simset.list[[i]]$outcome.metadata)) {
+                    return(simset.list[[i]]$outcome.metadata[[outcome]])
+                } else i = i + 1
+            }
+            stop(paste0(error.prefix, "Consult Andrew: this simplot bug shouldn't happen"))
+        })
+    }
+    names(outcome.metadata.list) = outcomes
+    
     # likelihoods need to share their outcome for sim and data, and think about what joint likelihoods. One simulation has one (usually joint) likelihood (instructions)
     if (plot.which=="data.only") outcomes.for.data = setNames(outcomes, outcomes)
     else {
@@ -289,22 +306,6 @@ prepare.plot <- function(simset.list=NULL,
             }
             corresponding.observed.outcome
         })
-    }
-    # browser()
-    outcome.display.names = list()
-    if (plot.which=='data.only') outcome.display.names = sapply(outcomes, function(outcome) {data.manager$outcome.info[[outcome]]$metadata$display.name})
-    else {
-        for (outcome in outcomes) {
-            display.name = outcome
-            i = 1
-            while (i <= length(simset.list)) {
-                if (outcome %in% names(simset.list[[i]]$outcome.metadata)) {
-                    display.name = simset.list[[i]]$outcome.metadata[[outcome]]$display.name
-                    break
-                } else i = i + 1
-            }
-            outcome.display.names[outcome] = display.name
-        } 
     }
     
     if (plot.which=='data.only') outcome.ontologies=NULL
@@ -335,10 +336,11 @@ prepare.plot <- function(simset.list=NULL,
         names(outcome.locations) = outcomes.for.data
     }
     
-    #-- STEP 2: MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA --#
+    
+    #-- MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA ----
     
     outcome.mappings = list() # note: not all outcomes will have corresponding data outcomes
-    # browser()
+
     df.truth = NULL
     for (i in seq_along(outcomes.for.data))
     {
@@ -406,7 +408,7 @@ prepare.plot <- function(simset.list=NULL,
                 
                 corresponding.outcome = names(outcomes.for.data)[[i]]
                 one.df.outcome['outcome'] = corresponding.outcome
-                one.df.outcome['outcome.display.name'] = outcome.display.names[corresponding.outcome]
+                one.df.outcome['outcome.display.name'] = outcome.metadata.list[[corresponding.outcome]]$display.name
                 df.truth = rbind(df.truth, one.df.outcome)
             }
         }
@@ -433,8 +435,8 @@ prepare.plot <- function(simset.list=NULL,
             df.truth = df.truth[order(df.truth$stratum),]
     }
     names(outcome.mappings) = outcomes
-    # browser()
-    #-- STEP 3: MAKE A DATA FRAME WITH THE SIMULATION DATA --#
+    
+    #-- MAKE A DATA FRAME WITH THE SIMULATION DATA ----
     
     df.sim = NULL
     if (plot.which != 'data.only') {
@@ -475,7 +477,7 @@ prepare.plot <- function(simset.list=NULL,
                 one.df.sim.this.outcome['alpha'] = one.df.sim.this.outcome['linewidth'] # same comment as above; USED to be 20 * this
                 
                 # Make a "outcome.long.name" column so that the facet.by can present it instead of the short name
-                one.df.sim.this.outcome['outcome.display.name'] = simset.list[[i]]$outcome.metadata[[outcome]]$display.name
+                one.df.sim.this.outcome['outcome.display.name'] = outcome.metadata.list[[outcome]]$display.name
                 
                 df.sim = rbind(df.sim, one.df.sim.this.outcome)
             }
@@ -508,7 +510,7 @@ prepare.plot <- function(simset.list=NULL,
             df.sim = df.sim[order(df.sim$stratum),]
     }
     
-    ## YEAR LAG RATIO #########################
+    #-- YEAR LAG RATIO #----
     if (plot.year.lag.ratio) {
         # browser()
         ## We will take log of values, then difference, then exponentiate result
@@ -575,7 +577,7 @@ prepare.plot <- function(simset.list=NULL,
         }
     }
     
-    #-- PACKAGE AND RETURN --#
+    #-- PACKAGE AND RETURN ----
     if (plot.which=="data.only")
         y.label = sapply(outcomes, function(outcome) {data.manager$outcome.info[[outcome]]$metadata$units})
     else
@@ -589,7 +591,7 @@ prepare.plot <- function(simset.list=NULL,
         plot.title = paste0(get.location.name(simset.list[[1]]$location), " (", simset.list[[1]]$location, ")")
     else plot.title = title
     # browser()
-    return(list(df.sim=df.sim, df.truth=df.truth, details=list(y.label=y.label, plot.title=plot.title)))
+    return(list(df.sim=df.sim, df.truth=df.truth, details=list(y.label=y.label, plot.title=plot.title, outcome.metadata.list = outcome.metadata.list)))
 }
 
 #' Execute Simplot
