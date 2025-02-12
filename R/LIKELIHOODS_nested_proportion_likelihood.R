@@ -2020,7 +2020,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 values.that.map <- sapply(obs.n.arr.indices, function(x) {
                     length(x) > 0
                 })
-                if (sum(obs.n.array.aligned[values.that.map], na.rm = T) != sum(partitioned.model.arr, na.rm = T)) {
+                
+                # Allow rounding because it's possible we are different by a billionth of a unit
+                if (round(sum(obs.n.array.aligned[values.that.map], na.rm = T)) != round(sum(partitioned.model.arr, na.rm = T))) {
                     stop("Sums not equal before and after partitioning obs-n")
                 }
             } else {
