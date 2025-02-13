@@ -120,7 +120,7 @@ JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                           data.manager = get.default.data.manager(),
                                           throw.error.if.no.data = F,
                                           verbose = F,
-                                          error.prefix = NULL) {
+                                          error.prefix = "") {
             do.ifelse.instantiate.likelihood(instructions = self,
                                              version = version,
                                              location = location,

@@ -704,7 +704,7 @@ FUNCTIONAL.FORM = R6::R6Class(
             }
             
             #-- Transform future.slope --#
-            if (is.null(future.slope))
+            if (is.null(private$i.future.slope.link))
             {
                 if (!is.null(future.slope) && future.slope != 0)
                     stop(paste0(error.prefix, private$i.type, " functional.form cannot accomodate 'future.slope' - it must be set to NULL or 0"))

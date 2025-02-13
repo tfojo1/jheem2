@@ -917,10 +917,9 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                                                                 target.ontology = private$i.sim.ontology,
                                                                 allow.mapping.from.target.ontology = T)
                                 
+                                # We only got this far if we got estimate data, so we MUST have error data now.
                                 if (is.null(error.data)) {
-                                    if (throw.error.if.no.data)
-                                        stop(paste0(error.prefix, "no ", metric.map[[type]], ", data was found for the stratification '", strat, "'"))
-                                    else next
+                                    stop(paste0(error.prefix, "no ", metric.map[[type]], ", data was found for the stratification '", strat, "'"))
                                 }
                                 
                                 common.dimnames <- get.dimension.values.overlap(dimnames(data), dimnames(error.data))
