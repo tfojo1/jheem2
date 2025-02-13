@@ -244,6 +244,7 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
             lagged.log.sim.sigma <- private$i.sim.lag.matrix %*% log.sim.sigma %*% t(private$i.sim.lag.matrix)
             
             lagged.sim.mean <- exp(lagged.log.sim.mean + diag(lagged.log.sim.sigma) / 2)
+           # lagged.sim.mean = exp(lagged.log.sim.mean)
             lagged.sim.sigma <- lagged.sim.mean %*% t(lagged.sim.mean) * (exp(lagged.log.sim.sigma) - 1)
             
             lagged.n <- (sim.denominator.data[private$i.to.indices] + sim.denominator.data[private$i.from.indices]) / 2
@@ -254,15 +255,18 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
                 private$i.n.lagged.obs,
                 numeric(private$i.n.lagged.obs)
             )
+            
+            tranformation.matrix.times.weights = private$i.transformation.matrix * rep(lagged.n, each=private$i.n.lagged.obs) / aggregated.lagged.sim.n
             aggregated.lagged.sim.mean <- get_basic_likelihood_mean(
-                lagged.sim.mean,
+                lagged.sim.mean * lagged.n,
                 private$i.transformation.matrix.row.oriented.indices,
                 private$i.n.lagged.obs,
-                numeric(private$i.n.lagged.obs)
-            )
+                numeric(private$i.n.lagged.obs)) / aggregated.lagged.sim.n
+        
             
             # @Andrew This can probably be optimized since it is sparse. Unfortunately, "lagged.sim.sigma" is not diagonal, so we can't use the get_basic_likelihood_sigma algorithm.
-            aggregated.lagged.sim.sigma <- private$i.transformation.matrix %*% lagged.sim.sigma %*% t(private$i.transformation.matrix)
+            aggregated.lagged.sim.sigma <- tranformation.matrix.times.weights %*% lagged.sim.sigma %*% t(tranformation.matrix.times.weights)
+            # aggregated.lagged.sim.sigma <- private$i.transformation.matrix %*% lagged.sim.sigma %*% t(private$i.transformation.matrix)
             # aggregated.lagged.sim.n = sim.aggregation.matrix %*% lagged.n
             # aggregated.lagged.sim.mean = sim.aggregation.matrix %*% lagged.sim.mean
             
