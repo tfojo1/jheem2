@@ -3,10 +3,11 @@
 #' Create instructions that can try a sequence of likelihood instructions until the first one that works without error.
 #' 
 #' @param ... 'jheem.likelihood.instructions' objects that all have the same 'outcome.for.sim'.
+#' @param name Name for the ifelse; will default to 
 #' @details The instructions are attempted in the order that they are supplied.
 #' @export
-create.ifelse.likelihood.instructions <- function(...) {
-    do.create.ifelse.likelihood.instructions(list(...), FUN=get.default.ifelse.function())
+create.ifelse.likelihood.instructions <- function(..., name=NULL) {
+    do.create.ifelse.likelihood.instructions(list(...), name=name, FUN=get.default.ifelse.function())
 }
 
 #' @title Create Location Based If-Else Likelihood Instructions
@@ -19,16 +20,16 @@ create.ifelse.likelihood.instructions <- function(...) {
 #' the first vector has locations that will use the first instruction and second vector has locations that will
 #' use the second instruction. The third instruction will be used for all other locations.
 #' @export
-create.location.based.ifelse.likelihood.instructions <- function(..., locations.list=list()) {
+create.location.based.ifelse.likelihood.instructions <- function(..., name=NULL, locations.list=list()) {
     error.prefix <- "Error creating 'jheem.ifelse.likelihood.instructions': "
     sub.instructions <- list(...)
     if (!is.list(locations.list) || length(locations.list)!=length(sub.instructions)-1 ||
         any(sapply(locations.list, function(v) {!is.character(v)})))
         stop(paste0(error.prefix, "'locations.list' must be a list of character vectors with length one less than the number of instructions in '...'"))
-    do.create.ifelse.likelihood.instructions(sub.instructions, FUN=get.location.based.ifelse.function(locations.list))
+    do.create.ifelse.likelihood.instructions(sub.instructions, name=name, FUN=get.location.based.ifelse.function(locations.list))
 }
 
-do.create.ifelse.likelihood.instructions <- function(sub.instructions, FUN=get.default.ifelse.function()) {
+do.create.ifelse.likelihood.instructions <- function(sub.instructions, name, FUN=get.default.ifelse.function()) {
     error.prefix <- "Error creating 'jheem.ifelse.likelihood.instructions': "
     # all arguments must be JHEEM.LIKELIHOOD.INSTRUCTIONS and none joint
     if (any(sapply(sub.instructions, function(x) {
@@ -45,8 +46,12 @@ do.create.ifelse.likelihood.instructions <- function(sub.instructions, FUN=get.d
         stop(paste0(error.prefix, "all supplied instructions must have the same 'outcome.for.sim'"))
     }
     
+    if (is.null(name))
+        name = sub.instructions[[1]]$name
+    
     # FUN must take certain arguments
     JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS$new(sub.instructions = sub.instructions,
+                                             name = name,
                                              FUN = FUN)
 }
 
@@ -78,6 +83,7 @@ JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
     inherit = JHEEM.LIKELIHOOD.INSTRUCTIONS,
     public = list(
         initialize = function(sub.instructions,
+                              name,
                               FUN,
                               error.prefix = "Error initializing 'jheem.ifelse.likelihood.instructions: ") {
             # sub.instructions must be a list containing only jheem.likelihood.instructions and no joint likelihood instructions
@@ -97,7 +103,13 @@ JHEEM.IFELSE.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 stop(paste0(error.prefix, "all instructions in 'sub.instructions' must have the same 'outcome.for.sim'"))
             }
             
+            # *name* is a single character vector
+            if (!is.character(name) || length(name) > 1 || is.na(name)) {
+                stop(paste0(error.prefix, "'name' must be a character vector of length 1"))
+            }
+            
             private$i.sub.instructions <- sub.instructions
+            private$i.name <- name
             private$i.FUN <- FUN
         },
         # NOT YET IMPLEMENTED

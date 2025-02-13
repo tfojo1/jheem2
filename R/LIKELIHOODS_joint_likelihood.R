@@ -31,17 +31,14 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
 
             for (sub.instr in sub.instructions) {
                 private$i.name <- paste0(private$i.name, sub.instr$name, sep = "__")
-                # private$i.outcomes <- paste(private$i.outcomes, sub.instr$outcomes, sep = "__")
                 if (is(sub.instr, "jheem.joint.likelihood.instructions")) {
                     private$i.sub.instructions <- c(private$i.sub.instructions, sub.instr$sub.instructions)
                 } else {
                     private$i.sub.instructions <- c(private$i.sub.instructions, sub.instr)
                 }
             }
-            private$i.name <- trimws(private$i.name, "left", "[__]")
+            private$i.name <- trimws(private$i.name, "both", "[__]")
             names(private$i.sub.instructions) <- strsplit(private$i.name, "__")[[1]]
-            # private$i.outcomes <- trimws(private$i.outcomes, "left", "[__]")
-            # names(private$i.sub.instructions) <- strsplit(private$i.outcomes, "__")[[1]]
             private$i.additional.weights <- private$generate.weights.from.weights.list(additional.weights)
         },
         equals = function(other) {
