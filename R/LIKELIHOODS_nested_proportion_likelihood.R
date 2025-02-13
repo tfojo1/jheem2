@@ -2310,7 +2310,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                         stratification = stratification.for.n, data.manager = data.manager, outcome = outcome, years = years, universal.ontology = universal.ontology, cache = n.mult.cache, error.prefix = error.prefix
                     )
 
-                    if (is.null(arr)) browser() #stop("bug in get.outcome.ratios: returned NULL")
+                    if (is.null(arr)) stop(paste0(error.prefix, "Could not find '", outcome, "' data for some locations' 'minimum.geographic.resolution.type' components"))
                     # Map this back to the model ontology
                     arr.ontology <- as.ontology(dimnames(arr), incomplete.dimensions = "year")
                     # sim.ontology.years.replaced = sim.ontology[names(sim.ontology) != 'location']
@@ -2399,12 +2399,14 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
 
             # browser()
             keep.dimensions <- c("year", stratification)
+            excluded.ontology.names = NULL
+            if (private$i.outcome.for.n.multipliers == private$i.denominator.outcome.for.data) excluded.ontology.names = private$i.exclude.denominator.ontology.names
             location.data <- lapply(list(location.1, location.2), function(location) {
                 data <- data.manager$pull(
                     outcome = outcome,
                     keep.dimensions = keep.dimensions,
                     dimension.values = list(year = as.character(years), location = location),
-                    exclude.ontology.names = if (private$i.outcome.for.n.multipliers == private$i.denominator.outcome.for.data) private$i.exclude.denominator.ontology.names else NULL,
+                    exclude.ontology.names = excluded.ontology.names,
                     na.rm = T,
                     ignore.ontologies.without.requested.locations = F,
                     debug = F
