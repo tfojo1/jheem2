@@ -127,14 +127,14 @@ do.instantiate.likelihood <- function(instructions,
                                       additional.weights,
                                       throw.error.if.no.data,
                                       verbose,
-                                      error.prefix) {
-    if (is.null(error.prefix)) {
-        error.prefix <- paste0("Error initializing likelihood for '", instructions$outcome.for.sim, "': ")
-    }
+                                      error.prefix="") {
     # *error.prefix* is a single non-NA, non-empty character vector
-    if (!is.character(error.prefix) || length(error.prefix) > 1 || is.null(error.prefix) || is.na(error.prefix)) {
+    if (!is.character(error.prefix) || length(error.prefix) > 1 || is.na(error.prefix)) {
         stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
     }
+    
+    # Forcibly append the outcome name to the error message, because joints have to declare a different one earlier
+    error.prefix <- paste0(error.prefix, "Error initializing likelihood for '", instructions$outcome.for.sim, "': ")
     
     likelihood.class.generator = LIKELIHOOD.CLASS.GENERATORS[[class(instructions)[1]]]
     if (is.null(likelihood.class.generator))
@@ -257,7 +257,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                           data.manager = get.default.data.manager(),
                                           throw.error.if.no.data = F,
                                           verbose = F,
-                                          error.prefix = NULL) {
+                                          error.prefix = "") {
             
             do.instantiate.likelihood(instructions = self,
                                       version = version,
