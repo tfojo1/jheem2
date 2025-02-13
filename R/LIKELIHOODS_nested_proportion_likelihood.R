@@ -876,6 +876,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     years = years,
                     error.prefix = error.prefix
                 )
+                all.location.types = names(all.locations)
+                names(all.location.types) = all.locations
+                
                 # all.locations = c('24510', 'C.12580', 'MD')
 
                 ## ---- PREPARE DATA STRUCTURES ----
@@ -1011,6 +1014,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
 
                     # Metadata will involve melting both arrays (data and details) as well as making "stratum"
                     one.metadata <- reshape2::melt(data)
+                    one.metadata$location.type = all.location.types[one.metadata$location]
                     one.metadata <- one.metadata[!one.remove.mask, ]
 
                     # Recover required dimnames from one.metadata -- note that year won't be fixed yet
@@ -1049,10 +1053,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     one.sim.required.dimnames$year <- new.years
 
                     one.metadata <- one.metadata[, sort(colnames(one.metadata))]
-                    one.metadata["stratum"] <- do.call(paste, c(subset.data.frame(one.metadata, select = -c(location, year, source, value)), sep = "__"))
+                    one.metadata["stratum"] <- do.call(paste, c(subset.data.frame(one.metadata, select = -c(location, year, source, value, location.type)), sep = "__"))
                     one.metadata[is.na(one.metadata$stratum), "stratum"] <- ".TOTAL." # I can change this to "" instead of ".TOTAL.", can't I?
                     one.metadata["dimensions"] <- paste0(strat, collapse = "__")
-                    one.metadata <- subset.data.frame(one.metadata, select = c(location, year, stratum, dimensions, source))
+                    one.metadata <- subset.data.frame(one.metadata, select = c(location, year, stratum, dimensions, source, location.type))
 
                     # Find the required.dimnames
                     for (d in names(one.sim.required.dimnames)) {
@@ -1712,6 +1716,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     obs.n <- lik.components$obs.n
                     lik.summary <- cbind(private$i.metadata, obs.p = round(obs.vector / obs.n, 3), mean.p = round(mean / obs.n, 3), sd.p = round(sqrt(diag(sigma)) / obs.n, 3))
                 }
+                lik.summary$z = (lik.summary$obs.p - lik.summary$mean.p) / lik.summary$sd.p
+                lik.summary$obs.n = round(obs.n,1)
+                
                 rownames(lik.summary) <- 1:nrow(lik.summary)
                 browser()
             }
@@ -1719,11 +1726,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
         },
 
         # find all locations that we will check for data
+        # returns a vector of location codes, named with the location.type for each code
         get.all.locations = function(location, location.types, maximum.locations.per.type, minimum.geographic.resolution.type, data.manager, years, error.prefix) {
             
             main.contained.locs <- unlist(locations::get.location.code(locations::get.contained.locations(location, minimum.geographic.resolution.type), minimum.geographic.resolution.type))
             # This is slower than I expected
-            sort(unique(unlist(lapply(location.types, function(type) {
+            locations.list = lapply(location.types, function(type) {
                 # An overly verbose way to get overlapping locations as codes rather than names -- should ask Jeff to improve interface
                 locations.this.type <- unlist(locations::get.location.code(locations::get.overlapping.locations(location, type), type))
 
@@ -1758,8 +1766,19 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 loc.denominators <- unlist(loc.denominators) # because any NULLs would have prevented the sapply from making it atomic
 
                 return(locations.this.type[names(sort(loc.denominators, decreasing = T))][1:min(maximum.locations.per.type, length(loc.denominators))])
-            }))))
+            })
+            
+            locations.vector = unlist(locations.list)
+            iterated.location.types = unlist(lapply(1:length(location.types), function(i){
+                rep(location.types[i], length(locations.list[[i]]))
+            }))
+            names(iterated.location.types) = locations.vector
+            
+            rv = sort(unique(locations.vector))
+            names(rv) = iterated.location.types[rv]
+            rv
         },
+        
         get.redundant.locations = function(main.location, metadata, extra.points.needed.to.keep) { # have to say "main.location" instead of "location" because of subsetting by location==location
             # browser()
             redundant.locations <- character(0)
@@ -2512,12 +2531,26 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             weights.vector <- rep(1, length(obs.vector))
 
             if (equalize.weight.by.year) {
-                obs.per.year <- table(metadata$year)
-                number.years <- length(obs.per.year)
-
-                for (year in names(obs.per.year)) {
-                    weights.vector[metadata$year == year] <- length(obs.vector) / (obs.per.year[[year]] * number.years)
+                
+                obs.per.year.and.location.type <- table(metadata[,c('year','location.type')])
+                number.obs.per.location.type = colSums(obs.per.year.and.location.type)
+                number.years.per.location.type = colSums(obs.per.year.and.location.type>0)
+                
+                for (location.type in colnames(obs.per.year.and.location.type))
+                {
+                    for (year in rownames(obs.per.year.and.location.type))
+                    {
+                        weights.vector[metadata$year == year & metadata$location.type == location.type] <-
+                            number.obs.per.location.type[location.type] / (obs.per.year.and.location.type[year, location.type] * number.years.per.location.type[location.type])
+                    }
                 }
+                
+                # obs.per.year <- table(metadata$year)
+                # number.years <- length(obs.per.year)
+                # 
+                # for (year in names(obs.per.year)) {
+                #     weights.vector[metadata$year == year] <- length(obs.vector) / (obs.per.year[[year]] * number.years)
+                # }
             }
 
             data.dimension.values <- apply(metadata, MARGIN = 1, function(row) {
