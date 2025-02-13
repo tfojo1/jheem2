@@ -7,7 +7,7 @@ params = suppressWarnings(get.medians(EHE.PARAMETERS.PRIOR))
 params['global.trate'] = 0.13
 
 print("ENGINE TEST: Setting up Engine")
-engine = create.jheem.engine('ehe', 'C.31080', end.year=2035, max.run.time.seconds = 10)
+engine = create.jheem.engine('ehe', 'C.12580', end.year=2035, max.run.time.seconds = 10)
 
 print("ENGINE TEST: Running")
 sim = engine$run(parameters = params)

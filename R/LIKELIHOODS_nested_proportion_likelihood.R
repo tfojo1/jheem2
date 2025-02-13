@@ -873,8 +873,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     maximum.locations.per.type = instructions$maximum.locations.per.type,
                     minimum.geographic.resolution.type = instructions$minimum.geographic.resolution.type,
                     data.manager = data.manager,
-                    years = years
+                    years = years,
+                    error.prefix = error.prefix
                 )
+                all.location.types = names(all.locations)
+                names(all.location.types) = all.locations
+                
                 # all.locations = c('24510', 'C.12580', 'MD')
 
                 ## ---- PREPARE DATA STRUCTURES ----
@@ -1010,6 +1014,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
 
                     # Metadata will involve melting both arrays (data and details) as well as making "stratum"
                     one.metadata <- reshape2::melt(data)
+                    one.metadata$location.type = all.location.types[one.metadata$location]
                     one.metadata <- one.metadata[!one.remove.mask, ]
 
                     # Recover required dimnames from one.metadata -- note that year won't be fixed yet
@@ -1048,10 +1053,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     one.sim.required.dimnames$year <- new.years
 
                     one.metadata <- one.metadata[, sort(colnames(one.metadata))]
-                    one.metadata["stratum"] <- do.call(paste, c(subset.data.frame(one.metadata, select = -c(location, year, source, value)), sep = "__"))
+                    one.metadata["stratum"] <- do.call(paste, c(subset.data.frame(one.metadata, select = -c(location, year, source, value, location.type)), sep = "__"))
                     one.metadata[is.na(one.metadata$stratum), "stratum"] <- ".TOTAL." # I can change this to "" instead of ".TOTAL.", can't I?
                     one.metadata["dimensions"] <- paste0(strat, collapse = "__")
-                    one.metadata <- subset.data.frame(one.metadata, select = c(location, year, stratum, dimensions, source))
+                    one.metadata <- subset.data.frame(one.metadata, select = c(location, year, stratum, dimensions, source, location.type))
 
                     # Find the required.dimnames
                     for (d in names(one.sim.required.dimnames)) {
@@ -1303,7 +1308,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 metalocation.info <- private$get.metalocations(
                     location = location,
                     observation.locations = observation.locations,
-                    minimum.geographic.resolution.type = instructions$minimum.geographic.resolution.type
+                    minimum.geographic.resolution.type = instructions$minimum.geographic.resolution.type,
+                    error.prefix = error.prefix
                 )
                 metalocation.type <- metalocation.info$metalocation.type
                 metalocation.to.minimal.component.map <- metalocation.info$metalocation.to.minimal.component.map
@@ -1602,7 +1608,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             #                             obs_year_index = private$i.obs.year.index,
             #                             obs_p = private$i.obs.p,
             #                             obs_error = private$i.obs.error)
-            # save(saved.lik.components, file="R/tests/LA_heroin_components.rdata")
+            # save(saved.lik.components, file="R/tests/Balt_heroin_components.rdata")
             lik.components <- get_nested_proportion_likelihood_components(
                 p = sim.p,
                 n = sim.n,
@@ -1710,6 +1716,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     obs.n <- lik.components$obs.n
                     lik.summary <- cbind(private$i.metadata, obs.p = round(obs.vector / obs.n, 3), mean.p = round(mean / obs.n, 3), sd.p = round(sqrt(diag(sigma)) / obs.n, 3))
                 }
+                lik.summary$z = (lik.summary$obs.p - lik.summary$mean.p) / lik.summary$sd.p
+                lik.summary$obs.n = round(obs.n,1)
+                
                 rownames(lik.summary) <- 1:nrow(lik.summary)
                 browser()
             }
@@ -1717,11 +1726,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
         },
 
         # find all locations that we will check for data
-        get.all.locations = function(location, location.types, maximum.locations.per.type, minimum.geographic.resolution.type, data.manager, years) {
+        # returns a vector of location codes, named with the location.type for each code
+        get.all.locations = function(location, location.types, maximum.locations.per.type, minimum.geographic.resolution.type, data.manager, years, error.prefix) {
             
             main.contained.locs <- unlist(locations::get.location.code(locations::get.contained.locations(location, minimum.geographic.resolution.type), minimum.geographic.resolution.type))
             # This is slower than I expected
-            sort(unique(unlist(lapply(location.types, function(type) {
+            locations.list = lapply(location.types, function(type) {
                 # An overly verbose way to get overlapping locations as codes rather than names -- should ask Jeff to improve interface
                 locations.this.type <- unlist(locations::get.location.code(locations::get.overlapping.locations(location, type), type))
 
@@ -1736,7 +1746,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                         return(NULL)
                     }
                     overlapping.contained.locs <- intersect(contained.locs, main.contained.locs)
+                    if (length(overlapping.contained.locs)==0)
+                        return(NULL)
+                        # stop(paste0(error.prefix, "cannot determine how much of ", location, " ", private$i.denominator.outcome.for.data, " comes from '", loc,
+                        #             "' because the overlap is not on the level of ", minimum.geographic.resolution.type,
+                        #             ". Consider either chaning the 'minimum.geographic.resolution.type' to one that accounts for the overlap or raise the 'maximum.locations.for.type' so that this check is not needed."))
                     denom.totals <- data.manager$pull(outcome = private$i.denominator.outcome.for.data, keep.dimensions = "year", dimension.values = list(location = overlapping.contained.locs))
+                    
                     if (is.null(denom.totals)) {
                         return(NULL)
                     }
@@ -1750,8 +1766,19 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 loc.denominators <- unlist(loc.denominators) # because any NULLs would have prevented the sapply from making it atomic
 
                 return(locations.this.type[names(sort(loc.denominators, decreasing = T))][1:min(maximum.locations.per.type, length(loc.denominators))])
-            }))))
+            })
+            
+            locations.vector = unlist(locations.list)
+            iterated.location.types = unlist(lapply(1:length(location.types), function(i){
+                rep(location.types[i], length(locations.list[[i]]))
+            }))
+            names(iterated.location.types) = locations.vector
+            
+            rv = sort(unique(locations.vector))
+            names(rv) = iterated.location.types[rv]
+            rv
         },
+        
         get.redundant.locations = function(main.location, metadata, extra.points.needed.to.keep) { # have to say "main.location" instead of "location" because of subsetting by location==location
             # browser()
             redundant.locations <- character(0)
@@ -1847,7 +1874,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             }
             transformation.matrix
         },
-        get.metalocations = function(location, observation.locations, minimum.geographic.resolution.type) {
+        get.metalocations = function(location, observation.locations, minimum.geographic.resolution.type, error.prefix) {
             minimum.components.list <- lapply(observation.locations, function(obs.location) {
                 locations::get.contained.locations(locations = obs.location, sub.type = minimum.geographic.resolution.type, return.list = F)
             })
@@ -1864,6 +1891,17 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 }
             })
             names(minimum.components.list) <- observation.locations
+            
+            # At this point, we check whether we have a collection of locations that fully and exactly fill the main location.
+            # This is a problem because it will lead to linearly dependent rows in resulting matrices.
+            # It is also the situation that renders the nested proportion likelihood unnecessary, so a basic should be used instead.
+            in.msa.location.coverage = unlist(lapply(minimum.components.list[names(minimum.components.list)!=location], function(obs.loc) {
+                if (length(setdiff(obs.loc, minimum.components.list[[location]]))==0) obs.loc
+                else NULL
+            }))
+            if (setequal(in.msa.location.coverage, minimum.components.list[[location]]))
+                stop(paste0(error.prefix, "data exist for locations that completely and exactly fill the main location (", location, ") boundaries, meaning data can be aggregated from them and put as the main location's data for this outcome in the data manager.
+                            The nested proportion likelihood cannot, and should not, be used in this situation. Instead, use a 'jheem.basic.likelihood'"))
 
             # make matrix with membership of each minimum component to an observation location (state, substate region, EMA, county, MSA)
             # find unique sets of columns; these are metalocations.
@@ -2001,7 +2039,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 values.that.map <- sapply(obs.n.arr.indices, function(x) {
                     length(x) > 0
                 })
-                if (sum(obs.n.array.aligned[values.that.map], na.rm = T) != sum(partitioned.model.arr, na.rm = T)) {
+                
+                # Allow rounding because it's possible we are different by a billionth of a unit
+                if (round(sum(obs.n.array.aligned[values.that.map], na.rm = T)) != round(sum(partitioned.model.arr, na.rm = T))) {
                     stop("Sums not equal before and after partitioning obs-n")
                 }
             } else {
@@ -2270,7 +2310,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                         stratification = stratification.for.n, data.manager = data.manager, outcome = outcome, years = years, universal.ontology = universal.ontology, cache = n.mult.cache, error.prefix = error.prefix
                     )
 
-                    if (is.null(arr)) browser() #stop("bug in get.outcome.ratios: returned NULL")
+                    if (is.null(arr)) stop(paste0(error.prefix, "Could not find '", outcome, "' data for some locations' 'minimum.geographic.resolution.type' components"))
                     # Map this back to the model ontology
                     arr.ontology <- as.ontology(dimnames(arr), incomplete.dimensions = "year")
                     # sim.ontology.years.replaced = sim.ontology[names(sim.ontology) != 'location']
@@ -2359,12 +2399,14 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
 
             # browser()
             keep.dimensions <- c("year", stratification)
+            excluded.ontology.names = NULL
+            if (private$i.outcome.for.n.multipliers == private$i.denominator.outcome.for.data) excluded.ontology.names = private$i.exclude.denominator.ontology.names
             location.data <- lapply(list(location.1, location.2), function(location) {
                 data <- data.manager$pull(
                     outcome = outcome,
                     keep.dimensions = keep.dimensions,
                     dimension.values = list(year = as.character(years), location = location),
-                    exclude.ontology.names = if (private$i.outcome.for.n.multipliers == private$i.denominator.outcome.for.data) private$i.exclude.denominator.ontology.names else NULL,
+                    exclude.ontology.names = excluded.ontology.names,
                     na.rm = T,
                     ignore.ontologies.without.requested.locations = F,
                     debug = F
@@ -2489,12 +2531,26 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             weights.vector <- rep(1, length(obs.vector))
 
             if (equalize.weight.by.year) {
-                obs.per.year <- table(metadata$year)
-                number.years <- length(obs.per.year)
-
-                for (year in names(obs.per.year)) {
-                    weights.vector[metadata$year == year] <- length(obs.vector) / (obs.per.year[[year]] * number.years)
+                
+                obs.per.year.and.location.type <- table(metadata[,c('year','location.type')])
+                number.obs.per.location.type = colSums(obs.per.year.and.location.type)
+                number.years.per.location.type = colSums(obs.per.year.and.location.type>0)
+                
+                for (location.type in colnames(obs.per.year.and.location.type))
+                {
+                    for (year in rownames(obs.per.year.and.location.type))
+                    {
+                        weights.vector[metadata$year == year & metadata$location.type == location.type] <-
+                            number.obs.per.location.type[location.type] / (obs.per.year.and.location.type[year, location.type] * number.years.per.location.type[location.type])
+                    }
                 }
+                
+                # obs.per.year <- table(metadata$year)
+                # number.years <- length(obs.per.year)
+                # 
+                # for (year in names(obs.per.year)) {
+                #     weights.vector[metadata$year == year] <- length(obs.vector) / (obs.per.year[[year]] * number.years)
+                # }
             }
 
             data.dimension.values <- apply(metadata, MARGIN = 1, function(row) {
