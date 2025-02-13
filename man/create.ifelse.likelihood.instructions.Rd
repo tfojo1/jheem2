@@ -4,14 +4,16 @@
 \alias{create.ifelse.likelihood.instructions}
 \title{Create If-Else Likelihood Instructions}
 \usage{
-create.ifelse.likelihood.instructions(...)
+create.ifelse.likelihood.instructions(..., name = NULL)
 }
 \arguments{
-\item{...}{A list of JHEEM likelihood instructions in order of preference}
+\item{...}{'jheem.likelihood.instructions' objects that all have the same 'outcome.for.sim'.}
+
+\item{name}{Name for the ifelse; will default to}
 }
 \description{
-Create If-Else Likelihood Instructions
+Create instructions that can try a sequence of likelihood instructions until the first one that works without error.
 }
 \details{
-Upon being instantiated, these instructions will attempt to instantiate the first provided set of instructions. If that fails, it will try the next, etc.
+The instructions are attempted in the order that they are supplied.
 }
