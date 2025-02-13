@@ -1982,29 +1982,60 @@ RObject do_project_logistic_tail(NumericVector intercept,
         double year = years[y];
         NumericVector sub_rv(n);
         
-        double delta;
-        double* slope_to_use;
-        double* logistic_slope_to_use;
+        // double delta;
+        // double* slope_to_use;
+        // double* logistic_slope_to_use;
+        // 
+        // if (use_future_slope && year > future_slope_after_year)
+        // {
+        //     delta = year - future_slope_after_year;
+        //     slope_to_use = slope_with_future.begin();
+        //     logistic_slope_to_use = logistic_slope_with_additional;
+        // }
+        // else
+        // {
+        //     delta = year - anchor_year;
+        //     slope_to_use = slope.begin();
+        //     logistic_slope_to_use = logistic_slope_sans_additional;
+        // }
+        // 
+        // for (int i=0; i<n; i++)
+        // { 
+        //     sub_rv[i] = intercept[i] + slope_to_use[i] * delta;
+        //     if (sub_rv[i] > logistic_after_value)
+        //     {
+        //         double log_or = logistic_intercept[i] + logistic_slope_to_use[i] * delta;
+        //         sub_rv[i] = min + span / (1 + exp(-log_or));
+        //     }
+        //     
+        //     if (sub_rv[i] < min)
+        //         sub_rv[i] = min;
+        // }
         
-        if (use_future_slope && year > future_slope_after_year)
+        double delta_pre_future;
+        double delta_post_future; 
+        
+        if (year > future_slope_after_year)
         {
-            delta = year - future_slope_after_year;
-            slope_to_use = slope_with_future.begin();
-            logistic_slope_to_use = logistic_slope_with_additional;
+            delta_pre_future = future_slope_after_year - anchor_year;
+            delta_post_future = year - future_slope_after_year;
         }
         else
         {
-            delta = year - anchor_year;
-            slope_to_use = slope.begin();
-            logistic_slope_to_use = logistic_slope_sans_additional;
+            delta_pre_future = year - anchor_year;
+            delta_post_future = 0;
         }
         
         for (int i=0; i<n; i++)
         { 
-            sub_rv[i] = intercept[i] + slope_to_use[i] * delta;
+            sub_rv[i] = intercept[i] + slope[i] * delta_pre_future + slope_with_future[i] * delta_post_future;
+            
             if (sub_rv[i] > logistic_after_value)
             {
-                double log_or = logistic_intercept[i] + logistic_slope_to_use[i] * delta;
+                double log_or = logistic_intercept[i] + 
+                    logistic_slope_sans_additional[i] * delta_pre_future +
+                    logistic_slope_with_additional[i] * delta_post_future;
+                
                 sub_rv[i] = min + span / (1 + exp(-log_or));
             }
             
