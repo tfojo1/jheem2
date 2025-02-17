@@ -2123,7 +2123,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                         #     stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect dimensions'))
                                         
                                         # So apparently it's possible that the ontology we get denominator data from can have the same dimension values but in a different order from those in our main data
-                                        denom.to.data.mapping = get.ontology.mapping(dimnames(denominator.array), dimnames(data.by.data.type)) # as ontology??
+                                        denom.ont = as.ontology(dimnames(denominator.array), incomplete.dimensions = intersect(names(dimnames(denominator.array)), c('year', 'location')))
+                                        data.ont = as.ontology(dimnames(data.by.data.type), incomplete.dimensions = intersect(names(dimnames(data.by.data.type)), c('year', 'location')))
+                                        denom.to.data.mapping = get.ontology.mapping(denom.ont, data.ont)
                                         if (is.null(denom.to.data.mapping))
                                             # browser()
                                             stop(paste0(error.prefix, 'bug in aggregation code: denominator array dimensions cannot be mapped to main data dimensions'))
