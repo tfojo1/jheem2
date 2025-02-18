@@ -1014,7 +1014,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
 
                     # Metadata will involve melting both arrays (data and details) as well as making "stratum"
                     one.metadata <- reshape2::melt(data)
-                    one.metadata$location.type = all.location.types[one.metadata$location]
+                    one.metadata$location.type = all.location.types[as.character(one.metadata$location)]
                     one.metadata <- one.metadata[!one.remove.mask, ]
 
                     # Recover required dimnames from one.metadata -- note that year won't be fixed yet
