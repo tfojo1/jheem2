@@ -8,7 +8,7 @@ VERSION.MANAGER.ELEMENTS = c(
     'specification', 'compiled.specification',
     'prior.versions',
     'calibrated.parameters', 'sampled.parameters', 'set.parameters',
-    'apply.calibrated.parameters.function', 'apply.sampled.parameters.function',
+    'apply.calibrated.parameters.function', 'apply.sampled.parameters.function', 'apply.set.parameters.function',
     'calibrated.parameters.distribution', 'sampled.parameters.distribution',
     'calibrated.parameters.sampling.blocks', 
     'calibrate.to.year',
@@ -373,7 +373,7 @@ register.set.parameters.for.version <- function(version,
                                                            join.with.previous.version = join.with.previous.version,
                                                            apply.function.name = fn.name,
                                                            parameter.names = parameter.names,
-                                                           type='calibrated',
+                                                           type='set',
                                                            error.prefix = "Cannot register set parameters: ")
 }
 
@@ -661,15 +661,19 @@ do.register.for.version <- function(version,
                              paste0("'", previous.versions, "'", collapse=', '))))
         
         previous.value = do.get.for.version(version=previous.versions,
-                                            element.name=element.name)
+                                            element.name=element.name,
+                                            allow.null = T)
         
-        check.join(previous.value, element.value)
-        
-        if (is.null(join.function) || !is.function(join.function))
-            stop("You must specify a valid function that takes two arguments as the join.function")
-        
-        orig.element.value = element.value
-        element.value = join.function(previous.value, orig.element.value)
+        if (!is.null(previous.value))
+        {
+            check.join(previous.value, element.value)
+            
+            if (is.null(join.function) || !is.function(join.function))
+                stop("You must specify a valid function that takes two arguments as the join.function")
+            
+            orig.element.value = element.value
+            element.value = join.function(previous.value, orig.element.value)
+        }
         
         if (!is(element.value, element.class))
             stop(paste0("The value for the joined-with-previous '", element.name, "' must be an object of class '", element.class, 
