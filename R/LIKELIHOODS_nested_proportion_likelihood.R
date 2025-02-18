@@ -787,7 +787,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 error.prefix = error.prefix
             )
 
-            post.time.checkpoint.flag <- F
+            post.time.checkpoint.flag <- T
 
             # Validate *data.manager*, a 'jheem.data.manager' object
             if (!R6::is.R6(data.manager) || !is(data.manager, "jheem.data.manager")) {
@@ -1092,20 +1092,19 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
 
                 if (post.time.checkpoint.flag) print(paste0("Finish pulling: ", Sys.time()))
 
-                # Find redundant locations (have at most only a few more data points than the main location does) and remove them, only if we have data for our main location
-                redundant.locations <- NULL
-                if (location %in% private$i.metadata$location) {
-                    redundant.locations <- private$get.redundant.locations(location, private$i.metadata, extra.points.needed.to.keep = instructions$redundant.location.threshold)
-                    # Check if we even have data for more than just the main location.
-                    if (length(setdiff(all.locations, redundant.locations)) == 1) {
-                        stop(paste0(error.prefix, "data only found for main location after removing redundant locations"))
-                    }
-                }
-                redundant.locations.mask <- private$i.metadata$location %in% redundant.locations
-                private$i.obs.p <- private$i.obs.p[!redundant.locations.mask]
-                private$i.metadata <- private$i.metadata[!redundant.locations.mask, ]
-                private$i.details <- private$i.details[!redundant.locations.mask]
+                # Remove points in each stratum where a location doesn't contribute enough beyond what the main location does; they are useless bulk
+                redundancy.mask.list <- private$get.redundancy.mask.list(location, private$i.metadata, instructions$redundant.location.threshold)
+                private$i.obs.p <- private$i.obs.p[!unlist(redundancy.mask.list)]
+                private$i.metadata <- private$i.metadata[!unlist(redundancy.mask.list), ]
+                private$i.details <- private$i.details[!unlist(redundancy.mask.list)]
                 private$i.n.obs <- length(private$i.obs.p)
+                
+                # Update the remove mask list
+                remove.mask.list <- lapply(1:length(remove.mask.list), function(i) {
+                    rv = remove.mask.list[[i]]
+                    rv[!rv] = redundancy.mask.list[[i]]
+                    rv
+                })
 
                 # The remove mask needs to be updated -- carefully -- because it is in reference to the state before removal and will be used later on for the transformation mapping matrix.
                 # Since location is the second dimension after year in all the arrays pulled, n.years times n.locations is the size of a block repeated a certain number of times
@@ -1114,7 +1113,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 })
                 empty.locations <- setdiff(unique(unlist(locations.list)), unique(private$i.metadata$location)) # just throwing these in instead of duplicating code
                 removed.locations.list <- lapply(locations.list, function(x) {
-                    x %in% union(redundant.locations, empty.locations)
+                    x %in% empty.locations
                 })
                 redundant.locations.full.size.mask <- lapply(1:length(dimnames.list), function(i) {
                     rep(rep(removed.locations.list[[i]], each = length(dimnames.list[[i]]$year)), year.location.block.counts[[i]])
@@ -1203,6 +1202,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 if (post.time.checkpoint.flag) print(paste0("Generate transformation matrix: ", Sys.time()))
                 private$i.transformation.matrix <- generate.transformation.matrix.nested(dimnames.list, locations.list, remove.mask.list, n.stratifications.with.data, private$i.sim.required.dimnames, all.locations = private$i.sim.ontology$location)
 
+                # browser()
 
                 # data frame of model strata, unless we only have totals
                 model.stratification <- private$i.sim.keep.dimensions[!(private$i.sim.keep.dimensions %in% c("year", "location"))]
@@ -1781,8 +1781,68 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             rv
         },
         
+        # Returns 
+        get.redundancy.mask.list = function(main.location, full.metadata, extra.points.needed.to.keep, verbose=F, debug=F) {
+            # have to say "main.location" instead of "location" because of subsetting by location==location
+            
+            if (debug) browser()
+            
+            all.stratifications <- unique(full.metadata$dimensions)
+            
+            redundancy.mask <- lapply(all.stratifications, function(stratification) {
+                
+                metadata <- full.metadata[full.metadata$dimensions == stratification,]
+                
+                other.locations <- setdiff(unique(metadata$location), main.location)
+                if (length(other.locations) == 0) {
+                    return(rep(F, nrow(metadata)))
+                }
+                
+                all.strata <- unique(metadata$stratum)
+                
+                redundancy.mask.this.stratification <- Reduce(`|`, lapply(all.strata, function(stratum) {
+                    
+                    return.vector.this.stratum <- rep(F, nrow(metadata))
+                    
+                    this.stratum.mask <- metadata$stratum == stratum
+                    metadata.this.stratum <- metadata[this.stratum.mask, c("location", "year")]
+                    
+                    # Use 'unique' because data from multiple sources should count as one datum for these purposes
+                    main.location.years <- unique(metadata.this.stratum[metadata.this.stratum$location == main.location, "year"])
+                    
+                    redundancy.mask.this.stratum <- Reduce(`|`, lapply(other.locations, function(other.location) {
+                        return.vector.this.location <- rep(F, nrow(metadata.this.stratum))
+                        
+                        this.location.stratum.mask <- metadata.this.stratum$location == other.location
+                        
+                        this.location.years <- unique(metadata.this.stratum$year[this.location.stratum.mask])
+                        number.extra.years.this.location <- length(this.location.years) - length(main.location.years)
+                        
+                        if (number.extra.years.this.location < extra.points.needed.to.keep)
+                            return.vector.this.location[this.location.stratum.mask] <- T
+                        
+                        return.vector.this.location
+                    }))
+                    
+                    return.vector.this.stratum[this.stratum.mask] <- redundancy.mask.this.stratum
+                    
+                    return.vector.this.stratum
+                    
+                }))
+                
+                redundancy.mask.this.stratification
+                
+            })
+            
+            if (verbose)
+                print(paste0("redundancy checks removed ", mean(redundancy.mask), "% of data points"))
+            
+            redundancy.mask
+            
+        },
+        
         get.redundant.locations = function(main.location, metadata, extra.points.needed.to.keep) { # have to say "main.location" instead of "location" because of subsetting by location==location
-            # browser()
+            browser()
             redundant.locations <- character(0)
 
             other.locations <- setdiff(unique(metadata$location), main.location)
