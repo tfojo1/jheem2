@@ -1013,6 +1013,8 @@ do.create.jheem.engine <- function(jheem.kernel,
 
     jheem = JHEEM$new(jheem.kernel = jheem.kernel,
                       sub.version = sub.version,
+                      transmute.from.kernel = NULL,
+                      transmute.from.sub.version = NULL,
                       error.prefix = error.prefix)
     
     JHEEM.ENGINE$new(jheem = jheem,
@@ -1224,7 +1226,7 @@ JHEEM.ENGINE = R6::R6Class(
                                              prior.sim.index = prior.sim.index,
                                              error.prefix = 'Cannot run JHEEM Engine: ')
             
-            private$i.jheem$run(start.year = private$i.start.year,
+            rv = private$i.jheem$run(start.year = private$i.start.year,
                                 end.year = private$i.end.year,
                                 check.consistency = private$i.check.consistency,
                                 max.run.time.seconds = private$i.max.run.time.seconds,
@@ -1234,6 +1236,10 @@ JHEEM.ENGINE = R6::R6Class(
                                 keep.to.year = private$i.keep.to.year,
                                 solver.metadata = private$i.solver.metadata,
                                 finalize = private$i.finalize)
+            
+            
+            private$i.check.consistency = F
+            rv
         },
         
         crunch = function(parameters=NULL, prior.sim.index=NULL)
@@ -1355,21 +1361,21 @@ JHEEM.ENGINE = R6::R6Class(
         i.finalize = NULL,
         i.check.consistency = NULL,
         
-        set.parameters = function(parameters, error.prefix)
-        {
-            if (!missing(parameters) && !is.null(parameters))
-            {
-                if (!is.numeric(parameters) || any(is.na(parameters)))
-                    stop(paste0(error.prefix, "'parameters' must be a named numeric vector with no NA values"))
-                
-                if (is.null(names(parameters)))
-                    stop(paste0(error.prefix, "'parameters' must be a NAMED numeric vector"))
-                
-                parameters.to.set = private$i.jheem$parameters
-                parameters.to.set[names(parameters)] = parameters
-                
-            }
-        },
+        # set.parameters = function(parameters, error.prefix)
+        # {
+        #     if (!missing(parameters) && !is.null(parameters))
+        #     {
+        #         if (!is.numeric(parameters) || any(is.na(parameters)))
+        #             stop(paste0(error.prefix, "'parameters' must be a named numeric vector with no NA values"))
+        #         
+        #         if (is.null(names(parameters)))
+        #             stop(paste0(error.prefix, "'parameters' must be a NAMED numeric vector"))
+        #         
+        #         parameters.to.set = private$i.jheem$parameters
+        #         parameters.to.set[names(parameters)] = parameters
+        #         
+        #     }
+        # },
         
         prepare.to.run.or.crunch = function(parameters, prior.sim.index, error.prefix)
         {
@@ -1535,7 +1541,9 @@ JHEEM = R6::R6Class(
         ##-- CONSTRUCTOR --##
         ##-----------------##
         
-        initialize = function(jheem.kernel, sub.version, error.prefix = "Cannot create JHEEM Instance: ")
+        initialize = function(jheem.kernel, sub.version, 
+                              transmute.from.kernel, transmute.from.sub.version,
+                              error.prefix = "Cannot create JHEEM Instance: ")
         {
             if (!is(jheem.kernel, 'jheem.kernel'))
                 stop(paste0(error.prefix, "'jheem.kernel' must be an object of class jheem.kernel"))
@@ -1546,6 +1554,10 @@ JHEEM = R6::R6Class(
                              location = jheem.kernel$location,
                              type = 'jheem',
                              error.prefix = error.prefix)
+            
+            private$i.transmute.from.kernel = transmute.from.kernel
+            private$i.transmute.from.sub.version = transmute.from.sub.version
+            private$i.for.transmutation = !is.null(transmute.from.kernel)
             
             # save(kernel, file='size_check/test_spec_kernel.Rdata')
             private$set.up(jheem.kernel)
@@ -1566,7 +1578,7 @@ JHEEM = R6::R6Class(
                           check.consistency = !self$has.been.crunched())
         {
             # Set the times
-            set.run.years(start.year = start.year,
+            private$set.run.years(start.year = start.year,
                           end.year = end.year,
                           keep.from.year = keep.from.year,
                           keep.to.year = keep.to.year,
@@ -1721,6 +1733,108 @@ JHEEM = R6::R6Class(
                                                              finalize = finalize,
                                                              is.degenerate = ode.results$terminated.for.time,
                                                              error.prefix = "Error making sim from engine")
+            
+            # Return
+            sim
+        },
+        
+        crunch.for.transmutation = function(keep.from.year,
+                                            keep.to.year,
+                                            prior.simulation.set,
+                                            prior.sim.index,
+                                            check.consistency = !self$has.been.crunched())
+        {
+            # Make sure we can support the run years with our previous sim
+            
+            # Set the times
+            private$set.run.years(start.year = keep.from.year,
+                          end.year = keep.to.year,
+                          keep.from.year = keep.from.year,
+                          keep.to.year = keep.to.year,
+                          prior.simulation.set = prior.simulation.set,
+                          error.prefix = paste0("Error preparing JHEEM to run: "))
+            
+            # Calculate all required quantity values
+            
+            for (quantity.name in private$i.quantity.names.for.transmutation)
+                private$calculate.quantity.value(quantity.name = quantity.name, check.consistency = check.consistency)
+           
+            
+            # Set up the simulation maker
+            if (is.null(private$i.simulation.maker))
+            {
+                private$i.simulation.maker = SINGLE.SIMULATION.MAKER$new(jheem.kernel = private$i.kernel,
+                                                                         sub.version = private$i.sub.version,
+                                                                         from.year = private$i.keep.from.time,
+                                                                         to.year = private$i.keep.to.time,
+                                                                         solver.metadata = prior.simulation.set$solver.metadata,
+                                                                         intervention.code = prior.simulation.set$intervention.code,
+                                                                         calibration.code = prior.simulation.set$calibration.code,
+                                                                         outcome.location.mapping = private$i.outcome.location.mapping,
+                                                                         error.prefix = "Error initializing single.simulation.maker from engine")
+            }
+            
+            # Set the i.has.been.crunched flag
+            private$i.has.been.crunched = T
+            
+            # Done
+            invisible(self)
+        },
+        
+        transmute = function(prior.simulation.set,
+                             prior.sim.index,
+                             keep.from.year,
+                             keep.to.year,
+                             finalize,
+                             check.consistency)
+        {
+            self$crunch.for.transmutation(keep.from.year = keep.from.year,
+                                                keep.to.year = keep.to.year,
+                                                prior.simulation.set = prior.simulation.set,
+                                                prior.sim.index = prior.sim.index,
+                                                check.consistency = check.consistency)
+                
+            # Checking
+            if (!is.null(prior.simulation.set))
+            {
+                if (!is(prior.simulation.set, 'jheem.simulation.set'))
+                    stop(paste0("Cannot transmute simulation: 'prior.simulation.set' must be an object of class 'jheem.simulation.set'"))
+                
+                if (!is.numeric(prior.sim.index) || length(prior.sim.index)!=1 || is.na(prior.sim.index) ||
+                    floor(prior.sim.index)!=prior.sim.index)
+                    stop(paste0("Cannot transmute simulation: 'prior.sim.index' must be a single, non-NA, integer value"))
+                
+                if (prior.sim.index < 1 || prior.sim.index > prior.simulation.set$n.sim)
+                    stop(paste0("Cannot transmute simulation: 'prior.sim.index' must be between 1 and ", prior.simulation.set$n.sim, " (the number of sims in the prior.simulation.set)"))
+            }
+            
+            # Directly transmute outcomes we can
+            if (is.null(private$i.last.transmuted.sim.index) || private$i.last.transmuted.sim.index != prior.sim.index)
+            {
+                private$directly.transmute.outcomes(simulation.set = prior.simulation.set,
+                                                    sim.index = prior.sim.index,
+                                                    check.consistency = check.consistency)
+                
+                
+                private$i.transmuted.run.metadata = prior.simulation.set$run.metadata$subset(prior.sim.index)
+                
+                private$i.last.transmuted.sim.index = prior.sim.index
+            }
+            
+            # Calculate the outcomes we need to
+            outcome.numerators.and.denominators = private$prepare.outcomes.for.sim(ode.results = NULL,
+                                                                                   prior.simulation.set = prior.simulation.set,
+                                                                                   prior.sim.index = prior.sim.index,
+                                                                                   is.degenerate = prior.simulation.set$is.degenerate[prior.sim.index],
+                                                                                   check.consistency = check.consistency)
+            
+            sim = private$i.simulation.maker$make.simulation(outcome.numerators = outcome.numerators.and.denominators$numerators,
+                                                             outcome.denominators = outcome.numerators.and.denominators$denominators,
+                                                             parameters = private$i.parameters,
+                                                             run.metadata = private$i.transmuted.run.metadata,
+                                                             finalize = finalize,
+                                                             is.degenerate = prior.simulation.set$is.degenerate[prior.sim.index],
+                                                             error.prefix = "Error transmuting sim from engine")
             
             # Return
             sim
@@ -2937,6 +3051,24 @@ JHEEM = R6::R6Class(
         i.kernel = NULL,
         i.simulation.maker = NULL,
         
+        #-- Transmutation --#
+        i.for.transmutation = NULL,
+        i.transmute.from.kernel = NULL,
+        i.transmute.from.sub.version = NULL,
+        i.outcome.names.to.transmute = NULL,
+        i.outcome.names.to.calculate = NULL,
+        i.quantity.names.for.transmutation = NULL,
+        i.dependee.outcome.names.to.transmute = NULL,
+        
+        i.direct.transmute.outcomes.put.indices = NULL,
+        i.direct.transmute.outcomes.pull.indices = NULL,
+        i.direct.transmute.outcomes.pull.indices.without.sim.offset = NULL,
+        i.last.transmuted.sim.index = NULL,
+        i.transmuted.run.metadata = NULL,
+        
+        i.final.outcome.denominators = NULL,
+        i.final.outcome.numerators = NULL,
+        
         #-- Element names/backgrounds --#
         i.element.names = NULL,
         i.element.backgrounds = NULL,
@@ -3261,7 +3393,39 @@ JHEEM = R6::R6Class(
             # Clear the i.has.been.crunched flag
             private$i.has.been.crunched = F
             
-            # Going to need to do something about foregrounds here
+            # Set up for transmutation or calculation of outcomes
+            
+            if (private$i.for.transmutation)
+            {
+                outcome.and.quantity.names.for.transmuting = 
+                    get.outcome.and.quantity.names.for.transmuting(from.kernel.or.specification = private$i.transmute.from.kernel,
+                                                                   from.sub.version = private$i.transmute.from.sub.version,
+                                                                   to.version = private$i.version,
+                                                                   to.sub.version = private$i.sub.version)
+                
+                private$i.outcome.names.to.transmute = outcome.and.quantity.names.for.transmuting$outcome.names.to.transmute
+                private$i.outcome.names.to.calculate = outcome.and.quantity.names.for.transmuting$outcome.names.to.calculate
+                private$i.quantity.names.for.transmutation = outcome.and.quantity.names.for.transmuting$quantity.names.for.transmutation
+                private$i.dependee.outcome.names.to.transmute = outcome.and.quantity.names.for.transmuting$dependee.outcome.names.to.transmute
+            }
+            else
+            {
+                private$i.outcome.names.to.transmute = NULL
+                private$i.outcome.names.to.calculate = private$i.kernel$get.outcome.names.for.sub.version(private$i.sub.version)
+                private$i.quantity.names.for.transmutation = NULL
+                private$i.dependee.outcome.names.to.transmute = NULL
+            }
+            
+            private$i.direct.transmute.outcomes.put.indices = list()
+            private$i.direct.transmute.outcomes.pull.indices = list()
+            private$i.direct.transmute.outcomes.pull.indices.without.sim.offset = list()
+            
+            private$i.last.transmuted.sim.index = NULL
+            
+            private$i.final.outcome.denominators =list()
+            private$i.final.outcome.numerators = list()
+            
+            # private$i.outcome.names.to.calculate = 
         },
         
         calculate.outcome.non.cumulative.is.static = function(outcome.name)
@@ -5848,15 +6012,129 @@ JHEEM = R6::R6Class(
         ##--  (after the ODE solver runs) --##
         ##----------------------------------##
 
+        directly.transmute.outcomes = function(simulation.set,
+                                               sim.index,
+                                               check.consistency)
+        {
+            error.prefix = paste0("Error directly transmuting simulation outcomes: ")
+            
+            for (outcome.name in private$i.outcome.names.to.transmute)
+            {
+                from.outcome.ontology = simulation.set$outcome.ontologies[[outcome.name]]
+                if (is.null(from.outcome.ontology))
+                    stop(paste0(error.prefix, "Cannot transmute outcome '", outcome.name, "' - it is not in the given simulation.set"))
+                
+                outcome.years = intersect(as.character(private$i.keep.from.time:private$i.keep.to.time),
+                                          from.outcome.ontology$year)
+                
+                to.outcome = private$i.kernel$get.outcome.kernel(outcome.name)
+                to.outcome.dim.names = c(list(year=outcome.years), to.outcome$dim.names)
+                
+                if (is.null(private$i.direct.transmute.outcomes.pull.indices.without.sim.offset[[outcome.name]]))
+                {
+                    if (!setequal(names(from.outcome.ontology), names(to.outcome.dim.names)))
+                        stop(paste0(error.prefix, "The from.outcome.ontology and to.outcome.dim.names for outcome '",
+                                    outcome.name, "' do NOT share the same dimensions"))
+                    
+                    shared.dim.names = intersect.shared.dim.names(from.outcome.ontology, to.outcome.dim.names)
+                    
+                    private$i.direct.transmute.outcomes.put.indices[[outcome.name]] = 
+                        get.array.access.indices(arr.dim.names = to.outcome.dim.names,
+                                                 dimension.values = shared.dim.names)
+                    
+                    private$i.direct.transmute.outcomes.pull.indices.without.sim.offset[[outcome.name]] = 
+                        get.array.access.indices(arr.dim.names = from.outcome.ontology,
+                                                 dimension.values = shared.dim.names)
+                }
+                
+                sim.offset = (sim.index-1) * length(simulation.set$data$outcome.numerators[[outcome.name]]) / simulation.set$n.sim
+                private$i.direct.transmute.outcomes.pull.indices[[outcome.name]] = 
+                    private$i.direct.transmute.outcomes.pull.indices.without.sim.offset[[outcome.name]] + sim.offset
+                
+                private$i.final.outcome.numerators[[outcome.name]] = array(0,
+                                                                           dim = vapply(to.outcome.dim.names, length, FUN.VALUE = integer(1)),
+                                                                           dimnames = to.outcome.dim.names)
+                
+                private$i.final.outcome.numerators[[outcome.name]][ private$i.direct.transmute.outcomes.put.indices[[outcome.name]] ] =
+                    simulation.set$data$outcome.numerators[[outcome.name]][ private$i.direct.transmute.outcomes.pull.indices[[outcome.name]] ]
+
+                
+                dim(private$i.final.outcome.numerators[[outcome.name]]) = vapply(to.outcome.dim.names, length, FUN.VALUE = integer(1))
+                dimnames(private$i.final.outcome.numerators[[outcome.name]]) = to.outcome.dim.names
+                
+                if (!is.null(to.outcome$denominator.outcome))
+                {
+                    private$i.final.outcome.denominators[[outcome.name]] = array(0,
+                                                                               dim = vapply(to.outcome.dim.names, length, FUN.VALUE = integer(1)),
+                                                                               dimnames = to.outcome.dim.names)
+                    
+                    private$i.final.outcome.denominators[[outcome.name]][ private$i.direct.transmute.outcomes.put.indices[[outcome.name]] ] =
+                        simulation.set$data$outcome.denominators[[outcome.name]][ private$i.direct.transmute.outcomes.pull.indices[[outcome.name]] ]
+                    
+                    dim(private$i.final.outcome.denominators[[outcome.name]]) = dim(private$i.final.outcome.numerators[[outcome.name]])
+                    dimnames(private$i.final.outcome.denominators[[outcome.name]]) = dimnames(private$i.final.outcome.numerators[[outcome.name]])
+                }
+            }
+            
+            #For the outcomes we need to calculate other outcomes: we need to save into
+            # outcome.numerators - AS LIST
+            # outcome.denominators (if relevant) - AS LIST
+            # private$i.outcome.value.times.to.calculate
+            for (outcome.name in private$i.dependee.outcome.names.to.transmute)
+            {
+                numerator.array = private$i.final.outcome.numerators[[outcome.name]]
+                denominator.array = private$i.final.outcome.numerators[[outcome.name]]
+                outcome.years = dimnames(numerator.array)$year
+                
+                n.year = length(outcome.years)
+                n.non.year = length(numerator.array)/n.year
+                non.year.dim.names = dimnames(numerator.array)[-1]
+                non.year.dim = vapply(non.year.dim.names, length, FUN.VALUE = integer(1))
+            
+                base.non.year.indices = (0:(n.non.year-1)) * n.year
+                
+                private$i.outcome.numerators[[outcome.name]] = lapply(1:length(outcome.years), function(year.index){
+                    
+                    # the indices assuming year is the first dimension
+                    indices = year.index +  base.non.year.indices
+                    
+                    arr.for.year = numerator.array[indices]
+                    dim(arr.for.year) = non.year.dim
+                    dimnames(arr.for.year) = non.year.dim.names
+                    arr.for.year
+                })
+                names(private$i.outcome.numerators[[outcome.name]]) = outcome.years
+                
+                if (!is.null(denominator.array))
+                {
+                    private$i.outcome.denominators[[outcome.name]] = lapply(1:length(outcome.years), function(year.index){
+                        
+                        # the indices assuming year is the first dimension
+                        indices = year.index + base.non.year.indices
+                        
+                        arr.for.year = denominator.array[indices]
+                        dim(arr.for.year) = non.year.dim
+                        dimnames(arr.for.year) = non.year.dim.names
+                        arr.for.year
+                    })
+                    names(private$i.outcome.denominators[[outcome.name]]) = outcome.years
+                }
+                
+                private$i.outcome.value.times.to.calculate[[outcome.name]] = as.numeric(outcome.years)
+            }
+            
+            invisible(self)
+        },
+
         prepare.outcomes.for.sim = function(ode.results,
                                             prior.simulation.set,
                                             prior.sim.index,
                                             is.degenerate,
                                             check.consistency)
         {
-            outcome.names = private$i.kernel$get.outcome.names.for.sub.version(private$i.sub.version)
+            #outcome.names = private$i.kernel$get.outcome.names.for.sub.version(private$i.sub.version)
             
-            for (outcome.name in outcome.names)
+            for (outcome.name in private$i.outcome.names.to.calculate)
             {
                 #-- Calculate the times --#
                 if (is.null(private$i.outcome.value.times[[outcome.name]]))
@@ -5865,7 +6143,7 @@ JHEEM = R6::R6Class(
             
             if (!is.degenerate)
             {
-                for (outcome.name in outcome.names)
+                for (outcome.name in private$i.outcome.names.to.calculate)
                 {
 #                sapply(outcome.names, function(outcome.name){
                     private$calculate.outcome.numerator.and.denominator(outcome.name = outcome.name,
@@ -5876,7 +6154,7 @@ JHEEM = R6::R6Class(
             }
             
             
-            outcome.numerators = lapply(outcome.names, function(outcome.name){
+            private$i.final.outcome.numerators[private$i.outcome.names.to.calculate] = lapply(private$i.outcome.names.to.calculate, function(outcome.name){
                 
                 outcome = private$i.kernel$get.outcome.kernel(outcome.name)
                 outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
@@ -5889,7 +6167,7 @@ JHEEM = R6::R6Class(
                     val = rep(as.numeric(NA), prod(sapply(outcome.dim.names, length)))
                 else
                 {
-                    if (is.null(prior.simulation.set))
+                    if (is.null(prior.simulation.set) || private$i.for.transmutation)
                     {
                         val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
                                                       char_desired_times = char.times,
@@ -5911,40 +6189,6 @@ JHEEM = R6::R6Class(
                                                       old_times = dimnames(prior.simulation.set$data$outcome.numerators[[outcome.name]])$year,
                                                       prior_sim_index = prior.sim.index)
                     }
-                    
-                    # if (!is.null(prior.simulation.set))
-                    # {
-                    #     prior.sim.numerator = prior.simulation.set$data$outcome.numerators[[outcome.name]]
-                    #     if (is.null(prior.sim.numerator))
-                    #         stop(paste0("Error in extending simulations: we expected the outcome '", outcome.name, "' to be present in the prior simulation, but it is not there. This likely means that the '",
-                    #                     self$version, "' specification has been changed since the original simulations were run. Try rerun.simulations() to update your old simulations to the new version of the specification"))
-                    #     if (!dim.names.equal(dimnames(prior.sim.numerator)[setdiff(names(dim(prior.sim.numerator)), c('year','sim'))],
-                    #                          outcome.dim.names[setdiff(names(outcome.dim.names), 'year')], match.order.of.dimensions = T, match.order.within.dimensions = T))
-                    #         stop(paste0("Error in extending simulations: the '", outcome.name, "' outcome in the prior simulation does not have the dimnames we expect. This likely means that the '",
-                    #                     self$version, "' specification has been changed since the original simulations were run. Try rerun.simulations() to update your old simulations to the new version of the specification"))
-                    #         
-                    #     dim.names = c(dimnames(prior.sim.numerator)['year'],
-                    #                   other = 'temp',
-                    #                   dimnames(prior.sim.numerator)['sim'])
-                    #     dim.names$other = 1:(length(prior.sim.numerator) / prod(sapply(dim.names, length)))
-                    #     dim(prior.sim.numerator) = sapply(dim.names, length)
-                    #     dimnames(prior.sim.numerator) = dim.names
-                    # }
-                    # 
-                    # val = t(sapply(private$i.outcome.value.times[[outcome.name]], function(y){
-                    #     
-                    #     if (length(private$i.outcome.value.times.to.calculate[[outcome.name]])>0 &&
-                    #         y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
-                    #         y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
-                    #     {
-                    #         private$i.outcome.numerators[[outcome.name]][[as.character(y)]]
-                    #     }
-                    #     else
-                    #     {
-                    #         prior.sim.numerator[as.character(y),,prior.sim.index]
-                    #     }
-                    #         
-                    # }))
                 }
                 
                 dim(val) = sapply(outcome.dim.names, length)
@@ -5952,9 +6196,8 @@ JHEEM = R6::R6Class(
                 
                 val
             })
-            names(outcome.numerators) = outcome.names
             
-            outcome.denominators = lapply(outcome.names, function(outcome.name){
+            private$i.final.outcome.denominators[private$i.outcome.names.to.calculate] = lapply(private$i.outcome.names.to.calculate, function(outcome.name){
                 
                 
                 outcome = private$i.kernel$get.outcome.kernel(outcome.name)
@@ -5976,7 +6219,7 @@ JHEEM = R6::R6Class(
                         val = outcome.numerators[[outcome.name]] #use the same NA vector that is in the numerator
                     else
                     {
-                        if (is.null(prior.simulation.set))
+                        if (is.null(prior.simulation.set) || private$i.for.transmutation)
                         {
                             val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
                                                           char_desired_times = char.times,
@@ -5998,29 +6241,7 @@ JHEEM = R6::R6Class(
                                                           old_times = dimnames(prior.simulation.set$data$outcome.denominators[[outcome.name]])$year,
                                                           prior_sim_index = prior.sim.index)
                         }
-                        # if (!is.null(prior.simulation.set))
-                        # {
-                        #     prior.sim.denominator = prior.simulation.set$data$outcome.denominators[[outcome.name]]
-                        #     dim.names = c(dimnames(prior.sim.denominator)['year'],
-                        #                   other = 'temp',
-                        #                   dimnames(prior.sim.denominator)['sim'])
-                        #     dim.names$other = 1:(length(prior.sim.denominator) / prod(sapply(dim.names, length)))
-                        #     dim(prior.sim.denominator) = sapply(dim.names, length)
-                        #     dimnames(prior.sim.denominator) = dim.names
-                        # }
-                        # 
-                        # val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
-                        #     if (length(private$i.outcome.value.times.to.calculate[[outcome.name]])>0 &&
-                        #         y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
-                        #         y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
-                        #     {
-                        #         private$i.outcome.denominators[[outcome.name]][[as.character(y)]]
-                        #     }
-                        #     else
-                        #     {
-                        #         prior.sim.denominator[as.character(y),,prior.sim.index]
-                        #     }
-                        # }))
+
                     }                    
                     
                     dim(val) = sapply(outcome.dim.names, length)
@@ -6029,17 +6250,22 @@ JHEEM = R6::R6Class(
                     val
                 }
             })
-            names(outcome.denominators) = outcome.names
+           
+            rv = list(numerators = private$i.final.outcome.numerators,
+                      denominators = private$i.final.outcome.denominators)
             
+            if (!private$i.for.transmutation)
+            {
+                # Clear the values for numerators and denominators stored in the jheem object - we no longer need them
+                private$i.outcome.numerators = list()
+                private$i.outcome.denominators = list()
+                private$i.interpolated.outcome.numerators.when.values.dont.apply = list()
+                private$i.interpolated.outcome.denominators.when.values.dont.apply = list()
+                private$i.final.outcome.denominators = list()
+                private$i.final.outcome.denominators = list()
+            }
             
-            # Clear the values for numerators and denominators stored in the jheem object - we no longer need them
-            private$i.outcome.numerators = list()
-            private$i.outcome.denominators = list()
-            private$i.interpolated.outcome.numerators.when.values.dont.apply = list()
-            private$i.interpolated.outcome.denominators.when.values.dont.apply = list()
-            
-            list(numerators = outcome.numerators,
-                 denominators = outcome.denominators)
+            rv
         },
 
         # Depends on quantity.dim.names for quantities which this outcome has a direct, non.cumulative dependency on
@@ -6160,6 +6386,12 @@ JHEEM = R6::R6Class(
                     if (can.get.outcome.value.from.ode.output(outcome.name,
                                                               settings = private$i.diffeq.settings))
                     {
+                        if (private$i.for.transmutation)
+                        {
+                            stop(paste0(error.prefix,
+                                        "When a JHEEM instance is being used for transmutation, we cannot calculate dynamic or intrinsic outcomes"))
+                        }
+                        
                         raw.value = get.outcome.value.from.ode.output(outcome.name,
                                                                       settings = private$i.diffeq.settings,
                                                                       ode.results = ode.results,
