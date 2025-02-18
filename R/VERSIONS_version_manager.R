@@ -357,6 +357,7 @@ register.sampled.parameters.for.version <- function(version,
 #'@param parameter.names A character vector giving the names of parameters which will be set
 #'@param join.with.previous.version Whether the parameter.names and apply.function should be merged with those of the previous version
 #'
+#'@export
 register.set.parameters.for.version <- function(version,
                                                 parameter.names,
                                                 apply.function,
