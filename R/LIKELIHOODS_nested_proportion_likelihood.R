@@ -1013,8 +1013,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     one.details <- one.details[!one.remove.mask]
 
                     # Metadata will involve melting both arrays (data and details) as well as making "stratum"
-                    one.metadata <- reshape2::melt(data)
+                    # Make sure reshape2::melt ALWAYS has "as.is=T" or it will flip a set of locations that all LOOK numeric (like counties) into ACTUALLY numeric!
+                    # Although, that means we have to go converting everything to a factor now... Except year, because with the year lagging, we need to know real values.
+                    one.metadata <- reshape2::melt(data, as.is=T)
                     one.metadata$location.type = all.location.types[as.character(one.metadata$location)]
+                    one.metadata$location = as.factor(one.metadata$location)
+                    one.metadata$source = as.factor(one.metadata$source)
                     one.metadata <- one.metadata[!one.remove.mask, ]
 
                     # Recover required dimnames from one.metadata -- note that year won't be fixed yet
@@ -1132,7 +1136,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 private$i.sim.ontology$year <- private$i.sim.required.dimnames$year
 
                 private$i.details <- as.factor(private$i.details)
-                # private$i.metadata$location = as.factor(private$i.metadata$location) # already factor somehow
                 if (private$i.parameters$observation.correlation.form == "autoregressive.1") {
                     private$i.metadata$year <- suppressWarnings(as.numeric(private$i.metadata$year))
                     if (any(is.na(private$i.metadata$year))) {
@@ -1142,7 +1145,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     private$i.metadata$year <- as.factor(private$i.metadata$year)
                 }
                 private$i.metadata$stratum <- as.factor(private$i.metadata$stratum)
-                # private$i.metadata$source = as.factor(private$i.metadata$source) # already factor somehow
 
                 # might remove years
                 private$i.sim.dimension.values <- private$i.sim.required.dimnames[sapply(names(private$i.sim.required.dimnames), function(d) {
@@ -1174,9 +1176,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     }
                     private$i.lagged.pairs <- generate_lag_matrix_indices(
                         year.for.lag, # check if valid -- no year ranges, please!
-                        as.integer(as.factor(private$i.metadata$location)), # location not used for basic likelihoods but is available for nested prop likelihoods
-                        as.integer(as.factor(private$i.metadata$stratum)),
-                        as.integer(as.factor(private$i.metadata$source)),
+                        as.integer(private$i.metadata$location), # location not used for basic likelihoods but is available for nested prop likelihoods
+                        as.integer(private$i.metadata$stratum),
+                        as.integer(private$i.metadata$source),
                         private$i.n.obs
                     )
                     if (length(private$i.lagged.pairs) == 0) {
