@@ -18,6 +18,8 @@ Still need to flesh out this interface
 \item \href{#method-jheem-new}{\code{JHEEM$new()}}
 \item \href{#method-jheem-crunch}{\code{JHEEM$crunch()}}
 \item \href{#method-jheem-run}{\code{JHEEM$run()}}
+\item \href{#method-jheem-crunch.for.transmutation}{\code{JHEEM$crunch.for.transmutation()}}
+\item \href{#method-jheem-transmute}{\code{JHEEM$transmute()}}
 \item \href{#method-jheem-test}{\code{JHEEM$test()}}
 \item \href{#method-jheem-set.element.value}{\code{JHEEM$set.element.value()}}
 \item \href{#method-jheem-set.element.functional.form.main.effect.alphas}{\code{JHEEM$set.element.functional.form.main.effect.alphas()}}
@@ -62,6 +64,8 @@ Still need to flesh out this interface
 \if{html}{\out{<div class="r">}}\preformatted{JHEEM$new(
   jheem.kernel,
   sub.version,
+  transmute.from.kernel,
+  transmute.from.sub.version,
   error.prefix = "Cannot create JHEEM Instance: "
 )}\if{html}{\out{</div>}}
 }
@@ -101,6 +105,37 @@ Still need to flesh out this interface
   keep.to.year,
   solver.metadata,
   finalize
+)}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-jheem-crunch.for.transmutation"></a>}}
+\if{latex}{\out{\hypertarget{method-jheem-crunch.for.transmutation}{}}}
+\subsection{Method \code{crunch.for.transmutation()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{JHEEM$crunch.for.transmutation(
+  keep.from.year,
+  keep.to.year,
+  prior.simulation.set,
+  prior.sim.index,
+  check.consistency = !self$has.been.crunched()
+)}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-jheem-transmute"></a>}}
+\if{latex}{\out{\hypertarget{method-jheem-transmute}{}}}
+\subsection{Method \code{transmute()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{JHEEM$transmute(
+  prior.simulation.set,
+  prior.sim.index,
+  keep.from.year,
+  keep.to.year,
+  finalize,
+  check.consistency
 )}\if{html}{\out{</div>}}
 }
 

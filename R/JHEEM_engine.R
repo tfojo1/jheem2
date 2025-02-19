@@ -112,8 +112,8 @@ set.element.functional.form.from.time <- function(model.settings,
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.from.time(element.name = element.name,
-                                                       from.time = from.time,
-                                                       wrt.version = wrt.version)
+                                                         from.time = from.time,
+                                                         wrt.version = wrt.version)
 }
 
 
@@ -129,8 +129,8 @@ set.element.functional.form.to.time <- function(model.settings,
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.to.time(element.name = element.name,
-                                                     to.time = to.time,
-                                                     wrt.version = wrt.version)
+                                                       to.time = to.time,
+                                                       wrt.version = wrt.version)
 }
 
 
@@ -156,9 +156,9 @@ set.element.ramp.times <- function(model.settings,
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.ramp.times(element.name = element.name,
-                                        times = times,
-                                        indices = indices,
-                                        wrt.version = wrt.version)
+                                          times = times,
+                                          indices = indices,
+                                          wrt.version = wrt.version)
 }
 
 #'@describeIn set.element.ramp.times
@@ -174,9 +174,9 @@ set.element.ramp.values <- function(model.settings,
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.ramp.values(element.name = element.name,
-                                         values = values,
-                                         indices = indices,
-                                         wrt.version = wrt.version)
+                                           values = values,
+                                           indices = indices,
+                                           wrt.version = wrt.version)
 }
 
 #'@describeIn set.element.ramp.times
@@ -192,9 +192,9 @@ set.element.taper.times <- function(model.settings,
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.taper.times(element.name = element.name,
-                                         times = times,
-                                         indices = indices,
-                                         wrt.version = wrt.version)
+                                           times = times,
+                                           indices = indices,
+                                           wrt.version = wrt.version)
 }
 
 #'@describeIn set.element.ramp.times
@@ -210,9 +210,9 @@ set.element.taper.values <- function(model.settings,
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.taper.values(element.name = element.name,
-                                          values = values,
-                                          indices = indices,
-                                          wrt.version = wrt.version)
+                                            values = values,
+                                            indices = indices,
+                                            wrt.version = wrt.version)
 }
 
 #'@title Set a "Future Slope" and the time after which it applies, for a model element
@@ -236,8 +236,8 @@ set.element.functional.form.future.slope <- function(model.settings,
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.future.slope(element.names = element.names,
-                                                          slope = slope,
-                                                          wrt.version = wrt.version)
+                                                            slope = slope,
+                                                            wrt.version = wrt.version)
 }
 
 
@@ -253,8 +253,8 @@ set.element.functional.form.future.slope.after.time <- function(model.settings,
         stop("model.settings must be an R6 object of class 'jheem.model.settings'")
     
     model.settings$set.element.functional.form.future.slope.after.time(element.names = element.names,
-                                                                     after.time = after.time,
-                                                                     wrt.version = wrt.version)
+                                                                       after.time = after.time,
+                                                                       wrt.version = wrt.version)
 }
 
 
@@ -316,14 +316,14 @@ set.element.functional.form.alphas.from.parameters <- function(model.settings,
                     " in the specification for version '", model.settings$version, "'"))
     
     invalid.dimensions.by.index = setdiff(dimensions.with.values.referred.to.by.index, 
-                                         specification.metadata$dimensions)
+                                          specification.metadata$dimensions)
     if (length(invalid.dimensions.by.index)>1)
         stop(paste0("Cannot set functional.form alphas from parameters: ",
                     collapse.with.and("'", invalid.dimensions.by.index, "'"),
                     " passed to 'dimensions.with.values.referred.to.by.index' ",
                     ifelse(length(invalid.dimensions.by.name)==1, "is not a valid dimension", "are not valid dimensions"),
                     " in the specification for version '", model.settings$version, "'"))
-
+    
     #-- Values for main effects --#
     
     # Values referred to by name
@@ -342,7 +342,7 @@ set.element.functional.form.alphas.from.parameters <- function(model.settings,
     else
         parameter.dim.values = parameter.names = parameter.dimensions = character()
     
-        
+    
     # Values referred to by index
     if (length(dimensions.with.values.referred.to.by.index)>0)
     {
@@ -381,11 +381,11 @@ set.element.functional.form.alphas.from.parameters <- function(model.settings,
         for (d in unique(parameter.dimensions))
         {
             model.settings$set.element.functional.form.main.effect.alphas(element.name = element.name,
-                                                                        alpha.name = alpha.name,
-                                                                        values = parameter.values[parameter.dimensions==d],
-                                                                        applies.to.dimension.values = parameter.dim.values[parameter.dimensions==d],
-                                                                        dimension = d,
-                                                                        wrt.version = wrt.version)
+                                                                          alpha.name = alpha.name,
+                                                                          values = parameter.values[parameter.dimensions==d],
+                                                                          applies.to.dimension.values = parameter.dim.values[parameter.dimensions==d],
+                                                                          dimension = d,
+                                                                          wrt.version = wrt.version)
         }
     }
     
@@ -448,8 +448,8 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                      wrt.version = self$version)
         {
             private$i.jheem$set.element.value(element.name = element.name,
-                                               value = value,
-                                               check.consistency = private$i.check.consistency,
+                                              value = value,
+                                              check.consistency = private$i.check.consistency,
                                               wrt.version = wrt.version)
         },
         
@@ -488,8 +488,8 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                                          wrt.version = self$version)
         {
             private$i.jheem$set.element.functional.form.from.time(element.name = element.name,
-                                                                   from.time = from.time,
-                                                                   check.consistency = private$i.check.consistency,
+                                                                  from.time = from.time,
+                                                                  check.consistency = private$i.check.consistency,
                                                                   wrt.version = wrt.version)
         },
         
@@ -498,8 +498,8 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                                        wrt.version = self$version)
         {
             private$i.jheem$set.element.functional.form.to.time(element.name = element.name,
-                                                                 to.time = to.time,
-                                                                 check.consistency = private$i.check.consistency,
+                                                                to.time = to.time,
+                                                                check.consistency = private$i.check.consistency,
                                                                 wrt.version = wrt.version)
         },
         
@@ -509,9 +509,9 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                           wrt.version = self$version)
         {
             private$i.jheem$set.element.ramp.times(element.name = element.name,
-                                                    times = times,
-                                                    indices = indices,
-                                                    check.consistency = private$i.check.consistency,
+                                                   times = times,
+                                                   indices = indices,
+                                                   check.consistency = private$i.check.consistency,
                                                    wrt.version = wrt.version)
         },
         
@@ -521,9 +521,9 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                            wrt.version = self$version)
         {
             private$i.jheem$set.element.ramp.values(element.name = element.name,
-                                                     values = values,
-                                                     indices = indices,
-                                                     check.consistency = private$i.check.consistency,
+                                                    values = values,
+                                                    indices = indices,
+                                                    check.consistency = private$i.check.consistency,
                                                     wrt.version = wrt.version)
         },
         
@@ -533,9 +533,9 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                            wrt.version = self$version)
         {
             private$i.jheem$set.element.taper.times(element.name = element.name,
-                                                     times = times,
-                                                     indices = indices,
-                                                     check.consistency = private$i.check.consistency,
+                                                    times = times,
+                                                    indices = indices,
+                                                    check.consistency = private$i.check.consistency,
                                                     wrt.version = wrt.version)
         },
         
@@ -545,9 +545,9 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                             wrt.version = self$version)
         {
             private$i.jheem$set.element.taper.values(element.name = element.name,
-                                                      values = values,
-                                                      indices = indices,
-                                                      check.consistency = private$i.check.consistency,
+                                                     values = values,
+                                                     indices = indices,
+                                                     check.consistency = private$i.check.consistency,
                                                      wrt.version = wrt.version)
         },
         
@@ -556,8 +556,8 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                                             wrt.version = self$version)
         {
             private$i.jheem$set.element.functional.form.future.slope(element.names,
-                                                                      slope,
-                                                                      check.consistency = private$i.check.consistency,
+                                                                     slope,
+                                                                     check.consistency = private$i.check.consistency,
                                                                      wrt.version = wrt.version)
         },
         
@@ -566,8 +566,8 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
                                                                        wrt.version = self$version)
         {
             private$i.jheem$set.element.functional.form.future.slope.after.time(element.names = element.names,
-                                                                                 after.time = after.time,
-                                                                                 check.consistency = private$i.check.consistency,
+                                                                                after.time = after.time,
+                                                                                check.consistency = private$i.check.consistency,
                                                                                 wrt.version = wrt.version)
         }
         
@@ -606,8 +606,8 @@ JHEEM.MODEL.SETTINGS = R6::R6Class(
 SUPPORTED.SOLVER.METHODS = list(
     odeintr = 'DP5',
     deSolve = c('ode45','lsoda','bdf','adams','impAdams','ode23','radau','rk4')
-#    diffeqr = c('BS3','DP5'),
-#    r2sundials = c('BDF','Adams')
+    #    diffeqr = c('BS3','DP5'),
+    #    r2sundials = c('BDF','Adams')
 )
 
 # internal to the package
@@ -722,18 +722,18 @@ SOLVER.METADATA = R6::R6Class(
                     else
                     {
                         dx = compute_dx(state = y,
-                                   time = t,
-                                   settings = diffeq.settings,
-                                   quantities_info = diffeq.settings$quantities.info,
-                                   quantity_scratch_vector = diffeq.settings$quantity_scratch_vector,
-                                   scratch_vector = diffeq.settings$scratch.vector,
-                                   natality_info = diffeq.settings$natality.info,
-                                   mortality_info = diffeq.settings$mortality.info,
-                                   transitions_info = diffeq.settings$transitions.info,
-                                   infections_info = diffeq.settings$infections.info,
-                                   remission_info = diffeq.settings$remission.info,
-                                   fixed_strata_info = diffeq.settings$fixed.strata.info,
-                                   population_trackers = diffeq.settings$population_trackers)
+                                        time = t,
+                                        settings = diffeq.settings,
+                                        quantities_info = diffeq.settings$quantities.info,
+                                        quantity_scratch_vector = diffeq.settings$quantity_scratch_vector,
+                                        scratch_vector = diffeq.settings$scratch.vector,
+                                        natality_info = diffeq.settings$natality.info,
+                                        mortality_info = diffeq.settings$mortality.info,
+                                        transitions_info = diffeq.settings$transitions.info,
+                                        infections_info = diffeq.settings$infections.info,
+                                        remission_info = diffeq.settings$remission.info,
+                                        fixed_strata_info = diffeq.settings$fixed.strata.info,
+                                        population_trackers = diffeq.settings$population_trackers)
                     }
                     
                     list(dx)
@@ -742,7 +742,7 @@ SOLVER.METADATA = R6::R6Class(
                 
                 times = run.from.time:(run.to.time+1)
                 
-
+                
                 ode.results = deSolve::ode(
                     y = diffeq.settings$initial_state,
                     times = times,
@@ -752,7 +752,7 @@ SOLVER.METADATA = R6::R6Class(
                     rtol = private$i.rtol,
                     method = private$i.method
                 )
-
+                
                 list(times = ode.results[,1],
                      values = t(as.matrix(ode.results[,-1])),
                      terminated.for.time = terminated.for.time)           
@@ -1010,9 +1010,11 @@ do.create.jheem.engine <- function(jheem.kernel,
 {
     if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
         stop("Cannot create JHEEM Engine: 'error.prefix' must be a single, non-NA character value")
-
+    
     jheem = JHEEM$new(jheem.kernel = jheem.kernel,
                       sub.version = sub.version,
+                      transmute.from.kernel = NULL,
+                      transmute.from.sub.version = NULL,
                       error.prefix = error.prefix)
     
     JHEEM.ENGINE$new(jheem = jheem,
@@ -1071,7 +1073,7 @@ JHEEM.ENGINE = R6::R6Class(
             
             if (!is(jheem, 'jheem'))
                 stop(paste0(error.prefix, "jheem must be an object of class 'jheem'"))
-         
+            
             super$initialize(version = jheem$version,
                              sub.version = jheem$sub.version,
                              location = jheem$location,
@@ -1080,7 +1082,7 @@ JHEEM.ENGINE = R6::R6Class(
             jheem$set.intervention(intervention.code)
             jheem$set.calibration.code(calibration.code, 
                                        outcome.location.mapping = outcome.location.mapping)
-               
+            
             specification = get.compiled.specification.for.version(version)
             
             # Start and end years
@@ -1116,7 +1118,7 @@ JHEEM.ENGINE = R6::R6Class(
                 
                 if (prior.simulation.set$version != jheem$version)
                     stop(paste0(error.prefix, "The prior.simulation.set's version ('", prior.simulation.set$version, "') does not match the JHEEM version ('", jheem$version, "')"))
-                    
+                
                 if (!identical(prior.simulation.set$sub.version, jheem$sub.version))
                     stop(paste0(error.prefix, "The prior.simulation.set's sub-version (", 
                                 ifelse(is.null(prior.simulation.set$sub.version), "NULL", paste0("'", prior.simulation.set$sub.version, "'")), 
@@ -1133,7 +1135,7 @@ JHEEM.ENGINE = R6::R6Class(
             if (is.null(keep.from.year))
                 keep.from.year = start.year
             else if (!is.numeric(keep.from.year) || length(keep.from.year)!=1 || is.na(keep.from.year))
-                    stop(paste0(error.prefix, "'keep.from.year' must be a single, non-NA numeric value"))
+                stop(paste0(error.prefix, "'keep.from.year' must be a single, non-NA numeric value"))
             
             if (is.null(keep.to.year))
                 keep.to.year = end.year
@@ -1171,13 +1173,13 @@ JHEEM.ENGINE = R6::R6Class(
             
             if (!is(solver.metadata, "solver.metadata"))
                 stop(paste0(error.prefix, "'solver.metadata' must be an object of class 'solver.metadata' created by create.solver.metadata()"))
-
+            
             # intervention.code
             if (!is.null(intervention.code))
             {
                 if (!is.character(intervention.code) || length(intervention.code)!=1 || is.na(intervention.code))
-                        stop(paste0(error.prefix, "'intervention.code' must be a single, non-NA character value"))
-                    
+                    stop(paste0(error.prefix, "'intervention.code' must be a single, non-NA character value"))
+                
                 if (is.null(get.intervention(intervention.code, throw.error.if.missing=F)))
                     stop(paste0(error.prefix, "No intervention with code '", intervention.code, "' has been registered. You must register the intervention before giving its code to be run"))
             }
@@ -1202,9 +1204,9 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.intervention.code = intervention.code
             private$i.calibration.code = calibration.code
             private$i.outcome.location.mapping = outcome.location.mapping
-          
+            
             private$i.prior.simulation.set = prior.simulation.set
-              
+            
             private$i.start.year = start.year
             private$i.end.year = end.year
             private$i.max.run.time.seconds = max.run.time.seconds
@@ -1212,7 +1214,7 @@ JHEEM.ENGINE = R6::R6Class(
             private$i.keep.to.year = keep.to.year
             
             private$i.solver.metadata = solver.metadata
-
+            
             private$i.finalize = finalize
             
             private$i.check.consistency = T
@@ -1224,16 +1226,20 @@ JHEEM.ENGINE = R6::R6Class(
                                              prior.sim.index = prior.sim.index,
                                              error.prefix = 'Cannot run JHEEM Engine: ')
             
-            private$i.jheem$run(start.year = private$i.start.year,
-                                end.year = private$i.end.year,
-                                check.consistency = private$i.check.consistency,
-                                max.run.time.seconds = private$i.max.run.time.seconds,
-                                prior.simulation.set = private$i.prior.simulation.set,
-                                prior.sim.index = prior.sim.index,
-                                keep.from.year = private$i.keep.from.year,
-                                keep.to.year = private$i.keep.to.year,
-                                solver.metadata = private$i.solver.metadata,
-                                finalize = private$i.finalize)
+            rv = private$i.jheem$run(start.year = private$i.start.year,
+                                     end.year = private$i.end.year,
+                                     check.consistency = private$i.check.consistency,
+                                     max.run.time.seconds = private$i.max.run.time.seconds,
+                                     prior.simulation.set = private$i.prior.simulation.set,
+                                     prior.sim.index = prior.sim.index,
+                                     keep.from.year = private$i.keep.from.year,
+                                     keep.to.year = private$i.keep.to.year,
+                                     solver.metadata = private$i.solver.metadata,
+                                     finalize = private$i.finalize)
+            
+            
+            private$i.check.consistency = F
+            rv
         },
         
         crunch = function(parameters=NULL, prior.sim.index=NULL)
@@ -1355,21 +1361,21 @@ JHEEM.ENGINE = R6::R6Class(
         i.finalize = NULL,
         i.check.consistency = NULL,
         
-        set.parameters = function(parameters, error.prefix)
-        {
-            if (!missing(parameters) && !is.null(parameters))
-            {
-                if (!is.numeric(parameters) || any(is.na(parameters)))
-                    stop(paste0(error.prefix, "'parameters' must be a named numeric vector with no NA values"))
-                
-                if (is.null(names(parameters)))
-                    stop(paste0(error.prefix, "'parameters' must be a NAMED numeric vector"))
-                
-                parameters.to.set = private$i.jheem$parameters
-                parameters.to.set[names(parameters)] = parameters
-                
-            }
-        },
+        # set.parameters = function(parameters, error.prefix)
+        # {
+        #     if (!missing(parameters) && !is.null(parameters))
+        #     {
+        #         if (!is.numeric(parameters) || any(is.na(parameters)))
+        #             stop(paste0(error.prefix, "'parameters' must be a named numeric vector with no NA values"))
+        #         
+        #         if (is.null(names(parameters)))
+        #             stop(paste0(error.prefix, "'parameters' must be a NAMED numeric vector"))
+        #         
+        #         parameters.to.set = private$i.jheem$parameters
+        #         parameters.to.set[names(parameters)] = parameters
+        #         
+        #     }
+        # },
         
         prepare.to.run.or.crunch = function(parameters, prior.sim.index, error.prefix)
         {
@@ -1381,9 +1387,9 @@ JHEEM.ENGINE = R6::R6Class(
                 if (is.null(names(parameters)))   
                     stop(paste0(error.prefix, "'parameters' must be a NAMED numeric vector"))
             }
-                
-                
-                
+            
+            
+            
             if (is.null(private$i.prior.simulation.set))
             {
                 if (!is.null(prior.sim.index))
@@ -1430,32 +1436,32 @@ PROTECTED.NUMERIC.VECTOR = R6::R6Class(
         {
             rv = private$i.values[indices]
             
- #           na.mask = is.na(rv)
- #           if (any(na.mask))
- #           {
- #               if (is.logical(indices))
- #               {
- #                   stop("The length (", length(indices), ") of the logical vector used to access the parameter values does not match the length of the parameter values vector (", length(private$i.values))
- #               }
- #               else
- #               {
- #                   invalid.indices = indices[na.mask]
- #                   if (is.character(indices))
- #                   {
- #                       stop(paste0(collapse.with.and("'", invalid.indices, "'"),
- #                                   ifelse(length(invalid.indices)==1, 
- #                                          " is not a valid name for a parameter value",
- #                                          " are not valid names for parameter values")))
- #                   }
- #                   else 
- #                   {
- #                       stop(paste0(ifelse(length(invalid.indices)==1, "Index ", "Indices "),
- #                                   collapse.with.and(invalid.indices),
- #                                   ifelse(length(invalid.indices)==1, " is", " are"),
- #                                   " out of bounds for parameter value vector (length ", length(private$i.values), ")"))
- #                   }
- #               }
- #           }
+            #           na.mask = is.na(rv)
+            #           if (any(na.mask))
+            #           {
+            #               if (is.logical(indices))
+            #               {
+            #                   stop("The length (", length(indices), ") of the logical vector used to access the parameter values does not match the length of the parameter values vector (", length(private$i.values))
+            #               }
+            #               else
+            #               {
+            #                   invalid.indices = indices[na.mask]
+            #                   if (is.character(indices))
+            #                   {
+            #                       stop(paste0(collapse.with.and("'", invalid.indices, "'"),
+            #                                   ifelse(length(invalid.indices)==1, 
+            #                                          " is not a valid name for a parameter value",
+            #                                          " are not valid names for parameter values")))
+            #                   }
+            #                   else 
+            #                   {
+            #                       stop(paste0(ifelse(length(invalid.indices)==1, "Index ", "Indices "),
+            #                                   collapse.with.and(invalid.indices),
+            #                                   ifelse(length(invalid.indices)==1, " is", " are"),
+            #                                   " out of bounds for parameter value vector (length ", length(private$i.values), ")"))
+            #                   }
+            #               }
+            #           }
             
             private$i.has.been.accessed[indices] = T
             rv
@@ -1535,7 +1541,9 @@ JHEEM = R6::R6Class(
         ##-- CONSTRUCTOR --##
         ##-----------------##
         
-        initialize = function(jheem.kernel, sub.version, error.prefix = "Cannot create JHEEM Instance: ")
+        initialize = function(jheem.kernel, sub.version, 
+                              transmute.from.kernel, transmute.from.sub.version,
+                              error.prefix = "Cannot create JHEEM Instance: ")
         {
             if (!is(jheem.kernel, 'jheem.kernel'))
                 stop(paste0(error.prefix, "'jheem.kernel' must be an object of class jheem.kernel"))
@@ -1546,6 +1554,10 @@ JHEEM = R6::R6Class(
                              location = jheem.kernel$location,
                              type = 'jheem',
                              error.prefix = error.prefix)
+            
+            private$i.transmute.from.kernel = transmute.from.kernel
+            private$i.transmute.from.sub.version = transmute.from.sub.version
+            private$i.for.transmutation = !is.null(transmute.from.kernel)
             
             # save(kernel, file='size_check/test_spec_kernel.Rdata')
             private$set.up(jheem.kernel)
@@ -1566,13 +1578,13 @@ JHEEM = R6::R6Class(
                           check.consistency = !self$has.been.crunched())
         {
             # Set the times
-            set.run.years(start.year = start.year,
-                          end.year = end.year,
-                          keep.from.year = keep.from.year,
-                          keep.to.year = keep.to.year,
-                          prior.simulation.set = prior.simulation.set,
-                          error.prefix = paste0("Error preparing JHEEM to run: "))
-
+            private$set.run.years(start.year = start.year,
+                                  end.year = end.year,
+                                  keep.from.year = keep.from.year,
+                                  keep.to.year = keep.to.year,
+                                  prior.simulation.set = prior.simulation.set,
+                                  error.prefix = paste0("Error preparing JHEEM to run: "))
+            
             # Calculate all required quantity values
             
             # # Old way of doing this - now we're going to call each quantity
@@ -1588,9 +1600,9 @@ JHEEM = R6::R6Class(
                 ordered.quantity.names = private$i.kernel$ordered.quantity.names
             else
                 ordered.quantity.names = private$i.kernel$ordered.quantity.names.except.initial.population
-
+            
             for (quantity.name in ordered.quantity.names)
-                 private$calculate.quantity.value(quantity.name = quantity.name, check.consistency = check.consistency)
+                private$calculate.quantity.value(quantity.name = quantity.name, check.consistency = check.consistency)
             # sapply(ordered.quantity.names, calculate.quantity.value,
             #        check.consistency = check.consistency)
             
@@ -1662,7 +1674,7 @@ JHEEM = R6::R6Class(
                     floor(prior.sim.index)!=prior.sim.index)
                     stop(paste0("Cannot run simulation: 'prior.sim.index' must be a single, non-NA, integer value"))
             }
-
+            
             end.preprocessing.time = as.numeric(Sys.time())
             
             ode.results = solver.metadata$do.solve(diffeq.settings = private$i.diffeq.settings,
@@ -1683,7 +1695,7 @@ JHEEM = R6::R6Class(
                                                                                    prior.sim.index = prior.sim.index,
                                                                                    is.degenerate = ode.results$terminated.for.time,
                                                                                    check.consistency = check.consistency)
-
+            
             run.end.time = as.numeric(Sys.time())
             
             
@@ -1702,7 +1714,7 @@ JHEEM = R6::R6Class(
             run.label = paste0(run.label, 
                                '_', round(private$i.run.from.time, 2),
                                "_", round(private$i.run.to.time-1, 2))
-
+            
             run.metadata = create.single.run.metadata(run.time = run.end.time - run.start.time,
                                                       preprocessing.time = end.preprocessing.time - run.start.time,
                                                       diffeq.time = end.diffeq.time - end.preprocessing.time,
@@ -1726,6 +1738,108 @@ JHEEM = R6::R6Class(
             sim
         },
         
+        crunch.for.transmutation = function(keep.from.year,
+                                            keep.to.year,
+                                            prior.simulation.set,
+                                            prior.sim.index,
+                                            check.consistency = !self$has.been.crunched())
+        {
+            # Make sure we can support the run years with our previous sim
+            
+            # Set the times
+            private$set.run.years(start.year = keep.from.year,
+                                  end.year = keep.to.year,
+                                  keep.from.year = keep.from.year,
+                                  keep.to.year = keep.to.year,
+                                  prior.simulation.set = prior.simulation.set,
+                                  error.prefix = paste0("Error preparing JHEEM to run: "))
+            
+            # Calculate all required quantity values
+            
+            for (quantity.name in private$i.quantity.names.for.transmutation)
+                private$calculate.quantity.value(quantity.name = quantity.name, check.consistency = check.consistency)
+            
+            
+            # Set up the simulation maker
+            if (is.null(private$i.simulation.maker))
+            {
+                private$i.simulation.maker = SINGLE.SIMULATION.MAKER$new(jheem.kernel = private$i.kernel,
+                                                                         sub.version = private$i.sub.version,
+                                                                         from.year = private$i.keep.from.time,
+                                                                         to.year = private$i.keep.to.time,
+                                                                         solver.metadata = prior.simulation.set$solver.metadata,
+                                                                         intervention.code = prior.simulation.set$intervention.code,
+                                                                         calibration.code = prior.simulation.set$calibration.code,
+                                                                         outcome.location.mapping = private$i.outcome.location.mapping,
+                                                                         error.prefix = "Error initializing single.simulation.maker from engine")
+            }
+            
+            # Set the i.has.been.crunched flag
+            private$i.has.been.crunched = T
+            
+            # Done
+            invisible(self)
+        },
+        
+        transmute = function(prior.simulation.set,
+                             prior.sim.index,
+                             keep.from.year,
+                             keep.to.year,
+                             finalize,
+                             check.consistency)
+        {
+            self$crunch.for.transmutation(keep.from.year = keep.from.year,
+                                          keep.to.year = keep.to.year,
+                                          prior.simulation.set = prior.simulation.set,
+                                          prior.sim.index = prior.sim.index,
+                                          check.consistency = check.consistency)
+            
+            # Checking
+            if (!is.null(prior.simulation.set))
+            {
+                if (!is(prior.simulation.set, 'jheem.simulation.set'))
+                    stop(paste0("Cannot transmute simulation: 'prior.simulation.set' must be an object of class 'jheem.simulation.set'"))
+                
+                if (!is.numeric(prior.sim.index) || length(prior.sim.index)!=1 || is.na(prior.sim.index) ||
+                    floor(prior.sim.index)!=prior.sim.index)
+                    stop(paste0("Cannot transmute simulation: 'prior.sim.index' must be a single, non-NA, integer value"))
+                
+                if (prior.sim.index < 1 || prior.sim.index > prior.simulation.set$n.sim)
+                    stop(paste0("Cannot transmute simulation: 'prior.sim.index' must be between 1 and ", prior.simulation.set$n.sim, " (the number of sims in the prior.simulation.set)"))
+            }
+            
+            # Directly transmute outcomes we can
+            if (is.null(private$i.last.transmuted.sim.index) || private$i.last.transmuted.sim.index != prior.sim.index)
+            {
+                private$directly.transmute.outcomes(simulation.set = prior.simulation.set,
+                                                    sim.index = prior.sim.index,
+                                                    check.consistency = check.consistency)
+                
+                
+                private$i.transmuted.run.metadata = prior.simulation.set$run.metadata$subset(prior.sim.index)
+                
+                private$i.last.transmuted.sim.index = prior.sim.index
+            }
+            
+            # Calculate the outcomes we need to
+            outcome.numerators.and.denominators = private$prepare.outcomes.for.sim(ode.results = NULL,
+                                                                                   prior.simulation.set = prior.simulation.set,
+                                                                                   prior.sim.index = prior.sim.index,
+                                                                                   is.degenerate = prior.simulation.set$is.degenerate[prior.sim.index],
+                                                                                   check.consistency = check.consistency)
+            
+            sim = private$i.simulation.maker$make.simulation(outcome.numerators = outcome.numerators.and.denominators$numerators,
+                                                             outcome.denominators = outcome.numerators.and.denominators$denominators,
+                                                             parameters = private$i.parameters,
+                                                             run.metadata = private$i.transmuted.run.metadata,
+                                                             finalize = finalize,
+                                                             is.degenerate = prior.simulation.set$is.degenerate[prior.sim.index],
+                                                             error.prefix = "Error transmuting sim from engine")
+            
+            # Return
+            sim
+        },
+        
         test = function()
         {
             browser()
@@ -1734,7 +1848,7 @@ JHEEM = R6::R6Class(
         ##------------------------------##
         ##-- MODIFY ELEMENT FUNCTIONS --##
         ##------------------------------##
-
+        
         set.element.value = function(element.name,
                                      value,
                                      check.consistency = !self$has.been.crunched(),
@@ -1744,9 +1858,9 @@ JHEEM = R6::R6Class(
             if (check.consistency)
             {
                 private$validate.element.names(element.names = element.name,
-                                              wrt.version = wrt.version,
-                                              error.prefix = "Cannot set value for element: ",
-                                              is.single.element = T)
+                                               wrt.version = wrt.version,
+                                               error.prefix = "Cannot set value for element: ",
+                                               is.single.element = T)
                 element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
                 if (!is.null(private$i.element.backgrounds[[element.name.to.modify]]$functional.form))
@@ -1769,11 +1883,11 @@ JHEEM = R6::R6Class(
             }
             else
                 element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
-                
+            
             
             if (length(value)==1)
                 names(value) = NULL
-
+            
             
             
             #-- Clear Dependencies --#
@@ -1810,9 +1924,9 @@ JHEEM = R6::R6Class(
             {
                 #-- Check valid element with a model --#
                 private$validate.element.names(element.names = element.name,
-                                              wrt.version = wrt.version,
-                                              error.prefix = "Cannot set functional.form alphas for element: ",
-                                              is.single.element = T)
+                                               wrt.version = wrt.version,
+                                               error.prefix = "Cannot set functional.form alphas for element: ",
+                                               is.single.element = T)
                 
                 element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
@@ -1871,9 +1985,9 @@ JHEEM = R6::R6Class(
             if (check.consistency)
             {
                 private$validate.element.names(element.names = element.name,
-                                              wrt.version = wrt.version,
-                                              error.prefix = "Cannot set functional.form alphas for element: ",
-                                              is.single.element = T)
+                                               wrt.version = wrt.version,
+                                               error.prefix = "Cannot set functional.form alphas for element: ",
+                                               is.single.element = T)
                 
                 element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
@@ -1901,8 +2015,8 @@ JHEEM = R6::R6Class(
                 element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
             
             error.prefix = paste0("Cannot set functional.form (interaction) alphas for '", alpha.name, "' for element '", element.name, "': ")
-
-                        
+            
+            
             #-- Clear Dependencies --#
             
             # Clear all values
@@ -1912,7 +2026,7 @@ JHEEM = R6::R6Class(
             private$clear.dim.names(element.name.to.modify)
             
             # No need to clear times
-
+            
             #-- Set It --#
             
             private$i.element.backgrounds[[element.name.to.modify]]$functional.form.alphas[[alpha.name]] = 
@@ -1921,7 +2035,7 @@ JHEEM = R6::R6Class(
                                             value = value,
                                             check.consistency = check.consistency,
                                             error.prefix = error.prefix)
-                    
+            
             #-- Done --#
             invisible(self)
         },
@@ -1942,7 +2056,7 @@ JHEEM = R6::R6Class(
             check.foreground.can.apply.to.quantity(foreground = foreground,
                                                    specification.or.kernel = private$i.kernel,
                                                    error.prefix = error.prefix)
-                # FYI, this function is defined in compiled_specification.R
+            # FYI, this function is defined in compiled_specification.R
             
             #-- Anchor to location/version --#
             if (!foreground$is.anchored)
@@ -1965,7 +2079,7 @@ JHEEM = R6::R6Class(
             private$i.unresolved.foregrounds[[foreground.id]] = foreground
             
             #-- Figure out What Parameters this Depends On --#
-
+            
             # Set up to track dependencies
             depends.on = foreground$depends.on
             for (one.dep.on in depends.on)
@@ -1989,7 +2103,7 @@ JHEEM = R6::R6Class(
             if (length(setdiff(depends.on, names(private$i.parameters)))==0)
                 private$resolve.foreground(foreground.id)
         },
-
+        
         
         set.parameters = function(parameters, check.consistency, wrt.version=self$version)
         {
@@ -2025,7 +2139,7 @@ JHEEM = R6::R6Class(
                     
                     set.seed(reset.seed)
                 }
-           
+                
                 # Set the values for any elements with matching names
                 
                 if (check.consistency)
@@ -2039,7 +2153,7 @@ JHEEM = R6::R6Class(
                                     ifelse(length(private$i.element.mappings)==1, 
                                            "which has no ancestor specifications",
                                            collapse.with.or("'", setdiff(names(private$i.element.mappings), private$i.version), "'")),
-                                           ")"))
+                                    ")"))
                 }
                 
                 element.names.in.parameters = intersect(names(parameters), names(private$i.element.name.mappings[[wrt.version]]))
@@ -2054,7 +2168,7 @@ JHEEM = R6::R6Class(
                 changed.mask = is.na(old.parameters[element.names.in.parameters]) | old.parameters[element.names.in.parameters] != parameters[element.names.in.parameters]
                 changed.element.names.in.parameters = element.names.in.parameters[changed.mask]
                 changed.element.names.to.modify.in.parameters = element.names.to.modify.in.parameters[changed.mask]
-
+                
                 if (length(changed.element.names.in.parameters)>0)
                 {
                     for (i in 1:length(changed.element.names.in.parameters))
@@ -2099,12 +2213,12 @@ JHEEM = R6::R6Class(
                     
                     
                     private$i.kernel$calibrated.parameters.apply.function(model.settings = model.settings,
-                                                                                  parameters = parameters.to.pass)
+                                                                          parameters = parameters.to.pass)
                     
                     if (check.consistency)
                         used.parameter.names = union(used.parameter.names, parameters.to.pass$accessed.elements)
                 }
-    
+                
                 # For sampled parameters
                 if (!is.null(private$i.kernel$sampled.parameter.names) &&
                     any_overlap_character(changed.parameter.names, private$i.kernel$sampled.parameter.names))
@@ -2129,7 +2243,7 @@ JHEEM = R6::R6Class(
                         parameters.to.pass = parameters
                     
                     private$i.kernel$sampled.parameters.apply.function(model.settings = model.settings,
-                                                                               parameters = parameters.to.pass)
+                                                                       parameters = parameters.to.pass)
                     
                     if (check.consistency)
                         used.parameter.names = union(used.parameter.names, parameters.to.pass$accessed.elements)
@@ -2212,7 +2326,7 @@ JHEEM = R6::R6Class(
                                         ifelse(length(unused.parameters)==1, "was", "were"),
                                         " not used by the model specification: ",
                                         collapse.with.and("'", unused.parameters, "'")
-                                        ))
+                            ))
                         }
                     }
                 }        
@@ -2244,9 +2358,9 @@ JHEEM = R6::R6Class(
             if (check.consistency)
             {
                 private$validate.element.names(element.names = element.name,
-                                              wrt.version = wrt.version,
-                                              error.prefix = "Cannot set functional.form from-time for element: ",
-                                              is.single.element = T)
+                                               wrt.version = wrt.version,
+                                               error.prefix = "Cannot set functional.form from-time for element: ",
+                                               is.single.element = T)
                 
                 element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
@@ -2297,7 +2411,7 @@ JHEEM = R6::R6Class(
             private$clear.dependent.values(element.name.to.modify, 
                                            clear.before.time = max(i.element.backgrounds[[element.name.to.modify]]$functional.form.from.time,
                                                                    previous.from.time))
-
+            
             # Clear times
             private$clear.element.background.self.times(element.name.to.modify)
             
@@ -2306,14 +2420,14 @@ JHEEM = R6::R6Class(
             
             #-- Set It --#
             private$i.element.backgrounds[[element.name.to.modify]]$functional.form.from.time = from.time
-                        
+            
             #-- Done --#
             invisible(self)
         },
         
         set.element.functional.form.to.time = function(element.name,
-                                                        to.time,
-                                                        check.consistency = !self$has.been.crunched(),
+                                                       to.time,
+                                                       check.consistency = !self$has.been.crunched(),
                                                        wrt.version = self$version)
         {
             previous.from.time = i.element.backgrounds[[element.name]]$functional.form.to.time
@@ -2322,9 +2436,9 @@ JHEEM = R6::R6Class(
             if (check.consistency)
             {
                 private$validate.element.names(element.names = element.name,
-                                              wrt.version = wrt.version,
-                                              error.prefix = "Cannot set functional.form to-time for element: ",
-                                              is.single.element = T)
+                                               wrt.version = wrt.version,
+                                               error.prefix = "Cannot set functional.form to-time for element: ",
+                                               is.single.element = T)
                 
                 element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
@@ -2366,9 +2480,9 @@ JHEEM = R6::R6Class(
             
             # Clear values for all times after min(old to time, new to time)
             times.to.clear.values.for.mask = private$i.quantity.value.times[[element.name.to.modify]] > 
-            private$clear.dependent.values(element.name.to.modify,
-                                           clear.after.time = min(i.element.backgrounds[[element.name.to.modify]]$functional.form.to.time,
-                                                                  previous.to.time))
+                private$clear.dependent.values(element.name.to.modify,
+                                               clear.after.time = min(i.element.backgrounds[[element.name.to.modify]]$functional.form.to.time,
+                                                                      previous.to.time))
             
             # Clear times
             private$clear.element.background.self.times(element.name.to.modify)
@@ -2384,9 +2498,9 @@ JHEEM = R6::R6Class(
         },
         
         set.element.ramp.times = function(element.name,
-                                           times,
-                                           indices=1:length(times),
-                                           check.consistency = !self$has.been.crunched(),
+                                          times,
+                                          indices=1:length(times),
+                                          check.consistency = !self$has.been.crunched(),
                                           wrt.version = self$version)
         {
             #-- Check Arguments --#
@@ -2394,9 +2508,9 @@ JHEEM = R6::R6Class(
             if (check.consistency)
             {
                 private$validate.element.names(element.names = element.name,
-                                              wrt.version = wrt.version,
-                                              error.prefix = "Cannot set ramp times for element: ",
-                                              is.single.element = T)
+                                               wrt.version = wrt.version,
+                                               error.prefix = "Cannot set ramp times for element: ",
+                                               is.single.element = T)
                 element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
                 if (is.null(private$i.element.backgrounds[[element.name.to.modify]]$functional.form))
@@ -2439,7 +2553,7 @@ JHEEM = R6::R6Class(
             # Clear values for all times prior to functional.form.from.time
             private$clear.dependent.values(element.name.to.modify, 
                                            clear.before.time = i.element.backgrounds[[element.name.to.modify]]$functional.form.from.time)
-
+            
             # Clear times
             private$clear.element.background.self.times(element.name.to.modify)
             
@@ -2455,18 +2569,18 @@ JHEEM = R6::R6Class(
         },
         
         set.element.ramp.values = function(element.name,
-                                            values,
-                                            indices=1:length(values),
-                                            check.consistency = !self$has.been.crunched(),
+                                           values,
+                                           indices=1:length(values),
+                                           check.consistency = !self$has.been.crunched(),
                                            wrt.version = self$version)
         {
             #-- Check Arguments --#
             if (check.consistency)
             {
                 private$validate.element.names(element.names = element.name,
-                                              wrt.version = wrt.version,
-                                              error.prefix = "Cannot set ramp.values for element: ",
-                                              is.single.element = T)
+                                               wrt.version = wrt.version,
+                                               error.prefix = "Cannot set ramp.values for element: ",
+                                               is.single.element = T)
                 
                 element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
@@ -2511,9 +2625,9 @@ JHEEM = R6::R6Class(
         },
         
         set.element.taper.times = function(element.name,
-                                            times,
-                                            indices=1:length(times),
-                                            check.consistency = !self$has.been.crunched(),
+                                           times,
+                                           indices=1:length(times),
+                                           check.consistency = !self$has.been.crunched(),
                                            wrt.version = self$version)
         {
             #-- Check Arguments --#
@@ -2521,9 +2635,9 @@ JHEEM = R6::R6Class(
             if (check.consistency)
             {
                 private$validate.element.names(element.names = element.name,
-                                              wrt.version = wrt.version,
-                                              error.prefix = "Cannot set taper.times for element: ",
-                                              is.single.element = T)
+                                               wrt.version = wrt.version,
+                                               error.prefix = "Cannot set taper.times for element: ",
+                                               is.single.element = T)
                 
                 element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
@@ -2585,18 +2699,18 @@ JHEEM = R6::R6Class(
         },
         
         set.element.taper.values = function(element.name,
-                                             values,
-                                             indices=1:length(values),
-                                             check.consistency = !self$has.been.crunched(),
+                                            values,
+                                            indices=1:length(values),
+                                            check.consistency = !self$has.been.crunched(),
                                             wrt.version = self$version)
         {
             #-- Check Arguments --#
             if (check.consistency)
             {
                 private$validate.element.names(element.names = element.name,
-                                              wrt.version = wrt.version,
-                                              error.prefix = "Cannot set taper.values for element: ",
-                                              is.single.element = T)
+                                               wrt.version = wrt.version,
+                                               error.prefix = "Cannot set taper.values for element: ",
+                                               is.single.element = T)
                 
                 element.name.to.modify = private$i.element.name.mappings[[wrt.version]][element.name]
                 
@@ -2669,7 +2783,7 @@ JHEEM = R6::R6Class(
                                        "This element is a static value",
                                        "These elements are static values"),
                                 " with no functional.form"))
-
+                
                 static.mask = vapply(private$i.element.backgrounds[element.names.to.modify], function(bkgd){
                     bkgd$functional.form$is.static
                 }, FUN.VALUE = logical(1))
@@ -2754,7 +2868,7 @@ JHEEM = R6::R6Class(
             }
             else
                 element.names.to.modify = private$i.element.name.mappings[[wrt.version]][element.names]
- 
+            
             
             #-- Clear Dependencies --#
             
@@ -2778,7 +2892,7 @@ JHEEM = R6::R6Class(
             #-- Done --#
             invisible(self)
         },
-    
+        
         set.intervention = function(intervention.code)
         {
             if (!identical(intervention.code, private$i.intervention.code))
@@ -2834,7 +2948,7 @@ JHEEM = R6::R6Class(
                                         "') was set and we cannot 'undo' previously-set interventions"))
                     }
                 }                        
-               
+                
                 if (!is.null(intervention.code) && !new.intervention.equals.prior)
                 {
                     for (frgd in intervention$get.intervention.foregrounds())
@@ -2842,7 +2956,7 @@ JHEEM = R6::R6Class(
                         self$set.quantity.foreground(frgd, check.consistency = T)
                     }
                 }
-    
+                
                 private$i.intervention.code = intervention.code
                 private$i.simulation.maker = NULL
             }
@@ -2856,8 +2970,8 @@ JHEEM = R6::R6Class(
                 if (!is.character(calibration.code) || length(calibration.code)!=1 || is.na(calibration.code))
                     stop("Cannot set calibration code for JHEEM: 'calibration.code' must be a single, non-NA character value")
                 
-#                if (is.null(get.calibration.info(calibration.code, throw.error.if.missing=F)))
-#                    stop(paste0("Cannot set calibration code '", calibration.code, "' for JHEEM: a calibration must have been registered to this code with register.calibration.info()"))
+                #                if (is.null(get.calibration.info(calibration.code, throw.error.if.missing=F)))
+                #                    stop(paste0("Cannot set calibration code '", calibration.code, "' for JHEEM: a calibration must have been registered to this code with register.calibration.info()"))
             }
             
             private$i.calibration.code = calibration.code
@@ -2865,7 +2979,7 @@ JHEEM = R6::R6Class(
             
             private$i.simulation.maker = NULL
         },
-
+        
         has.been.crunched = function()
         {
             private$i.has.been.crunched
@@ -2937,12 +3051,30 @@ JHEEM = R6::R6Class(
         i.kernel = NULL,
         i.simulation.maker = NULL,
         
+        #-- Transmutation --#
+        i.for.transmutation = NULL,
+        i.transmute.from.kernel = NULL,
+        i.transmute.from.sub.version = NULL,
+        i.outcome.names.to.transmute = NULL,
+        i.outcome.names.to.calculate = NULL,
+        i.quantity.names.for.transmutation = NULL,
+        i.dependee.outcome.names.to.transmute = NULL,
+        
+        i.direct.transmute.outcomes.put.indices = NULL,
+        i.direct.transmute.outcomes.pull.indices = NULL,
+        i.direct.transmute.outcomes.pull.indices.without.sim.offset = NULL,
+        i.last.transmuted.sim.index = NULL,
+        i.transmuted.run.metadata = NULL,
+        
+        i.final.outcome.denominators = NULL,
+        i.final.outcome.numerators = NULL,
+        
         #-- Element names/backgrounds --#
         i.element.names = NULL,
         i.element.backgrounds = NULL,
         
         i.element.name.mappings = NULL,
-
+        
         #-- Times for quantities --#
         i.quantity.value.times = NULL,
         i.top.level.self.times = NULL,
@@ -3004,7 +3136,7 @@ JHEEM = R6::R6Class(
         #-- Indices for quantities --#
         i.quantity.mapping.indices = NULL,
         i.quantity.foreground.effect.indices = NULL,
-
+        
         #-- Whether quantities are static --#
         i.quantity.is.static = NULL,
         i.outcome.non.cumulative.is.static = NULL,
@@ -3222,7 +3354,7 @@ JHEEM = R6::R6Class(
             
             private$i.quantity.value.all.applies.for.time = list()
             private$i.top.level.value.may.not.apply.times = list()
-#            private$i.outcome.non.cumulative.value.all.applies.for.time = list()
+            #            private$i.outcome.non.cumulative.value.all.applies.for.time = list()
             private$i.outcome.value.may.not.apply.non.cumulative.times = list()
             
             private$i.quantity.value.applies.mask = list()
@@ -3233,7 +3365,7 @@ JHEEM = R6::R6Class(
             # Import the default parameters
             private$i.parameters = numeric()
             private$i.parameters[names(private$i.kernel$default.parameter.values)] = private$i.kernel$default.parameter.values
-
+            
             private$i.parameter.names.for.foregrounds = numeric()
             private$i.dependent.foreground.ids.for.parameters = list()
             
@@ -3261,7 +3393,39 @@ JHEEM = R6::R6Class(
             # Clear the i.has.been.crunched flag
             private$i.has.been.crunched = F
             
-            # Going to need to do something about foregrounds here
+            # Set up for transmutation or calculation of outcomes
+            
+            if (private$i.for.transmutation)
+            {
+                outcome.and.quantity.names.for.transmuting = 
+                    get.outcome.and.quantity.names.for.transmuting(from.kernel.or.specification = private$i.transmute.from.kernel,
+                                                                   from.sub.version = private$i.transmute.from.sub.version,
+                                                                   to.version = private$i.version,
+                                                                   to.sub.version = private$i.sub.version)
+                
+                private$i.outcome.names.to.transmute = outcome.and.quantity.names.for.transmuting$outcome.names.to.transmute
+                private$i.outcome.names.to.calculate = outcome.and.quantity.names.for.transmuting$outcome.names.to.calculate
+                private$i.quantity.names.for.transmutation = outcome.and.quantity.names.for.transmuting$quantity.names.for.transmutation
+                private$i.dependee.outcome.names.to.transmute = outcome.and.quantity.names.for.transmuting$dependee.outcome.names.to.transmute
+            }
+            else
+            {
+                private$i.outcome.names.to.transmute = NULL
+                private$i.outcome.names.to.calculate = private$i.kernel$get.outcome.names.for.sub.version(private$i.sub.version)
+                private$i.quantity.names.for.transmutation = NULL
+                private$i.dependee.outcome.names.to.transmute = NULL
+            }
+            
+            private$i.direct.transmute.outcomes.put.indices = list()
+            private$i.direct.transmute.outcomes.pull.indices = list()
+            private$i.direct.transmute.outcomes.pull.indices.without.sim.offset = list()
+            
+            private$i.last.transmuted.sim.index = NULL
+            
+            private$i.final.outcome.denominators =list()
+            private$i.final.outcome.numerators = list()
+            
+            # private$i.outcome.names.to.calculate = 
         },
         
         calculate.outcome.non.cumulative.is.static = function(outcome.name)
@@ -3328,7 +3492,7 @@ JHEEM = R6::R6Class(
             {
                 private$i.run.from.time = start.year
                 private$i.run.to.time = end.year+1
-            
+                
                 #-- Clear times (for all elements/quantities) --#
                 private$clear.element.background.self.times(private$i.kernel$element.names)
                 private$clear.quantity.foreground.self.times(private$i.kernel$quantity.names)
@@ -3390,7 +3554,7 @@ JHEEM = R6::R6Class(
             #-- Done --#
             invisible(self)
         },
-       
+        
         ##----------------------------------------##
         ##-- CALCULATING QUANTITY/ELEMENT TIMES --##
         ##----------------------------------------##
@@ -3479,7 +3643,7 @@ JHEEM = R6::R6Class(
                 null.top.level.times.mask = vapply(private$i.top.level.self.times[dynamic.top.level.quantities], is.null, FUN.VALUE = logical(1))
                 for (top.level.name in dynamic.top.level.quantities[null.top.level.times.mask])
                     private$calculate.top.level.self.times(top.level.name)
-#                lapply(dynamic.top.level.quantities[null.top.level.times.mask], private$calculate.top.level.self.times)
+                #                lapply(dynamic.top.level.quantities[null.top.level.times.mask], private$calculate.top.level.self.times)
                 
                 # Pull the outcomes that have a non-cumulative dependency on this, and make sure their self-times are calculated
                 outcomes = private$i.kernel$get.non.cumulative.dependent.outcome.names(quantity.name)
@@ -3487,7 +3651,7 @@ JHEEM = R6::R6Class(
                 null.outcome.times.mask = as.logical(sapply(private$i.outcome.non.cumulative.self.times[dynamic.outcomes], is.null))
                 for (outcome.name in dynamic.outcomes[null.outcome.times.mask])
                     private$calculate.outcome.non.cumulative.self.times(outcome.name)
-#                lapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
+                #                lapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
                 
                 # Value times is the union of these times
                 
@@ -3506,7 +3670,7 @@ JHEEM = R6::R6Class(
             
             invisible(self)
         },
-
+        
         clear.quantity.value.times = function(quantity.names)
         {
             # Clear the times
@@ -3587,8 +3751,8 @@ JHEEM = R6::R6Class(
             else
             {
                 from.time = max(bkgd$functional.form.from.time, floor(private$i.run.from.time)) 
-                    # because functional forms are interpolated every year, using floor on the run.from.time ensures
-                    # that we pick a time that would not be added to what we would do any way
+                # because functional forms are interpolated every year, using floor on the run.from.time ensures
+                # that we pick a time that would not be added to what we would do any way
                 if (from.time==ceiling(from.time))
                     append.to.front = numeric()
                 else
@@ -3664,7 +3828,7 @@ JHEEM = R6::R6Class(
             
             bkgd
         },
-
+        
         calculate.taper.interpolated.times = function(bkgd)
         {
             
@@ -3698,7 +3862,7 @@ JHEEM = R6::R6Class(
             
             bkgd
         },
-      
+        
         #-- Quantity Foreground Self Times --#
         
         calculate.quantity.foreground.self.times = function(quantity.name)
@@ -3757,7 +3921,7 @@ JHEEM = R6::R6Class(
             # Clear the times
             private$i.quantity.foreground.self.times[quantity.names] = NULL
             private$i.quantity.self.after.times[[quantity.names]] = NULL
-                
+            
             # Clear the top-level-quantity self-times for top-level quantities that depend on this one
             top.level.quantities = private$i.kernel$get.dependent.top.level.quantity.names(quantity.names)
             dynamic.top.level.quantities = top.level.quantities[ !private$i.quantity.is.static[top.level.quantities] ]
@@ -4005,7 +4169,7 @@ JHEEM = R6::R6Class(
                 null.dependee.element.times.mask = vapply(private$i.element.background.self.times[dynamic.dependee.elements], is.null, FUN.VALUE = logical(1))
                 for (element.name in dynamic.dependee.elements[null.dependee.element.times.mask])
                     private$calculate.element.background.self.times(element.name)
-#                lapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
+                #                lapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
                 
                 # union the background.self.times
                 all.background.times = union_sorted_vectors(private$i.element.background.self.times[dynamic.dependee.elements])
@@ -4039,7 +4203,7 @@ JHEEM = R6::R6Class(
         
         # I DON'T THINK I NEED THIS
         # WE'RE NOT GOING TO TRY TO BE SMART ABOUT THIS - just calculate a mask at all times
-
+        
         calculate.outcome.value.may.not.apply.non.cumulative.times = function(outcome.name)
         {
             if (private$i.outcome.non.cumulative.is.static[outcome.name])
@@ -4056,7 +4220,7 @@ JHEEM = R6::R6Class(
                 null.dependee.element.times.mask = vapply(private$i.element.background.self.times[dynamic.dependee.elements], is.null, FUN.VALUE = logical(1))
                 for (element.name in dynamic.dependee.elements[null.dependee.element.times.mask])
                     private$calculate.element.background.self.times(element.name)
-#                lapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
+                #                lapply(dynamic.dependee.elements[null.dependee.element.times.mask], private$calculate.element.background.self.times)
                 
                 # union the background.self.times
                 all.background.times = union_sorted_vectors(private$i.element.background.self.times[dynamic.dependee.elements])
@@ -4069,7 +4233,7 @@ JHEEM = R6::R6Class(
             
             invisible(self)
         },
-    
+        
         clear.outcome.value.may.not.apply.non.cumulative.times = function(outcome.names)
         {
             # Clear the times
@@ -4103,7 +4267,7 @@ JHEEM = R6::R6Class(
                 null.outcome.times.mask = vapply(private$i.outcome.non.cumulative.self.times[dynamic.outcomes], is.null, FUN.VALUE = logical(1))
                 for (dependent.outcome.name in dynamic.outcomes[null.outcome.times.mask])
                     private$calculate.outcome.non.cumulative.self.times(dependent.outcome.name)
-#                lapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
+                #                lapply(dynamic.outcomes[null.outcome.times.mask], private$calculate.outcome.non.cumulative.self.times)
                 
                 # The value times and after value times are the union of these times
                 
@@ -4282,7 +4446,7 @@ JHEEM = R6::R6Class(
             # Figure out what times values are missing for
             if (is.null(private$i.quantity.value.times[[quantity.name]]))
                 private$calculate.quantity.value.times(quantity.name)
-           # required.times = as.character(private$i.quantity.value.times[[quantity.name]])
+            # required.times = as.character(private$i.quantity.value.times[[quantity.name]])
             
             if (private$i.quantity.is.static[quantity.name])
             {
@@ -4294,7 +4458,7 @@ JHEEM = R6::R6Class(
             else
                 missing.times = setdiff_sorted_vectors(private$i.quantity.value.times[[quantity.name]], 
                                                        as.numeric(names(private$i.quantity.values[[quantity.name]])))
-
+            
             # If missing values, calculate them
             if (length(missing.times)>0)
             {
@@ -4307,7 +4471,7 @@ JHEEM = R6::R6Class(
                 # else
                 #     print(paste0(paste0(rep(" ", depth), collapse=''),
                 #                  "-Calculate quantity '", quantity.name, "'"))
-   
+                
                 #-- Fill in the background --#
                 if (private$is.element.name(quantity.name))
                     private$calculate.element.background.value(quantity.name, 
@@ -4324,7 +4488,7 @@ JHEEM = R6::R6Class(
                 char.all.times = as.character(private$i.quantity.value.times[[quantity.name]])
                 private$i.quantity.values[[quantity.name]] = private$i.quantity.values[[quantity.name]][ char.all.times ]
                 private$i.quantity.after.values[[quantity.name]] = private$i.quantity.after.values[[quantity.name]][ char.all.times ]
-            
+                
                 if (any(!vapply(private$i.quantity.after.values[[quantity.name]], is.null, FUN.VALUE = logical(1))))
                     browser()
                 
@@ -4334,7 +4498,7 @@ JHEEM = R6::R6Class(
                 {
                     if (length(private$i.quantity.foreground.effect.indices[[quantity.name]]) < length(foregrounds))
                         private$calculate.foreground.effect.indices(quantity.name)
-
+                    
                     if (1==2)
                     {
                         args = list(values = private$i.quantity.values[[quantity.name]],
@@ -4380,11 +4544,11 @@ JHEEM = R6::R6Class(
             
             #-- Calculate the value.applies.mask (if needed) --#
             private$calculate.quantity.value.applies.mask(quantity.name)
-                    
+            
             #-- Done --#
             invisible(self)
         },
-
+        
         calculate.quantity.background.value = function(quantity.name, missing.times,
                                                        depth, check.consistency)
         {
@@ -4400,12 +4564,12 @@ JHEEM = R6::R6Class(
                                                                        engine = private,
                                                                        check_consistency = check.consistency,
                                                                        error_prefix = error.prefix)
-             
+            
             if (is.character(calculated.values)) # there was an error
             {
                 stop(paste0(error.prefix, paste0(calculated.values, collapse='')))
             }
-
+            
             # private$OLD.calculate.quantity.background.value(quantity.name,
             #                                                 missing.times = missing.times,
             #                                                 depth = depth,
@@ -4414,36 +4578,36 @@ JHEEM = R6::R6Class(
             #     quantity.values = private$i.quantity.values[[quantity.name]][missing.times],
             #     quantity.after.values = private$i.quantity.after.values[[quantity.name]][missing.times]
             # )
-# 
-#             identical.mask = sapply(1:length(missing.times), function(i){
-#                 identical(as.numeric(calculated.values$quantity.values[[i]]),
-#                            as.numeric(to.compare.to$quantity.values[[i]]))
-#             })
-#             if (any(!identical.mask))
-#                 browser()
-#             
-#             # missing.times[!identical.mask]
-#             # z = (1:length(identical.mask))[!identical.mask]
-#             # i = z[1]
-#             
-#             if (any(!sapply(1:length(missing.times), function(i){
-#                 identical(as.numeric(calculated.values$quantity.after.values[[i]]),
-#                           as.numeric(to.compare.to$quantity.after.values[[i]]))
-#             })))
-#                 browser()
+            # 
+            #             identical.mask = sapply(1:length(missing.times), function(i){
+            #                 identical(as.numeric(calculated.values$quantity.values[[i]]),
+            #                            as.numeric(to.compare.to$quantity.values[[i]]))
+            #             })
+            #             if (any(!identical.mask))
+            #                 browser()
+            #             
+            #             # missing.times[!identical.mask]
+            #             # z = (1:length(identical.mask))[!identical.mask]
+            #             # i = z[1]
+            #             
+            #             if (any(!sapply(1:length(missing.times), function(i){
+            #                 identical(as.numeric(calculated.values$quantity.after.values[[i]]),
+            #                           as.numeric(to.compare.to$quantity.after.values[[i]]))
+            #             })))
+            #                 browser()
             
             private$i.quantity.values[[quantity.name]][missing.times] = calculated.values$quantity.values
             private$i.quantity.after.values[[quantity.name]][missing.times] = calculated.values$quantity.after.values
-
+            
             return (self)
         },
-
+        
         # we're keeping this one around, even though we don't use it,
         # in case we need to debug the Rcpp version
         OLD.calculate.quantity.background.value = function(quantity.name, missing.times,
-                                                       depth, check.consistency)
+                                                           depth, check.consistency)
         {
-# all.start = Sys.time()
+            # all.start = Sys.time()
             missing.times = as.character(missing.times)
             error.prefix = "Error calculating background value for quantity: "
             
@@ -4453,12 +4617,12 @@ JHEEM = R6::R6Class(
             #-- Make sure the dependee quantities are all calculated --#
             # Not doing this anymore to avoid redundant calls
             #sapply(quantity$depends.on, private$calculate.quantity.value, check.consistency=check.consistency, depth=depth+1)
-
-# outside.loop.start = Sys.time()
+            
+            # outside.loop.start = Sys.time()
             #-- Loop through missing times --#
             for (time in missing.times)
             {
-# outer.loop.start = Sys.time()
+                # outer.loop.start = Sys.time()
                 #char.time = as.character(time)
                 char.time = time
                 depends.on.has.after = vapply(private$i.quantity.after.values[quantity$depends.on], function(values){
@@ -4472,7 +4636,7 @@ JHEEM = R6::R6Class(
                 
                 for (is.after.time in c(F,T))
                 {
-# loop.start = Sys.time()
+                    # loop.start = Sys.time()
                     if (is.after.time && !any.depends.on.has.after)
                         quant.value = NULL
                     else
@@ -4481,7 +4645,7 @@ JHEEM = R6::R6Class(
                         component.values = list()
                         for (i in 1:quantity$n.components) # From Todd in Nov 2023: I truly have no idea why, but doing this as a for loop was 30x faster than doing it as an sapply
                         {
-# pre.bindings.start = Sys.time()
+                            # pre.bindings.start = Sys.time()
                             #-- Pull the component and set up the error prefix --#
                             comp = quantity$components[[i]]
                             
@@ -4502,11 +4666,11 @@ JHEEM = R6::R6Class(
                                 update.bindings.for = comp$depends.on[ depends.on.has.after[comp$depends.on] ]
                             else
                                 update.bindings.for = comp$depends.on
-# pre.bindings.end = Sys.time()
-# pre.bindings.time <<- pre.bindings.time + as.numeric(pre.bindings.end) - as.numeric(pre.bindings.start)
-
-
-# bindings.start = Sys.time()
+                            # pre.bindings.end = Sys.time()
+                            # pre.bindings.time <<- pre.bindings.time + as.numeric(pre.bindings.end) - as.numeric(pre.bindings.start)
+                            
+                            
+                            # bindings.start = Sys.time()
                             for (dep.on in update.bindings.for)
                             {
                                 if (private$i.quantity.is.static[dep.on])
@@ -4529,34 +4693,34 @@ JHEEM = R6::R6Class(
                                     
                                     values = values[dep.on.indices]
                                 }
-
+                                
                                 bindings[[dep.on]] = values
                             }
-# bindings.end = Sys.time()
-# bindings.time <<- bindings.time + as.numeric(bindings.end) - as.numeric(bindings.start)
-
-# eval.start = Sys.time()
+                            # bindings.end = Sys.time()
+                            # bindings.time <<- bindings.time + as.numeric(bindings.end) - as.numeric(bindings.start)
+                            
+                            # eval.start = Sys.time()
                             #-- Calculate the value --#
                             value = comp$evaluate(bindings = bindings,
                                                   error.prefix = error.prefix)
-# eval.end = Sys.time()
-# eval.time <<- eval.time + as.numeric(eval.end) - as.numeric(eval.start)
- 
-# fn.comp.start = Sys.time()
+                            # eval.end = Sys.time()
+                            # eval.time <<- eval.time + as.numeric(eval.end) - as.numeric(eval.start)
+                            
+                            # fn.comp.start = Sys.time()
                             #-- If a function value.type, check the returned value and set its dim.names if needed --#
                             if (comp$value.type=='function')
                             {
                                 if (check.consistency)
                                     private$check.function.quantity.component.value(value, quantity=quantity, component.index=i,
-                                                                            time=time, error.prefix=error.prefix)
+                                                                                    time=time, error.prefix=error.prefix)
                                 
                                 if ((length(private$i.quantity.component.dim.names[[quantity.name]]) < i ||
                                      is.null(private$i.quantity.component.dim.names[[quantity.name]][[i]])) ||
                                     (check.consistency && time == missing.times[1]))
                                 {
                                     private$calculate.quantity.component.dim.names(quantity, 
-                                                                           component.index = i,
-                                                                           value.for.function = value)
+                                                                                   component.index = i,
+                                                                                   value.for.function = value)
                                 }
                                 
                                 if (check.consistency && !dim.names.equal(dim.names.1 = private$i.quantity.component.dim.names[[quantity.name]][[i]],
@@ -4569,8 +4733,8 @@ JHEEM = R6::R6Class(
                                                 " do not match the dimnames of values for previous times"))
                                 }
                             }
-# fn.comp.end = Sys.time()
-# fn.comp.time <<- fn.comp.time + as.numeric(fn.comp.end) - as.numeric(fn.comp.start)
+                            # fn.comp.end = Sys.time()
+                            # fn.comp.time <<- fn.comp.time + as.numeric(fn.comp.end) - as.numeric(fn.comp.start)
                             #-- A check --#
                             if (length(value)==0)
                                 browser()
@@ -4583,7 +4747,7 @@ JHEEM = R6::R6Class(
                             
                             component.values[[i]] = value
                         }
-
+                        
                         #-- Recalculate the dim.names if needed --#
                         if (is.null(private$i.quantity.dim.names[[quantity.name]]))
                             calculate.quantity.dim.names(quantity)
@@ -4592,7 +4756,7 @@ JHEEM = R6::R6Class(
                         #-- Incorporate each component into the quantity value --#
                         quant.value = NULL
                         
-# incorporate.start = Sys.time()
+                        # incorporate.start = Sys.time()
                         for (i in 1:quantity$n.components)
                         {
                             comp = quantity$components[[i]]
@@ -4612,19 +4776,19 @@ JHEEM = R6::R6Class(
                                 quant.value = comp.value[expand.indices]
                             else if (comp$apply.function=='overwrite')
                                 quant.value = do_access_overwrite(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
-                                #quant.value[access.indices] = comp.value[expand.indices]
+                            #quant.value[access.indices] = comp.value[expand.indices]
                             else if (comp$apply.function=='add')
                                 quant.value = do_access_add(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
-                                #quant.value[access.indices] = quant.value[access.indices] + comp.value[expand.indices]
+                            #quant.value[access.indices] = quant.value[access.indices] + comp.value[expand.indices]
                             else if (comp$apply.function=='subtract')
                                 quant.value = do_access_subtract(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
-                                #quant.value[access.indices] = quant.value[access.indices] - comp.value[expand.indices]
+                            #quant.value[access.indices] = quant.value[access.indices] - comp.value[expand.indices]
                             else if (comp$apply.function=='multiply')
                                 quant.value = do_access_multiply(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
-                                #quant.value[access.indices] = quant.value[access.indices] * comp.value[expand.indices]
+                            #quant.value[access.indices] = quant.value[access.indices] * comp.value[expand.indices]
                             else if (comp$apply.function=='divide')
                                 quant.value = do_access_divide(dst=quant.value, src=comp.value, dst_indices=access.indices, src_indices=expand.indices)
-                                #quant.value[access.indices] = quant.value[access.indices] / comp.value[expand.indices]
+                            #quant.value[access.indices] = quant.value[access.indices] / comp.value[expand.indices]
                             else
                                 stop(paste0("Invalid apply.function '", comp$apply.function, "' for model quantity '", quantity.name,
                                             "'. Must be one of 'overwrite', 'add', 'subtract', 'multiply', or 'divide'"))
@@ -4633,10 +4797,10 @@ JHEEM = R6::R6Class(
                             if (any(is.na(quant.value)))
                                 browser()
                         }
-# incorporate.end = Sys.time()
-# incorporate.time <<- incorporate.time + as.numeric(incorporate.end) - as.numeric(incorporate.start)
+                        # incorporate.end = Sys.time()
+                        # incorporate.time <<- incorporate.time + as.numeric(incorporate.end) - as.numeric(incorporate.start)
                         
-    
+                        
                         
                         #-- Check for NA --#
                         #if (any(is.na(quant.value)))
@@ -4649,8 +4813,8 @@ JHEEM = R6::R6Class(
                         #-- Set the dimnames --#
                         if (length(private$i.quantity.dim.names[[quantity.name]]) > 0)
                         {
-                           dim(quant.value) = vapply(private$i.quantity.dim.names[[quantity.name]], length, FUN.VALUE = integer(1))
-                           dimnames(quant.value) = private$i.quantity.dim.names[[quantity.name]]
+                            dim(quant.value) = vapply(private$i.quantity.dim.names[[quantity.name]], length, FUN.VALUE = integer(1))
+                            dimnames(quant.value) = private$i.quantity.dim.names[[quantity.name]]
                         }
                         
                     }
@@ -4660,22 +4824,22 @@ JHEEM = R6::R6Class(
                         private$i.quantity.after.values[[quantity.name]][char.time] = list(quant.value) #wrapping in a list here lets us enter in NULL values
                     else
                         private$i.quantity.values[[quantity.name]][[char.time]] = quant.value
-# loop.end = Sys.time()
-# loop.time <<- loop.time + as.numeric(loop.end) - as.numeric(loop.start)
+                    # loop.end = Sys.time()
+                    # loop.time <<- loop.time + as.numeric(loop.end) - as.numeric(loop.start)
                 }
-# outer.loop.end = Sys.time()
-# outer.loop.time <<- outer.loop.time + as.numeric(outer.loop.end) - as.numeric(outer.loop.start)
+                # outer.loop.end = Sys.time()
+                # outer.loop.time <<- outer.loop.time + as.numeric(outer.loop.end) - as.numeric(outer.loop.start)
             }
-# outside.loop.end = Sys.time()
-# outside.loop.time <<- outside.loop.time + as.numeric(outside.loop.end) - as.numeric(outside.loop.start)
+            # outside.loop.end = Sys.time()
+            # outside.loop.time <<- outside.loop.time + as.numeric(outside.loop.end) - as.numeric(outside.loop.start)
             
-# all.end = Sys.time()
-# all.time <<- all.time + as.numeric(all.end) - as.numeric(all.start)
+            # all.end = Sys.time()
+            # all.time <<- all.time + as.numeric(all.end) - as.numeric(all.start)
             # Done
             invisible(self)
         },
         
-
+        
         # interpolates ramp on the model scale
         calculate.element.background.value = function(element.name, missing.times, check.consistency)
         {
@@ -4726,9 +4890,9 @@ JHEEM = R6::R6Class(
                     {
                         private$i.quantity.values[[element.name]][char.times] = lapply(1:length(missing.times), function(i){
                             value + 0 
-                                # The +0 here forces a DEEP copy of value. 
-                                # This is important, because applying foregrounds will overwrite in place,
-                                #  so we need each time for the value to be referring to a different instance
+                            # The +0 here forces a DEEP copy of value. 
+                            # This is important, because applying foregrounds will overwrite in place,
+                            #  so we need each time for the value to be referring to a different instance
                         })
                     }
                 }
@@ -4745,13 +4909,13 @@ JHEEM = R6::R6Class(
                     {
                         private$i.quantity.values[[element.name]][as.character(bkgd$functional.form.times)] = 
                             bkgd$functional.form$project(years = bkgd$functional.form.times,
-                                                                             alphas = bkgd$functional.form.alphas,
-                                                                             dim.names = i.quantity.dim.names[[element.name]],
-                                                                             future.slope = bkgd$future.slope,
-                                                                             future.slope.after.year = bkgd$future.slope.after.time,
-                                                                             future.slope.is.on.transformed.scale = F, #is this what we want?
-                                                                             check.consistency = check.consistency,
-                                                                             error.prefix = paste0("Error projecting values from the functional form for element '", element.name, "': "))
+                                                         alphas = bkgd$functional.form.alphas,
+                                                         dim.names = i.quantity.dim.names[[element.name]],
+                                                         future.slope = bkgd$future.slope,
+                                                         future.slope.after.year = bkgd$future.slope.after.time,
+                                                         future.slope.is.on.transformed.scale = F, #is this what we want?
+                                                         check.consistency = check.consistency,
+                                                         error.prefix = paste0("Error projecting values from the functional form for element '", element.name, "': "))
                         
                         new.times = bkgd$functional.form.times
                     }
@@ -4813,7 +4977,7 @@ JHEEM = R6::R6Class(
             # Done
             invisible(self)
         },
-
+        
         calculate.element.ramp.values = function(element,
                                                  bkgd)
         {
@@ -4930,7 +5094,7 @@ JHEEM = R6::R6Class(
             names(rv) = as.character(times)
             rv
         },
-
+        
         check.function.quantity.component.value = function(value, 
                                                            quantity, 
                                                            component.index, 
@@ -4967,7 +5131,7 @@ JHEEM = R6::R6Class(
                 if (is.null(dimnames(value)))
                     stop(paste0(error.prefix,
                                 "if the returned value is not a scalar, it must have named dimnames set"))
-             
+                
                 if (is.null(names(dimnames(value))))   
                     stop(paste0(error.prefix,
                                 "if the returned value is not a scalar, it must have NAMED dimnames set"))
@@ -4985,7 +5149,7 @@ JHEEM = R6::R6Class(
             }
         },
         
-
+        
         ##--------------------------------------------------##
         ##-- CALCULATING THE QUANTITY VALUE APPLIES MASKS --##
         ##--------------------------------------------------##
@@ -5002,7 +5166,7 @@ JHEEM = R6::R6Class(
                     private$calculate.quantity.value.times(quantity.name)
                 
                 missing.times = setdiff_sorted_vectors(private$i.quantity.value.times[[quantity.name]], 
-                                                           as.numeric(names(private$i.quantity.value.applies.mask[[quantity.name]])))
+                                                       as.numeric(names(private$i.quantity.value.applies.mask[[quantity.name]])))
                 
                 if (length(missing.times)>0)
                 {
@@ -5017,7 +5181,7 @@ JHEEM = R6::R6Class(
                         # but it does avoid retriggering calculating the masks again
                         all.applies.times = names(private$i.quantity.value.all.applies.for.time[[quantity.name]])[private$i.quantity.value.all.applies.for.time[[quantity.name]]]
                         private$i.quantity.value.applies.mask[[quantity.name]][all.applies.times] = T
-
+                        
                         # Update the value.applies.mask
                         update.value.applies.times = setdiff_sorted_vectors(missing.times, private$i.quantity.value.all.applies.for.time[[quantity.name]])
                         if (length(update.value.applies.times)>0)
@@ -5086,7 +5250,7 @@ JHEEM = R6::R6Class(
                                         dep.on.mask = private$i.quantity.after.value.applies.mask[[dep.on]][[char.time]]
                                     if (is.null(dep.on.mask))
                                         dep.on.mask = private$i.quantity.value.applies.mask[[dep.on]][[char.time]]
-
+                                    
                                     if (length(dep.on.mask)==1)
                                         dep.on.mask
                                     else
@@ -5122,7 +5286,7 @@ JHEEM = R6::R6Class(
                             #-- Pull the access/expand indices --#
                             expand.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[i]]
                             access.indices = private$i.quantity.mapping.indices[[quantity.name]]$components.access[[i]]
-                
+                            
                             if (length(comp.value.applies)==1)
                             {
                                 if (is.null(access.indices))
@@ -5206,7 +5370,7 @@ JHEEM = R6::R6Class(
                     mask
             })
         },
-          
+        
         ##----------------------------------------------------------------##
         ##-- CALCULATING QUANTITY/ELEMENT DIM.NAMES and MAPPING INDICES --##
         ##----------------------------------------------------------------##
@@ -5270,26 +5434,26 @@ JHEEM = R6::R6Class(
                         {
                             comp = quantity$components[[i]]
                             
-                        #    sapply(names(private$i.quantity.component.dim.names[[quantity.name]][[i]], function(d){
+                            #    sapply(names(private$i.quantity.component.dim.names[[quantity.name]][[i]], function(d){
                             for (d in setdiff(names(private$i.quantity.component.dim.names[[quantity.name]][[i]], names(private$i.quantity.component.applies.to[[quantity.name]][[i]]))))
-                             {
-#                            lapply(setdiff(names(private$i.quantity.component.dim.names[[quantity.name]][[i]], names(private$i.quantity.component.applies.to[[quantity.name]][[i]])), function(d){
-                                    #       if (any(d==names(private$i.quantity.component.applies.to[[quantity.name]][[i]])))
-                         #       {
-                         #           if (i>1 && !setequal(dim.names[[d]], private$i.quantity.component.applies.to[[quantity.name]][[i]]))
-                         #               stop(paste0("Error calculating dimnames for quantity ",
-                         #                          quantity$get.original.name(self$version),
-                         #                           ": the dimnames of the ",
-                         #                           get.ordinal(i-1),
-                         #                           " subset do not match the applies.to values for dimension '", d, "'"))
-                         #       }
-                         #       else
-                         #       {
-                                    if (!setequal(dim.names[[d]], private$i.quantity.component.dim.names[[quantity.name]][[i]][[d]]))
-                                        stop(paste0("Error calculating dimnames for quantity ",
-                                                    quantity$original.name,
-                                                    ": the dimnames of its sub-components do not align in dimension '", d, "'"))
-                         #       }
+                            {
+                                #                            lapply(setdiff(names(private$i.quantity.component.dim.names[[quantity.name]][[i]], names(private$i.quantity.component.applies.to[[quantity.name]][[i]])), function(d){
+                                #       if (any(d==names(private$i.quantity.component.applies.to[[quantity.name]][[i]])))
+                                #       {
+                                #           if (i>1 && !setequal(dim.names[[d]], private$i.quantity.component.applies.to[[quantity.name]][[i]]))
+                                #               stop(paste0("Error calculating dimnames for quantity ",
+                                #                          quantity$get.original.name(self$version),
+                                #                           ": the dimnames of the ",
+                                #                           get.ordinal(i-1),
+                                #                           " subset do not match the applies.to values for dimension '", d, "'"))
+                                #       }
+                                #       else
+                                #       {
+                                if (!setequal(dim.names[[d]], private$i.quantity.component.dim.names[[quantity.name]][[i]][[d]]))
+                                    stop(paste0("Error calculating dimnames for quantity ",
+                                                quantity$original.name,
+                                                ": the dimnames of its sub-components do not align in dimension '", d, "'"))
+                                #       }
                             }#))
                         }
                     }
@@ -5302,7 +5466,7 @@ JHEEM = R6::R6Class(
                                 any(names(private$i.quantity.component.applies.to[[quantity.name]][[component.index]]) == d)
                         }, FUN.VALUE = logical(1)))
                     }, FUN.VALUE = logical(1))
-                 
+                    
                     private$i.quantity.dim.names[[quantity.name]] = private$i.quantity.max.dim.names[[quantity.name]][mask]
                 }
             }
@@ -5361,10 +5525,10 @@ JHEEM = R6::R6Class(
                                 ": the quantity's dimnames are missing required ",
                                 ifelse(length(missing.required.dimensions)==1, "dimension ", "dimensions "),
                                 collapse.with.and("'", missing.required.dimensions, "'")))
-
+                
                 for (d in names(required.dim.names))
                 {
-                #sapply(names(required.dim.names), function(d){
+                    #sapply(names(required.dim.names), function(d){
                     values = private$i.quantity.dim.names[[quantity.name]][[d]]
                     if (!is.null(values) && !setequal(values, required.dim.names[[d]]))
                         stop(paste0("Error calculating dimnames for quantity ",
@@ -5375,7 +5539,7 @@ JHEEM = R6::R6Class(
                                     "' (", paste0("'", required.dim.names[[d]], "'", collapse=', '), ")"))
                 }#)
                 
-#                private$i.quantity.dim.names[[quantity.name]][names(private$i.quantity.required.dim.names[[quantity.name]])] = private$i.quantity.required.dim.names[[quantity.name]]
+                #                private$i.quantity.dim.names[[quantity.name]][names(private$i.quantity.required.dim.names[[quantity.name]])] = private$i.quantity.required.dim.names[[quantity.name]]
             }
             
             #--  If the dim.names have changed from previous, clear dependencies --#
@@ -5422,7 +5586,7 @@ JHEEM = R6::R6Class(
                         common.dimensions = intersect(names(dim.names), names(to.incorporate))
                         for (d in common.dimensions)
                         {
-                        #sapply(common.dimensions, function(d){
+                            #sapply(common.dimensions, function(d){
                             if (!setequal(dim.names[[d]], to.incorporate[[d]]))
                             {
                                 stop(paste0("Error calculating dimnames for ",
@@ -5486,7 +5650,7 @@ JHEEM = R6::R6Class(
             #-- Done --#
             invisible(self)
         },
-
+        
         apply.comp.reversed.dimension.aliases = function(comp, apply.to)
         {
             if (length(apply.to)==0)
@@ -5553,8 +5717,8 @@ JHEEM = R6::R6Class(
         calculate.quantity.component.expand.access.indices = function(quantity, component.index)
         {
             quantity.name = quantity$name
-   # print(paste0("Called calculate.quantity.component.expand.access.indices('", quantity.name, "', ", component.index, ")"))
-   # print(paste0("   BEFORE call, length(private$i.quantity.mapping.indices) = ", length(private$i.quantity.mapping.indices)))
+            # print(paste0("Called calculate.quantity.component.expand.access.indices('", quantity.name, "', ", component.index, ")"))
+            # print(paste0("   BEFORE call, length(private$i.quantity.mapping.indices) = ", length(private$i.quantity.mapping.indices)))
             # Expand indices
             # (what indices expand to the subset of the quantity value that this component applies to)
             expand.to.dim.names = private$i.quantity.dim.names[[quantity.name]]
@@ -5563,28 +5727,28 @@ JHEEM = R6::R6Class(
             
             if (length(private$i.quantity.component.dim.names[[quantity.name]][[component.index]])==0)
                 private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[component.index]] = 
-                    rep(1, prod(as.numeric(vapply(expand.to.dim.names, length, FUN.VALUE = integer(1)))))
+                rep(1, prod(as.numeric(vapply(expand.to.dim.names, length, FUN.VALUE = integer(1)))))
             else
                 private$i.quantity.mapping.indices[[quantity.name]]$components.expand[[component.index]] = 
-                    get.expand.array.indices(to.expand.dim.names = private$i.quantity.component.dim.names[[quantity.name]][[component.index]],
-                                             target.dim.names = expand.to.dim.names)
+                get.expand.array.indices(to.expand.dim.names = private$i.quantity.component.dim.names[[quantity.name]][[component.index]],
+                                         target.dim.names = expand.to.dim.names)
             
             # Access indices
             # (what indices into the quantity value to access for this component's applies.to)
-
+            
             if (!is.null(quantity$components[[component.index]]$applies.to))
                 private$i.quantity.mapping.indices[[quantity.name]]$components.access[[component.index]] =
-                    get.array.access.indices(arr.dim.names = private$i.quantity.dim.names[[quantity.name]],
-                                             dimension.values = private$i.quantity.component.applies.to[[quantity.name]][[component.index]])
+                get.array.access.indices(arr.dim.names = private$i.quantity.dim.names[[quantity.name]],
+                                         dimension.values = private$i.quantity.component.applies.to[[quantity.name]][[component.index]])
             
             # Save the dim.names that we used to construct these indices (in case we have to change later)
             private$i.quantity.mapping.indices[[quantity.name]]$based.on.dim.names = private$i.quantity.dim.names[[quantity.name]]
             
-    # print(paste0("After call, length(private$i.quantity.mapping.indices) = ", length(private$i.quantity.mapping.indices)))
+            # print(paste0("After call, length(private$i.quantity.mapping.indices) = ", length(private$i.quantity.mapping.indices)))
             # Done
             invisible(self)
         },
-
+        
         calculate.foreground.effect.indices = function(quantity.name)
         {
             foreground.ids = names(private$i.resolved.foregrounds[[quantity.name]])
@@ -5656,12 +5820,12 @@ JHEEM = R6::R6Class(
         #      dimnames also alters the values), if the recalculated dimnames are not the same as the previously-crunched dimnames,
         #      we clear the dependent quantities' dimensions and the mapping indices (and repeat the process when those values 
         #      are calculated)
-
+        
         # times == NULL --> clear all values
         clear.dependent.values = function(quantity.name, clear.after.time=-Inf, clear.before.time=Inf)
         {
             to.clear = private$i.kernel$get.dependent.quantity.names(quantity.name) #a quantity is defined to always depend on itself
-
+            
             if (clear.after.time == -Inf && clear.before.time == Inf)
             {
                 for (one.to.clear in to.clear)
@@ -5688,7 +5852,7 @@ JHEEM = R6::R6Class(
             
             invisible(self)
         },
-
+        
         clear.dependent.value.applies.masks = function(quantity.name, clear.after.time=-Inf, clear.before.time=Inf)
         {
             to.clear = c(quantity.name, 
@@ -5731,7 +5895,7 @@ JHEEM = R6::R6Class(
             # Clear the dimensions of quantity *components* that depend on this quantity's dim.names
             for (dependent.name in private$i.kernel$get.dependent.quantity.names(quantity.name))
             {
-#            sapply(private$i.kernel$get.dependent.quantity.names(quantity.name), function(dependent.name){
+                #            sapply(private$i.kernel$get.dependent.quantity.names(quantity.name), function(dependent.name){
                 dependent.quantity = private$i.kernel$get.quantity.kernel(dependent.name)
                 lapply(1:dependent.quantity$n.components, function(i){
                     if (any(dependent.quantity$components[[i]]$depends.on==quantity.name))
@@ -5746,7 +5910,7 @@ JHEEM = R6::R6Class(
             # Clear depends on mappings for quantity components that depend on this quantity
             for (dependent.name in private$i.kernel$get.dependent.quantity.names(quantity.name))
             {
-#            sapply(private$i.kernel$get.dependent.quantity.names(quantity.name), function(dependent.name){
+                #            sapply(private$i.kernel$get.dependent.quantity.names(quantity.name), function(dependent.name){
                 dependent.quantity = private$i.kernel$get.quantity.kernel(dependent.name)
                 #lapply(1:dependent.quantity$n.components, function(i){
                 for (i in 1:dependent.quantity$n.components)
@@ -5842,21 +6006,135 @@ JHEEM = R6::R6Class(
             }
         },
         
-
+        
         ##----------------------------------##
         ##--  Calculating Outcome Values  --##
         ##--  (after the ODE solver runs) --##
         ##----------------------------------##
-
+        
+        directly.transmute.outcomes = function(simulation.set,
+                                               sim.index,
+                                               check.consistency)
+        {
+            error.prefix = paste0("Error directly transmuting simulation outcomes: ")
+            
+            for (outcome.name in private$i.outcome.names.to.transmute)
+            {
+                from.outcome.ontology = simulation.set$outcome.ontologies[[outcome.name]]
+                if (is.null(from.outcome.ontology))
+                    stop(paste0(error.prefix, "Cannot transmute outcome '", outcome.name, "' - it is not in the given simulation.set"))
+                
+                outcome.years = intersect(as.character(private$i.keep.from.time:private$i.keep.to.time),
+                                          from.outcome.ontology$year)
+                
+                to.outcome = private$i.kernel$get.outcome.kernel(outcome.name)
+                to.outcome.dim.names = c(list(year=outcome.years), to.outcome$dim.names)
+                
+                if (is.null(private$i.direct.transmute.outcomes.pull.indices.without.sim.offset[[outcome.name]]))
+                {
+                    if (!setequal(names(from.outcome.ontology), names(to.outcome.dim.names)))
+                        stop(paste0(error.prefix, "The from.outcome.ontology and to.outcome.dim.names for outcome '",
+                                    outcome.name, "' do NOT share the same dimensions"))
+                    
+                    shared.dim.names = intersect.shared.dim.names(from.outcome.ontology, to.outcome.dim.names)
+                    
+                    private$i.direct.transmute.outcomes.put.indices[[outcome.name]] = 
+                        get.array.access.indices(arr.dim.names = to.outcome.dim.names,
+                                                 dimension.values = shared.dim.names)
+                    
+                    private$i.direct.transmute.outcomes.pull.indices.without.sim.offset[[outcome.name]] = 
+                        get.array.access.indices(arr.dim.names = from.outcome.ontology,
+                                                 dimension.values = shared.dim.names)
+                }
+                
+                sim.offset = (sim.index-1) * length(simulation.set$data$outcome.numerators[[outcome.name]]) / simulation.set$n.sim
+                private$i.direct.transmute.outcomes.pull.indices[[outcome.name]] = 
+                    private$i.direct.transmute.outcomes.pull.indices.without.sim.offset[[outcome.name]] + sim.offset
+                
+                private$i.final.outcome.numerators[[outcome.name]] = array(0,
+                                                                           dim = vapply(to.outcome.dim.names, length, FUN.VALUE = integer(1)),
+                                                                           dimnames = to.outcome.dim.names)
+                
+                private$i.final.outcome.numerators[[outcome.name]][ private$i.direct.transmute.outcomes.put.indices[[outcome.name]] ] =
+                    simulation.set$data$outcome.numerators[[outcome.name]][ private$i.direct.transmute.outcomes.pull.indices[[outcome.name]] ]
+                
+                
+                dim(private$i.final.outcome.numerators[[outcome.name]]) = vapply(to.outcome.dim.names, length, FUN.VALUE = integer(1))
+                dimnames(private$i.final.outcome.numerators[[outcome.name]]) = to.outcome.dim.names
+                
+                if (!is.null(to.outcome$denominator.outcome))
+                {
+                    private$i.final.outcome.denominators[[outcome.name]] = array(0,
+                                                                                 dim = vapply(to.outcome.dim.names, length, FUN.VALUE = integer(1)),
+                                                                                 dimnames = to.outcome.dim.names)
+                    
+                    private$i.final.outcome.denominators[[outcome.name]][ private$i.direct.transmute.outcomes.put.indices[[outcome.name]] ] =
+                        simulation.set$data$outcome.denominators[[outcome.name]][ private$i.direct.transmute.outcomes.pull.indices[[outcome.name]] ]
+                    
+                    dim(private$i.final.outcome.denominators[[outcome.name]]) = dim(private$i.final.outcome.numerators[[outcome.name]])
+                    dimnames(private$i.final.outcome.denominators[[outcome.name]]) = dimnames(private$i.final.outcome.numerators[[outcome.name]])
+                }
+            }
+            
+            #For the outcomes we need to calculate other outcomes: we need to save into
+            # outcome.numerators - AS LIST
+            # outcome.denominators (if relevant) - AS LIST
+            # private$i.outcome.value.times.to.calculate
+            for (outcome.name in private$i.dependee.outcome.names.to.transmute)
+            {
+                numerator.array = private$i.final.outcome.numerators[[outcome.name]]
+                denominator.array = private$i.final.outcome.numerators[[outcome.name]]
+                outcome.years = dimnames(numerator.array)$year
+                
+                n.year = length(outcome.years)
+                n.non.year = length(numerator.array)/n.year
+                non.year.dim.names = dimnames(numerator.array)[-1]
+                non.year.dim = vapply(non.year.dim.names, length, FUN.VALUE = integer(1))
+                
+                base.non.year.indices = (0:(n.non.year-1)) * n.year
+                
+                private$i.outcome.numerators[[outcome.name]] = lapply(1:length(outcome.years), function(year.index){
+                    
+                    # the indices assuming year is the first dimension
+                    indices = year.index +  base.non.year.indices
+                    
+                    arr.for.year = numerator.array[indices]
+                    dim(arr.for.year) = non.year.dim
+                    dimnames(arr.for.year) = non.year.dim.names
+                    arr.for.year
+                })
+                names(private$i.outcome.numerators[[outcome.name]]) = outcome.years
+                
+                if (!is.null(denominator.array))
+                {
+                    private$i.outcome.denominators[[outcome.name]] = lapply(1:length(outcome.years), function(year.index){
+                        
+                        # the indices assuming year is the first dimension
+                        indices = year.index + base.non.year.indices
+                        
+                        arr.for.year = denominator.array[indices]
+                        dim(arr.for.year) = non.year.dim
+                        dimnames(arr.for.year) = non.year.dim.names
+                        arr.for.year
+                    })
+                    names(private$i.outcome.denominators[[outcome.name]]) = outcome.years
+                }
+                
+                private$i.outcome.value.times.to.calculate[[outcome.name]] = as.numeric(outcome.years)
+            }
+            
+            invisible(self)
+        },
+        
         prepare.outcomes.for.sim = function(ode.results,
                                             prior.simulation.set,
                                             prior.sim.index,
                                             is.degenerate,
                                             check.consistency)
         {
-            outcome.names = private$i.kernel$get.outcome.names.for.sub.version(private$i.sub.version)
+            #outcome.names = private$i.kernel$get.outcome.names.for.sub.version(private$i.sub.version)
             
-            for (outcome.name in outcome.names)
+            for (outcome.name in private$i.outcome.names.to.calculate)
             {
                 #-- Calculate the times --#
                 if (is.null(private$i.outcome.value.times[[outcome.name]]))
@@ -5865,9 +6143,9 @@ JHEEM = R6::R6Class(
             
             if (!is.degenerate)
             {
-                for (outcome.name in outcome.names)
+                for (outcome.name in private$i.outcome.names.to.calculate)
                 {
-#                sapply(outcome.names, function(outcome.name){
+                    #                sapply(outcome.names, function(outcome.name){
                     private$calculate.outcome.numerator.and.denominator(outcome.name = outcome.name,
                                                                         ode.results = ode.results,
                                                                         check.consistency = check.consistency,
@@ -5876,7 +6154,7 @@ JHEEM = R6::R6Class(
             }
             
             
-            outcome.numerators = lapply(outcome.names, function(outcome.name){
+            private$i.final.outcome.numerators[private$i.outcome.names.to.calculate] = lapply(private$i.outcome.names.to.calculate, function(outcome.name){
                 
                 outcome = private$i.kernel$get.outcome.kernel(outcome.name)
                 outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
@@ -5889,7 +6167,7 @@ JHEEM = R6::R6Class(
                     val = rep(as.numeric(NA), prod(sapply(outcome.dim.names, length)))
                 else
                 {
-                    if (is.null(prior.simulation.set))
+                    if (is.null(prior.simulation.set) || private$i.for.transmutation)
                     {
                         val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
                                                       char_desired_times = char.times,
@@ -5911,40 +6189,6 @@ JHEEM = R6::R6Class(
                                                       old_times = dimnames(prior.simulation.set$data$outcome.numerators[[outcome.name]])$year,
                                                       prior_sim_index = prior.sim.index)
                     }
-                    
-                    # if (!is.null(prior.simulation.set))
-                    # {
-                    #     prior.sim.numerator = prior.simulation.set$data$outcome.numerators[[outcome.name]]
-                    #     if (is.null(prior.sim.numerator))
-                    #         stop(paste0("Error in extending simulations: we expected the outcome '", outcome.name, "' to be present in the prior simulation, but it is not there. This likely means that the '",
-                    #                     self$version, "' specification has been changed since the original simulations were run. Try rerun.simulations() to update your old simulations to the new version of the specification"))
-                    #     if (!dim.names.equal(dimnames(prior.sim.numerator)[setdiff(names(dim(prior.sim.numerator)), c('year','sim'))],
-                    #                          outcome.dim.names[setdiff(names(outcome.dim.names), 'year')], match.order.of.dimensions = T, match.order.within.dimensions = T))
-                    #         stop(paste0("Error in extending simulations: the '", outcome.name, "' outcome in the prior simulation does not have the dimnames we expect. This likely means that the '",
-                    #                     self$version, "' specification has been changed since the original simulations were run. Try rerun.simulations() to update your old simulations to the new version of the specification"))
-                    #         
-                    #     dim.names = c(dimnames(prior.sim.numerator)['year'],
-                    #                   other = 'temp',
-                    #                   dimnames(prior.sim.numerator)['sim'])
-                    #     dim.names$other = 1:(length(prior.sim.numerator) / prod(sapply(dim.names, length)))
-                    #     dim(prior.sim.numerator) = sapply(dim.names, length)
-                    #     dimnames(prior.sim.numerator) = dim.names
-                    # }
-                    # 
-                    # val = t(sapply(private$i.outcome.value.times[[outcome.name]], function(y){
-                    #     
-                    #     if (length(private$i.outcome.value.times.to.calculate[[outcome.name]])>0 &&
-                    #         y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
-                    #         y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
-                    #     {
-                    #         private$i.outcome.numerators[[outcome.name]][[as.character(y)]]
-                    #     }
-                    #     else
-                    #     {
-                    #         prior.sim.numerator[as.character(y),,prior.sim.index]
-                    #     }
-                    #         
-                    # }))
                 }
                 
                 dim(val) = sapply(outcome.dim.names, length)
@@ -5952,9 +6196,8 @@ JHEEM = R6::R6Class(
                 
                 val
             })
-            names(outcome.numerators) = outcome.names
             
-            outcome.denominators = lapply(outcome.names, function(outcome.name){
+            private$i.final.outcome.denominators[private$i.outcome.names.to.calculate] = lapply(private$i.outcome.names.to.calculate, function(outcome.name){
                 
                 
                 outcome = private$i.kernel$get.outcome.kernel(outcome.name)
@@ -5976,7 +6219,7 @@ JHEEM = R6::R6Class(
                         val = outcome.numerators[[outcome.name]] #use the same NA vector that is in the numerator
                     else
                     {
-                        if (is.null(prior.simulation.set))
+                        if (is.null(prior.simulation.set) || private$i.for.transmutation)
                         {
                             val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
                                                           char_desired_times = char.times,
@@ -5998,29 +6241,7 @@ JHEEM = R6::R6Class(
                                                           old_times = dimnames(prior.simulation.set$data$outcome.denominators[[outcome.name]])$year,
                                                           prior_sim_index = prior.sim.index)
                         }
-                        # if (!is.null(prior.simulation.set))
-                        # {
-                        #     prior.sim.denominator = prior.simulation.set$data$outcome.denominators[[outcome.name]]
-                        #     dim.names = c(dimnames(prior.sim.denominator)['year'],
-                        #                   other = 'temp',
-                        #                   dimnames(prior.sim.denominator)['sim'])
-                        #     dim.names$other = 1:(length(prior.sim.denominator) / prod(sapply(dim.names, length)))
-                        #     dim(prior.sim.denominator) = sapply(dim.names, length)
-                        #     dimnames(prior.sim.denominator) = dim.names
-                        # }
-                        # 
-                        # val = t(sapply(as.character(private$i.outcome.value.times[[outcome.name]]), function(y){
-                        #     if (length(private$i.outcome.value.times.to.calculate[[outcome.name]])>0 &&
-                        #         y >= private$i.outcome.value.times.to.calculate[[outcome.name]][1] &&
-                        #         y <= private$i.outcome.value.times.to.calculate[[outcome.name]][length(private$i.outcome.value.times.to.calculate[[outcome.name]])])
-                        #     {
-                        #         private$i.outcome.denominators[[outcome.name]][[as.character(y)]]
-                        #     }
-                        #     else
-                        #     {
-                        #         prior.sim.denominator[as.character(y),,prior.sim.index]
-                        #     }
-                        # }))
+                        
                     }                    
                     
                     dim(val) = sapply(outcome.dim.names, length)
@@ -6029,19 +6250,24 @@ JHEEM = R6::R6Class(
                     val
                 }
             })
-            names(outcome.denominators) = outcome.names
             
+            rv = list(numerators = private$i.final.outcome.numerators,
+                      denominators = private$i.final.outcome.denominators)
             
-            # Clear the values for numerators and denominators stored in the jheem object - we no longer need them
-            private$i.outcome.numerators = list()
-            private$i.outcome.denominators = list()
-            private$i.interpolated.outcome.numerators.when.values.dont.apply = list()
-            private$i.interpolated.outcome.denominators.when.values.dont.apply = list()
+            if (!private$i.for.transmutation)
+            {
+                # Clear the values for numerators and denominators stored in the jheem object - we no longer need them
+                private$i.outcome.numerators = list()
+                private$i.outcome.denominators = list()
+                private$i.interpolated.outcome.numerators.when.values.dont.apply = list()
+                private$i.interpolated.outcome.denominators.when.values.dont.apply = list()
+                private$i.final.outcome.denominators = list()
+                private$i.final.outcome.denominators = list()
+            }
             
-            list(numerators = outcome.numerators,
-                 denominators = outcome.denominators)
+            rv
         },
-
+        
         # Depends on quantity.dim.names for quantities which this outcome has a direct, non.cumulative dependency on
         derive.outcome.numerator.dim.names.sans.time = function(outcome.name)
         {
@@ -6103,11 +6329,11 @@ JHEEM = R6::R6Class(
                                                                                                           rename.dimension.values = outcome$rename.dimension.values,
                                                                                                           error.prefix = paste0("Error calculating outcome numerator's renamed dimnames - "))
         },
-
+        
         clear.outcome.dependencies.on.quantity.dim.names = function(quantity.names)
         {
             dependent.outcome.names = private$i.kernel$get.direct.dependent.outcome.numerator.names(quantity.names)
-                
+            
             # clear the indices
             private$i.outcome.indices[[dependent.outcome.names]] = list()
             
@@ -6115,7 +6341,7 @@ JHEEM = R6::R6Class(
             #  (we'd need to clear the outcome.indices[[outcome.name]]$value.from.quantity[[quantity.name]] regardless)
             #  but in practice, we are not going to change these dim.names very much so it doesn't seem worth it
         },
-
+        
         calculate.outcome.numerator.and.denominator = function(outcome.name,
                                                                ode.results,
                                                                check.consistency,
@@ -6160,6 +6386,12 @@ JHEEM = R6::R6Class(
                     if (can.get.outcome.value.from.ode.output(outcome.name,
                                                               settings = private$i.diffeq.settings))
                     {
+                        if (private$i.for.transmutation)
+                        {
+                            stop(paste0(error.prefix,
+                                        "When a JHEEM instance is being used for transmutation, we cannot calculate dynamic or intrinsic outcomes"))
+                        }
+                        
                         raw.value = get.outcome.value.from.ode.output(outcome.name,
                                                                       settings = private$i.diffeq.settings,
                                                                       ode.results = ode.results,
@@ -6177,7 +6409,7 @@ JHEEM = R6::R6Class(
                         all.dependee.quantities.are.static = all(private$i.quantity.is.static[private$i.kernel$get.outcome.direct.dependee.quantity.names(outcome.name)])
                         
                         if (all.dependee.outcomes.are.cumulative && all.dependee.quantities.are.static)
-#                        if (length(private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]])==0)
+                            #                        if (length(private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]])==0)
                         {
                             times.to.pull = private$i.outcome.value.times.to.calculate[[outcome.name]]
                             is.after.time = rep(F, length(times.to.pull))
@@ -6189,7 +6421,7 @@ JHEEM = R6::R6Class(
                         }
                         char.times.to.pull = as.character(times.to.pull)
                         
-    
+                        
                         
                         #-- Map the bindings for dependee OUTCOMES to a list --#
                         bindings.of.outcomes = lapply(private$i.kernel$get.outcome.numerator.direct.dependee.outcome.names(outcome.name), function(dep.on.outcome.name){
@@ -6204,8 +6436,8 @@ JHEEM = R6::R6Class(
                             if (dep.on.outcome$is.intrinsic)
                             {
                                 dep.on.numerators = interpolate(private$i.outcome.numerators[[dep.on.outcome.name]], 
-                                                               value.times = private$i.outcome.value.times.to.calculate[[dep.on.outcome.name]],
-                                                               desired.times = times.to.pull)
+                                                                value.times = private$i.outcome.value.times.to.calculate[[dep.on.outcome.name]],
+                                                                desired.times = times.to.pull)
                             }
                             else
                             {
@@ -6308,7 +6540,7 @@ JHEEM = R6::R6Class(
                                 interpolate_values_when_do_not_apply(values = quantity.values,
                                                                      times = times.to.pull,
                                                                      value_applies_for_time = quantity.value.applies)
-
+                                
                                 # Apply the indices
                                 quantity.values = lapply(quantity.values, function(val){
                                     val[ private$i.outcome.indices[[outcome.name]]$value.from.quantity[[dep.on.quantity.name]] ]
@@ -6372,12 +6604,12 @@ JHEEM = R6::R6Class(
                             
                             time = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]][i])
                             collapsed.denominator = collapse.array.according.to.indices(arr = denominator[[time]],
-                                                                                     small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.indices,
-                                                                                     large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$large.indices,
-                                                                                     small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.n,
-                                                                                     check.consistency = check.consistency)           
+                                                                                        small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.indices,
+                                                                                        large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$large.indices,
+                                                                                        small.n = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.n,
+                                                                                        check.consistency = check.consistency)           
                             raw.value[[i]] * collapsed.denominator
-                                
+                            
                         })
                         names(raw.value) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
                     }
@@ -6429,7 +6661,7 @@ JHEEM = R6::R6Class(
                     names(private$i.outcome.numerators[[outcome.name]]) = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
                     if (!is.null(private$i.outcome.denominators[[outcome.name]]))
                         names(private$i.outcome.denominators[[outcome.name]]) =
-                            as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
+                        as.character(private$i.outcome.value.times.to.calculate[[outcome.name]])
                 }
             }
         },
@@ -6444,7 +6676,7 @@ JHEEM = R6::R6Class(
             names(private$i.outcome.non.cumulative.values.all.apply[[outcome.name]]) = 
                 as.character(private$i.outcome.non.cumulative.value.times.to.calculate[[outcome.name]])
         },
-
+        
         calculate.interpolated.outcome.numerator.and.denominator.when.values.dont.apply = function(outcome.name, check.consistency)
         {
             if (is.null(private$i.outcome.non.cumulative.value.applies.masks[[outcome.name]]))
@@ -6466,7 +6698,7 @@ JHEEM = R6::R6Class(
             }
             
         },
-
+        
         calculate.outcome.non.cumulative.value.applies.masks = function(outcome.name, check.consistency)
         {
             # Pull the quantity
@@ -6485,10 +6717,10 @@ JHEEM = R6::R6Class(
             
             calculate.dependee.outcome.mask = as.logical(vapply(private$i.outcome.non.cumulative.value.applies.masks[dependee.outcome.names], is.null, FUN.VALUE=logical(1)))
             for (dependee.outcome.name in dependee.outcome.names[calculate.dependee.outcome.mask])
-                    private$calculate.outcome.non.cumulative.value.applies.masks(dependee.outcome.name, check.consistency = check.consistency)
-#            lapply(dependee.outcome.names[calculate.dependee.outcome.mask], 
- #                  private$calculate.outcome.non.cumulative.value.applies.masks)
-                            
+                private$calculate.outcome.non.cumulative.value.applies.masks(dependee.outcome.name, check.consistency = check.consistency)
+            #            lapply(dependee.outcome.names[calculate.dependee.outcome.mask], 
+            #                  private$calculate.outcome.non.cumulative.value.applies.masks)
+            
             private$i.outcome.non.cumulative.value.applies.masks[[outcome.name]] = lapply(1:n.times, function(i){
                 
                 if (length(outcome$depends.on)==0 || private$i.outcome.non.cumulative.values.all.apply[[outcome.name]][i])
@@ -6506,8 +6738,8 @@ JHEEM = R6::R6Class(
                         
                         if (sum(time.mask)!=1)
                             stop(paste0("Internal error calculation outcome.non.cumulative.value.applies.mask for outcome '",
-                            outcome.name, "': not exactly one previously calculated mask for dependee '", dep.on.outcome.name,
-                            "' matches both the time (", time, ") and is.after.value (", is.after.value, ")"))
+                                        outcome.name, "': not exactly one previously calculated mask for dependee '", dep.on.outcome.name,
+                                        "' matches both the time (", time, ") and is.after.value (", is.after.value, ")"))
                         
                         mask = private$i.outcome.non.cumulative.value.applies.masks[[dep.on.outcome.name]][time.mask][[1]]
                         
@@ -6523,7 +6755,7 @@ JHEEM = R6::R6Class(
                                                                 large.indices = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$large.indices,
                                                                 small.n = private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]]$small.n,
                                                                 check.consistency = check.consistency) > 0
-                                # equivalent to doing any on all the mask values that collapse to an index
+                            # equivalent to doing any on all the mask values that collapse to an index
                         }
                     })
                     
@@ -6568,7 +6800,7 @@ JHEEM = R6::R6Class(
             invisible(self)
             
         },
-
+        
         # Depends on outcome.numerator.dim.names.sans.time
         calculate.outcome.indices.from.outcome = function(outcome.name, dep.on.outcome.name)
         {
@@ -6580,7 +6812,7 @@ JHEEM = R6::R6Class(
                 get.collapse.array.indices(small.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]],
                                            large.arr.dim.names = dep.on.dim.names)
         },
-
+        
         # Depends on outcome.numerator.dim.names.sans.time, quantity.dim.names
         calculate.outcome.indices.from.quantity = function(outcome.name, dep.on.quantity.name)
         {
@@ -6592,7 +6824,7 @@ JHEEM = R6::R6Class(
                 get.expand.array.indices(to.expand.dim.names = quantity.dim.names,
                                          target.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]])
         },
-
+        
         # Depends on outcome.numerator.dim.names.sans.time
         calculate.outcome.collapse.value.indices = function(outcome.name)
         {
@@ -6628,18 +6860,18 @@ JHEEM = R6::R6Class(
                 {
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator =
                         get.collapse.array.indices.with.intermediate(large.arr.dim.names = denominator.outcome.dim.names,
-                                                                    intermediate.arr.dim.names = outcome.dim.names.plus.subset,
-                                                                    small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]])
-                   #     get.collapse.array.indices(small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
-                   #                                large.arr.dim.names = denominator.outcome.dim.names)
+                                                                     intermediate.arr.dim.names = outcome.dim.names.plus.subset,
+                                                                     small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]])
+                    #     get.collapse.array.indices(small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
+                    #                                large.arr.dim.names = denominator.outcome.dim.names)
                 }
                 else if (dim.names.are.subset(sub.dim.names = unrenamed.outcome.dim.names.plus.subset,
                                               super.dim.names = denominator.outcome.dim.names))
                 {
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator =
                         get.collapse.array.indices.with.intermediate(large.arr.dim.names = denominator.outcome.dim.names,
-                                                                    intermediate.arr.dim.names = unrenamed.outcome.dim.names.plus.subset,
-                                                                    small.arr.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]])
+                                                                     intermediate.arr.dim.names = unrenamed.outcome.dim.names.plus.subset,
+                                                                     small.arr.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]])
                     #    get.collapse.array.indices(small.arr.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]],
                     #                            large.arr.dim.names = denominator.outcome.dim.names)
                 }
@@ -6675,14 +6907,14 @@ JHEEM = R6::R6Class(
                              ")",
                              ifelse(is.null(outcome$rename.dimension.values), "", ". This probably has to do with the rename.dimension.values argument"))
                     }
-            
+                    
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator =
                         get.collapse.array.indices(small.arr.dim.names = numerator.dim.names,
-                                                large.arr.dim.names = denominator.outcome.dim.names)
+                                                   large.arr.dim.names = denominator.outcome.dim.names)
                 }
             }
         },
-
+        
         ##--------------------------------##
         ##-- Low-Level Internal Helpers --##
         ##--------------------------------##
@@ -6691,7 +6923,7 @@ JHEEM = R6::R6Class(
         {
             any(names(private$i.element.backgrounds)==quantity.name)
         },
-
+        
         #returns a vector of validated indices
         check.ramp.or.taper.values.and.indices = function(values,
                                                           indices,
@@ -6797,6 +7029,6 @@ JHEEM = R6::R6Class(
             # Return
             indices
         }
-            
+        
     )
 )

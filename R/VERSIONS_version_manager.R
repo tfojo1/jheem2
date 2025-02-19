@@ -8,7 +8,7 @@ VERSION.MANAGER.ELEMENTS = c(
     'specification', 'compiled.specification',
     'prior.versions',
     'calibrated.parameters', 'sampled.parameters', 'set.parameters',
-    'apply.calibrated.parameters.function', 'apply.sampled.parameters.function',
+    'apply.calibrated.parameters.function', 'apply.sampled.parameters.function', 'apply.set.parameters.function',
     'calibrated.parameters.distribution', 'sampled.parameters.distribution',
     'calibrated.parameters.sampling.blocks', 
     'calibrate.to.year',
@@ -373,7 +373,7 @@ register.set.parameters.for.version <- function(version,
                                                            join.with.previous.version = join.with.previous.version,
                                                            apply.function.name = fn.name,
                                                            parameter.names = parameter.names,
-                                                           type='calibrated',
+                                                           type='set',
                                                            error.prefix = "Cannot register set parameters: ")
 }
 

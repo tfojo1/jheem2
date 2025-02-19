@@ -1016,7 +1016,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     # Make sure reshape2::melt ALWAYS has "as.is=T" or it will flip a set of locations that all LOOK numeric (like counties) into ACTUALLY numeric!
                     # Although, that means we have to go converting everything to a factor now... Except year, because with the year lagging, we need to know real values.
                     one.metadata <- reshape2::melt(data, as.is=T)
-                    one.metadata$location.type = all.location.types[one.metadata$location]
+                    one.metadata$location.type = all.location.types[as.character(one.metadata$location)]
                     one.metadata$location = as.factor(one.metadata$location)
                     one.metadata$source = as.factor(one.metadata$source)
                     one.metadata <- one.metadata[!one.remove.mask, ]
