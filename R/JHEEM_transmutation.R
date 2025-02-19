@@ -50,7 +50,6 @@ do.evaluate.can.transmute <- function(from.kernel.or.specification,
     #-- Versions --#
     if (!is.character(to.version) || length(to.version)!=1 || is.na(to.version))
         stop("Error in can.transmute.versions() - 'to.version' must be a single, non-NA character value")
-    
 
     to.specification = get.compiled.specification.for.version(to.version)
     if (is.null(to.specification))
@@ -88,7 +87,7 @@ do.evaluate.can.transmute <- function(from.kernel.or.specification,
                        to.version, "' (to) specification: ",
                        collapse.with.and("'", missing.params, "'")
                        ))
-    
+
     #-- Outcomes --#
     
     # Every outcome in 'to' is either:
@@ -127,7 +126,7 @@ do.evaluate.can.transmute <- function(from.kernel.or.specification,
                                   from.kernel.or.specification$version, "' (from) simulation.set and is a DYNAMIC outcome in the '",
                                   to.version, "' (to) specification. To be able to transmuate a simulation, dynamic outcomes that were not saved in the simulation.set to transmute cannot be present in the to specification"))
             }
-               
+
             depends.on.outcomes = union(to.outcome$depends.on.outcomes,
                                         intersect(to.outcome$depends.on.quantities.or.outcomes, to.specification$outcome.names))
             
@@ -263,12 +262,12 @@ JHEEM.TRANSMUTER = R6::R6Class(
                 stop(paste0("We cannot transmute simulations from '", simulation.set$version, "' simulation.set to '",
                             to.version, "' version:\n",
                             result))
-                         
+
             super$initialize(version = to.version,
                              sub.version = sub.version,
                              location = simulation.set$location,
                              type = 'transmuter')
-                         
+            
             #-- Make the JHEEM Engine --#
             kernel = create.jheem.kernel(to.version, simulation.set$location)
             private$i.jheem = JHEEM$new(jheem.kernel = kernel,
@@ -321,7 +320,6 @@ JHEEM.TRANSMUTER = R6::R6Class(
     ),
     
     active = list(
-      
         keep.from.year = function(value)
         {
             if (missing(value))
@@ -367,11 +365,11 @@ JHEEM.TRANSMUTER = R6::R6Class(
             
             if (sim.index < 1 || sim.index > private$i.simulation.set$n.sim)
                 stop(paste0(error.prefix, "'sim.index' (", sim.index, ") must be a valid index into the simulation.set - i.e. between 1 and ", private$i.simulation.set$n.sim))
-                
+
             new.parameters = parameters
             parameters = private$i.simulation.set$parameters[,sim.index]
             parameters[names(new.parameters)] = new.parameters
-
+            
             private$i.jheem$set.parameters(parameters, check.consistency = private$i.check.consistency)
         },
         

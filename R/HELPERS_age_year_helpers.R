@@ -216,12 +216,17 @@ parse.age.strata.names <- function(strata.names, allow.partial.parsing=F)
     # <age>+
     # <age>-<age>
     # <age>    
-    
     uppers = lowers = numeric(length(strata.names))
     
-    dash.position = sapply(strsplit(strata.names, ''), function(chars){
-        (1:length(chars))[chars=='-'][1]
+    dash.position = sapply(strata.names, function(name){
+        chars = utf8ToInt(name)
+        (1:length(chars))[chars==45 | chars==8211][1]
     })
+    
+    # dash.position = sapply(strsplit(strata.names, ''), function(chars){
+    #     (1:length(chars))[chars=='-' | chars=="-"][1]
+    # })
+    
     infinite.upper.mask = substr(strata.names, nchar(strata.names), nchar(strata.names)) == "+" | substr(strata.names, 1, 1)=='>'
     zero.lower.mask = substr(strata.names, 1, 1)=='<'
     age.range.mask = !is.na(dash.position)
