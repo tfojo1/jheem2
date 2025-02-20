@@ -26,6 +26,7 @@ source('../jheem2/R/ONTOLOGY_ontology_mappings.R')
 source('../jheem2/R/JHEEM_outcome_location_mappings.R')
 
 source('../jheem2/R/SPECIFICATION_links.R')
+source('../jheem2/R/SPECIFICATION_metadata.R')
 source('../jheem2/R/SPECIFICATION_scales.R')
 source('../jheem2/R/SPECIFICATION_model_specification.R')
 source('../jheem2/R/SPECIFICATION_compiled_specification.R')

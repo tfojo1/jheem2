@@ -79,10 +79,12 @@ ontology <- function(..., incomplete.dimensions=NULL)
             
             tabled.values = table(values)
             if (any(tabled.values>1))
+            {
                 stop(paste0("The arguments to ontology() cannot contain repeated values. Dimension '",
                             d, "' contains multiple instances of ",
-                            paste0("'", names(tabled.values)[tabled.valued>1], "'", collapse=', '),
+                            paste0("'", names(tabled.values)[tabled.values>1], "'", collapse=', ')
                             ))
+            }
         }
         
         values
