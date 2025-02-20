@@ -35,7 +35,6 @@ source('../jheem2/R/SPECIFICATION_functional_forms.R')
 source('../jheem2/R/SPECIFICATION_functional_form_alphas.R')
 Rcpp::sourceCpp('../jheem2/src/functional_forms.cpp')
 source('../jheem2/R/SPECIFICATION_evaluatable_value.R')
-source('../jheem2/R/SPECIFICATION_metadata.R')
 
 source('../jheem2/R/VERSIONS_version_manager.R')
 
