@@ -965,7 +965,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                                                                   target.ontology = private$i.sim.ontology,
                                                                   allow.mapping.from.target.ontology = T)
                                 
-                                if (is.null(error.data)) {
+                                if (is.null(p.error.data)) {
                                     stop(paste0(error.prefix, "no ", metric.map[[type]], ", data was found for the stratification '", paste(strat, collapse='__'),  "'"))
                                 }
                                 
