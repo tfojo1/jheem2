@@ -8,6 +8,7 @@
 #' @param p.bias.sd.inside.location The standard deviation associated with 'p.bias.inside.location'
 #' @param p.bias.sd.outsidde.location The standard deviation associated with 'p.bias.outside.location'
 #' @param within.location.p.error.correlation,within.location.n.error.correlation Single numeric values specifying the correlation between p or n values from the same location and stratum
+#' @param minimum.error.sd A single, positive numeric value. If any standard deviations are calculated to a value below this, they will be replaced with this value. This can help keep the likelihood from computing to negative infinity.
 #' @param correlation.different.locations A single numeric value specifying the correlation between observations of different locations.
 #' @param n.multiplier.cv A single numeric value specifying the covariance term used to find the n.multipliers.
 #' @param p.error.variance.type,p.error.variance.term The type of error variance(s) to be used for the outcome proportion and the corresponding value or function required for each. See details for the allowable values. For more than one type, supply them in a vector. If you therefore need more than one term, supply these in a list.
@@ -63,6 +64,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              p.bias.sd.outside.location,
                                                              within.location.p.error.correlation = 0.5,
                                                              within.location.n.error.correlation = 0.5,
+                                                             minimum.error.sd = 0,
                                                              correlation.different.locations = 0,
                                                              correlation.different.years = 0.5,
                                                              correlation.different.strata = 0.1,
@@ -103,6 +105,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
         p.bias.sd.outside.location = p.bias.sd.outside.location,
         within.location.p.error.correlation = within.location.p.error.correlation,
         within.location.n.error.correlation = within.location.n.error.correlation,
+        minimum.error.sd = minimum.error.sd,
         correlation.different.locations = correlation.different.locations,
         correlation.different.years = correlation.different.years,
         correlation.different.strata = correlation.different.strata,
@@ -157,6 +160,7 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
                                                                                       p.bias.sd.outside.location,
                                                                                       within.location.p.error.correlation = 0.5,
                                                                                       within.location.n.error.correlation = 0.5,
+                                                                                      minimum.error.sd = 0,
                                                                                       correlation.different.locations = 0,
                                                                                       correlation.different.years = 0.5,
                                                                                       correlation.different.strata = 0.1,
@@ -198,6 +202,7 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
         p.bias.sd.outside.location = p.bias.sd.outside.location,
         within.location.p.error.correlation = within.location.p.error.correlation,
         within.location.n.error.correlation = within.location.n.error.correlation,
+        minimum.error.sd = minimum.error.sd,
         correlation.different.locations = correlation.different.locations,
         correlation.different.years = correlation.different.years,
         correlation.different.strata = correlation.different.strata,
@@ -246,6 +251,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
                                                                                     p.bias.sd.outside.location,
                                                                                     within.location.p.error.correlation = 0.5,
                                                                                     within.location.n.error.correlation = 0.5,
+                                                                                    minimum.error.sd = 0,
                                                                                     correlation.different.locations = 0,
                                                                                     correlation.different.years = 0.5,
                                                                                     correlation.different.strata = 0.1,
@@ -290,6 +296,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
         p.bias.sd.outside.location = p.bias.sd.outside.location,
         within.location.p.error.correlation = within.location.p.error.correlation,
         within.location.n.error.correlation = within.location.n.error.correlation,
+        minimum.error.sd = minimum.error.sd,
         correlation.different.locations = correlation.different.locations,
         correlation.different.years = correlation.different.years,
         correlation.different.strata = correlation.different.strata,
@@ -341,6 +348,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                               p.bias.sd.outside.location,
                               within.location.p.error.correlation,
                               within.location.n.error.correlation,
+                              minimum.error.sd = 0,
                               correlation.different.locations,
                               correlation.different.years,
                               correlation.different.strata,
@@ -531,6 +539,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             non.negative.not.infinity <- list(
                 p.bias.sd.inside.location = p.bias.sd.inside.location,
                 p.bias.sd.outside.location = p.bias.sd.outside.location,
+                minimum.error.sd = minimum.error.sd,
                 n.multiplier.cv = n.multiplier.cv
             )
             for (i in seq_along(non.negative.not.infinity)) {
@@ -603,6 +612,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 n.multiplier.cv = n.multiplier.cv,
                 within.location.p.error.correlation = within.location.p.error.correlation,
                 within.location.n.error.correlation = within.location.n.error.correlation,
+                minimum.error.sd = minimum.error.sd,
                 p.bias.inside.location = p.bias.inside.location,
                 p.bias.outside.location = p.bias.outside.location,
                 p.bias.sd.inside.location = p.bias.sd.inside.location,
@@ -1253,6 +1263,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 })
                 
                 total.measurement.error.sd <- sqrt(colSums(do.call(rbind, measurement.error.variances)))
+                
+                # Replace sd values below the minimum with the minimum value to avoid zeroes (which can come from sd = cv * 0)
+                total.measurement.error.sd[total.measurement.error.sd < private$i.parameters$minimum.error.sd] = private$i.parameters$minimum.error.sd
+                
                 private$i.obs.error <- measurement.error.correlation.matrix * (total.measurement.error.sd %*% t(total.measurement.error.sd))
                 dim(private$i.obs.error) <- c(private$i.n.obs, private$i.n.obs)
                 

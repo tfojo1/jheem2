@@ -9,6 +9,7 @@
 #' @param to.year Inf or a single integer value specifying the latest year for which data should be pulled.
 #' @param omit.years (Optional) An integer vector of years to ignore.
 #' @param sources.to.use A character vector of sources from which to pull data.
+#' @param minimum.error.sd A single, positive numeric value. If any standard deviations are calculated to a value below this, they will be replaced with this value. This can help keep the likelihood from computing to negative infinity.
 #' @param correlation.different.years A single numeric value specifying the correlation between observations of different years.
 #' @param correlation.different.strata A single numeric value specifying the correlation between observations from different strata.
 #' @param correlation.different.sources A single numeric value specifying the correlation between observations from different sources.
@@ -53,6 +54,7 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
                                                  to.year = Inf,
                                                  omit.years = NULL,
                                                  sources.to.use = NULL,
+                                                 minimum.error.sd = 0,
                                                  correlation.different.years = 0.5,
                                                  correlation.different.strata = 0.1,
                                                  correlation.different.sources = 0.3,
@@ -79,6 +81,7 @@ create.basic.likelihood.instructions <- function(outcome.for.data,
         included.multiplier.sd = NULL,
         included.multiplier.correlation = NULL,
         included.multiplier.correlation.structure = c("compound.symmetry", "autoregressive.1")[1],
+        minimum.error.sd = minimum.error.sd,
         correlation.different.years = correlation.different.years,
         correlation.different.strata = correlation.different.strata,
         correlation.different.sources = correlation.different.sources,
@@ -107,6 +110,7 @@ create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.
                                                                         from.year,
                                                                         to.year,
                                                                         omit.years = NULL,
+                                                                        minimum.error.sd = 0,
                                                                         correlation.different.years = 0.5,
                                                                         observation.correlation.form = c("compound.symmetry", "autoregressive.1")[1],
                                                                         error.variance.term = NULL,
@@ -126,6 +130,7 @@ create.basic.likelihood.instructions.with.specified.outcome <- function(outcome.
         to.year = to.year,
         omit.years = omit.years,
         sources.to.use = NULL,
+        minimum.error.sd = minimum.error.sd,
         included.multiplier = NULL,
         included.multiplier.sd = NULL,
         included.multiplier.correlation = NULL,
@@ -166,6 +171,7 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
                                                                           to.year = Inf,
                                                                           omit.years = NULL,
                                                                           sources.to.use = NULL,
+                                                                          minimum.error.sd = 0,
                                                                           included.multiplier,
                                                                           included.multiplier.sd,
                                                                           included.multiplier.correlation = NULL,
@@ -192,6 +198,7 @@ create.basic.likelihood.instructions.with.included.multiplier <- function(outcom
         to.year = to.year,
         omit.years = omit.years,
         sources.to.use = sources.to.use,
+        minimum.error.sd = minimum.error.sd,
         included.multiplier = included.multiplier,
         included.multiplier.sd = included.multiplier.sd,
         included.multiplier.correlation = included.multiplier.correlation,
@@ -228,6 +235,7 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
                                                                   to.year = Inf,
                                                                   omit.years = NULL,
                                                                   sources.to.use = NULL,
+                                                                  minimum.error.sd = 0,
                                                                   correlation.different.years = 0.5,
                                                                   correlation.different.strata = 0.1,
                                                                   correlation.different.sources = 0.3,
@@ -253,6 +261,7 @@ create.time.lagged.comparison.likelihood.instructions <- function(outcome.for.da
         to.year = to.year,
         omit.years = omit.years,
         sources.to.use = sources.to.use,
+        minimum.error.sd = minimum.error.sd,
         included.multiplier = NULL,
         included.multiplier.sd = NULL,
         included.multiplier.correlation = NULL,
@@ -293,6 +302,7 @@ create.time.lagged.comparison.likelihood.instructions.with.included.multiplier <
                                                                                            to.year = Inf,
                                                                                            omit.years = NULL,
                                                                                            sources.to.use = NULL,
+                                                                                           minimum.error.sd = 0,
                                                                                            included.multiplier,
                                                                                            included.multiplier.sd,
                                                                                            included.multiplier.correlation = NULL,
@@ -320,6 +330,7 @@ create.time.lagged.comparison.likelihood.instructions.with.included.multiplier <
         to.year = to.year,
         omit.years = omit.years,
         sources.to.use = sources.to.use,
+        minimum.error.sd = minimum.error.sd,
         included.multiplier = included.multiplier,
         included.multiplier.sd = included.multiplier.sd,
         included.multiplier.correlation = included.multiplier.correlation,
@@ -355,6 +366,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                               to.year,
                               omit.years,
                               sources.to.use,
+                              minimum.error.sd,
                               included.multiplier,
                               included.multiplier.sd,
                               included.multiplier.correlation,
@@ -510,6 +522,10 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                     stop(paste0(error.prefix, "The 'error.variance.term' corresponding to a type of 'function.sd', must be a function that takes arguments 'data' and 'details' and returns a numeric array of the same dimensions as ‘data’, with no NA values, that represents the sd for each measurement in data."))
             }
             
+            # *minimum.error.sd* must be positive and not infinite.
+            if (!is.numeric(minimum.error.sd) || length(minimum.error.sd)!=1 || is.na(minimum.error.sd) || minimum.error.sd < 0 || is.infinite(minimum.error.sd))
+                stop(paste0(error.prefix, "'minimum.error.sd' must be a single, non-infinite positive number."))
+            
             # *weights* -- validated in the super$initialize
             
             # *equalize.weight.by.year* is a boolean
@@ -568,6 +584,7 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             private$i.equalize.weight.by.year <- equalize.weight.by.year
             private$i.sources.to.use <- sources.to.use
             private$i.parameters <- list(
+                minimum.error.sd = minimum.error.sd,
                 included.multiplier = included.multiplier,
                 included.multiplier.sd = included.multiplier.sd,
                 included.multiplier.correlation = included.multiplier.correlation,
@@ -1139,6 +1156,10 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                 }
             })
             total.measurement.error.sd = sqrt(colSums(do.call(rbind, measurement.error.variances)))
+            
+            # Replace sd values below the minimum with the minimum value to avoid zeroes (which can come from sd = cv * 0)
+            total.measurement.error.sd[total.measurement.error.sd < private$i.parameters$minimum.error.sd] = private$i.parameters$minimum.error.sd
+            
             private$i.measurement.error.covariance.matrix = measurement.error.correlation.matrix * (total.measurement.error.sd %*% t(total.measurement.error.sd))
             
             ## included multiplier to make inverse multiplier matrix times covariance matrix
