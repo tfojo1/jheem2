@@ -56,7 +56,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              omit.years = NULL,
                                                              sources.to.use = NULL,
                                                              exclude.denominator.ontology.names = NULL,
-                                                             redundant.location.threshold = 5,
+                                                             location.stratum.keep.threshold = 1,
                                                              p.bias.inside.location,
                                                              p.bias.outside.location,
                                                              p.bias.sd.inside.location,
@@ -93,7 +93,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
         omit.years = omit.years,
         sources.to.use = sources.to.use,
         exclude.denominator.ontology.names = exclude.denominator.ontology.names,
-        redundant.location.threshold = redundant.location.threshold,
+        location.stratum.keep.threshold = location.stratum.keep.threshold,
         included.multiplier = NULL,
         included.multiplier.sd = NULL,
         included.multiplier.correlation = NULL,
@@ -146,7 +146,7 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
                                                                                       omit.years = NULL,
                                                                                       sources.to.use = NULL,
                                                                                       exclude.denominator.ontology.names = NULL,
-                                                                                      redundant.location.threshold = 5,
+                                                                                      location.stratum.keep.threshold = 1,
                                                                                       included.multiplier,
                                                                                       included.multiplier.sd,
                                                                                       included.multiplier.correlation = NULL,
@@ -187,7 +187,7 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
         omit.years = omit.years,
         sources.to.use = sources.to.use,
         exclude.denominator.ontology.names = exclude.denominator.ontology.names,
-        redundant.location.threshold = redundant.location.threshold,
+        location.stratum.keep.threshold = location.stratum.keep.threshold,
         included.multiplier = included.multiplier,
         included.multiplier.sd = included.multiplier.sd,
         included.multiplier.correlation = included.multiplier.correlation,
@@ -239,7 +239,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
                                                                                     omit.years = NULL,
                                                                                     sources.to.use = NULL,
                                                                                     exclude.denominator.ontology.names = NULL,
-                                                                                    redundant.location.threshold = 5,
+                                                                                    location.stratum.keep.threshold = 1,
                                                                                     p.bias.inside.location,
                                                                                     p.bias.outside.location,
                                                                                     p.bias.sd.inside.location,
@@ -280,7 +280,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
         omit.years = omit.years,
         sources.to.use = sources.to.use,
         exclude.denominator.ontology.names = exclude.denominator.ontology.names,
-        redundant.location.threshold = redundant.location.threshold,
+        location.stratum.keep.threshold = location.stratum.keep.threshold,
         included.multiplier = NULL,
         included.multiplier.sd = NULL,
         included.multiplier.correlation = NULL,
@@ -330,7 +330,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                               omit.years,
                               sources.to.use,
                               exclude.denominator.ontology.names,
-                              redundant.location.threshold,
+                              location.stratum.keep.threshold,
                               included.multiplier,
                               included.multiplier.sd,
                               included.multiplier.correlation,
@@ -432,9 +432,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 stop(paste0(error.prefix, "'sources.to.use' must be NULL or a character vector containing no NAs or duplicates"))
             }
 
-            # *redundant.location.threshold* is a nonnegative numeric value
-            if (!is.numeric(redundant.location.threshold) || length(redundant.location.threshold) != 1 || is.na(redundant.location.threshold) || redundant.location.threshold < 0) {
-                stop(paste0(error.prefix, "'redundant.location.threshold' must be a single, non-negative numeric value"))
+            # *location.stratum.keep.threshold* is a nonnegative numeric value
+            if (!is.numeric(location.stratum.keep.threshold) || length(location.stratum.keep.threshold) != 1 || is.na(location.stratum.keep.threshold) || location.stratum.keep.threshold < 0) {
+                stop(paste0(error.prefix, "'location.stratum.keep.threshold' must be a single, non-negative numeric value"))
             }
 
             # *included.multiplier* is NULL, a single numeric value, or a named numeric vector with names corresponding to years or year ranges.
@@ -589,7 +589,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
 
             private$i.sources.to.use <- sources.to.use
             private$i.exclude.denominator.ontology.names <- exclude.denominator.ontology.names
-            private$i.redundant.location.threshold <- redundant.location.threshold
+            private$i.location.stratum.keep.threshold <- location.stratum.keep.threshold
             private$i.parameters <- list(
                 included.multiplier = included.multiplier,
                 included.multiplier.sd = included.multiplier.sd,
@@ -691,11 +691,11 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 stop(paste0("Cannot modify a jheem.likelihood.instruction's 'exclude.denominator.ontology.names' - they are read-only"))
             }
         },
-        redundant.location.threshold = function(value) {
+        location.stratum.keep.threshold = function(value) {
             if (missing(value)) {
-                private$i.redundant.location.threshold
+                private$i.location.stratum.keep.threshold
             } else {
-                stop("Cannot modify a jheem.likelihood.instruction's 'redundant.location.threshold' - it is read-only")
+                stop("Cannot modify a jheem.likelihood.instruction's 'location.stratum.keep.threshold' - it is read-only")
             }
         },
         location.types = function(value) {
@@ -756,7 +756,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
         i.parameters = NULL,
         i.sources.to.use = NULL,
         i.exclude.denominator.ontology.names = NULL,
-        i.redundant.location.threshold = NULL,
+        i.location.stratum.keep.threshold = NULL,
         i.partitioning.function = NULL,
         i.use.lognormal.approximation = NULL,
         i.calculate.lagged.difference = NULL
@@ -787,7 +787,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 error.prefix = error.prefix
             )
 
-            post.time.checkpoint.flag <- T
+            post.time.checkpoint.flag <- F
 
             # Validate *data.manager*, a 'jheem.data.manager' object
             if (!R6::is.R6(data.manager) || !is(data.manager, "jheem.data.manager")) {
@@ -1093,7 +1093,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 if (post.time.checkpoint.flag) print(paste0("Finish pulling: ", Sys.time()))
 
                 # Remove points in each stratum where a location doesn't contribute enough beyond what the main location does; they are useless bulk
-                redundancy.mask.list <- private$get.redundancy.mask.list(location, private$i.metadata, instructions$redundant.location.threshold)
+                redundancy.mask.list <- private$get.redundancy.mask.list(location, private$i.metadata, instructions$location.stratum.keep.threshold)
                 private$i.obs.p <- private$i.obs.p[!unlist(redundancy.mask.list)]
                 private$i.metadata <- private$i.metadata[!unlist(redundancy.mask.list), ]
                 private$i.details <- private$i.details[!unlist(redundancy.mask.list)]
