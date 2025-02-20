@@ -448,14 +448,6 @@ do.get.ontology.mapping <- function(from.ontology,
     rv = ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings[[hash.from]][[hash.to]]
     if (is.null(rv) || for.examination || DEBUG.ONTOLOGY.MAPPINGS)
     {
-#start.time = as.numeric(Sys.time())
-        #-- Call the sub-function --#
-        # TRACKED.CALLS <<- c(TRACKED.CALLS,
-        #                     list(
-        #                         list(from.ontology = from.ontology,
-        #                              to.ontology = to.ontology,
-        #                              allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions)
-        #                     ))
         mappings = find.ontology.mapping(from.ontology = from.ontology,
                                          to.ontology = to.ontology,
                                          required.dimensions = names(to.ontology),
@@ -466,15 +458,7 @@ do.get.ontology.mapping <- function(from.ontology,
 
         #-- Package up and cache --#
         rv = combine.ontology.mappings(mappings[[1]], thorough.validation=F)
-# end.time = as.numeric(Sys.time())
-# TRACKED.CALLS <<- c(TRACKED.CALLS,
-#                     list(
-#                         list(time = end.time-start.time,
-#                              from.ontology = from.ontology,
-#                              to.ontology = to.ontology,
-#                              success = !is.null(rv),
-#                              result = rv)
-#                     ))
+
         ONTOLOGY.MAPPING.MANAGER$cached.one.way.mappings[[hash.from]][[hash.to]] = rv
     }
     
@@ -548,14 +532,6 @@ do.get.mappings.to.align.ontologies <- function(ontology.1,
 
     if (is.null(rv) || for.examination || DEBUG.ONTOLOGY.MAPPINGS)
     {
-# start.time = as.numeric(Sys.time())
-        #-- Call the sub-function --#
-        # TRACKED.CALLS <<- c(TRACKED.CALLS,
-        #                     list(
-        #                         list(ontology.1 = ontology.1,
-        #                              ontology.2 = ontology.2,
-        #                              allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions)
-        #                     ))
         mappings = find.ontology.mapping(from.ontology = ontology.1,
                                          to.ontology = ontology.2,
                                          required.dimensions = align.on.dimensions,
@@ -572,15 +548,6 @@ do.get.mappings.to.align.ontologies <- function(ontology.1,
                       mapping.from.2 = combine.ontology.mappings(mappings[[2]], thorough.validation = F) )
         
         ONTOLOGY.MAPPING.MANAGER$cached.two.way.mappings[[hash1]][[hash2]] = rv
-# end.time = as.numeric(Sys.time())
-# TRACKED.CALLS <<- c(TRACKED.CALLS,
-#                     list(
-#                         list(time = end.time-start.time,
-#                              ontology.1 = ontology.1,
-#                              ontology.2 = ontology.2,
-#                              success = !is.null(rv),
-#                              result = rv)
-#                     ))
     }
         
     if (is.null(rv) && !for.examination)
@@ -733,7 +700,9 @@ map.value.ontology <- function(value,
             }
             
             if (is.null(mappings))
+            {
                 stop(paste0(error.prefix, "Cannot map value's ontology - there is no set of mappings that aligns the dimnames of 'value' with 'target.dim.names'"))
+            }
         }
         
         mapping.from.value = mappings[[1]]
