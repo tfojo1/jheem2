@@ -19,13 +19,14 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions(
   omit.years = NULL,
   sources.to.use = NULL,
   exclude.denominator.ontology.names = NULL,
-  redundant.location.threshold = 5,
+  location.stratum.keep.threshold = 1,
   p.bias.inside.location,
   p.bias.outside.location,
   p.bias.sd.inside.location,
   p.bias.sd.outside.location,
   within.location.p.error.correlation = 0.5,
   within.location.n.error.correlation = 0.5,
+  minimum.error.sd = 0,
   correlation.different.locations = 0,
   correlation.different.years = 0.5,
   correlation.different.strata = 0.1,
@@ -74,6 +75,8 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions(
 \item{p.bias.sd.inside.location}{The standard deviation associated with 'p.bias.inside.location'}
 
 \item{within.location.p.error.correlation, within.location.n.error.correlation}{Single numeric values specifying the correlation between p or n values from the same location and stratum}
+
+\item{minimum.error.sd}{A single, positive numeric value. If any standard deviations are calculated to a value below this, they will be replaced with this value. This can help keep the likelihood from computing to negative infinity.}
 
 \item{correlation.different.locations}{A single numeric value specifying the correlation between observations of different locations.}
 

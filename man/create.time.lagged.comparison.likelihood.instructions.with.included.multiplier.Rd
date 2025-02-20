@@ -15,6 +15,7 @@ create.time.lagged.comparison.likelihood.instructions.with.included.multiplier(
   to.year = Inf,
   omit.years = NULL,
   sources.to.use = NULL,
+  minimum.error.sd = 0,
   included.multiplier,
   included.multiplier.sd,
   included.multiplier.correlation = NULL,
@@ -51,6 +52,8 @@ create.time.lagged.comparison.likelihood.instructions.with.included.multiplier(
 \item{omit.years}{(Optional) An integer vector of years to ignore.}
 
 \item{sources.to.use}{A character vector of sources from which to pull data.}
+
+\item{minimum.error.sd}{A single, positive numeric value. If any standard deviations are calculated to a value below this, they will be replaced with this value. This can help keep the likelihood from computing to negative infinity.}
 
 \item{included.multiplier}{The value of the multiplier that has already been used in calculating the simulation value of the outcome (represents the mean of the distribution around the multiplier).}
 

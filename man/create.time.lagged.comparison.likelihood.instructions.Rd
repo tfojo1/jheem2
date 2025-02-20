@@ -15,6 +15,7 @@ create.time.lagged.comparison.likelihood.instructions(
   to.year = Inf,
   omit.years = NULL,
   sources.to.use = NULL,
+  minimum.error.sd = 0,
   correlation.different.years = 0.5,
   correlation.different.strata = 0.1,
   correlation.different.sources = 0.3,
@@ -48,6 +49,8 @@ create.time.lagged.comparison.likelihood.instructions(
 \item{omit.years}{(Optional) An integer vector of years to ignore.}
 
 \item{sources.to.use}{A character vector of sources from which to pull data.}
+
+\item{minimum.error.sd}{A single, positive numeric value. If any standard deviations are calculated to a value below this, they will be replaced with this value. This can help keep the likelihood from computing to negative infinity.}
 
 \item{correlation.different.years}{A single numeric value specifying the correlation between observations of different years.}
 

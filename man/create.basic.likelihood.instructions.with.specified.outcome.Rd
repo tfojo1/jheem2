@@ -10,6 +10,7 @@ create.basic.likelihood.instructions.with.specified.outcome(
   from.year,
   to.year,
   omit.years = NULL,
+  minimum.error.sd = 0,
   correlation.different.years = 0.5,
   observation.correlation.form = c("compound.symmetry", "autoregressive.1")[1],
   error.variance.term = NULL,
@@ -29,6 +30,8 @@ create.basic.likelihood.instructions.with.specified.outcome(
 \item{to.year}{Inf or a single integer value specifying the latest year for which data should be pulled.}
 
 \item{omit.years}{(Optional) An integer vector of years to ignore.}
+
+\item{minimum.error.sd}{A single, positive numeric value. If any standard deviations are calculated to a value below this, they will be replaced with this value. This can help keep the likelihood from computing to negative infinity.}
 
 \item{correlation.different.years}{A single numeric value specifying the correlation between observations of different years.}
 
