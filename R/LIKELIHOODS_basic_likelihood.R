@@ -886,7 +886,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                     
                     if (is.null(data)) {
                         if (throw.error.if.no.data) {
-                            stop(paste0(error.prefix, "no data was found for the stratification '", strat, "'"))
+                            stop(paste0(error.prefix, "no data was found for the stratification '", paste(strat, collapse='__'),  "'"))
                         } else {
                             next
                         }
@@ -918,12 +918,13 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                                                                 allow.mapping.from.target.ontology = T)
                                 
                                 if (is.null(error.data)) {
-                                    if (throw.error.if.no.data)
-                                        stop(paste0(error.prefix, "no ", metric.map[[type]], ", data was found for the stratification '", strat, "'"))
-                                    else next
+                                    stop(paste0(error.prefix, "no ", metric.map[[type]], ", data was found for the stratification '", paste(strat, collapse='__'),  "'"))
                                 }
                                 
+                                ## This can fail if we don't get the same sources.
                                 common.dimnames <- get.dimension.values.overlap(dimnames(data), dimnames(error.data))
+                                if (is.null(common.dimnames))
+                                    stop(paste0(error.prefix, "insufficient ", metric.map[[type]], ", data was found for the stratification '", paste(strat, collapse='__'),  "'"))
                                 one.details <- array.access(one.details, common.dimnames)
                                 error.data <- array.access(error.data, common.dimnames)
                                 data <- array.access(data, common.dimnames)

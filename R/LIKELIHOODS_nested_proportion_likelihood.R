@@ -955,13 +955,15 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                                                                   target.ontology = private$i.sim.ontology,
                                                                   allow.mapping.from.target.ontology = T)
                                 
-                                if (is.null(p.error.data)) {
-                                    if (throw.error.if.no.data)
-                                        stop(paste0(error.prefix, "no ", metric.map[[type]], ", data was found for the stratification '", strat, "'"))
-                                    else next
+                                if (is.null(error.data)) {
+                                    stop(paste0(error.prefix, "no ", metric.map[[type]], ", data was found for the stratification '", paste(strat, collapse='__'),  "'"))
                                 }
                                 
+                                ## This can fail if we don't get the same sources.
                                 common.dimnames <- get.dimension.values.overlap(dimnames(data), dimnames(p.error.data))
+                                if (is.null(common.dimnames))
+                                    stop(paste0(error.prefix, "insufficient ", metric.map[[type]], ", data was found for the stratification '", paste(strat, collapse='__'),  "'"))
+                                
                                 one.details <- array.access(one.details, common.dimnames)
                                 p.error.data <- array.access(p.error.data, common.dimnames)
                                 data <- array.access(data, common.dimnames)
