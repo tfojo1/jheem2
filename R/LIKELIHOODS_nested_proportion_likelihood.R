@@ -1109,6 +1109,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 private$i.obs.p <- private$i.obs.p[!unlist(redundancy.mask.list)]
                 private$i.metadata <- private$i.metadata[!unlist(redundancy.mask.list), ]
                 private$i.details <- private$i.details[!unlist(redundancy.mask.list)]
+                private$i.p.error.vector.list <- lapply(private$i.p.error.vector.list, function(x) {
+                    x[!unlist(redundancy.mask.list)]
+                })
                 private$i.n.obs <- length(private$i.obs.p)
                 
                 # Update the remove mask list
