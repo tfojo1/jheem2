@@ -421,6 +421,38 @@ pull.data <- function(data.manager = get.default.data.manager(),
                       ...)
 }
 
+#' @title Remove Data From Data Manager
+#' @description Replaces data with NA if data exists
+#' @inheritParams put.data
+#' @param details.for.removal,url.for.removal Single character values to use for these points' 'details' and 'url'
+#' @export
+remove.data = function(data.manager,
+                       outcome,
+                       dimension.values,
+                       source,
+                       ontology.name,
+                       metric = 'estimate',
+                       details.for.removal='removed',
+                       url.for.removal='url') {
+    
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+    
+    # Put NAs with overwrite=T
+    data.manager$put(as.numeric(NA),
+                     outcome=outcome,
+                     metric=metric,
+                     source=source,
+                     ontology.name=ontology.name,
+                     dimension.values=dimension.values,
+                     details=details.for.removal,
+                     url=url.for.removal,
+                     allow.na.to.overwrite = T,
+                     is.removal = T
+    )
+    
+}
+
 #'@title Get pretty names for outcomes
 #'
 #'@details Gets the pretty.names, labels, or descriptions registered for the outcomes with the data manager
@@ -1020,6 +1052,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                        allow.na.to.overwrite=F,
                        dimension.values.to.distribute=list(),
                        round.distributed.dimension.values=T,
+                       is.removal=F,
                        debug=F,
                        printouts=F)
         {
@@ -1058,6 +1091,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             error.prefix = paste0("Unable to put '", outcome, "' data to ontology '",
                                   ontology.name, "' in data.manager '", private$i.name, "': ")
             
+            if (!is.logical(is.removal) || length(is.removal)!=1 || is.na(is.removal))
+                stop(paste0(error.prefix, "'is.removal' must be T or F"))
+            
             # 3) *data* is
             #   -- numeric
             #   -- appropriate for the scale of the outcome
@@ -1072,6 +1108,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (length(data)==0)
                 stop(paste0(error.prefix,
                             "'data' must have length > 0"))
+            
+            if (is.removal && (length(data)!=1 || !is.na(data)))
+                stop(paste0(error.prefix,
+                            "'data' must be 'NA' if 'is.removal' is TRUE"))
             
             ###
             if (metric %in% c('estimate', 'upper.bound', 'lower.bound'))
@@ -1329,6 +1369,11 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             ## ANDREW'S NEW LOGIC TO ACCOMMODATE MULTIPLE METRICS AND ENSURING ALIGNED DIMNAMES AMONG ALL
             existing.dim.names.this.metric = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]])
             data.already.present.this.metric = !is.null(existing.dim.names.this.metric)
+            
+            # Here, if this put is intended for removal, we will limit our put dim names to the intersection with existing dim names.
+            if (is.removal) {
+                put.dim.names = intersect.shared.dim.names(put.dim.names, data.already.present.this.metric)
+            }
             
             all.metric.names = names(private$i.data[[outcome]])
             existing.dim.names = lapply(names(private$i.data[[outcome]]), function(metr) {
@@ -2409,34 +2454,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             rv
         },
-        
-        remove = function(outcome,
-                          metric = 'estimate',
-                          keep.dimension = NULL,
-                          dimension.values = NULL,
-                          sources = NULL,
-                          ontology.names = NULL,
-                          details.for.removal='removed',
-                          url.for.removal='url') {
-            
-            # Validate arguments?
-            
-            # Don't add NAs if there isn't already data there.
-            
-            
-            # Put NAs with overwrite=T
-            self$put(NA,
-                     outcome=outcome,
-                     metric=metric,
-                     source=source,
-                     ontology.name=ontology.name,
-                     dimension.values=dimension.values,
-                     details=details.for.removal,
-                     url=url.for.removal,
-                     allow.na.to.overwrite = T
-            )
-            
-        }
         
         get.outcome.pretty.names = function(outcomes)
         {
