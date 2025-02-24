@@ -3,6 +3,7 @@
 #' @inheritParams create.basic.likelihood.instructions
 #' @param location.types The types of the locations that contain or are contained by the model location.
 #' @param minimum.geographic.resolution.type The type of location used to partition locations. The type of the model location AND 'location.types' types must all completely enclose regions of this type
+#' @param location.overall.keep.threshold,location.stratum.keep.threshold How many data points a location must offer beyond what is found for the main location to justify being retained. Either overall (across ALL strata in total) or on a stratum-by-stratum basis. If a location doesn't meet the overall threshold, it will be ignored entirely. If it does, but fails to meet the stratum threshold for a certain stratum, it will be ignored only in that stratum.
 #' @param p.bias.inside.location A single numeric value specifying the bias in the outcome proportion between locations inside the model location and the model location itself
 #' @param p.bias.outside.location A single numeric value specifying the bias in the outcome proportion between locations outside the model location and the model location itself
 #' @param p.bias.sd.inside.location The standard deviation associated with 'p.bias.inside.location'
@@ -57,6 +58,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              omit.years = NULL,
                                                              sources.to.use = NULL,
                                                              exclude.denominator.ontology.names = NULL,
+                                                             location.overall.keep.threshold = 5,
                                                              location.stratum.keep.threshold = 1,
                                                              p.bias.inside.location,
                                                              p.bias.outside.location,
@@ -95,6 +97,7 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
         omit.years = omit.years,
         sources.to.use = sources.to.use,
         exclude.denominator.ontology.names = exclude.denominator.ontology.names,
+        location.overall.keep.threshold = location.overall.keep.threshold,
         location.stratum.keep.threshold = location.stratum.keep.threshold,
         included.multiplier = NULL,
         included.multiplier.sd = NULL,
@@ -149,6 +152,7 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
                                                                                       omit.years = NULL,
                                                                                       sources.to.use = NULL,
                                                                                       exclude.denominator.ontology.names = NULL,
+                                                                                      location.overall.keep.threshold = 5,
                                                                                       location.stratum.keep.threshold = 1,
                                                                                       included.multiplier,
                                                                                       included.multiplier.sd,
@@ -191,6 +195,7 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
         omit.years = omit.years,
         sources.to.use = sources.to.use,
         exclude.denominator.ontology.names = exclude.denominator.ontology.names,
+        location.overall.keep.threshold = location.overall.keep.threshold,
         location.stratum.keep.threshold = location.stratum.keep.threshold,
         included.multiplier = included.multiplier,
         included.multiplier.sd = included.multiplier.sd,
@@ -244,6 +249,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
                                                                                     omit.years = NULL,
                                                                                     sources.to.use = NULL,
                                                                                     exclude.denominator.ontology.names = NULL,
+                                                                                    location.overall.keep.threshold = 5,
                                                                                     location.stratum.keep.threshold = 1,
                                                                                     p.bias.inside.location,
                                                                                     p.bias.outside.location,
@@ -286,6 +292,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
         omit.years = omit.years,
         sources.to.use = sources.to.use,
         exclude.denominator.ontology.names = exclude.denominator.ontology.names,
+        location.overall.keep.threshold = location.overall.keep.threshold,
         location.stratum.keep.threshold = location.stratum.keep.threshold,
         included.multiplier = NULL,
         included.multiplier.sd = NULL,
@@ -337,6 +344,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                               omit.years,
                               sources.to.use,
                               exclude.denominator.ontology.names,
+                              location.overall.keep.threshold,
                               location.stratum.keep.threshold,
                               included.multiplier,
                               included.multiplier.sd,
@@ -537,6 +545,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             }
 
             non.negative.not.infinity <- list(
+                location.overall.keep.threshold = location.overall.keep.threshold,
                 p.bias.sd.inside.location = p.bias.sd.inside.location,
                 p.bias.sd.outside.location = p.bias.sd.outside.location,
                 minimum.error.sd = minimum.error.sd,
@@ -598,6 +607,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
 
             private$i.sources.to.use <- sources.to.use
             private$i.exclude.denominator.ontology.names <- exclude.denominator.ontology.names
+            private$i.location.overall.keep.threshold <- location.overall.keep.threshold
             private$i.location.stratum.keep.threshold <- location.stratum.keep.threshold
             private$i.parameters <- list(
                 included.multiplier = included.multiplier,
@@ -701,6 +711,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 stop(paste0("Cannot modify a jheem.likelihood.instruction's 'exclude.denominator.ontology.names' - they are read-only"))
             }
         },
+        location.overall.keep.threshold = function(value) {
+            if (missing(value)) {
+                private$i.location.overall.keep.threshold
+            } else {
+                stop("Cannot modify a jheem.likelihood.instruction's 'location.overall.keep.threshold' - it is read-only")
+            }
+        },
         location.stratum.keep.threshold = function(value) {
             if (missing(value)) {
                 private$i.location.stratum.keep.threshold
@@ -766,6 +783,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
         i.parameters = NULL,
         i.sources.to.use = NULL,
         i.exclude.denominator.ontology.names = NULL,
+        i.location.overall.keep.threshold = NULL,
         i.location.stratum.keep.threshold = NULL,
         i.partitioning.function = NULL,
         i.use.lognormal.approximation = NULL,
@@ -1103,9 +1121,16 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 if (private$i.n.obs == 0) stop(paste0(error.prefix, "no data was found for any stratification"))
 
                 if (post.time.checkpoint.flag) print(paste0("Finish pulling: ", Sys.time()))
+                
+                # Find redundant locations (have at most only a few more data points than the main location does) and remove them, only if we have data for our main location
+                redundant.locations <- NULL
+
+                if (location %in% private$i.metadata$location)
+                    redundant.locations <- private$get.redundant.locations(location, private$i.metadata, extra.points.needed.to.keep = instructions$location.overall.keep.threshold) #instructions$redundant.location.threshold
 
                 # Remove points in each stratum where a location doesn't contribute enough beyond what the main location does; they are useless bulk
-                redundancy.mask.list <- private$get.redundancy.mask.list(location, private$i.metadata, instructions$location.stratum.keep.threshold)
+                redundancy.mask.list <- private$get.redundancy.mask.list(location, private$i.metadata, redundant.locations, instructions$location.stratum.keep.threshold)
+
                 private$i.obs.p <- private$i.obs.p[!unlist(redundancy.mask.list)]
                 private$i.metadata <- private$i.metadata[!unlist(redundancy.mask.list), ]
                 private$i.details <- private$i.details[!unlist(redundancy.mask.list)]
@@ -1120,15 +1145,21 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     rv[!rv] = redundancy.mask.list[[i]]
                     rv
                 })
+                
+                # Check if we even have data for more than just the main location.
+                if (setequal(unique(private$i.metadata$location), location))
+                    stop(paste0(error.prefix, "data only found for main location after removing redundant locations"))
+                if (nrow(private$i.metadata)==0)
+                    stop(paste0(error.prefix, "no data remaining after removing redundant locations (shouldn't happen - ask Andrew"))
 
-                # The remove mask needs to be updated -- carefully -- because it is in reference to the state before removal and will be used later on for the transformation mapping matrix.
+                # The remove mask needs to be trimmed -- carefully -- because it is in reference to the state before removal and will be used later on for the transformation mapping matrix.
                 # Since location is the second dimension after year in all the arrays pulled, n.years times n.locations is the size of a block repeated a certain number of times
                 year.location.block.counts <- sapply(dimnames.list, function(x) {
                     prod(sapply(x, length)[!(names(x) %in% c("year", "location"))])
                 })
                 empty.locations <- setdiff(unique(unlist(locations.list)), unique(private$i.metadata$location)) # just throwing these in instead of duplicating code
                 removed.locations.list <- lapply(locations.list, function(x) {
-                    x %in% empty.locations
+                    x %in% c(empty.locations, redundant.locations)
                 })
                 redundant.locations.full.size.mask <- lapply(1:length(dimnames.list), function(i) {
                     rep(rep(removed.locations.list[[i]], each = length(dimnames.list[[i]]$year)), year.location.block.counts[[i]])
@@ -1800,8 +1831,31 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             rv
         },
         
-        # Returns 
-        get.redundancy.mask.list = function(main.location, full.metadata, extra.points.needed.to.keep, verbose=F, debug=F) {
+        get.redundant.locations = function(main.location, metadata, extra.points.needed.to.keep) { # have to say "main.location" instead of "location" because of subsetting by location==location
+            redundant.locations <- character(0)
+            
+            other.locations <- setdiff(unique(metadata$location), main.location)
+            if (length(other.locations) == 0) {
+                return(redundant.locations)
+            }
+            
+            metadata <- metadata[c("location", "year", "stratum")]
+            metadata <- metadata[!duplicated(metadata), ]
+            
+            main.data.combinations <- subset(metadata, subset = location == main.location)[c("year", "stratum")]
+            main.data.combinations <- paste(main.data.combinations$year, main.data.combinations$stratum, sep = "__")
+            
+            for (other.location in other.locations) {
+                this.location.combinations <- subset(metadata, location == other.location)[c("year", "stratum")]
+                this.location.combinations <- paste(this.location.combinations$year, this.location.combinations$stratum, sep = "__")
+                amount.extra.data.this.location <- setdiff(this.location.combinations, main.data.combinations)
+                if (length(amount.extra.data.this.location) < extra.points.needed.to.keep) redundant.locations <- c(redundant.locations, other.location)
+            }
+            return(redundant.locations)
+        },
+        
+        # Returns a list per stratification
+        get.redundancy.mask.list = function(main.location, full.metadata, overall.redundant.locations, extra.points.needed.to.keep, verbose=F, debug=F) {
             # have to say "main.location" instead of "location" because of subsetting by location==location
             
             if (debug) browser()
@@ -1837,7 +1891,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                         this.location.years <- unique(metadata.this.stratum$year[this.location.stratum.mask])
                         number.extra.years.this.location <- length(this.location.years) - length(main.location.years)
                         
-                        if (number.extra.years.this.location < extra.points.needed.to.keep)
+                        if (number.extra.years.this.location < extra.points.needed.to.keep ||
+                            other.location %in% overall.redundant.locations)
                             return.vector.this.location[this.location.stratum.mask] <- T
                         
                         return.vector.this.location
@@ -1860,29 +1915,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             
         },
         
-        get.redundant.locations = function(main.location, metadata, extra.points.needed.to.keep) { # have to say "main.location" instead of "location" because of subsetting by location==location
-            browser()
-            redundant.locations <- character(0)
-
-            other.locations <- setdiff(unique(metadata$location), main.location)
-            if (length(other.locations) == 0) {
-                return(redundant.locations)
-            }
-
-            metadata <- metadata[c("location", "year", "stratum")]
-            metadata <- metadata[!duplicated(metadata), ]
-
-            main.data.combinations <- subset(metadata, subset = location == main.location)[c("year", "stratum")]
-            main.data.combinations <- paste(main.data.combinations$year, main.data.combinations$stratum, sep = "__")
-
-            for (other.location in other.locations) {
-                this.location.combinations <- subset(metadata, location == other.location)[c("year", "stratum")]
-                this.location.combinations <- paste(this.location.combinations$year, this.location.combinations$stratum, sep = "__")
-                amount.extra.data.this.location <- setdiff(this.location.combinations, main.data.combinations)
-                if (length(amount.extra.data.this.location) < extra.points.needed.to.keep) redundant.locations <- c(redundant.locations, other.location)
-            }
-            return(redundant.locations)
-        },
         generate.transformation.matrix.nested = function(dimnames.list, locations.list, remove.mask.list, n.strats, sim.dimnames, all.locations) # note: did we sort all locations when we added the msa?
         {
             # It turns out that we NEED locations to be in different columns!
@@ -2250,9 +2282,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                         }
                     })
                     comprises.less.than.ten.percent.of.total <- sum.per.stratum / each.mask.applied < 0.1
-                    if (all(not.missing.more.than.thirty.percent | comprises.less.than.ten.percent.of.total)) {
+                    if (!any(is.na(comprises.less.than.ten.percent.of.total)) && all(not.missing.more.than.thirty.percent | comprises.less.than.ten.percent.of.total))
                         data <- interpolate.array(data)
-                    }
+                    # else (browser())
+                    
                 }
             }
 
