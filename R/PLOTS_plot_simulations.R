@@ -121,9 +121,6 @@ plot.simulations <- function(...,
                                       data.manager=data.manager,
                                       debug=F)
     
-    # Waiting on data returned from prepare.plot; stopgap
-    outcome.metadata = simset.list[[1]]$outcome.metadata
-    
     execute.plotly.plot(prepared.plot.data,
                         outcomes=outcomes,
                         split.by=split.by,
@@ -150,8 +147,10 @@ execute.plotly.plot <- function(prepared.plot.data,
   #-- UNPACK DATA --#
   df.sim=prepared.plot.data$df.sim
   df.truth=prepared.plot.data$df.truth
+  # browser()
   y.label = prepared.plot.data$details$y.label
   plot.title = prepared.plot.data$details$plot.title
+  outcome.metadata = prepared.plot.data$outcome.metadata.list
   
   #-- PREPARE PLOT COLORS, SHADES, SHAPES, ETC. --#
   
@@ -271,6 +270,7 @@ execute.plotly.plot <- function(prepared.plot.data,
       trace.data = subset(data.for.this.facet,
                           data.for.this.facet[[trace.column]] == trace_id)
           
+      # Don't pull from markers
       clean.group.id = gsub("^[a-zA-Z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
       
       base.trace = list (
@@ -725,7 +725,7 @@ execute.plotly.plot <- function(prepared.plot.data,
       y_bottom = (1-((y_i - 1) * ydelta))- buffer
       y_top = (1-(y_i * ydelta)) + buffer
         
-      fig$layout[[paste0("xaxis", i)]] = list(title = "years", domain = c(x_left,x_right), anchor = paste0("y",i))
+      fig$layout[[paste0("xaxis", i)]] = list(title = "Years", domain = c(x_left,x_right), anchor = paste0("y",i))
       fig$layout[[paste0("yaxis", i)]] = list(title = y.label, domain = c(y_bottom,y_top), anchor = paste0("x",i))
       fig$layout$annotations = append ( fig$layout$annotations, list(list ( 
         text = facet.categories[i],
