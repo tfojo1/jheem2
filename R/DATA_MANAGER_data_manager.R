@@ -1546,8 +1546,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             if (printouts) print('done with put long form')
         },
         
-        pull = function(data.manager,
-                        outcome,
+        pull = function(outcome,
                         metric = 'estimate',
                         keep.dimensions = NULL,
                         dimension.values = NULL,
@@ -2307,8 +2306,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             post.processed.data
         },
         
-        pull.age.robust = function(data.manager,
-                                   outcome,
+        pull.age.robust = function(outcome,
                                    metric = 'estimate',
                                    keep.dimensions = NULL,
                                    dimension.values = NULL,
@@ -2331,8 +2329,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         {
             # validate pull arguments internally
             if (!restratify.age || !('age' %in% union(keep.dimensions, names(dimension.values)))) {
-                rv = self$pull(data.manager = data.manager,
-                               outcome = outcome,
+                rv = self$pull(outcome = outcome,
                                metric = metric,
                                keep.dimensions = keep.dimensions,
                                dimension.values = dimension.values,
@@ -2350,8 +2347,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             else {
                 rv = tryCatch(
-                    {self$pull(data.manager = data.manager,
-                               outcome = outcome,
+                    {self$pull(outcome = outcome,
                                metric = metric,
                                keep.dimensions = keep.dimensions,
                                dimension.values = dimension.values,
@@ -2371,8 +2367,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 
                 if (is.null(rv)) {
                     target.ontology = target.ontology[names(target.ontology)!='age']
-                    rv = self$pull(data.manager = data.manager,
-                                   outcome = outcome,
+                    rv = self$pull(outcome = outcome,
                                    metric = metric,
                                    keep.dimensions = keep.dimensions,
                                    dimension.values = dimension.values,
@@ -2414,6 +2409,34 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             rv
         },
+        
+        remove = function(outcome,
+                          metric = 'estimate',
+                          keep.dimension = NULL,
+                          dimension.values = NULL,
+                          sources = NULL,
+                          ontology.names = NULL,
+                          details.for.removal='removed',
+                          url.for.removal='url') {
+            
+            # Validate arguments?
+            
+            # Don't add NAs if there isn't already data there.
+            
+            
+            # Put NAs with overwrite=T
+            self$put(NA,
+                     outcome=outcome,
+                     metric=metric,
+                     source=source,
+                     ontology.name=ontology.name,
+                     dimension.values=dimension.values,
+                     details=details.for.removal,
+                     url=url.for.removal,
+                     allow.na.to.overwrite = T
+            )
+            
+        }
         
         get.outcome.pretty.names = function(outcomes)
         {
