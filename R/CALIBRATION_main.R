@@ -277,6 +277,7 @@ set.up.calibration <- function(version,
                                                 location = location,
                                                 calibration.code = preceding.code,
                                                 root.dir = root.dir,
+                                                parameter.scales = all.parameter.scales,
                                                 get.one.set.of.parameters = calibration.info$is.preliminary,
                                                 error.prefix = error.prefix)
             
@@ -355,7 +356,20 @@ set.up.calibration <- function(version,
     }
     else
     {
-        stop("We're not yet set up to run non-preliminary calibrations")
+        n.samples = nrow(mcmc.summary$samples)
+        if (n.samples < calibration.info$n.chains)
+            stop(paste0(error.prefix, "There are not enough samples in the previous calibration run (",
+                        n.samples, ") to seed each of the ", calibration.info$n.chains,
+                        " new chains separately"))
+        else if (calibration.info$n.chains==1)
+            sample.indices = n.samples
+        else
+        {
+            spacing = floor(n.samples/(calibration.info$n.chains-1))
+            sample.indices = n.samples - spacing * ((calibration.info$n.chains-1):0)
+        }
+        
+        starting.mcmc.parameter.values = mcmc.summary$samples[sample.indices,,drop=F]
     }
     
     #-----------------#
@@ -1023,7 +1037,7 @@ prepare.mcmc.summary <- function(version,
                                  root.dir,
                                  parameter.scales,
                                  get.one.set.of.parameters = T,
-                                 burn.fraction = 0.5,
+                                 burn.fraction = 0.75,
                                  error.prefix = '')
 {
     dir = file.path(get.calibration.dir(version=version,
@@ -1109,8 +1123,14 @@ prepare.mcmc.summary <- function(version,
             new.samples = mcmc@samples
             n.new.samples = prod(dim(new.samples)) / dim(new.samples)['variable']
             
+            dim.names = list(NULL, variable=dimnames(new.samples)$variable)
+            dim(new.samples) = c(n.new.samples, variable=length(new.samples)/n.new.samples)
+            dimnames(new.samples) = dim.names
+            
+            samples = rbind(samples, new.samples)
+            
             new.samples = sapply(dimnames(new.samples)$variable, function(var.name){
-                values = new.samples[,,var.name]
+                values = new.samples[,var.name]
                 scale = parameter.scales[var.name]
                 if (scale=='identity')
                     values
@@ -1124,7 +1144,6 @@ prepare.mcmc.summary <- function(version,
             
             mean.new.samples = colMeans(new.samples)
             cov.new.samples = cov(new.samples)
-            samples = rbind(samples, new.samples)
             
             # Incorporate into the overall mean and cov mat
             if (is.null(sample.mean))

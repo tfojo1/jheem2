@@ -895,6 +895,7 @@ check.dim.names.valid <- function(dim.names,
     
     length.zero.mask = sapply(dim.names, length)==0
     if (any(length.zero.mask))
+    {
         stop(paste0(error.prefix,
                     "'The elements of '", variable.name.for.error, 
                     "' must all contain at least one value. ",
@@ -905,6 +906,7 @@ check.dim.names.valid <- function(dim.names,
                                   collapse.with.conjunction("'", names(dim.names)[length.zero.mask], "'"),
                                   " do not"))
         ))
+    }
     
     tabled.dimensions = table(names(dim.names))
     if (any(tabled.dimensions>1))

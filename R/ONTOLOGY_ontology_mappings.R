@@ -844,6 +844,8 @@ examine.recent.failed.ontology.mapping <- function(which=1,
 #'
 #'@description If no mapping can be found, prints detailed information on why we were unable to find a mapping
 #'
+#'@value Invisibly returns a list containing details of the call to get.ontology.mapping, including the ontologies used
+#'
 #'@export
 examine.get.ontology.mapping <- function(from.ontology,
                                          to.ontology,
@@ -872,6 +874,8 @@ examine.get.ontology.mapping <- function(from.ontology,
 #'@inheritParams examine.recent.failed.ontology.mapping
 #'
 #'@description If no mappings can be found, prints detailed information on why we were unable to find mappings
+#'
+#'@value Invisibly returns a list containing details of the call to get.mappings.to.align.ontologies, including the ontologies used
 #'
 #'@export
 examine.get.mappings.to.align.ontologies <- function(ontology.1,
@@ -2292,10 +2296,14 @@ ONTOLOGY.MAPPING = R6::R6Class(
             else
                 stop(paste0(error.prefix, "The 'fun' to apply an ontology mapping must be either a function or the name of a function"))
             
+            tryCatch({
             if (apply.sum && is.numeric(from.arr))
                 private$do.apply.sum(from.arr, to.dim.names, na.rm=na.rm, error.prefix=error.prefix)
             else
                 private$do.apply.non.sum(from.arr, to.dim.names, fun=fun, na.rm=na.rm, error.prefix=error.prefix)
+            },error = function(e){
+                browser()
+            })
         },
         
         reverse.apply = function(to.arr, 
@@ -3015,9 +3023,16 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
         do.reverse.apply.to.dim.names.or.ontology = function(to.dim.names,
                                                              error.prefix)
         {
-            given.to.values = get.every.combination(to.dim.names[self$to.dimensions])
+            # if (length(setdiff(self$to.dimensions, names(to.dim.names)))>0)
+            #     stop(paste0(error.prefix,
+            #                 "Cannot reverse apply mapping to dim.names - to.dim.names do not contain ",
+            #                 collapse.with.or("'", setdiff(self$to.dimensions, names(to.dim.names)), "'")
+            #                 ))
             
-            resulting.from.indices = unlist(apply(given.to.values, 1, row.indices.of, haystack = private$i.mapped.to.values))
+            relevant.dimensions = intersect(self$to.dimensions, names(to.dim.names))
+            given.to.values = get.every.combination(to.dim.names[relevant.dimensions])
+            
+            resulting.from.indices = unlist(apply(given.to.values, 1, row.indices.of, haystack = private$i.mapped.to.values[,relevant.dimensions,drop=F]))
             resulting.from.values = unique(private$i.mapped.from.values[resulting.from.indices,,drop=F])
             
             resulting.from.dim.names = lapply(self$from.dimensions, function(d){
@@ -3028,7 +3043,8 @@ BASIC.ONTOLOGY.MAPPING = R6::R6Class(
             })
             names(resulting.from.dim.names) = self$from.dimensions
             
-            dimensions.to.keep = setdiff(names(to.dim.names), setdiff(self$to.dimensions, self$from.dimensions))
+           # dimensions.to.keep = setdiff(names(to.dim.names), setdiff(self$to.dimensions, self$from.dimensions))
+            dimensions.to.keep = setdiff(union(names(to.dim.names), self$from.dimensions), setdiff(self$to.dimensions, self$from.dimensions))
             rv = lapply(dimensions.to.keep, function(d){
                 if (any(d==self$from.dimensions))
                     resulting.from.dim.names[[d]]
