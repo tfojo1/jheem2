@@ -1372,7 +1372,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Here, if this put is intended for removal, we will limit our put dim names to the intersection with existing dim names.
             if (is.removal) {
-                put.dim.names = intersect.shared.dim.names(put.dim.names, data.already.present.this.metric)
+                put.dim.names = intersect.shared.dim.names(put.dim.names, existing.dim.names.this.metric)
+                dimension.values = put.dim.names
             }
             
             all.metric.names = names(private$i.data[[outcome]])
@@ -1450,6 +1451,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 finalputtime = Sys.time()
                 print(paste0(dots, "Backup took ", finalputtime-backuptime))
             }
+            
             overwrite.indices = get.array.access.indices(arr.dim.names = dimnames(private$i.data[[outcome]][[metric]][[source]][[ontology.name]][[stratification]]),
                                                          dimension.values = c(dimnames(data), dimension.values))
             if (!allow.na.to.overwrite)
