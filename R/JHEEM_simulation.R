@@ -2199,5 +2199,5 @@ get.simulation.seed.from.parameters <- function(parameters)
     # we're going to transform each parameter such that it gives a value
     #  >=10 or <= -10
     # (so that even small numbers count towards the integer seed)
-    sum((parameters * 10^pmax(0, 1+ceiling(-log10(abs(parameters)))))[parameters!=0])
+    sum((parameters * 10^pmax(0, 1+ceiling(-log10(abs(parameters)))))[parameters!=0], na.rm=T)
 }
