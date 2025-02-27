@@ -150,7 +150,7 @@ execute.plotly.plot <- function(prepared.plot.data,
   # browser()
   y.label = prepared.plot.data$details$y.label
   plot.title = prepared.plot.data$details$plot.title
-  outcome.metadata = prepared.plot.data$outcome.metadata.list
+  outcome.metadata = prepared.plot.data$details$outcome.metadata.list
   
   #-- PREPARE PLOT COLORS, SHADES, SHAPES, ETC. --#
   
@@ -244,6 +244,7 @@ execute.plotly.plot <- function(prepared.plot.data,
   df.sim.groupids.many.members = subset(df.sim, !groupid_has_one_member)
 
   # browser()
+  plotly.debug = FALSE
   # Plotly uses 'dash' instead of 'dashed' for dashed lines, so 
   # convert the value in linetypes.for.sim
   linetypes.for.sim = gsub ("dashed", "dash", linetypes.for.sim)
@@ -265,13 +266,16 @@ execute.plotly.plot <- function(prepared.plot.data,
                              trace.column, 
                              marker.type, 
                              current.facet) {
+    if (plotly.debug) {
+      cat(paste0("cat.list: ",cat.list,"\ntrace.column: ", trace.column, "\ncurrent.facet: ",current.facet))
+    }
     
     lapply( cat.list, function (trace_id) {
       trace.data = subset(data.for.this.facet,
                           data.for.this.facet[[trace.column]] == trace_id)
           
       # Don't pull from markers
-      clean.group.id = gsub("^[a-zA-Z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
+      clean.group.id = trace_id #gsub("^[a-zA-Z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
       
       base.trace = list (
         type = "scatter",
@@ -348,7 +352,6 @@ execute.plotly.plot <- function(prepared.plot.data,
               color = "#202020",
               width = 1
             )
-            #  Add additional information here; shape of marker, size
           )
           return (trace)
         })
@@ -395,6 +398,17 @@ execute.plotly.plot <- function(prepared.plot.data,
     }
     rv
   }
+  
+  #Helper for properly creating the y.axis labels for the figures
+  y.axis.label.helper = function( outcome.metadata, outcome ) {
+    label = outcome.metadata[[outcome]]$axis.name
+    unit = outcome.metadata[[outcome]]$units
+    # We want to prevent a 'Cases (cases)' situation here
+    if (tolower(label) == tolower(unit)) {
+      return (label)
+    }
+    return (paste0(label," (",unit,")"))
+  }
   # Draw the plots
       
   # Define the list structure
@@ -405,6 +419,10 @@ execute.plotly.plot <- function(prepared.plot.data,
   # Add labels for the y-axis and a title for the plot
   fig$layout$title <- list(text = plot.title)
   
+  # Each figure will need a y axis label, but that will be determined by the outcome,
+  # So we should have a vector of y axis labels that the layout can use when laying
+  # out the plot
+  y.axis.labels = c()
   
   # Remove alpha guide (no direct equivalent in Plotly)
   # Nothing to do for alpha guides since they don’t exist in Plotly
@@ -424,7 +442,16 @@ execute.plotly.plot <- function(prepared.plot.data,
   
   # SIMULATION ELEMENTS
   if (!is.null(df.sim)) {
+    # Since this is simulation data, the marker type is "line"
+    marker.type = "line"
     
+    if (plotly.debug) {
+      cat("SIM\n\n")
+    }
+    
+    # browser()
+    # Creating a new column in the df.sim.groupids.many.members datafrae called 
+    # line.color, and assigning it the value of the color associated with the row
     df.sim.groupids.many.members$line.color = 
       unlist(lapply(df.sim.groupids.many.members$color.sim.by, function(val) {
         if (all(names(colors.for.sim) == "")) {
@@ -432,9 +459,11 @@ execute.plotly.plot <- function(prepared.plot.data,
         }
         colors.for.sim[val]
       }))
+    # Doing the same for line.shape (dashed vs solid)
     df.sim.groupids.many.members$line.shape = 
       unlist(lapply(df.sim.groupids.many.members$linetype.sim.by, function(val) {linetypes.for.sim[val]}))
     
+    # Doing the same as above, but for the df.sim.groupids.one.member dataframe
     df.sim.groupids.one.member$line.color = 
       unlist(lapply(df.sim.groupids.one.member$color.sim.by, function(val) {
         if (all(names(colors.for.sim) == "")) {
@@ -442,11 +471,18 @@ execute.plotly.plot <- function(prepared.plot.data,
         }
         colors.for.sim[val]
       }))
+    
     df.sim.groupids.one.member$line.shape = 
       unlist(lapply(df.sim.groupids.one.member$linetype.sim.by, function(val) {linetypes.for.sim[val]}))
     
     if (!is.null(split.by)) {
+      if (plotly.debug) {
+        cat("split.by\n")
+      }
       if (nrow(df.sim.groupids.many.members) > 0) {
+        if (plotly.debug) {
+          cat("  many members\n")
+        }
         # Add lines for multiple simulation groups
         # we know split.by has a value
         split.categories = unique (df.sim.groupids.many.members[[split.by]])
@@ -458,16 +494,20 @@ execute.plotly.plot <- function(prepared.plot.data,
           # Add as many traces to the figure as we have split.categories
             
         } else {
+          if (plotly.debug) {
+            cat("    facet by\n")
+          }        
           current.facet = 1
           # If it is non null, we want multiple figures within this plot
           facet.categories = unique (df.sim.groupids.many.members[[facet.by]])
+          fig$y.axis.labels = rep(y.axis.label.helper(outcome.metadata, outcomes[1]), length(facet.categories))
           figure.count = length(facet.categories)
           # For each figure, assign the split.by traces
           for (fac.cat in facet.categories) {
             data.for.this.facet = subset(df.sim.groupids.many.members,
                                          df.sim.groupids.many.members[[facet.by]] == fac.cat)
             # For each facet, we need to collect the trace for each split.by category
-            traces = collect.traces.for.facet(split.categories, data.for.this.facet, split.by, "groupid", "line",current.facet)
+            traces = collect.traces.for.facet(split.categories, data.for.this.facet, split.by, "groupid", marker.type,current.facet)
             current.facet = current.facet + 1
             fig$data = append(fig$data, traces)
           } # End of facets
@@ -475,6 +515,9 @@ execute.plotly.plot <- function(prepared.plot.data,
       }
       
       if (nrow(df.sim.groupids.one.member) > 0) {
+        if (plotly.debug) {
+          cat("  one member\n")
+        }        
         # Add points for single-member groups
         # print ("df.sim.groupids.one.member > 0")
         # TODO - incomplete example :
@@ -493,6 +536,9 @@ execute.plotly.plot <- function(prepared.plot.data,
       }
       
       if (summary.type != 'individual.simulation') {
+        if (plotly.debug) {
+          cat("  not individual simulation\n")
+        }        
         # print ("summary.type != 'individual.simulations")
         # TODO - incomplete example :
         # # Add ribbons for simulation confidence intervals
@@ -509,31 +555,53 @@ execute.plotly.plot <- function(prepared.plot.data,
         # rv$data <- append(rv$data, list(trace))
       }
     } else {
+      if (plotly.debug) {
+        cat ("no split by\n")
+      }        
       # Split.by is null; no splits on the plots
       if (nrow(df.sim.groupids.many.members) > 0) {
+        if (plotly.debug) {
+          cat ("  many members\n")
+        }        
         # Collect the single trace
         if (is.null(facet.by)) {
+          if (plotly.debug) {
+            cat ("    no facet by\n")
+          }        
           # No Faceting
           # single outcome vs multiple outcome
           # In multiple outcomes we have multiple "facets" (one
           # for each outcome)
           current.facet = 1
+          
+          # Add the proper y.axis.labels to the fig structure
+          fig$y.axis.labels = unlist(lapply(outcomes, function(category) {
+            y.axis.label.helper(outcome.metadata, category) 
+          }))
+          
+          # browser()
+          
           if (length(outcomes) > 1) {
             # Collect the trace for each outcome, treating each as a different facet    
             facet.categories = outcomes
             figure.count = length(facet.categories)
+            
+            # # Add the proper y.axis.labels to the fig structure
+            # fig$y.axis.labels = unlist(lapply(facet.categories, function(category) {
+            #   paste0(outcome.metadata[[category]]$axis.name," (",outcome.metadata[[category]]$units,")") 
+            # }))
+            # browser()
+            
             # For each figure, assign the split.by traces
             for (fac.cat in facet.categories) {
               data.for.this.facet = subset(df.sim.groupids.many.members,
                                            df.sim.groupids.many.members[["outcome"]] == fac.cat)
               # For each facet, we need to collect the trace for each split.by category
-              traces = collect.traces.for.facet(NULL, data.for.this.facet, split.by, "groupid", "line",current.facet)
+              traces = collect.traces.for.facet(NULL, data.for.this.facet, split.by, "groupid", marker.type,current.facet)
               current.facet = current.facet + 1
               fig$data = append(fig$data, traces)
             } # End of facets
           } else {
-            # Since this is simulation data, the marker type is "line"
-            marker.type = "line"
             
             category.list = unique(df.sim.groupids.many.members[["groupid"]])
             
@@ -547,17 +615,21 @@ execute.plotly.plot <- function(prepared.plot.data,
             fig$data = append(fig$data, raw.traces)
           }
         } else {
+          if (plotly.debug) {
+            cat ("    facet\n")
+          }        
           # Faceting but no split by
           current.facet = 1
           # If it is non null, we want multiple figures within this plot
           facet.categories = unique (df.sim.groupids.many.members[[facet.by]])
           figure.count = length(facet.categories)
+          fig$y.axis.labels = rep(y.axis.label.helper(outcome.metadata, outcomes[1]), figure.count)
           # For each figure, assign the split.by traces
           for (fac.cat in facet.categories) {
             data.for.this.facet = subset(df.sim.groupids.many.members,
                                          df.sim.groupids.many.members[[facet.by]] == fac.cat)
             # For each facet, we need to collect the trace for each split.by category
-            traces = collect.traces.for.facet(NULL, data.for.this.facet, split.by, "groupid", "line",current.facet)
+            traces = collect.traces.for.facet(NULL, data.for.this.facet, split.by, "groupid", marker.type,current.facet)
             current.facet = current.facet + 1
             fig$data = append(fig$data, traces)
           } # End of facets
@@ -601,8 +673,13 @@ execute.plotly.plot <- function(prepared.plot.data,
     }
   } #End of df.sim traces
   
+  if (plotly.debug) {
+    cat("\nDATA\n\n")
+  }        
+  
   # DATA ELEMENTS
   if (!is.null(df.truth)) {
+    marker.type = "marker"
     
     df.truth$marker.shapes = unlist(lapply(df.truth$shape.data.by, function(val) { marker.mappings[[val]] }))
     df.truth$marker.colors = unlist(lapply(df.truth$color.data.by, function(val) { color.data.primary.colors[val] }))
@@ -611,18 +688,27 @@ execute.plotly.plot <- function(prepared.plot.data,
     }
     
     if (!is.null(split.by)) {
+      if (plotly.debug) {
+        cat("split by\n")
+      }        
       # Add points for truth data with split groups
       # Add lines for multiple simulation groups
       # we know split.by has a value
       split.categories = unique (df.truth$stratum)
       # At this point we don't know if facet.by is non-null
       if (is.null(facet.by)) {
+        if (plotly.debug) {
+          cat("  no facet by\n")
+        }        
         # print("facet.by is null")
         # TODO
         # If it is null, we want only one figure
         # Add as many traces to the figure as we have split.categories
           
       } else {
+        if (plotly.debug) {
+          cat("  facet by\n")
+        }        
         # browser()
         current.facet = 1
         # If it is non null, we want multiple figures within this plot
@@ -632,12 +718,15 @@ execute.plotly.plot <- function(prepared.plot.data,
           data.for.this.facet = subset(df.truth,
                                        df.truth$facet.by1 == fac.cat)
           # For each facet, we need to collect the trace for each split.by category
-          traces = collect.traces.for.facet(split.categories, data.for.this.facet, "stratum", "stratum", "marker",current.facet)
+          traces = collect.traces.for.facet(split.categories, data.for.this.facet, "stratum", "stratum", marker.type,current.facet)
           current.facet = current.facet + 1
           fig$data = append(fig$data, traces)
         } # End of facets
       }
     } else {
+      if (plotly.debug) {
+        cat("  no split by\n")
+      }        
       # Add points for truth data without split groups
       # We have to be careful about multiple outcomes but no faceting
       current.facet = 1
@@ -650,7 +739,7 @@ execute.plotly.plot <- function(prepared.plot.data,
           data.for.this.facet = subset(df.truth,
                                        df.truth[["outcome"]] == fac.cat)
           # For each facet, we need to collect the trace for each split.by category
-          traces = collect.traces.for.facet(NULL, data.for.this.facet, split.by, "outcome", "marker",current.facet)
+          traces = collect.traces.for.facet(NULL, data.for.this.facet, split.by, "outcome", marker.type,current.facet)
           current.facet = current.facet + 1
           fig$data = append(fig$data, traces)
         } # End of facets
@@ -667,7 +756,7 @@ execute.plotly.plot <- function(prepared.plot.data,
             data.for.this.facet = subset(df.truth,
                                          df.truth[["facet.by1"]] == fac.cat)
             # For each facet, we need to collect the trace for each split.by category
-            traces = collect.traces.for.facet(NULL, data.for.this.facet, split.by, "outcome", "marker",current.facet)
+            traces = collect.traces.for.facet(NULL, data.for.this.facet, split.by, "outcome", marker.type,current.facet)
             current.facet = current.facet + 1
             fig$data = append(fig$data, traces)
           } # End of facets
@@ -685,7 +774,7 @@ execute.plotly.plot <- function(prepared.plot.data,
           raw.traces = inner.collector(marker.types,
                                   df.truth,
                                   "color.data.by",
-                                  "marker",
+                                  marker.type,
                                   current.facet)
           # traces = unlist(raw.traces, recursive = FALSE)
           fig$data = append(fig$data,raw.traces)
@@ -694,6 +783,8 @@ execute.plotly.plot <- function(prepared.plot.data,
     }
   }
   
+  # browser()
+  # LAYOUT
   # At this point we have processed all the traces and now need to lay them out
   
   # How many figures do we need? One for each facet.
@@ -726,14 +817,17 @@ execute.plotly.plot <- function(prepared.plot.data,
       y_top = (1-(y_i * ydelta)) + buffer
         
       fig$layout[[paste0("xaxis", i)]] = list(title = "Years", domain = c(x_left,x_right), anchor = paste0("y",i))
-      fig$layout[[paste0("yaxis", i)]] = list(title = y.label, domain = c(y_bottom,y_top), anchor = paste0("x",i))
+      fig$layout[[paste0("yaxis", i)]] = list(title = fig$y.axis.label[i], domain = c(y_bottom,y_top), anchor = paste0("x",i))
       fig$layout$annotations = append ( fig$layout$annotations, list(list ( 
         text = facet.categories[i],
         showarrow = F,
-        xref = "paper",
-        yref = "paper",
-        x = (x_right - x_left) / 2 + (x_left + 0.05), # x = #halfway between the right and the left side of the figure
-        y = y_bottom + (buffer + buffer) #Two buffer-spaces away from the top 
+        xref = paste0("x",i," domain"),
+        yref = paste0("y",i," domain"),
+        x = 0.5,
+        y = 1.1,
+        font = list (
+          size = "14"
+        )
       ))) 
         
       if (x_i == figures.per.row) {
@@ -744,9 +838,11 @@ execute.plotly.plot <- function(prepared.plot.data,
       }
     }
   } else {
-    # print("Layout for a single figure")
-    # TODO
+    # browser()
+    fig$layout[["xaxis"]] = list(title = "Years", anchor = "y1")
+    fig$layout[["yaxis"]] = list(title = fig$y.axis.labels[1], anchor = "x1")
   }
+  # browser()
   # The marker traces are nested one list() deep; this code will un-nest them
   sim.traces = fig$data[1:sim.trace.count]
   doubled.traces = fig$data[(sim.trace.count + 1):length(fig$data)]
