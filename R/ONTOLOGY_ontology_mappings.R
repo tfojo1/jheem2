@@ -779,6 +779,32 @@ map.value.ontology <- function(value,
                                    na.rm = na.rm,
                                    error.prefix = error.prefix)
     
+    
+    #-- One last check, to make sure our mappings span all the requested dim.names --#
+    dimensions.not.a.subset.mask = sapply(names(target.dim.names), function(d){
+        length(setdiff(target.dim.names[[d]], dimnames(rv)[[d]]))>0
+    })
+    if (any(dimensions.not.a.subset.mask))
+    {
+        dimensions.not.a.subset = names(target.dim.names)[dimensions.not.a.subset.mask]
+        missing.values = sapply(dimensions.not.a.subset, function(d){
+            setdiff(target.dim.names[[d]], dimnames(rv)[[d]])
+        })
+        stop(paste0(error.prefix,
+                    "After mapping the values, ",
+                    ifelse(length(dimensions.not.a.subset)==1, "dimension ", "dimensions "),
+                    collapse.with.and("'", dimensions.not.a.subset, "'"),
+                    
+                    ifelse(length(dimensions.not.a.subset)==1, " is", " are"),
+                    " missing values: ",
+                    ifelse(length(dimensions.not.a.subset==1), 
+                            paste0("'", missing.values[[1]], "'", collapse=', '),
+                            paste0(sapply(dimensions.not.a.subset, function(d){
+                                paste0("- '", d, "' is missing: ", paste0("'", missing.values[[d]], "'", collapse=', '))
+                            }), collapse='\n'))
+                            ))
+    }
+    
     #-- Put it in order and return --#
     get.identity.ontology.mapping()$apply(rv, to.dim.names = target.dim.names)
 }
@@ -2296,14 +2322,10 @@ ONTOLOGY.MAPPING = R6::R6Class(
             else
                 stop(paste0(error.prefix, "The 'fun' to apply an ontology mapping must be either a function or the name of a function"))
             
-            tryCatch({
             if (apply.sum && is.numeric(from.arr))
                 private$do.apply.sum(from.arr, to.dim.names, na.rm=na.rm, error.prefix=error.prefix)
             else
                 private$do.apply.non.sum(from.arr, to.dim.names, fun=fun, na.rm=na.rm, error.prefix=error.prefix)
-            },error = function(e){
-                browser()
-            })
         },
         
         reverse.apply = function(to.arr, 
