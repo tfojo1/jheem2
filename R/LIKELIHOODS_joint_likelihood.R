@@ -155,7 +155,7 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                                  instr$name, "'..."))
                 
                 if (is(instr, 'jheem.custom.likelihood.instructions'))
-                    instr$instantiate.likelihood(verbose = verbose)
+                    instr$instantiate.likelihood(version = version, location = location, verbose = verbose)
                 else if (is(instr,'jheem.ifelse.likelihood.instructions'))
                     do.ifelse.instantiate.likelihood(instructions = instr,
                                                      version = version,
