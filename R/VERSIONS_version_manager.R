@@ -45,6 +45,27 @@ clear.all.managers <- function()
     clear.ontology.mappings()
 }
 
+##----------------------------------------------##
+##-- A QUICK GETTER TO SEE WHAT IS REGISTERED --##
+##----------------------------------------------##
+
+#'@title Check Whether a JHEEM Model Specification has been Registered for a Version
+#'
+#'@param version A character vector with one or more version names
+#'
+#'@return A logical vector of the same length as 'version'
+#'
+#'@family JHEEM Version Management Functions
+#'
+#'@export
+version.has.been.registered <- function(version)
+{
+    if (!is.character(version) || any(is.na(version)))
+        stop("Cannot check if version.has.been.registered() - 'version' must be a character vector with no NA values")
+    
+    sapply(version, function(v){any(v==VERSION.MANAGER$versions)})
+}
+
 ##--------------------------------------------------##
 ##-- SETTER and GETTERS for VERSION/SPECIFICATION --##
 ##--------------------------------------------------##
