@@ -1056,10 +1056,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         NumericMatrix mat2 = year_metalocation_to_year_obs_n_mapping[d];
         M = mat2.begin(); //M is interpolated block diagonal - one block for each year
         int ttt = n_metalocations*n_metalocations;
-        NumericVector out_T(ttt);
-        for (int i=0; i<ttt; i++) {
-            out_T[i] = T[i];
-        }
+
         do_matrix_multiply_A_block_diagonal_B_transposed(T, M, T_Mt,
                                                          n_metalocations, n_years, n_stratum_obs_n);
         do_matrix_multiply_A_interpolated_block(M, T_Mt, scratch1,
@@ -1095,48 +1092,9 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         subtract_arrs(stratum_obs_n, scratch1, scratch1, n_stratum_obs_n);
         do_matrix_multiply(gamma, scratch1, nu,
                            n_year_metalocation, n_stratum_obs_n, 1);
-        
-        
-        //Rcout << "made it here\n";
-        //@AZ view inputs
-        NumericVector out_gamma(n_year_metalocation*n_stratum_obs_n);
-        int zz = n_year_metalocation*n_stratum_obs_n;
-        for (int i=0; i<zz; i++) {
-            out_gamma[i] = gamma[i];
-        }
-        NumericVector out_sc1(n_stratum_obs_n);
-        for (int i=0; i<n_stratum_obs_n; i++) {
-            out_sc1[i] = scratch1[i];
-        }
-        int how_long = n_year_metalocation;
-        NumericVector out_nu(how_long);
-        if (d==0) {
-            
-            for (int i=0; i<(how_long); i++) {
-                out_nu[i] = nu[i];
-            }
-            
-        }
-        
         add_arrs(nu, lambda, nu, n_year_metalocation);
         
-        NumericVector nu_next(how_long);
-        for (int i=0; i<how_long; i++) {
-            nu_next[i] = nu[i];
-        }
-        /*
-         return (List::create(Named("out_nu") = out_nu,
-         _["nu"] = nu_next,
-         _["n_year_metalocation"] = n_year_metalocation,
-         _["n_years"] = n_years,
-         _["n_stratum_obs_n"] = n_stratum_obs_n,
-         _["scratch1"] = out_sc1,
-         _["gamma"] = out_gamma,
-         _["scratch1_pre_invert"] = scratch1_pre_invert,
-         _["T"] = out_T,
-         _["d"] = d));
-         */
-        
+
         // Calculate Psi
         double *psi = T; // we are going to overwrite the T array with psi
         
@@ -1157,6 +1115,18 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         subtract_arrs(T, gamma_M_t, psi, n_year_metalocation*n_year_metalocation);
         add_arrs(psi, gamma_omega_gamma_t, psi, n_year_metalocation*n_year_metalocation);
         
+        //-- CONDITION on nu > 0
+        //   ie, E[nu | nu>0]
+        //   This was not in the original derivation
+        
+        double sqrt_2_pi_inv = 1/sqrt(2 * 3.141592653589792338462643);
+        for (int i=0; i<n_year_metalocation; i++)
+        {
+            if (nu[i] < 0)
+                nu[i] = 0;
+        }
+        
+        // (end condition on nu > 0)
         
         //== Set up the mean vectors and covariance matrices for metalocation y's (n*p) ==//
         
