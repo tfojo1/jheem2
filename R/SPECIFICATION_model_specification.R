@@ -8217,10 +8217,10 @@ MODEL.OUTCOME = R6::R6Class(
                         stop(paste0(error.prefix,
                                     "Outcome ", self$get.original.name(wrt.version=specification$version),
                                     " has subset.dimension.values that include ",
-                                    ifelse(length(missing.dimensions)==1, "value ", "values "),
+                                    ifelse(length(missing.values)==1, "value ", "values "),
                                     collapse.with.and("'", missing.values, "'"),
                                     " for dimension '", d, "', but ",
-                                    paste0(ifelse(length(missing.dimensions)==1, " it is ", " they are "),
+                                    paste0(ifelse(length(missing.values)==1, " it is ", " they are "),
                                            "not present in the derived set of values for dimension '", d, "' (",
                                            collapse.with.and("'", dim.names[[d]], "'"), ")")))
                 }
