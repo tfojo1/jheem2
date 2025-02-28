@@ -151,7 +151,7 @@ rerun.simulations <- function(simset,
         sim
     })
     
-    join.simulation.sets(new.sims)
+    do.join.simulation.sets(new.sims)
 }
 
 #'@title Run a Simulations from a Set of Parameters
@@ -243,7 +243,7 @@ run.simulations.from.parameters <- function(version,
         sim
     })
     
-    join.simulation.sets(new.sims)
+    do.join.simulation.sets(new.sims)
     
 }
 
@@ -492,7 +492,36 @@ derive.degenerate.simulation <- function(sim,
                           error.prefix = error.prefix)
 }
 
-join.simulation.sets <- function(..., 
+#'@title Join multiple simulation sets into a single set
+#'
+#'@param ... One or more jheem.simulation.set objects or lists that contain only jheem.simulation.set objects
+#'
+#'@return A jheem.simulation.set object
+#'
+#'@export
+join.simulation.sets <- function(...)
+{
+    args = list(...)
+    simset.list = list()
+    
+    for (one.arg in args)
+    {
+        if (is(one.arg, 'jheem.simulation.set'))
+            one.arg = list(one.arg)
+        
+        if (!is.list(one.arg))
+            stop("Cannot join.simulation.sets() - the arguments must be either jheem.simulation.set objects or lists that contain only jheem.simulation.set objects")
+        
+        if (any(!sapply(one.arg, is, 'jheem.simulation.set')))
+            stop("Cannot join.simulation.sets() - the arguments must be either jheem.simulation.set objects or lists that contain only jheem.simulation.set objects")
+        
+        simset.list = c(simset.list, one.arg)
+    }
+    
+    do.call(do.join.simulation.sets, simset.list)
+}
+
+do.join.simulation.sets <- function(..., 
                                  simulation.chain=NULL,
                                  finalize=T, 
                                  run.metadata=NULL)
@@ -1990,7 +2019,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                            prior.sim.index = i)
             })
             
-            join.simulation.sets(sim.list, finalize=T)
+            do.join.simulation.sets(sim.list, finalize=T)
         },
         
         get.intervention = function()

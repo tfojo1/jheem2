@@ -750,10 +750,10 @@ extract.last.simulation.from.calibration <- function(version,
                                                     paste0('chain', chain.with.max.chunk, "_chunk1.Rdata"))))
         sim.first = mcmc.first@simulations[[1]]
         
-        sim = join.simulation.sets(sim.first, sim.last)
+        sim = do.join.simulation.sets(sim.first, sim.last)
     }
     else
-        sim = join.simulation.sets(sim.last) #this finalizes things
+        sim = do.join.simulation.sets(sim.last) #this finalizes things
     
     sim
 }
@@ -819,7 +819,7 @@ assemble.simulations.from.calibration <- function(version,
     simulations = mcmc@simulations[sim.indices]
     
     # could choose to delete cache now but will not, undecided
-    join.simulation.sets(simulations, 
+    do.join.simulation.sets(simulations, 
                          simulation.chain = sim.chain,
                          finalize = T, 
                          run.metadata = join.run.metadata(run.metadatas))
@@ -1176,7 +1176,7 @@ prepare.mcmc.summary <- function(version,
     
     #-- Initial Scaling Steps --#
     # Andrew says lapply would be safer here since we're expecting a list anyway
-    initial.scaling.parameters = sapply(1:length(state1@log.scaling.parameters), function(i){
+    initial.scaling.parameters = lapply(1:length(state1@log.scaling.parameters), function(i){
         all.chain.log.values = sapply(chain.controls, function(ctrl){
             ctrl@chain.state@log.scaling.parameters[[i]]
         })

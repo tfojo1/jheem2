@@ -6252,7 +6252,16 @@ JHEEM = R6::R6Class(
             rv = list(numerators = private$i.final.outcome.numerators,
                       denominators = private$i.final.outcome.denominators)
             
-            if (!private$i.for.transmutation)
+            if (private$i.for.transmutation)
+            {
+                private$i.outcome.numerators[private$i.outcome.names.to.calculate] = NULL
+                private$i.outcome.numerators[private$i.outcome.names.to.calculate] = NULL
+                private$i.interpolated.outcome.numerators.when.values.dont.apply[private$i.outcome.names.to.calculate] = NULL
+                private$i.interpolated.outcome.denominators.when.values.dont.apply[private$i.outcome.names.to.calculate] = NULL
+                private$i.final.outcome.denominators[private$i.outcome.names.to.calculate] = NULL
+                private$i.final.outcome.denominators[private$i.outcome.names.to.calculate] = NULL
+            }
+            else
             {
                 # Clear the values for numerators and denominators stored in the jheem object - we no longer need them
                 private$i.outcome.numerators = list()
