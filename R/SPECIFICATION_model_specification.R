@@ -8313,7 +8313,7 @@ MODEL.OUTCOME = R6::R6Class(
                                     "The dimensions for quantity '", quant$name, "' include ",
                                     collapse.with.and("'", excess.dimensions, "'"),
                                     ". However ",
-                                    ifelse(length(missing.dimensions)==1, "this dimension is", "these dimensions are"),
+                                    ifelse(length(excess.dimensions)==1, "this dimension is", "these dimensions are"),
                                     " not present in the keep.dimensions and subset.dimensions of this outcome."))
                     }
                 }
