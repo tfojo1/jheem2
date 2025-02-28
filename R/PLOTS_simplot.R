@@ -473,7 +473,7 @@ prepare.plot <- function(simset.list=NULL,
                 
                 one.df.sim.this.outcome['simset'] = names(simset.list)[[i]]
                 one.df.sim.this.outcome['outcome'] = outcome
-                one.df.sim.this.outcome['linewidth'] = 1/sqrt(simset$n.sim) # have style manager create this later?
+                one.df.sim.this.outcome['linewidth'] = 1 # 1/(1+log10(simset$n.sim)) # # used to be 1/sqrt() have style manager create this later?
                 one.df.sim.this.outcome['alpha'] = one.df.sim.this.outcome['linewidth'] # same comment as above; USED to be 20 * this
                 
                 # Make a "outcome.long.name" column so that the facet.by can present it instead of the short name
