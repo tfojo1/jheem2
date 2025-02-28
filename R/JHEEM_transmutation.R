@@ -316,6 +316,11 @@ JHEEM.TRANSMUTER = R6::R6Class(
 
             private$i.check.consistency = F
             rv
+        },
+        
+        test = function()
+        {
+            private$i.jheem$test()
         }
     ),
     
