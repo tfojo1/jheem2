@@ -473,7 +473,7 @@ prepare.plot <- function(simset.list=NULL,
                 
                 one.df.sim.this.outcome['simset'] = names(simset.list)[[i]]
                 one.df.sim.this.outcome['outcome'] = outcome
-                one.df.sim.this.outcome['linewidth'] = 1/sqrt(simset$n.sim) # have style manager create this later?
+                one.df.sim.this.outcome['linewidth'] = 1 # 1/(1+log10(simset$n.sim)) # # used to be 1/sqrt() have style manager create this later?
                 one.df.sim.this.outcome['alpha'] = one.df.sim.this.outcome['linewidth'] # same comment as above; USED to be 20 * this
                 
                 # Make a "outcome.long.name" column so that the facet.by can present it instead of the short name
@@ -740,7 +740,7 @@ execute.simplot <- function(prepared.plot.data,
     # SIM ELEMENTS
     if (!is.null(df.sim)) {
         # Note: the key to avoiding warning messages about scale is to only add a scale if it is used by the data frames that are actually plotted.
-        
+
         # PLOT
         if (!is.null(split.by)) {
             rv = rv + ggplot2::scale_color_manual(name = "sim color", values = colors.for.sim)
@@ -748,8 +748,7 @@ execute.simplot <- function(prepared.plot.data,
                 rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year,y=value,group=groupid,
                                                                                              linetype = linetype.sim.by,
                                                                                              color = color.sim.by,
-                                                                                             alpha = alpha,
-                                                                                             linewidth = linewidth))
+                                                                                             alpha = alpha), linewidth=df.sim.groupids.many.members$linewidth)
             }
             if (nrow(df.sim.groupids.one.member)>0) {
                 rv = rv +
@@ -765,14 +764,13 @@ execute.simplot <- function(prepared.plot.data,
                                                                                                ymax = value.upper),
                                                alpha = style.manager$alpha.ribbon,
                                                outline.type = 'full')
-                rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = color.sim.by)
+                rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = colors.for.sim)
             }
         } else {
             if (nrow(df.sim.groupids.many.members)>0) {
                 rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, group=groupid,
                                                                                              linetype = linetype.sim.by,
-                                                                                             alpha = alpha,
-                                                                                             linewidth = linewidth))
+                                                                                             alpha = alpha), linewidth = df.sim.groupids.many.members$linewidth)
             }
             if (nrow(df.sim.groupids.one.member)>0) {
                 rv = rv +
