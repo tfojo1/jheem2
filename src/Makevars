@@ -1,7 +1,4 @@
+CXX = clang++
 CXX_STD = CXX17
 PKG_CXXFLAGS = -std=c++17 -I${R_HOME}/include -O1
-PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -lstdc++ -L${R_HOME}/lib -lR -Wl,--no-keep-memory -Wl,--reduce-memory-overheads
-
-# Try to use gold linker
-SHLIB_LD = gold
-SHLIB_LDFLAGS = -shared
+PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -lstdc++ -L${R_HOME}/lib -lR -Wl,--no-eh-frame-hdr -Wl,--no-keep-memory -Wl,--reduce-memory-overheads
