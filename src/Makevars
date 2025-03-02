@@ -1,6 +1,12 @@
 CXX_STD = CXX17
 
-PKG_CXXFLAGS = -std=c++17 -I${R_HOME}/include -O0 -fno-lto -fno-rtti
-PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -lstdc++ -L${R_HOME}/lib -lR -Wl,--no-eh-frame-hdr -Wl,--no-keep-memory -Wl,--reduce-memory-overheads -Wl,--gc-sections
+# Try to simplify compilation as much as possible
+PKG_CXXFLAGS = -std=c++17 -I${R_HOME}/include -O0 -fno-exceptions -fno-rtti -fno-stack-protector -fno-asynchronous-unwind-tables
 
-CXXCPP = clang++ -E
+# Simplify linking and further reduce memory usage
+PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -lstdc++ -L${R_HOME}/lib -lR -Wl,--no-eh-frame-hdr -Wl,--no-keep-memory -Wl,--reduce-memory-overheads -Wl,--gc-sections -Wl,--icf=all
+
+# Turn off position independent code
+CFLAGS = -fno-pic
+CXXFLAGS = -fno-pic
+LDFLAGS = -no-pie
