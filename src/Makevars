@@ -1,20 +1,11 @@
-# Try to use older compiler if available
-CXX = /usr/bin/g++-9
-CC = /usr/bin/gcc-9
-
 # Standard specification
 CXX_STD = CXX17
 
-# Use modest optimization but keep debugging info
-PKG_CXXFLAGS = -std=c++17 -I${R_HOME}/include -O1 -g -fvisibility=hidden -fwrapv 
+# Windows/Linux cross-compatibility flags
+PKG_CXXFLAGS = -std=c++17 -I${R_HOME}/include -O0 -D_GLIBCXX_USE_CXX11_ABI=0 -DR_NO_REMAP
 
-# Add compatibility flags if using newer compiler
-ifeq ($(shell $(CXX) -dumpversion | cut -d. -f1),11)
-  PKG_CXXFLAGS += -fabi-version=14 -fabi-compat-version=9
-endif
+# Force static linking of C++ standard library to avoid ABI issues
+PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -L${R_HOME}/lib -lR -static-libstdc++ -Wl,-Bsymbolic
 
-# Focus on linker flags that avoid problematic relocations
-PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -lstdc++ -L${R_HOME}/lib -lR -Wl,--no-keep-memory -Wl,--reduce-memory-overheads -Wl,--gc-sections
-
-# Use position independent code
-CXXFLAGS = -fPIC -ftls-model=initial-exec
+# Use position-independent code
+CXXFLAGS = -fPIC
