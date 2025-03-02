@@ -1,12 +1,31 @@
+.PHONY: env-report
+all: env-report $(SHLIB)
+
+env-report:
+	@echo "===== ENVIRONMENT REPORT ====="
+	@echo "Compiler version:"
+	@$(CXX) --version
+	@echo "Linker version:"
+	@ld --version || true
+	@echo "R_HOME: $(R_HOME)"
+	@echo "PKG_CXXFLAGS: $(PKG_CXXFLAGS)"
+	@echo "PKG_LIBS: $(PKG_LIBS)"
+	@echo "CPPFLAGS: $(CPPFLAGS)"
+	@echo "CXXFLAGS: $(CXXFLAGS)"
+	@echo "LDFLAGS: $(LDFLAGS)"
+	@echo "============================"
+
+# Standard specification
 CXX_STD = CXX17
 
-# Try to simplify compilation as much as possible
-PKG_CXXFLAGS = -std=c++17 -I${R_HOME}/include -O0 -fno-exceptions -fno-rtti -fno-stack-protector -fno-asynchronous-unwind-tables
+# Compiler flags focusing on avoiding complex C++ features
+PKG_CXXFLAGS = -std=c++17 -I${R_HOME}/include -O0 -fno-exceptions -fno-rtti -fno-stack-protector -fvisibility=hidden -fno-asynchronous-unwind-tables
 
-# Simplify linking and further reduce memory usage
-PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -lstdc++ -L${R_HOME}/lib -lR -Wl,--no-eh-frame-hdr -Wl,--no-keep-memory -Wl,--reduce-memory-overheads -Wl,--gc-sections -Wl,--icf=all
+# Linker flags to avoid problematic BFD behaviors
+PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -lstdc++ -L${R_HOME}/lib -lR -Wl,--no-eh-frame-hdr -Wl,--no-keep-memory -Wl,--reduce-memory-overheads -Wl,--gc-sections
 
-# Turn off position independent code
-CFLAGS = -fno-pic
-CXXFLAGS = -fno-pic
-LDFLAGS = -no-pie
+# Additional flags to help with thread-local storage issues
+CXXFLAGS = -ftls-model=initial-exec
+
+# Set debug flags to get more information
+DEBUG = -g
