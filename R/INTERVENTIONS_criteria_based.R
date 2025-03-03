@@ -112,6 +112,7 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
         {
             super$initialize(code = code,
                              name = name,
+                             parameters = base.intervention$parameters,
                              parameter.distribution = base.intervention$parameter.distribution,
                              overwrite.existing.intervention = overwrite.existing.intervention)
             
@@ -135,6 +136,10 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 stop(paste0(error.prefix, "'completion.critera' must be either a 'monotonic.outcome.intervention.criterion' object or a list of 'monotonic.outcome.intervention.criterion' objects"))
             
             # The parameters of the completion criteria must not be shared by each other or the base intervention.
+            if (any(duplicated(c(sapply(completion.criteria, function(criterion) {criterion$parameter.name}),
+                                 if (!is.null(base.intervention$parameters)) dimnames(base.intervention$parameters)[[1]] else NULL))))
+                stop(paste0(error.prefix, "completion criteria may not share parameters with each other or with any parameters in the base intervention"))
+            
             if (any(duplicated(c(sapply(completion.criteria, function(criterion) {criterion$parameter.name}),
                                  if (!is.null(base.intervention$parameter.distribution)) base.intervention$parameter.distribution@var.names else NULL))))
                 stop(paste0(error.prefix, "completion criteria may not share parameters with each other or with any parameter distributions in the base intervention"))

@@ -8327,11 +8327,11 @@ MODEL.OUTCOME = R6::R6Class(
                                     "The dimensions for quantity '", quant$name, "' include ",
                                     collapse.with.and("'", excess.dimensions, "'"),
                                     ". However ",
-                                    ifelse(length(missing.dimensions)==1, "this dimension is", "these dimensions are"),
+                                    ifelse(length(excess.dimensions)==1, "this dimension is", "these dimensions are"),
                                     " not present in the outcome dim.names inferred from the other outcomes '",
                                     private$i.name, "' depend on (",
-                                    collapse.with.and("'", dep.on.outcomes, "'"),
-                                    "'."))
+                                    collapse.with.and("'", sapply(dep.on.outcomes, function(dep){dep$get.original.name(private$i.version)}), "'"),
+                                    ")"))
                     }
                 }
                 

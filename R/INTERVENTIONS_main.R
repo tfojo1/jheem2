@@ -16,7 +16,7 @@
 #'@details Creates a 'jheem.intervention' object where all the intervention effects given in ... apply to all the target populations given in ...
 #'
 #'@export
-create.intervention <- function(..., code=NULL, name=NULL, parameter.distribution=NULL, overwrite.existing.intervention=F)
+create.intervention <- function(..., code=NULL, name=NULL, parameters = NULL, parameter.distribution=NULL, overwrite.existing.intervention=F)
 {
     #-- Parse ... for target.populations and intervention.effects --#
     target.populations = list()
@@ -70,6 +70,7 @@ create.intervention <- function(..., code=NULL, name=NULL, parameter.distributio
     JHEEM.STANDARD.INTERVENTION$new(foregrounds = foregrounds,
                                     code = code,
                                     name = name,
+                                    parameters = parameters,
                                     parameter.distribution = parameter.distribution,
                                     overwrite.existing.intervention = overwrite.existing.intervention)
 }
@@ -81,7 +82,7 @@ create.intervention <- function(..., code=NULL, name=NULL, parameter.distributio
 #'@param sequential
 #'
 #'@export
-join.interventions <- function(..., code=NULL, name=NULL, parameter.distribution=NULL, overwrite.existing.intervention=F, sequential=F)
+join.interventions <- function(..., code=NULL, name=NULL, parameters=NULL, parameter.distribution=NULL, overwrite.existing.intervention=F, sequential=F)
 {
     args = list(...)
     
@@ -129,11 +130,12 @@ join.interventions <- function(..., code=NULL, name=NULL, parameter.distribution
         join.standard.interventions(interventions = sub.interventions,
                                     code = code,
                                     name = name,
+                                    parameters = parameters,
                                     parameter.distribution = parameter.distribution,
                                     overwrite.existing.intervention = overwrite.existing.intervention)
 }
 
-join.standard.interventions <- function(interventions, code, name, parameter.distribution, overwrite.existing.intervention)
+join.standard.interventions <- function(interventions, code, name, parameters, parameter.distribution, overwrite.existing.intervention)
 {
     all.foregrounds = list()
     for (int in interventions)
@@ -156,6 +158,33 @@ join.standard.interventions <- function(interventions, code, name, parameter.dis
         create.model.foreground(target.populations, intervention.effects, 
                                 error.prefix = paste0("Cannot join standard interventions with respect to quantity '", quantity.name, "': "))
     })
+    
+    
+    if (is.null(parameters))
+    {
+        for (int in interventions)
+        {
+            if (!is.null(int$parameters))
+            {
+                if (is.null(parameters))
+                    parameters = int$parameters
+                else
+                {
+                    overlapping.parameter.names = intersect(dimnames(parameters)[[1]],
+                                                            dimnames(int$parameters)[[1]])
+                    
+                    if (length(overlapping.parameter.names)>0)
+                        stop(paste0("Cannot join standard interventions: the same parameter ",
+                                    ifelse(length(overlapping.parameter.names)==1, "name", "names"),
+                                    "(", collapse.with.and("'", overlapping.parameter.names, "'"), ")",
+                                    ifelse(length(overlapping.parameter.names)==1, "is", "are"),
+                                    " contained in the parameters from more than one intervention to combine. Consider explicitly specifying parameters in the call to join.interventions() to override automatic combination"))
+                    
+                    # join distributions
+                }
+            }
+        }
+    }
     
     if (is.null(parameter.distribution))
     {
@@ -186,6 +215,7 @@ join.standard.interventions <- function(interventions, code, name, parameter.dis
     JHEEM.STANDARD.INTERVENTION$new(foregrounds = new.foregrounds,
                                     code = code,
                                     name = name,
+                                    parameters = parameters,
                                     parameter.distribution = parameter.distribution,
                                     overwrite.existing.intervention = overwrite.existing.intervention)
 }
@@ -345,6 +375,7 @@ JHEEM.INTERVENTION = R6::R6Class(
         
         initialize = function(name,
                               code,
+                              parameters,
                               parameter.distribution,
                               overwrite.existing.intervention = F)
         {
@@ -370,6 +401,24 @@ JHEEM.INTERVENTION = R6::R6Class(
                                 MINIMUM.INTERVENTION.NAME.NCHAR, " and ", MAXIMUM.INTERVENTION.NAME.NCHAR, " letters"))
             }
             
+            if (!is.null(parameters))
+            {
+                if (!is.numeric(parameters) || !is.matrix(parameters))
+                    stop(paste0(error.prefix, "'parameters' must be either NULL or a two-dimensional numeric matrix"))
+                
+                if (is.null(dimnames(parameters)[[1]]))
+                    stop(paste0(error.prefix, "If specified, 'parameter.distribution' must have dimnames[[1]] set"))
+                
+                if (any(table(dimnames(parameters)[[1]])>1))
+                    stop(paste0(error.prefix, "The dimnames[[1]] of'parameter.distribution' cannot contain repeated values (ie, each parameter name must be unique"))
+                
+                if (any(is.na(parameters)))
+                    stop(paste0(error.prefix, "If specified, 'parameter.distribution' cannot contain NA values"))
+                
+                if (length(parameters)==0)
+                    stop(paste0(error.prefix, "If specified, 'parameter.distribution' cannot have length = 0"))
+            }
+            
             if (!is.null(parameter.distribution))
             {
                 if (!is(parameter.distribution, "Distribution"))
@@ -377,6 +426,15 @@ JHEEM.INTERVENTION = R6::R6Class(
                 
                 if (is.null(parameter.distribution@var.names))
                     stop(paste0(error.prefix, "'parameter.distribution' must have variable names set"))
+                
+                if (!is.null(parameters))
+                {
+                    overlapping.parameters = intersect(dimnames(parameters)[[1]], parameter.distribution@var.names)
+                    stop(paste0(error.prefix, "'parameters' and 'parameter.distribution' both contain ",
+                                ifelse(length(overlapping.parameters), "a parameter named ", "parameters named "),
+                                collapse.with.and("'", overlapping.parameters, "'"),
+                                ". Parameter names must be unique across 'parameters' and 'parameter.distributions'"))
+                }
             }
             
             if (is.null(overwrite.existing.intervention) || !is.logical(overwrite.existing.intervention) || length(overwrite.existing.intervention)!=1 || is.na(overwrite.existing.intervention))
@@ -385,6 +443,7 @@ JHEEM.INTERVENTION = R6::R6Class(
             # Store the values
             private$i.name = name
             private$i.code = code
+            private$i.parameters = parameters
             private$i.parameter.distribution = parameter.distribution
         },
         
@@ -417,12 +476,26 @@ JHEEM.INTERVENTION = R6::R6Class(
                                                                         to.year = keep.to.year)) #a sim IS a simulation metadata object
             
             # Generate the new parameters
-            if (is.null(private$i.parameter.distribution))
+            if (is.null(private$i.parameters))
             {
                 new.parameters = NULL
                 new.param.names = NULL
             }
             else
+            {
+                if (ncol(private$i.parameters) < sim) #since private$i.parameters must be non-empty, sim$n.sim must be >1
+                    stop(paste0(error.prefix, "The given 'sim' contains ",
+                                sim$n.sim,
+                                " simulations, but the parameters given in creating the intervention only contain ",
+                                ifelse(ncol(private$i.parameters)==1, 
+                                       "a single parameter set",
+                                       paste0(ncol(private$i.parameters), " parameter sets"))))
+                
+                new.parameters = private$i.parameters[,1:sim$n.sim,drop=F]
+                new.param.names = dimnames(new.parameters)[[1]]
+            }
+            
+            if (!is.null(private$i.parameter.distribution))
             {
                 reset.seed = runif(1, 0, .Machine$integer.max)
                 
@@ -430,12 +503,14 @@ JHEEM.INTERVENTION = R6::R6Class(
                     stop(paste0(error.prefix, "'seed' must be a single, non-NA, integer value"))
                 
                 #new.parameters = generate.random.samples(private$i.parameter.distribution, n=sim$n.sim)
-                new.parameters = t(sapply(1:sim$n.sim, function(i){
+                add.to.new.parameters = sapply(1:sim$n.sim, function(i){
                     set.seed(seed + sim$seed[i])
                     generate.random.samples(private$i.parameter.distribution, n=1)
-                }))
-                dim(new.parameters) = c(sim$n.sim, private$i.parameter.distribution@n.var)
-                new.param.names = private$i.parameter.distribution@var.names
+                })
+                dim(add.to.new.parameters) = c(sim$n.sim, private$i.parameter.distribution@n.var)
+                new.parameters = cbind(new.parameters, add.to.new.parameters)
+                
+                new.param.names = c(new.param.names, private$i.parameter.distribution@var.names)
                 
                 set.seed(reset.seed) # this keeps our code from always setting to the same seed
             }
@@ -457,7 +532,7 @@ JHEEM.INTERVENTION = R6::R6Class(
                                    keep.to.year = keep.to.year,
                                    verbose=verbose)
             sim.list = lapply(1:sim$n.sim, function(i){
-                params = new.parameters[i,]
+                params = new.parameters[,i]
                 names(params) = new.param.names
                 
                 private$do.run(engine, 
@@ -544,6 +619,14 @@ JHEEM.INTERVENTION = R6::R6Class(
                 stop("Cannot modify 'code' for a jheem.intervention - it is read-only")
         },
         
+        parameters = function(value)
+        {
+            if (missing(value))
+                private$i.parameters
+            else
+                stop("Cannot modify 'parameters' for a jheem.intervention - they are read-only")
+        },
+        
         parameter.distribution = function(value)
         {
             if (missing(value))
@@ -566,6 +649,7 @@ JHEEM.INTERVENTION = R6::R6Class(
         
         i.name = NULL,
         i.code = NULL,
+        i.parameters = NULL,
         i.parameter.distribution = NULL,
         
         prepare.to.run = function(engine, 
@@ -609,6 +693,7 @@ NULL.INTERVENTION = R6::R6Class(
         {
             super$initialize(code = 'noint',
                              name = "No Intervention",
+                             parameters = NULL,
                              parameter.distribution = NULL,
                              overwrite.existing.intervention = F)
             # Register to the intervention manager
@@ -660,10 +745,11 @@ SINGLE.ITERATION.INTERVENTION = R6::R6Class(
     
     public = list(
         
-        initialize = function(code, name, parameter.distribution, overwrite.existing.intervention=F)
+        initialize = function(code, name, parameters, parameter.distribution, overwrite.existing.intervention=F)
         {
             super$initialize(code = code,
                              name = name,
+                             parameters = parameters,
                              parameter.distribution = parameter.distribution,
                              overwrite.existing.intervention = overwrite.existing.intervention)
             # Register to the intervention manager
@@ -698,6 +784,7 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
     public = list(
         
         initialize = function(foregrounds,
+                              parameters,
                               parameter.distribution,
                               code,
                               name,
@@ -705,6 +792,7 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
         {
             super$initialize(code = code,
                              name = name,
+                             parameters = parameters,
                              parameter.distribution = parameter.distribution,
                              overwrite.existing.intervention = overwrite.existing.intervention)
             
