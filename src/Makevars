@@ -1,11 +1,11 @@
 # Standard specification
 CXX_STD = CXX17
 
-# Windows/Linux cross-compatibility flags
-PKG_CXXFLAGS = -std=c++17 -I${R_HOME}/include -O0 -D_GLIBCXX_USE_CXX11_ABI=0 -DR_NO_REMAP
+# Target the specific problematic relocations
+PKG_CXXFLAGS = -std=c++17 -I${R_HOME}/include -O0 -D_GLIBCXX_USE_CXX11_ABI=0 -DR_NO_REMAP -fdata-sections -ffunction-sections -fno-use-cxa-atexit
 
-# Force static linking of C++ standard library to avoid ABI issues
-PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -L${R_HOME}/lib -lR -static-libstdc++ -Wl,-Bsymbolic
+# Force specific linking behavior to avoid problematic relocations
+PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -L${R_HOME}/lib -lR -Wl,--strip-all -Wl,--strip-debug -Wl,--gc-sections -Wl,--wrap=_ZNKSt5ctypeIcE8do_widenEc
 
-# Use position-independent code
+# Simpler CXXFLAGS
 CXXFLAGS = -fPIC
