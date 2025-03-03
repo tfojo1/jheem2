@@ -2,11 +2,11 @@
 
 library(plotly)
 
-source("R/PLOTS_simplot.R")
+#source("R/PLOTS_simplot.R")
 
 # Need access to the Data Manager
 
-source("R/DATA_MANAGER_data_manager.R")
+#source("R/DATA_MANAGER_data_manager.R")
 
 #'@param ... One or more of either (1) jheem.simulation.set objects or (2) lists containing only jheem.simulation or jheem.simset objects
 #'@param outcomes A character vector of which simulation outcomes to plot
