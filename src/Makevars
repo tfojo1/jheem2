@@ -1,8 +1,13 @@
 # src/Makevars
-# Simplest possible compilation flags
+# Disable optimization and debugging
 CFLAGS = -O0
 CXXFLAGS = -O0
 
-# Basic include paths and linking
-PKG_CXXFLAGS = -I${R_HOME}/include
-PKG_LIBS = ${LAPACK_LIBS} ${BLAS_LIBS} ${FLIBS}
+# Disable exceptions and RTTI to simplify relocations
+PKG_CXXFLAGS = -I${R_HOME}/include -fno-exceptions -fno-rtti -fno-use-cxa-atexit 
+
+# Use minimal linking with explicit path to R library
+PKG_LIBS = -L${R_HOME}/lib -lR ${LAPACK_LIBS} ${BLAS_LIBS} ${FLIBS}
+
+# Add options to use simpler relocations
+PKG_LDFLAGS = -Wl,-Bsymbolic
