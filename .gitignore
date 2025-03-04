@@ -6,3 +6,8 @@
 local_testing
 jheem2.Rproj
 *.Rproj
+
+# Ignore compiled objects
+src/*.o
+src/*.so
+src/*.dll
