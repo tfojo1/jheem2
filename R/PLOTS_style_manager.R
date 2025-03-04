@@ -1,4 +1,7 @@
 #'@title Create A Style Manager
+#' @param linewidth.slope A single numeric value specifying how simset linewidth will be determined for based on how many simulations it has (its "n.sim").
+#' The formula used is linewidth = 1/(slope * log10(n.sim) + 1). If this slope is the default of 3, this will result in simsets with 1000 simulations having a linewidth of 0.1
+#' while simsets with only 1 simulation will have a linewidth of 1. If you would like all simsets to plot with the same thickness, use a slope of 0.
 #'
 #'@export
 create.style.manager = function(color.sim.by = 'stratum',
@@ -12,7 +15,8 @@ create.style.manager = function(color.sim.by = 'stratum',
                                 linetypes = c("solid", "dashed", "dotted","dotdash"),
                                 shapes = 21:25,
                                 shade.increment = -16,
-                                alpha.ribbon = 0.2)
+                                alpha.ribbon = 0.2,
+                                linewidth.slope = 3)
 {
     JHEEM.STYLE.MANAGER$new(color.sim.by = color.sim.by,
                             color.data.by = color.data.by,
@@ -25,7 +29,8 @@ create.style.manager = function(color.sim.by = 'stratum',
                             linetypes = linetypes,
                             shapes = shapes,
                             shade.increment = shade.increment,
-                            alpha.ribbon = alpha.ribbon)
+                            alpha.ribbon = alpha.ribbon,
+                            linewidth.slope = linewidth.slope)
 }
 
 #'@export
@@ -78,7 +83,8 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
                               linetypes,
                               shapes,
                               shade.increment,
-                              alpha.ribbon)
+                              alpha.ribbon,
+                              linewidth.slope)
         {
             # need to do error checking
             
@@ -95,6 +101,7 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
             private$i.shapes = shapes
             private$i.shade.increment = shade.increment
             private$i.alpha.ribbon = alpha.ribbon
+            private$i.linewidth.slope = linewidth.slope
         },
         
         get.sim.colors = function(n)
@@ -192,6 +199,14 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
                 private$i.alpha.ribbon
             else
                 stop("Cannot overwrite a style.manager's 'alpha.ribbon' - it is read only")
+        },
+        
+        linewidth.slope = function(value)
+        {
+            if (missing(value))
+                private$i.linewidth.slope
+            else
+                stop("Cannot overwrite a style.manager's 'linewidth.slope' - it is read only")
         }
     ),
     
@@ -210,6 +225,7 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
         i.shapes = NULL,
         i.shade.increment = NULL,
         i.alpha.ribbon = NULL,
+        i.linewidth.slope = NULL,
         
         do.get.from.vector = function(values, n)
         {
@@ -240,4 +256,4 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
 
 DEFAULT.STYLE.MANAGERS = new.env()
 set.default.style.manager(create.style.manager(), 'ggplot')
-set.default.style.manager(create.style.manager(), 'plotly')
+# set.default.style.manager(create.style.manager(), 'plotly')

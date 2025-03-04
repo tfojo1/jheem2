@@ -56,6 +56,7 @@ simplot <- function(...,
                                       plot.year.lag.ratio=plot.year.lag.ratio,
                                       title=title,
                                       data.manager=data.manager,
+                                      style.manager=style.manager,
                                       debug=debug)
     
     execute.simplot(prepared.plot.data,
@@ -187,6 +188,7 @@ simplot.data.only <- function(outcomes,
                                       plot.year.lag.ratio=plot.year.lag.ratio,
                                       title=title,
                                       data.manager=data.manager,
+                                      style.manager=style.manager,
                                       debug=debug)
     execute.simplot(prepared.plot.data,
                     outcomes=outcomes,
@@ -224,6 +226,7 @@ prepare.plot <- function(simset.list=NULL,
                          plot.year.lag.ratio = F,
                          title="location",
                          data.manager = get.default.data.manager(),
+                         style.manager=get.default.style.manager(),
                          debug = F)
 {
     #-- VALIDATION ----
@@ -473,7 +476,7 @@ prepare.plot <- function(simset.list=NULL,
                 
                 one.df.sim.this.outcome['simset'] = names(simset.list)[[i]]
                 one.df.sim.this.outcome['outcome'] = outcome
-                one.df.sim.this.outcome['linewidth'] = 1 # 1/(1+log10(simset$n.sim)) # # used to be 1/sqrt() have style manager create this later?
+                one.df.sim.this.outcome['linewidth'] = 1/(style.manager$linewidth.slope * log10(simset$n.sim) + 1) # # used to be 1/sqrt() have style manager create this later?
                 one.df.sim.this.outcome['alpha'] = one.df.sim.this.outcome['linewidth'] # same comment as above; USED to be 20 * this
                 
                 # Make a "outcome.long.name" column so that the facet.by can present it instead of the short name
@@ -482,7 +485,7 @@ prepare.plot <- function(simset.list=NULL,
                 df.sim = rbind(df.sim, one.df.sim.this.outcome)
             }
         }
-        
+
         # Pivot wider to convert column "metric" to columns "value.mean", "value.lower", "value.upper" or such
         if (summary.type != 'individual.simulation') {
             df.sim = reshape(df.sim, direction='wide', idvar=names(df.sim)[!(names(df.sim) %in% c('metric', 'value'))], timevar='metric')
@@ -546,6 +549,10 @@ prepare.plot <- function(simset.list=NULL,
         }
         if (!is.null(df.sim)) {
             df.sim$value = log(df.sim$value)
+            if (!is.null(df.sim$value.lower) && !is.null(df.sim$value.upper)) {
+                df.sim$value.lower = log(df.sim$value.lower)
+                df.sim$value.upper = log(df.sim$value.upper)
+            }
             if (!is.null(split.by)) {
                 if (!is.null(facet.by))
                     df.sim[['stratum']] = do.call(paste, c(list(df.sim$stratum),
@@ -566,10 +573,24 @@ prepare.plot <- function(simset.list=NULL,
             
             sim.lag.values = apply_lag_to_vector(df.sim$value, sim.lag.indices, rep(0, sim.n.lag.pairs), sim.n.lag.pairs)
             sim.rows.to.keep = sim.lag.indices[rep(c(T,F), sim.n.lag.pairs)] + 1 # add one because CPP is zero-indexed
+            
+            
+            if (!is.null(df.sim$value.lower) && !is.null(df.sim$value.upper)) {
+                
+                sim.lower.lag.values = apply_lag_to_vector(df.sim$value.lower, sim.lag.indices, rep(0, sim.n.lag.pairs), sim.n.lag.pairs)
+                sim.upper.lag.values = apply_lag_to_vector(df.sim$value.upper, sim.lag.indices, rep(0, sim.n.lag.pairs), sim.n.lag.pairs)
+                
+            }
+            
             df.sim = df.sim[sim.rows.to.keep,]
             df.sim$value = exp(sim.lag.values)
             
-            # Remove NAs or Infs generated in this process
+            if (!is.null(df.sim$value.lower) && !is.null(df.sim$value.upper)) {
+                df.sim$value.lower = exp(sim.lower.lag.values)
+                df.sim$value.upper = exp(sim.upper.lag.values)
+            }
+            
+            # Remove NAs or Infs generated in this process. Won't bother doing this for value.lower and upper... hopefully fine
             df.sim = df.sim[!is.na(df.sim$value) & !is.infinite(df.sim$value),]
             
             #If we end up with 0 rows, we need to consider the df.sim to be NULL
@@ -683,12 +704,16 @@ execute.simplot <- function(prepared.plot.data,
     if (!is.null(df.sim)) {
         color.ribbon.by = ggplot2::alpha(colors.for.sim, style.manager$alpha.ribbon)
     }
-    
+
     ## SHADES FOR DATA
     color.data.shaded.colors = NULL
     if (!is.null(df.truth)) {
         color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
-        names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
+        # This can lead to problems if we have either of these being "" because then we'll get an underscore that won't match the actual column values in the data frame
+        if (identical(unique(df.truth$color.data.by), ""))
+            names(color.data.shaded.colors) = unique(df.truth$shade.data.by)
+        else
+            names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
     }
     
     ## SHAPES
@@ -744,11 +769,13 @@ execute.simplot <- function(prepared.plot.data,
         # PLOT
         if (!is.null(split.by)) {
             rv = rv + ggplot2::scale_color_manual(name = "sim color", values = colors.for.sim)
+            has.added.color.scale = T
             if (nrow(df.sim.groupids.many.members)>0) {
                 rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year,y=value,group=groupid,
                                                                                              linetype = linetype.sim.by,
                                                                                              color = color.sim.by,
-                                                                                             alpha = alpha), linewidth=df.sim.groupids.many.members$linewidth)
+                                                                                             linewidth=linewidth,
+                                                                                             alpha = alpha))
             }
             if (nrow(df.sim.groupids.one.member)>0) {
                 rv = rv +
@@ -770,7 +797,8 @@ execute.simplot <- function(prepared.plot.data,
             if (nrow(df.sim.groupids.many.members)>0) {
                 rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, group=groupid,
                                                                                              linetype = linetype.sim.by,
-                                                                                             alpha = alpha), linewidth = df.sim.groupids.many.members$linewidth)
+                                                                                             linewidth=linewidth,
+                                                                                             alpha = alpha))
             }
             if (nrow(df.sim.groupids.one.member)>0) {
                 rv = rv +
@@ -791,7 +819,7 @@ execute.simplot <- function(prepared.plot.data,
                     rv = rv + ggplot2::guides(fill = "none")
             }
         }
-        if (nrow(df.sim.groupids.many.members)>0 && summary.type == 'individual.simulation') {
+        if (nrow(df.sim.groupids.many.members)>0) {  #  && summary.type == 'individual.simulation' used to have this... why? We can have lines with individual sims too
             rv = rv + ggplot2::scale_linetype_manual(name="sim linetype", values = linetypes.for.sim, breaks = names(linetypes.for.sim))
             rv = rv + ggplot2::scale_linewidth(NULL, range=c(min(df.sim$linewidth), 1), guide = 'none')
         }
@@ -807,6 +835,7 @@ execute.simplot <- function(prepared.plot.data,
         if (!is.null(df.sim.groupids.one.member) && nrow(df.sim.groupids.one.member)>0)
             rv = rv + ggnewscale::new_scale('shape')
         rv = rv + ggnewscale::new_scale_fill() + ggplot2::scale_fill_manual(values = color.data.shaded.colors) # We're changing the scale because the data fills differently
+
         rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("data color", override.aes = list(shape = 21)))
         
         # PLOT
