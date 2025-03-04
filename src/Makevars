@@ -1,19 +1,8 @@
-# Standard specification
-CXX_STD = CXX17
+# src/Makevars
+# Simplest possible compilation flags
+CFLAGS = -O0
+CXXFLAGS = -O0
 
-# Very aggressive compiler flags
-PKG_CXXFLAGS = -std=c++17 -I${R_HOME}/include -O0 -D_GLIBCXX_USE_CXX11_ABI=0 -DR_NO_REMAP \
-  -fdata-sections -ffunction-sections -fno-use-cxa-atexit -fno-omit-frame-pointer \
-  -fno-math-errno -fno-trapping-math -fno-semantic-interposition \
-  -include /opt/R/4.4.2/lib/R/include/R_ext/Rdynload.h
-
-# Add a custom wrapper for the problematic function
-PKG_CXXFLAGS += -Wl,-wrap=_ZNKSt5ctypeIcE8do_widenEc -DPC_STATIC=static
-
-# Force more direct linking
-PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -L${R_HOME}/lib -lR -lstdc++ \
-  -Wl,--no-undefined -Wl,--no-allow-shlib-undefined -Wl,--strip-all -Wl,--strip-debug \
-  -Wl,--gc-sections -Wl,--as-needed -Wl,--exclude-libs,ALL
-
-# Define simple CXXFLAGS
-CXXFLAGS = -fPIC
+# Basic include paths and linking
+PKG_CXXFLAGS = -I${R_HOME}/include
+PKG_LIBS = ${LAPACK_LIBS} ${BLAS_LIBS} ${FLIBS}
