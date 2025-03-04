@@ -541,7 +541,7 @@ JHEEM.INTERVENTION = R6::R6Class(
                                verbose = verbose)
             })
             
-            join.simulation.sets(sim.list, finalize=T)
+            do.join.simulation.sets(sim.list, finalize=T)
         },
         
         get.description = function(version)

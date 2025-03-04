@@ -6023,8 +6023,7 @@ JHEEM = R6::R6Class(
                 if (is.null(from.outcome.ontology))
                     stop(paste0(error.prefix, "Cannot transmute outcome '", outcome.name, "' - it is not in the given simulation.set"))
                 
-                outcome.years = intersect(as.character(private$i.keep.from.time:private$i.keep.to.time),
-                                          from.outcome.ontology$year)
+                outcome.years = from.outcome.ontology$year[from.outcome.ontology$year >= private$i.keep.from.time & from.outcome.ontology$year <= private$i.keep.to.time]
                 
                 to.outcome = private$i.kernel$get.outcome.kernel(outcome.name)
                 to.outcome.dim.names = c(list(year=outcome.years), to.outcome$dim.names)
@@ -6131,7 +6130,7 @@ JHEEM = R6::R6Class(
                                             check.consistency)
         {
             #outcome.names = private$i.kernel$get.outcome.names.for.sub.version(private$i.sub.version)
-            
+          
             for (outcome.name in private$i.outcome.names.to.calculate)
             {
                 #-- Calculate the times --#
@@ -6139,6 +6138,7 @@ JHEEM = R6::R6Class(
                     private$calculate.outcome.value.times(outcome.name)
             }
             
+
             if (!is.degenerate)
             {
                 for (outcome.name in private$i.outcome.names.to.calculate)
@@ -6151,7 +6151,7 @@ JHEEM = R6::R6Class(
                 }#)
             }
             
-            
+      
             private$i.final.outcome.numerators[private$i.outcome.names.to.calculate] = lapply(private$i.outcome.names.to.calculate, function(outcome.name){
                 
                 outcome = private$i.kernel$get.outcome.kernel(outcome.name)
@@ -6178,6 +6178,19 @@ JHEEM = R6::R6Class(
                     }
                     else
                     {
+                        missing.times = setdiff(private$i.outcome.value.times[[outcome.name]],
+                                                c(private$i.outcome.value.times.to.calculate[[outcome.name]],
+                                                  dimnames(prior.simulation.set$data$outcome.numerators[[outcome.name]])$year))
+                        if (length(missing.times)>0)
+                        {
+                            stop(paste0(error.prefix, "The outcome expects values to have been calculated (either in this simulation or the previous one) at ",
+                                        ifelse(length(missing.times)==1, "time ", "times "),
+                                        collapse.with.and(missing.times),
+                                        ". However, ",
+                                        ifelse(length(missing.times)==1, "no value has been calculated at this time.", "no values have been calculated at these times."),))
+                        }
+                            
+                        
                         val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
                                                       char_desired_times = char.times,
                                                       n_per_time = outcome.n,
