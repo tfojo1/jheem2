@@ -172,7 +172,7 @@ get.simset.filename <- function(version,
         filename.and.dir$filename
 }
 
-# #'@export
+#'@export
 retrieve.simulation.set <- function(version,
                                     location,
                                     calibration.code,
