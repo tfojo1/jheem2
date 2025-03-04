@@ -1,13 +1,10 @@
 # src/Makevars
-# Disable optimization and debugging
+# Disable optimization but keep exceptions
 CFLAGS = -O0
 CXXFLAGS = -O0
 
-# Disable exceptions and RTTI to simplify relocations
-PKG_CXXFLAGS = -I${R_HOME}/include -fno-exceptions -fno-rtti -fno-use-cxa-atexit 
+# Use standard C++ features but with minimal debug info
+PKG_CXXFLAGS = -I${R_HOME}/include -g0
 
-# Use minimal linking with explicit path to R library
-PKG_LIBS = -L${R_HOME}/lib -lR ${LAPACK_LIBS} ${BLAS_LIBS} ${FLIBS}
-
-# Add options to use simpler relocations
-PKG_LDFLAGS = -Wl,-Bsymbolic
+# Use symbolic binding to minimize relocations
+PKG_LIBS = -L${R_HOME}/lib -lR ${LAPACK_LIBS} ${BLAS_LIBS} ${FLIBS} -Wl,-Bsymbolic
