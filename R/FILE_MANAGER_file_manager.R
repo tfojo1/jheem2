@@ -173,6 +173,29 @@ get.simset.filename <- function(version,
 }
 
 #'@export
+retrieve.simulation.set <- function(version,
+                                    location,
+                                    calibration.code,
+                                    n.sim,
+                                    intervention.code = NULL,
+                                    sub.version = NULL,
+                                    root.dir = get.jheem.root.directory("Cannot get.simset.filename(): "),
+                                    error.prefix = '')
+{
+    filename = get.simset.filename(version = version,
+                                   sub.version = sub.version,
+                                   calibration.code = calibration.code,
+                                   n.sim = n.sim,
+                                   location = location,
+                                   intervention.code = intervention.code,
+                                   include.path = T,
+                                   root.dir = root.dir,
+                                   error.prefix = error.prefix)
+    
+    load.simulation.set(filename)
+}
+
+#'@export
 parse.simset.filename <- function(filename, throw.error.if.malformed=T)
 {
     if (!is.character(filename) || length(filename)!=1 || is.na(filename))
