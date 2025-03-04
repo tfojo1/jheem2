@@ -1,10 +1,5 @@
 # src/Makevars
-# Disable optimization but keep exceptions
 CFLAGS = -O0
 CXXFLAGS = -O0
-
-# Use standard C++ features but with minimal debug info
-PKG_CXXFLAGS = -I${R_HOME}/include -g0
-
-# Use symbolic binding to minimize relocations
-PKG_LIBS = -L${R_HOME}/lib -lR ${LAPACK_LIBS} ${BLAS_LIBS} ${FLIBS} -Wl,-Bsymbolic
+PKG_CXXFLAGS = -I${R_HOME}/include
+PKG_LIBS = -L${R_HOME}/lib -lR ${LAPACK_LIBS} ${BLAS_LIBS} ${FLIBS}

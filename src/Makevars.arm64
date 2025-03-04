@@ -1,0 +1,6 @@
+CXX=clang++
+CXX_STD=CXX17
+PKG_CXXFLAGS=-O3 -mtune=native -arch arm64 -ftemplate-depth-256 -fvisibility=default \
+             -DSTRICT_R_HEADERS -DRCPP_USE_STRICT_HEADERS -DRCPP_NO_RTTI \
+             -DR_NO_REMAP -DRCPP_INTERFACE_STRICT -DRCPP_USE_UNWIND_PROTECT
+PKG_LIBS=-framework R
