@@ -92,7 +92,7 @@ EVALUATABLE.VALUE = R6::R6Class(
             {
                 if (is.expression(value))
                 {
-                    if (length(expression)!=1)
+                    if (length(value)!=1)
                         stop(paste0(error.prefix,
                                     "if the given 'value' is an expression, it must be of length 1"))
                     

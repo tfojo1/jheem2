@@ -30,7 +30,7 @@ create.diffeq.settings <- function(jheem,
     settings$core.components = kernel$core.components
 
     #-- Pull Dynamic Outcomes --#
-    outcome.names = kernel$get.outcome.names.for.sub.version(jheem$sub.version)
+    outcome.names = union(c('infected','uninfected'), kernel$get.outcome.names.for.sub.version(jheem$sub.version)) #make sure infected and uninfected come first
     outcomes = lapply(outcome.names, kernel$get.outcome.kernel)
     names(outcomes) = outcome.names
     
@@ -78,8 +78,8 @@ create.diffeq.settings <- function(jheem,
     
     #-- Set up state/dx sizes and indices --#
     settings$state_and_dx_sizes = c(
-        infected = prod(vapply(settings$ontologies$infected, length, FUN.VALUE = numeric(1))),
-        uninfected = prod(vapply(settings$ontologies$uninfected, length, FUN.VALUE = numeric(1))),
+ #       infected = prod(vapply(settings$ontologies$infected, length, FUN.VALUE = numeric(1))),
+ #       uninfected = prod(vapply(settings$ontologies$uninfected, length, FUN.VALUE = numeric(1))),
         vapply(settings$outcomes, function(out){
             prod(vapply(out$dim.names, length, FUN.VALUE = numeric(1)))
         }, FUN.VALUE = numeric(1))

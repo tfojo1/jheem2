@@ -52,11 +52,11 @@ get.jheem.root.directory <- function(error.prefix='')
 
 #'@export
 get.simset.filename.and.dir <- function(version,
-                                        sub.version,
+                                        location,
                                         calibration.code,
                                         n.sim,
-                                        location,
-                                        intervention.code,
+                                        intervention.code = NULL,
+                                        sub.version = NULL,
                                         root.dir = get.jheem.root.directory("Cannot get.simset.filename(): "),
                                         error.prefix = '')
 {
@@ -148,11 +148,11 @@ get.simset.filename.and.dir <- function(version,
 
 #'@export
 get.simset.filename <- function(version,
-                                sub.version,
+                                location,
                                 calibration.code,
                                 n.sim,
-                                location,
-                                intervention.code,
+                                intervention.code = NULL,
+                                sub.version = NULL,
                                 include.path = T,
                                 root.dir = get.jheem.root.directory("Cannot get.simset.filename(): "),
                                 error.prefix = '')
@@ -180,7 +180,8 @@ retrieve.simulation.set <- function(version,
                                     intervention.code = NULL,
                                     sub.version = NULL,
                                     root.dir = get.jheem.root.directory("Cannot get.simset.filename(): "),
-                                    error.prefix = '')
+                                    error.prefix = '',
+                                    throw.error.if.missing=T)
 {
     filename = get.simset.filename(version = version,
                                    sub.version = sub.version,
@@ -192,30 +193,12 @@ retrieve.simulation.set <- function(version,
                                    root.dir = root.dir,
                                    error.prefix = error.prefix)
     
-    load.simulation.set(filename)
-}
-
-#'@export
-retrieve.simulation.set <- function(version,
-                                    location,
-                                    calibration.code,
-                                    n.sim,
-                                    intervention.code = NULL,
-                                    sub.version = NULL,
-                                    root.dir = get.jheem.root.directory("Cannot get.simset.filename(): "),
-                                    error.prefix = '')
-{
-    filename = get.simset.filename(version = version,
-                                   sub.version = sub.version,
-                                   calibration.code = calibration.code,
-                                   n.sim = n.sim,
-                                   location = location,
-                                   intervention.code = intervention.code,
-                                   include.path = T,
-                                   root.dir = root.dir,
-                                   error.prefix = error.prefix)
-    
-    load.simulation.set(filename)
+    if (file.exists(filename))
+        load.simulation.set(filename)
+    else if (throw.error.if.missing)
+        stop(paste0("Cannot retrieve simulation set: no simulations are saved at '", filename, "'"))
+    else
+        NULL
 }
 
 #'@export

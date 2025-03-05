@@ -321,6 +321,11 @@ JHEEM.TRANSMUTER = R6::R6Class(
         test = function()
         {
             private$i.jheem$test()
+        },
+        
+        extract.quantity.values = function()
+        {
+            private$i.jheem$extract.quantity.values()
         }
     ),
     

@@ -1263,6 +1263,11 @@ JHEEM.ENGINE = R6::R6Class(
         test = function()
         {
             private$i.jheem$test()
+        },
+        
+        extract.quantity.values = function()
+        {
+            private$i.jheem$extract.quantity.values()
         }
     ),
     
@@ -1842,6 +1847,11 @@ JHEEM = R6::R6Class(
         test = function()
         {
             browser()
+        },
+        
+        extract.quantity.values = function()
+        {
+            private$i.quantity.values
         },
         
         ##------------------------------##
@@ -3034,6 +3044,14 @@ JHEEM = R6::R6Class(
                 private$i.kernel$specification.metadata
             else
                 stop("Cannot modify a jheem's specification.metadata - it is read-only")
+        },
+        
+        parameters = function(value)
+        {
+            if (missing(value))
+                private$i.parameters
+            else
+                stop("Cannot modify a jheem's parameters - they are read-only")
         }
         
     ),
@@ -4551,7 +4569,6 @@ JHEEM = R6::R6Class(
         calculate.quantity.background.value = function(quantity.name, missing.times,
                                                        depth, check.consistency)
         {
-            
             missing.times = as.character(missing.times)
             error.prefix = paste0("Error calculating background value for quantity '", quantity.name, "': ")
             quantity = private$i.kernel$get.quantity.kernel(quantity.name)
@@ -5341,10 +5358,12 @@ JHEEM = R6::R6Class(
                 if (is.null(mask))
                     mask = private$i.quantity.value.applies.mask[[quantity.name]][[char.time]]
                 
-                if (length(mask)==1)
+                if (length(mask)==1 && length(private$i.quantity.dim.names[[quantity.name]])>0)
+                {
                     mask = array(mask,
                                  dim = vapply(private$i.quantity.dim.names[[quantity.name]], length, FUN.VALUE = integer(1)),
                                  dimnames = private$i.quantity.dim.names[[quantity.name]])
+                }
                 
                 if (!mask[1])
                 {

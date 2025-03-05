@@ -483,7 +483,7 @@ JHEEM.INTERVENTION = R6::R6Class(
             }
             else
             {
-                if (ncol(private$i.parameters) < sim) #since private$i.parameters must be non-empty, sim$n.sim must be >1
+                if (ncol(private$i.parameters) < sim$n.sim) #since private$i.parameters must be non-empty, sim$n.sim must be >1
                     stop(paste0(error.prefix, "The given 'sim' contains ",
                                 sim$n.sim,
                                 " simulations, but the parameters given in creating the intervention only contain ",

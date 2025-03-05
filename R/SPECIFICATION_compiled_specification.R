@@ -634,6 +634,14 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             #-- Print a start message --#
             do.cat(paste0("Starting compilation of specification '", private$i.version, "'\n"))
 
+            #-- Pull the fixed strata info --#
+            ancestor.index = 2
+            while(is.null(private$i.fixed.strata.info) && ancestor.index <= length(private$i.ancestor.specifications))
+            {
+                private$i.fixed.strata.info = private$i.ancestor.specifications[[ancestor.index]]$fixed.strata.info
+                ancestor.index = ancestor.index + 1
+            }
+            
             #-- Process aliases for consistency --#
             do.cat("Processing character aliases...")
             private$process.compartment.aliases()
