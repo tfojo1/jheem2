@@ -637,8 +637,6 @@ List apply_foregrounds(List values,
                 // 2) An inner loop (over i_index/i) that goes through all the value times for which this effect time j applies
                 while (j <= n_effect_times)
                 {
-                    if (j > 1)
-                        return(List::create());
                     // Rcout << "**** j = " << j << ", time_before = " << time_before << ", time_after = " << time_after << "\n";
                     // at the start of this loop, we know that
                     //   value_times[i] >= time_before
