@@ -1,7 +1,7 @@
 
 #' @title Create Nested Proportion Likelihood Instructions
 #' @inheritParams create.basic.likelihood.instructions
-#' @param location.types The types of the locations that contain or are contained by the model location.
+#' @param location.types The types of the locations that contain or are contained by the model location. These should be in order of decreasing preference since in the case that two locations have the same contained 'minimum.geographic.resolution.type', such as county "11001" and state "DC", only the higher priority type location will be used.
 #' @param minimum.geographic.resolution.type The type of location used to partition locations. The type of the model location AND 'location.types' types must all completely enclose regions of this type
 #' @param location.overall.keep.threshold,location.stratum.keep.threshold How many data points a location must offer beyond what is found for the main location to justify being retained. Either overall (across ALL strata in total) or on a stratum-by-stratum basis. If a location doesn't meet the overall threshold, it will be ignored entirely. If it does, but fails to meet the stratum threshold for a certain stratum, it will be ignored only in that stratum.
 #' @param p.bias.inside.location A single numeric value specifying the bias in the outcome proportion between locations inside the model location and the model location itself
@@ -1826,10 +1826,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             }))
             names(iterated.location.types) = locations.vector
             
-            ## NEW: REMOVE LOCATIONS THAT HAVE IDENTICAL MINIMUM RESOLUTION TYPE CONTAINED LOCATIONS (e.g. DC and 11001)
-            
             rv = sort(unique(locations.vector))
             names(rv) = iterated.location.types[rv]
+            
+            ## NEW: REMOVE LOCATIONS THAT HAVE IDENTICAL MINIMUM RESOLUTION TYPE CONTAINED LOCATIONS (e.g. DC and 11001)
+            rv = rv[!duplicated(sapply(rv, function(x) {get.contained.locations(x, minimum.geographic.resolution.type)}))]
+            
             rv
         },
         
