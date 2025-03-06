@@ -618,7 +618,7 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
             }
             
             if (verbose)
-                cat("All Done")
+                cat("All Done\n")
         }
     ),
     
