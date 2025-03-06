@@ -6099,7 +6099,7 @@ JHEEM = R6::R6Class(
             for (outcome.name in private$i.dependee.outcome.names.to.transmute)
             {
                 numerator.array = private$i.final.outcome.numerators[[outcome.name]]
-                denominator.array = private$i.final.outcome.numerators[[outcome.name]]
+                denominator.array = private$i.final.outcome.denominators[[outcome.name]]
                 outcome.years = dimnames(numerator.array)$year
                 
                 n.year = length(outcome.years)
