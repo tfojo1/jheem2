@@ -1355,7 +1355,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     stratum.transformation.array
                 })
 
-                
+                # browser()
                 # ---- THINGS THAT DEPEND ON METALOCATION INFO ----
                 metalocation.info <- private$get.metalocations(
                     location = location,
@@ -1400,7 +1400,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 dim(year.metalocation.to.year.obs.n.mapping.per.stratum) <- c((length(locations.with.n.data) + 1) * n.years, n.metalocations * n.years)
                 private$i.year.metalocation.to.year.obs.n.mapping <- rep(list(year.metalocation.to.year.obs.n.mapping.per.stratum), n.strata)
                 
-                
+                # browser()
                 # --- N MULTIPLIERS --- #
                 if (post.time.checkpoint.flag) print(paste0("Calculate n multipliers: ", Sys.time()))
                 private$i.year.metalocation.n.multipliers <- private$get.n.multipliers(
@@ -1660,7 +1660,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             #                             obs_year_index = private$i.obs.year.index,
             #                             obs_p = private$i.obs.p,
             #                             obs_error = private$i.obs.error)
-            # save(saved.lik.components, file="R/tests/Balt_heroin_components.rdata")
+            # save(saved.lik.components, file="R/tests/DC_lik_components.rdata")
             lik.components <- get_nested_proportion_likelihood_components(
                 p = sim.p,
                 n = sim.n,
@@ -1780,7 +1780,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
         # find all locations that we will check for data
         # returns a vector of location codes, named with the location.type for each code
         get.all.locations = function(location, location.types, maximum.locations.per.type, minimum.geographic.resolution.type, data.manager, years, error.prefix) {
-            
+            # browser()
             main.contained.locs <- unlist(locations::get.location.code(locations::get.contained.locations(location, minimum.geographic.resolution.type), minimum.geographic.resolution.type))
             # This is slower than I expected
             locations.list = lapply(location.types, function(type) {
@@ -1825,6 +1825,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 rep(location.types[i], length(locations.list[[i]]))
             }))
             names(iterated.location.types) = locations.vector
+            
+            ## NEW: REMOVE LOCATIONS THAT HAVE IDENTICAL MINIMUM RESOLUTION TYPE CONTAINED LOCATIONS (e.g. DC and 11001)
             
             rv = sort(unique(locations.vector))
             names(rv) = iterated.location.types[rv]
@@ -2039,6 +2041,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             })
             # only give 'metalocation.cols' dimnames *after* checking if columns are identical, because names will make them different
             dimnames(metalocation.cols) <- list(obs.location = names(minimum.components.list), metalocation.number = 1:ncol(metalocation.cols))
+            
+            ## NEW: CHECK FOR INSUFFICIENT RANK HERE TO AVOID DISCOVERING THE ISSUE LATER WITHIN THE C++
+            if (qr(metalocation.cols)$rank < nrow(metalocation.cols))
+                stop(paste0(error.prefix, "insufficient rank in the metalocation to obs location mapping; this challenges the assumptions of this likelihood and should be referred to Andrew and Todd for diagnosis"))
 
             metalocation.type <- sapply(metalocation.to.minimal.component.map, function(metalocation) {
                 components.in.msa <- intersect(metalocation, minimum.components.list[[location]])
