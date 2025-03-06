@@ -223,9 +223,12 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
             n.inner = prod(sapply(inner.dim.names, length))
             
             rv = sapply(list.rv, function(list.rv.for.int){
-                list.rv.for.int[sapply(list.rv.for.int, is.null)] = rep(as.numeric(NA), n.inner)
+                #list.rv.for.int[sapply(list.rv.for.int, is.null)] = rep(as.numeric(NA), n.inner)
                 sapply(list.rv.for.int, function(sub){
-                    sub
+                    if (is.null(sub))
+                        rep(as.numeric(NA), n.inner)
+                    else
+                        sub
                 })
             })
             
@@ -233,7 +236,7 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
             dim.names = c(inner.dim.names,
                           list(location = private$i.locations,
                                intervention = private$i.intervention.code.labels))
-            
+
             dim(rv) = sapply(dim.names, length)
             dimnames(rv) = dim.names
             rv
