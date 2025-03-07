@@ -4,10 +4,7 @@
 #' @param location.types The types of the locations that contain or are contained by the model location. These should be in order of decreasing preference since in the case that two locations have the same contained 'minimum.geographic.resolution.type', such as county "11001" and state "DC", only the higher priority type location will be used.
 #' @param minimum.geographic.resolution.type The type of location used to partition locations. The type of the model location AND 'location.types' types must all completely enclose regions of this type
 #' @param location.overall.keep.threshold,location.stratum.keep.threshold How many data points a location must offer beyond what is found for the main location to justify being retained. Either overall (across ALL strata in total) or on a stratum-by-stratum basis. If a location doesn't meet the overall threshold, it will be ignored entirely. If it does, but fails to meet the stratum threshold for a certain stratum, it will be ignored only in that stratum.
-#' @param p.bias.inside.location A single numeric value specifying the bias in the outcome proportion between locations inside the model location and the model location itself
-#' @param p.bias.outside.location A single numeric value specifying the bias in the outcome proportion between locations outside the model location and the model location itself
-#' @param p.bias.sd.inside.location The standard deviation associated with 'p.bias.inside.location'
-#' @param p.bias.sd.outsidde.location The standard deviation associated with 'p.bias.outside.location'
+#' @param p.bias.inside.location,p.bias.outside.location,p.bias.sd.inside.location,p.bias.sd.outside.location A single numeric value specifying the bias in the outcome proportion between locations inside (or outside) the model location and the model location itself, and their associated standard deviations. Each of these may alternatively be a function that takes only arguments 'version' and 'location' and returns an acceptable numeric value. For the estimates, values should be between -1 and 1, inclusive. For sd, should be non-negative and non-infinite.
 #' @param within.location.p.error.correlation,within.location.n.error.correlation Single numeric values specifying the correlation between p or n values from the same location and stratum
 #' @param minimum.error.sd A single, positive numeric value. If any standard deviations are calculated to a value below this, they will be replaced with this value. This can help keep the likelihood from computing to negative infinity.
 #' @param correlation.different.locations A single numeric value specifying the correlation between observations of different locations.
@@ -525,7 +522,40 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             if (!is.null(ratio.correlation) && (!is.numeric(ratio.correlation) || length(ratio.correlation)!=1 || is.na(ratio.correlation) || ratio.correlation>1 || ratio.correlation< -1))
                 stop(paste0(error.prefix, "'ratio.correlation' must be NULL or a single, numeric value between 1 and -1, inclusive"))
             
-
+            # *p.bias* constants may be functions with arguments 'version' and 'location'. Temporarily save function and put placeholder value to keep the next check on value bounds organized
+            p.b.in.temp=NULL
+            if (is.function(p.bias.inside.location)) {
+                if (length(formals(p.bias.inside.location)) != 2 || names(formals(p.bias.inside.location))[[1]] != "version" || names(formals(p.bias.inside.location))[[2]] != "location") {
+                    stop(paste0(error.prefix, "if 'p.bias.inside.location' is a function, it must take only two arguments: 'version', and 'location'"))
+                }
+                p.b.in.temp = p.bias.inside.location
+                p.bias.inside.location = 1
+            }
+            p.b.out.temp=NULL
+            if (is.function(p.bias.outside.location)) {
+                if (length(formals(p.bias.outside.location)) != 2 || names(formals(p.bias.outside.location))[[1]] != "version" || names(formals(p.bias.outside.location))[[2]] != "location") {
+                    stop(paste0(error.prefix, "if 'p.bias.outside.location' is a function, it must take only two arguments: 'version', and 'location'"))
+                }
+                p.b.out.temp = p.bias.outside.location
+                p.bias.outside.location = 1
+            }
+            p.b.sd.in.temp=NULL
+            if (is.function(p.bias.sd.inside.location)) {
+                if (length(formals(p.bias.sd.inside.location)) != 2 || names(formals(p.bias.sd.inside.location))[[1]] != "version" || names(formals(p.bias.sd.inside.location))[[2]] != "location") {
+                    stop(paste0(error.prefix, "if 'p.bias.sd.inside.location' is a function, it must take only two arguments: 'version', and 'location'"))
+                }
+                p.b.sd.in.temp = p.bias.sd.inside.location
+                p.bias.sd.inside.location = 1
+            }
+            p.b.sd.out.temp=NULL
+            if (is.function(p.bias.sd.outside.location)) {
+                if (length(formals(p.bias.sd.outside.location)) != 2 || names(formals(p.bias.sd.outside.location))[[1]] != "version" || names(formals(p.bias.sd.outside.location))[[2]] != "location") {
+                    stop(paste0(error.prefix, "if 'p.bias.sd.outside.location' is a function, it must take only two arguments: 'version', and 'location'"))
+                }
+                p.b.sd.out.temp = p.bias.sd.outside.location
+                p.bias.sd.outside.location = 1
+            }
+            
             # *p.bias* constants, *correlation.multipliers*, *within.location* error correlations, *metalocation* correlations, *measurement.error.sd*, and *n.multiplier.cv* are all single numeric values with values between 0 and 1 inclusive
             between.negative.one.and.positive.one <- list(
                 p.bias.inside.location = p.bias.inside.location,
@@ -556,6 +586,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                     stop(paste0(error.prefix, "'", names(non.negative.not.infinity)[[i]], "' must be a single non-negative, non-infinite numeric value"))
                 }
             }
+            
+            # Convert *p.bias* functions back to functions if they were
+            if (!is.null(p.b.in.temp)) p.bias.inside.function = p.b.in.temp
+            if (!is.null(p.b.out.temp)) p.bias.outside.function = p.b.out.temp
+            if (!is.null(p.b.sd.in.temp)) p.bias.sd.inside.location = p.b.sd.in.temp
+            if (!is.null(p.b.sd.out.temp)) p.bias.sd.outside.location = p.b.sd.out.temp
 
             # *observation.correlation.form* is either 'compound.symmetry' or 'autoregressive.1'
             if (length(observation.correlation.form) > 1 || !(observation.correlation.form %in% c("compound.symmetry", "autoregressive.1"))) {
@@ -1430,19 +1466,45 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             
             # ---- P.BIAS ----
             if (post.time.checkpoint.flag) print(paste0("Generate p bias matrices: ", Sys.time()))
+            
+            ## IF p.bias args are actually functions, run them now
+            if (is.function(instructions$parameters$p.bias.inside.location)) {
+                p.bias.in = instructions$parameters$p.bias.inside.location(version, location)
+                if (!is.numeric(p.bias.in) || length(p.bias.in)!=1 || is.na(p.bias.in) || p.bias.in < -1 || p.bias.in > 1)
+                    stop(paste0(error.prefix, "if 'p.bias.inside.location' is a function, it must return a single numeric value between -1 and 1 inclusive"))
+            } else p.bias.in = instructions$parameters$p.bias.inside.location
+            
+            if (is.function(instructions$parameters$p.bias.outside.location)) {
+                p.bias.out = instructions$parameters$p.bias.outside.location(version, location)
+                if (!is.numeric(p.bias.out) || length(p.bias.out)!=1 || is.na(p.bias.out) || p.bias.out < -1 || p.bias.out > 1)
+                    stop(paste0(error.prefix, "if 'p.bias.outside.location' is a function, it must return a single numeric value between -1 and 1 inclusive"))
+            } else p.bias.out = instructions$parameters$p.bias.outside.location
+            
+            if (is.function(instructions$parameters$p.bias.sd.inside.location)) {
+                p.bias.sd.in = instructions$parameters$p.bias.sd.inside.location(version, location)
+                if (!is.numeric(p.bias.sd.in) || length(p.bias.sd.in)!=1 || is.na(p.bias.sd.in) || p.bias.sd.in < 0 || is.infinite(p.bias.sd.in))
+                    stop(paste0(error.prefix, "if 'p.bias.sd.inside.location' is a function, it must return a single non-negative and non-infinite numeric value"))
+            } else p.bias.sd.in = instructions$parameters$p.bias.sd.inside.location
+            
+            if (is.function(instructions$parameters$p.bias.sd.outside.location)) {
+                p.bias.sd.out = instructions$parameters$p.bias.sd.outside.location(version, location)
+                if (!is.numeric(p.bias.sd.out) || length(p.bias.sd.out)!=1 || is.na(p.bias.sd.out) || p.bias.sd.out < 0 || is.infinite(p.bias.sd.out))
+                    stop(paste0(error.prefix, "if 'p.bias.sd.outside.location' is a function, it must return a single non-negative and non-infinite numeric value"))
+            } else p.bias.sd.out = instructions$parameters$p.bias.sd.outside.location
+            
             private$i.year.metalocation.p.bias <- private$get.p.bias.matrices(
                 n.strata = n.strata,
                 metalocation.type = metalocation.type,
                 n.years = n.years,
-                p.bias.in = instructions$parameters$p.bias.inside.location,
-                p.bias.out = instructions$parameters$p.bias.outside.location
+                p.bias.in = p.bias.in,
+                p.bias.out = p.bias.out
             )
             private$i.year.metalocation.p.sd <- private$get.p.bias.matrices(
                 n.strata = n.strata,
                 metalocation.type = metalocation.type,
                 n.years = n.years,
-                p.bias.in = instructions$parameters$p.bias.sd.inside.location,
-                p.bias.out = instructions$parameters$p.bias.sd.outside.location
+                p.bias.in = p.bias.sd.in,
+                p.bias.out = p.bias.sd.out
             )
 
             
