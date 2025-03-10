@@ -4,7 +4,7 @@
 #' @param location.types The types of the locations that contain or are contained by the model location. These should be in order of decreasing preference since in the case that two locations have the same contained 'minimum.geographic.resolution.type', such as county "11001" and state "DC", only the higher priority type location will be used.
 #' @param minimum.geographic.resolution.type The type of location used to partition locations. The type of the model location AND 'location.types' types must all completely enclose regions of this type
 #' @param location.overall.keep.threshold,location.stratum.keep.threshold How many data points a location must offer beyond what is found for the main location to justify being retained. Either overall (across ALL strata in total) or on a stratum-by-stratum basis. If a location doesn't meet the overall threshold, it will be ignored entirely. If it does, but fails to meet the stratum threshold for a certain stratum, it will be ignored only in that stratum.
-#' @param p.bias.inside.location,p.bias.outside.location,p.bias.sd.inside.location,p.bias.sd.outside.location A single numeric value specifying the bias in the outcome proportion between locations inside (or outside) the model location and the model location itself, and their associated standard deviations. Each of these may alternatively be a function that takes only arguments 'version' and 'location' and returns an acceptable numeric value. For the estimates, values should be between -1 and 1, inclusive. For sd, should be non-negative and non-infinite.
+#' @param p.bias.inside.location,p.bias.outside.location,p.bias.sd.inside.location,p.bias.sd.outside.location A single numeric value specifying the bias in the outcome proportion between locations inside (or outside) the model location and the model location itself, and their associated standard deviations. Each of these may alternatively be a function that takes only arguments 'version' and 'location' and returns an acceptable numeric value. For the estimates, values should be between -1 and 1, inclusive. For sd, should be non-negative and non-infinite. The bias should = outside/inside location MINUS main location (eg, state - MSA or county - MSA)
 #' @param within.location.p.error.correlation,within.location.n.error.correlation Single numeric values specifying the correlation between p or n values from the same location and stratum
 #' @param minimum.error.sd A single, positive numeric value. If any standard deviations are calculated to a value below this, they will be replaced with this value. This can help keep the likelihood from computing to negative infinity.
 #' @param correlation.different.locations A single numeric value specifying the correlation between observations of different locations.
@@ -374,7 +374,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                               calculate.lagged.difference,
                               name) {
             error.prefix <- paste0("Error creating nested proportion likelihood instructions for outcome '", outcome.for.sim, "': ")
-            
+
             # validated in the super$initialize:
             # *outcome.for.sim* (although more validation follows)
             # *dimensions*
@@ -532,9 +532,17 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 p.bias.inside.location = 1
             }
             p.b.out.temp=NULL
+            
             if (is.function(p.bias.outside.location)) {
-                if (length(formals(p.bias.outside.location)) != 2 || names(formals(p.bias.outside.location))[[1]] != "version" || names(formals(p.bias.outside.location))[[2]] != "location") {
-                    stop(paste0(error.prefix, "if 'p.bias.outside.location' is a function, it must take only two arguments: 'version', and 'location'"))
+                
+                p.bias.formals = formals(p.bias.outside.location)
+                p.bias.formals.without.default = p.bias.formals[sapply(p.bias.formals, function(x){
+                    is.name(x) & length(x)==1 & x==''
+                })]
+                
+                if (length(p.bias.formals.without.default) != 2 || #names(formals(p.bias.outside.location))[[1]] != "version" || names(formals(p.bias.outside.location))[[2]] != "location") {
+                    !setequal(names(p.bias.formals.without.default), c('version','location'))) {
+                    stop(paste0(error.prefix, "if 'p.bias.outside.location' is a function, it must take only two arguments without a default value: 'version', and 'location'"))
                 }
                 p.b.out.temp = p.bias.outside.location
                 p.bias.outside.location = 1
@@ -586,10 +594,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                     stop(paste0(error.prefix, "'", names(non.negative.not.infinity)[[i]], "' must be a single non-negative, non-infinite numeric value"))
                 }
             }
-            
+
             # Convert *p.bias* functions back to functions if they were
-            if (!is.null(p.b.in.temp)) p.bias.inside.function = p.b.in.temp
-            if (!is.null(p.b.out.temp)) p.bias.outside.function = p.b.out.temp
+            if (!is.null(p.b.in.temp)) p.bias.inside.location = p.b.in.temp
+            if (!is.null(p.b.out.temp)) p.bias.outside.location = p.b.out.temp
             if (!is.null(p.b.sd.in.temp)) p.bias.sd.inside.location = p.b.sd.in.temp
             if (!is.null(p.b.sd.out.temp)) p.bias.sd.outside.location = p.b.sd.out.temp
 
@@ -2494,7 +2502,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                         stratification = stratification.for.n, data.manager = data.manager, outcome = outcome, years = years, universal.ontology = universal.ontology, cache = n.mult.cache, error.prefix = error.prefix
                     )
 
-                    if (is.null(arr)) stop(paste0(error.prefix, "Could not find '", outcome, "' data for some locations' 'minimum.geographic.resolution.type' components"))
+                    if (is.null(arr)) {
+                        stop(paste0(error.prefix, "Could not find '", outcome, "' data for some locations' 'minimum.geographic.resolution.type' components"))
+                    }
                     # Map this back to the model ontology
                     arr.ontology <- as.ontology(dimnames(arr), incomplete.dimensions = "year")
                     # sim.ontology.years.replaced = sim.ontology[names(sim.ontology) != 'location']
