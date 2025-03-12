@@ -204,8 +204,8 @@ set.up.calibration <- function(version,
     all.raw.sds[improper.param.names] = default.model.parameter.values[improper.param.names]
     
     all.raw.means = all.prior.means
-    all.raw.means[prior@is.improper] = default.model.parameter.values[prior@is.improper]
-    
+    all.raw.means[improper.param.names] = default.model.parameter.values[improper.param.names]
+
     all.default.parameter.sds = all.raw.sds
     all.default.parameter.sds[all.parameter.scales=='log'] = sqrt(log(all.raw.sds[all.parameter.scales=='log']^2 / all.raw.means[all.parameter.scales=='log']^2 + 1)) # This comes from the relationship between mean and SD in a lognormal
     all.default.parameter.sds = all.default.parameter.sds / DEFAULT.SD.REDUCTION.FACTOR
