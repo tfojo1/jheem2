@@ -34,6 +34,8 @@
 #'
 #'@param start.year The numeric year at which simulations should start. If NULL inherits the parent specification's start year
 #'
+#'@param labels A named character vector, representing how compartments should be labeled when making figures/charts, etc. Eg c(msm="MSM", idu="PWID")
+#'
 #'@export
 create.jheem.specification <- function(version,
                                        iteration,
@@ -52,7 +54,9 @@ create.jheem.specification <- function(version,
                                        
                                        age.endpoints = NULL,
                                        
-                                       compartment.value.aliases = list())
+                                       compartment.value.aliases = list(),
+                                       
+                                       labels = NULL)
 {
     error.prefix = "Cannot create jheem.specification: "
     
@@ -364,6 +368,23 @@ create.jheem.specification <- function(version,
         compartment.value.function.aliases[names(to.add.compartment.value.function.aliases)] = to.add.compartment.value.function.aliases
     }
     
+    #-- Labels --#
+    
+    if (!is.null(labels))
+    {
+        if (!is.character(labels))
+            stop(paste0(error.prefix, "If supplied, 'labels' must be a character vector"))
+        
+        if (any(is.na(labels)))
+            stop(paste0(error.prefix, "If supplied, 'labels' cannot contain NA values"))
+        
+        if (any(nchar(labels)==0))
+            stop(paste0(error.prefix, "If supplied, 'labels' cannot contain empty values ('')"))
+        
+        if (is.null(names(labels)))
+            stop(paste0(error.prefix, "If supplied, 'labels' must be a NAMED character vector"))
+    }
+    
     #-- Dim Names --#
     # In general, first we're going to check what's given
     # Then we're going to pull from parent and recheck
@@ -624,7 +645,8 @@ create.jheem.specification <- function(version,
         start.year = start.year,
         
         compartment.value.character.aliases = compartment.value.character.aliases,
-        compartment.value.function.aliases = compartment.value.function.aliases
+        compartment.value.function.aliases = compartment.value.function.aliases,
+        labels = labels
     )
 }
 
@@ -1868,7 +1890,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                               start.year,
                               
                               compartment.value.character.aliases,
-                              compartment.value.function.aliases)
+                              compartment.value.function.aliases,
+                              labels)
         {
             # As of now, I am assuming these have already been error-checked
             # Either by the create.jheem.specification function
@@ -1892,6 +1915,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
             
             private$i.compartment.value.character.aliases = compartment.value.character.aliases
             private$i.compartment.value.function.aliases = compartment.value.function.aliases
+            private$i.labels = labels
 
             private$i.quantities = list()
             private$i.core.components = list()
@@ -3014,6 +3038,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                   
                                                   compartment.value.character.aliases = private$i.compartment.value.character.aliases,
                                                   compartment.value.function.aliases = private$i.compartment.value.function.aliases,
+                                                  labels = private$i.labels,
                                                   ontologies = private$i.ontologies,
 
                                                   compartments = private$i.compartments,
@@ -3101,6 +3126,14 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 private$i.compartment.value.function.aliases
             else
                 stop("Cannot modify 'compartment.value.function.aliases' for a jheem.specification - they are read-only")
+        },
+        
+        labels = function(value)
+        {
+            if (missing(value))
+                private$i.labels
+            else
+                stop("Cannot modify 'labels' for a jheem.specification - they are read-only")
         },
         
         ontology.names = function(value)
@@ -3222,6 +3255,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         
         i.compartment.value.character.aliases = NULL,
         i.compartment.value.function.aliases = NULL,
+        i.labels = NULL,
         
         i.ontologies = NULL,
         i.compartments = NULL,

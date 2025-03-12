@@ -19,6 +19,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                               
                               compartment.value.character.aliases,
                               compartment.value.function.aliases,
+                              labels,
                               ontologies,
                               
                               compartments,
@@ -51,6 +52,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             private$i.compartment.value.character.aliases = compartment.value.character.aliases
             private$i.compartment.value.function.aliases = compartment.value.function.aliases
+            private$i.labels = labels
             private$i.ontologies = ontologies
             
             private$i.compartments = compartments

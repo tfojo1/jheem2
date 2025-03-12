@@ -1061,6 +1061,20 @@ SIMULATION.METADATA = R6::R6Class(
                 private$i.metadata$intervention.code
             else
                 stop("Cannot modify a simulation.set's 'intervention.code' - it is read-only")
+        },
+        
+        label.mapping = function(value)
+        {
+            if (missing(value))
+            {
+                if (is.null(private$i.metadata$label.mapping))
+                    x
+                else
+                    private$i.metadata$label.mapping
+                
+            }
+            else
+                stop("Cannot modify a simulation.set's 'label.mapping' - it is read-only")
         }
     ),
     
