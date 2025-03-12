@@ -793,6 +793,10 @@ NumericVector compute_dx(NumericVector state,
         
         IntegerVector mortality_rate_indices = one_mort_info["rate_indices"];
         
+        // Pull state indices
+        IntegerVector state_indices = one_mort_info["state_indices"];
+        int state_index;
+        
         // Set up for tracking
         List trackers = one_mort_info["trackers"];
         bool need_to_track = trackers.length() > 0;
@@ -800,11 +804,12 @@ NumericVector compute_dx(NumericVector state,
         double deaths;
         for (int i=0; i<n; i++)
         {
-            deaths = sub_state[i] * mortality_rates[ mortality_rate_indices[i] ];
+            state_index = state_indices[i];
+            deaths = sub_state[state_index] * mortality_rates[ mortality_rate_indices[i] ];
             
-            dx_for_mort[i] -= deaths;
+            dx_for_mort[state_index] -= deaths;
             if (need_to_track)
-                scratch[i] = deaths;
+                scratch[state_index] = deaths;
         }
         
         // Track the mortality if needed
