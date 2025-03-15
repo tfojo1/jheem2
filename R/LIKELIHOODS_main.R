@@ -385,7 +385,7 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                     output.stratifications <- c(output.stratifications, "")
                 } # where '' will have to be replaced with NULL during the pull. There is no other way that I've found to append something blank to the list.
                 else {
-                    output.stratifications <- c(output.stratifications, combn(dimensions, level, simplify = F))
+                    output.stratifications <- c(output.stratifications, combn(sort(dimensions), level, simplify = F))
                 }
             }
             output.stratifications
@@ -395,19 +395,19 @@ JHEEM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 return(list(create.likelihood.weights(weights)))
             }
             output.weights <- list()
-            total.weight <- 1
+            total.recursive.weight <- 1
             for (w in weights) {
                 if (is.numeric(w)) {
-                    total.weight <- total.weight * prod(w)
+                    total.recursive.weight <- total.recursive.weight * prod(w)
                 } else if (is(w, "jheem.likelihood.weights")) {
-                    if (length(w$dimension.values) == 0) {
-                        total.weight <- total.weight * w$total.weight
+                    if (length(w$dimension.values) == 0 && w$is.recursive) {
+                        total.recursive.weight <- total.recursive.weight * w$total.weight
                     } else {
                         output.weights <- c(output.weights, list(w))
                     }
                 }
             }
-            output.weights <- c(output.weights, list(create.likelihood.weights(total.weight = total.weight)))
+            output.weights <- c(output.weights, list(create.likelihood.weights(total.weight = total.recursive.weight)))
         },
         stratification.lists.equal = function(strat.list.1, strat.list.2) {
             if (length(strat.list.1) != length(strat.list.2)) {
@@ -630,13 +630,16 @@ JHEEM.LIKELIHOOD <- R6::R6Class(
 #'
 #' @param total.weight The weight that is applied to all observations in the
 #' @param dimension.values
+#' @param is.recursive Should this weight apply to deeper levels of stratification? For exampel, if F and dimension.values is the default empty list, this weight would only apply to data points that are totals.
 #'
 #' @export
 create.likelihood.weights <- function(total.weight = 1,
-                                      dimension.values = list()) {
+                                      dimension.values = list(),
+                                      is.recursive=T) {
     JHEEM.LIKELIHOOD.WEIGHTS$new(
         total.weight = total.weight,
-        dimension.values = dimension.values
+        dimension.values = dimension.values,
+        is.recursive = is.recursive
     )
 }
 
@@ -645,7 +648,8 @@ JHEEM.LIKELIHOOD.WEIGHTS <- R6::R6Class(
     portable = F,
     public = list(
         initialize = function(total.weight,
-                              dimension.values) {
+                              dimension.values,
+                              is.recursive) {
             error.prefix <- "Error creating likelihood weights: "
             
             # *total.weight* is a single numeric value that is not NA and > 0
@@ -660,6 +664,10 @@ JHEEM.LIKELIHOOD.WEIGHTS <- R6::R6Class(
                 stop(paste0(error.prefix, "'dimension.values' must be an empty list or a named list with no duplicate names"))
             }
             private$i.dimension.values <- dimension.values[sort(names(dimension.values))]
+            
+            if (!is.logical(is.recursive) || length(is.recursive)!=1 || is.na(is.recursive))
+                stop(paste0(error.prefix, "'is.recursive' must be T or F"))
+            private$i.is.recursive = is.recursive
         },
         equals = function(other) {
             if (!is(other, "jheem.likelihood.weights")) {
@@ -692,10 +700,18 @@ JHEEM.LIKELIHOOD.WEIGHTS <- R6::R6Class(
             } else {
                 stop("Cannot modify a jheem.likelihood.weights' 'dimension.values' - it is read-only")
             }
+        },
+        is.recursive = function(value) {
+            if (missing(value)) {
+                private$i.is.recursive
+            } else {
+                stop("Cannot modify a jheem.likelihood.weights' 'is.recursive' - it is read-only")
+            }
         }
     ),
     private = list(
         i.total.weight = NULL,
-        i.dimension.values = NULL
+        i.dimension.values = NULL,
+        i.is.recursive = NULL
     )
 )

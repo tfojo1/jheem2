@@ -1544,8 +1544,8 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
             
             # Once the weights list is in the format list(weights.object1, weights.object2, ...), I'll loop over them.
             for (weight in weights) {
-                # if no dimension.values, apply it to all observations
-                if (length(weight$dimension.values) == 0) {
+                # if no dimension.values and is recursive, apply it to all observations
+                if (length(weight$dimension.values) == 0 && weight$is.recursive) {
                     weights.vector <- weights.vector * weight$total.weight
                 } else {
                     weights.mask <- sapply(data.dimension.values, function(row) {
@@ -1553,6 +1553,9 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                         if (!all(dimensions.this.weight %in% names(row))) {
                             return(F)
                         }
+                        # If not recursive, we only take perfect matches (not further stratified). Don't use NA in names(row), which can be from ".TOTAL."
+                        else if (!weight$is.recursive && !setequal(c('year', dimensions.this.weight), names(row)[!is.na(names(row))]))
+                            return(F)
                         all(sapply(dimensions.this.weight, function(dimension) {
                             row[[dimension]] %in% weight$dimension.values[[dimension]] # weight can have multiple values per dimension
                         }))
