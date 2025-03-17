@@ -1105,6 +1105,13 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                     lambda[i] += to_inflate_by;
                     
                     success_with_no_negative_n = false;
+                    
+                    for (int j=stratum_n_mapped_obs_n; j<stratum_n_mapped_obs_n+n_years; j++)
+                    {
+                        if (M[j + i*n_stratum_obs_n]>0)
+                            kappa_minus_M_lambda[j] -= to_inflate_by;
+                    }
+                    
                     // for (int j=0; j<stratum_n_mapped_obs_n; j++)
                     // {
                     //     if (M[j + i*n_stratum_obs_n]>0)
