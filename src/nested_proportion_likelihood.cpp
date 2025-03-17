@@ -1088,28 +1088,50 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         
         // we're going to loop here to make sure we don't have any negative nu
         int safety_counter = 0;
+        double nu_inflation = 1;
         while (!success_with_no_negative_n)
         {
             do_matrix_multiply(gamma, kappa_minus_M_lambda, nu,
                                n_year_metalocation, n_stratum_obs_n, 1);
             add_arrs(nu, lambda, nu, n_year_metalocation);
             
-   // if (safety_counter > 0)
-   //      Rcout << "Trial " << safety_counter << " for stratum " << d << "\n";
             success_with_no_negative_n = true;
+            
+            for (int j=stratum_n_mapped_obs_n; j<stratum_n_mapped_obs_n+n_years; j++)  
+            {
+                for (int k=0; k<stratum_n_mapped_obs_n; k++)
+                {
+                    
+                }
+            }
+            
             for (int i=0; i<n_year_metalocation; i++)
             {
                 if (nu[i]<0)
                 {
-                    double to_inflate_by = -nu[i] * (safety_counter+1);
+                    // if (i==0)
+                    //     Rcout << "Trial " << safety_counter << " for stratum " << d << "; nu[" << i << "] = " << nu[i] << "\n";
+                    
+                    double to_inflate_by = -nu[i] * nu_inflation;
                     lambda[i] += to_inflate_by;
                     
                     success_with_no_negative_n = false;
                     
-                    for (int j=stratum_n_mapped_obs_n; j<stratum_n_mapped_obs_n+n_years; j++)
+                    
+                    for (int j=stratum_n_mapped_obs_n; j<stratum_n_mapped_obs_n+n_years; j++)  
+                        // by iterating only through the MSAs obs locations, we are adding "to_add" to the obs.n for the non-MSA locations
                     {
                         if (M[j + i*n_stratum_obs_n]>0)
+                        {
                             kappa_minus_M_lambda[j] -= to_inflate_by;
+                            // if (i==0)
+                            // {
+                            //     Rcout << "  lambda[" << j << "] = " << lambda[j] << "\n";
+                            //     Rcout << "  kappa_minus_M_lambda[" << j << "] = " << kappa_minus_M_lambda[j] << "\n";   
+                            // }
+                        }
+                        
+                 //       Rcout << "  lambda[" << j << "] = " << lambda[j] << "\n";
                     }
                     
                     // for (int j=0; j<stratum_n_mapped_obs_n; j++)
@@ -1121,9 +1143,10 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
             }
             
             safety_counter++;
-            if (safety_counter>100)
+            nu_inflation *= 2;
+            if (safety_counter>50)
             {
-                Rcout << "Error in calculate_nested_likelihood_components() - we have looped 100 times trying to get rid of negative nu without success; we're going to have to recode for a new strategy\n";
+                Rcout << "Error in calculate_nested_likelihood_components() - we have looped 50 times trying to get rid of negative nu without success; we're going to have to recode for a new strategy\n";
                 return(R_NilValue);
             }
         }

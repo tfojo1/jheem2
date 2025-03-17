@@ -1858,7 +1858,13 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             )
             
             if (length(lik.components)==0)
-                stop("There was an error running get_nested_proportion_likelihood_components()")
+            {
+                .GlobalEnv$errored.sim = sim
+                .GlobalEnv$errored.lik = self
+                
+                stop("There was an error running get_nested_proportion_likelihood_components().",
+                     "\nThe simulation and likelihood have been saved in the global environment as 'errored.sim' and 'errored.likelihood'")
+            }
             
             # print(Sys.time() - ptm)
             mean <- lik.components$mean.v

@@ -464,8 +464,8 @@ set.up.calibration <- function(version,
         if (likelihood$compute(sim, use.optimized.get=T)==-Inf)
         {
             lik.pieces = likelihood$compute.piecewise(sim, use.optimized.get=T)
-            errored.likelihood <<- likelihood
-            errored.sim <<- sim
+            .GlobalEnv$errored.likelihood = likelihood
+            .GlobalEnv$errored.sim = sim
             
             stop(paste0("The likelihood evaluates to -Inf on the ", 
                         get.ordinal(i), " set of initial parameter values. The likelihood components are:\n",
