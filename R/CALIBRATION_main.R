@@ -393,11 +393,16 @@ set.up.calibration <- function(version,
     #-- Set up the compute likelihood function --#
     if (verbose)
         print(paste0(verbose.prefix, "Instantiate the likelihood..."))
-
-   likelihood = calibration.info$likelihood.instructions$instantiate.likelihood(version = version,
-                                                                                location = location,
-                                                                                sub.version = sub.version,
-                                                                                data.manager = calibration.info$data.manager)
+    
+    if (any(names(calibration.info$special.case.likelihood.instructions)==location))
+        lik.instr = calibration.info$special.case.likelihood.instructions[[location]]
+    else
+        lik.instr = calibration.info$likelihood.instructions
+    
+    likelihood = lik.instr$instantiate.likelihood(version = version,
+                                                  location = location,
+                                                  sub.version = sub.version,
+                                                  data.manager = calibration.info$data.manager)
 
     compute.likelihood <- function(sim) {
         lik = likelihood$compute(sim=sim, log=T, use.optimized.get=T, check.consistency=F)
@@ -703,13 +708,31 @@ extract.last.simulation.from.calibration <- function(version,
     chain.dirs = list.dirs(cache.dir, recursive = F, full.names = F)
     n.chains = length(chain.dirs)
     
+    if (is.null(chains))
+        chains = 1:n.chains
+    else
+    {
+        missing.chains = setdiff(chains, 1:n.chains)
+        if (length(missing.chains)>0)
+            stop(paste0("The calibration '", calibration.code,
+                        "' only has ",
+                        n.chains,
+                        ifelse(n.chains==1, " chain", " chains"),
+                        ". The given ",
+                        ifelse(length(missing.chains)==1, "value", "values"),
+                        " for 'chains' (",
+                        paste0(missing.chains, collapse=','),
+                        ifelse(length(missing.chains)==1, ") is invalid", ") are invalid")))
+    }
+    
     max.chunk = -1
     chain.with.max.chunk = -1
-    for (chain in 1:n.chains)
+    for (chain in chains)
     {
         chain.dir = file.path(cache.dir, paste0('chain_', chain))
         chunk.files = list.files(chain.dir)
         chunk = as.numeric(substr(chunk.files, start=nchar(paste0("chain", chain, "_chunk"))+1, nchar(chunk.files)-6))
+        
         max.chunk.for.chain = max(chunk)
         if (max.chunk.for.chain > max.chunk)
         {
@@ -737,9 +760,15 @@ extract.last.simulation.from.calibration <- function(version,
                             paste0(" from the ", get.ordinal(chain.with.max.chunk), " chain"))))
     }
     
-    mcmc.last = get(load(file.path(cache.dir, 
-                                   paste0('chain_', chain.with.max.chunk), 
-                                   paste0('chain', chain.with.max.chunk, "_chunk", max.chunk, ".Rdata"))))
+    for (chunk in max.chunk:1)
+    {
+        mcmc.last = get(load(file.path(cache.dir, 
+                                       paste0('chain_', chain.with.max.chunk), 
+                                       paste0('chain', chain.with.max.chunk, "_chunk", chunk, ".Rdata"))))
+
+        if (mcmc.last@n.iter>0)
+            break;
+    }
     
     sim.last = mcmc.last@simulations[[length(mcmc.last@simulations)]]
     
@@ -855,6 +884,7 @@ register.calibration.info <- function(code,
                                       n.iter,
                                       thin,
                                       description,
+                                      special.case.likelihood.instructions = list(),
                                       fixed.initial.parameter.values = numeric(),
                                       max.run.time.seconds = 10,
                                       solver.metadata = create.solver.metadata(),
@@ -946,6 +976,7 @@ register.calibration.info <- function(code,
     calibration.info = list(
         code = code,
         likelihood.instructions = likelihood.instructions,
+        special.case.likelihood.instructions = special.case.likelihood.instructions,
         data.manager = data.manager,
         end.year = end.year,
         parameter.names = parameter.names,

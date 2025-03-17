@@ -12,7 +12,8 @@
 #' @param p.error.variance.type,p.error.variance.term The type of error variance(s) to be used for the outcome proportion and the corresponding value or function required for each. See details for the allowable values. For more than one type, supply them in a vector. If you therefore need more than one term, supply these in a list.
 #' @param n.error.variance.type,n.error.variance.type The 'p.error.variance.type/term' analog for the denominator outcome. Has fewer options of type. See details for more information.
 #' @param partitioning.function A function that partitions values in the data ontology into values in the model ontology. Must have two arguments, "arr" and "version" and return an array with the same dimnames as the input array.
-#'
+#' @param obs.n.correlation.different.years Single numeric value specifying the correlation between different calculated obs n values
+#' 
 #' @details P error variance may be specified in a variety of ways, and more
 #' than one can be used in the same likelihood. 'error.variance.type' is a
 #' vector containing single character values describing the type(s) of variance
@@ -69,12 +70,15 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
                                                              correlation.different.strata = 0.1,
                                                              correlation.different.sources = 0.3,
                                                              correlation.same.source.different.details = 0.3,
+                                                             obs.n.correlation.different.years = within.location.n.error.correlation,
                                                              observation.correlation.form = c("compound.symmetry", "autoregressive.1")[1],
                                                              n.multiplier.cv = 0.1, # keeping this one
                                                              p.error.variance.term = NULL,
                                                              p.error.variance.type = NULL,
-                                                             n.error.variance.term = 0.05, # placeholder
-                                                             n.error.variance.type = "cv", # placeholder # same as old "denominator.measurement.error.cv"?
+                                                             n.error.variance.term = 0.05, 
+                                                             n.error.variance.type = "cv", 
+                                                             n.error.variance.term.if.estimated = 0.8,
+                                                             n.error.variance.type.if.estimated = 'exp.of.variance',
                                                              weights,
                                                              equalize.weight.by.year = T,
                                                              partitioning.function,
@@ -111,12 +115,15 @@ create.nested.proportion.likelihood.instructions <- function(outcome.for.data,
         correlation.different.strata = correlation.different.strata,
         correlation.different.sources = correlation.different.sources,
         correlation.same.source.different.details = correlation.same.source.different.details,
+        obs.n.correlation.different.years = obs.n.correlation.different.years,
         observation.correlation.form = observation.correlation.form,
         n.multiplier.cv = n.multiplier.cv,
         p.error.variance.term = p.error.variance.term,
         p.error.variance.type = p.error.variance.type,
         n.error.variance.term = n.error.variance.term,
         n.error.variance.type = n.error.variance.type,
+        n.error.variance.term.if.estimated = n.error.variance.term.if.estimated,
+        n.error.variance.type.if.estimated = n.error.variance.type.if.estimated,
         weights = weights,
         equalize.weight.by.year = equalize.weight.by.year,
         partitioning.function = partitioning.function,
@@ -167,12 +174,15 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
                                                                                       correlation.different.strata = 0.1,
                                                                                       correlation.different.sources = 0.3,
                                                                                       correlation.same.source.different.details = 0.3,
+                                                                                      obs.n.correlation.different.years = within.location.n.error.correlation,
                                                                                       observation.correlation.form = c("compound.symmetry", "autoregressive.1")[1],
                                                                                       n.multiplier.cv = 0.1, # keeping this one
                                                                                       p.error.variance.term = NULL,
                                                                                       p.error.variance.type = NULL,
                                                                                       n.error.variance.term = 0.05, # placeholder
                                                                                       n.error.variance.type = "cv", # placeholder # same as old "denominator.measurement.error.cv"?
+                                                                                      n.error.variance.term.if.estimated = 0.8,
+                                                                                      n.error.variance.type.if.estimated = 'exp.of.variance',
                                                                                       weights,
                                                                                       equalize.weight.by.year = T,
                                                                                       partitioning.function,
@@ -210,12 +220,15 @@ create.nested.proportion.likelihood.instructions.with.included.multiplier <- fun
         correlation.different.strata = correlation.different.strata,
         correlation.different.sources = correlation.different.sources,
         correlation.same.source.different.details = correlation.same.source.different.details,
+        obs.n.correlation.different.years = obs.n.correlation.different.years,
         observation.correlation.form = observation.correlation.form,
         n.multiplier.cv = n.multiplier.cv,
         p.error.variance.term = p.error.variance.term,
         p.error.variance.type = p.error.variance.type,
         n.error.variance.term = n.error.variance.term,
         n.error.variance.type = n.error.variance.type,
+        n.error.variance.term.if.estimated = n.error.variance.term.if.estimated,
+        n.error.variance.type.if.estimated = n.error.variance.type.if.estimated,
         weights = weights,
         equalize.weight.by.year = equalize.weight.by.year,
         partitioning.function = partitioning.function,
@@ -260,12 +273,15 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
                                                                                     correlation.different.strata = 0.1,
                                                                                     correlation.different.sources = 0.3,
                                                                                     correlation.same.source.different.details = 0.3,
+                                                                                    obs.n.correlation.different.years = within.location.n.error.correlation,
                                                                                     observation.correlation.form = c("compound.symmetry", "autoregressive.1")[1],
                                                                                     n.multiplier.cv = 0.1, # keeping this one
                                                                                     p.error.variance.term = NULL,
                                                                                     p.error.variance.type = NULL,
                                                                                     n.error.variance.term = 0.05, # placeholder
                                                                                     n.error.variance.type = "cv", # placeholder # same as old "denominator.measurement.error.cv"?
+                                                                                    n.error.variance.term.if.estimated = 0.8,
+                                                                                    n.error.variance.type.if.estimated = 'exp.of.variance',
                                                                                     ratio.cv = NULL,
                                                                                     ratio.correlation = NULL,
                                                                                     weights,
@@ -306,12 +322,15 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions <- funct
         correlation.different.strata = correlation.different.strata,
         correlation.different.sources = correlation.different.sources,
         correlation.same.source.different.details = correlation.same.source.different.details,
+        obs.n.correlation.different.years = obs.n.correlation.different.years,
         observation.correlation.form = observation.correlation.form,
         n.multiplier.cv = n.multiplier.cv,
         p.error.variance.term = p.error.variance.term,
         p.error.variance.type = p.error.variance.type,
         n.error.variance.term = n.error.variance.term,
         n.error.variance.type = n.error.variance.type,
+        n.error.variance.term.if.estimated = n.error.variance.term.if.estimated,
+        n.error.variance.type.if.estimated = n.error.variance.type.if.estimated,
         ratio.cv = ratio.cv,
         ratio.correlation = ratio.correlation,
         weights = weights,
@@ -359,12 +378,15 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                               correlation.different.strata,
                               correlation.different.sources,
                               correlation.same.source.different.details,
+                              obs.n.correlation.different.years,
                               observation.correlation.form,
                               n.multiplier.cv,
                               p.error.variance.term,
                               p.error.variance.type,
                               n.error.variance.term,
                               n.error.variance.type,
+                              n.error.variance.term.if.estimated,
+                              n.error.variance.type.if.estimated,
                               ratio.cv = NULL,
                               ratio.correlation = NULL,
                               weights,
@@ -394,6 +416,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             
             if (!is.list(p.error.variance.term)) p.error.variance.term=list(p.error.variance.term)
             if (!is.list(n.error.variance.term)) n.error.variance.term=list(n.error.variance.term)
+            if (!is.list(n.error.variance.term.if.estimated)) n.error.variance.term=list(n.error.variance.term.if.estimated)
 
             # outcome.for.sim *MUST* be a proportion (suppression, linkage, engagement, aware, heroine use, retention), but this is checked at instantiate time.
 
@@ -504,15 +527,28 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             
             # *n.error.variance.type* must be a vector and all 'cv'
             if (!is.character(n.error.variance.type) || length(n.error.variance.type)==0 ||
-                any(is.na(n.error.variance.type)) || length(setdiff(n.error.variance.type, c("cv"))>0))
-                stop(paste0(error.prefix, "'n.error.variance.type' must be a character vector with all elements 'cv'"))
+                any(is.na(n.error.variance.type)) || length(setdiff(n.error.variance.type, c("cv","exp.of.variance"))>0))
+                stop(paste0(error.prefix, "'n.error.variance.type' must be a character vector with all elements 'cv' or 'exp.of.variance"))
             
             for (i in seq_along(n.error.variance.type)) {
                 type = n.error.variance.type[i]
                 term = n.error.variance.term[[i]]
                 
                 if (type %in% c("sd", "variance", "cv", "exp.of.variance") && (!is.numeric(term) || length(term) != 1 || is.na(term) || term < 0))
-                    stop(paste0(error.prefix, "The 'p.error.variance.term' corresponding to a type of 'cv' must be a single, nonnegative, numeric value"))
+                    stop(paste0(error.prefix, "The 'n.error.variance.type' must be a single, nonnegative, numeric value"))
+            }
+            
+            # *n.error.variance.type.if.estimated* must be a vector and all 'cv'
+            if (!is.character(n.error.variance.type.if.estimated) || length(n.error.variance.type.if.estimated)==0 ||
+                any(is.na(n.error.variance.type.if.estimated)) || length(setdiff(n.error.variance.type.if.estimated, c("cv","exp.of.variance"))>0))
+                stop(paste0(error.prefix, "'n.error.variance.type.if.estimated' must be a character vector with all elements 'cv' or 'exp.of.variance"))
+            
+            for (i in seq_along(n.error.variance.type.if.estimated)) {
+                type = n.error.variance.type.if.estimated[i]
+                term = n.error.variance.term.if.estimated[[i]]
+                
+                if (type %in% c("sd", "variance", "cv", "exp.of.variance") && (!is.numeric(term) || length(term) != 1 || is.na(term) || term < 0))
+                    stop(paste0(error.prefix, "The 'n.error.variance.type.if.estimated' must be a single, nonnegative, numeric value"))
             }
             
             # if *ratio.cv* is not NULL, then *ratio.correlation* can default to 0
@@ -574,7 +610,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 correlation.different.sources = correlation.different.sources,
                 correlation.same.source.different.details = correlation.same.source.different.details,
                 within.location.p.error.correlation = within.location.p.error.correlation,
-                within.location.n.error.correlation = within.location.n.error.correlation
+                within.location.n.error.correlation = within.location.n.error.correlation,
+                obs.n.correlation.different.years = obs.n.correlation.different.years
+                
             )
             for (i in seq_along(between.negative.one.and.positive.one)) {
                 if (!is.numeric(between.negative.one.and.positive.one[[i]]) || length(between.negative.one.and.positive.one[[i]]) > 1 || is.na(between.negative.one.and.positive.one[[i]]) || between.negative.one.and.positive.one[[i]] > 1 || between.negative.one.and.positive.one[[i]] < -1) {
@@ -666,6 +704,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 n.multiplier.cv = n.multiplier.cv,
                 within.location.p.error.correlation = within.location.p.error.correlation,
                 within.location.n.error.correlation = within.location.n.error.correlation,
+                obs.n.correlation.different.years = obs.n.correlation.different.years,
                 minimum.error.sd = minimum.error.sd,
                 p.bias.inside.location = p.bias.inside.location,
                 p.bias.outside.location = p.bias.outside.location,
@@ -675,6 +714,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 p.error.variance.type = p.error.variance.type,
                 n.error.variance.term = n.error.variance.term,
                 n.error.variance.type = n.error.variance.type,
+                n.error.variance.term.if.estimated = n.error.variance.term.if.estimated,
+                n.error.variance.type.if.estimated = n.error.variance.type.if.estimated,
                 ratio.cv = ratio.cv,
                 ratio.correlation = ratio.correlation
             )
@@ -1518,7 +1559,33 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             
             # ---- CONDITIONING ----
             if (post.time.checkpoint.flag) print(paste0("Do conditioning: ", Sys.time()))
-            private$i.obs.n.plus.conditioned.error.variances <- lapply(1:n.strata, function(i) {
+            # private$i.obs.n.plus.conditioned.error.variances <- lapply(1:n.strata, function(i) {
+            #     # Implementing infrastructure for summing variances from multiple terms/types
+            #     # even though only "cv" used so far, just because p error does.
+            #     obs.n.variance <- sapply(private$i.obs.n[[i]], function(x) {
+            #         variance.by.term <- lapply(seq_along(private$i.parameters$n.error.variance.type), function(j) {
+            #             type = private$i.parameters$n.error.variance.type[j]
+            #             term = private$i.parameters$n.error.variance.term[[j]]
+            #             if (type == "cv")
+            #                 (x * term)**2
+            #         })
+            #         colSums(do.call(rbind, variance.by.term))
+            #     })
+            #     year.mask <- array(0, dim = c(n.years, length(locations.with.n.data), n.years, n.metalocations))
+            #     for (y in 1:n.years) {
+            #         year.mask[y, , y, ] <- metalocation.info.for.conditioning.without.msa
+            #     }
+            #     variance.arr <- array(rep(obs.n.variance, n.metalocations * n.years), dim = c(n.years, length(locations.with.n.data), n.years, n.metalocations))
+            #     variance.arr[!year.mask] <- 0
+            #     dim(variance.arr) <- c(length(locations.with.n.data) * n.years, n.metalocations * n.years)
+            # 
+            #     # now add a bunch of zero rows for the msa
+            #     rbind(variance.arr, matrix(0, nrow = n.years, ncol = dim(variance.arr)[[2]]))
+            # })
+            
+            obs.n.was.estimated = obs.n.info$estimated.values
+            dim(obs.n.was.estimated) = c(dim(obs.n.was.estimated)[1:2], length(obs.n.was.estimated)/dim(obs.n.was.estimated)[1]/dim(obs.n.was.estimated)[2])
+            private$i.obs.n.cov.matrices <- lapply(1:n.strata, function(i) {
                 # Implementing infrastructure for summing variances from multiple terms/types
                 # even though only "cv" used so far, just because p error does.
                 obs.n.variance <- sapply(private$i.obs.n[[i]], function(x) {
@@ -1527,19 +1594,54 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                         term = private$i.parameters$n.error.variance.term[[j]]
                         if (type == "cv")
                             (x * term)**2
+                        else if (type=='exp.of.variance')
+                            x^(2*term)
+                        else
+                            stop(paste0(error.prefix, "Do not know how to handle n.error.variance.type of '", type, "'"))
                     })
-                    colSums(do.call(rbind, variance.by.term))
+                    
+                    variance.by.term.if.estimated <- lapply(seq_along(private$i.parameters$n.error.variance.type), function(j) {
+                        type = private$i.parameters$n.error.variance.type.if.estimated[j]
+                        term = private$i.parameters$n.error.variance.term.if.estimated[[j]]
+                        if (type == "cv")
+                            rv = (x * term)**2
+                        else if (type=='exp.of.variance')
+                            rv = x^(2*term)
+                        else
+                            stop(paste0(error.prefix, "Do not know how to handle n.error.variance.type.if.estimated of '", type, "'"))
+                        
+                        rv[ !obs.n.was.estimated[,,i] ] = 0
+                    })
+                    
+                    colSums(do.call(rbind, variance.by.term)) + colSums(do.call(rbind, variance.by.term.if.estimated))
                 })
-                year.mask <- array(0, dim = c(n.years, length(locations.with.n.data), n.years, n.metalocations))
-                for (y in 1:n.years) {
-                    year.mask[y, , y, ] <- metalocation.info.for.conditioning.without.msa
+                
+                n.loc = length(obs.n.variance)/n.years
+                year.index.for.obs.n.variance = rep(1:n.years, n.loc)
+                loc.index.for.obs.n.variance = rep(1:n.loc, each=n.years)
+                loc.matches.mask = loc.index.for.obs.n.variance %*% t(loc.index.for.obs.n.variance) == loc.index.for.obs.n.variance^2
+                
+                if (private$i.parameters$observation.correlation.form == 'compound.symmetry')
+                {
+                    cor.mat = matrix(private$i.parameters$obs.n.correlation.different.years, nrow=length(loc.index.for.obs.n.variance), ncol=length(loc.index.for.obs.n.variance))
+                    cor.mat[!loc.matches.mask] = 0
+                    diag(cor.mat) = 1
                 }
-                variance.arr <- array(rep(obs.n.variance, n.metalocations * n.years), dim = c(n.years, length(locations.with.n.data), n.years, n.metalocations))
-                variance.arr[!year.mask] <- 0
-                dim(variance.arr) <- c(length(locations.with.n.data) * n.years, n.metalocations * n.years)
-
-                # now add a bunch of zero rows for the msa
-                rbind(variance.arr, matrix(0, nrow = n.years, ncol = dim(variance.arr)[[2]]))
+                else
+                {
+                    cor.mat = matrix(private$i.parameters$obs.n.correlation.different.years^abs(rep(year.index.for.obs.n.variance, length(year.index.for.obs.n.variance))-rep(year.index.for.obs.n.variance, each=length(year.index.for.obs.n.variance))),
+                                     nrow=length(loc.index.for.obs.n.variance), ncol=length(loc.index.for.obs.n.variance))
+                    cor.mat[!loc.matches.mask] = 0
+                }
+                
+                obs.n.sds = sqrt(obs.n.variance)
+                obs.n.cov.mat = obs.n.sds %*% t(obs.n.sds) * cor.mat
+                
+                # now add a bunch of zero rows and columns for the MSA
+                expanded.cov.mat = rbind(obs.n.cov.mat, matrix(0, nrow = n.years, ncol = ncol(obs.n.cov.mat)))
+                expanded.cov.mat = cbind(expanded.cov.mat, matrix(0, ncol = n.years, nrow = nrow(expanded.cov.mat)))
+                
+                expanded.cov.mat
             })
 
             private$i.year.metalocation.to.year.condition.on.location.mask <- rep(metalocation.to.obs.location.mapping[location, ], each = n.years)
@@ -1643,6 +1745,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
         i.within.location.p.error.correlation = NULL,
         i.within.location.n.error.correlation = NULL,
         i.obs.n = NULL,
+        i.obs.n.cov.matrices = NULL,
         i.year.metalocation.to.year.obs.n.mapping = NULL,
         i.obs.n.plus.conditioned.error.variances = NULL,
         i.year.metalocation.to.year.condition.on.location.mask = NULL,
@@ -1742,7 +1845,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 metalocation_n_multiplier_correlation = private$i.within.location.n.error.correlation,
                 year_metalocation_to_year_obs_n_mapping = private$i.year.metalocation.to.year.obs.n.mapping,
                 obs_n = private$i.obs.n,
-                obs_n_plus_conditioned_error_variances = private$i.obs.n.plus.conditioned.error.variances,
+                obs_n_cov_matrices = private$i.obs.n.cov.matrices,
                 year_metalocation_to_year_condition_on_location_mask = private$i.year.metalocation.to.year.condition.on.location.mask,
                 year_metalocation_to_year_condition_on_location_mapping = private$i.year.metalocation.to.year.condition.on.location.mapping,
                 year_metalocation_to_year_obs_location_mask = private$i.year.metalocation.to.year.obs.location.mask,
@@ -1753,6 +1856,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 obs_p = private$i.obs.p,
                 obs_error = private$i.obs.error
             )
+            
+            if (length(lik.components)==0)
+                stop("There was an error running get_nested_proportion_likelihood_components()")
+            
             # print(Sys.time() - ptm)
             mean <- lik.components$mean.v
             sigma <- lik.components$cov.mat
