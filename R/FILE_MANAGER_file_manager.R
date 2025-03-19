@@ -4,6 +4,7 @@
 ##--------------------##
 
 MCMC.SUB.DIRECTORY = 'mcmc_runs'
+MCMC.SUMMARY.SUB.DIRECTORY = 'mcmc_summaries'
 SIMULATION.SUB.DIRECTORY = 'simulations'
 
 MIN.SPECIFICATION.VERSION.NCHAR = 2
@@ -366,6 +367,22 @@ get.calibration.dir <- function(version,
               version,
               location, 
               calibration.code)
+}
+
+get.mcmc.summary.file <- function(version,
+                                  location,
+                                  calibration.code, 
+                                  root.dir = get.jheem.root.directory())
+{
+    filename = paste0("summary_",
+                      version, "_",
+                      location, "_",
+                      calibration.code,
+                      ".Rdata")
+    file.path(root.dir, 
+              MCMC.SUMMARY.SUB.DIRECTORY, 
+              version,
+              filename)
 }
 
 ##------------------------------------##

@@ -277,7 +277,7 @@ set.up.calibration <- function(version,
                                                 location = location,
                                                 calibration.code = preceding.code,
                                                 root.dir = root.dir,
-                                                parameter.scales = all.parameter.scales,
+                                          #      parameter.scales = all.parameter.scales,
                                                 get.one.set.of.parameters = calibration.info$is.preliminary,
                                                 error.prefix = error.prefix)
             
@@ -648,6 +648,36 @@ run.calibration <- function(version,
                                               
 }
 
+#'@export
+cache.mcmc.summary <- function(version,
+                               location,
+                               calibration.code,
+                               root.dir = get.jheem.root.directory(),
+                               get.one.set.of.parameters = F,
+                               throw.error.if.incomplete = T)
+{
+    
+    mcmc.summary = prepare.mcmc.summary(version = version,
+                                        location = location,
+                                        calibration.code = calibration.code,
+                                        root.dir = root.dir,
+                                        get.one.set.of.parameters = get.one.set.of.parameters,
+                                        error.prefix = 'Error preparing mcmc summary to cache',
+                                        throw.error.if.incomplete = throw.error.if.incomplete)
+    
+    if (!is.null(mcmc.summary))
+    {
+        save.to = get.mcmc.summary.file(version = version,
+                                        location = location,
+                                        calibration.code = calibration.code, 
+                                        root.dir = root.dir)
+        
+        save(mcmc.summary, file=save.to)
+    }
+    
+    mcmc.summary
+}
+
 #'@inheritParams set.up.calibration
 #'@param allow.remove.incomplete
 #'
@@ -656,6 +686,7 @@ clear.calibration.cache <- function(version,
                                     location,
                                     calibration.code,
                                     root.dir = get.jheem.root.directory("Cannot set up calibration: "),
+                                    remove.mcmc.summary = F,
                                     allow.remove.incomplete = F)
 {
     bayesian.simulations::remove.mcmc.cache(get.calibration.dir(version=version,
@@ -663,6 +694,11 @@ clear.calibration.cache <- function(version,
                                                                 calibration.code=calibration.code,
                                                                 root.dir=root.dir),
                                             allow.remove.incomplete = allow.remove.incomplete)    
+    
+    if (remove.mcmc.summary)
+    {
+        # @Andrew
+    }
 }
 
 #'@inheritParams set.up.calibration
@@ -1066,10 +1102,11 @@ prepare.mcmc.summary <- function(version,
                                  location,
                                  calibration.code,
                                  root.dir,
-                                 parameter.scales,
+#                                 parameter.scales,
                                  get.one.set.of.parameters = T,
                                  burn.fraction = 0.75,
-                                 error.prefix = '')
+                                 error.prefix = '',
+                                 throw.error.if.incomplete = T)
 {
     dir = file.path(get.calibration.dir(version=version,
                                         location=location,
@@ -1103,8 +1140,15 @@ prepare.mcmc.summary <- function(version,
     })
     
     if (any(!chain.done))
-        stop(paste0(error.prefix,
-                    "The prior MCMC has not finished running"))
+    {
+        if (throw.error.if.incomplete)
+        {
+            stop(paste0(error.prefix,
+                        "The prior MCMC has not finished running"))
+        }
+        else
+            return (NULL)
+    }
     
     state1 = chain.controls[[1]]@chain.state
     
@@ -1160,50 +1204,50 @@ prepare.mcmc.summary <- function(version,
             
             samples = rbind(samples, new.samples)
             
-            new.samples = sapply(dimnames(new.samples)$variable, function(var.name){
-                values = new.samples[,var.name]
-                scale = parameter.scales[var.name]
-                if (scale=='identity')
-                    values
-                else if (scale=='log')
-                    log(values)
-                else if (scale=='logit')
-                    log(values) - log(1-values)
-                else
-                    stop(paste0("Don't know what to do with scale = '", scale, "'"))
-            })
-            
-            mean.new.samples = colMeans(new.samples)
-            cov.new.samples = cov(new.samples)
-            
-            # Incorporate into the overall mean and cov mat
-            if (is.null(sample.mean))
-            {
-                sample.mean = mean.new.samples
-                sample.cov = cov.new.samples
-                n.samples = n.new.samples
-            }
-            else
-            {
-                old.n = n.samples
-                old.mean = sample.mean
-                old.cov = sample.cov
-                n.samples = old.n + n.new.samples
-                
-                sample.mean = old.n/n.samples * old.mean + n.new.samples/n.samples * mean.new.samples
-                sample.cov = 1/(n.samples-1) *
-                    ( (old.n-1) * old.cov + old.n * old.mean %*% t(old.mean) +
-                      (n.new.samples-1) * cov.new.samples + n.new.samples * mean.new.samples %*% t(mean.new.samples) - 
-                      n.samples * sample.mean %*% t(sample.mean) )
-            }
+            # new.samples = sapply(dimnames(new.samples)$variable, function(var.name){
+            #     values = new.samples[,var.name]
+            #     scale = parameter.scales[var.name]
+            #     if (scale=='identity')
+            #         values
+            #     else if (scale=='log')
+            #         log(values)
+            #     else if (scale=='logit')
+            #         log(values) - log(1-values)
+            #     else
+            #         stop(paste0("Don't know what to do with scale = '", scale, "'"))
+            # })
+            # 
+            # mean.new.samples = colMeans(new.samples)
+            # cov.new.samples = cov(new.samples)
+            # 
+            # # Incorporate into the overall mean and cov mat
+            # if (is.null(sample.mean))
+            # {
+            #     sample.mean = mean.new.samples
+            #     sample.cov = cov.new.samples
+            #     n.samples = n.new.samples
+            # }
+            # else
+            # {
+            #     old.n = n.samples
+            #     old.mean = sample.mean
+            #     old.cov = sample.cov
+            #     n.samples = old.n + n.new.samples
+            #     
+            #     sample.mean = old.n/n.samples * old.mean + n.new.samples/n.samples * mean.new.samples
+            #     sample.cov = 1/(n.samples-1) *
+            #         ( (old.n-1) * old.cov + old.n * old.mean %*% t(old.mean) +
+            #           (n.new.samples-1) * cov.new.samples + n.new.samples * mean.new.samples %*% t(mean.new.samples) - 
+            #           n.samples * sample.mean %*% t(sample.mean) )
+            # }
         }
     }
     
-    all.transformed.parameter.values = sapply(chain.controls, function(ctrl){
-        ctrl@chain.state@mean.transformed.parameters
-    })
-    
-    transformed.parameter.values = rowMeans(all.transformed.parameter.values)
+    # all.transformed.parameter.values = sapply(chain.controls, function(ctrl){
+    #     ctrl@chain.state@mean.transformed.parameters
+    # })
+    # 
+    # transformed.parameter.values = rowMeans(all.transformed.parameter.values)
     
     #-- Initial Scaling Steps --#
     # Andrew says lapply would be safer here since we're expecting a list anyway
@@ -1228,10 +1272,10 @@ prepare.mcmc.summary <- function(version,
         initial.scaling.parameters = initial.scaling.parameters,
         last.sim.parameters = last.sim.parameters,
         
-        transformed.parameter.values = transformed.parameter.values,
-        parameter.names = names(transformed.parameter.values),
-        sample.mean = sample.mean,
-        sample.cov = sample.cov,
+        # transformed.parameter.values = transformed.parameter.values,
+        # parameter.names = names(transformed.parameter.values),
+        # sample.mean = sample.mean,
+        # sample.cov = sample.cov,
         samples = samples
     )
 }
