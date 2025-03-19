@@ -1041,7 +1041,8 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         // Fold in mapped obs n together with metalocation n's
         stratum_mapped_obs_n = ((NumericVector) obs_n[d]).begin();
         int stratum_n_mapped_obs_n = ((NumericVector) obs_n[d]).length();
-        U = ((NumericMatrix) obs_n_cov_matrices[d]).begin();
+        NumericMatrix U_object = (NumericMatrix) obs_n_cov_matrices[d];
+        U = U_object.begin();
         
         n_stratum_obs_n = stratum_n_mapped_obs_n + n_years;
         for (int i=0; i<stratum_n_mapped_obs_n; i++)
