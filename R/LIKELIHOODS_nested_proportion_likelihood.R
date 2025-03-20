@@ -980,7 +980,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     stop(paste0(error.prefix, "'outcome.for.sim' must be cumulative in this specification"))
                 }
 
-                all.locations <- private$get.all.locations(
+                private$i.obs.locations <- all.locations <- private$get.all.locations(
                     location = location,
                     location.types = instructions$location.types,
                     maximum.locations.per.type = instructions$maximum.locations.per.type,
@@ -1442,7 +1442,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
 
                 # browser()
                 # ---- THINGS THAT DEPEND ON METALOCATION INFO ----
-                metalocation.info <- private$get.metalocations(
+                private$i.metalocations <- metalocation.info <- private$get.metalocations(
                     location = location,
                     observation.locations = observation.locations,
                     minimum.geographic.resolution.type = instructions$minimum.geographic.resolution.type,
@@ -1757,6 +1757,10 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
         i.obs.year.index = NULL,
         i.obs.p = NULL,
         i.obs.error = NULL,
+        
+        # FOR DEBUGGING
+        i.metalocations = NULL,
+        i.obs.locations = NULL,
 
         # OTHER
 

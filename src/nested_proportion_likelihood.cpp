@@ -999,6 +999,9 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
     NumericVector obs_v_object(n_obs);
     double *obs_v = obs_v_object.begin();
     
+    LogicalVector msa_totals_constrained(1);
+    msa_totals_constrained[0] = true;
+    
     //= The Main Loop over Strata ==/
     
     for (int d=0; d<n_strata; d++)
@@ -1018,7 +1021,6 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         }
         
         // Calculate T matrix
-        //      double *T = scratch3;
         fill_arr(T, 0, n_year_metalocation*n_year_metalocation);
         
         for (int i=0; i<n_metalocations; i++)
@@ -1084,67 +1086,92 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         do_matrix_multiply_A_interpolated_block(M, lambda, scratch1, n_years, n_stratum_obs_n/n_years, n_metalocations, 1);
         subtract_arrs(stratum_obs_n, scratch1, scratch1, n_stratum_obs_n);
         double *kappa_minus_M_lambda = scratch1;
+        double *backup_lambda = scratch3;
+        for (int i=0; i<n_year_metalocation; i++)
+            backup_lambda[i] = lambda[i];
         
         bool success_with_no_negative_n = false;
         
         // we're going to loop here to make sure we don't have any negative nu
         int safety_counter = 0;
         double nu_inflation = 1;
+        bool constrain_msa_totals = true;
+        bool reset_to_not_constrain_msa_totals = true;
         while (!success_with_no_negative_n)
         {
+            if (reset_to_not_constrain_msa_totals)
+            {
+                nu_inflation = 1;
+                constrain_msa_totals = false;
+                msa_totals_constrained[0] = false;
+                
+                for (int i=0; i<n_year_metalocation; i++)
+                {
+                    if (lambda[i] != backup_lambda[i])
+                    {
+                        for (int j=stratum_n_mapped_obs_n; j<stratum_n_mapped_obs_n+n_years; j++)  
+                            // by iterating only through the MSAs obs locations, we are adding "to_add" to the obs.n for the non-MSA locations
+                        {
+                            if (M[j + i*n_stratum_obs_n]>0)
+                                kappa_minus_M_lambda[j] += lambda[i] - backup_lambda[i];
+                        }
+                        lambda[i] = backup_lambda[i];
+                    }
+                }
+                
+                reset_to_not_constrain_msa_totals = false;
+            }
+            
             do_matrix_multiply(gamma, kappa_minus_M_lambda, nu,
                                n_year_metalocation, n_stratum_obs_n, 1);
             add_arrs(nu, lambda, nu, n_year_metalocation);
             
             success_with_no_negative_n = true;
             
-            for (int j=stratum_n_mapped_obs_n; j<stratum_n_mapped_obs_n+n_years; j++)  
-            {
-                for (int k=0; k<stratum_n_mapped_obs_n; k++)
-                {
-                    
-                }
-            }
-            
             for (int i=0; i<n_year_metalocation; i++)
             {
+                if (nu[i] == R_PosInf || nu[i] == R_NegInf)
+                {
+                    if (constrain_msa_totals)
+                    {
+                        reset_to_not_constrain_msa_totals = true;
+                        success_with_no_negative_n = false;
+                    }
+                    else
+                    {
+                        Rcout << "Error in calculate_nested_likelihood_components() - we have ended up with infinite nu in trying to get rid of negative nu values; we're going to need a new strategy\n";
+                        return(R_NilValue);
+                    }
+                }
+                
                 if (nu[i]<0)
                 {
-                    // if (i==0)
-                    //     Rcout << "Trial " << safety_counter << " for stratum " << d << "; nu[" << i << "] = " << nu[i] << "\n";
-                    
                     double to_inflate_by = -nu[i] * nu_inflation;
                     lambda[i] += to_inflate_by;
                     
                     success_with_no_negative_n = false;
-                    
-                    
-                    for (int j=stratum_n_mapped_obs_n; j<stratum_n_mapped_obs_n+n_years; j++)  
-                        // by iterating only through the MSAs obs locations, we are adding "to_add" to the obs.n for the non-MSA locations
+
+                    if (constrain_msa_totals)
                     {
-                        if (M[j + i*n_stratum_obs_n]>0)
+                        for (int j=stratum_n_mapped_obs_n; j<stratum_n_mapped_obs_n+n_years; j++)  
+                            // by iterating only through the MSAs obs locations, we are adding "to_add" to the obs.n for the non-MSA locations
                         {
-                            kappa_minus_M_lambda[j] -= to_inflate_by;
-                            // if (i==0)
-                            // {
-                            //     Rcout << "  lambda[" << j << "] = " << lambda[j] << "\n";
-                            //     Rcout << "  kappa_minus_M_lambda[" << j << "] = " << kappa_minus_M_lambda[j] << "\n";   
-                            // }
+                            if (M[j + i*n_stratum_obs_n]>0)
+                                kappa_minus_M_lambda[j] -= to_inflate_by;
+    
                         }
-                        
-                 //       Rcout << "  lambda[" << j << "] = " << lambda[j] << "\n";
                     }
-                    
-                    // for (int j=0; j<stratum_n_mapped_obs_n; j++)
-                    // {
-                    //     if (M[j + i*n_stratum_obs_n]>0)
-                    //         kappa_minus_M_lambda[j] = to_inflate_by;
-                    // }
                 }
             }
             
             safety_counter++;
             nu_inflation *= 2;
+            
+            if (safety_counter==20)
+            {
+                reset_to_not_constrain_msa_totals = true;
+            }
+            
             if (safety_counter>50)
             {
                 Rcout << "Error in calculate_nested_likelihood_components() - we have looped 50 times trying to get rid of negative nu without success; we're going to have to recode for a new strategy\n";
@@ -1466,13 +1493,8 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
     List rv = List::create(Named("obs.v") = obs_v_object,
                            _["obs.n"] = obs_n_aggregated_object,
                            _["mean.v"] = mean_v_object,
-                           _["cov.mat"] = cov_mat_object);
-    
-    
-    // saved for testing
-    //    _["test"] = double_to_numeric_vector(testing,
-    //                                   n_obs*n_obs *
-    //                                     n_strata)
+                           _["cov.mat"] = cov_mat_object,
+                           _["msa.totals.constrained"] = msa_totals_constrained);
     
     return (rv);
 }
