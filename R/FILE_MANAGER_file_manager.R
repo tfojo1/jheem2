@@ -382,6 +382,7 @@ get.mcmc.summary.file <- function(version,
     file.path(root.dir, 
               MCMC.SUMMARY.SUB.DIRECTORY, 
               version,
+              calibration.code,
               filename)
 }
 
