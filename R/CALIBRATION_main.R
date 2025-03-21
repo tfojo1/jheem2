@@ -756,6 +756,63 @@ cache.mcmc.summary <- function(version,
     invisible(mcmc.summary)
 }
 
+#'@export
+get.calibration.progress <- function(version,
+                                    locations,
+                                    calibration.code,
+                                    root.dir = get.jheem.root.directory(),
+                                    round.to.digits = 0,
+                                    as.pct = T)
+{
+    max.chains = 1
+    
+    list.fracs = lapply(locations, function(loc){
+        cache.dir = file.path(get.calibration.dir(version = version,
+                                                  location = loc,
+                                                  calibration.code = calibration.code, 
+                                                  root.dir = root.dir),
+                              'cache')
+        
+        files = list.files(cache.dir)
+        files = file.path(cache.dir, files[grepl('^chain[0-9]', files)])
+        
+        if (length(files)>max.chains)
+            max.chains <<- length(files)
+        
+        if (length(files)==0)
+            NA
+        else
+        {
+            loc.rv = sapply(files, function(file){
+                chain.control = get(load(file)[1])
+                mean(chain.control@chunk.done)
+            })
+            
+            loc.rv
+        }
+    })
+    
+    rv = matrix(NA, nrow=length(locations), ncol=max.chains,
+                dimnames = list(location=locations, chain=paste0("chain", 1:max.chains)))
+    
+    for (i in 1:length(locations))
+    {
+        loc.rv = list.fracs[[i]]
+        rv[i,1:length(loc.rv)] = loc.rv 
+    }
+    
+    if (as.pct)
+        rv = rv*100
+    
+    if (!is.na(round.to.digits))
+        rv = floor(rv*10^round.to.digits) / (10^round.to.digits)
+  #      rv = round(rv, digits = round.to.digits)
+  #      rv = format(round(rv, digits = round.to.digits), nsmall=round.to.digits)
+    
+    rv
+    
+}
+
 get.calibration.cache.modified.time <- function(version, location, calibration.code, root.dir = get.jheem.root.directory())
 {
     dir = file.path(get.calibration.dir(version = version,
