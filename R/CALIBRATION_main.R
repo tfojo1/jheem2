@@ -273,13 +273,78 @@ set.up.calibration <- function(version,
         # Pull from preceding
         if (preceding.index==1 || length(mcmc.parameters.to.pull.from.preceding)>0)
         {
-            mcmc.summary = prepare.mcmc.summary(version = version.for.preceding,
-                                                location = location,
-                                                calibration.code = preceding.code,
-                                                root.dir = root.dir,
-                                          #      parameter.scales = all.parameter.scales,
-                                                get.one.set.of.parameters = calibration.info$is.preliminary,
-                                                error.prefix = error.prefix)
+            mcmc.summary = NULL
+            mcmc.summary.file = get.mcmc.summary.file(version = version.for.preceding,
+                                                      location = location,
+                                                      calibration.code = preceding.code,
+                                                      root.dir = root.dir)
+            
+            if (file.exists(mcmc.summary.file))
+            {
+                summary.mtime = get.mcmc.summary.modified.time(version = version.for.preceding,
+                                                               location = location,
+                                                               calibration.code = preceding.code,
+                                                               root.dir = root.dir)
+                
+                calibration.mtime = get.calibration.cache.modified.time(version = version.for.preceding,
+                                                                        location = location,
+                                                                        calibration.code = preceding.code,
+                                                                        root.dir = root.dir)
+                
+                if (is.na(calibration.mtime) || summary.mtime >= calibration.mtime)
+                {
+                    # if (verbose)
+                    # {
+                    #     print(paste0("Pulling cached mcmc.summary for '",
+                    #                  preceding.code, "'/'", version.for.preceding, "'"))
+                    # }
+                    
+                    mcmc.summary = get(load(mcmc.summary.file)[1])
+                }
+            }
+            
+            if (is.null(mcmc.summary))
+            {
+                # if (verbose)
+                # {
+                #     print(paste0("Preparing mcmc.summary for '",
+                #                  preceding.code, "'/'", version.for.preceding, "'"))
+                # }
+                
+                dir = file.path(get.calibration.dir(version = version.for.preceding,
+                                                    location = location,
+                                                    calibration.code = preceding.code, 
+                                                    root.dir = root.dir),
+                                'cache')
+                
+                if (!dir.exists(dir))
+                {
+                    stop("The current calibration, '",
+                         calibration.code, "' for version '", version,
+                         "' depends on prior calibration '",
+                         preceding.code, "' for version '", 
+                         version.for.preceding, 
+                         "'. However, there is no calibration cache for '",
+                         preceding.code, "'/'", version.for.preceding,
+                         "' nor a cached mcmc.summary")
+                }
+                
+                # Make it and cache it
+                mcmc.summary = cache.mcmc.summary(version = version.for.preceding,
+                                                  location = location,
+                                                  calibration.code = preceding.code,
+                                                  root.dir = root.dir,
+                                                  get.one.set.of.parameters = calibration.info$is.preliminary,
+                                                  throw.error.if.incomplete = T)
+            }
+            
+            # mcmc.summary = prepare.mcmc.summary(version = version.for.preceding,
+            #                                     location = location,
+            #                                     calibration.code = preceding.code,
+            #                                     root.dir = root.dir,
+            #                               #      parameter.scales = all.parameter.scales,
+            #                                     get.one.set.of.parameters = calibration.info$is.preliminary,
+            #                                     error.prefix = error.prefix)
             
             # Pull the model parameter values
             if (preceding.index==1)
@@ -627,6 +692,8 @@ parse.calibration.parameter.aliases <- function(calibration.info,
 #'@param update.frequency
 #'@param update.detail
 #'
+#'@return An MCMC object
+#'
 #'@export
 run.calibration <- function(version,
                             location,
@@ -637,7 +704,7 @@ run.calibration <- function(version,
                             update.detail = 'low')
 {
     # Make sure a cache directory has been set up in place
-    bayesian.simulations::run.mcmc.from.cache(dir = get.calibration.dir(version=version,
+    rv = bayesian.simulations::run.mcmc.from.cache(dir = get.calibration.dir(version=version,
                                                                         location=location,
                                                                         calibration.code=calibration.code,
                                                                         root.dir=root.dir),
@@ -645,7 +712,15 @@ run.calibration <- function(version,
                                               update.frequency = update.frequency,
                                               update.detail = update.detail,
                                               remove.cache.when.done = F)
-                                              
+                    
+    cache.mcmc.summary(version = version,
+                       location = location,
+                       calibration.code = calibration.code,
+                       root.dir = root.dir,
+                       get.one.set.of.parameters = F,
+                       throw.error.if.incomplete = F)
+    
+    rv                          
 }
 
 #'@export
@@ -662,7 +737,7 @@ cache.mcmc.summary <- function(version,
                                         calibration.code = calibration.code,
                                         root.dir = root.dir,
                                         get.one.set.of.parameters = get.one.set.of.parameters,
-                                        error.prefix = 'Error preparing mcmc summary to cache',
+                                        error.prefix = 'Error preparing mcmc summary to cache: ',
                                         throw.error.if.incomplete = throw.error.if.incomplete)
     
     if (!is.null(mcmc.summary))
@@ -672,10 +747,42 @@ cache.mcmc.summary <- function(version,
                                         calibration.code = calibration.code, 
                                         root.dir = root.dir)
         
+        if (!dir.exists(dirname(save.to)))
+            dir.create(dirname(save.to), recursive = T)
+        
         save(mcmc.summary, file=save.to)
     }
     
-    mcmc.summary
+    invisible(mcmc.summary)
+}
+
+get.calibration.cache.modified.time <- function(version, location, calibration.code, root.dir = get.jheem.root.directory())
+{
+    dir = file.path(get.calibration.dir(version = version,
+                              location = location,
+                              calibration.code = calibration.code, 
+                              root.dir = root.dir),
+                    'cache')
+    
+    if (dir.exists(dir))
+    {
+        files = list.files(dir, full.names = T)
+        max(sapply(files, file.mtime))
+    }
+    else
+        NA
+}
+
+get.mcmc.summary.modified.time <- function(version, location, calibration.code, root.dir = get.jheem.root.directory())
+{
+    file = get.mcmc.summary.file(version = version,
+                                 location = location,
+                                 calibration.code = calibration.code, 
+                                 root.dir = root.dir)
+    if (file.exists(file))
+        file.mtime(file)
+    else
+        NA
 }
 
 #'@inheritParams set.up.calibration
