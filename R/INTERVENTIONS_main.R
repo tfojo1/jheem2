@@ -455,6 +455,7 @@ JHEEM.INTERVENTION = R6::R6Class(
                        keep.to.year = end.year,
                        seed = 12345,
                        verbose = F,
+                       listener = NULL,
                        error.prefix='')
         {
             # Validate arguments
@@ -474,6 +475,22 @@ JHEEM.INTERVENTION = R6::R6Class(
                                                                         sub.version = sim$sub.version,
                                                                         from.year = keep.from.year,
                                                                         to.year = keep.to.year)) #a sim IS a simulation metadata object
+            
+            if (!is.null(listener))
+            {
+                if (!is.function(listener))
+                    stop(paste0(error.prefix, "'listener' for running intervention must be a function which takes arguments 'index', 'total', and 'done'"))
+                
+                listener.formals = formals(listener)
+                listener.formals.without.default = listener.formals[sapply(listener.formals, function(x){
+                    is.name(x) & length(x)==1 & x==''
+                })]
+                
+                if (length(listener.formals) != 3 || !setequal(names(listener.formals), c('index','total','done'))) {
+                    stop(paste0(error.prefix, "'listener' for running intervention must be a function which takes ONLY arguments 'index', 'total', and 'done'"))
+                }
+                
+            }
             
             # Generate the new parameters
             if (is.null(private$i.parameters))
@@ -535,10 +552,23 @@ JHEEM.INTERVENTION = R6::R6Class(
                 params = new.parameters[,i]
                 names(params) = new.param.names
                 
-                private$do.run(engine, 
+                if (!is.null(listener))
+                    listener(index = i, 
+                             total = sim$n.sim, 
+                             done = F)
+                
+                sim = private$do.run(engine, 
                                sim.index = i,
                                parameters = params,
                                verbose = verbose)
+                
+                
+                if (!is.null(listener))
+                    listener(index = i, 
+                             total = sim$n.sim, 
+                             done = T)
+                
+                sim
             })
             
             do.join.simulation.sets(sim.list, finalize=T)
