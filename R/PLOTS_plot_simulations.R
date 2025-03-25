@@ -87,7 +87,8 @@ plot.simulations <- function(...,
                             n.facet.rows = NULL,
                             interval.coverate = 0.95,
                             data.manager = get.default.data.manager(),
-                            style.manager = get.default.style.manager('plotly'))
+                            style.manager = get.default.style.manager('plotly'),
+                            hide.legend = FALSE)
 {
   
     plot.which = "sim.and.data"
@@ -130,7 +131,8 @@ plot.simulations <- function(...,
                         plot.year.lag.ratio=plot.year.lag.ratio,
                         n.facet.rows=n.facet.rows,
                         style.manager=style.manager,
-                        debug=debug)
+                        debug=debug,
+                        hide.legend = hide.legend)
 }
 execute.plotly.plot <- function(prepared.plot.data,
                             outcomes=NULL,
@@ -141,7 +143,8 @@ execute.plotly.plot <- function(prepared.plot.data,
                             plot.year.lag.ratio=F,
                             n.facet.rows=NULL,
                             style.manager=get.default.style.manager(),
-                            debug=F)
+                            debug=F,
+                            hide.legend = FALSE)
 {
 
   #-- UNPACK DATA --#
@@ -243,19 +246,21 @@ execute.plotly.plot <- function(prepared.plot.data,
   df.sim.groupids.one.member = subset(df.sim, groupid_has_one_member)
   df.sim.groupids.many.members = subset(df.sim, !groupid_has_one_member)
 
+  # PLOTLY PLOTS
+  
   # browser()
-  plotly.debug = FALSE
+  plotly.debug = TRUE
   # Plotly uses 'dash' instead of 'dashed' for dashed lines, so 
   # convert the value in linetypes.for.sim
   linetypes.for.sim = gsub ("dashed", "dash", linetypes.for.sim)
   # Mapping the ggplot marker shapes into plotly
-  marker.mappings = lapply(shapes.for.data, function(gg_shape) {
+  marker.mappings = unlist(lapply(shapes.for.data, function(gg_shape) {
     if (gg_shape == 21) return ('circle') # Circle
     if (gg_shape == 22) return ('square') # Square
     if (gg_shape == 23) return ('diamond') # Diamond
     if (gg_shape == 24) return ('triangleup') # Triangle UP
     if (gg_shape == 25) return ('triangledown') # Triangle DOWN
-  })
+  }))
   
   sim.trace.count = 0
   trace.in.legend = list()
@@ -267,7 +272,7 @@ execute.plotly.plot <- function(prepared.plot.data,
                              marker.type, 
                              current.facet) {
     if (plotly.debug) {
-      cat(paste0("cat.list: ",cat.list,"\ntrace.column: ", trace.column, "\ncurrent.facet: ",current.facet))
+      cat(paste0("cat.list: ",cat.list,"\ntrace.column: ", trace.column, "\ncurrent.facet: ",current.facet,"\n"))
     }
     
     lapply( cat.list, function (trace_id) {
@@ -276,6 +281,9 @@ execute.plotly.plot <- function(prepared.plot.data,
           
       # Don't pull from markers
       clean.group.id = trace_id #gsub("^[a-zA-Z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
+      if (marker.type == "marker") {
+        # browser()
+      }
       
       base.trace = list (
         type = "scatter",
@@ -301,11 +309,15 @@ execute.plotly.plot <- function(prepared.plot.data,
           trace.data$line.shape[1]
         }
         # Does this combination of color and style already exist in the legend?
-        trace.key = paste0(col, mark)
-        if (!is.null(trace.in.legend[[trace.key]])) {
-          base.trace$showlegend = FALSE
+        if (!hide.legend) {
+          trace.key = paste0(col, mark)
+          if (!is.null(trace.in.legend[[trace.key]])) {
+            base.trace$showlegend = FALSE
+          } else {
+            trace.in.legend[[trace.key]] <<- TRUE
+          }
         } else {
-          trace.in.legend[[trace.key]] <<- TRUE
+          base.trace$showlegend = FALSE
         }
         
         base.trace[["line"]] = list (
@@ -316,6 +328,7 @@ execute.plotly.plot <- function(prepared.plot.data,
         
       } else if (marker.type == "marker") {
         unique.shapes = unique(trace.data$marker.shapes)
+        
         
         marker.traces = lapply(unique.shapes, function(shape) {
           
@@ -331,19 +344,30 @@ execute.plotly.plot <- function(prepared.plot.data,
           } else {
             shape.data$marker.shapes[1]
           }
-            
+          
           trace = base.trace
+          trace$showlegend = FALSE
+          
+          # Markers are unique because we need to enter the shape
+          # and the color separately on the legend.  We need a white-filled
+          # entry to denote the shape and another plotly shape to denote the color
+          # something not used already by the library
+          
+          
+          # What we can do is add a trace with no data.
+          # This first one, we'll take out the color and add just the shape.
+          # It's name will be the 'source' column.  The next one we'll 
           
           trace$x = shape.data$year
           trace$y = shape.data$value
           
           # Does this combination of color and style already exist in the legend?
-          trace.key = paste0(col, sym)
-          if (!is.null(trace.in.legend[[trace.key]])) {
-            trace$showlegend = FALSE
-          } else {
-            trace.in.legend[[trace.key]] <<- TRUE
-          }
+          # trace.key = paste0(col, sym)
+          # if (!is.null(trace.in.legend[[trace.key]])) {
+          #   trace$showlegend = FALSE
+          # } else {
+          #   trace.in.legend[[trace.key]] <<- TRUE
+          # }
           
           trace[["marker"]] = list (
             color = col,
@@ -356,8 +380,77 @@ execute.plotly.plot <- function(prepared.plot.data,
           return (trace)
         })
         
+        # Here we want to add one empty trace for the shape and color of the
+        # marker, provided they are not already on display.  For the sims we
+        # use a combination of shape and color to denote the key into the
+        # trace.in.legend object, but here we should use something else as 
+        # we are adding 'shape' and 'color' separately.  So instead we'll use
+        # paste0("marker",color) and paste0("marker",shape)
+        
         # browser()
-        return (marker.traces)    
+        shape.traces = lapply(marker.traces, function(entry) {
+                         working.symbol = entry$marker$symbol
+                         shape.key.val = paste0("marker", working.symbol)
+                         # Is there already an entry for this combo in the 
+                         if (is.null(trace.in.legend[[shape.key.val]])) {
+                          # Put the entry in
+                           shape.trace = base.trace
+                           shape.trace$x = c()
+                           shape.trace$y = c()
+                           shape.trace$name = "SHAPE"
+                           shape.trace[["marker"]] = list (
+                             color = "white",
+                             symbol = working.symbol,
+                             line = list (
+                               color = "#202020",
+                               width = 1
+                             )
+                           )
+                           if (!hide.legend) {
+                             trace.in.legend[[shape.key.val]] <<- TRUE
+                           } else {
+                             trace.in.legend[[shape.key.val]] <<- FALSE
+                           }
+                           return (shape.trace)
+                         } 
+                       })
+        
+        color.traces = lapply(marker.traces, function(entry) {
+                         working.color = entry$marker$color
+                         color.key.val = paste0("marker", working.color)
+                         # Is there already an entry for this combo in the 
+                         if (is.null(trace.in.legend[[color.key.val]])) {
+                          # Put the entry in
+                           color.trace = base.trace
+                           color.trace$x = c()
+                           color.trace$y = c()
+                           color.trace$name = "COLOR"
+                           color.trace[["marker"]] = list (
+                             color = working.color,
+                             symbol = "pentagon",
+                             line = list (
+                               color = "#202020",
+                               width = 1
+                             )
+                           )
+                           if (!hide.legend) {
+                             trace.in.legend[[color.key.val]] <<- TRUE
+                           } else {
+                             trace.in.legend[[color.key.val]] <<- FALSE
+                           }
+                           return (color.trace)
+                         } 
+                       })
+        
+        # browser()
+        merged.traces = append(append(marker.traces,shape.traces),color.traces)
+        clean.traces = list()
+        for (i in seq_along(merged.traces)) {
+          if (!is.null(merged.traces[[i]])) {
+            clean.traces = append(clean.traces, merged.traces[i])
+          }
+        }
+        return (clean.traces)    
       }
     })
   }
@@ -536,6 +629,7 @@ execute.plotly.plot <- function(prepared.plot.data,
       }
       
       if (summary.type != 'individual.simulation') {
+        # RIBBONS
         if (plotly.debug) {
           cat("  not individual simulation\n")
         }        
@@ -675,6 +769,7 @@ execute.plotly.plot <- function(prepared.plot.data,
   
   if (plotly.debug) {
     cat("\nDATA\n\n")
+    # browser()
   }        
   
   # DATA ELEMENTS
@@ -683,6 +778,8 @@ execute.plotly.plot <- function(prepared.plot.data,
     
     df.truth$marker.shapes = unlist(lapply(df.truth$shape.data.by, function(val) { marker.mappings[[val]] }))
     df.truth$marker.colors = unlist(lapply(df.truth$color.data.by, function(val) { color.data.primary.colors[val] }))
+    
+    # TODO Add reasoning for this assert or remove
     if (length(df.truth$marker.colors) != length(df.truth$marker.shapes)) {
       stop("df.truth: We cannot have different numbers of shapes and colors")
     }
