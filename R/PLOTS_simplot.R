@@ -779,9 +779,12 @@ execute.simplot <- function(prepared.plot.data,
             }
             if (nrow(df.sim.groupids.one.member)>0) {
                 rv = rv +
-                    ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
+                    ggplot2::geom_point(data=df.sim.groupids.one.member, ggplot2::aes(x=year, y=value,
+                                                                                              size = size,
                                                                                               fill = color.sim.by,
-                                                                                              shape = shape.sim.by))
+                                                                                              shape = shape.sim.by), show.legend = F) +
+                    
+                    ggplot2::scale_size_manual(values=c(size=2))
                 
             }
             if (summary.type != 'individual.simulation') {
@@ -802,9 +805,11 @@ execute.simplot <- function(prepared.plot.data,
             }
             if (nrow(df.sim.groupids.one.member)>0) {
                 rv = rv +
-                    ggplot2::geom_point(data=df.sim.groupids.one.member, size=2, ggplot2::aes(x=year, y=value,
+                    ggplot2::geom_point(data=df.sim.groupids.one.member, ggplot2::aes(x=year, y=value,
+                                                                                      size = size,
                                                                                               fill = color.sim.by,
-                                                                                              shape=shape.sim.by))
+                                                                                              shape=shape.sim.by)) +
+                    ggplot2::scale_size_manual(values=c(size=2))
                 }
 
             if (summary.type != 'individual.simulation') {
@@ -845,7 +850,8 @@ execute.simplot <- function(prepared.plot.data,
                                                                       shape=shape.data.by))
         } else {
             # Why is this plotting all black fill, even though we remade the fill scale?? (in Melissa's outcome="new" simplot call)
-            rv = rv + ggplot2::geom_point(data=df.truth, size=2, ggplot2::aes(x=year, y=value, fill=color.and.shade.data.by, shape = shape.data.by))
+            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, size='size', fill=color.and.shade.data.by, shape = shape.data.by), show.legend = F) +
+                ggplot2::scale_size_manual(values=c(size=2))
         }
         
         # Now create the shape scale, either for the first time or the second time
