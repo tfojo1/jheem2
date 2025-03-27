@@ -80,7 +80,8 @@ and there is one 'error.variance.term' corresponding to each. The types "sd"
 types "data.sd", "data.variance", and "data.cv" indicate that error data will
 be pulled from the data manager and matched directly to data points, and they
 require NULL as their term. Finally, the type "function.sd" requires as its
-term a function that takes only arguments "data" and "details" and returns a
+term a function that takes only arguments "data", "details", "version", and "location"
+and returns a
 numeric array of the same dimensions as "data". Supplying multiple types (and
 therefore terms) results in the variances created by each being summed prior
 to use in the measurement error covariance matrix.

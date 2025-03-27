@@ -21,6 +21,7 @@ prepare.plot(
   plot.year.lag.ratio = F,
   title = "location",
   data.manager = get.default.data.manager(),
+  style.manager = get.default.style.manager(),
   debug = F
 )
 }
@@ -38,6 +39,8 @@ prepare.plot(
 \item{title}{NULL or a single, non-NA character value. If "location", the location of the first provided simset (if any) will be used for the title.}
 
 \item{data.manager}{The data.manager from which to draw real-world data for the plots}
+
+\item{style.manager}{We are going to have to define this down the road. It's going to govern how we do lines and sizes and colors. For now, just hard code those in, and we'll circle back to it}
 }
 \description{
 Prepare Plot Data

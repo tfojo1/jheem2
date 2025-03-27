@@ -21,6 +21,7 @@ Still need to flesh out this interface
 \item \href{#method-jheem-crunch.for.transmutation}{\code{JHEEM$crunch.for.transmutation()}}
 \item \href{#method-jheem-transmute}{\code{JHEEM$transmute()}}
 \item \href{#method-jheem-test}{\code{JHEEM$test()}}
+\item \href{#method-jheem-extract.quantity.values}{\code{JHEEM$extract.quantity.values()}}
 \item \href{#method-jheem-set.element.value}{\code{JHEEM$set.element.value()}}
 \item \href{#method-jheem-set.element.functional.form.main.effect.alphas}{\code{JHEEM$set.element.functional.form.main.effect.alphas()}}
 \item \href{#method-jheem-set.element.functional.form.interaction.alphas}{\code{JHEEM$set.element.functional.form.interaction.alphas()}}
@@ -146,6 +147,15 @@ Still need to flesh out this interface
 \subsection{Method \code{test()}}{
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{JHEEM$test()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-jheem-extract.quantity.values"></a>}}
+\if{latex}{\out{\hypertarget{method-jheem-extract.quantity.values}{}}}
+\subsection{Method \code{extract.quantity.values()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{JHEEM$extract.quantity.values()}\if{html}{\out{</div>}}
 }
 
 }

@@ -17,6 +17,7 @@ Get a JHEEM Specification Object
 }
 \seealso{
 Other JHEEM Version Management Functions: 
-\code{\link{register.model.specification}()}
+\code{\link{register.model.specification}()},
+\code{\link{version.has.been.registered}()}
 }
 \concept{JHEEM Version Management Functions}

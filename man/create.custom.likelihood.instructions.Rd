@@ -4,10 +4,15 @@
 \alias{create.custom.likelihood.instructions}
 \title{Create Custom Likelihood Instructions}
 \usage{
-create.custom.likelihood.instructions(name, compute.function, verbose = F)
+create.custom.likelihood.instructions(
+  name,
+  compute.function,
+  get.data.function = NULL,
+  verbose = F
+)
 }
 \arguments{
-\item{compute.function}{A function that takes only two arguments: 'sim' and 'log'.}
+\item{compute.function}{A function that takes only two arguments: 'sim', 'data', and 'log'.}
 }
 \description{
 Create instructions for a likelihood that computes using a custom function.
