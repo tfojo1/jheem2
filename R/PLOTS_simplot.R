@@ -798,20 +798,27 @@ execute.simplot <- function(prepared.plot.data,
             }
         } else {
             if (nrow(df.sim.groupids.many.members)>0) {
-                rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, group=groupid,
-                                                                                             linetype = linetype.sim.by,
-                                                                                             linewidth=linewidth,
-                                                                                             alpha = alpha))
+                if (style.manager$color.sim.by=="simset") {
+                    rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, group=groupid,
+                                                                                                 linetype = linetype.sim.by,
+                                                                                                 color = color.sim.by,
+                                                                                                 linewidth=linewidth,
+                                                                                                 alpha = alpha))
+                } else
+                    rv = rv + ggplot2::geom_line(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value, group=groupid,
+                                                                                                 linetype = linetype.sim.by,
+                                                                                                 linewidth=linewidth,
+                                                                                                 alpha = alpha))
             }
             if (nrow(df.sim.groupids.one.member)>0) {
                 rv = rv +
                     ggplot2::geom_point(data=df.sim.groupids.one.member, ggplot2::aes(x=year, y=value,
                                                                                       size = size,
-                                                                                              fill = color.sim.by,
-                                                                                              shape=shape.sim.by)) +
+                                                                                      fill = color.sim.by,
+                                                                                      shape=shape.sim.by)) +
                     ggplot2::scale_size_manual(values=c(size=2))
-                }
-
+            }
+            
             if (summary.type != 'individual.simulation') {
                 rv = rv + ggplot2::geom_ribbon(data=df.sim.groupids.many.members, ggplot2::aes(x=year, y=value,group=groupid,
                                                                                                fill = color.sim.by,
@@ -831,6 +838,10 @@ execute.simplot <- function(prepared.plot.data,
         if (nrow(df.sim.groupids.one.member)>0) {
             rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = colors.for.sim)
             rv = rv + ggplot2::scale_shape_manual(name = "sim shape", values = shapes.for.sim)
+        }
+        if (style.manager$color.sim.by=="simset") {
+            rv = rv + ggplot2::scale_color_manual(name = "sim color", values = colors.for.sim)
+            rv = rv + ggplot2::scale_fill_manual(name = "sim color", values = colors.for.sim)
         }
     }
     # browser()
