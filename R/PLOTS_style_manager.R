@@ -111,7 +111,7 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
         
         get.data.colors = function(n)
         {
-            private$do.get.color(palette = private$i.sim.palette, n = n)
+            private$do.get.color(palette = private$i.data.palette, n = n)
         },
         
         get.shades = function(base.color, n)

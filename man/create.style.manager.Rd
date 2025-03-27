@@ -16,8 +16,14 @@ create.style.manager(
   linetypes = c("solid", "dashed", "dotted", "dotdash"),
   shapes = 21:25,
   shade.increment = -16,
-  alpha.ribbon = 0.2
+  alpha.ribbon = 0.2,
+  linewidth.slope = 3
 )
+}
+\arguments{
+\item{linewidth.slope}{A single numeric value specifying how simset linewidth will be determined for based on how many simulations it has (its "n.sim").
+The formula used is linewidth = 1/(slope * log10(n.sim) + 1). If this slope is the default of 3, this will result in simsets with 1000 simulations having a linewidth of 0.1
+while simsets with only 1 simulation will have a linewidth of 1. If you would like all simsets to plot with the same thickness, use a slope of 0.}
 }
 \description{
 Create A Style Manager

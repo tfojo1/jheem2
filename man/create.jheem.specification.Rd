@@ -19,7 +19,8 @@ create.jheem.specification(
   compartments.for.uninfected.only = list(),
   compartments.for.infected.and.uninfected = list(),
   age.endpoints = NULL,
-  compartment.value.aliases = list()
+  compartment.value.aliases = list(),
+  labels = NULL
 )
 }
 \arguments{
@@ -48,6 +49,8 @@ create.jheem.specification(
 \item{age.endpoints}{Optional. A numeric vector (with at least two elements) giving the endpoints of the age brackets to use for the 'age' dimension. Results in length(age.endpoints)-1 different brackets, where the first bracket spans age.endpoints[1] (inclusive) to age.endpoints[2] (exclusive), the second bracket spans age.endpoints[2] to age.endpoints[3], etc}
 
 \item{compartment.value.aliases}{A named list representing substitutions to be made into compartment names (both in compartments.for.infected.only, compartments.for.uninfected.only, compartments.for.infected.and.uninfected and in subsequent references in registering model quantities). The names of the list represent what is to be replaced. The values of the list can be either (1) character vectors that are substituted in place or (2) functions that take parameter 'location' and return a character vector}
+
+\item{labels}{A named character vector, representing how compartments should be labeled when making figures/charts, etc. Eg c(msm="MSM", idu="PWID")}
 }
 \description{
 Create a Model Specification for Running the JHEEM

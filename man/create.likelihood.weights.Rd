@@ -4,12 +4,16 @@
 \alias{create.likelihood.weights}
 \title{Create Weights to Be Applied in Calculating a JHEEM Likelihood}
 \usage{
-create.likelihood.weights(total.weight = 1, dimension.values = list())
+create.likelihood.weights(
+  total.weight = 1,
+  dimension.values = list(),
+  is.recursive = T
+)
 }
 \arguments{
 \item{total.weight}{The weight that is applied to all observations in the}
 
-\item{dimension.values}{}
+\item{is.recursive}{Should this weight apply to deeper levels of stratification? For exampel, if F and dimension.values is the default empty list, this weight would only apply to data points that are totals.}
 }
 \description{
 Create Weights to Be Applied in Calculating a JHEEM Likelihood

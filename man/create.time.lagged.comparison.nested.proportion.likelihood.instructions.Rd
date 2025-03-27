@@ -19,6 +19,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions(
   omit.years = NULL,
   sources.to.use = NULL,
   exclude.denominator.ontology.names = NULL,
+  location.overall.keep.threshold = 5,
   location.stratum.keep.threshold = 1,
   p.bias.inside.location,
   p.bias.outside.location,
@@ -32,12 +33,15 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions(
   correlation.different.strata = 0.1,
   correlation.different.sources = 0.3,
   correlation.same.source.different.details = 0.3,
+  obs.n.correlation.different.years = within.location.n.error.correlation,
   observation.correlation.form = c("compound.symmetry", "autoregressive.1")[1],
   n.multiplier.cv = 0.1,
   p.error.variance.term = NULL,
   p.error.variance.type = NULL,
   n.error.variance.term = 0.05,
   n.error.variance.type = "cv",
+  n.error.variance.term.if.estimated = 0.8,
+  n.error.variance.type.if.estimated = "exp.of.variance",
   ratio.cv = NULL,
   ratio.correlation = NULL,
   weights,
@@ -52,7 +56,7 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions(
 
 \item{outcome.for.sim}{A single character vector specifying the simulation outcome to use.}
 
-\item{location.types}{The types of the locations that contain or are contained by the model location.}
+\item{location.types}{The types of the locations that contain or are contained by the model location. These should be in order of decreasing preference since in the case that two locations have the same contained 'minimum.geographic.resolution.type', such as county "11001" and state "DC", only the higher priority type location will be used.}
 
 \item{minimum.geographic.resolution.type}{The type of location used to partition locations. The type of the model location AND 'location.types' types must all completely enclose regions of this type}
 
@@ -68,11 +72,9 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions(
 
 \item{sources.to.use}{A character vector of sources from which to pull data.}
 
-\item{p.bias.inside.location}{A single numeric value specifying the bias in the outcome proportion between locations inside the model location and the model location itself}
+\item{location.overall.keep.threshold, location.stratum.keep.threshold}{How many data points a location must offer beyond what is found for the main location to justify being retained. Either overall (across ALL strata in total) or on a stratum-by-stratum basis. If a location doesn't meet the overall threshold, it will be ignored entirely. If it does, but fails to meet the stratum threshold for a certain stratum, it will be ignored only in that stratum.}
 
-\item{p.bias.outside.location}{A single numeric value specifying the bias in the outcome proportion between locations outside the model location and the model location itself}
-
-\item{p.bias.sd.inside.location}{The standard deviation associated with 'p.bias.inside.location'}
+\item{p.bias.inside.location, p.bias.outside.location, p.bias.sd.inside.location, p.bias.sd.outside.location}{A single numeric value specifying the bias in the outcome proportion between locations inside (or outside) the model location and the model location itself, and their associated standard deviations. Each of these may alternatively be a function that takes only arguments 'version' and 'location' and returns an acceptable numeric value. For the estimates, values should be between -1 and 1, inclusive. For sd, should be non-negative and non-infinite. The bias should = outside/inside location MINUS main location (eg, state - MSA or county - MSA)}
 
 \item{within.location.p.error.correlation, within.location.n.error.correlation}{Single numeric values specifying the correlation between p or n values from the same location and stratum}
 
@@ -87,6 +89,8 @@ create.time.lagged.comparison.nested.proportion.likelihood.instructions(
 \item{correlation.different.sources}{A single numeric value specifying the correlation between observations from different sources.}
 
 \item{correlation.same.source.different.details}{A single numeric value specifying the correlation between observations of the same source but which have different 'details'.}
+
+\item{obs.n.correlation.different.years}{Single numeric value specifying the correlation between different calculated obs n values}
 
 \item{observation.correlation.form}{Which correlation form to use in building the measurement error covariance matrix. May be 'compound.symmetry' or 'autoregressive.1'.}
 
@@ -117,8 +121,8 @@ types "sd" (standard deviation), "variance", "cv" (covariance), and
 their term. The types "data.sd", "data.variance", and "data.cv" indicate that
 error data will be pulled from the data manager and matched directly to data
 points, and they require NULL as their term. Finally, the type "function.sd"
-requires as its term a function that takes only arguments "data" and
-"details" and returns a numeric array of the same dimensions as "data".
+requires as its term a function that takes only arguments "data",
+"details", "version", and "location" and returns a numeric array of the same dimensions as "data".
 Supplying multiple types (and therefore terms) results in the variances
 created by each being summed prior to use in the measurement error covariance
 matrix.

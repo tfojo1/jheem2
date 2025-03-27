@@ -273,13 +273,78 @@ set.up.calibration <- function(version,
         # Pull from preceding
         if (preceding.index==1 || length(mcmc.parameters.to.pull.from.preceding)>0)
         {
-            mcmc.summary = prepare.mcmc.summary(version = version.for.preceding,
-                                                location = location,
-                                                calibration.code = preceding.code,
-                                                root.dir = root.dir,
-                                                parameter.scales = all.parameter.scales,
-                                                get.one.set.of.parameters = calibration.info$is.preliminary,
-                                                error.prefix = error.prefix)
+            mcmc.summary = NULL
+            mcmc.summary.file = get.mcmc.summary.file(version = version.for.preceding,
+                                                      location = location,
+                                                      calibration.code = preceding.code,
+                                                      root.dir = root.dir)
+            
+            if (file.exists(mcmc.summary.file))
+            {
+                summary.mtime = get.mcmc.summary.modified.time(version = version.for.preceding,
+                                                               location = location,
+                                                               calibration.code = preceding.code,
+                                                               root.dir = root.dir)
+                
+                calibration.mtime = get.calibration.cache.modified.time(version = version.for.preceding,
+                                                                        location = location,
+                                                                        calibration.code = preceding.code,
+                                                                        root.dir = root.dir)
+                
+                if (is.na(calibration.mtime) || summary.mtime >= calibration.mtime)
+                {
+                    # if (verbose)
+                    # {
+                    #     print(paste0("Pulling cached mcmc.summary for '",
+                    #                  preceding.code, "'/'", version.for.preceding, "'"))
+                    # }
+                    
+                    mcmc.summary = get(load(mcmc.summary.file)[1])
+                }
+            }
+            
+            if (is.null(mcmc.summary))
+            {
+                # if (verbose)
+                # {
+                #     print(paste0("Preparing mcmc.summary for '",
+                #                  preceding.code, "'/'", version.for.preceding, "'"))
+                # }
+                
+                dir = file.path(get.calibration.dir(version = version.for.preceding,
+                                                    location = location,
+                                                    calibration.code = preceding.code, 
+                                                    root.dir = root.dir),
+                                'cache')
+                
+                if (!dir.exists(dir))
+                {
+                    stop("The current calibration, '",
+                         calibration.code, "' for version '", version,
+                         "' depends on prior calibration '",
+                         preceding.code, "' for version '", 
+                         version.for.preceding, 
+                         "'. However, there is no calibration cache for '",
+                         preceding.code, "'/'", version.for.preceding,
+                         "' nor a cached mcmc.summary")
+                }
+                
+                # Make it and cache it
+                mcmc.summary = cache.mcmc.summary(version = version.for.preceding,
+                                                  location = location,
+                                                  calibration.code = preceding.code,
+                                                  root.dir = root.dir,
+                                                  get.one.set.of.parameters = calibration.info$is.preliminary,
+                                                  throw.error.if.incomplete = T)
+            }
+            
+            # mcmc.summary = prepare.mcmc.summary(version = version.for.preceding,
+            #                                     location = location,
+            #                                     calibration.code = preceding.code,
+            #                                     root.dir = root.dir,
+            #                               #      parameter.scales = all.parameter.scales,
+            #                                     get.one.set.of.parameters = calibration.info$is.preliminary,
+            #                                     error.prefix = error.prefix)
             
             # Pull the model parameter values
             if (preceding.index==1)
@@ -393,11 +458,16 @@ set.up.calibration <- function(version,
     #-- Set up the compute likelihood function --#
     if (verbose)
         print(paste0(verbose.prefix, "Instantiate the likelihood..."))
-
-   likelihood = calibration.info$likelihood.instructions$instantiate.likelihood(version = version,
-                                                                                location = location,
-                                                                                sub.version = sub.version,
-                                                                                data.manager = calibration.info$data.manager)
+    
+    if (any(names(calibration.info$special.case.likelihood.instructions)==location))
+        lik.instr = calibration.info$special.case.likelihood.instructions[[location]]
+    else
+        lik.instr = calibration.info$likelihood.instructions
+    
+    likelihood = lik.instr$instantiate.likelihood(version = version,
+                                                  location = location,
+                                                  sub.version = sub.version,
+                                                  data.manager = calibration.info$data.manager)
 
     compute.likelihood <- function(sim) {
         lik = likelihood$compute(sim=sim, log=T, use.optimized.get=T, check.consistency=F)
@@ -459,8 +529,8 @@ set.up.calibration <- function(version,
         if (likelihood$compute(sim, use.optimized.get=T)==-Inf)
         {
             lik.pieces = likelihood$compute.piecewise(sim, use.optimized.get=T)
-            errored.likelihood <<- likelihood
-            errored.sim <<- sim
+            .GlobalEnv$errored.likelihood = likelihood
+            .GlobalEnv$errored.sim = sim
             
             stop(paste0("The likelihood evaluates to -Inf on the ", 
                         get.ordinal(i), " set of initial parameter values. The likelihood components are:\n",
@@ -622,6 +692,8 @@ parse.calibration.parameter.aliases <- function(calibration.info,
 #'@param update.frequency
 #'@param update.detail
 #'
+#'@return An MCMC object
+#'
 #'@export
 run.calibration <- function(version,
                             location,
@@ -632,7 +704,7 @@ run.calibration <- function(version,
                             update.detail = 'low')
 {
     # Make sure a cache directory has been set up in place
-    bayesian.simulations::run.mcmc.from.cache(dir = get.calibration.dir(version=version,
+    rv = bayesian.simulations::run.mcmc.from.cache(dir = get.calibration.dir(version=version,
                                                                         location=location,
                                                                         calibration.code=calibration.code,
                                                                         root.dir=root.dir),
@@ -640,7 +712,134 @@ run.calibration <- function(version,
                                               update.frequency = update.frequency,
                                               update.detail = update.detail,
                                               remove.cache.when.done = F)
-                                              
+                    
+    cache.mcmc.summary(version = version,
+                       location = location,
+                       calibration.code = calibration.code,
+                       root.dir = root.dir,
+                       get.one.set.of.parameters = F,
+                       throw.error.if.incomplete = F)
+    
+    rv                          
+}
+
+#'@export
+cache.mcmc.summary <- function(version,
+                               location,
+                               calibration.code,
+                               root.dir = get.jheem.root.directory(),
+                               get.one.set.of.parameters = F,
+                               throw.error.if.incomplete = T)
+{
+    
+    mcmc.summary = prepare.mcmc.summary(version = version,
+                                        location = location,
+                                        calibration.code = calibration.code,
+                                        root.dir = root.dir,
+                                        get.one.set.of.parameters = get.one.set.of.parameters,
+                                        error.prefix = 'Error preparing mcmc summary to cache: ',
+                                        throw.error.if.incomplete = throw.error.if.incomplete)
+    
+    if (!is.null(mcmc.summary))
+    {
+        save.to = get.mcmc.summary.file(version = version,
+                                        location = location,
+                                        calibration.code = calibration.code, 
+                                        root.dir = root.dir)
+        
+        if (!dir.exists(dirname(save.to)))
+            dir.create(dirname(save.to), recursive = T)
+        
+        save(mcmc.summary, file=save.to)
+    }
+    
+    invisible(mcmc.summary)
+}
+
+#'@export
+get.calibration.progress <- function(version,
+                                    locations,
+                                    calibration.code,
+                                    root.dir = get.jheem.root.directory(),
+                                    round.to.digits = 0,
+                                    as.pct = T)
+{
+    max.chains = 1
+    
+    list.fracs = lapply(locations, function(loc){
+        cache.dir = file.path(get.calibration.dir(version = version,
+                                                  location = loc,
+                                                  calibration.code = calibration.code, 
+                                                  root.dir = root.dir),
+                              'cache')
+        
+        files = list.files(cache.dir)
+        files = file.path(cache.dir, files[grepl('^chain[0-9]', files)])
+        
+        if (length(files)>max.chains)
+            max.chains <<- length(files)
+        
+        if (length(files)==0)
+            NA
+        else
+        {
+            loc.rv = sapply(files, function(file){
+                chain.control = get(load(file)[1])
+                mean(chain.control@chunk.done)
+            })
+            
+            loc.rv
+        }
+    })
+    
+    rv = matrix(NA, nrow=length(locations), ncol=max.chains,
+                dimnames = list(location=locations, chain=paste0("chain", 1:max.chains)))
+    
+    for (i in 1:length(locations))
+    {
+        loc.rv = list.fracs[[i]]
+        rv[i,1:length(loc.rv)] = loc.rv 
+    }
+    
+    if (as.pct)
+        rv = rv*100
+    
+    if (!is.na(round.to.digits))
+        rv = floor(rv*10^round.to.digits) / (10^round.to.digits)
+  #      rv = round(rv, digits = round.to.digits)
+  #      rv = format(round(rv, digits = round.to.digits), nsmall=round.to.digits)
+    
+    rv
+    
+}
+
+get.calibration.cache.modified.time <- function(version, location, calibration.code, root.dir = get.jheem.root.directory())
+{
+    dir = file.path(get.calibration.dir(version = version,
+                              location = location,
+                              calibration.code = calibration.code, 
+                              root.dir = root.dir),
+                    'cache')
+    
+    if (dir.exists(dir))
+    {
+        files = list.files(dir, full.names = T)
+        max(sapply(files, file.mtime))
+    }
+    else
+        NA
+}
+
+get.mcmc.summary.modified.time <- function(version, location, calibration.code, root.dir = get.jheem.root.directory())
+{
+    file = get.mcmc.summary.file(version = version,
+                                 location = location,
+                                 calibration.code = calibration.code, 
+                                 root.dir = root.dir)
+    if (file.exists(file))
+        file.mtime(file)
+    else
+        NA
 }
 
 #'@inheritParams set.up.calibration
@@ -651,6 +850,7 @@ clear.calibration.cache <- function(version,
                                     location,
                                     calibration.code,
                                     root.dir = get.jheem.root.directory("Cannot set up calibration: "),
+                                    remove.mcmc.summary = F,
                                     allow.remove.incomplete = F)
 {
     bayesian.simulations::remove.mcmc.cache(get.calibration.dir(version=version,
@@ -658,6 +858,11 @@ clear.calibration.cache <- function(version,
                                                                 calibration.code=calibration.code,
                                                                 root.dir=root.dir),
                                             allow.remove.incomplete = allow.remove.incomplete)    
+    
+    if (remove.mcmc.summary)
+    {
+        # @Andrew
+    }
 }
 
 #'@inheritParams set.up.calibration
@@ -703,13 +908,31 @@ extract.last.simulation.from.calibration <- function(version,
     chain.dirs = list.dirs(cache.dir, recursive = F, full.names = F)
     n.chains = length(chain.dirs)
     
+    if (is.null(chains))
+        chains = 1:n.chains
+    else
+    {
+        missing.chains = setdiff(chains, 1:n.chains)
+        if (length(missing.chains)>0)
+            stop(paste0("The calibration '", calibration.code,
+                        "' only has ",
+                        n.chains,
+                        ifelse(n.chains==1, " chain", " chains"),
+                        ". The given ",
+                        ifelse(length(missing.chains)==1, "value", "values"),
+                        " for 'chains' (",
+                        paste0(missing.chains, collapse=','),
+                        ifelse(length(missing.chains)==1, ") is invalid", ") are invalid")))
+    }
+    
     max.chunk = -1
     chain.with.max.chunk = -1
-    for (chain in 1:n.chains)
+    for (chain in chains)
     {
         chain.dir = file.path(cache.dir, paste0('chain_', chain))
         chunk.files = list.files(chain.dir)
         chunk = as.numeric(substr(chunk.files, start=nchar(paste0("chain", chain, "_chunk"))+1, nchar(chunk.files)-6))
+        
         max.chunk.for.chain = max(chunk)
         if (max.chunk.for.chain > max.chunk)
         {
@@ -737,9 +960,15 @@ extract.last.simulation.from.calibration <- function(version,
                             paste0(" from the ", get.ordinal(chain.with.max.chunk), " chain"))))
     }
     
-    mcmc.last = get(load(file.path(cache.dir, 
-                                   paste0('chain_', chain.with.max.chunk), 
-                                   paste0('chain', chain.with.max.chunk, "_chunk", max.chunk, ".Rdata"))))
+    for (chunk in max.chunk:1)
+    {
+        mcmc.last = get(load(file.path(cache.dir, 
+                                       paste0('chain_', chain.with.max.chunk), 
+                                       paste0('chain', chain.with.max.chunk, "_chunk", chunk, ".Rdata"))))
+
+        if (mcmc.last@n.iter>0)
+            break;
+    }
     
     sim.last = mcmc.last@simulations[[length(mcmc.last@simulations)]]
     
@@ -855,6 +1084,7 @@ register.calibration.info <- function(code,
                                       n.iter,
                                       thin,
                                       description,
+                                      special.case.likelihood.instructions = list(),
                                       fixed.initial.parameter.values = numeric(),
                                       max.run.time.seconds = 10,
                                       solver.metadata = create.solver.metadata(),
@@ -946,6 +1176,7 @@ register.calibration.info <- function(code,
     calibration.info = list(
         code = code,
         likelihood.instructions = likelihood.instructions,
+        special.case.likelihood.instructions = special.case.likelihood.instructions,
         data.manager = data.manager,
         end.year = end.year,
         parameter.names = parameter.names,
@@ -1035,10 +1266,11 @@ prepare.mcmc.summary <- function(version,
                                  location,
                                  calibration.code,
                                  root.dir,
-                                 parameter.scales,
+#                                 parameter.scales,
                                  get.one.set.of.parameters = T,
                                  burn.fraction = 0.75,
-                                 error.prefix = '')
+                                 error.prefix = '',
+                                 throw.error.if.incomplete = T)
 {
     dir = file.path(get.calibration.dir(version=version,
                                         location=location,
@@ -1072,8 +1304,15 @@ prepare.mcmc.summary <- function(version,
     })
     
     if (any(!chain.done))
-        stop(paste0(error.prefix,
-                    "The prior MCMC has not finished running"))
+    {
+        if (throw.error.if.incomplete)
+        {
+            stop(paste0(error.prefix,
+                        "The prior MCMC has not finished running"))
+        }
+        else
+            return (NULL)
+    }
     
     state1 = chain.controls[[1]]@chain.state
     
@@ -1129,50 +1368,50 @@ prepare.mcmc.summary <- function(version,
             
             samples = rbind(samples, new.samples)
             
-            new.samples = sapply(dimnames(new.samples)$variable, function(var.name){
-                values = new.samples[,var.name]
-                scale = parameter.scales[var.name]
-                if (scale=='identity')
-                    values
-                else if (scale=='log')
-                    log(values)
-                else if (scale=='logit')
-                    log(values) - log(1-values)
-                else
-                    stop(paste0("Don't know what to do with scale = '", scale, "'"))
-            })
-            
-            mean.new.samples = colMeans(new.samples)
-            cov.new.samples = cov(new.samples)
-            
-            # Incorporate into the overall mean and cov mat
-            if (is.null(sample.mean))
-            {
-                sample.mean = mean.new.samples
-                sample.cov = cov.new.samples
-                n.samples = n.new.samples
-            }
-            else
-            {
-                old.n = n.samples
-                old.mean = sample.mean
-                old.cov = sample.cov
-                n.samples = old.n + n.new.samples
-                
-                sample.mean = old.n/n.samples * old.mean + n.new.samples/n.samples * mean.new.samples
-                sample.cov = 1/(n.samples-1) *
-                    ( (old.n-1) * old.cov + old.n * old.mean %*% t(old.mean) +
-                      (n.new.samples-1) * cov.new.samples + n.new.samples * mean.new.samples %*% t(mean.new.samples) - 
-                      n.samples * sample.mean %*% t(sample.mean) )
-            }
+            # new.samples = sapply(dimnames(new.samples)$variable, function(var.name){
+            #     values = new.samples[,var.name]
+            #     scale = parameter.scales[var.name]
+            #     if (scale=='identity')
+            #         values
+            #     else if (scale=='log')
+            #         log(values)
+            #     else if (scale=='logit')
+            #         log(values) - log(1-values)
+            #     else
+            #         stop(paste0("Don't know what to do with scale = '", scale, "'"))
+            # })
+            # 
+            # mean.new.samples = colMeans(new.samples)
+            # cov.new.samples = cov(new.samples)
+            # 
+            # # Incorporate into the overall mean and cov mat
+            # if (is.null(sample.mean))
+            # {
+            #     sample.mean = mean.new.samples
+            #     sample.cov = cov.new.samples
+            #     n.samples = n.new.samples
+            # }
+            # else
+            # {
+            #     old.n = n.samples
+            #     old.mean = sample.mean
+            #     old.cov = sample.cov
+            #     n.samples = old.n + n.new.samples
+            #     
+            #     sample.mean = old.n/n.samples * old.mean + n.new.samples/n.samples * mean.new.samples
+            #     sample.cov = 1/(n.samples-1) *
+            #         ( (old.n-1) * old.cov + old.n * old.mean %*% t(old.mean) +
+            #           (n.new.samples-1) * cov.new.samples + n.new.samples * mean.new.samples %*% t(mean.new.samples) - 
+            #           n.samples * sample.mean %*% t(sample.mean) )
+            # }
         }
     }
     
-    all.transformed.parameter.values = sapply(chain.controls, function(ctrl){
-        ctrl@chain.state@mean.transformed.parameters
-    })
-    
-    transformed.parameter.values = rowMeans(all.transformed.parameter.values)
+    # all.transformed.parameter.values = sapply(chain.controls, function(ctrl){
+    #     ctrl@chain.state@mean.transformed.parameters
+    # })
+    # 
+    # transformed.parameter.values = rowMeans(all.transformed.parameter.values)
     
     #-- Initial Scaling Steps --#
     # Andrew says lapply would be safer here since we're expecting a list anyway
@@ -1197,10 +1436,10 @@ prepare.mcmc.summary <- function(version,
         initial.scaling.parameters = initial.scaling.parameters,
         last.sim.parameters = last.sim.parameters,
         
-        transformed.parameter.values = transformed.parameter.values,
-        parameter.names = names(transformed.parameter.values),
-        sample.mean = sample.mean,
-        sample.cov = sample.cov,
+        # transformed.parameter.values = transformed.parameter.values,
+        # parameter.names = names(transformed.parameter.values),
+        # sample.mean = sample.mean,
+        # sample.cov = sample.cov,
         samples = samples
     )
 }

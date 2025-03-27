@@ -29,7 +29,8 @@
 #' types "data.sd", "data.variance", and "data.cv" indicate that error data will
 #' be pulled from the data manager and matched directly to data points, and they
 #' require NULL as their term. Finally, the type "function.sd" requires as its
-#' term a function that takes only arguments "data" and "details" and returns a
+#' term a function that takes only arguments "data", "details", "version", and "location"
+#' and returns a
 #' numeric array of the same dimensions as "data". Supplying multiple types (and
 #' therefore terms) results in the variances created by each being summed prior
 #' to use in the measurement error covariance matrix.
@@ -518,8 +519,8 @@ JHEEM.BASIC.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 ## TO DO: I ORIGINALLY HAD "DATA.SD" AND "DATA.CI", BUT I ENDED UP ACTUALLY IMPLEMENTING "DATA.SD", "DATA.CV", AND "DATA.VARIANCE" -- ASK TODD
                 if (type %in% c("data.sd", "data.cv", "data.variance") && !is.null(term))
                     stop(paste0(error.prefix, "The 'error.variance.term' corresponding to a type of 'data.sd', 'data.cv', or 'data.variance' must be NULL"))
-                if (type %in% c("function.sd") && (!is.function(term) || !setequal(names(formals(term)), c('data', 'details'))))
-                    stop(paste0(error.prefix, "The 'error.variance.term' corresponding to a type of 'function.sd', must be a function that takes arguments 'data' and 'details' and returns a numeric array of the same dimensions as ‘data’, with no NA values, that represents the sd for each measurement in data."))
+                if (type %in% c("function.sd") && (!is.function(term) || !setequal(names(formals(term)), c('data', 'details', 'version', 'location'))))
+                    stop(paste0(error.prefix, "The 'error.variance.term' corresponding to a type of 'function.sd', must be a function that takes arguments 'data', 'details', 'version', and 'location' and returns a numeric array of the same dimensions as ‘data’, with no NA values, that represents the sd for each measurement in data."))
             }
             
             # *minimum.error.sd* must be positive and not infinite.
@@ -959,7 +960,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                             
                             else if (type == "function.sd") {
                                 function.sd = private$i.parameters$error.variance.term[[i]]
-                                error.data <- tryCatch({function.sd(data, one.details)},
+                                error.data <- tryCatch({function.sd(data, one.details, version, location)},
                                                        error=function(e) {stop(paste0(error.prefix, "there was an error during execution of the user-specified 'error.variance.term' function"))})
                                 if (is.null(error.data))
                                     stop(paste0(error.prefix, "user-specified 'error.variance.term' function returned NULL"))
@@ -1544,8 +1545,8 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
             
             # Once the weights list is in the format list(weights.object1, weights.object2, ...), I'll loop over them.
             for (weight in weights) {
-                # if no dimension.values, apply it to all observations
-                if (length(weight$dimension.values) == 0) {
+                # if no dimension.values and is recursive, apply it to all observations
+                if (length(weight$dimension.values) == 0 && weight$is.recursive) {
                     weights.vector <- weights.vector * weight$total.weight
                 } else {
                     weights.mask <- sapply(data.dimension.values, function(row) {
@@ -1553,6 +1554,9 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                         if (!all(dimensions.this.weight %in% names(row))) {
                             return(F)
                         }
+                        # If not recursive, we only take perfect matches (not further stratified). Don't use NA in names(row), which can be from ".TOTAL."
+                        else if (!weight$is.recursive && !setequal(c('year', dimensions.this.weight), names(row)[!is.na(names(row))]))
+                            return(F)
                         all(sapply(dimensions.this.weight, function(dimension) {
                             row[[dimension]] %in% weight$dimension.values[[dimension]] # weight can have multiple values per dimension
                         }))

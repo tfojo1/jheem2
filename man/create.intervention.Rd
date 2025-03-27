@@ -8,6 +8,7 @@ create.intervention(
   ...,
   code = NULL,
   name = NULL,
+  parameters = NULL,
   parameter.distribution = NULL,
   overwrite.existing.intervention = F
 )

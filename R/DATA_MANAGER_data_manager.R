@@ -2040,7 +2040,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             
                             mapped.data.by.type
                         })
-                        if (incompatible.mapped.stratification) {
+                        if (incompatible.mapped.stratification || source.lacks.denominator.data.flag) {
                             pulled.ont.data = NULL
                             next
                         }
@@ -2049,7 +2049,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         if (outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion', 'ratio') || metric=='coefficient.of.variance') {
                             tryCatch(
                                 {if ('details' %in% data.types) pulled.ont.data[['details']] = array.access(pulled.ont.data[['details']], dimnames(pulled.ont.data[['data']]))},
-                                error=function(e) {browser()}
+                                error=function(e){stop(paste0(error.prefix, "bug in pull function: denominator data not found?"))} #{browser()}
                             )
                             
                             if ('url' %in% data.types) pulled.ont.data[['details']] = array.access(pulled.ont.data[['details']], dimnames(pulled.ont.data[['data']]))

@@ -871,7 +871,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                                                  
                                                  List obs_n,
                                                  
-                                                 List obs_n_plus_conditioned_error_variances,
+                                                 List obs_n_cov_matrices,
                                                  
                                                  LogicalVector year_metalocation_to_year_condition_on_location_mask,
                                                  
@@ -937,11 +937,6 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
     double scratch1[scratch_span];
     double *scratch2 = big_scratch;
     double *scratch3 = scratch2 + scratch_span;
-    double *scratch4 = scratch3 + scratch_span;
-    
-    
-    double testing[n_obs * n_obs * n_strata];
-    
     
     //-- Vectorize some scalars --//
     //^ These don't really need to be a vector; just future-proofing ourselves in case
@@ -964,6 +959,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
     double stratum_obs_n[max_n_stratum_obs_n];
     int n_stratum_obs_n;
     double *stratum_mapped_obs_n;
+    double *U;
     
     double *M;
     double T[n_year_metalocation*n_year_metalocation];
@@ -1003,6 +999,9 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
     NumericVector obs_v_object(n_obs);
     double *obs_v = obs_v_object.begin();
     
+    LogicalVector msa_totals_constrained(1);
+    msa_totals_constrained[0] = true;
+    
     //= The Main Loop over Strata ==/
     
     for (int d=0; d<n_strata; d++)
@@ -1022,7 +1021,6 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         }
         
         // Calculate T matrix
-        //      double *T = scratch3;
         fill_arr(T, 0, n_year_metalocation*n_year_metalocation);
         
         for (int i=0; i<n_metalocations; i++)
@@ -1045,32 +1043,32 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         // Fold in mapped obs n together with metalocation n's
         stratum_mapped_obs_n = ((NumericVector) obs_n[d]).begin();
         int stratum_n_mapped_obs_n = ((NumericVector) obs_n[d]).length();
+        NumericMatrix u_object = obs_n_cov_matrices[d];
+        U = u_object.begin();
         
         n_stratum_obs_n = stratum_n_mapped_obs_n + n_years;
         for (int i=0; i<stratum_n_mapped_obs_n; i++)
             stratum_obs_n[i] = stratum_mapped_obs_n[i];
-        for (int i=0; i<n_years; i++)
+        for (int i=0; i<n_years; i++) // add in the simulated n's for the MSA/primary location
             stratum_obs_n[stratum_n_mapped_obs_n + i] = stratum_n[i];
         
         // Calculate Gamma Matrix        
         NumericMatrix mat2 = year_metalocation_to_year_obs_n_mapping[d];
         M = mat2.begin(); //M is interpolated block diagonal - one block for each year
-        int ttt = n_metalocations*n_metalocations;
-
+        
         do_matrix_multiply_A_block_diagonal_B_transposed(T, M, T_Mt,
                                                          n_metalocations, n_years, n_stratum_obs_n);
         do_matrix_multiply_A_interpolated_block(M, T_Mt, scratch1,
                                                 n_years, n_stratum_obs_n/n_years, n_metalocations, n_stratum_obs_n);
-        int jj = n_stratum_obs_n*n_stratum_obs_n;
-        NumericVector scratch1_pre_invert(jj);
-        for (int i=0; i<jj; i++) {
-            scratch1_pre_invert[i] = scratch1[i];
-        }
         
-        do_invert_matrix(scratch1, scratch1, n_stratum_obs_n, scratch2);
+        add_arrs(scratch1, U, scratch1, n_stratum_obs_n*n_stratum_obs_n); 
         
-        do_matrix_multiply(T_Mt, scratch1, gamma, 
+        double *inv_M_T_Mt_plus_U = scratch1;
+        do_invert_matrix(scratch1, inv_M_T_Mt_plus_U, n_stratum_obs_n, scratch2);//store it in the same place: scratch1
+        
+        do_matrix_multiply(T_Mt, inv_M_T_Mt_plus_U, gamma, 
                            n_year_metalocation, n_stratum_obs_n, n_stratum_obs_n);
+        // we no longer need scratch1/inv_M_T_Mt_plus_U - we've put everything we need into gamma
         
         
         // Calculate Lambda
@@ -1083,28 +1081,107 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
             }
         }
         
-        
-        
-        
         // Calculate Nu    
         
         do_matrix_multiply_A_interpolated_block(M, lambda, scratch1, n_years, n_stratum_obs_n/n_years, n_metalocations, 1);
         subtract_arrs(stratum_obs_n, scratch1, scratch1, n_stratum_obs_n);
-        do_matrix_multiply(gamma, scratch1, nu,
-                           n_year_metalocation, n_stratum_obs_n, 1);
-        add_arrs(nu, lambda, nu, n_year_metalocation);
+        double *kappa_minus_M_lambda = scratch1;
+        double *backup_lambda = scratch3;
+        for (int i=0; i<n_year_metalocation; i++)
+            backup_lambda[i] = lambda[i];
+        
+        bool success_with_no_negative_n = false;
+        
+        // we're going to loop here to make sure we don't have any negative nu
+        int safety_counter = 0;
+        double nu_inflation = 1;
+        bool constrain_msa_totals = true;
+        bool reset_to_not_constrain_msa_totals = true;
+        while (!success_with_no_negative_n)
+        {
+            if (reset_to_not_constrain_msa_totals)
+            {
+                nu_inflation = 1;
+                constrain_msa_totals = false;
+                msa_totals_constrained[0] = false;
+                
+                for (int i=0; i<n_year_metalocation; i++)
+                {
+                    if (lambda[i] != backup_lambda[i])
+                    {
+                        for (int j=stratum_n_mapped_obs_n; j<stratum_n_mapped_obs_n+n_years; j++)  
+                            // by iterating only through the MSAs obs locations, we are adding "to_add" to the obs.n for the non-MSA locations
+                        {
+                            if (M[j + i*n_stratum_obs_n]>0)
+                                kappa_minus_M_lambda[j] += lambda[i] - backup_lambda[i];
+                        }
+                        lambda[i] = backup_lambda[i];
+                    }
+                }
+                
+                reset_to_not_constrain_msa_totals = false;
+            }
+            
+            do_matrix_multiply(gamma, kappa_minus_M_lambda, nu,
+                               n_year_metalocation, n_stratum_obs_n, 1);
+            add_arrs(nu, lambda, nu, n_year_metalocation);
+            
+            success_with_no_negative_n = true;
+            
+            for (int i=0; i<n_year_metalocation; i++)
+            {
+                if (nu[i] == R_PosInf || nu[i] == R_NegInf)
+                {
+                    if (constrain_msa_totals)
+                    {
+                        reset_to_not_constrain_msa_totals = true;
+                        success_with_no_negative_n = false;
+                    }
+                    else
+                    {
+                        Rcout << "Error in calculate_nested_likelihood_components() - we have ended up with infinite nu in trying to get rid of negative nu values; we're going to need a new strategy\n";
+                        return(R_NilValue);
+                    }
+                }
+                
+                if (nu[i]<0)
+                {
+                    double to_inflate_by = -nu[i] * nu_inflation;
+                    lambda[i] += to_inflate_by;
+                    
+                    success_with_no_negative_n = false;
+
+                    if (constrain_msa_totals)
+                    {
+                        for (int j=stratum_n_mapped_obs_n; j<stratum_n_mapped_obs_n+n_years; j++)  
+                            // by iterating only through the MSAs obs locations, we are adding "to_add" to the obs.n for the non-MSA locations
+                        {
+                            if (M[j + i*n_stratum_obs_n]>0)
+                                kappa_minus_M_lambda[j] -= to_inflate_by;
+    
+                        }
+                    }
+                }
+            }
+            
+            safety_counter++;
+            nu_inflation *= 2;
+            
+            if (safety_counter==20)
+            {
+                reset_to_not_constrain_msa_totals = true;
+            }
+            
+            if (safety_counter>50)
+            {
+                Rcout << "Error in calculate_nested_likelihood_components() - we have looped 50 times trying to get rid of negative nu without success; we're going to have to recode for a new strategy\n";
+                return(R_NilValue);
+            }
+        }
         
 
         // Calculate Psi
         double *psi = T; // we are going to overwrite the T array with psi
-        
-        double *stratum_obs_n_plus_conditioned_error_variances = ((NumericVector) obs_n_plus_conditioned_error_variances[d]).begin();
-        
-        
-        
-        double *gamma_omega_gamma_t = scratch1;
-        do_matrix_multiply_M_D_M_transpose(gamma, stratum_obs_n_plus_conditioned_error_variances, gamma_omega_gamma_t,
-                                           n_year_metalocation, n_stratum_obs_n);
         
         
         double *gamma_M_t = scratch2;
@@ -1113,20 +1190,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
                                         n_year_metalocation, n_stratum_obs_n, n_year_metalocation);
         
         subtract_arrs(T, gamma_M_t, psi, n_year_metalocation*n_year_metalocation);
-        add_arrs(psi, gamma_omega_gamma_t, psi, n_year_metalocation*n_year_metalocation);
         
-        //-- CONDITION on nu > 0
-        //   ie, E[nu | nu>0]
-        //   This was not in the original derivation
-        
-        double sqrt_2_pi_inv = 1/sqrt(2 * 3.141592653589792338462643);
-        for (int i=0; i<n_year_metalocation; i++)
-        {
-            if (nu[i] < 0)
-                nu[i] = 0;
-        }
-        
-        // (end condition on nu > 0)
         
         //== Set up the mean vectors and covariance matrices for metalocation y's (n*p) ==//
         
@@ -1341,7 +1405,7 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
         //-- Step 4:
         // gamma %*% omega %*% t()gamma)
         // Into scratch3
-        gamma_omega_gamma_t = scratch3;
+        double *gamma_omega_gamma_t = scratch3;
         do_matrix_multiply_M_D_M_transpose(gamma, o_var, gamma_omega_gamma_t,
                                            n_year_obs_location, n_years*n_condition_on);
         // B_delta_Bt is in scratch1
@@ -1429,13 +1493,8 @@ List get_nested_proportion_likelihood_components(NumericMatrix p,
     List rv = List::create(Named("obs.v") = obs_v_object,
                            _["obs.n"] = obs_n_aggregated_object,
                            _["mean.v"] = mean_v_object,
-                           _["cov.mat"] = cov_mat_object);
-    
-    
-    // saved for testing
-    //    _["test"] = double_to_numeric_vector(testing,
-    //                                   n_obs*n_obs *
-    //                                     n_strata)
+                           _["cov.mat"] = cov_mat_object,
+                           _["msa.totals.constrained"] = msa_totals_constrained);
     
     return (rv);
 }
