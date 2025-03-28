@@ -961,12 +961,13 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                             else if (type == "function.sd") {
                                 function.sd = private$i.parameters$error.variance.term[[i]]
                                 error.data <- tryCatch({function.sd(data, one.details, version, location)},
-                                                       error=function(e) {stop(paste0(error.prefix, "there was an error during execution of the user-specified 'error.variance.term' function"))})
+                                                       error=function(e) {stop(paste0(error.prefix, "there was an error during execution of the user-specified 'error.variance.term' function: ", e))})
                                 if (is.null(error.data))
                                     stop(paste0(error.prefix, "user-specified 'error.variance.term' function returned NULL"))
                                 if (!is.array(error.data) || !is.numeric(error.data) || !identical(dimnames(error.data), dimnames(data)))
                                     stop(paste0(error.prefix, "user-specified 'error.variance.term' function did not return a numeric array with the same dimnames as the data"))
-                                if (any(is.na(error.data)))
+                                ## Adjustment: we can have NAs where the data is also NA.
+                                if (any(is.na(error.data[!is.na(data)])))
                                     stop(paste0(error.prefix, "user-specified 'error.variance.term' function returned at least one NA and must not"))
                                 
                                 error.data = error.data ** 2

@@ -1095,12 +1095,12 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                             else if (type == "function.sd") {
                                 function.sd = private$i.parameters$p.error.variance.term[[i]]
                                 p.error.data <- tryCatch({function.sd(data, one.details, version, location)},
-                                                         error=function(e) {stop(paste0(error.prefix, "there was an error during execution of the user-specified 'p.error.variance.term' function"))})
+                                                         error=function(e) {stop(paste0(error.prefix, "there was an error during execution of the user-specified 'p.error.variance.term' function"), e)})
                                 if (is.null(p.error.data))
                                     stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function returned NULL"))
                                 if (!is.array(p.error.data) || !is.numeric(p.error.data) || !identical(dimnames(p.error.data), dimnames(data)))
                                     stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function did not return a numeric array with the same dimnames as the data"))
-                                if (any(is.na(p.error.data)))
+                                if (any(is.na(p.error.data)[!is.na(data)]))
                                     stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function returned at least one NA and must not"))
                                 
                                 p.error.data = p.error.data**2
