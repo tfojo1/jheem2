@@ -2882,6 +2882,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         target.ontology = target.ontology,
                         uni = uni
                     )
+                    examine.get.mappings.to.align.ontologies(target.ontology, uni, allow.non.overlapping.incomplete.dimensions = T)
                     stop("Error mapping ontologies to target ontology for outcome '", outcome, "': did you remember to register your mappings?")
                 }
                 uni = mps[[2]]$apply.to.ontology(uni)

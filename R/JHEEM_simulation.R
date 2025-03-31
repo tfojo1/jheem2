@@ -291,18 +291,21 @@ subset.simset = function(simset,
 #'with the other left as NULL.
 #'@inheritParams jheem2-simset-params
 #'@param n Every Nth simulation will be kept, counting backwards from the last sim (ie., if n=3, the last simulation and the fourth-to-last simulation will be kept, etc.).
+#'@param allow.expand Whether to duplicate simulations if keep > simset$n.sim
 #'@param k Either a number of simulations to keep or a fraction to keep (between 0 and 1). Simulations will be drawn uniformly from the set.
 #'@details Decimal values above 1 are rounded down to the nearest whole number.
 #'@export
 thin.simset = function(simset,
                        n=NULL,
-                       keep=NULL)
+                       keep=NULL,
+                       allow.expand=F)
 {
     error.prefix = "Error thinning simulation.set: "
     if (!is(simset, 'jheem.simulation.set'))
         stop(paste0(error.prefix, "'simset' must be an object of class 'jheem.simulation.set'"))
     simset$thin(n=n,
-                keep=keep)
+                keep=keep,
+                allow.expand=allow.expand)
 }
 
 #'@title Burn Simulations From a Simulation Set
@@ -1773,7 +1776,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         {
             error.prefix = "Error subsetting jheem.simulation.set: "
             # 'simulation.indices' must be either an integer or logical vector with valid length and values
-            if ((!is.numeric(simulation.indices) && !is.logical(simulation.indices)) || any(is.na(simulation.indices)) || any(duplicated(simulation.indices)))
+            if ((!is.numeric(simulation.indices) && !is.logical(simulation.indices)) || any(is.na(simulation.indices)) )
                 stop(paste0(error.prefix, "'simulation.indices' must be a numeric or logical vector with no NAs or repeats"))
             if (is.numeric(simulation.indices) && (any(simulation.indices < 1) || any(simulation.indices > self$n.sim)))
                 stop(paste0(error.prefix, "if 'simulation.indices' is a numeric vector, all values must be integers between 1 and this simulation.set's 'n.sim'"))
@@ -1819,7 +1822,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
         
         # n: keeps every nth (rounding DOWN) sim counting backwards from the last sim
         # keep: may be fraction or a number to keep. Decimal values above 1 are rounded down to nearest whole number.
-        thin = function(n=NULL, keep=NULL)
+        thin = function(n=NULL, keep=NULL,allow.expand=F)
         {
             error.prefix = "Error thinning simulation.set: "
             if (is.null(n) && is.null(keep))
@@ -1828,14 +1831,65 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 stop(paste0(error.prefix, "exactly one of 'n' or 'keep' must be specified"))
             if (!is.null(n) && (!is.numeric(n) || length(n) != 1 || n > self$n.sim || n < 1))
                 stop(paste0(error.prefix, "'n' must be a single integer value between 1 and 'n.sim'"))
-            if (!is.null(keep) && (!is.numeric(keep) || length(keep) != 1 || keep > self$n.sim || keep <= 0))
-                stop(paste0(error.prefix, "'keep' must be either a single integer value between 1 and 'n.sim' or a fraction between 0 and 1"))
+            if (!is.null(keep) && (!is.numeric(keep) || length(keep) != 1 || keep <= 0))
+                stop(paste0(error.prefix, "'keep' must be either a single integer value >= 1 or a fraction between 0 and 1"))
             
             if (is.null(keep)) keep = ceiling(self$n.sim / n)
             if (keep < 1) keep = ceiling(self$n.sim * keep)
             if (is.null(n)) n = self$n.sim / keep
             
-            self$subset(ceiling(self$n.sim - n * ((keep - 1) : 0)))
+            if (keep == self$n.sim)
+                self
+            else
+            {
+                keep.per.chain = rep(floor(keep / self$n.chains), self$n.chains)
+                for (i in 1:self$n.chains)
+                {
+                    if (sum(keep.per.chain)==keep)
+                        break;
+                    
+                    keep.per.chain[i] = keep.per.chain[i] + 1
+                }
+                
+                if (keep > self$n.sim)
+                {
+                    if (!allow.expand)
+                        stop(paste0(error.prefix, "You have requested to keep ", keep,
+                                    " simulations, but the simset only contains ", self$n.sim,
+                                    " simulations. Use allow.expand=T if you want to allow thinning to duplicate simulations"))
+                    
+                    keep.indices.per.chain = lapply(1:self$n.chains, function(chain.index){
+                        chain = self$unique.chains[chain.index]
+                        indices.for.chain = (1:n.sim)[self$simulation.chain==chain]
+                        
+                        if (length(indices.for.chain)==keep.per.chain[chain.index])
+                            indices.for.chain
+                        else
+                        {
+                            counts.per.sim = rep(0, self$n.sim)
+                            counts.per.sim[indices.for.chain] = rep(floor(keep.per.chain[chain.index] / length(indices.for.chain)), length(indices.for.chain))
+                            remaining.to.sample = keep.per.chain[chain.index] - sum(counts.per.sim)
+                            if (remaining.to.sample > 0)
+                            {
+                                n.remaining.for.chain = length(indices.for.chain) / remaining.to.sample
+                                duplicate.indices = indices.for.chain[ceiling(length(indices.for.chain) - n.remaining.for.chain * ((remaining.to.sample - 1) : 0))]
+                                counts.per.sim[duplicate.indices] = counts.per.sim[duplicate.indices] + 1
+                            }
+                            
+                            unlist(lapply(indices.for.chain, function(i){
+                                rep(i, counts.per.sim[i])
+                            }))
+                        }
+                    })
+                    
+                    self$subset(unlist(keep.indices.per.chain))
+                }
+                else
+                {
+                    self$subset(ceiling(self$n.sim - n * ((keep - 1) : 0)))
+                }
+                
+            }
         },
         
         # keep: may be fraction or a number to keep (to stay consistent with simset$thin arguments)

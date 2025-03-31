@@ -995,6 +995,129 @@ assemble.simulations.from.calibration <- function(version,
                                                   calibration.code,
                                                   root.dir = get.jheem.root.directory("Cannot set up calibration: "),
                                                   allow.incomplete=F,
+                                                  chains = NULL,
+                                                  verbose = T)
+{
+    error.prefix = paste0("Cannot assemble simulations: ")
+    
+    calibration.dir = get.calibration.dir(version = version,
+                                         location = location,
+                                         calibration.code = calibration.code,
+                                         root.dir = root.dir)
+    
+    global.control = get(load(file.path(calibration.dir, 'cache', 'global_control.Rdata')))
+    
+    if (is.null(chains))
+        chains = 1:global.control@n.chains
+    else if (!is.numeric(chains) || length(chains)==0 || any(is.na(chains) || any(chains<=0)))
+        stop(paste0(error.prefix, "'chains' must be a numeric vector with only positive values and no NA values"))
+    else
+    {
+        missing.chains = setdiff(chains, 1:global.control@n.chains)
+        if (length(missing.chains)>0)
+            stop(paste0(error.prefix,
+                        "The calibration only has ",
+                        global.control@n.chains,
+                        ifelse(global.control@n.chains==1, " chain", " chains"),
+                        ". ",
+                        collapse.with.and(missing.chains),
+                        ifelse(length(missing.chains)==1, " is not a valid chain index", " are not valid chain indices")))
+    }
+    chain.controls = lapply(file.path(calibration.dir, 'cache', paste0("chain", chains, "_control.Rdata")), function(file){
+        get(load(file))
+    })
+    
+    max.done.chunk.per.chain = sapply(chain.controls, function(ctrl){
+        max(c(0, (1:length(ctrl@chunk.done))[ctrl@chunk.done]))
+    })
+    
+    first.chunk.to.save = (1:length(global.control@save.chunk))[global.control@save.chunk][1]
+    
+    if (any(max.done.chunk.per.chain==first.chunk.to.save))
+    {
+        stop(paste0(error.prefix,
+                    ifelse(sum(max.done.chunk.per.chain<first.chunk.to.save)==1, "Chain ", "Chains "),
+                    collapse.with.and(chains[max.done.chunk.per.chain<first.chunk.to.save]),
+                    ifelse(sum(max.done.chunk.per.chain<first.chunk.to.save)==1, " has not", " have not"),
+                    " saved ANY samples (ie, gotten past the ",
+                    get.ordinal(first.chunk.to.save), " of ", global.control@n.chunks, " chunk)"
+                    ))
+    }
+    
+    if (!allow.incomplete & any(max.done.chunk.per.chain<global.control@n.chunks))
+    {
+        incomplete.chains = chains[max.done.chunk.per.chain<global.control@n.chunks]
+        stop(paste0(error.prefix,
+                    ifelse(length(incomplete.chains)==1, "Chain ", "Chains "),
+                    collapse.with.and(incomplete.chains),
+                    ifelse(length(incomplete.chains)==1, " has not", " have not"),
+                    " finished sampling. Use allow.incomplete=T to assemble simulations anyway"
+        ))
+    }
+    
+    simulations = list()
+    simulation.chain = list()
+    run.metadatas = list()
+    
+    browser()
+    for (chain.index in 1:length(chains))
+    {
+        chain = chains[chain.index]
+        chain.dir = file.path(calibration.dir, 'cache', paste0('chain_', chain))
+        if (max.done.chunk.per.chain[chain.index] >= first.chunk.to.save)
+        {
+           # cutoffs = first.chunk.to.save + floor((max.done.chunk.per.chain[chain.index] - first.chunk.to.save)/11)
+            for (chunk in first.chunk.to.save:max.done.chunk.per.chain[chain.index])
+            {
+                if (verbose && (chunk==first.chunk.to.save || chunk%%100==1))
+                {
+                    cat(paste0("Assembling chain ", chain, ", chunks ", chunk, " to ",
+                               min(max.done.chunk.per.chain[chain.index], 100 * (floor(chunk/100)+1)),
+                               " of ", max.done.chunk.per.chain[chain.index], "..."))
+                }
+                
+                sub.mcmc = get(load(file.path(chain.dir, paste0("chain", chain, "_chunk", chunk, ".Rdata"))))
+                
+                if (sub.mcmc@n.iter>0)
+                {
+                    new.simulations = sub.mcmc@simulations[as.integer(sub.mcmc@simulation.indices)]
+                    simulations = c(simulations, new.simulations)
+                    simulation.chain = c(simulation.chain, rep(chain, length(new.simulations)))
+                    
+                    run.times = as.numeric(sub.mcmc@run.times)#[sim.indices]
+                    last.valid = run.times[1]
+                    run.times = sapply(run.times, function(time){
+                        if (!is.na(time))
+                            last.valid = time
+                        last.valid
+                    })
+                    
+                    run.metadatas = c(run.metadatas, 
+                                      lapply(1:length(new.simulations), function(i){
+                                          r.meta = new.simulations[[i]]$run.metadata
+                                          copy.run.metadata(r.meta, run.time = run.times[i] / sub.mcmc@thin)
+                                      }))
+                }
+                
+                if (verbose && chunk%%100==0)
+                {
+                    cat("Done\n")
+                }
+            }
+        }
+    }
+    
+    do.join.simulation.sets(simulations, 
+                            simulation.chain = unlist(simulation.chain),
+                            finalize = T, 
+                            run.metadata = join.run.metadata(run.metadatas))
+}
+
+OLD.assemble.simulations.from.calibration <- function(version,
+                                                  location,
+                                                  calibration.code,
+                                                  root.dir = get.jheem.root.directory("Cannot set up calibration: "),
+                                                  allow.incomplete=F,
                                                   chains = NULL)
 {
     mcmc = assemble.mcmc.from.calibration(version = version,
@@ -1053,6 +1176,8 @@ assemble.simulations.from.calibration <- function(version,
                          finalize = T, 
                          run.metadata = join.run.metadata(run.metadatas))
 }
+
+
 
 #'@param code
 #'@param likelihood.instructions
