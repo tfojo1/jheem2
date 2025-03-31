@@ -1205,7 +1205,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 private$i.n.obs <- length(private$i.obs.p)
                 if (private$i.n.obs == 0) stop(paste0(error.prefix, "no data was found for any stratification"))
                 
-                private$i.error.vector.list = lapply(private$i.error.vector.list, function(x) {
+                private$i.p.error.vector.list = lapply(private$i.p.error.vector.list, function(x) {
                     if (length(x)>0)
                         x[!unlist(remove.mask.list)]
                     else x
