@@ -1204,6 +1204,8 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 # browser()
                 private$i.n.obs <- length(private$i.obs.p)
                 if (private$i.n.obs == 0) stop(paste0(error.prefix, "no data was found for any stratification"))
+                
+                private$i.error.vector.list = lapply(private$i.error.vector.list, function(x) {x[!unlist(remove.mask.list)]})
 
                 if (post.time.checkpoint.flag) print(paste0("Finish pulling: ", Sys.time()))
                 

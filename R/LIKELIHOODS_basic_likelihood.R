@@ -967,6 +967,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                                 if (!is.array(error.data) || !is.numeric(error.data) || !identical(dimnames(error.data), dimnames(data)))
                                     stop(paste0(error.prefix, "user-specified 'error.variance.term' function did not return a numeric array with the same dimnames as the data"))
                                 ## Adjustment: we can have NAs where the data is also NA.
+                                # browser()
                                 if (any(is.na(error.data[!is.na(data)])))
                                     stop(paste0(error.prefix, "user-specified 'error.variance.term' function returned at least one NA and must not"))
                                 
@@ -1038,6 +1039,8 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
             }
             
             private$i.n.obs <- length(private$i.obs.vector)
+            
+            private$i.error.vector.list = lapply(private$i.error.vector.list, function(x) {x[!unlist(remove.mask.list)]})
             
             if (n.stratifications.with.data == 0) {
                 stop(paste0(error.prefix, "No data found for any stratifications"))
@@ -1161,7 +1164,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
             
             # Replace sd values below the minimum with the minimum value to avoid zeroes (which can come from sd = cv * 0)
             total.measurement.error.sd[total.measurement.error.sd < private$i.parameters$minimum.error.sd] = private$i.parameters$minimum.error.sd
-            
+            # browser()
             private$i.measurement.error.covariance.matrix = measurement.error.correlation.matrix * (total.measurement.error.sd %*% t(total.measurement.error.sd))
             
             ## included multiplier to make inverse multiplier matrix times covariance matrix
