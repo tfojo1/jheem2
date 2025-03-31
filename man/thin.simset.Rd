@@ -4,10 +4,12 @@
 \alias{thin.simset}
 \title{Thin A Simulation Set}
 \usage{
-thin.simset(simset, n = NULL, keep = NULL)
+thin.simset(simset, n = NULL, keep = NULL, allow.expand = F)
 }
 \arguments{
 \item{n}{Every Nth simulation will be kept, counting backwards from the last sim (ie., if n=3, the last simulation and the fourth-to-last simulation will be kept, etc.).}
+
+\item{allow.expand}{Whether to duplicate simulations if keep > simset$n.sim}
 
 \item{k}{Either a number of simulations to keep or a fraction to keep (between 0 and 1). Simulations will be drawn uniformly from the set.}
 }
