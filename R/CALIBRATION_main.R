@@ -1059,7 +1059,6 @@ assemble.simulations.from.calibration <- function(version,
     simulation.chain = list()
     run.metadatas = list()
     
-    browser()
     for (chain.index in 1:length(chains))
     {
         chain = chains[chain.index]
