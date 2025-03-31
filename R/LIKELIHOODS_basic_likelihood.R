@@ -1039,8 +1039,12 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
             }
             
             private$i.n.obs <- length(private$i.obs.vector)
-            
-            private$i.error.vector.list = lapply(private$i.error.vector.list, function(x) {x[!unlist(remove.mask.list)]})
+
+            private$i.error.vector.list = lapply(private$i.error.vector.list, function(x) {
+                if (length(x)>0)
+                    x[!unlist(remove.mask.list)]
+                else x
+            })
             
             if (n.stratifications.with.data == 0) {
                 stop(paste0(error.prefix, "No data found for any stratifications"))
