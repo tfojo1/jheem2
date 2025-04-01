@@ -524,6 +524,9 @@ join.simulation.sets <- function(...)
     do.call(do.join.simulation.sets, simset.list)
 }
 
+# INTERNAL NOTE: NB - we have analogous functionality in assemble.simulations.from.calibration()
+#                in CALIBRATION_main.R. If we ever edit this, we need to edit that in parallel too
+#                (It is there for memory efficiency)
 do.join.simulation.sets <- function(..., 
                                  simulation.chain=NULL,
                                  finalize=T, 
@@ -1843,7 +1846,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             else
             {
                 keep.per.chain = rep(floor(keep / self$n.chains), self$n.chains)
-                for (i in 1:self$n.chains)
+                for (i in self$n.chains:1)
                 {
                     if (sum(keep.per.chain)==keep)
                         break;
@@ -1899,9 +1902,39 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (!is.numeric(keep) || length(keep) != 1 || keep > self$n.sim || keep <= 0)
                 stop(paste0(error.prefix, "'keep' must be either a single integer value between 1 and 'n.sim' or a fraction between 0 and 1"))
             
-            if (keep < 1) keep = ceiling(self$n.sim * keep)
+            keep.per.chain = sapply(self$unique.chains, function(chain){
+                n.for.chain = sum(self$simulation.chain == chain)
+                
+                if (keep < 1)
+                    floor(n.for.chain * keep)
+                else
+                    floor(keep / self$n.chains)
+            })
             
-            self$subset((self$n.sim - keep + 1) : self$n.sim) # Keep the LAST part, not the FIRST
+            if (keep < 1)
+                n.keep = ceiling(keep * self$n.sim)
+            else
+                n.keep = keep
+            
+            for (i in self$n.chains:1)
+            {
+                if (sum(keep.per.chain)==n.keep)
+                    break;
+                
+                keep.per.chain[i] = keep.per.chain[i] + 1
+            }
+            
+            # if (keep < 1) keep = ceiling(self$n.sim * keep)
+            
+            # self$subset((self$n.sim - keep + 1) : self$n.sim) # Keep the LAST part, not the FIRST
+            
+            keep.indices.per.chain = sapply(1:self$n.chains, function(chain.index){
+                
+                indices.for.chain = (1:self$n.sim)[ self$simulation.chain == self$unique.chains[chain.index] ]
+                indices.for.chain[ (length(indices.for.chain) - keep.per.chain[chain.index] + 1):length(indices.for.chain)]
+            })
+            
+            self$subset(unlist(keep.indices.per.chain))
         },
         
         first.sim = function()

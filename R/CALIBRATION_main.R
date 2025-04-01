@@ -990,7 +990,273 @@ extract.last.simulation.from.calibration <- function(version,
 #'@inheritParams assemble.mcmc.from.calibration
 #'
 #'@export
+# INTERNAL NOTE: NB - we have analogous functionality in do.join.simulation.sets()
+#                in JHEEM_simulation.R If we ever edit this, we need to edit that in parallel too
+#                (It is here for memory efficiency)
 assemble.simulations.from.calibration <- function(version,
+                                                  location,
+                                                  calibration.code,
+                                                  root.dir = get.jheem.root.directory("Cannot set up calibration: "),
+                                                  allow.incomplete=F,
+                                                  chains = NULL,
+                                                  verbose = T)
+{
+    #-- Initial Set-Up (pull control files, check arguments) --#
+    error.prefix = paste0("Cannot assemble simulations: ")
+    
+    calibration.dir = get.calibration.dir(version = version,
+                                          location = location,
+                                          calibration.code = calibration.code,
+                                          root.dir = root.dir)
+    
+    global.control = get(load(file.path(calibration.dir, 'cache', 'global_control.Rdata')))
+    
+    if (is.null(chains))
+        chains = 1:global.control@n.chains
+    else if (!is.numeric(chains) || length(chains)==0 || any(is.na(chains) || any(chains<=0)))
+        stop(paste0(error.prefix, "'chains' must be a numeric vector with only positive values and no NA values"))
+    else
+    {
+        missing.chains = setdiff(chains, 1:global.control@n.chains)
+        if (length(missing.chains)>0)
+            stop(paste0(error.prefix,
+                        "The calibration only has ",
+                        global.control@n.chains,
+                        ifelse(global.control@n.chains==1, " chain", " chains"),
+                        ". ",
+                        collapse.with.and(missing.chains),
+                        ifelse(length(missing.chains)==1, " is not a valid chain index", " are not valid chain indices")))
+    }
+    chain.controls = lapply(file.path(calibration.dir, 'cache', paste0("chain", chains, "_control.Rdata")), function(file){
+        get(load(file))
+    })
+    
+    max.done.chunk.per.chain = sapply(chain.controls, function(ctrl){
+        max(c(0, (1:length(ctrl@chunk.done))[ctrl@chunk.done]))
+    })
+    
+    first.chunk.to.save = (1:length(global.control@save.chunk))[global.control@save.chunk][1]
+    
+    if (any(max.done.chunk.per.chain==first.chunk.to.save))
+    {
+        stop(paste0(error.prefix,
+                    ifelse(sum(max.done.chunk.per.chain<first.chunk.to.save)==1, "Chain ", "Chains "),
+                    collapse.with.and(chains[max.done.chunk.per.chain<first.chunk.to.save]),
+                    ifelse(sum(max.done.chunk.per.chain<first.chunk.to.save)==1, " has not", " have not"),
+                    " saved ANY samples (ie, gotten past the ",
+                    get.ordinal(first.chunk.to.save), " of ", global.control@n.chunks, " chunk)"
+        ))
+    }
+    
+    if (!allow.incomplete & any(max.done.chunk.per.chain<global.control@n.chunks))
+    {
+        incomplete.chains = chains[max.done.chunk.per.chain<global.control@n.chunks]
+        stop(paste0(error.prefix,
+                    ifelse(length(incomplete.chains)==1, "Chain ", "Chains "),
+                    collapse.with.and(incomplete.chains),
+                    ifelse(length(incomplete.chains)==1, " has not", " have not"),
+                    " finished sampling. Use allow.incomplete=T to assemble simulations anyway"
+        ))
+    }
+    
+    #-- Loop through the individually saved MCMCs --#
+    
+    n.sim.per.chain = sapply(chain.controls, function(ctrl){
+        floor(ctrl@chain.state@n.unthinned.after.burn / global.control@control@thin)
+    })
+    
+    n.sim = sum(n.sim.per.chain)
+    
+    outcome.dimnames = NULL
+    combined.outcome.numerators = NULL
+    combined.outcome.denominators = NULL
+    combined.is.degenerate = rep(as.numeric(NA), n.sim)
+    combined.parameters = NULL
+    n.parameters = NULL
+    run.metadata.list = list()
+    simulation.chain = rep(as.numeric(NA), n.sim)
+    sims.done = 0
+    
+    for (chain.index in 1:length(chains))
+    {
+        chain = chains[chain.index]
+        chain.dir = file.path(calibration.dir, 'cache', paste0('chain_', chain))
+        if (max.done.chunk.per.chain[chain.index] >= first.chunk.to.save)
+        {
+            # cutoffs = first.chunk.to.save + floor((max.done.chunk.per.chain[chain.index] - first.chunk.to.save)/11)
+            for (chunk in first.chunk.to.save:max.done.chunk.per.chain[chain.index])
+            {
+                if (verbose && (chunk==first.chunk.to.save || chunk%%100==1))
+                {
+                    cat(paste0("Assembling chain ", chain, ", chunks ", chunk, " to ",
+                               min(max.done.chunk.per.chain[chain.index], 100 * (floor(chunk/100)+1)),
+                               " of ", max.done.chunk.per.chain[chain.index], "..."))
+                }
+                
+                sub.mcmc = get(load(file.path(chain.dir, paste0("chain", chain, "_chunk", chunk, ".Rdata"))))
+                
+                if (sub.mcmc@n.iter>0)
+                {
+                    #-- Set up our data structures --#
+                    if (is.null(outcome.dimnames))
+                    {
+                        sample.simset = sub.mcmc@simulations[[1]]   
+                        outcomes = sample.simset$outcomes
+                        
+                        outcome.dimnames = lapply(sample.simset$outcome.ontologies, function(outcome.ontology) {
+                            dim.names = outcome.ontology
+                            dim.names[['sim']] = 1:n.sim
+                            dim.names
+                        })
+                        
+                        combined.outcome.numerators = lapply(outcome.dimnames, function(dim.names){
+                            array(as.numeric(NA), 
+                                  dim = sapply(dim.names, length),
+                                  dimnames = dim.names)
+                        })
+                        
+                        combined.outcome.denominators = lapply(names(combined.outcome.numerators), function(outcome.name){
+                            dim.names = outcome.dimnames[[outcome.name]]
+                            
+                            if (is.null(sample.simset$data$outcome.denominators[[outcome.name]]))
+                                NULL
+                            else
+                                array(as.numeric(NA), 
+                                      dim = sapply(dim.names, length),
+                                      dimnames = dim.names)
+                        })
+                        names(combined.outcome.denominators) = names(combined.outcome.numerators)
+                        
+                        
+                        combined.parameters = array(as.numeric(NA),
+                                                    dim = c(parameter = dim(sample.simset$parameters)[1],
+                                                               sim = n.sim),
+                                                    dimnames = list(parameter = dimnames(sample.simset$parameters)$parameter,
+                                                                    sim = NULL))
+                        
+                        n.parameters = dim(combined.parameters)[1]
+                    }
+                    
+                    new.simulations = sub.mcmc@simulations[as.integer(sub.mcmc@simulation.indices)]
+                    
+                    for (i in 1:length(new.simulations))
+                    {
+                        # Write into column-major indexing
+                        for (outcome.name in names(combined.outcome.numerators))
+                        {
+                            src = new.simulations[[i]]$data$outcome.numerators[[outcome.name]]
+                            src.indices = 1:length(src)
+                            dst.indices = src.indices + sims.done * length(src)
+                            
+                            combined.outcome.numerators[[outcome.name]] = overwrite_arr(
+                                dst = combined.outcome.numerators[[outcome.name]],
+                                dst_indices = dst.indices,
+                                src = src,
+                                src_indices = src.indices)
+                            
+                            denom = new.simulations[[i]]$data$outcome.denominators[[outcome.name]]
+                            if (!is.null(denom))
+                            {
+                                combined.outcome.denominators[[outcome.name]] = overwrite_arr(
+                                    dst = combined.outcome.denominators[[outcome.name]],
+                                    dst_indices = dst.indices,
+                                    src = denom,
+                                    src_indices = src.indices)
+                            }
+                        }
+                        
+                        combined.parameters = overwrite_arr(
+                            dst = combined.parameters,
+                            dst_indices = 1:n.parameters + sims.done * n.parameters,
+                            src = new.simulations[[i]]$parameters,
+                            src_indices = 1:n.parameters
+                        )
+                        
+                        simulation.chain = overwrite_arr(
+                            dst = simulation.chain,
+                            dst_indices = sims.done + 1,
+                            src = chain,
+                            src_indices = 1)
+                        
+                        combined.is.degenerate = overwrite_arr(
+                            dst = combined.is.degenerate,
+                            dst_indices = sims.done + 1,
+                            src = as.numeric(new.simulations[[i]]$is.degenerate),
+                            src_indices = 1)
+                        
+                        sims.done = sims.done + 1
+                    }               
+                    
+                    # Pull the run.metadata
+                    run.times = as.numeric(sub.mcmc@run.times)#[sim.indices]
+                    last.valid = run.times[1]
+                    run.times = sapply(run.times, function(time){
+                        if (!is.na(time))
+                            last.valid = time
+                        last.valid
+                    })
+                    
+                    run.metadata.list = c(run.metadata.list, 
+                                          lapply(1:length(new.simulations), function(i){
+                                              r.meta = new.simulations[[i]]$run.metadata
+                                              copy.run.metadata(r.meta, run.time = run.times[i] / sub.mcmc@thin)
+                                          }))
+                    
+                    sub.mcmc = NULL
+                    
+                    # We're going to gc() here to keep memory usage down
+                    gc()
+                }
+                
+                if (verbose && chunk%%100==0)
+                {
+                    cat("Done\n")
+                }
+            }
+        }
+    }
+    
+    #-- Do we have fewer sims than expected?? --#
+    if (sims.done < n.sim)
+    {
+        combined.outcome.numerators = lapply(combined.outcome.numerators, function(num){
+            array.access(num, sim=1:sims.done)
+        })
+        
+        combined.outcome.denominators = lapply(combined.outcome.numerators, function(denom){
+            if (is.null(denom))
+                NULL
+            else
+                array.access(denom, sim=1:sims.done)
+        })
+        
+        combined.parameters = array.access(combined.parameters, sim=1:sims.done)
+        
+        simulation.chain = simulation.chain[1:sims.done]
+        
+        combined.is.degenerate = combined.is.degenerate[1:sims.done]
+    }
+    
+    #-- Make the simulation set --#
+    do.create.simulation.set(jheem.kernel = sample.simset$jheem.kernel,
+                             sub.version = sample.simset$sub.version,
+                             outcome.numerators = combined.outcome.numerators,
+                             outcome.denominators = combined.outcome.denominators,
+                             parameters = combined.parameters,
+                             simulation.chain = simulation.chain,
+                             from.year = sample.simset$from.year,
+                             to.year = sample.simset$to.year,
+                             n.sim = sims.done,
+                             intervention.code = sample.simset$intervention.code,
+                             calibration.code = sample.simset$calibration.code,
+                             outcome.location.mapping = sample.simset$outcome.location.mapping,
+                             solver.metadata = sample.simset$solver.metadata,
+                             run.metadata = join.run.metadata(run.metadata.list),
+                             finalize = T,
+                             is.degenerate = as.logical(combined.is.degenerate))
+}
+
+newer.old.assemble.simulations.from.calibration <- function(version,
                                                   location,
                                                   calibration.code,
                                                   root.dir = get.jheem.root.directory("Cannot set up calibration: "),
