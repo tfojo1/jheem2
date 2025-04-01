@@ -2331,10 +2331,13 @@ get.simulation.seed.from.parameters <- function(parameters)
     # (so that even small numbers count towards the integer seed)
     seed = sum((parameters * 10^pmax(0, 1+ceiling(-log10(abs(parameters)))))[parameters!=0], na.rm=T)
     
-    if (seed > .Machine$integer.max)
+    if (seed == Inf)
+        seed = .Machine$integer.max
+    else if (seed == -Inf)
+        seed = -.Machine$integer.max
+    else if (seed > .Machine$integer.max)
         seed = seed %% .Machine$integer.max
-    
-    if (seed < -.Machine$integer.max)
+    else if (seed < -.Machine$integer.max)
         seed = -(-seed %% .Machine$integer.max)
     
     as.integer(seed)
