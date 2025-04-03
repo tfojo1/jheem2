@@ -588,7 +588,7 @@ do.join.simulation.sets <- function(...,
     
     if (is.null(simulation.chain))
     {
-        simulation.chain = as.integer(sapply(simset.list, function(sim){sim$simulation.chain}))
+        simulation.chain = as.integer(unlist(lapply(simset.list, function(sim){sim$simulation.chain})))
     }
     else
     {
