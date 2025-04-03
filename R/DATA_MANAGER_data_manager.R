@@ -1759,7 +1759,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # Reduce target to needed dimensions and find a mapping
-            if (!is.null(keep.dimensions)) target.ontology = target.ontology[names(target.ontology) %in% union(keep.dimensions, names(dimension.values))]
+            if (!is.null(keep.dimensions))
+                target.ontology = target.ontology[names(target.ontology) %in% union(keep.dimensions, names(dimension.values))]
             if (return.mapping.flag) target.to.universal.mapping = get.ontology.mapping(target.from.arguments, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
             
             # If sources is NULL, use all the sources from the outcome
@@ -1830,7 +1831,23 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         # if (debug) browser()
                         
                         data.types = union('data', append.attributes)
-                        pulled.ont.data <- do.pre.aggregation.processing(append.attributes,
+                        # browser()
+                        # 
+                        # cc <<- list(append.attributes=append.attributes,
+                        #             mapping.to.apply=mapping.to.apply,
+                        #             strat.dimnames=strat.dimnames,
+                        #             dimnames.for.apply=dimnames.for.apply,
+                        #             strat.data=strat.data,
+                        #             metric=metric,
+                        #             outcome=outcome,
+                        #             source.name=source.name,
+                        #             keep.dimensions=keep.dimensions,
+                        #             dv.names=dv.names,
+                        #             outcome.info=outcome.info,
+                        #             na.rm=na.rm)
+                        
+                        pulled.ont.data <- do.pre.aggregation.processing(data.manager=self,
+                                                                         append.attributes,
                                                                          mapping.to.apply,
                                                                          strat.dimnames,
                                                                          dimnames.for.apply,
@@ -1847,15 +1864,15 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         initial.dimnames = dimnames.for.apply
                         dimensions.to.drop = intersect(which(sapply(initial.dimnames, length) == 1), which(!(names(initial.dimnames) %in% keep.dimensions)))
                         
-                        pulled.ont.data <- lapply(data.types, function(data.type) {
-                            data.by.data.type <- pulled.ont.data[[data.type]]
-                            pre.agg.dimnames = initial.dimnames
-                        })
+                        # pulled.ont.data <- lapply(data.types, function(data.type) {
+                        #     data.by.data.type <- pulled.ont.data[[data.type]]
+                        #     pre.agg.dimnames = initial.dimnames
+                        # })
                         
                         pulled.ont.data = lapply(data.types, function(data.type) {
                             if (debug) browser()
-                            if (source.lacks.denominator.data.flag) return (NULL)
-                            if (source.lacks.estimate.data.flag) return (NULL)
+                            # if (source.lacks.denominator.data.flag) return (NULL)
+                            # if (source.lacks.estimate.data.flag) return (NULL)
                             data.by.data.type = pulled.ont.data[[data.type]]
                             pre.agg.dimnames = initial.dimnames
                             if (length(dimensions.to.drop) > 0) {
@@ -1874,8 +1891,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                     source.name,
                                                                     outcome,
                                                                     dimension.values=dimension.values,
-                                                                    target.ontology=target.ontology
-                                                                    )
+                                                                    target.ontology=target.ontology)
                             
                             if (length(pre.agg.dimnames) > length(keep.dimensions)) {
                                 post.agg.dimnames = pre.agg.dimnames[names(pre.agg.dimnames) %in% keep.dimensions]
@@ -1954,7 +1970,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                             if (!is.null(denominator.array)) break
                                         }
                                         
-                                        
+                                         
                                         if (is.null(denominator.array)) {
                                             source.lacks.denominator.data.flag <<- TRUE
                                             return (NULL)
@@ -2062,7 +2078,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         break
                         
                     } # end of loop for stratification
-                    if (source.lacks.denominator.data.flag) break
+                    # if (source.lacks.denominator.data.flag) break
                     
                     if (all(is.na(pulled.ont.data))) next
                     # Integrate ontology's pulled data into the source's pulled data -- they should all be in the same (universal) ontology and therefore compatible
