@@ -134,7 +134,7 @@ do.instantiate.likelihood <- function(instructions,
     }
     
     # Forcibly append the outcome name to the error message, because joints have to declare a different one earlier
-    error.prefix <- paste0(error.prefix, "Error initializing likelihood for '", instructions$outcome.for.sim, "': ")
+    error.prefix <- paste0(error.prefix, "Error initializing likelihood for '", instructions$name, "': ")
     
     likelihood.class.generator = LIKELIHOOD.CLASS.GENERATORS[[class(instructions)[1]]]
     if (is.null(likelihood.class.generator))
