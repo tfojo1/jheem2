@@ -555,16 +555,16 @@ do.join.simulation.sets <- function(...,
     })
     
     combined.outcome.numerators = lapply(outcomes, function(outcome) {
-        data.vec = sapply(simset.list, function(simset) {simset$data$outcome.numerators[[outcome]]})
+        data.vec = lapply(simset.list, function(simset) {simset$data$outcome.numerators[[outcome]]})
         if (any(sapply(data.vec, is.null))) return(NULL)
-        array(data.vec, sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
+        array(unlist(data.vec), sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
     })
     names(combined.outcome.numerators) = outcomes
     
     combined.outcome.denominators = lapply(outcomes, function(outcome) {
-        data.vec = sapply(simset.list, function(simset) {simset$data$outcome.denominators[[outcome]]})
+        data.vec = lapply(simset.list, function(simset) {simset$data$outcome.denominators[[outcome]]})
         if (any(sapply(data.vec, is.null))) return(NULL)
-        array(data.vec, sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
+        array(unlist(data.vec), sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
     })
     names(combined.outcome.denominators) = outcomes
     
@@ -574,7 +574,10 @@ do.join.simulation.sets <- function(...,
 
     #combined.parameters = unlist(lapply(simset.list, function(simset) {simset$data$parameters}), recursive=F)
     
-    combined.parameters = sapply(simset.list, function(simset){simset$parameters})
+    combined.parameters = unlist(lapply(simset.list, function(simset){simset$parameters}))
+    
+    dim(combined.parameters) = c(parameter = dim(simset.list[[1]]$parameters)[1],
+                                 sim = new.n.sim)
     dimnames(combined.parameters) = list(parameter = dimnames(simset.list[[1]]$parameters)[[1]],
                                          sim = NULL)
     
@@ -585,7 +588,7 @@ do.join.simulation.sets <- function(...,
     
     if (is.null(simulation.chain))
     {
-        simulation.chain = as.integer(sapply(simset.list, function(sim){sim$simulation.chain}))
+        simulation.chain = as.integer(unlist(lapply(simset.list, function(sim){sim$simulation.chain})))
     }
     else
     {
@@ -1774,6 +1777,12 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             }
             rv
         },
+        
+fix.chains = function(n.chains)
+{
+    private$i.data$unique.chains = 1:n.chains
+    private$i.data$simulation.chain = rep(1:n.chains, each = self$n.sim / n.chains)
+},
         
         subset = function(simulation.indices)
         {
