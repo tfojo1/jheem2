@@ -262,11 +262,12 @@ set.up.calibration <- function(version,
         # Figure out which mcmc parameters we want to pull covariance/scaling for
         overlapping.non.aliased.model.parameter.names = intersect(non.aliased.model.parameter.names,
                                                                   parsed.preceding.aliases$non.aliased.model.parameter.names)
+        
         overlapping.parameter.aliases = intersect(names(parameter.aliases),
                                                   names(parsed.preceding.aliases$parameter.aliases))
-        overlapping.parameter.aliases = overlapping.parameter.aliases[sapply(overlapping.parameter.aliases, function(alias.name){
+        overlapping.parameter.aliases = overlapping.parameter.aliases[vapply(overlapping.parameter.aliases, function(alias.name){
             setequal(parameter.aliases[[alias.name]], parsed.preceding.aliases[[alias.name]])
-        })]
+        }, FUN.VALUE = logical(1))]
         mcmc.parameters.to.pull.from.preceding = setdiff(c(overlapping.non.aliased.model.parameter.names, overlapping.parameter.aliases),
                                                          mcmc.parameters.already.pulled.from.preceding)
         
