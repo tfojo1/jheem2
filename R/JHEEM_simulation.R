@@ -93,6 +93,7 @@ get.simulation.metadata <- function(version,
 #'@param simset The JHEEM simulation set to re-run
 #'@param verbose Whether to print updates as simulations are run
 #'@param sub.version The sub-version to run
+#'@param from.year,to.year The years to keep in the simulation object
 #'
 #'@details Helpful if the specification has changed
 #'
@@ -802,6 +803,7 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
     metadata$intervention.code = intervention.code
     metadata$calibration.code = calibration.code
     metadata$sub.version = sub.version
+    metadata$labels = jheem.kernel.or.specification$labels
     
     metadata
 }
@@ -1011,6 +1013,31 @@ SIMULATION.METADATA = R6::R6Class(
                 replace.inf.values.with.zero = replace.inf.values.with.zero,
                 error.prefix = error.prefix
             )
+        },
+        
+        get.labels = function(to.label)
+        {
+            if (!is.character(to.label) || any(is.na(to.label)))
+                stop("Cannot get.labels() - 'to.label' must be a character vector with no NA values")
+            
+            labels = private$i.metadata$labels[to.label]
+            
+            unlabeled.mask = is.na(labels)
+            
+            if (any(unlabeled.mask))
+            {
+                labels[unlabeled.mask] = private$str.to.title(to.label[unlabeled.mask])
+            }        
+            
+            names(labels) = to.label
+            labels
+        },
+        
+        update.labels = function()
+        {
+            spec = get.specification.for.version(private$i.version)
+            private$i.metadata$labels = spec$labels
+            invisible(self)
         }
     ),
     
@@ -1107,20 +1134,6 @@ SIMULATION.METADATA = R6::R6Class(
                 private$i.metadata$intervention.code
             else
                 stop("Cannot modify a simulation.set's 'intervention.code' - it is read-only")
-        },
-        
-        label.mapping = function(value)
-        {
-            if (missing(value))
-            {
-                if (is.null(private$i.metadata$label.mapping))
-                    x
-                else
-                    private$i.metadata$label.mapping
-                
-            }
-            else
-                stop("Cannot modify a simulation.set's 'label.mapping' - it is read-only")
         }
     ),
     
@@ -1156,6 +1169,31 @@ SIMULATION.METADATA = R6::R6Class(
                 dimension.values$year = as.character(dimension.values$year)
             
             dimension.values
+        },
+        
+        # Helpers for labels
+        toupper.first = function(str)
+        {
+            str = as.character(str)
+            mask = !is.na(str) & nchar(str)>0
+            str[mask] = paste0(toupper(base::substr(str[mask], 1, 1)),
+                               base::substr(str[mask], 2, nchar(str[mask])))
+            str
+        },
+        
+        str.to.title = function(str)
+        {
+            split.str = base::strsplit(str, "[^a-zA-Z0-9\\-]", fixed=F)
+            str = sapply(split.str, function(one.split){
+                paste0(toupper.first(one.split), collapse=' ')
+            })
+            
+            split.str = base::strsplit(str, "-", fixed=T)
+            str = sapply(split.str, function(one.split){
+                paste0(toupper.first(one.split), collapse='-')
+            })
+            
+            str
         }
     )
     

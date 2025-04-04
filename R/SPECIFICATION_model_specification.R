@@ -365,6 +365,13 @@ create.jheem.specification <- function(version,
             stop(paste0(error.prefix, "If supplied, 'labels' must be a NAMED character vector"))
     }
     
+    if (!is.null(parent.specification))
+    {
+        new.labels = labels
+        labels = parent.specification$labels
+        labels[names(new.labels)] = new.labels
+    }
+    
     #-- Dim Names --#
     # In general, first we're going to check what's given
     # Then we're going to pull from parent and recheck

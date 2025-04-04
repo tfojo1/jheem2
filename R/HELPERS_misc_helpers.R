@@ -267,9 +267,16 @@ toupper.first <- function(str)
 str.to.title <- function(str)
 {
     split.str = strsplit(str, "[^a-zA-Z0-9\\-]", fixed=F)
-    sapply(split.str, function(one.split){
+    str = sapply(split.str, function(one.split){
         paste0(toupper.first(one.split), collapse=' ')
     })
+    
+    split.str = strsplit(str, "-", fixed=T)
+    str = sapply(split.str, function(one.split){
+        paste0(toupper.first(one.split), collapse='-')
+    })
+    
+    str
 }
 
 get.ordinal <- function(nums)

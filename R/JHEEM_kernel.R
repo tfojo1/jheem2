@@ -46,6 +46,7 @@ JHEEM.KERNEL = R6::R6Class(
             
             #-- Some simple pulls from the specification --#
             private$i.sub.versions = specification$sub.versions
+            private$i.labels = specification$labels
             
             #-- Get the specification metadata --#
             private$i.specification.metadata = do.get.specification.metadata(specification=specification,
@@ -707,6 +708,14 @@ JHEEM.KERNEL = R6::R6Class(
                 private$i.age.endpoints
             else
                 stop("Cannot modify a specification kernel's age.endpoints - they are read-only")
+        } ,
+        
+        labels = function(value)
+        {
+            if (missing(value))
+                private$i.labels
+            else
+                stop("Cannot modify a specification kernel's labels - they are read-only")
         }
     ),
     
@@ -722,6 +731,7 @@ JHEEM.KERNEL = R6::R6Class(
         
         i.dim.names = NULL,
         i.specification.metadata = NULL,
+        i.labels = NULL,
         
         #-- Aliases --#
         i.aliases = NULL,
