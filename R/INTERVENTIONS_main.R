@@ -448,8 +448,8 @@ JHEEM.INTERVENTION = R6::R6Class(
         },
         
         run = function(sim,
-                       start.year,
                        end.year,
+                       start.year = NULL,
                        max.run.time.seconds = NULL,
                        keep.from.year = sim$from.year,
                        keep.to.year = end.year,
@@ -532,6 +532,17 @@ JHEEM.INTERVENTION = R6::R6Class(
                 set.seed(reset.seed) # this keeps our code from always setting to the same seed
             }
 
+            if (is.null(start.year))
+            {
+                # Note to self - actually need to bind the new parameters to the simsets existing parameters, and try to resolve that
+                start.year = self$get.start.time(parameters = new.parameters, throw.error.if.unable.to.calculate = F)
+                if (is.null(start.year))
+                    stop(paste0("Cannot figure out start.year - some intervention effect foregrounds have not been resolved"))
+                
+                if (start.year == Inf)
+                    start.year = min(end.year-1, simset$to.year)
+            }
+            
             # Get the engine
             engine = sim$get.engine(start.year = start.year,
                                     end.year = end.year,
@@ -591,6 +602,46 @@ JHEEM.INTERVENTION = R6::R6Class(
                     return(F)
             }
             else private$is.equal.to(other)
+        },
+        
+        get.start.time = function(parameters=self$parameters, throw.error.if.unable.to.calculate=T)
+        {
+            foregrounds = self$get.intervention.foregrounds()
+            if (length(foregrounds)==0)
+                -Inf
+            else
+            {
+                foregrounds.min.start.time = lapply(foregrounds, function(frgd){frgd$min.start.time})
+                min.start.time.is.null = sapply(foregrounds.min.start.time, is.null)
+                if (any(min.start.time.is.null))
+                {
+                    if (!is.null(parameters))
+                    {
+                        print("We have not implemented trying to resolve against parameters to calculate the start time")
+                        
+                        # Note to self - need to do this for every set of parameters in paramters, then take the min
+                        # foregrounds[min.start.time.is.null] = lapply(foregrounds[min.start.time.is.null], function(frgd){
+                        #     frgd$resolve.effects(parameters = parameters, error.prefix="Error resolving effect when trying to get start time")  
+                        # })
+                        # 
+                        # foregrounds.min.start.time = lapply(foregrounds, function(frgd){frgd$min.start.time})
+                        # min.start.time.is.null = sapply(foregrounds.min.start.time, is.null)
+                    }
+                    
+                    if (any(min.start.time.is.null))
+                    {
+                        if (throw.error.if.unable.to.calculate)
+                            stop(paste0("Cannot get.start.time() for intervention ",
+                                        ifelse(is.null(self$code), "",
+                                               paste0(" '", self$code, "'")),
+                                        " - the effect times for some foregrounds have not been resolved"))
+                        else
+                            return (NULL)
+                    }
+                }
+                
+                floor(min(unlist(foregrounds.min.start.time)))
+            }
         },
         
         get.intervention.foregrounds = function()
