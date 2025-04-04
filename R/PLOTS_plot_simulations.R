@@ -1,6 +1,6 @@
 # We need access to the prepare.plot function from PLOTS_simplot.R
 
-#library(plotly)
+library(plotly)
 
 #source("R/PLOTS_simplot.R")
 
@@ -87,7 +87,8 @@ plot.simulations <- function(...,
                             n.facet.rows = NULL,
                             interval.coverate = 0.95,
                             data.manager = get.default.data.manager(),
-                            style.manager = get.default.style.manager('plotly'),
+                            # style.manager = get.default.style.manager('plotly'),
+                            style.manager = get.default.style.manager(),
                             hide.legend = FALSE)
 {
   
@@ -147,37 +148,33 @@ execute.plotly.plot <- function(prepared.plot.data,
                             hide.legend = FALSE)
 {
 
-  #-- UNPACK DATA --#
   df.sim=prepared.plot.data$df.sim
   df.truth=prepared.plot.data$df.truth
-  # browser()
   y.label = prepared.plot.data$details$y.label
   plot.title = prepared.plot.data$details$plot.title
-  outcome.metadata = prepared.plot.data$details$outcome.metadata.list
+  outcome.metadata = prepared.plot.data$details$outcome.metadata
   
   #-- PREPARE PLOT COLORS, SHADES, SHAPES, ETC. --#
   
-  # Here we can assume that we always have sim data and truth data
-  # This is heavily borrowed and only slightly modified code from execute_simplot()
+  if (!is.null(df.sim)) {
+      df.sim['linetype.sim.by'] = df.sim[style.manager$linetype.sim.by]
+      df.sim['shape.sim.by'] = df.sim[style.manager$shape.sim.by]
+      df.sim['color.sim.by'] = df.sim[style.manager$color.sim.by]
+  }
   
-  # Here we are setting linetype, shape and colour for the simulation data
-  df.sim['linetype.sim.by'] = df.sim[style.manager$linetype.sim.by]
-  df.sim['shape.sim.by'] = df.sim[style.manager$shape.sim.by]
-  df.sim['color.sim.by'] = df.sim[style.manager$color.sim.by]
   
-  # make some other columns
-  # Her we are setting attribute for the truth
-  df.truth['location.type'] = locations::get.location.type(df.truth$location)
-  df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
-  df.truth['color.data.by'] = df.truth[style.manager$color.data.by]
-  df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
-  
-  if (style.manager$color.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum=="")) {
-    df.truth['color.and.shade.data.by'] = df.truth['shade.data.by']
-  } else if (style.manager$shade.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum=="")) {
-    df.truth['color.and.shade.data.by'] = df.truth['color.data.by']
-  } else {
-    df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
+  if (!is.null(df.truth)) {
+      # make some other columns
+      df.truth['location.type'] = locations::get.location.type(df.truth$location)
+      df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
+      df.truth['color.data.by'] = df.truth[style.manager$color.data.by]
+      df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
+      if (style.manager$color.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum==""))
+          df.truth['color.and.shade.data.by'] = df.truth['shade.data.by']
+      else if (style.manager$shade.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum==""))
+          df.truth['color.and.shade.data.by'] = df.truth['color.data.by']
+      else
+          df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
   }
   
   ## COLORS
@@ -186,70 +183,87 @@ execute.plotly.plot <- function(prepared.plot.data,
   
   sim.color.groups = sort(unique(df.sim$color.sim.by))
   data.color.groups = sort(unique(df.truth$color.data.by))
+  # browser()
   
   # if coloring by the same thing, use the same palette (defaulting to SIM's palette) unless one is missing
   if (style.manager$color.sim.by == style.manager$color.data.by) {
-    all.color.groups = sort(union(sim.color.groups, data.color.groups))
+      # browser()
+      all.color.groups = sort(union(sim.color.groups, data.color.groups))
       
-    # Both df.sim and df.truth will be non-NULL here; I suspect that means
-    # I should do the get.sim.colors() call (as that is how the code would
-    # got in the original) but will leave it as-is for now
-    
-    if (!is.null(df.sim)) {
-      all.colors = style.manager$get.sim.colors(length(all.color.groups))
-    } else if (!is.null(df.truth)) {
-      all.colors = style.manager$get.data.colors(length(all.color.groups))
-    } else {
-      all.colors = NULL # doesn't matter?
-    }
+      if (!is.null(df.sim))
+          all.colors = style.manager$get.sim.colors(length(all.color.groups))
+      else if (!is.null(df.truth))
+          all.colors = style.manager$get.data.colors(length(all.color.groups))
+      else
+          all.colors = NULL # doesn't matter?
       
-    names(all.colors) = all.color.groups
-    colors.for.sim = all.colors[sim.color.groups]
-    color.data.primary.colors = all.colors[data.color.groups]
-  } else {
-    # otherwise, assign colors individually
-    colors.for.sim = style.manager$get.sim.colors(length(sim.color.groups))
-    names(colors.for.sim) = sim.color.groups
-    color.data.primary.colors = style.manager$get.data.colors(length(data.color.groups))
-    names(color.data.primary.colors) = data.color.groups
+      names(all.colors) = all.color.groups
+      colors.for.sim = all.colors[sim.color.groups]
+      color.data.primary.colors = all.colors[data.color.groups]
+  }
+  
+  # otherwise, assign colors individually
+  else {
+      if (!is.null(df.sim)) {
+          colors.for.sim = style.manager$get.sim.colors(length(sim.color.groups))
+          names(colors.for.sim) = sim.color.groups
+      }
+      if (!is.null(df.truth)) {
+          color.data.primary.colors = style.manager$get.data.colors(length(data.color.groups))
+          names(color.data.primary.colors) = data.color.groups
+      }
   }
   
   ## RIBBON COLOR
   color.ribbon.by = NULL
-  # For now I'm going to leave the ggplot2 call in; we will have the library loaded and 
-  # I can use it until I find a suitable plotly replacement.
-  color.ribbon.by = ggplot2::alpha(colors.for.sim, style.manager$alpha.ribbon)
-  
+  if (!is.null(df.sim)) {
+      color.ribbon.by = ggplot2::alpha(colors.for.sim, style.manager$alpha.ribbon)
+  }
+
   ## SHADES FOR DATA
   color.data.shaded.colors = NULL
-  color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
-  names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
+  if (!is.null(df.truth)) {
+      color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
+      # This can lead to problems if we have either of these being "" because then we'll get an underscore that won't match the actual column values in the data frame
+      if (identical(unique(df.truth$color.data.by), ""))
+          names(color.data.shaded.colors) = unique(df.truth$shade.data.by)
+      else
+          names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
+  }
   
   ## SHAPES
   shapes.for.data = NULL
   shapes.for.sim = NULL
-  shapes.for.data = style.manager$get.shapes(length(unique(df.truth$shape.data.by)))
-  names(shapes.for.data) = unique(df.truth$shape.data.by)
-  shapes.for.sim = style.manager$get.shapes(length(unique(df.sim$shape.sim.by)))
-  names(shapes.for.sim) = unique(df.sim$shape.sim.by)
+  if (!is.null(df.truth)) {
+      shapes.for.data = style.manager$get.shapes(length(unique(df.truth$shape.data.by)))
+      names(shapes.for.data) = unique(df.truth$shape.data.by)
+  }
+  if (!is.null(df.sim)) {
+      shapes.for.sim = style.manager$get.shapes(length(unique(df.sim$shape.sim.by)))
+      names(shapes.for.sim) = unique(df.sim$shape.sim.by)
+  }
   all.shapes.for.scale = c(shapes.for.data, shapes.for.sim)
   
   ## LINETYPES
   linetypes.for.sim = NULL
-  linetypes.for.sim = style.manager$get.linetypes(length(unique(df.sim$linetype.sim.by)))
-  names(linetypes.for.sim) = unique(df.sim$linetype.sim.by)
+  if (!is.null(df.sim)) {
+      linetypes.for.sim = style.manager$get.linetypes(length(unique(df.sim$linetype.sim.by)))
+      names(linetypes.for.sim) = unique(df.sim$linetype.sim.by)
+  }
   
   ## GROUPS
   # break df.sim into two data frames, one for outcomes where the sim will be lines and the other for where it will be points
-  groupids.with.one.member = setdiff(unique(df.sim$groupid), df.sim$groupid[which(duplicated(df.sim$groupid))])
-  df.sim$groupid_has_one_member = with(df.sim, groupid %in% groupids.with.one.member)
-  df.sim.groupids.one.member = subset(df.sim, groupid_has_one_member)
-  df.sim.groupids.many.members = subset(df.sim, !groupid_has_one_member)
-
+  df.sim.groupids.one.member = NULL
+  df.sim.groupids.many.members = NULL
+  if (!is.null(df.sim)) {
+      groupids.with.one.member = setdiff(unique(df.sim$groupid), df.sim$groupid[which(duplicated(df.sim$groupid))])
+      df.sim$groupid_has_one_member = with(df.sim, groupid %in% groupids.with.one.member)
+      df.sim.groupids.one.member = subset(df.sim, groupid_has_one_member)
+      df.sim.groupids.many.members = subset(df.sim, !groupid_has_one_member)
+  }
   # PLOTLY PLOTS
   
-  # browser()
-  plotly.debug = TRUE
+  plotly.debug = FALSE
   # Plotly uses 'dash' instead of 'dashed' for dashed lines, so 
   # convert the value in linetypes.for.sim
   linetypes.for.sim = gsub ("dashed", "dash", linetypes.for.sim)
@@ -265,194 +279,203 @@ execute.plotly.plot <- function(prepared.plot.data,
   sim.trace.count = 0
   trace.in.legend = list()
   
-  # Helper function definition
-  inner.collector = function(cat.list, 
-                             data.for.this.facet, 
-                             trace.column, 
-                             marker.type, 
-                             current.facet) {
-    if (plotly.debug) {
-      cat(paste0("cat.list: ",cat.list,"\ntrace.column: ", trace.column, "\ncurrent.facet: ",current.facet,"\n"))
-    }
-    
-    lapply( cat.list, function (trace_id) {
-      trace.data = subset(data.for.this.facet,
-                          data.for.this.facet[[trace.column]] == trace_id)
-          
-      # Don't pull from markers
-      clean.group.id = trace_id #gsub("^[a-zA-Z\\.]+_|_1_.*$", "", trace_id) #This will do nothing if the pattern isn't found
-      if (marker.type == "marker") {
-        # browser()
-      }
+  build.marker.traces <- function(trace.data, base.trace, clean.group.id) {
+      unique.shapes <- unique(trace.data$marker.shapes)
       
-      base.trace = list (
-        type = "scatter",
-        mode = paste0(marker.type, "s"),
-        name = clean.group.id,
-        x = trace.data$year,
-        y = trace.data$value,
-        xaxis = paste0("x", current.facet),
-        yaxis = paste0("y", current.facet)
-      )
-      
-      if (marker.type == "line") {
-        sim.trace.count <<- sim.trace.count + 1
-        col = if(is.null(trace.data$line.color[1])) {
-          colors.for.sim
-        } else {
-          trace.data$line.color[1]
-        }
-        
-        mark = if(is.null(trace.data$line.shape[1])) {
-          linetypes.for.sim[[clean.group.id]]
-        } else {
-          trace.data$line.shape[1]
-        }
-        # Does this combination of color and style already exist in the legend?
-        if (!hide.legend) {
-          trace.key = paste0(col, mark)
-          if (!is.null(trace.in.legend[[trace.key]])) {
-            base.trace$showlegend = FALSE
-          } else {
-            trace.in.legend[[trace.key]] <<- TRUE
-          }
-        } else {
-          base.trace$showlegend = FALSE
-        }
-        
-        base.trace[["line"]] = list (
-          dash = mark,
-          color = col
-        )
-        return (base.trace)
-        
-      } else if (marker.type == "marker") {
-        unique.shapes = unique(trace.data$marker.shapes)
-        
-        
-        marker.traces = lapply(unique.shapes, function(shape) {
+      # Main marker traces by shape
+      marker.traces <- lapply(unique.shapes, function(shape) {
+          shape.data <- subset(trace.data, marker.shapes == shape)
           
-          shape.data = subset(trace.data, marker.shapes == shape)
-          
-          col = if (is.null(shape.data$marker.color[1])) {
-            colors.for.sim
+          col <- if (is.null(shape.data$marker.color[1])) {
+              colors.for.sim
           } else {
-            shape.data$marker.color[1]
-          }
-          sym = if(is.null(shape.data$marker.shapes[1])) {
-            'circle'
-          } else {
-            shape.data$marker.shapes[1]
+              shape.data$marker.color[1]
           }
           
-          trace = base.trace
-          trace$showlegend = FALSE
+          sym <- if (is.null(shape.data$marker.shapes[1])) {
+              "circle"
+          } else {
+              shape.data$marker.shapes[1]
+          }
           
-          # Markers are unique because we need to enter the shape
-          # and the color separately on the legend.  We need a white-filled
-          # entry to denote the shape and another plotly shape to denote the color
-          # something not used already by the library
+          trace <- base.trace
+          trace$showlegend <- FALSE
+          trace$x <- shape.data$year
+          trace$y <- shape.data$value
           
-          
-          # What we can do is add a trace with no data.
-          # This first one, we'll take out the color and add just the shape.
-          # It's name will be the 'source' column.  The next one we'll 
-          
-          trace$x = shape.data$year
-          trace$y = shape.data$value
-          
-          # Does this combination of color and style already exist in the legend?
-          # trace.key = paste0(col, sym)
-          # if (!is.null(trace.in.legend[[trace.key]])) {
-          #   trace$showlegend = FALSE
-          # } else {
-          #   trace.in.legend[[trace.key]] <<- TRUE
-          # }
-          
-          trace[["marker"]] = list (
-            color = col,
-            symbol = sym,
-            line = list (
-              color = "#202020",
-              width = 1
-            )
+          trace[["marker"]] <- list(
+              color = col,
+              symbol = sym,
+              line = list(
+                  color = "#202020",
+                  width = 1
+              )
           )
-          return (trace)
-        })
-        
-        # Here we want to add one empty trace for the shape and color of the
-        # marker, provided they are not already on display.  For the sims we
-        # use a combination of shape and color to denote the key into the
-        # trace.in.legend object, but here we should use something else as 
-        # we are adding 'shape' and 'color' separately.  So instead we'll use
-        # paste0("marker",color) and paste0("marker",shape)
-        
-        # browser()
-        shape.traces = lapply(marker.traces, function(entry) {
-                         working.symbol = entry$marker$symbol
-                         shape.key.val = paste0("marker", working.symbol)
-                         # Is there already an entry for this combo in the 
-                         if (is.null(trace.in.legend[[shape.key.val]])) {
-                          # Put the entry in
-                           shape.trace = base.trace
-                           shape.trace$x = c()
-                           shape.trace$y = c()
-                           shape.trace$name = "SHAPE"
-                           shape.trace[["marker"]] = list (
-                             color = "white",
-                             symbol = working.symbol,
-                             line = list (
-                               color = "#202020",
-                               width = 1
-                             )
-                           )
-                           if (!hide.legend) {
-                             trace.in.legend[[shape.key.val]] <<- TRUE
-                           } else {
-                             trace.in.legend[[shape.key.val]] <<- FALSE
-                           }
-                           return (shape.trace)
-                         } 
-                       })
-        
-        color.traces = lapply(marker.traces, function(entry) {
-                         working.color = entry$marker$color
-                         color.key.val = paste0("marker", working.color)
-                         # Is there already an entry for this combo in the 
-                         if (is.null(trace.in.legend[[color.key.val]])) {
-                          # Put the entry in
-                           color.trace = base.trace
-                           color.trace$x = c()
-                           color.trace$y = c()
-                           color.trace$name = "COLOR"
-                           color.trace[["marker"]] = list (
-                             color = working.color,
-                             symbol = "pentagon",
-                             line = list (
-                               color = "#202020",
-                               width = 1
-                             )
-                           )
-                           if (!hide.legend) {
-                             trace.in.legend[[color.key.val]] <<- TRUE
-                           } else {
-                             trace.in.legend[[color.key.val]] <<- FALSE
-                           }
-                           return (color.trace)
-                         } 
-                       })
-        
-        # browser()
-        merged.traces = append(append(marker.traces,shape.traces),color.traces)
-        clean.traces = list()
-        for (i in seq_along(merged.traces)) {
-          if (!is.null(merged.traces[[i]])) {
-            clean.traces = append(clean.traces, merged.traces[i])
+          
+          return(trace)
+      })
+      
+      # Shape legend traces
+      shape.traces <- lapply(marker.traces, function(entry) {
+          working.symbol <- entry$marker$symbol
+          shape.key.val <- paste0("marker", working.symbol)
+          
+          if (is.null(trace.in.legend[[shape.key.val]])) {
+              shape.trace <- base.trace
+              shape.trace$x <- c()
+              shape.trace$y <- c()
+              shape.trace$name <- "SHAPE"
+              shape.trace[["marker"]] <- list(
+                  color = "white",
+                  symbol = working.symbol,
+                  line = list(
+                      color = "#202020",
+                      width = 1
+                  )
+              )
+              
+              if (!hide.legend) {
+                  trace.in.legend[[shape.key.val]] <<- TRUE
+              } else {
+                  trace.in.legend[[shape.key.val]] <<- FALSE
+              }
+              
+              return(shape.trace)
           }
-        }
-        return (clean.traces)    
+          
+          return(NULL)
+      })
+      
+      # Color legend traces
+      color.traces <- lapply(marker.traces, function(entry) {
+          working.color <- entry$marker$color
+          color.key.val <- paste0("marker", working.color)
+          
+          if (is.null(trace.in.legend[[color.key.val]])) {
+              color.trace <- base.trace
+              color.trace$x <- c()
+              color.trace$y <- c()
+              color.trace$name <- "COLOR"
+              color.trace[["marker"]] <- list(
+                  color = working.color,
+                  symbol = "pentagon",
+                  line = list(
+                      color = "#202020",
+                      width = 1
+                  )
+              )
+              
+              if (!hide.legend) {
+                  trace.in.legend[[color.key.val]] <<- TRUE
+              } else {
+                  trace.in.legend[[color.key.val]] <<- FALSE
+              }
+              
+              return(color.trace)
+          }
+          
+          return(NULL)
+      })
+      
+      # Combine all traces and remove NULLs
+      all.traces <- c(marker.traces, shape.traces, color.traces)
+      clean.traces <- Filter(Negate(is.null), all.traces)
+      return(clean.traces)
+  }
+  
+  inner.collector = function(cat.list, 
+                              data.for.this.facet, 
+                              trace.column, 
+                              marker.type, 
+                              current.facet) {
+      trace.list = list()  # Collects all output traces
+      
+      for (trace_id in cat.list) {
+          trace.data = subset(data.for.this.facet,
+                               data.for.this.facet[[trace.column]] == trace_id)
+          
+          clean.group.id = trace_id
+          is.ribbon = "value.upper" %in% names(trace.data) && "value.lower" %in% names(trace.data)
+          
+          if (is.ribbon) {
+              # message("Ribbon Trace data found")
+              # browser()
+              fill_color = color.ribbon.by[names(color.ribbon.by)[sapply(names(color.ribbon.by), function(nm) grepl(nm, trace_id))]]
+              print(fill_color)
+              
+              upper.trace = list(
+                  type = "scatter",
+                  mode = "lines",
+                  name = paste0(clean.group.id, ".max"),
+                  x = trace.data$year,
+                  y = trace.data$value.upper,
+                  xaxis = paste0("x", current.facet),
+                  yaxis = paste0("y", current.facet),
+                  line = list(width = 0),
+                  fill = NULL,
+                  showlegend = FALSE,
+                  hoverinfo = "skip"
+              )
+              
+              lower.trace = list(
+                  type = "scatter",
+                  mode = "lines",
+                  name = paste0(clean.group.id, ".min"),
+                  x = trace.data$year,
+                  y = trace.data$value.lower,
+                  xaxis = paste0("x", current.facet),
+                  yaxis = paste0("y", current.facet),
+                  line = list(width = 0),
+                  fill = "tonexty",
+                  fillcolor = fill_color,
+                  showlegend = FALSE,
+                  hoverinfo = "skip"
+              )
+          }
+          
+          # Core base trace
+          base.trace = list(
+              type = "scatter",
+              mode = paste0(marker.type, "s"),
+              name = clean.group.id,
+              x = trace.data$year,
+              y = trace.data$value,
+              xaxis = paste0("x", current.facet),
+              yaxis = paste0("y", current.facet)
+          )
+          
+          if (marker.type == "line") {
+              # Line style logic
+              sim.trace.count <<- sim.trace.count + 1
+              col = if (is.null(trace.data$line.color[1])) colors.for.sim else trace.data$line.color[1]
+              mark = if (is.null(trace.data$line.shape[1])) linetypes.for.sim[[clean.group.id]] else trace.data$line.shape[1]
+              
+              if (!hide.legend) {
+                  trace.key = paste0(col, mark)
+                  if (!is.null(trace.in.legend[[trace.key]])) {
+                      base.trace$showlegend = FALSE
+                  } else {
+                      trace.in.legend[[trace.key]] <<- TRUE
+                  }
+              } else {
+                  base.trace$showlegend = FALSE
+              }
+              
+              base.trace[["line"]] = list(dash = mark, color = col)
+              
+              if (is.ribbon) {
+                  trace.list = append(trace.list, list(upper.trace, lower.trace, base.trace))
+              } else {
+                  trace.list = append(trace.list, list(base.trace))
+              }
+              
+          } else if (marker.type == "marker") {
+              marker.traces = build.marker.traces(trace.data, base.trace, clean.group.id)
+              trace.list = append(trace.list, marker.traces)
+          }
       }
-    })
+      
+      return(trace.list)
   }
 
   
@@ -543,13 +566,18 @@ execute.plotly.plot <- function(prepared.plot.data,
     }
     
     # browser()
-    # Creating a new column in the df.sim.groupids.many.members datafrae called 
+    # Creating a new column in the df.sim.groupids.many.members dataframe called 
     # line.color, and assigning it the value of the color associated with the row
+    # browser()
     df.sim.groupids.many.members$line.color = 
       unlist(lapply(df.sim.groupids.many.members$color.sim.by, function(val) {
-        if (all(names(colors.for.sim) == "")) {
-          return(colors.for.sim)
+        if (val == "") {
+            # browser()
+            return (style.manager$get.sim.colors(1))
         }
+        # if (all(names(colors.for.sim) == "")) {
+        #   return(colors.for.sim)
+        # }
         colors.for.sim[val]
       }))
     # Doing the same for line.shape (dashed vs solid)
@@ -607,47 +635,6 @@ execute.plotly.plot <- function(prepared.plot.data,
         }
       }
       
-      if (nrow(df.sim.groupids.one.member) > 0) {
-        if (plotly.debug) {
-          cat("  one member\n")
-        }        
-        # Add points for single-member groups
-        # print ("df.sim.groupids.one.member > 0")
-        # TODO - incomplete example :
-        # trace <- list(
-        #     type = "scatter",
-        #     mode = "markers",
-        #     x = df.sim.groupids.one.member$year,
-        #     y = df.sim.groupids.one.member$value,
-        #     marker = list(
-        #         color = df.sim.groupids.one.member$color.sim.by,
-        #         symbol = df.sim.groupids.one.member$shape.sim.by,
-        #         size = 8
-        #     )
-        # )
-        # rv$data <- append(rv$data, list(trace))
-      }
-      
-      if (summary.type != 'individual.simulation') {
-        # RIBBONS
-        if (plotly.debug) {
-          cat("  not individual simulation\n")
-        }        
-        # print ("summary.type != 'individual.simulations")
-        # TODO - incomplete example :
-        # # Add ribbons for simulation confidence intervals
-        # trace <- list(
-        #     type = "scatter",
-        #     mode = "lines",
-        #     x = c(df.sim.groupids.many.members$year, rev(df.sim.groupids.many.members$year)),
-        #     y = c(df.sim.groupids.many.members$value.upper, rev(df.sim.groupids.many.members$value.lower)),
-        #     fill = "tonexty",
-        #     fillcolor = df.sim.groupids.many.members$color.sim.by,
-        #     line = list(color = "transparent"),
-        #     opacity = style.manager$alpha.ribbon
-        # )
-        # rv$data <- append(rv$data, list(trace))
-      }
     } else {
       if (plotly.debug) {
         cat ("no split by\n")
@@ -680,10 +667,6 @@ execute.plotly.plot <- function(prepared.plot.data,
             facet.categories = outcomes
             figure.count = length(facet.categories)
             
-            # # Add the proper y.axis.labels to the fig structure
-            # fig$y.axis.labels = unlist(lapply(facet.categories, function(category) {
-            #   paste0(outcome.metadata[[category]]$axis.name," (",outcome.metadata[[category]]$units,")") 
-            # }))
             # browser()
             
             # For each figure, assign the split.by traces
@@ -730,40 +713,6 @@ execute.plotly.plot <- function(prepared.plot.data,
         }
       }
       
-      if (nrow(df.sim.groupids.one.member) > 0) {
-        # print ("nrow(df.sim.groupids.one.member) > 0")
-        # TODO
-        # Add points for single-member simulation groups
-        # trace = list(
-        #   type = "scatter",
-        #   mode = "markers",
-        #   x = df.sim.groupids.one.member$year,
-        #   y = df.sim.groupids.one.member$value,
-        #   marker = list(
-        #     color = df.sim.groupids.one.member$color.sim.by,
-        #     symbol = df.sim.groupids.one.member$shape.sim.by,
-        #     size = 8
-        #   )
-        # )
-        # rv$data = append(rv$data, list(trace))
-      }
-      
-      if (summary.type != 'individual.simulation') {
-        # print ("summary.type != 'individual.simulations'")
-        # TODO
-        # Add ribbons for simulation confidence intervals
-        # trace = list(
-        #   type = "scatter",
-        #   mode = "lines",
-        #   x = c(df.sim.groupids.many.members$year, rev(df.sim.groupids.many.members$year)),
-        #   y = c(df.sim.groupids.many.members$value.upper, rev(df.sim.groupids.many.members$value.lower)),
-        #   fill = "tonexty",
-        #   fillcolor = df.sim.groupids.many.members$color.sim.by,
-        #   line = list(color = "transparent"),
-        #   opacity = style.manager$alpha.ribbon
-        # )
-        # rv$data = append(rv$data, list(trace))
-      }
     }
   } #End of df.sim traces
   
@@ -939,12 +888,6 @@ execute.plotly.plot <- function(prepared.plot.data,
     fig$layout[["xaxis"]] = list(title = "Years", anchor = "y1")
     fig$layout[["yaxis"]] = list(title = fig$y.axis.labels[1], anchor = "x1")
   }
-  # browser()
-  # The marker traces are nested one list() deep; this code will un-nest them
-  sim.traces = fig$data[1:sim.trace.count]
-  doubled.traces = fig$data[(sim.trace.count + 1):length(fig$data)]
-  flattened.traces = unlist(doubled.traces, recursive = FALSE)
-  fig$data = c(sim.traces, flattened.traces) 
   # browser()
   # print(fig)
   # Return the final plot object
