@@ -132,8 +132,6 @@ rerun.simulations <- function(simset,
     if (verbose)
         cat("done\n")
     
-    print("We need to implement re-running the intervention here too")
-    
     update.every = ceiling(simset$n.sim/10)
     new.sims = lapply(1:simset$n.sim, function(i){
         
