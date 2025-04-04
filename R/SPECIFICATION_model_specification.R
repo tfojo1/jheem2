@@ -16,7 +16,6 @@
 #'@title Create a Model Specification for Running the JHEEM
 #'
 #'@param version A single character value denoting the version
-#'@param sub.versions A character vector indicating the names of 'sub-versions' of the model. A sub-version has the same structure but records a different set of outcomes
 #'@param iteration A single character or numeric value denoting the iteration of the model specification for this version
 #'@param description A short text description of this version
 #'
@@ -40,7 +39,6 @@
 create.jheem.specification <- function(version,
                                        iteration,
                                        description,
-                                       sub.versions=character(),
                                        start.year,
                                        
                                        parent.version = NULL,
@@ -92,8 +90,6 @@ create.jheem.specification <- function(version,
     if (missing(age.endpoints))
         age.endpoints = NULL
     
-    if (missing(sub.versions))
-        sub.versions = character()
     
     ##-- CHECK ARGUMENTS --##
 
@@ -154,22 +150,6 @@ create.jheem.specification <- function(version,
         
         parent.specification = get.specification.for.version(parent.version)
     }    
-    
-    #-- Sub Versions --#
-    if (!is.character(sub.versions) || any(is.na(sub.versions)))
-        stop(paste0(error.prefix, "'sub.versions' must be a character vector with no NA values"))
-    
-    for (one.sub.version in sub.versions)
-    {
-        validate.sub.version.code(code = one.sub.version,
-                                  error.prefix = error.prefix,
-                                  code.name.for.error = 'the elements of sub.versions')
-    }
-    
-    
-    if (!is.null(parent.specification))
-        sub.versions = c(sub.versions, parent.specification$sub.versions)
-    sub.versions = unique(sub.versions)
     
     #--  Do not inherit <x> --#
     
@@ -630,8 +610,7 @@ create.jheem.specification <- function(version,
         version = version,
         iteration = iteration,
         description = description,
-        sub.versions = sub.versions,
-        
+
         parent.specification = parent.specification,
         do.not.inherit.model.quantity.names = do.not.inherit.model.quantity.names,
         do.not.inherit.model.outcome.names = do.not.inherit.model.outcome.names,
@@ -1201,7 +1180,6 @@ register.model.mechanism <- function(specification,
 #'@param groups The groups to track for ('infected' or 'uninfected'). Choosing NULL (the default value) tracks for all groups for which the outcome could apply
 #'@param include.tags The tags to track for (as given in the call to \code{\link{register.transition}}). Choosing NULL (the default value) tracks for all tags for which the outcome could apply minus excluded tags
 #'@param exclude.tags Tags to exclude from tracking.
-#'@param sub.versions The sub-versions of the model for which this outcome will be recorded. If NULL, the outcome will be recorded for all sub-versions
 #'
 #'@param multiply.by An optional quantity to multiply the outcome value by at each time step before storing. Can be either (1) a numeric value, (2) a single character value referencing a model quantity or element, or (3) an expression that includes only the names of model quantities and elements and operators +, -, *, /, ^, sqrt, log, and exp
 #'
@@ -1230,7 +1208,6 @@ track.dynamic.outcome <- function(specification,
                                   include.tags = NULL,
                                   exclude.tags = NULL,
                                   groups = NULL,
-                                  sub.versions = NULL,
                                   
                                   multiply.by = NULL,
                                   corresponding.data.outcome = NULL,
@@ -1254,7 +1231,6 @@ track.dynamic.outcome <- function(specification,
                                         denominator.outcome = denominator.outcome,
                                         include.tags = include.tags,
                                         groups = groups,
-                                        sub.versions = sub.versions,
                                         multiply.by = multiply.by,
                                         corresponding.data.outcome = corresponding.data.outcome,
                                         keep.dimensions = keep.dimensions,
@@ -1290,7 +1266,6 @@ track.transition <- function(specification,
                              include.tags = NULL,
                              exclude.tags = NULL,
                              groups = NULL,
-                             sub.versions = NULL,
                              
                              multiply.by = NULL,
                              corresponding.data.outcome = NULL,
@@ -1317,7 +1292,6 @@ track.transition <- function(specification,
                                    include.tags = include.tags,
                                    exclude.tags = exclude.tags,
                                    groups = groups,
-                                   sub.versions = sub.versions,
                                    multiply.by = multiply.by,
                                    corresponding.data.outcome = corresponding.data.outcome,
                                    keep.dimensions = keep.dimensions,
@@ -1351,7 +1325,6 @@ track.integrated.outcome <- function(specification,
                                      value.is.numerator = F,
                                      multiply.by = NULL,
                                      denominator.outcome = NULL,
-                                     sub.versions = NULL,
                                      
                                      corresponding.data.outcome = NULL,
                                      keep.dimensions = NULL,
@@ -1375,7 +1348,6 @@ track.integrated.outcome <- function(specification,
                                            value.is.numerator = value.is.numerator,
                                            multiply.by = multiply.by,
                                            denominator.outcome = denominator.outcome,
-                                           sub.versions = sub.versions,
                                            corresponding.data.outcome = corresponding.data.outcome,
                                            keep.dimensions = keep.dimensions,
                                            exclude.dimensions = exclude.dimensions,
@@ -1406,7 +1378,6 @@ track.cumulative.outcome <- function(specification,
                                      outcome.metadata,
                                      value,
                                      value.is.numerator = F,
-                                     sub.versions = NULL,
                                      
                                      denominator.outcome = NULL,
                                      corresponding.data.outcome = NULL,
@@ -1429,7 +1400,6 @@ track.cumulative.outcome <- function(specification,
                                          outcome.metadata = outcome.metadata,
                                          value = value,
                                          value.is.numerator = value.is.numerator,
-                                         sub.versions = sub.versions,
                                          denominator.outcome = denominator.outcome,
                                          corresponding.data.outcome = corresponding.data.outcome,
                                          keep.dimensions = keep.dimensions,
@@ -1460,7 +1430,6 @@ track.point.outcome <- function(specification,
                                 outcome.metadata,
                                 value,
                                 value.is.numerator = F,
-                                sub.versions = NULL,
                                 
                                 denominator.outcome = NULL,
                                 corresponding.data.outcome = NULL,
@@ -1483,7 +1452,6 @@ track.point.outcome <- function(specification,
                                       outcome.metadata = outcome.metadata,
                                       value = value,
                                       value.is.numerator = value.is.numerator,
-                                      sub.versions = sub.versions,
                                       denominator.outcome = denominator.outcome,
                                       corresponding.data.outcome = corresponding.data.outcome,
                                       keep.dimensions = keep.dimensions,
@@ -1516,7 +1484,6 @@ track.cumulative.proportion.from.rate <- function(specification,
                                                   rate.value,
                                                   
                                                   denominator.outcome,
-                                                  sub.versions = NULL,
                                                   corresponding.data.outcome = NULL,
                                                   calculate.proportion.leaving = T,
                                                   keep.dimensions = NULL,
@@ -1537,7 +1504,6 @@ track.cumulative.proportion.from.rate <- function(specification,
                                                         outcome.metadata = outcome.metadata,
                                                         rate.value = rate.value,
                                                         denominator.outcome = denominator.outcome,
-                                                        sub.versions = sub.versions,
                                                         corresponding.data.outcome = corresponding.data.outcome,
                                                         calculate.proportion.leaving = calculate.proportion.leaving,
                                                         keep.dimensions = keep.dimensions,
@@ -1570,6 +1536,44 @@ update.outcome.keep.dimensions <- function(specification,
     specification$update.outcome.keep.dimensions(outcome.name = outcome.name,
                                                  keep.dimensions = keep.dimensions,
                                                  exclude.dimensions = exclude.dimensions)
+}
+
+#'@export
+add.sub.version <- function(specification,
+                            sub.version,
+                            description,
+                            inherit.outcomes=T,
+                            can.seed.new.engine=T)
+{
+    if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
+        stop("'specification' must be an R6 object with class 'jheem.specification")
+    
+    specification$add.sub.version(sub.version = sub.version,
+                                  description = description,
+                                  inherit.outcomes = inherit.outcomes,
+                                  can.seed.new.engine = can.seed.new.engine)
+}
+
+#'@export
+track.sub.version.outcomes <- function(specification,
+                                       sub.versions,
+                                       outcome.names,
+                                       keep.dimensions = NULL,
+                                       subset.dimension.values = NULL,
+                                       ontology.mapping = NULL,
+                                       from.year = NULL,
+                                       to.year = NULL)
+{
+    if (!is(specification, 'jheem.specification') || !R6::is.R6(specification))
+        stop("'specification' must be an R6 object with class 'jheem.specification")
+    
+    specification$track.sub.version.outcomes(sub.versions = sub.versions,
+                                             outcome.names = outcome.names,
+                                             keep.dimensions = keep.dimensions,
+                                             subset.dimension.values = subset.dimension.values,
+                                             ontology.mapping = ontology.mapping,
+                                             from.year = from.year,
+                                             to.year = to.year)
 }
 
 #'@title Create a metadata object for tracked quantities or tracked transitions
@@ -1875,7 +1879,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
         initialize = function(version,
                               iteration,
                               description,
-                              sub.versions,
                               
                               parent.specification,
                               do.not.inherit.model.quantity.names,
@@ -1902,7 +1905,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
             private$i.version = version
             private$i.iteration = iteration
             private$i.description = description
-            private$i.sub.versions = sub.versions
             
             private$i.parent.specification = parent.specification
             private$i.do.not.inherit.model.quantity.names = do.not.inherit.model.quantity.names
@@ -1917,6 +1919,9 @@ JHEEM.SPECIFICATION = R6::R6Class(
             private$i.compartment.value.function.aliases = compartment.value.function.aliases
             private$i.labels = labels
 
+            private$i.sub.version.info = list()
+            private$i.outcome.info.for.sub.version = list()
+            
             private$i.quantities = list()
             private$i.core.components = list()
             private$i.mechanisms = list()
@@ -2029,10 +2034,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                      error.prefix="Error creating default outcome for 'infected' population")
             private$do.store.outcome(INTRINSIC.MODEL.OUTCOME$new('uninfected', version=self$version),
                                      error.prefix="Error creating default outcome for 'uninfected' population")
-        #    private$do.store.outcome(INTRINSIC.MODEL.OUTCOME$new('population'),
-        #                             error.prefix="Error creating default outcome for total population")
             
-
             #-- We're done! --#
         },
         
@@ -2643,7 +2645,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                          include.tags = NULL,
                                          exclude.tags = NULL,
                                          groups = NULL,
-                                         sub.versions = NULL,
                                          
                                          multiply.by = NULL,
                                          corresponding.data.outcome = corresponding.data.outcome,
@@ -2664,7 +2665,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
             
             outcome = DYNAMIC.MODEL.OUTCOME$new(name = name,
                                                 version = self$version,
-                                                sub.versions = sub.versions,
                                                 outcome.metadata = outcome.metadata,
                                                 dynamic.quantity.name = dynamic.quantity.name,
                                                 denominator.outcome = denominator.outcome,
@@ -2684,9 +2684,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                 to.year = to.year,
                                                 save = save)
             
-            private$check.sub.versions(outcome$sub.versions,
-                                       error.prefix = paste0("Cannot track dynamic outcome '", outcome$name, "': "))
-            
             private$do.store.outcome(outcome,
                                      error.prefix = "Error tracking dynamic outcome: ")
         },
@@ -2701,7 +2698,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                     include.tags = NULL,
                                     exclude.tags = NULL,
                                     groups,
-                                    sub.versions = NULL,
                                     
                                     multiply.by = NULL,
                                     corresponding.data.outcome = NULL,
@@ -2723,7 +2719,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
             
             outcome = TRANSITION.MODEL.OUTCOME$new(name = name,
                                                    version = self$version,
-                                                   sub.versions = sub.versions,
                                                    outcome.metadata = outcome.metadata,
                                                    dimension = dimension,
                                                    from.compartments = from.compartments,
@@ -2745,9 +2740,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    to.year = to.year,
                                                    save = save)
             
-            private$check.sub.versions(outcome$sub.versions,
-                                       error.prefix = paste0("Cannot track transition '", outcome$name, "': "))
-            
             private$do.store.outcome(outcome,
                                      error.prefix = "Error tracking transition: ")
         },
@@ -2760,7 +2752,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                             value.is.numerator,
                                             denominator.outcome = NULL,
                                             multiply.by = NULL,
-                                            sub.versions = NULL,
                                             
                                             corresponding.data.outcome = NULL,
                                             keep.dimensions = NULL,
@@ -2777,7 +2768,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
         {
             outcome = INTEGRATED.MODEL.OUTCOME$new(name = name,
                                                    version = self$version,
-                                                   sub.versions = sub.versions,
                                                    outcome.metadata = outcome.metadata,
                                                    value.to.integrate = value.to.integrate,
                                                    value.is.numerator = value.is.numerator,
@@ -2796,9 +2786,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    scale = scale,
                                                    save = save)
             
-            private$check.sub.versions(outcome$sub.versions,
-                                       error.prefix = paste0("Cannot track integrated outcome '", outcome$name, "': "))
-            
             private$do.store.outcome(outcome,
                                      error.prefix = "Error tracking integrated outcome: ")
         },
@@ -2807,7 +2794,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                             outcome.metadata,
                                             value,
                                             value.is.numerator,
-                                            sub.versions = NULL,
                                             
                                             denominator.outcome = NULL,
                                             corresponding.data.outcome = NULL,
@@ -2825,7 +2811,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
         {
             outcome = CUMULATIVE.MODEL.OUTCOME$new(name = name,
                                                    version = self$version,
-                                                   sub.versions = sub.versions,
                                                    outcome.metadata = outcome.metadata,
                                                    value = value,
                                                    value.is.numerator = value.is.numerator,
@@ -2843,9 +2828,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    scale = scale,
                                                    save = save)
             
-            private$check.sub.versions(outcome$sub.versions,
-                                       error.prefix = paste0("Cannot track cumulative outcome '", outcome$name, "': "))
-            
             private$do.store.outcome(outcome,
                                      error.prefix = "Error tracking cumulative outcome: ")
         },
@@ -2854,7 +2836,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                        outcome.metadata,
                                        value,
                                        value.is.numerator,
-                                       sub.versions = NULL,
                                        
                                        denominator.outcome = NULL,
                                        corresponding.data.outcome = NULL,
@@ -2872,7 +2853,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
         {
             outcome = POINT.MODEL.OUTCOME$new(name = name,
                                               version = self$version,
-                                              sub.versions = sub.versions,
                                               outcome.metadata = outcome.metadata,
                                               value = value,
                                               value.is.numerator = value.is.numerator,
@@ -2890,9 +2870,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                               to.year = to.year,
                                               save = save)
             
-            private$check.sub.versions(outcome$sub.versions,
-                                       error.prefix = paste0("Cannot track point outcome '", outcome$name, "': "))
-            
             private$do.store.outcome(outcome,
                                      error.prefix = "Error tracking point outcome: ")
         },
@@ -2902,7 +2879,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                          rate.value,
                                                          
                                                          denominator.outcome,
-                                                         sub.versions = NULL,
                                                          calculate.proportion.leaving = T,
                                                          corresponding.data.outcome = NULL,
                                                          keep.dimensions = NULL,
@@ -2918,7 +2894,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
         {
             outcome = RATE.TO.PROPORTION.MODEL.OUTCOME$new(name = name,
                                                            version = self$version,
-                                                           sub.versions = sub.versions,
                                                            outcome.metadata = outcome.metadata,
                                                            rate.value = rate.value,
                                                            denominator.outcome = denominator.outcome,
@@ -2934,9 +2909,6 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                            from.year = from.year,
                                                            to.year = to.year,
                                                            save = save)
-            
-            private$check.sub.versions(outcome$sub.versions,
-                                       error.prefix = paste0("Cannot track cumulative proportion from rate '", outcome$name, "': "))
             
             private$do.store.outcome(outcome,
                                      error.prefix = "Error tracking rate-to-proportion outcome: ")
@@ -3010,6 +2982,177 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                           list(update))
         },
         
+        add.sub.version = function(sub.version,
+                                   description,
+                                   inherit.outcomes=T,
+                                   can.seed.new.engine=T)
+        {
+            error.prefix = "Cannot add.sub.version(): "
+            
+            # Validate arguments
+            if (!is.character(sub.version) || length(sub.version)!=1 || is.na(sub.version))
+                stop(paste0(error.prefix, "'sub.version' must be a single character value with no NA values"))
+            
+            
+            error.prefix = paste0("Cannot register sub.version '", sub.version, "': ")
+            
+            validate.sub.version.code(code = sub.version,
+                                      error.prefix = error.prefix,
+                                      code.name.for.error = 'sub.version')
+            
+            if (any(names(private$i.sub.version.info)==sub.version))
+                stop(paste0(error.prefix, "'", sub.version, "' has already been registered as a sub.version for the '", private$i.version, "' specification"))
+            
+            if (!is.character(description) || length(description)!=1 || is.na(description))
+                stop(paste0(error.prefix, "'description' must be a single character value with no NA values"))
+            
+            if (!is.logical(inherit.outcomes) || length(inherit.outcomes)!=1 || is.na(inherit.outcomes))
+                stop(paste0(error.prefix, "'inherit.outcomes' must be a single logical value with no NA values"))
+            
+            if (!is.logical(can.seed.new.engine) || length(can.seed.new.engine)!=1 || is.na(can.seed.new.engine))
+                stop(paste0(error.prefix, "'can.seed.new.engine' must be a single logical value with no NA values"))
+            
+
+            # Register the info
+            info = list(
+                sub.version = sub.version,
+                description = description,
+                inherit.outcomes = inherit.outcomes,
+                can.seed.new.engine = can.seed.new.engine
+            )
+            
+            private$i.sub.version.info[[sub.version]] = info
+            
+            # If this can seed a new engine, register intrinsic outcomes
+            if (can.seed.new.engine)
+            {
+                private$i.intrinsic.sub.version.outcomes.locked = F
+                self$track.sub.version.outcomes(sub.versions = sub.versions,
+                                                outcome.names = 'infected',
+                                                keep.dimensions = NULL,
+                                                exclude.dimensions = NULL,
+                                                subset.dimension.values = NULL,
+                                                ontology.mapping = NULL)
+                
+                self$track.sub.version.outcomes(sub.versions = sub.versions,
+                                                outcome.names = 'uninfected',
+                                                keep.dimensions = NULL,
+                                                exclude.dimensions = NULL,
+                                                subset.dimension.values = NULL,
+                                                ontology.mapping = NULL)   
+                private$i.intrinsic.sub.version.outcomes.locked = T
+            }
+        },
+        
+        
+        track.sub.version.outcomes = function(sub.versions,
+                                              outcome.names,
+                                              keep.dimensions = NULL,
+                                              exclude.dimensions = NULL,
+                                              subset.dimension.values = NULL,
+                                              ontology.mapping = NULL,
+                                              from.year = NULL,
+                                              to.year = NULL)
+        {
+            error.prefix = "Cannot.track.sub.version.outcomes(): "
+            
+            #-- Validate Arguments --#
+            
+            # sub.versions
+            if (!is.character(sub.versions) || any(is.na(sub.versions)) || length(sub.versions)==0)
+                stop(paste0(error.prefix, "'sub.versions' must be a non-empty character vector with no NA values"))
+                
+            invalid.sub.versions = setdiff(sub.versions, self$sub.versions)
+            if (length(invalid.sub.versions))
+                stop(paste0(error.prefix, 
+                            collapse.with.and("'", invalid.sub.versions, "'"),
+                            ifelse(length(invalid.sub.versions)==1, " is not a valid sub.version", " are not valid sub.versions"),
+                            " for the '", private$i.version, "' specification."))
+            
+            # outcome.names 
+            if (!is.character(outcome.names) || any(is.na(outcome.names)) || length(outcome.names)==0)
+                stop(paste0(error.prefix, "'outcome.names' must be a non-empty character vector with no NA values"))
+            
+            
+            # keep dimensions
+            if (!is.null(keep.dimensions) && (!is.character(keep.dimensions) || any(is.na(keep.dimensions))))
+                stop(paste0(error.prefix, "If it is not NULL, 'keep.dimensions' must be a character vector with no NA values"))
+            
+            if (!is.null(keep.dimensions) && !is.null(exclude.dimensions))
+                stop(paste0(error.prefix, "Cannot set BOTH 'keep.dimensions' AND 'exclude.dimensions' - one or the other must be NULL"))
+            
+            # exclude dimensions
+            if (!is.null(exclude.dimensions) && (!is.character(exclude.dimensions) || any(is.na(exclude.dimensions))))
+                stop(paste0(error.prefix, "If it is not NULL, 'exclude.dimensions' must be a character vector with no NA values"))
+            
+            # subset.dimension.values
+            if (!is.null(subset.dimension.values))
+            {
+                if (!is.list(subset.dimension.values) || length(subset.dimension.values)==0)
+                    stop(paste0(error.prefix, "If it is not NULL, 'subset.dimension.values' must be a non-empty list"))
+                
+                if (any(!sapply(subset.dimension.values, is.character)) || any(sapply(subset.dimension.values, length)==0) ||
+                    any(is.na(unlist(subset.dimension.values))))
+                    stop(paste0(error.prefix, "The elements of 'subset.dimension.values' must all be non-empty character vectors with no NA values"))
+            }
+            
+            # ontology.mapping
+            if (!is.null(ontology.mapping) && !is(ontology.mapping, 'ontology.mapping'))
+                stop(paste0(error.prefix, "If it is not NULL, 'ontology.mapping' must be an object of class 'ontology.mapping'"))
+            
+            # from.year, to.year
+            if (!is.null(from.year))
+            {
+                if (!is.numeric(from.year) || length(from.year)!=1 || is.na(from.year))
+                    stop(paste0(error.prefix, "If it is not NULL, 'from.year' must be a single, non-NA numeric value"))
+            }
+            
+            if (!is.null(to.year))
+            {
+                if (!is.numeric(to.year) || length(to.year)!=1 || is.na(to.year))
+                    stop(paste0(error.prefix, "If it is not NULL, 'to.year' must be a single, non-NA numeric value"))
+                
+                if (!is.null(from.year) && from.year >= to.year)
+                    stop(paste0(error.prefix,
+                                "'from.year' (", from.year,
+                                ") must be strictly LESS THAN 'to.year' (",
+                                to.year, ")"))
+            }
+            
+            
+            for (outcome.name in outcome.names)
+            {
+                info = list(
+                    keep.dimensions = keep.dimensions,
+                    exclude.dimensions = exclude.dimensions,
+                    subset.dimension.values = subset.dimension.values,
+                    ontology.mapping = ontology.mapping,
+                    from.year = from.year,
+                    to.year = to.year
+                )   
+                
+                
+                for (sub.version in sub.versions)
+                {
+                    if (private$i.intrinsic.sub.version.outcomes.locked &&
+                        (outcome.name=='infected' || outcome.name=='uninfected') && 
+                        private$i.sub.version.info[[sub.version]]$can.seed.new.engine)
+                    {
+                        stop(paste0(error.prefix, "Outcome '", outcome.name, "' is an intrinsic outcome. Since 'can.seed.new.engine' was set to TRUE for sub.version '",
+                                    sub.version, "' intrinsic outcomes cannot be modified"))
+                    }
+                    
+                    if (all(names(private$i.sub.version.info)!=sub.version))
+                        stop(paste0(error.prefix, "No sub.version called '", sub.version, "' has been registered to the '", private$i.version, "' specification"))
+                    
+                    if (!is.null(private$i.outcome.info.for.sub.version[[sub.version]][[outcome.name]]))
+                        stop(paste0(error.prefix, "Outcome '", outcome.name, "' has already been registered for sub-version '", sub.version, "'"))
+                
+                    private$i.outcome.info.for.sub.version[[sub.version]][[outcome.name]] = info
+                }
+            }
+        },
+        
         ##---------------##
         ##-- COMPILING --##
         ##---------------##
@@ -3055,6 +3198,9 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                   
                                                   age.info = private$i.age.info,
                                                   start.year = private$i.start.year,
+                                                  
+                                                  sub.version.info = private$i.sub.version.info,
+                                                  outcome.info.for.sub.version = private$i.outcome.info.for.sub.version,
 
                                                   parent.specification = compiled.parent,
                                                   do.not.inherit.model.quantity.names = private$i.do.not.inherit.model.quantity.names,
@@ -3078,9 +3224,17 @@ JHEEM.SPECIFICATION = R6::R6Class(
         sub.versions = function(value)
         {
             if (missing(value))
-                private$i.sub.versions
+                names(private$i.sub.version.info)
             else
                 stop("Cannot modify 'sub.versions' for a jheem.specification - they are read-only")
+        },
+        
+        sub.version.info = function(value)
+        {
+            if (missing(value))
+                private$i.sub.version.info
+            else
+                stop("Cannot modify 'i.sub.version.info' for a jheem.specification - it is read-only")
         },
         
         parent.version = function(value)
@@ -3232,6 +3386,14 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 stop("Cannot modify a specification's 'outcome.names' - they are read-only")
         },
         
+        outcome.info.for.sub.version = function(value)
+        {
+            if (missing(value))
+                private$i.outcome.info.for.sub.version
+            else
+                stop("Cannot modify a specification's 'outcome.info.for.sub.version' - it is read-only")
+        },
+        
         default.parameter.values = function(value)
         {
             if (missing(value))
@@ -3247,12 +3409,15 @@ JHEEM.SPECIFICATION = R6::R6Class(
     ##-- MEMBER VARIABLES --##
     
         i.locked = NULL,
+        i.intrinsic.sub.version.outcomes.locked = T,
         
         i.version = NULL,
         i.iteration = NULL,
         i.description = NULL,
-        i.sub.versions = NULL,
         
+        i.sub.version.info = NULL,
+        i.outcome.info.for.sub.version = NULL,
+
         i.compartment.value.character.aliases = NULL,
         i.compartment.value.function.aliases = NULL,
         i.labels = NULL,
@@ -3279,6 +3444,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         i.do.not.inherit.transitions.for.dimension = NULL,
         i.do.not.inherit.components.with.tags = NULL,
         
+        
         i.internal.name.counter = 0,
         
     ##-- INTERNAL METHODS --##
@@ -3289,24 +3455,24 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 stop(paste0(error.prefix, "The '", private$i.version, "' specification has already been registered and cannot be modified further"))
         },
     
-        check.sub.versions = function(sub.versions, error.prefix)
-        {
-            invalid.sub.versions = setdiff(sub.versions, private$i.sub.versions)
-            if (length(invalid.sub.versions)>0)
-                stop(paste0(error.prefix,
-                            collapse.with.and("'", invalid.sub.versions, "'"),
-                            ifelse(length(invalid.sub.versions)==1, 
-                                   " is not a sub-version",
-                                   " are not sub-versions"),
-                            " in the '", private$i.version, "' specification. ",
-                            ifelse(length(private$i.sub.versions)==0,
-                                   "There are no sub-versions registered",
-                                   paste0("Sub-versions must be ",
-                                          ifelse(length(private$i.sub.versions)==1, "", "one of "),
-                                          collapse.with.or("'", private$i.sub.versions, "'")
-                                   ))))
-        },
-    
+        # check.sub.versions = function(sub.versions, error.prefix)
+        # {
+        #     invalid.sub.versions = setdiff(sub.versions, private$i.sub.versions)
+        #     if (length(invalid.sub.versions)>0)
+        #         stop(paste0(error.prefix,
+        #                     collapse.with.and("'", invalid.sub.versions, "'"),
+        #                     ifelse(length(invalid.sub.versions)==1, 
+        #                            " is not a sub-version",
+        #                            " are not sub-versions"),
+        #                     " in the '", private$i.version, "' specification. ",
+        #                     ifelse(length(private$i.sub.versions)==0,
+        #                            "There are no sub-versions registered",
+        #                            paste0("Sub-versions must be ",
+        #                                   ifelse(length(private$i.sub.versions)==1, "", "one of "),
+        #                                   collapse.with.or("'", private$i.sub.versions, "'")
+        #                            ))))
+        # },
+         
         check.groups = function(groups, groups.name.for.error='groups')
         {
             if (!is.character(groups) || length(groups)==0 || any(is.na(groups)))
@@ -7252,7 +7418,6 @@ MODEL.OUTCOME = R6::R6Class(
         
         initialize = function(name,
                               version,
-                              sub.versions,
                               outcome.metadata,
                               value.is.numerator,
                               scale,
@@ -7280,13 +7445,6 @@ MODEL.OUTCOME = R6::R6Class(
             # Validate version
             if (!is.character(version) || length(version)!=1 || is.na(version))
                 stop(paste0(error.prefix, "'version' must be a single, non-NA character value"))
-            
-            # Validate sub-versions
-            if (length(sub.versions)==0)
-                sub.versions = NULL
-            else if (!is.character(sub.versions) || any(is.na(sub.versions)) || any(nchar(sub.versions)==0))
-                stop(paste0(error.prefix, "sub.versions must either be NULL or a character vector with no empty or NA values"))
-           
             
             # Validate save
             if (!is.logical(save) || length(save)!=1 || is.na(save))
@@ -7461,7 +7619,6 @@ MODEL.OUTCOME = R6::R6Class(
             # Store variables
             private$i.name = private$i.original.name = name
             private$i.version = version
-            private$i.sub.versions = sub.versions
             private$i.denominator.outcome = denominator.outcome
             private$i.type = class(self)[1]
             private$i.metadata = outcome.metadata
@@ -7936,14 +8093,6 @@ MODEL.OUTCOME = R6::R6Class(
                 stop(paste0("Cannot modify a model outcome's 'version' - it is read-only"))
         },
         
-        sub.versions = function(value)
-        {
-            if (missing(value))
-                private$i.sub.versions
-            else
-                stop(paste0("Cannot modify a model outcome's 'sub.versions' - they are read-only"))
-        },
-        
         denominator.outcome = function(value)
         {
             if (missing(value))
@@ -8188,7 +8337,6 @@ MODEL.OUTCOME = R6::R6Class(
         i.name = NULL,
         i.original.name = NULL,
         i.version = NULL,
-        i.sub.versions = NULL,
         i.type = NULL,
         i.scale = NULL,
         i.metadata = NULL,
@@ -8552,7 +8700,6 @@ INTRINSIC.MODEL.OUTCOME = R6::R6Class(
         
             super$initialize(name = name,
                              version = version,
-                             sub.versions = NULL,
                              outcome.metadata = outcome.metadata,
                              denominator.outcome = NULL,
                              value.is.numerator = NULL,
@@ -8629,7 +8776,6 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
         
         initialize = function(name,
                               version,
-                              sub.versions,
                               outcome.metadata,
                               dynamic.quantity.name,
                               scale,
@@ -8655,7 +8801,6 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
         {
             super$initialize(name = name,
                              version = version,
-                             sub.versions = sub.versions,
                              outcome.metadata = outcome.metadata,
                              denominator.outcome = denominator.outcome,
                              value.is.numerator = T,
@@ -8969,7 +9114,6 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
         
         initialize = function(name,
                               version,
-                              sub.versions,
                               outcome.metadata,
                               scale,
                               value.is.numerator,
@@ -8998,7 +9142,6 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
         {
             super$initialize(name = name,
                              version = version,
-                             sub.versions = sub.versions,
                              outcome.metadata = outcome.metadata,
                              scale = scale,
                              value.is.numerator = value.is.numerator,
@@ -9099,7 +9242,6 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
         
         initialize = function(name,
                               version,
-                              sub.versions,
                               outcome.metadata,
                               
                               value.to.integrate,
@@ -9123,7 +9265,6 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
         {
             super$initialize(name,
                              version = version,
-                             sub.versions = sub.versions,
                              outcome.metadata = outcome.metadata,
                              value.is.numerator = value.is.numerator,
                              denominator.outcome = denominator.outcome,
@@ -9427,7 +9568,6 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
         
         initialize = function(name,
                               version,
-                              sub.versions,
                               outcome.metadata,
                               value,
                               value.is.numerator,
@@ -9448,7 +9588,6 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
         {
             super$initialize(name,
                              version = version,
-                             sub.versions = sub.versions,
                              outcome.metadata = outcome.metadata,
                              value.is.numerator = value.is.numerator,
                              denominator.outcome = denominator.outcome,
@@ -9628,7 +9767,6 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
         initialize = function(specification,
                               name,
                               version,
-                              sub.versions,
                               outcome.metadata,
                               rate.value,
                               
@@ -9658,7 +9796,6 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
             # Call the super-constructor
             super$initialize(name = name,
                              version = version,
-                             sub.versions = sub.versions,
                              outcome.metadata = outcome.metadata,
                              value = rate.value,
                              value.is.numerator = F,

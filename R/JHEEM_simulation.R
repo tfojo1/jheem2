@@ -92,12 +92,16 @@ get.simulation.metadata <- function(version,
 #'@inheritParams create.jheem.engine
 #'@param simset The JHEEM simulation set to re-run
 #'@param verbose Whether to print updates as simulations are run
+#'@param sub.version The sub-version to run
 #'
 #'@details Helpful if the specification has changed
 #'
 #'@export
 rerun.simulations <- function(simset,
                               max.run.time.seconds=Inf,
+                              sub.version = simset$sub.version,
+                              from.year = simset$from.year,
+                              to.year = simset$to.year,
                               verbose=T)
 {
     if (!is(simset, 'jheem.simulation.set'))
@@ -112,13 +116,13 @@ rerun.simulations <- function(simset,
                                        location = simset$location)
     
     engine = do.create.jheem.engine(jheem.kernel = jheem.kernel,
-                                    sub.version = simset$sub.version,
+                                    sub.version = sub.version,
                                     start.year = specification$start.year,
-                                    end.year = simset$to.year,
+                                    end.year = to.year,
                                     max.run.time.seconds = simset$max.run.time.seconds,
                                     prior.simulation.set = NULL,
-                                    keep.from.year = simset$from.year,
-                                    keep.to.year = simset$to.year,
+                                    keep.from.year = from.year,
+                                    keep.to.year = to.year,
                                     intervention.code = simset$intervention.code,
                                     calibration.code = simset$calibration.code,
                                     solver.metadata = simset$solver.metadata,
@@ -151,7 +155,10 @@ rerun.simulations <- function(simset,
         sim
     })
     
-    do.join.simulation.sets(new.sims)
+    do.join.simulation.sets(new.sims, 
+                            simulation.chain = simset$simulation.chain, 
+                            finalize = T,
+                            run.metadata = simset$run.metadata)
 }
 
 #'@title Run a Simulations from a Set of Parameters
@@ -425,7 +432,7 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
                 arr
             })
             parameters = matrix(parameters, ncol=1, dimnames=list(parameter=names(parameters), sim=NULL)) # used to say "parameters.indexed.by.sim = list('1'=parameters)" but I don't think I need the character number there. When simsets are joined, the index is meaningless anyways
-            
+
             do.create.simulation.set.from.metadata(metadata = private$i.metadata,
                                                    jheem.kernel = private$i.jheem.kernel,
                                                    outcome.numerators = outcome.numerators.with.sim.dimension,
@@ -695,12 +702,23 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
             outcome = jheem.kernel.or.specification$get.outcome.kernel(outcome.name)
         else
             outcome = jheem.kernel.or.specification$get.outcome(outcome.name)
-        if (outcome$save)
+        
+        if (!is.null(sub.version) || outcome$save)
         {
+            sub.version.outcome.details = NULL
+            if (!is.null(sub.version))
+                sub.version.outcome.details = jheem.kernel.or.specification$outcome.sub.version.details[[sub.version]][[outcome.name]]
+            
             if (outcome$is.cumulative && !is.null(metadata$from.year) && !is.null(metadata$to.year))
             {
                 from.year = max(metadata$from.year, outcome$from.year)
                 to.year = min(metadata$to.year, outcome$to.year)
+                
+                if (!is.null(sub.version))
+                {
+                    from.year = max(from.year, sub.version.outcome.details$from.year)
+                    to.year = min(to.year, sub.version.outcome.details$to.year)
+                }
                 
                 if (to.year>=from.year)
                     years.for.ont = as.character(from.year:to.year)
@@ -712,6 +730,12 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
                 from.year = max(metadata$from.year, outcome$from.year)
                 to.year = min(metadata$to.year+1, outcome$to.year)
                 
+                if (!is.null(sub.version))
+                {
+                    from.year = max(from.year, sub.version.outcome.details$from.year)
+                    to.year = min(to.year, sub.version.outcome.details$to.year)
+                }
+                
                 if (to.year>=from.year)
                     years.for.ont = as.character(from.year:to.year)
                 else
@@ -720,11 +744,23 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
             else
                 years.for.ont = NULL
             
-            if (is(jheem.kernel.or.specification, 'jheem.kernel'))
-                base.ont = outcome$ontology
+            if (is.null(sub.version))
+            {
+                if (is(jheem.kernel.or.specification, 'jheem.kernel'))
+                    base.ont = outcome$ontology
+                else
+                    base.ont = specification.metadata$apply.aliases(outcome$ontology, error.prefix=error.prefix)
+            }
             else
-                base.ont = specification.metadata$apply.aliases(outcome$ontology, error.prefix=error.prefix)
+            {
+        tryCatch({
+                base.ont = as.ontology(sub.version.outcome.details$dim.names)
+        }, error = function(e){
+            browser()
+        })
+            }
             
+            base.ont = specification.metadata$apply.aliases(base.ont)
             ont = c(ontology(year=years.for.ont, incomplete.dimensions = 'year'), base.ont)
             metadata$outcome.ontologies[[outcome$name]] = ont
             
@@ -765,6 +801,7 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
     metadata$solver.metadata = solver.metadata        
     metadata$intervention.code = intervention.code
     metadata$calibration.code = calibration.code
+    metadata$sub.version = sub.version
     
     metadata
 }
