@@ -1,0 +1,23 @@
+STATUS of refactor:
+
+4/4/2025
+
+Today's task is a no mapping-needed fraction pull. I want one that uses population just because I already cleared that one.
+
+
+4/3/2025
+
+I can pull counts like "adult.population" when no aggregation is needed.
+
+I've been trying to save the variables used in the pull to test the helpers externally.
+
+I need this so that I can complete the recursive pulls used by fractions or other metrics.
+
+But the next step is to do aggregation of simple counts.
+
+I've made the helper that does mapping for fractions be the same as the one that does aggregation for fractions.
+
+Amazing! I've now made it so it can aggregate counts!!
+
+Next time, I'll continue by working with a proportion pull that needs no aggregate but uses a simple count as denominator,
+like adult population as denominator. I'll start with NO mapping needed, then perhaps find a way to make a non-trivial map used.

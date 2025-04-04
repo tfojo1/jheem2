@@ -4,127 +4,135 @@ do.aggregation <- function(data.manager,
                            keep.dimensions,
                            data.type,
                            metric,
+                           scale,
                            source.name,
                            outcome,
                            dimension.values,
-                           target.ontology) {
+                           target.ontology,
+                           na.rm) {
     
-    if (data.type == "data") {
-        if (metric %in% c("coefficient.of.variance", "standard.deviation")) {
-            converted.and.cv.estimate <- do.conversion.to.variance(metric,
-                                                                   data.to.process,
-                                                                   outcome,
-                                                                   source.name,
-                                                                   keep.dimensions.for.pull = names(pre.agg.dimnames),
-                                                                   dimension.values.for.pull = dimension.values[names(dimension.values) %in% names(pre.agg.dimnames)],
-                                                                   strat.dimnames=strat.dimnames,
-                                                                   target.ontology=target.ontology) # Difference, here want target but before don't
-            # Other difference, use special dimension values and keep dimensions for the recursive pull
-            data.by.data.type <- converted.and.cv.estimate$converted.data
-            if (is.null(data.to.process)) return(default.failure.return)
-        }
-        scale = outcome.info[['metadata']][['scale']] ## DON'T HAVE THIS IN SCOPE YET!
-        if (scale %in% c('non.negative.number', 'number')) {
-            data.by.data.type = apply.robust(data.by.data.type, names(post.agg.dimnames), sum, na.rm=na.rm)
-        }
-        # HANDLE FRACTION SCALES ... BUT NOT IF WE HAVE CERTAIN METRICS, RIGHT?
-        if (scale %in%  c('rate', 'time', 'proportion', 'ratio')) {
-            
-            #######
-            data.by.data.type = do.mapping.or.aggregation.of.fraction(is.aggregation=T,
-                                                                      data.manager=data.manager,
-                                                                      data.to.process = data.by.data.type,
-                                                                      denom.dim.vals=pre.agg.dimnames,
-                                                                      source.name = source.name,
-                                                                      denominator.sources='fill in',
-                                                                      target.ontology.for.pull=target.ontology, ## for mapping would be strat.dimnames
-                                                                      mapping.to.apply=NULL,
-                                                                      dimnames.for.apply=NULL,
-                                                                      denominator.outcome = 'fill in',
-                                                                      
-                                                                      strat.dimnames=NULL,
-                                                                      denominator.lags.by.one.year = 'fill in',
-                                                                      na.rm=na.rm,
-                                                                      square.denominator='fill in',
-                                                                      is.aggregation=TRUE)
-            #######
-            
-            denominator.outcome = outcome.info[['denominator.outcome']] 
-            denominator.ontology = target.ontology ## NOTE: DO WE NEED TO HAVE THE UNIVERSAL ALIGN TO THE DENOMINATOR ONTOLOGIES TOO, WHEN WE KNOW WE'LL NEED IT?
-            
-            # If we have a denominator offset, then the dimension values needs to specify that the years will be
-            # whatever they are for the main data, but slid back by <offset>, like 2020 -> 2019.
-            # denom.dim.vals = pre.agg.dimnames
-            # if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-            #     denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
-            # }
-            
-            denominator.sources = names(private$i.data[[denominator.outcome]][['estimate']])
-            # put same source on front
-            if (source.name %in% denominator.sources) {
-                denominator.sources = c(source.name, setdiff(denominator.sources, source.name))
-            }
-            
-            denominator.array = NULL
-            for (denominator.source in denominator.sources) {
-                denominator.array = self$pull(outcome = denominator.outcome,
-                                              metric = 'estimate', # I believe we always want "estimates" for aggregating with denominators
-                                              keep.dimensions = names(pre.agg.dimnames),
-                                              dimension.values = denom.dim.vals,
-                                              sources = denominator.source,
-                                              target.ontology = denominator.ontology,
-                                              allow.mapping.from.target.ontology = F,
-                                              from.ontology.names = NULL,
-                                              na.rm = na.rm,
-                                              check.arguments = F)
-                if (!is.null(denominator.array)) break
-            }
-            
-            
-            if (is.null(denominator.array)) {
-                source.lacks.denominator.data.flag <<- TRUE
-                return (NULL)
-            }
-            # Since the denominator.array came from only one source, we can remove the source so that it will match size of data
-            denominator.array = array(denominator.array,
-                                      dim = dim(denominator.array)[names(dim(denominator.array)) != 'source'],
-                                      dimnames = dimnames(denominator.array)[names(dimnames(denominator.array)) != 'source']
-            )
-            
-            # If we had an offset, rename the year dimension names to match the main data
-            if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-                dimnames(denominator.array)$year = as.character(as.numeric(dimnames(denominator.array)$year) + outcome.info$denominator.lags.by.one.year)
-            }
-            
-            # # Catch an otherwise invisible bug if denominator.array somehow doesn't have the same shape/order as the data
-            # if (!dim.names.equal(dimnames(denominator.array), dimnames(data.by.data.type)))
-            #     stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect dimensions'))
-            
-            # So apparently it's possible that the ontology we get denominator data from can have the same dimension values but in a different order from those in our main data
-            denom.ont = as.ontology(dimnames(denominator.array), incomplete.dimensions = intersect(names(dimnames(denominator.array)), c('year', 'location')))
-            data.ont = as.ontology(dimnames(data.by.data.type), incomplete.dimensions = intersect(names(dimnames(data.by.data.type)), c('year', 'location')))
-            denom.to.data.mapping = get.ontology.mapping(denom.ont, data.ont)
-            
-            if (is.null(denom.to.data.mapping))
-                # browser()
-                stop(paste0(error.prefix, 'bug in aggregation code: denominator array dimensions cannot be mapped to main data dimensions'))
-            
-            # It's possible that we didn't find as many years or locations in the denominator as we did in the data.by.data.type
-            if (!setequal(dimnames(denominator.array)$year, dimnames(data.by.data.type)$year) || !setequal(dimnames(denominator.array)$location, dimnames(data.by.data.type)$location))
-                data.by.data.type = array.access(data.by.data.type, year=dimnames(denominator.array)$year, location=dimnames(denominator.array)$location)
-            
-            denominator.array = denom.to.data.mapping$apply(denominator.array, to.dim.names = dimnames(data.by.data.type)) # need this argument to ensure correct order
-            
-            if (metric %in% c('variance', 'standard.deviation', 'coefficient.of.variance')) denominator.array = denominator.array**2
-            
-            # We should find totals by aggregating the denominator.array rather than pulling less stratified data
-            # because less stratified data might not equal the sum of the more stratified data in denominator.array
-            denominator.totals.array = apply.robust(denominator.array, names(post.agg.dimnames), sum, na.rm=na.rm)
-            weighted.value.array = data.by.data.type * denominator.array
-            data.by.data.type = apply.robust(weighted.value.array, names(post.agg.dimnames), sum, na.rm=na.rm)
-            data.by.data.type = data.by.data.type / denominator.totals.array
-        }
+    post.agg.dimensions = intersect(names(pre.agg.dimnames), keep.dimensions)
+    
+    if (metric %in% c("coefficient.of.variance", "standard.deviation")) {
+        converted.and.cv.estimate <- do.conversion.to.variance(data.manager=data.manager,
+                                                               metric=metric,
+                                                               data.to.process=data.to.aggregate,
+                                                               outcome,
+                                                               source.name,
+                                                               keep.dimensions.for.pull = names(pre.agg.dimnames),
+                                                               dimension.values.for.pull = dimension.values[names(dimension.values) %in% names(pre.agg.dimnames)],
+                                                               strat.dimnames=strat.dimnames,
+                                                               target.ontology=target.ontology) # Difference, here want target but before don't
+        # Other difference, use special dimension values and keep dimensions for the recursive pull
+        data.by.data.type <- converted.and.cv.estimate$converted.data
+        if (is.null(data.to.process)) return(default.failure.return)
     }
+    if (scale %in% c('non.negative.number', 'number')) {
+        aggregated.data = apply.robust(data.to.aggregate, post.agg.dimensions, sum, na.rm=na.rm)
+    }
+    # # HANDLE FRACTION SCALES ... BUT NOT IF WE HAVE CERTAIN METRICS, RIGHT?
+    if (scale %in%  c('rate', 'time', 'proportion', 'ratio')) {
+        browser()
+
+        #######
+        data.by.data.type = do.mapping.or.aggregation.of.fraction(is.aggregation=T,
+                                                                  data.manager=data.manager,
+                                                                  data.to.process = data.by.data.type,
+                                                                  denom.dim.vals=pre.agg.dimnames,
+                                                                  source.name = source.name,
+                                                                  denominator.sources='fill in',
+                                                                  target.ontology.for.pull=target.ontology, ## for mapping would be strat.dimnames
+                                                                  mapping.to.apply=NULL,
+                                                                  dimnames.for.apply=NULL,
+                                                                  denominator.outcome = 'fill in',
+
+                                                                  strat.dimnames=NULL,
+                                                                  denominator.lags.by.one.year = 'fill in',
+                                                                  na.rm=na.rm,
+                                                                  square.denominator='fill in',
+                                                                  is.aggregation=TRUE)
+        #######
+
+        denominator.outcome = outcome.info[['denominator.outcome']]
+        denominator.ontology = target.ontology ## NOTE: DO WE NEED TO HAVE THE UNIVERSAL ALIGN TO THE DENOMINATOR ONTOLOGIES TOO, WHEN WE KNOW WE'LL NEED IT?
+
+        # If we have a denominator offset, then the dimension values needs to specify that the years will be
+        # whatever they are for the main data, but slid back by <offset>, like 2020 -> 2019.
+        # denom.dim.vals = pre.agg.dimnames
+        # if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+        #     denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
+        # }
+
+        denominator.sources = names(private$i.data[[denominator.outcome]][['estimate']])
+        # put same source on front
+        if (source.name %in% denominator.sources) {
+            denominator.sources = c(source.name, setdiff(denominator.sources, source.name))
+        }
+
+        denominator.array = NULL
+        for (denominator.source in denominator.sources) {
+            denominator.array = self$pull(outcome = denominator.outcome,
+                                          metric = 'estimate', # I believe we always want "estimates" for aggregating with denominators
+                                          keep.dimensions = names(pre.agg.dimnames),
+                                          dimension.values = denom.dim.vals,
+                                          sources = denominator.source,
+                                          target.ontology = denominator.ontology,
+                                          allow.mapping.from.target.ontology = F,
+                                          from.ontology.names = NULL,
+                                          na.rm = na.rm,
+                                          check.arguments = F)
+            if (!is.null(denominator.array)) break
+        }
+
+
+        if (is.null(denominator.array)) {
+            source.lacks.denominator.data.flag <<- TRUE
+            return (NULL)
+        }
+        # Since the denominator.array came from only one source, we can remove the source so that it will match size of data
+        denominator.array = array(denominator.array,
+                                  dim = dim(denominator.array)[names(dim(denominator.array)) != 'source'],
+                                  dimnames = dimnames(denominator.array)[names(dimnames(denominator.array)) != 'source']
+        )
+
+        # If we had an offset, rename the year dimension names to match the main data
+        if (!is.null(outcome.info$denominator.lags.by.one.year)) {
+            dimnames(denominator.array)$year = as.character(as.numeric(dimnames(denominator.array)$year) + outcome.info$denominator.lags.by.one.year)
+        }
+
+        # # Catch an otherwise invisible bug if denominator.array somehow doesn't have the same shape/order as the data
+        # if (!dim.names.equal(dimnames(denominator.array), dimnames(data.by.data.type)))
+        #     stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect dimensions'))
+
+        # So apparently it's possible that the ontology we get denominator data from can have the same dimension values but in a different order from those in our main data
+        denom.ont = as.ontology(dimnames(denominator.array), incomplete.dimensions = intersect(names(dimnames(denominator.array)), c('year', 'location')))
+        data.ont = as.ontology(dimnames(data.by.data.type), incomplete.dimensions = intersect(names(dimnames(data.by.data.type)), c('year', 'location')))
+        denom.to.data.mapping = get.ontology.mapping(denom.ont, data.ont)
+
+        if (is.null(denom.to.data.mapping))
+            # browser()
+            stop(paste0(error.prefix, 'bug in aggregation code: denominator array dimensions cannot be mapped to main data dimensions'))
+
+        # It's possible that we didn't find as many years or locations in the denominator as we did in the data.by.data.type
+        if (!setequal(dimnames(denominator.array)$year, dimnames(data.by.data.type)$year) || !setequal(dimnames(denominator.array)$location, dimnames(data.by.data.type)$location))
+            data.by.data.type = array.access(data.by.data.type, year=dimnames(denominator.array)$year, location=dimnames(denominator.array)$location)
+
+        denominator.array = denom.to.data.mapping$apply(denominator.array, to.dim.names = dimnames(data.by.data.type)) # need this argument to ensure correct order
+
+        if (metric %in% c('variance', 'standard.deviation', 'coefficient.of.variance')) denominator.array = denominator.array**2
+
+        # We should find totals by aggregating the denominator.array rather than pulling less stratified data
+        # because less stratified data might not equal the sum of the more stratified data in denominator.array
+        denominator.totals.array = apply.robust(denominator.array, names(post.agg.dimnames), sum, na.rm=na.rm)
+        weighted.value.array = data.by.data.type * denominator.array
+        data.by.data.type = apply.robust(weighted.value.array, names(post.agg.dimnames), sum, na.rm=na.rm)
+        data.by.data.type = data.by.data.type / denominator.totals.array
+    }
+    else stop(paste0(error.prefix, 'aggregating ', scale, ' data is not yet implemented'))
+    
+    ## PROCESS METRICS
+    
+    aggregated.data
     
 }
 
