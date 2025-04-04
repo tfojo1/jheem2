@@ -211,7 +211,8 @@ simplot.data.only <- function(outcomes,
 #' @value A list with three components:
 #' df.sim, a data frame containing simulation data (may be NULL)
 #' df.truth, a data frame containing calibration data (may be NULL)
-#' details, a list with components "y.label" and "plot.title"
+#' details, a list with components "y.label", "plot.title", and "outcome.metadata.list",
+#' 
 #' @export
 prepare.plot <- function(simset.list=NULL,
                          outcomes=NULL,
@@ -343,6 +344,7 @@ prepare.plot <- function(simset.list=NULL,
     #-- MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA ----
     
     outcome.mappings = list() # note: not all outcomes will have corresponding data outcomes
+    source.metadata.list <- list()
 
     df.truth = NULL
     for (i in seq_along(outcomes.for.data))
@@ -408,6 +410,10 @@ prepare.plot <- function(simset.list=NULL,
                     one.df.outcome$year = as.numeric(one.df.outcome$year)
                 else if (plot.year.lag.ratio)
                     stop(paste0(error.prefix, "cannot use 'plot.year.lag.ratio' when data is in year ranges"))
+                
+                # Add the source info to the source metadata list
+                sources.this.outcome <- unique(one.df.outcome$source)
+                source.metadata.list = c(source.metadata.list, data.manager$source.info[setdiff(sources.this.outcome, names(source.metadata.list))])
                 
                 corresponding.outcome = names(outcomes.for.data)[[i]]
                 one.df.outcome['outcome'] = corresponding.outcome
@@ -612,7 +618,12 @@ prepare.plot <- function(simset.list=NULL,
         plot.title = paste0(get.location.name(simset.list[[1]]$location), " (", simset.list[[1]]$location, ")")
     else plot.title = title
     # browser()
-    return(list(df.sim=df.sim, df.truth=df.truth, details=list(y.label=y.label, plot.title=plot.title, outcome.metadata.list = outcome.metadata.list)))
+    return(list(df.sim=df.sim,
+                df.truth=df.truth,
+                details=list(y.label=y.label,
+                             plot.title=plot.title,
+                             outcome.metadata.list = outcome.metadata.list,
+                             source.metadata.list = source.metadata.list)))
 }
 
 #' Execute Simplot
