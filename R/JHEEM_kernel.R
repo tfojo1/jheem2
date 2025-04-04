@@ -219,6 +219,9 @@ JHEEM.KERNEL = R6::R6Class(
             private$i.outcome.names.for.sub.version = lapply(specification$sub.versions, specification$get.outcome.names.for.sub.version)
             names(private$i.outcome.names.for.sub.version) = specification$sub.versions
             
+            private$i.outcome.sub.version.details = specification$outcome.sub.version.details
+            
+            
             #-- Foregrounds --#
             private$i.foregrounds = specification$foregrounds
             
@@ -324,6 +327,11 @@ JHEEM.KERNEL = R6::R6Class(
             private$i.outcome.kernels[[outcome.name]]  
         },
         
+        get.outcome.sub.version.details = function(outcome.name, sub.version)
+        {
+            private$i.outcome.sub.version.details[[sub.version]][[outcome.name]]
+        },
+        
         # Get dependency functions
         get.dependent.quantity.names = function(quantity.names)
         {
@@ -427,7 +435,15 @@ JHEEM.KERNEL = R6::R6Class(
             if (missing(value))
                 private$i.sub.versions
             else
-                stop("Cannot modify a specification kernel's sub.versions -they are read-only")
+                stop("Cannot modify a specification kernel's sub.versions - they are read-only")
+        },
+        
+        outcome.sub.version.details = function(value)
+        {
+            if (missing(value))
+                private$i.outcome.sub.version.details
+            else
+                stop("Cannot modify a specification kernel's outcome.sub.version.details - they are read-only")
         },
         
         specification.metadata = function(value)
@@ -733,6 +749,7 @@ JHEEM.KERNEL = R6::R6Class(
         
         #-- Outcome Stuff --#
         i.outcome.kernels = NULL,
+        i.outcome.sub.version.details = NULL,
         
         i.outcome.names.for.sub.version = NULL,
         i.outcome.names.for.null.sub.version = NULL,

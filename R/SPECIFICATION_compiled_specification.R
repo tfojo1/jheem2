@@ -36,7 +36,10 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                               
                               age.info,
                               start.year,
-
+                              
+                              sub.version.info,
+                              outcome.info.for.sub.version,
+                              
                               parent.specification,
                               do.not.inherit.model.quantity.names,
                               do.not.inherit.model.outcome.names,
@@ -67,6 +70,9 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             private$i.foregrounds = foregrounds
             private$i.default.parameter.values = default.parameter.values
             
+            private$i.sub.version.info = sub.version.info
+            private$i.outcome.info.for.sub.version = outcome.info.for.sub.version
+            
             private$i.age.info = age.info
             private$i.start.year = start.year
             
@@ -94,6 +100,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             if (!is.null(private$i.parent.specification))
                 private$i.ancestor.specifications = c(private$i.ancestor.specifications,
                                                       private$i.parent.specification$ancestor.specifications)
+       
             
             private$i.locked = F
             
@@ -180,13 +187,25 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             }
         },
         
-        get.outcome.names.for.sub.version = function(sub.version)
+        get.outcome.names.for.sub.version = function(sub.version=NULL)
         {
-            mask = sapply(private$i.outcomes, function(outcome){
-                outcome$save &&
-                    (is.null(sub.version) || is.null(outcome$sub.versions) || any(sub.version==outcome$sub.versions))
-            })
-            names(private$i.outcomes)[mask]
+            # mask = sapply(private$i.outcomes, function(outcome){
+            #     outcome$save &&
+            #         (is.null(sub.version) || is.null(outcome$sub.versions) || any(sub.version==outcome$sub.versions))
+            # })
+            # names(private$i.outcomes)[mask]
+            
+            if (is.null(sub.version))
+            {
+                mask = sapply(private$i.outcomes, function(outcome){
+                    outcome$save
+                })
+                names(private$i.outcomes)[mask]
+            }
+            else
+            {
+                names(private$i.outcome.info.for.sub.version[[sub.version]])
+            }
         },
         
         get.dependent.quantity.names = function(quantity.names)
@@ -576,6 +595,14 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                 private$i.element.name.mappings
             else
                 stop(paste0("Cannot modify a ", self$descriptor, "'s 'element.name.mappings' - they are read-only"))
+        },
+        
+        outcome.sub.version.details = function(value)
+        {
+            if (missing(value))
+                private$i.outcome.sub.version.details
+            else
+                stop(paste0("Cannot modify a ", self$descriptor, "'s 'outcome.sub.version.details' - they are read-only"))
         }
     ),
     
@@ -618,6 +645,8 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         i.direct.dependent.outcome.numerator.names = NULL,
         i.outcome.direct.dependee.quantity.names = NULL,
         i.outcome.non.cumulative.direct.dependendee.outcome.names = NULL,
+        
+        i.outcome.sub.version.details = NULL,
         
         i.quantity.name.mappings = NULL,
         i.element.name.mappings = NULL,
@@ -888,6 +917,14 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
 #                private$calculate.quantity.dim.names(quantity, error.prefix=error.prefix)
 #            do.cat("done\n")
             
+            
+            #-- Process outcomes for sub versions --#
+            
+            do.cat("Processing outcomes for sub-versions...")
+            
+            private$process.outcomes.for.sub.versions()
+            
+            do.cat("done\n")
             
             #-- Check that numeric values of model quantity components have appropriate dimensions --#
             #-- Check that models for model.elements have appropriate dimensions --#
@@ -2352,6 +2389,183 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             }
             
             quantity.depths
+        },
+
+        process.outcomes.for.sub.versions = function()
+        {
+            
+            # Pull down sub-version outcome info from ancestors
+            
+            all.outcome.info.for.sub.versions = list()#private$i.ancestor.specifications[[1]]$outcome.info.for.sub.versions
+            for (spec in private$i.ancestor.specifications)
+            {
+                for (sub.version in names(spec$outcome.info.for.sub.version))
+                {
+                    if (spec$sub.version.info[[sub.version]]$inherit.outcomes)
+                    {
+                        all.outcome.info.for.sub.versions[[sub.version]][[names(spec$outcome.info.for.sub.version[[sub.version]])]] = 
+                            spec$outcome.info.for.sub.version[[sub.version]]
+                    }
+                    else
+                    {
+                        all.outcome.info.for.sub.versions[[sub.version]] = spec$outcome.info.for.sub.version[[sub.version]]
+                    }
+                }
+            }
+            
+            # Process them into details objects
+            private$i.outcome.sub.version.details = lapply(all.outcome.info.for.sub.versions, function(info.for.sub.version){
+                
+                rv = lapply(names(info.for.sub.version), function(outcome.name){
+                    
+                    error.prefix = paste0("Error processing outcome '", outcome.name, "' for sub-version '", sub.version, "': ")
+                    
+                    outcome = self$get.outcome(outcome.name)
+                    if (is.null(outcome))
+                    {
+                        stop(paste0(error.prefix, 
+                                    "'", outcome.name, "' is not an outcome.name for the '", 
+                                    private$i.version, "' specification",
+                                    ifelse(length(private$i.ancestor.specifications)==0, '', " or its ancestor specifications.")))
+                    }
+                    
+                    outcome.dim.names = outcome$dim.names
+                    info = info.for.sub.version[[outcome.name]]
+                        
+                    # Validate subset.dimension.values
+                    
+                    subsetted.outcome.dim.names = outcome.dim.names
+                    if (is.null(info$subset.dimension.values))
+                        subset.dimension.values = NULL
+                    else
+                    {
+                        subset.dimension.values = apply.aliases(info$subset.dimension.values, aliases = private$i.compartment.value.character.aliases)
+                        
+                        if (!is.null(subset.dimension.values) && 
+                            !dim.names.are.subset(sub.dim.names = subset.dimension.values,
+                                                  super.dim.names = outcome.dim.names))
+                        {
+                            stop(paste0(error.prefix,
+                                        "'subset.dimension.values' are not a subset of the calculated dim.names for the outcome"))
+                        }
+                    }
+                    
+                    if (length(subset.dimension.values)>0)
+                        subsetted.outcome.dim.names[names(subset.dimension.values)] = subset.dimension.values
+                    
+                    # validate ontology.mapping
+                    sub.version.dim.names = outcome.dim.names
+                    if (!is.null(info$ontology.mapping))
+                    {
+                        missing.dimensions = setdiff(info$ontology.mapping$from.dimensions, names(subsetted.outcome.dim.names))
+                        if (length(missing.dimensions)>0)
+                        {
+                            stop(paste0(error.prefix,
+                                        "The given ontology.mapping takes ",
+                                        collapse.with.and("'", missing.dimensions, "'"),
+                                        ifelse(length(missing.dimensions)==1, " as a from.dimension, but it is", " as from.dimensions, but they are"),
+                                        " not present in the outcome's dimensions (",
+                                        ifelse(length(subsetted.outcome.dim.names)==0,
+                                               "which is dimensionless",
+                                               paste0("which are ", collapse.with.and("'", names(subsetted.outcome.dim.names), "'"))),
+                                        "), after applying subset.dimension.values"))
+                        }
+                        
+                        for (d in info$ontology.mapping$from.dimensions)
+                        {
+                            missing.values = setdiff(info$ontology.mapping$from.dimensions[,d], subsetted.outcome.dim.names[[d]])
+                            if (length(missing.values)>0)
+                            {
+                                stop(paste0(error.prefix,
+                                            "The given ontology.mapping expects dimension '", d, "' to contain ",
+                                            ifelse(length(missing.values)==1, "value ", "values "),
+                                            collapse.with.and("'", missing.values, "'"),
+                                            ifelse(length(missing.values)==1, " it is", " but they are"),
+                                            " not present in the outcome's '", d, "' dimension (which contains ",
+                                            paste0("'", subsetted.outcome.dim.names[[d]], "'", collapse='/'),
+                                            ") after applying subset.dimension.values"))
+                            }
+                        }
+                        
+                        sub.version.dim.names = info$ontology.mapping$apply.to.dim.names(from.dim.names = sub.version.dim.names,
+                                                                                    error.prefix = paste0(error.prefix, "Cannot apply ontology.mapping to the outcome's dimnames after subsetting"))
+                    }
+                    
+                    # Validate keep.dimensions / calculate keep.dimensions
+                    if (!is.null(info$keep.dimensions))
+                    {
+                        invalid.keep.dimensions = setdiff(keep.dimensions, names(sub.version.dim.names))
+                        if (length(invalid.keep.dimensions)>0)
+                            stop(paste0(error.prefix,
+                                        "'keep.dimensions' includes ",
+                                        ifelse(length(invalid.keep.dimensions)==1, "dimension ", "dimensions "),
+                                        collapse.with.and("'", invalid.keep.dimensions, "'"),
+                                        ifelse(length(invalid.keep.dimensions)==1, " but this is not", " but these are not"),
+                                        " present in the calculated dimensions for outcome '",
+                                        outcome.name, "' (",
+                                        ifelse(length(outcome.dim.names)==0,
+                                               "which is dimensionless",
+                                               paste0("'", names(outcome.dim.names), "'", collapse=' / ')),
+                                        ")"
+                            ))
+                        
+                        sub.version.dim.names = sub.version.dim.names[intersect(names(sub.version.dim.names), info$keep.dimensions)]
+                    }
+                    else if (!is.null(info$exclude.dimensions))
+                    {
+                        sub.version.dim.names = sub.version.dim.names[setdiff(names(sub.version.dim.names), info$exclude.dimensions)]
+                    }
+                    else
+                        sub.version.dim.names = sub.version.dim.names
+                    
+                    # Validate from.year, to.year
+                    if (is.null(info$from.year))
+                        from.year = outcome$from.year
+                    else if (info$from.year < outcome$from.year)
+                    {
+                        stop(paste0(error.prefix,
+                                    "The 'from.year' for the '", sub.version, "' (",
+                                    info$from.year, ") is LESS THAN the 'from.year' for the main outcome (",
+                                    outcome$from.year, "). It must be greater than or equal to the main outcome's from.year"))
+                        
+                        from.year = info$from.year
+                    }
+                    
+                    if (is.null(info$to.year))
+                        to.year = outcome$to.year
+                    else if (info$to.year > outcome$to.year)
+                    {
+                        stop(paste0(error.prefix,
+                                    "The 'to.year' for the '", sub.version, "' (",
+                                    info$to.year, ") is GREATER THAN the 'to.year' for the main outcome (",
+                                    outcome$to.year, "). It must be less than or equal to the main outcome's to.year"))
+                        
+                        to.year = info$to.year
+                    }
+                    
+                    if (from.year >= to.year)
+                    {
+                        stop(paste0(error.prefix,
+                                    "The derived 'from.year' (", from.year,
+                                    ") must be strictly LESS THAN the derived 'to.year', (",
+                                    to.year, ")"))
+                    }
+                    
+                    # Put it all together
+                    list(
+                        dim.names = sub.version.dim.names,
+                        subsetted.outcome.dim.names = subsetted.outcome.dim.names,
+                        subset.dimension.values = subset.dimension.values,
+                        ontology.mapping = info$ontology.mapping,
+                        no.change = is.null(info$keep.dimensions) && is.null(info$exclude.dimensions) && is.null(info$subset.dimension.values) && is.null(info$ontology.mapping),
+                        from.year = from.year,
+                        to.year = to.year
+                    )
+                      
+                })
+                names(rv) = names(info.for.sub.version)
+                rv
+            })
         },
         
         # a helper function that wraps print statements in a check if verbose
