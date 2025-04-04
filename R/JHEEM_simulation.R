@@ -92,12 +92,17 @@ get.simulation.metadata <- function(version,
 #'@inheritParams create.jheem.engine
 #'@param simset The JHEEM simulation set to re-run
 #'@param verbose Whether to print updates as simulations are run
+#'@param sub.version The sub-version to run
+#'@param from.year,to.year The years to keep in the simulation object
 #'
 #'@details Helpful if the specification has changed
 #'
 #'@export
 rerun.simulations <- function(simset,
                               max.run.time.seconds=Inf,
+                              sub.version = simset$sub.version,
+                              from.year = simset$from.year,
+                              to.year = simset$to.year,
                               verbose=T)
 {
     if (!is(simset, 'jheem.simulation.set'))
@@ -112,13 +117,13 @@ rerun.simulations <- function(simset,
                                        location = simset$location)
     
     engine = do.create.jheem.engine(jheem.kernel = jheem.kernel,
-                                    sub.version = simset$sub.version,
+                                    sub.version = sub.version,
                                     start.year = specification$start.year,
-                                    end.year = simset$to.year,
+                                    end.year = to.year,
                                     max.run.time.seconds = simset$max.run.time.seconds,
                                     prior.simulation.set = NULL,
-                                    keep.from.year = simset$from.year,
-                                    keep.to.year = simset$to.year,
+                                    keep.from.year = from.year,
+                                    keep.to.year = to.year,
                                     intervention.code = simset$intervention.code,
                                     calibration.code = simset$calibration.code,
                                     solver.metadata = simset$solver.metadata,
@@ -126,8 +131,6 @@ rerun.simulations <- function(simset,
                                     error.prefix = "Error re-running simulations: ")
     if (verbose)
         cat("done\n")
-    
-    print("We need to implement re-running the intervention here too")
     
     update.every = ceiling(simset$n.sim/10)
     new.sims = lapply(1:simset$n.sim, function(i){
@@ -151,7 +154,10 @@ rerun.simulations <- function(simset,
         sim
     })
     
-    do.join.simulation.sets(new.sims)
+    do.join.simulation.sets(new.sims, 
+                            simulation.chain = simset$simulation.chain, 
+                            finalize = T,
+                            run.metadata = simset$run.metadata)
 }
 
 #'@title Run a Simulations from a Set of Parameters
@@ -425,7 +431,7 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
                 arr
             })
             parameters = matrix(parameters, ncol=1, dimnames=list(parameter=names(parameters), sim=NULL)) # used to say "parameters.indexed.by.sim = list('1'=parameters)" but I don't think I need the character number there. When simsets are joined, the index is meaningless anyways
-            
+
             do.create.simulation.set.from.metadata(metadata = private$i.metadata,
                                                    jheem.kernel = private$i.jheem.kernel,
                                                    outcome.numerators = outcome.numerators.with.sim.dimension,
@@ -524,6 +530,9 @@ join.simulation.sets <- function(...)
     do.call(do.join.simulation.sets, simset.list)
 }
 
+# INTERNAL NOTE: NB - we have analogous functionality in assemble.simulations.from.calibration()
+#                in CALIBRATION_main.R. If we ever edit this, we need to edit that in parallel too
+#                (It is there for memory efficiency)
 do.join.simulation.sets <- function(..., 
                                  simulation.chain=NULL,
                                  finalize=T, 
@@ -552,16 +561,16 @@ do.join.simulation.sets <- function(...,
     })
     
     combined.outcome.numerators = lapply(outcomes, function(outcome) {
-        data.vec = sapply(simset.list, function(simset) {simset$data$outcome.numerators[[outcome]]})
+        data.vec = lapply(simset.list, function(simset) {simset$data$outcome.numerators[[outcome]]})
         if (any(sapply(data.vec, is.null))) return(NULL)
-        array(data.vec, sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
+        array(unlist(data.vec), sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
     })
     names(combined.outcome.numerators) = outcomes
     
     combined.outcome.denominators = lapply(outcomes, function(outcome) {
-        data.vec = sapply(simset.list, function(simset) {simset$data$outcome.denominators[[outcome]]})
+        data.vec = lapply(simset.list, function(simset) {simset$data$outcome.denominators[[outcome]]})
         if (any(sapply(data.vec, is.null))) return(NULL)
-        array(data.vec, sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
+        array(unlist(data.vec), sapply(outcome.dimnames[[outcome]], length), outcome.dimnames[[outcome]])
     })
     names(combined.outcome.denominators) = outcomes
     
@@ -571,7 +580,10 @@ do.join.simulation.sets <- function(...,
 
     #combined.parameters = unlist(lapply(simset.list, function(simset) {simset$data$parameters}), recursive=F)
     
-    combined.parameters = sapply(simset.list, function(simset){simset$parameters})
+    combined.parameters = unlist(lapply(simset.list, function(simset){simset$parameters}))
+    
+    dim(combined.parameters) = c(parameter = dim(simset.list[[1]]$parameters)[1],
+                                 sim = new.n.sim)
     dimnames(combined.parameters) = list(parameter = dimnames(simset.list[[1]]$parameters)[[1]],
                                          sim = NULL)
     
@@ -582,7 +594,7 @@ do.join.simulation.sets <- function(...,
     
     if (is.null(simulation.chain))
     {
-        simulation.chain = as.integer(sapply(simset.list, function(sim){sim$simulation.chain}))
+        simulation.chain = as.integer(unlist(lapply(simset.list, function(sim){sim$simulation.chain})))
     }
     else
     {
@@ -689,12 +701,23 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
             outcome = jheem.kernel.or.specification$get.outcome.kernel(outcome.name)
         else
             outcome = jheem.kernel.or.specification$get.outcome(outcome.name)
-        if (outcome$save)
+        
+        if (!is.null(sub.version) || outcome$save)
         {
+            sub.version.outcome.details = NULL
+            if (!is.null(sub.version))
+                sub.version.outcome.details = jheem.kernel.or.specification$outcome.sub.version.details[[sub.version]][[outcome.name]]
+            
             if (outcome$is.cumulative && !is.null(metadata$from.year) && !is.null(metadata$to.year))
             {
                 from.year = max(metadata$from.year, outcome$from.year)
                 to.year = min(metadata$to.year, outcome$to.year)
+                
+                if (!is.null(sub.version))
+                {
+                    from.year = max(from.year, sub.version.outcome.details$from.year)
+                    to.year = min(to.year, sub.version.outcome.details$to.year)
+                }
                 
                 if (to.year>=from.year)
                     years.for.ont = as.character(from.year:to.year)
@@ -706,6 +729,12 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
                 from.year = max(metadata$from.year, outcome$from.year)
                 to.year = min(metadata$to.year+1, outcome$to.year)
                 
+                if (!is.null(sub.version))
+                {
+                    from.year = max(from.year, sub.version.outcome.details$from.year)
+                    to.year = min(to.year, sub.version.outcome.details$to.year)
+                }
+                
                 if (to.year>=from.year)
                     years.for.ont = as.character(from.year:to.year)
                 else
@@ -714,11 +743,23 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
             else
                 years.for.ont = NULL
             
-            if (is(jheem.kernel.or.specification, 'jheem.kernel'))
-                base.ont = outcome$ontology
+            if (is.null(sub.version))
+            {
+                if (is(jheem.kernel.or.specification, 'jheem.kernel'))
+                    base.ont = outcome$ontology
+                else
+                    base.ont = specification.metadata$apply.aliases(outcome$ontology, error.prefix=error.prefix)
+            }
             else
-                base.ont = specification.metadata$apply.aliases(outcome$ontology, error.prefix=error.prefix)
+            {
+        tryCatch({
+                base.ont = as.ontology(sub.version.outcome.details$dim.names)
+        }, error = function(e){
+            browser()
+        })
+            }
             
+            base.ont = specification.metadata$apply.aliases(base.ont)
             ont = c(ontology(year=years.for.ont, incomplete.dimensions = 'year'), base.ont)
             metadata$outcome.ontologies[[outcome$name]] = ont
             
@@ -759,6 +800,8 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
     metadata$solver.metadata = solver.metadata        
     metadata$intervention.code = intervention.code
     metadata$calibration.code = calibration.code
+    metadata$sub.version = sub.version
+    metadata$labels = jheem.kernel.or.specification$labels
     
     metadata
 }
@@ -968,6 +1011,31 @@ SIMULATION.METADATA = R6::R6Class(
                 replace.inf.values.with.zero = replace.inf.values.with.zero,
                 error.prefix = error.prefix
             )
+        },
+        
+        get.labels = function(to.label)
+        {
+            if (!is.character(to.label) || any(is.na(to.label)))
+                stop("Cannot get.labels() - 'to.label' must be a character vector with no NA values")
+            
+            labels = private$i.metadata$labels[to.label]
+            
+            unlabeled.mask = is.na(labels)
+            
+            if (any(unlabeled.mask))
+            {
+                labels[unlabeled.mask] = private$str.to.title(to.label[unlabeled.mask])
+            }        
+            
+            names(labels) = to.label
+            labels
+        },
+        
+        update.labels = function()
+        {
+            spec = get.specification.for.version(private$i.version)
+            private$i.metadata$labels = spec$labels
+            invisible(self)
         }
     ),
     
@@ -1064,20 +1132,6 @@ SIMULATION.METADATA = R6::R6Class(
                 private$i.metadata$intervention.code
             else
                 stop("Cannot modify a simulation.set's 'intervention.code' - it is read-only")
-        },
-        
-        label.mapping = function(value)
-        {
-            if (missing(value))
-            {
-                if (is.null(private$i.metadata$label.mapping))
-                    x
-                else
-                    private$i.metadata$label.mapping
-                
-            }
-            else
-                stop("Cannot modify a simulation.set's 'label.mapping' - it is read-only")
         }
     ),
     
@@ -1113,6 +1167,31 @@ SIMULATION.METADATA = R6::R6Class(
                 dimension.values$year = as.character(dimension.values$year)
             
             dimension.values
+        },
+        
+        # Helpers for labels
+        toupper.first = function(str)
+        {
+            str = as.character(str)
+            mask = !is.na(str) & nchar(str)>0
+            str[mask] = paste0(toupper(base::substr(str[mask], 1, 1)),
+                               base::substr(str[mask], 2, nchar(str[mask])))
+            str
+        },
+        
+        str.to.title = function(str)
+        {
+            split.str = base::strsplit(str, "[^a-zA-Z0-9\\-]", fixed=F)
+            str = sapply(split.str, function(one.split){
+                paste0(toupper.first(one.split), collapse=' ')
+            })
+            
+            split.str = base::strsplit(str, "-", fixed=T)
+            str = sapply(split.str, function(one.split){
+                paste0(toupper.first(one.split), collapse='-')
+            })
+            
+            str
         }
     )
     
@@ -1772,6 +1851,12 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             rv
         },
         
+fix.chains = function(n.chains)
+{
+    private$i.data$unique.chains = 1:n.chains
+    private$i.data$simulation.chain = rep(1:n.chains, each = self$n.sim / n.chains)
+},
+        
         subset = function(simulation.indices)
         {
             error.prefix = "Error subsetting jheem.simulation.set: "
@@ -1843,7 +1928,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             else
             {
                 keep.per.chain = rep(floor(keep / self$n.chains), self$n.chains)
-                for (i in 1:self$n.chains)
+                for (i in self$n.chains:1)
                 {
                     if (sum(keep.per.chain)==keep)
                         break;
@@ -1899,9 +1984,39 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (!is.numeric(keep) || length(keep) != 1 || keep > self$n.sim || keep <= 0)
                 stop(paste0(error.prefix, "'keep' must be either a single integer value between 1 and 'n.sim' or a fraction between 0 and 1"))
             
-            if (keep < 1) keep = ceiling(self$n.sim * keep)
+            keep.per.chain = sapply(self$unique.chains, function(chain){
+                n.for.chain = sum(self$simulation.chain == chain)
+                
+                if (keep < 1)
+                    floor(n.for.chain * keep)
+                else
+                    floor(keep / self$n.chains)
+            })
             
-            self$subset((self$n.sim - keep + 1) : self$n.sim) # Keep the LAST part, not the FIRST
+            if (keep < 1)
+                n.keep = ceiling(keep * self$n.sim)
+            else
+                n.keep = keep
+            
+            for (i in self$n.chains:1)
+            {
+                if (sum(keep.per.chain)==n.keep)
+                    break;
+                
+                keep.per.chain[i] = keep.per.chain[i] + 1
+            }
+            
+            # if (keep < 1) keep = ceiling(self$n.sim * keep)
+            
+            # self$subset((self$n.sim - keep + 1) : self$n.sim) # Keep the LAST part, not the FIRST
+            
+            keep.indices.per.chain = sapply(1:self$n.chains, function(chain.index){
+                
+                indices.for.chain = (1:self$n.sim)[ self$simulation.chain == self$unique.chains[chain.index] ]
+                indices.for.chain[ (length(indices.for.chain) - keep.per.chain[chain.index] + 1):length(indices.for.chain)]
+            })
+            
+            self$subset(unlist(keep.indices.per.chain))
         },
         
         first.sim = function()
@@ -2298,10 +2413,13 @@ get.simulation.seed.from.parameters <- function(parameters)
     # (so that even small numbers count towards the integer seed)
     seed = sum((parameters * 10^pmax(0, 1+ceiling(-log10(abs(parameters)))))[parameters!=0], na.rm=T)
     
-    if (seed > .Machine$integer.max)
+    if (seed == Inf)
+        seed = .Machine$integer.max
+    else if (seed == -Inf)
+        seed = -.Machine$integer.max
+    else if (seed > .Machine$integer.max)
         seed = seed %% .Machine$integer.max
-    
-    if (seed < -.Machine$integer.max)
+    else if (seed < -.Machine$integer.max)
         seed = -(-seed %% .Machine$integer.max)
     
     as.integer(seed)

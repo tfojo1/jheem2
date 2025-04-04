@@ -953,9 +953,6 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                                     error.data <- (data * error.data)**2
                                 if (type == "data.sd")
                                     error.data <- error.data**2
-                                
-                                data[is.na(error.data)] <- NA
-                                error.data <- error.data[!is.na(error.data)]
                             }
                             
                             else if (type == "function.sd") {
@@ -966,16 +963,17 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                                     stop(paste0(error.prefix, "user-specified 'error.variance.term' function returned NULL"))
                                 if (!is.array(error.data) || !is.numeric(error.data) || !identical(dimnames(error.data), dimnames(data)))
                                     stop(paste0(error.prefix, "user-specified 'error.variance.term' function did not return a numeric array with the same dimnames as the data"))
-                                ## Adjustment: we can have NAs where the data is also NA.
-                                # browser()
                                 if (any(is.na(error.data[!is.na(data)])))
-                                    stop(paste0(error.prefix, "user-specified 'error.variance.term' function returned at least one NA and must not"))
+                                    stop(paste0(error.prefix, "user-specified 'error.variance.term' function returned at least one NA where the estimate data was not NA"))
                                 
                                 error.data = error.data ** 2
                             }
 
-                            # One vector per error var term, even those that don't involve data
-                            error.data <- as.numeric(error.data) # I think this is because error.data was array previously. NA masks will align perfectly with obs p mask
+                            # One vector per error var term, even those that don't involve data. Life is simplest if we have it be NA wherever data is right now,
+                            # not leaving it to the complicated "remove.mask" to figure that out.
+                            error.data <- as.numeric(error.data) # May have been an array
+                            error.data[is.na(data)] <- NA
+                            error.data <- error.data[!is.na(error.data)]
                             private$i.error.vector.list[[i]] <- c(private$i.error.vector.list[[i]], error.data)
                             
                         }
@@ -1040,12 +1038,6 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
             
             private$i.n.obs <- length(private$i.obs.vector)
 
-            private$i.error.vector.list = lapply(private$i.error.vector.list, function(x) {
-                if (length(x)>0)
-                    x[!unlist(remove.mask.list)]
-                else x
-            })
-            
             if (n.stratifications.with.data == 0) {
                 stop(paste0(error.prefix, "No data found for any stratifications"))
             }

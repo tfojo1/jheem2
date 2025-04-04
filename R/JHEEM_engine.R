@@ -3086,6 +3086,8 @@ JHEEM = R6::R6Class(
         i.final.outcome.denominators = NULL,
         i.final.outcome.numerators = NULL,
         
+        i.outcome.collapse.indices.for.sub.version = NULL,
+        
         #-- Element names/backgrounds --#
         i.element.names = NULL,
         i.element.backgrounds = NULL,
@@ -6184,12 +6186,19 @@ JHEEM = R6::R6Class(
                     val = rep(as.numeric(NA), prod(sapply(outcome.dim.names, length)))
                 else
                 {
+                    if (is.null(private$i.sub.version))
+                        values = private$i.outcome.numerators[[outcome.name]]
+                    else
+                        values = private$process.outcome.for.sub.version(outcome = outcome,
+                                                                         value = private$i.outcome.numerators[[outcome.name]],
+                                                                         check.consistency = check.consistency)
+                    
                     if (is.null(prior.simulation.set) || private$i.for.transmutation)
                     {
                         val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
                                                       char_desired_times = char.times,
                                                       n_per_time = outcome.n,
-                                                      new_values = private$i.outcome.numerators[[outcome.name]],
+                                                      new_values = values,
                                                       new_times = private$i.outcome.value.times.to.calculate[[outcome.name]],
                                                       old_values = numeric(),
                                                       old_times = 'nope',
@@ -6213,7 +6222,7 @@ JHEEM = R6::R6Class(
                         val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
                                                       char_desired_times = char.times,
                                                       n_per_time = outcome.n,
-                                                      new_values = private$i.outcome.numerators[[outcome.name]],
+                                                      new_values = values,
                                                       new_times = private$i.outcome.value.times.to.calculate[[outcome.name]],
                                                       old_values = prior.simulation.set$data$outcome.numerators[[outcome.name]],
                                                       old_times = dimnames(prior.simulation.set$data$outcome.numerators[[outcome.name]])$year,
@@ -6249,12 +6258,19 @@ JHEEM = R6::R6Class(
                         val = outcome.numerators[[outcome.name]] #use the same NA vector that is in the numerator
                     else
                     {
+                        if (is.null(private$i.sub.version))
+                            values = private$i.outcome.denominators[[outcome.name]]
+                        else
+                            values = private$process.outcome.for.sub.version(outcome = outcome,
+                                                                    value = private$i.outcome.denominators[[outcome.name]],
+                                                                    check.consistency = check.consistency)
+                        
                         if (is.null(prior.simulation.set) || private$i.for.transmutation)
                         {
                             val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
                                                           char_desired_times = char.times,
                                                           n_per_time = outcome.n,
-                                                          new_values = private$i.outcome.denominators[[outcome.name]],
+                                                          new_values = values,
                                                           new_times = private$i.outcome.value.times.to.calculate[[outcome.name]],
                                                           old_values = numeric(),
                                                           old_times = character(),
@@ -6265,7 +6281,7 @@ JHEEM = R6::R6Class(
                             val = populate_outcomes_array(desired_times = private$i.outcome.value.times[[outcome.name]],
                                                           char_desired_times = char.times,
                                                           n_per_time = outcome.n,
-                                                          new_values = private$i.outcome.denominators[[outcome.name]],
+                                                          new_values = values,
                                                           new_times = private$i.outcome.value.times.to.calculate[[outcome.name]],
                                                           old_values = prior.simulation.set$data$outcome.denominators[[outcome.name]],
                                                           old_times = dimnames(prior.simulation.set$data$outcome.denominators[[outcome.name]])$year,
@@ -6951,6 +6967,68 @@ JHEEM = R6::R6Class(
                         get.collapse.array.indices(small.arr.dim.names = numerator.dim.names,
                                                    large.arr.dim.names = denominator.outcome.dim.names)
                 }
+            }
+        },
+        
+        process.outcome.for.sub.version = function(outcome, value, check.consistency)
+        {
+            outcome.name = outcome$name
+            
+            if (is.null(private$i.sub.version) || is.null(value) || outcome$is.intrinsic)
+            {
+                value
+            }
+            else
+            {
+                outcome.sub.version.details = private$i.kernel$get.outcome.sub.version.details(outcome.name, self$sub.version)
+                if (outcome.sub.version.details$no.change)
+                    value
+                else
+                {
+                    collapse.indices = private$i.outcome.collapse.indices.for.sub.version[[outcome.name]]
+                    if (is.null(collapse.indices))
+                    {
+                        private$calculate.outcome.collapse.indices.for.sub.version(outcome)
+                        collapse.indices = private$i.outcome.collapse.indices.for.sub.version[[outcome.name]]
+                    }
+                    
+                    if (collapse.indices$no.need.to.collapse)
+                        value
+                    else
+                    {
+                        lapply(value, function(one.val){
+                            
+                            collapse.array.according.to.indices(arr = one.val,
+                                                                small.indices = collapse.indices$small.indices,
+                                                                large.indices = collapse.indices$large.indices,
+                                                                small.n = collapse.indices$small.n,
+                                                                check.consistency = check.consistency)
+                            
+                        })
+                    }
+                }
+            }
+        },
+        
+        calculate.outcome.collapse.indices.for.sub.version = function(outcome, outcome.sub.version.details)
+        {
+            outcome.name = outcome$name
+            
+            if (is.null(outcome.sub.version.details$ontology.mapping))
+            {
+                private$i.outcome.collapse.indices.for.sub.version[[outcome.name]] =
+                    get.collapse.array.indices.with.intermediate(large.arr.dim.names = private$i.kernel$specification.metadata$apply.aliases(outcome$dim.names),
+                                                                 intermediate.arr.dim.names = private$i.kernel$specification.metadata$apply.aliases(outcome.sub.version.details$subsetted.outcome.dim.names),
+                                                                 small.arr.dim.names = private$i.kernel$specification.metadata$apply.aliases(outcome.sub.version.details$dim.names))
+            }
+            else
+            {
+                private$i.outcome.collapse.indices.for.sub.version[[outcome.name]] =
+                    get.collapse.array.indices.with.intermediate.and.ontology.mapping(large.arr.dim.names = private$i.kernel$specification.metadata$apply.aliases(outcome$dim.names),
+                                                                                      intermediate.arr.dim.names = private$i.kernel$specification.metadata$apply.aliases(outcome.sub.version.details$subsetted.outcome.dim.names),
+                                                                                      small.arr.dim.names = private$i.kernel$specification.metadata$apply.aliases(outcome.sub.version.details$dim.names),
+                                                                                      ontology.mapping = outcome.sub.version.details$ontology.mapping)
+                
             }
         },
         

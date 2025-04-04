@@ -61,29 +61,29 @@ copy.run.metadata <- function(metadata.to.copy,
 
 join.run.metadata <- function(metadata.to.join)
 {
-    n.sim = sum(sapply(metadata.to.join, function(run.metadata){
+    n.sim = sum(unlist(lapply(metadata.to.join, function(run.metadata){
         run.metadata$n.sim
+    })))
+    
+    run.time = unlist(lapply(metadata.to.join, function(run.metadata){
+        run.metadata$run.time
     }))
     
-    run.time = sapply(metadata.to.join, function(run.metadata){
-        run.metadata$run.time
-    })
-    
-    preprocessing.time = sapply(metadata.to.join, function(run.metadata){
+    preprocessing.time = unlist(lapply(metadata.to.join, function(run.metadata){
         run.metadata$preprocessing.time
-    })
+    }))
     
-    diffeq.time = sapply(metadata.to.join, function(run.metadata){
+    diffeq.time = unlist(lapply(metadata.to.join, function(run.metadata){
         run.metadata$diffeq.time
-    })
+    }))
     
-    postprocessing.time = sapply(metadata.to.join, function(run.metadata){
+    postprocessing.time = unlist(lapply(metadata.to.join, function(run.metadata){
         run.metadata$postprocessing.time
-    })
+    }))
     
-    n.trials = sapply(metadata.to.join, function(run.metadata){
+    n.trials = unlist(lapply(metadata.to.join, function(run.metadata){
         run.metadata$n.trials
-    })
+    }))
     
     dim.names = list(run = metadata.to.join[[1]]$run.labels,
                      sim = 1:n.sim)

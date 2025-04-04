@@ -1087,9 +1087,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                                     p.error.data <- (data * p.error.data)**2
                                 if (type == "data.sd")
                                     p.error.data <- p.error.data**2
-                                
-                                data[is.na(p.error.data)] <- NA
-                                p.error.data <- p.error.data[!is.na(p.error.data)]
                             }
                             
                             else if (type == "function.sd") {
@@ -1101,13 +1098,16 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                                 if (!is.array(p.error.data) || !is.numeric(p.error.data) || !identical(dimnames(p.error.data), dimnames(data)))
                                     stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function did not return a numeric array with the same dimnames as the data"))
                                 if (any(is.na(p.error.data)[!is.na(data)]))
-                                    stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function returned at least one NA and must not"))
+                                    stop(paste0(error.prefix, "user-specified 'p.error.variance.term' function returned at least one NA where the estimate data was not NA"))
                                 
                                 p.error.data = p.error.data**2
                             }
                             
-                            # One vector per error var term, even those that don't involve data
-                            p.error.data <- as.numeric(p.error.data) # I think this is because p.error.data was array previously. NA masks will align perfectly with obs p mask
+                            # One vector per error var term, even those that don't involve data. Life is simplest if we have it be NA wherever data is right now,
+                            # not leaving it to the complicated "remove.mask" to figure that out.
+                            p.error.data <- as.numeric(p.error.data) # May have been array
+                            p.error.data[is.na(data)] <- NA
+                            p.error.data <- p.error.data[!is.na(p.error.data)]
                             private$i.p.error.vector.list[[i]] <- c(private$i.p.error.vector.list[[i]], p.error.data)
                         }
                     }
@@ -1204,12 +1204,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 # browser()
                 private$i.n.obs <- length(private$i.obs.p)
                 if (private$i.n.obs == 0) stop(paste0(error.prefix, "no data was found for any stratification"))
-                
-                private$i.p.error.vector.list = lapply(private$i.p.error.vector.list, function(x) {
-                    if (length(x)>0)
-                        x[!unlist(remove.mask.list)]
-                    else x
-                })
 
                 if (post.time.checkpoint.flag) print(paste0("Finish pulling: ", Sys.time()))
                 

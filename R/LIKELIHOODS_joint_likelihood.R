@@ -199,6 +199,15 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
             browser()
         }
     ),
+    active = list(
+        sub.likelihoods = function(value) {
+            if (missing(value)) {
+                private$i.sub.likelihoods
+            } else {
+                stop("Cannot modify a jheem.likelihood.instruction's 'sub.likelihoods' - they are read-only")
+            }
+        }
+    ),
     private = list(
         i.sub.likelihoods = NULL,
         do.compute = function(sim, log, use.optimized.get, check.consistency, debug) {

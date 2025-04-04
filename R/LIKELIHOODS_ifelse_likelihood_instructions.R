@@ -66,6 +66,14 @@ do.ifelse.instantiate.likelihood <- function(instructions,
                                              verbose,
                                              error.prefix) {
     FUN = instructions$get.FUN()
+    
+    # *error.prefix* is a single non-NA, non-empty character vector
+    if (!is.character(error.prefix) || length(error.prefix) > 1 || is.na(error.prefix)) {
+        stop(paste0(error.prefix, "'error.prefix' must be a single non-NA, non-empty character vector"))
+    }
+    
+    # Forcibly append the outcome name to the error message, because joints have to declare a different one earlier
+    error.prefix <- paste0(error.prefix, "Error initializing likelihood for '", instructions$name, "': ")
 
     resulting.likelihood = FUN(sub.instructions = instructions$sub.instructions,
                                version = version,

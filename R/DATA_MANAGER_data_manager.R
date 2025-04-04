@@ -1922,20 +1922,31 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 }
                                 
                                 denominator.array = NULL
-                                for (denominator.source in denominator.sources) {
-                                    # Note: this might not return all of our desired incomplete dimension values
-                                    denominator.array = self$pull(outcome = denominator.outcome,
-                                                                  metric = 'estimate',
-                                                                  keep.dimensions = strat.dimensions,
-                                                                  dimension.values = denom.dim.vals,
-                                                                  sources = denominator.source,
-                                                                  target.ontology = strat.dimnames,
-                                                                  allow.mapping.from.target.ontology = F,
-                                                                  from.ontology.names = NULL, # I suppose we have no choice since the same source could use different ontologies for its denominator
-                                                                  na.rm = na.rm,
-                                                                  check.arguments = F)
-                                    if (!is.null(denominator.array)) break
-                                }
+                                # for (denominator.source in denominator.sources) {
+                                #     # Note: this might not return all of our desired incomplete dimension values
+                                #     denominator.array = self$pull(outcome = denominator.outcome,
+                                #                                   metric = 'estimate',
+                                #                                   keep.dimensions = strat.dimensions,
+                                #                                   dimension.values = denom.dim.vals,
+                                #                                   sources = denominator.source,
+                                #                                   target.ontology = strat.dimnames,
+                                #                                   allow.mapping.from.target.ontology = F,
+                                #                                   from.ontology.names = NULL, # I suppose we have no choice since the same source could use different ontologies for its denominator
+                                #                                   na.rm = na.rm,
+                                #                                   check.arguments = F)
+                                #     if (!is.null(denominator.array)) break
+                                # }
+                                
+                                denominator.array = self$pull(outcome = denominator.outcome,
+                                                              metric = 'estimate',
+                                                              keep.dimensions = strat.dimensions,
+                                                              dimension.values = denom.dim.vals,
+                                                              sources = denominator.sources,
+                                                              target.ontology = strat.dimnames,
+                                                              allow.mapping.from.target.ontology = F,
+                                                              from.ontology.names = NULL, # I suppose we have no choice since the same source could use different ontologies for its denominator
+                                                              na.rm = na.rm,
+                                                              check.arguments = F)
                                 
                                 if (is.null(denominator.array)) {
                                     source.lacks.denominator.data.flag <<- TRUE
