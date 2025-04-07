@@ -10,7 +10,6 @@ track.cumulative.proportion.from.rate(
   outcome.metadata,
   rate.value,
   denominator.outcome,
-  sub.versions = NULL,
   corresponding.data.outcome = NULL,
   calculate.proportion.leaving = T,
   keep.dimensions = NULL,
@@ -35,8 +34,6 @@ track.cumulative.proportion.from.rate(
 \item{rate.value}{The rate to be integrated. Either (1) a single character value referencing a separately-registered "point" (non-cumulative) outcome or a quantity, or (2) an expression that includes only the names of point outcomes and model quantities and operators +, -, *, /, ^, sqrt, log, and exp}
 
 \item{denominator.outcome}{A denominator for aggregating the outcome or calculating proportions. Required if the scale of this outcome is not 'number' or 'non.negative.number', otherwise optional. Must be the name of a separately registered cumulative outcome that has type 'non.negative.number'}
-
-\item{sub.versions}{The sub-versions of the model for which this outcome will be recorded. If NULL, the outcome will be recorded for all sub-versions}
 
 \item{corresponding.data.outcome}{The (optional) name of a real-world outcome (with observations registered to a data.manager) to which this model outcome corresponds}
 

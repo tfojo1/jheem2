@@ -15,7 +15,6 @@ track.transition(
   include.tags = NULL,
   exclude.tags = NULL,
   groups = NULL,
-  sub.versions = NULL,
   multiply.by = NULL,
   corresponding.data.outcome = NULL,
   keep.dimensions = NULL,
@@ -48,8 +47,6 @@ track.transition(
 \item{exclude.tags}{Tags to exclude from tracking.}
 
 \item{groups}{The groups to track for ('infected' or 'uninfected'). Choosing NULL (the default value) tracks for all groups for which the outcome could apply}
-
-\item{sub.versions}{The sub-versions of the model for which this outcome will be recorded. If NULL, the outcome will be recorded for all sub-versions}
 
 \item{multiply.by}{An optional quantity to multiply the outcome value by at each time step before storing. Can be either (1) a numeric value, (2) a single character value referencing a model quantity or element, or (3) an expression that includes only the names of model quantities and elements and operators +, -, *, /, ^, sqrt, log, and exp}
 

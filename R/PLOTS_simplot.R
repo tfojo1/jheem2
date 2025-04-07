@@ -517,7 +517,7 @@ prepare.plot <- function(simset.list=NULL,
                 df.sim = rbind(df.sim, one.df.sim.this.outcome)
             }
         }
-
+        
         # Pivot wider to convert column "metric" to columns "value.mean", "value.lower", "value.upper" or such
         if (summary.type != 'individual.simulation') {
             df.sim = reshape(df.sim, direction='wide', idvar=names(df.sim)[!(names(df.sim) %in% c('metric', 'value'))], timevar='metric')
@@ -742,7 +742,7 @@ execute.simplot <- function(prepared.plot.data,
     if (!is.null(df.sim)) {
         color.ribbon.by = ggplot2::alpha(colors.for.sim, style.manager$alpha.ribbon)
     }
-
+    
     ## SHADES FOR DATA
     color.data.shaded.colors = NULL
     if (!is.null(df.truth)) {
@@ -803,7 +803,7 @@ execute.simplot <- function(prepared.plot.data,
     # SIM ELEMENTS
     if (!is.null(df.sim)) {
         # Note: the key to avoiding warning messages about scale is to only add a scale if it is used by the data frames that are actually plotted.
-
+        
         # PLOT
         if (!is.null(split.by)) {
             rv = rv + ggplot2::scale_color_manual(name = "sim color", values = colors.for.sim)
@@ -818,9 +818,9 @@ execute.simplot <- function(prepared.plot.data,
             if (nrow(df.sim.groupids.one.member)>0) {
                 rv = rv +
                     ggplot2::geom_point(data=df.sim.groupids.one.member, ggplot2::aes(x=year, y=value,
-                                                                                              size = size,
-                                                                                              fill = color.sim.by,
-                                                                                              shape = shape.sim.by), show.legend = F) +
+                                                                                      size = size,
+                                                                                      fill = color.sim.by,
+                                                                                      shape = shape.sim.by), show.legend = F) +
                     
                     ggplot2::scale_size_manual(values=c(size=2))
                 
@@ -889,7 +889,7 @@ execute.simplot <- function(prepared.plot.data,
         if (!is.null(df.sim.groupids.one.member) && nrow(df.sim.groupids.one.member)>0)
             rv = rv + ggnewscale::new_scale('shape')
         rv = rv + ggnewscale::new_scale_fill() + ggplot2::scale_fill_manual(values = color.data.shaded.colors) # We're changing the scale because the data fills differently
-
+        
         rv = rv + ggplot2::guides(fill = ggplot2::guide_legend("data color", override.aes = list(shape = 21)))
         
         # PLOT
@@ -910,7 +910,7 @@ execute.simplot <- function(prepared.plot.data,
             rv = rv + ggplot2::scale_shape_manual(name = "data shape", values = all.shapes.for.scale)
     }
     
-#----
+    #----
     # If don't have a split.by, and thus only 1 color for sim, probably, then remove legend for it.
     if (style.manager$color.sim.by == 'stratum' && is.null(split.by))
         rv = rv + ggplot2::guides(color = "none")

@@ -20,6 +20,7 @@ prepare.plot(
     "median.and.interval")[1],
   plot.year.lag.ratio = F,
   title = "location",
+  append.url = F,
   data.manager = get.default.data.manager(),
   style.manager = get.default.style.manager(),
   debug = F
@@ -29,6 +30,8 @@ prepare.plot(
 \item{simset.list}{A list of jheem.simulation.set objects}
 
 \item{outcomes}{A character vector of which simulation outcomes to plot}
+
+\item{corresponding.data.outcomes}{Specify directly which data outcomes should be plotted against simulation outcomes. Must be NULL or a character vector with outcomes as names; all of those outcomes must be present in either the 'outcomes' argument or in '...'"}
 
 \item{split.by}{At most one dimension}
 
