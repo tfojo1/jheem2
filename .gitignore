@@ -6,3 +6,6 @@
 local_testing
 jheem2.Rproj
 *.Rproj
+
+debug/
+debug_sim/
