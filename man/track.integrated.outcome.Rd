@@ -12,7 +12,6 @@ track.integrated.outcome(
   value.is.numerator = F,
   multiply.by = NULL,
   denominator.outcome = NULL,
-  sub.versions = NULL,
   corresponding.data.outcome = NULL,
   keep.dimensions = NULL,
   exclude.dimensions = NULL,
@@ -41,8 +40,6 @@ track.integrated.outcome(
 \item{multiply.by}{An optional quantity to multiply the outcome value by at each time step before storing. Can be either (1) a numeric value, (2) a single character value referencing a model quantity or element, or (3) an expression that includes only the names of model quantities and elements and operators +, -, *, /, ^, sqrt, log, and exp}
 
 \item{denominator.outcome}{Optional: A denominator for calculating proportions. Must be the name of a separately registered cumulative outcome that has type 'non.negative.number'}
-
-\item{sub.versions}{The sub-versions of the model for which this outcome will be recorded. If NULL, the outcome will be recorded for all sub-versions}
 
 \item{corresponding.data.outcome}{The (optional) name of a real-world outcome (with observations registered to a data.manager) to which this model outcome corresponds}
 

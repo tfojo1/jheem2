@@ -4,10 +4,21 @@
 \alias{rerun.simulations}
 \title{Rerun a Simulation Set}
 \usage{
-rerun.simulations(simset, max.run.time.seconds = Inf, verbose = T)
+rerun.simulations(
+  simset,
+  max.run.time.seconds = Inf,
+  sub.version = simset$sub.version,
+  from.year = simset$from.year,
+  to.year = simset$to.year,
+  verbose = T
+)
 }
 \arguments{
 \item{simset}{The JHEEM simulation set to re-run}
+
+\item{sub.version}{The sub-version to run}
+
+\item{from.year, to.year}{The years to keep in the simulation object}
 
 \item{verbose}{Whether to print updates as simulations are run}
 }

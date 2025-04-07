@@ -14,6 +14,7 @@ simplot.data.only(
   plot.year.lag.ratio = F,
   title = "location",
   n.facet.rows = NULL,
+  append.url = F,
   data.manager = get.default.data.manager(),
   style.manager = get.default.style.manager(),
   debug = F
