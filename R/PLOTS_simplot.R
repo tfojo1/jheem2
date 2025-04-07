@@ -1,5 +1,6 @@
 
 #'@param ... One or more jheem.simulation.set objects and at most one character vector of outcomes (as an alternative to the 'outcomes' argument)
+#'@param corresponding.data.outcomes Specify directly which data outcomes should be plotted against simulation outcomes. Must be NULL or a character vector with outcomes as names; all of those outcomes must be present in either the 'outcomes' argument or in '...'"
 #'@param outcomes A character vector of which simulation outcomes to plot
 #'@param split.by At most one dimension
 #'@param facet.by Any number of dimensions but cannot include the split.by dimension
@@ -348,6 +349,14 @@ prepare.plot <- function(simset.list=NULL,
         names(outcome.locations) = outcomes.for.data
     }
     
+    # Get sim labels (like "MSM/PWID" instead of "msm_idu")
+    if (plot.which!="data.only") {
+        sim.labels.list = lapply(simset.list, function(simset) {
+            simset$metadata$labels
+        })
+    } else 
+        sim.labels.list = NULL
+    
     
     #-- MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA ----
     
@@ -640,7 +649,8 @@ prepare.plot <- function(simset.list=NULL,
                 details=list(y.label=y.label,
                              plot.title=plot.title,
                              outcome.metadata.list = outcome.metadata.list,
-                             source.metadata.list = source.metadata.list)))
+                             source.metadata.list = source.metadata.list,
+                             sim.labels.list = sim.labels.list)))
 }
 
 #' Execute Simplot
