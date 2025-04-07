@@ -27,6 +27,7 @@ simplot <- function(...,
                     plot.year.lag.ratio = F,
                     title = "location",
                     n.facet.rows = NULL,
+                    append.url = NULL,
                     data.manager = get.default.data.manager(),
                     style.manager = get.default.style.manager(),
                     debug = F)
@@ -55,6 +56,7 @@ simplot <- function(...,
                                       summary.type=summary.type,
                                       plot.year.lag.ratio=plot.year.lag.ratio,
                                       title=title,
+                                      append.url=append.url,
                                       data.manager=data.manager,
                                       style.manager=style.manager,
                                       debug=debug)
@@ -167,6 +169,7 @@ simplot.data.only <- function(outcomes,
                               plot.year.lag.ratio = F,
                               title = "location",
                               n.facet.rows = NULL,
+                              append.url = F,
                               data.manager = get.default.data.manager(),
                               style.manager = get.default.style.manager(),
                               debug = F) {
@@ -187,6 +190,7 @@ simplot.data.only <- function(outcomes,
                                       summary.type=summary.type,
                                       plot.year.lag.ratio=plot.year.lag.ratio,
                                       title=title,
+                                      append.url=append.url,
                                       data.manager=data.manager,
                                       style.manager=style.manager,
                                       debug=debug)
@@ -226,6 +230,7 @@ prepare.plot <- function(simset.list=NULL,
                          summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                          plot.year.lag.ratio = F,
                          title="location",
+                         append.url=F,
                          data.manager = get.default.data.manager(),
                          style.manager=get.default.style.manager(),
                          debug = F)
@@ -259,7 +264,7 @@ prepare.plot <- function(simset.list=NULL,
         !(is.list(target.ontology) && all(sapply(target.ontology, function(x) {is.ontology((x))})) && !is.null(names(target.ontology))))
         stop(paste0(error.prefix, "'target.ontology' must be NULL, an ontology, or a list of ontologies with outcomes as names"))
     
-    # Must supply a target ontology is using simplot.data.only, because otherwise multiple outcomes won't be alignable...?
+    # Must supply a target ontology if using simplot.data.only, because otherwise multiple outcomes won't be alignable...?
     
     if (!identical(plot.year.lag.ratio, T) && !identical(plot.year.lag.ratio, F))
         stop(paste0(error.prefix, "'plot.year.lag.ratio' must be either T or F"))
@@ -270,6 +275,9 @@ prepare.plot <- function(simset.list=NULL,
     
     if (!is.null(title) && (!is.character(title) || length(title)!=1 || is.na(title)))
         stop(paste0(error.prefix, "'title' must be NULL or a single, non-NA character value"))
+    
+    if (!identical(append.url, T) && !identical(append.url, F))
+        stop(paste0(error.prefix, "'append.url' must be either T or F"))
     
     # Get the real-world outcome names
     # - eventually we're going to want to pull this from info about the likelihood if the sim notes which likelihood was used on it
@@ -345,7 +353,8 @@ prepare.plot <- function(simset.list=NULL,
     
     outcome.mappings = list() # note: not all outcomes will have corresponding data outcomes
     source.metadata.list <- list()
-
+    if (append.url) append.attributes='url' else append.attributes=NULL
+    
     df.truth = NULL
     for (i in seq_along(outcomes.for.data))
     {
@@ -360,6 +369,7 @@ prepare.plot <- function(simset.list=NULL,
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = target.ontology,
                                                    allow.mapping.from.target.ontology = F,
+                                                   append.attributes=append.attributes,
                                                    na.rm=T,
                                                    debug=F)
                     else if (is.list(target.ontology) && outcomes.for.data[[i]] %in% names(target.ontology))
@@ -368,6 +378,7 @@ prepare.plot <- function(simset.list=NULL,
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = target.ontology[[outcomes.for.data[[i]]]],
                                                    allow.mapping.from.target.ontology = F,
+                                                   append.attributes=append.attributes,
                                                    na.rm=T,
                                                    debug=F)
                     else if (plot.which=='sim.and.data')
@@ -376,6 +387,7 @@ prepare.plot <- function(simset.list=NULL,
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = outcome.ontologies[[i]],
                                                    allow.mapping.from.target.ontology = T,
+                                                   append.attributes=append.attributes,
                                                    na.rm=T,
                                                    debug=F)
                     else # See if we really want this or not
@@ -383,6 +395,7 @@ prepare.plot <- function(simset.list=NULL,
                                                    dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = NULL,
+                                                   append.attributes=append.attributes,
                                                    na.rm=T,
                                                    debug=F)
                     
@@ -398,12 +411,16 @@ prepare.plot <- function(simset.list=NULL,
             if (!is.null(outcome.data)) {
                 
                 # If the scale is proportion, multiply data by 100 to match the "%" symbol the label will have
-                # browser()
                 if (data.manager$outcome.info[[outcomes.for.data[[i]]]]$metadata$display.as.percent)
                     outcome.data = outcome.data * 100
                 
                 # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
                 one.df.outcome = reshape2::melt(outcome.data, na.rm = T, as.is=T)
+                
+                if (append.url) {
+                    one.df.outcome = cbind(one.df.outcome, reshape2::melt(attr(outcome.data, 'url'), na.rm=T, as.is=T))
+                    colnames(one.df.outcome)[ncol(one.df.outcome)] = 'url'
+                }
                 
                 # Check that we don't have year ranges if we are trying to do the year lag ratio thing
                 if (!any(sapply(one.df.outcome$year, is.year.range)))
