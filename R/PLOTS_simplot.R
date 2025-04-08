@@ -28,7 +28,7 @@ simplot <- function(...,
                     plot.year.lag.ratio = F,
                     title = "location",
                     n.facet.rows = NULL,
-                    append.url = NULL,
+                    append.url = F,
                     data.manager = get.default.data.manager(),
                     style.manager = get.default.style.manager(),
                     debug = F)

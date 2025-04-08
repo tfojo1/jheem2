@@ -1056,6 +1056,14 @@ SIMULATION.METADATA = R6::R6Class(
                 stop("Cannot modify a simulation.metadata's 'outcomes' - they are read-only")
         },
         
+        non.intrinsic.outcomes = function(value)
+        {
+            if (missing(value))
+                names(private$i.metadata$outcome.metadata[sapply(private$i.metadata$outcome.metadata, function(meta){!meta$is.intrinsic})])
+            else
+                stop("Cannot modify a simulation.metadata's 'outcomes' - they are read-only")
+        },
+        
         outcome.ontologies = function(value)
         {
             if (missing(value))
@@ -1851,10 +1859,21 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             rv
         },
         
-fix.chains = function(n.chains)
+fix.chains = function()
 {
-    private$i.data$unique.chains = 1:n.chains
-    private$i.data$simulation.chain = rep(1:n.chains, each = self$n.sim / n.chains)
+    calibrated.param.names = get.parameter.names.for.version(self$version, type = 'calibrated')
+    
+    eq.prior = c(0, apply(self$parameters[calibrated.param.names,-1,drop=F] == self$parameters[calibrated.param.names,-self$n.sim,drop=F], 2, mean))
+    
+    chain.counter = 0
+    private$i.data$simulation.chain = sapply(eq.prior, function(val){
+        if (val==0)
+            chain.counter <<- chain.counter + 1
+        
+        chain.counter
+    })
+    
+    private$i.data$unique.chains = 1:chain.counter
 },
         
         subset = function(simulation.indices)
@@ -2146,7 +2165,7 @@ fix.chains = function(n.chains)
                 # Check against the prior intervention
                 if (!is.null(self$intervention.code))
                 {
-                    prior.intervention = get.intervention.from.code.from.code(self$intervention.code, throw.error.if.missing = F)
+                    prior.intervention = get.intervention.from.code(self$intervention.code, throw.error.if.missing = F)
                     if (is.null(prior.intervention))
                     {
                         stop(paste0("Cannot get the engine for the simulation set. The simulation ran with intervention.code '", self$intervention.code, 
