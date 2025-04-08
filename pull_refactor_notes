@@ -1,9 +1,21 @@
 STATUS of refactor:
 
+4/8/2025
+
+Today I'll do what is below. Todd has Told me that I could make these helpers private methods of the data manager class but then create a
+subclass of data managers that just provide public wrappers to those methods for my testing purposes. I'll consider doing that later.
+
+Okay, pulling a fraction with aggregation works now.
+
+Pulling a fraction with aggregation even works with mapping!
+
+Now I test metrics.
+
+Next, to integrate it back into the more modernized code for testing, I should make a new branch off dev, then merge pull_refactor INTO it.
+
 4/4/2025
 
 Today's task is a no mapping-needed fraction pull. I want one that uses population just because I already cleared that one.
-
 
 4/3/2025
 
