@@ -3034,14 +3034,14 @@ JHEEM.SPECIFICATION = R6::R6Class(
             if (can.seed.new.engine)
             {
                 private$i.intrinsic.sub.version.outcomes.locked = F
-                self$track.sub.version.outcomes(sub.versions = sub.versions,
+                self$track.sub.version.outcomes(sub.versions = sub.version,
                                                 outcome.names = 'infected',
                                                 keep.dimensions = NULL,
                                                 exclude.dimensions = NULL,
                                                 subset.dimension.values = NULL,
                                                 ontology.mapping = NULL)
                 
-                self$track.sub.version.outcomes(sub.versions = sub.versions,
+                self$track.sub.version.outcomes(sub.versions = sub.version,
                                                 outcome.names = 'uninfected',
                                                 keep.dimensions = NULL,
                                                 exclude.dimensions = NULL,
