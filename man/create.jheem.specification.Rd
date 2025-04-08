@@ -8,7 +8,6 @@ create.jheem.specification(
   version,
   iteration,
   description,
-  sub.versions = character(),
   start.year,
   parent.version = NULL,
   do.not.inherit.model.quantity.names = character(),
@@ -29,8 +28,6 @@ create.jheem.specification(
 \item{iteration}{A single character or numeric value denoting the iteration of the model specification for this version}
 
 \item{description}{A short text description of this version}
-
-\item{sub.versions}{A character vector indicating the names of 'sub-versions' of the model. A sub-version has the same structure but records a different set of outcomes}
 
 \item{start.year}{The numeric year at which simulations should start. If NULL inherits the parent specification's start year}
 
