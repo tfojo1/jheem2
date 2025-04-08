@@ -539,7 +539,7 @@ JHEEM.INTERVENTION = R6::R6Class(
                 if (is.null(start.year))
                     stop(paste0("Cannot figure out start.year - some intervention effect foregrounds have not been resolved"))
                 
-                if (start.year == Inf)
+                if (start.year == -Inf)
                     start.year = min(end.year-1, simset$to.year)
             }
             
