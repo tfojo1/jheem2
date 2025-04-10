@@ -9,6 +9,7 @@
 #'@param title NULL or a single, non-NA character value. If "location", the location of the first provided simset (if any) will be used for the title.
 #'@param data.manager The data.manager from which to draw real-world data for the plots
 #'@param style.manager We are going to have to define this down the road. It's going to govern how we do lines and sizes and colors. For now, just hard code those in, and we'll circle back to it
+#'@param show.data.pull.error Not finding data does not block the plot from showing simulation projections, but if you'd like to see in error when data doesn't appear, set this to TRUE.
 #'
 #'@details Returns a ggplot object:
 #'  - With one panel for each combination of outcome x facet.by
@@ -31,6 +32,7 @@ simplot <- function(...,
                     append.url = F,
                     data.manager = get.default.data.manager(),
                     style.manager = get.default.style.manager(),
+                    show.data.pull.error = F,
                     debug = F)
 {
     plot.data = plot.data.validation(list(...),
@@ -60,6 +62,7 @@ simplot <- function(...,
                                       append.url=append.url,
                                       data.manager=data.manager,
                                       style.manager=style.manager,
+                                      show.data.pull.error=show.data.pull.error,
                                       debug=debug)
     
     execute.simplot(prepared.plot.data,
@@ -173,6 +176,7 @@ simplot.data.only <- function(outcomes,
                               append.url = F,
                               data.manager = get.default.data.manager(),
                               style.manager = get.default.style.manager(),
+                              show.data.pull.error=F,
                               debug = F) {
     
     error.prefix = "Cannot generate simplot: "
@@ -194,6 +198,7 @@ simplot.data.only <- function(outcomes,
                                       append.url=append.url,
                                       data.manager=data.manager,
                                       style.manager=style.manager,
+                                      show.data.pull.error=show.data.pull.error,
                                       debug=debug)
     execute.simplot(prepared.plot.data,
                     outcomes=outcomes,
@@ -234,6 +239,7 @@ prepare.plot <- function(simset.list=NULL,
                          append.url=F,
                          data.manager = get.default.data.manager(),
                          style.manager=get.default.style.manager(),
+                         show.data.pull.error=F,
                          debug = F)
 {
     #-- VALIDATION ----
@@ -279,6 +285,9 @@ prepare.plot <- function(simset.list=NULL,
     
     if (!identical(append.url, T) && !identical(append.url, F))
         stop(paste0(error.prefix, "'append.url' must be either T or F"))
+    
+    if (!identical(show.data.pull.error, T) && !identical(show.data.pull.error, F))
+        stop(paste0(error.prefix, "'show.data.pull.error' must be either T or F"))
     
     # Get the real-world outcome names
     # - eventually we're going to want to pull this from info about the likelihood if the sim notes which likelihood was used on it
@@ -410,7 +419,8 @@ prepare.plot <- function(simset.list=NULL,
                     
                 },
                 error = function(e) {
-                    NULL
+                    if (show.data.pull.error) stop(paste0(error.prefix, e))
+                    else NULL
                 }
             )
             if (!is.null(attr(outcome.data, 'mapping')))

@@ -23,6 +23,7 @@ prepare.plot(
   append.url = F,
   data.manager = get.default.data.manager(),
   style.manager = get.default.style.manager(),
+  show.data.pull.error = F,
   debug = F
 )
 }
@@ -44,6 +45,8 @@ prepare.plot(
 \item{data.manager}{The data.manager from which to draw real-world data for the plots}
 
 \item{style.manager}{We are going to have to define this down the road. It's going to govern how we do lines and sizes and colors. For now, just hard code those in, and we'll circle back to it}
+
+\item{show.data.pull.error}{Not finding data does not block the plot from showing simulation projections, but if you'd like to see in error when data doesn't appear, set this to TRUE.}
 }
 \description{
 Prepare Plot Data
