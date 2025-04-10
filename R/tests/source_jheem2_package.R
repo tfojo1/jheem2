@@ -19,6 +19,7 @@ source('../jheem2/R/HELPERS_dim_names_helpers.R')
 source('../jheem2/R/HELPERS_array_helpers.R')
 source('../jheem2/R/HELPERS_age_year_helpers.R')
 source('../jheem2/R/HELPERS_bundle_function.R')
+source('../jheem2/R/HELPERS_pull.R')
 Rcpp::sourceCpp('../jheem2/src/array_helpers.cpp')
 
 source('../jheem2/R/ONTOLOGY_ontology.R')

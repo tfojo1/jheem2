@@ -1627,6 +1627,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 keep.dimensions = character(0)
             
             outcome.info = private$i.outcome.info[[outcome]]
+            scale = outcome.info$metadata$scale
             
             if (check.arguments) {
                 
@@ -1759,7 +1760,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             }
             
             # Reduce target to needed dimensions and find a mapping
-            if (!is.null(keep.dimensions)) target.ontology = target.ontology[names(target.ontology) %in% union(keep.dimensions, names(dimension.values))]
+            if (!is.null(keep.dimensions))
+                target.ontology = target.ontology[names(target.ontology) %in% union(keep.dimensions, names(dimension.values))]
             if (return.mapping.flag) target.to.universal.mapping = get.ontology.mapping(target.from.arguments, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
             
             # If sources is NULL, use all the sources from the outcome
@@ -1777,8 +1779,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     ontologies.used.names = intersect(source.ontology.names, from.ontology.names)
                 ontologies.used.names = setdiff(ontologies.used.names, exclude.ontology.names)
                 pulled.source.data = NULL
-                source.lacks.denominator.data.flag = FALSE
-                source.lacks.estimate.data.flag = FALSE
                 
                 for (ont.name in ontologies.used.names) {
                     pulled.ont.data = NULL
@@ -1793,13 +1793,10 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         if (all(is.na(strat.data))) next
                         
                         mapping.to.apply = get.ontology.mapping(strat.dimnames, target.ontology, allow.non.overlapping.incomplete.dimensions = T)
-                        if (is.null(mapping.to.apply)) {
-                            next
-                        }
+                        if (is.null(mapping.to.apply)) next
+                        
                         dimnames.for.apply = mapping.to.apply$apply.to.dim.names(strat.dimnames)
-                        if (!setequal(names(dimnames.for.apply), union(keep.dimensions, dv.names))) {
-                            next
-                        }
+                        if (!setequal(names(dimnames.for.apply), union(keep.dimensions, dv.names))) next
                         
                         # Check that the mapped stratification won't aggregate illegally due to missing some values in an incomplete dimension that will be aggregated (since it is in dimension.values but not keep.dimensions)
                         missing.dimension.values.for.aggregated.dimension = F
@@ -1812,9 +1809,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 }
                             }
                         }
-                        if (missing.dimension.values.for.aggregated.dimension) {
-                            next
-                        }
+                        if (missing.dimension.values.for.aggregated.dimension) next
                         
                         # Insert dimension.values
                         
@@ -1833,238 +1828,29 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         if (dimension.has.no.intersection) {
                             next
                         }
-                        # Apply mapping
-                        # if (debug) browser()
-                        incompatible.mapped.stratification = F
+                        
                         data.types = union('data', append.attributes)
-                        pulled.ont.data = lapply(data.types, function(data.type) {
-                            if (incompatible.mapped.stratification) return (NULL)
-                            if (!mapping.to.apply$can.apply.to.dim.names(from.dim.names = strat.dimnames,
-                                                                         to.dim.names = dimnames.for.apply,
-                                                                         throw.errors = F)) {
-                                incompatible.mapped.stratification <<- TRUE
-                                return (NULL)
-                            }
-                            if (data.type == 'data') {
-                                data.to.process = strat.data
-                                function.to.apply = "sum" # function(x) {sum(x, na.rm=na.rm)}
-                                if (metric == 'coefficient.of.variance') {
-                                    # cv = sd / mean, so sd = cv * mean. Need to convert back at the end.
-                                    # Get estimate directly (no need to pull since same ontology) and multiply what we have by it. May lose dimension values...
-                                    # decided against getting the estimate directly since we might not have it for this source but still want to try
-                                    # estimate.data.for.cv = private$i.data[[outcome]][['estimate']][[source.name]][[ont.name]][[strat]]
-                                    # if (is.null(estimate.data.for.cv)) next
-                                    
-                                    # Check if this source has data, otherwise use all available sources and apply mean over result, or give up.
-                                    if (source.name %in% names(private$i.data[[outcome]][['estimate']]))
-                                        estimate.source = source.name
-                                    else if (length(names(private$i.data[[outcome]][['estimate']]))>0)
-                                        estimate.source = names(private$i.data[[outcome]][['estimate']])
-                                    else {
-                                        source.lacks.estimate.data.flag <<- TRUE
-                                        return (NULL)
-                                    }
-                                    
-                                    # pull with no target ontology because this has to mesh the strat dimnames as they are here, and we know they will
-                                    # But note that we will have to map this too, so that we can use it afterwards
-                                    estimate.data.for.cv = self$pull(outcome = outcome,
-                                                                     metric = 'estimate',
-                                                                     source = estimate.source,
-                                                                     keep.dimensions = union(keep.dimensions, dv.names),
-                                                                     dimension.values = strat.dimnames)
-                                    # TO DO: THE STUFF RELATING TO WHICH SOURCE WE USE FOR THIS PULL (PICK SAME OR USE ALL, THEN TAKE MEAN AFTERWARDS)
-                                    
-                                    # If the estimate data came from only one source, we can remove the source so that it will match size of data
-                                    non.source.dimensions = names(dim(estimate.data.for.cv))[names(dim(estimate.data.for.cv))!='source']
-                                    if (dim(estimate.data.for.cv)['source'] == 1)
-                                        estimate.data.for.cv = array(estimate.data.for.cv,
-                                                                     dim = dim(estimate.data.for.cv)[non.source.dimensions],
-                                                                     dimnames = dimnames(estimate.data.for.cv)[non.source.dimensions]
-                                        )
-                                    
-                                    # Otherwise, we need to take the mean across source
-                                    else estimate.data.for.cv = apply.robust(estimate.data.for.cv, non.source.dimensions, mean, na.rm=T)
-                                    
-                                    dimnames.in.common = get.dimension.values.overlap(dimnames(data.to.process), dimnames(estimate.data.for.cv))
-                                    estimate.data.for.cv = array.access(estimate.data.for.cv, dimnames.in.common)
-                                    data.to.process = array.access(data.to.process, dimnames.in.common)
-                                    data.to.process = data.to.process * estimate.data.for.cv
-                                    
-                                }
-                                if (metric %in% c('standard.deviation', 'coefficient.of.variance'))
-                                    data.to.process = data.to.process**2
-                            }
-                            else {
-                                data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
-                                function.to.apply = function(x) {list(unique(unlist(x)))}
-                            }
-                            if (data.type == 'data' && outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion', 'ratio') && !mapping.to.apply$is.identity.mapping) {
-                                
-                                # Mappings inherently perform sum operations, but that is invalid for these scales. We therefore can only map the counts and then reproduce the rate/time/proportions/ratios afterwards.
-                                # If we have an identity mapping, then we can skip this
-                                
-                                denominator.outcome = outcome.info[['denominator.outcome']]
-                                
-                                # The dimension.values for this pull are usually the strat.dimnames, but if we have a denominator offset,
-                                # then we need the year part of it to be changed by <offset>, like 2020 -> 2019.
-                                denom.dim.vals = strat.dimnames
-                                if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-                                    denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
-                                }
-                                
-                                # The same source might not be the right one if we aggregated locations into another source.
-                                # We could try each of our sources until we get one, starting with whichever matches, but trying others.
-                                
-                                denominator.sources = names(private$i.data[[denominator.outcome]][['estimate']])
-                                # put same source on front
-                                if (source.name %in% denominator.sources) {
-                                    denominator.sources = c(source.name, setdiff(denominator.sources, source.name))
-                                }
-                                
-                                denominator.array = NULL
-                                # for (denominator.source in denominator.sources) {
-                                #     # Note: this might not return all of our desired incomplete dimension values
-                                #     denominator.array = self$pull(outcome = denominator.outcome,
-                                #                                   metric = 'estimate',
-                                #                                   keep.dimensions = strat.dimensions,
-                                #                                   dimension.values = denom.dim.vals,
-                                #                                   sources = denominator.source,
-                                #                                   target.ontology = strat.dimnames,
-                                #                                   allow.mapping.from.target.ontology = F,
-                                #                                   from.ontology.names = NULL, # I suppose we have no choice since the same source could use different ontologies for its denominator
-                                #                                   na.rm = na.rm,
-                                #                                   check.arguments = F)
-                                #     if (!is.null(denominator.array)) break
-                                # }
-                                
-                                denominator.array = self$pull(outcome = denominator.outcome,
-                                                              metric = 'estimate',
-                                                              keep.dimensions = strat.dimensions,
-                                                              dimension.values = denom.dim.vals,
-                                                              sources = denominator.sources,
-                                                              target.ontology = strat.dimnames,
-                                                              allow.mapping.from.target.ontology = F,
-                                                              from.ontology.names = NULL, # I suppose we have no choice since the same source could use different ontologies for its denominator
-                                                              na.rm = na.rm,
-                                                              check.arguments = F)
-                                
-                                if (is.null(denominator.array)) {
-                                    source.lacks.denominator.data.flag <<- TRUE
-                                    return (NULL)
-                                }
-                                
-                                # If the denominator.array came from only one source, we can remove the source so that it will match size of data
-                                non.source.dimensions = names(dim(denominator.array))[names(dim(denominator.array))!='source']
-                                if (dim(denominator.array)['source'] == 1)
-                                    denominator.array = array(denominator.array,
-                                                              dim = dim(denominator.array)[non.source.dimensions],
-                                                              dimnames = dimnames(denominator.array)[non.source.dimensions]
-                                    )
-                                
-                                # Otherwise, we need to take the mean across source
-                                else denominator.array = apply.robust(denominator.array, non.source.dimensions, mean, na.rm=T)
-                                
-                                # If we had an offset, rename the year dimension names to match the main data
-                                if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-                                    dimnames(denominator.array)$year = as.character(as.numeric(dimnames(denominator.array)$year) + outcome.info$denominator.lags.by.one.year)
-                                }
-                                
-                                # So apparently it's possible that the ontology we get denominator data from can have the same dimension values but in a different order from those in our main data
-                                denom.to.data.mapping = get.ontology.mapping(dimnames(denominator.array), as.ontology(dimnames(data.to.process), incomplete.dimensions=c('year', 'location'))) # made it as.ontology b/c couldn't map year otherwise
-                                if (is.null(denom.to.data.mapping))
-                                    stop(paste0(error.prefix, 'bug in aggregation code: denominator array dimensions cannot be mapped to main data dimensions'))
-                                
-                                # It's possible that we didn't find as many years or locations in the denominator as we did in the data.to.process
-                                # In fact, we might have lost years/locations that we needed to have according to our dimension.values
-                                if (!setequal(dimnames(denominator.array)$year, dimnames(data.to.process)$year) || !setequal(dimnames(denominator.array)$location, dimnames(data.to.process)$location))
-                                    data.to.process = array.access(data.to.process, year=dimnames(denominator.array)$year, location=dimnames(denominator.array)$location)
-                                
-                                denominator.array = denom.to.data.mapping$apply(denominator.array, to.dim.names = dimnames(data.to.process))
-                                
-                                ## Where things get different depending on our metric
-                                # Estimates and confidence interval bounds: unmapped num equals data to process * denom array
-                                # Variance: unmapped num equals data to process * (denom array)^2
-                                # Sd dev: unmapped num equals (data to process)^2 * (denom array)^2
-                                
-                                if (metric %in% c('variance', 'standard.deviation', 'coefficient.of.variance')) denominator.array = denominator.array**2
-                                
-                                # Note that if some of data.to.process is NA when the denominator array isn't, we don't want the denominator to have contributions the numerator won't have
-                                denominator.array[is.na(data.to.process)]=NA
-                                
-                                # Perform weighted average
-                                unmapped.numerator = data.to.process * denominator.array
-                                
-                                
-                                ## I'D LIKE TO HAVE A CHECK FOR WHETHER THIS MAPPING CAN BE APPLIED, NOW THAT WE HAVE DIFFERENT DIMENSION VALUES, LIKE MISSING LOCATIONS
-                                ## BUT CHECK.CAN.APPLY.TO.DIM.NAMES METHOD OF MAPPINGS DOESN'T WORK YET
-                                # Context: Asking for Baltimore in dimnames.for.apply, but denominator data doesn't have it. The mapping will fail.
-                                probably.dont.have.needed.loc = F
-                                tryCatch({mapped.numerator = mapping.to.apply$apply(unmapped.numerator,
-                                                                                   na.rm = na.rm,
-                                                                                   to.dim.names = dimnames.for.apply,
-                                                                                   fun = function.to.apply)},
-                                         error=function(e) {probably.dont.have.needed.loc<<-T})
-                                if (probably.dont.have.needed.loc) {
-                                    incompatible.mapped.stratification<<-T
-                                    return(NULL)
-                                }
-                                
-                                mapped.denominator = mapping.to.apply$apply(denominator.array,
-                                                                            na.rm = na.rm,
-                                                                            to.dim.names = dimnames.for.apply,
-                                                                            fun = function.to.apply)
-                                mapped.data.by.type = mapped.numerator/mapped.denominator
-                            }
-                            else {
-                                mapped.data.by.type = mapping.to.apply$apply(data.to.process,
-                                                                             na.rm = na.rm, # DOESN'T DO ANYTHING????
-                                                                             to.dim.names = dimnames.for.apply,
-                                                                             fun = function.to.apply)
-                                if (metric %in% c('standard.deviation', 'coefficient.of.variance')) mapped.data.by.type = sqrt(mapped.data.by.type)
-                                if (metric == 'coefficient.of.variance') {
-                                    # we must also map the estimate data
-                                    estimate.data.for.cv = mapping.to.apply$apply(estimate.data.for.cv,
-                                                                                  na.rm=na.rm,
-                                                                                  to.dim.names = dimnames.for.apply,
-                                                                                  fun = function.to.apply)
-                                    
-                                    # we may have lost dimension values compared to what we started with
-                                    if (!dim.names.equal(dimnames(mapped.data.by.type), dimnames(estimate.data.for.cv))) {
-                                        dimnames.in.common = get.dimension.values.overlap(dimnames(mapped.data.by.type), dimnames(estimate.data.for.cv))
-                                        estimate.data.for.cv = array.access(estimate.data.for.cv, dimnames.in.common)
-                                        mapped.data.by.type = array.access(mapped.data.by.type, dimnames.in.common)
-                                    }
-                                    mapped.data.by.type = mapped.data.by.type / estimate.data.for.cv
-                                }
-                            }
-                            # if (data.type != 'data') {
-                            #     # This line is critical for converting the output of the list(unique(unlist(x))) back into the right number of list levels
-                            #     browser()
-                            #     mapped.data.by.type = lapply(mapped.data.by.type, function(x) {x[[1]]})
-                            #     dim(mapped.data.by.type) = sapply(dimnames.for.apply, length)
-                            #     dimnames(mapped.data.by.type) = dimnames.for.apply
-                            # }
-                            # if (data.type == "url")
-                            #     mapped.data.by.type = self$unhash.url(mapped.data.by.type)
-                            # if (data.type == "details")
-                            #     mapped.data.by.type = self$unhash.details(mapped.data.by.type)
-                            
-                            mapped.data.by.type
-                        })
-                        if (incompatible.mapped.stratification || source.lacks.denominator.data.flag) {
-                            pulled.ont.data = NULL
-                            next
-                        }
-                        names(pulled.ont.data) = data.types
-                        # We might need to subset details or url if the 'data' was unexpectedly subset due to denominator data for a proportion having fewer years or locations
-                        if (outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion', 'ratio') || metric=='coefficient.of.variance') {
-                            tryCatch(
-                                {if ('details' %in% data.types) pulled.ont.data[['details']] = array.access(pulled.ont.data[['details']], dimnames(pulled.ont.data[['data']]))},
-                                error=function(e){stop(paste0(error.prefix, "bug in pull function: denominator data not found?"))} #{browser()}
-                            )
-                            
-                            if ('url' %in% data.types) pulled.ont.data[['details']] = array.access(pulled.ont.data[['details']], dimnames(pulled.ont.data[['data']]))
-                        }
+                        
+                        if (!is.null(append.attributes)) {
+                            append.attributes.data <- lapply(append.attributes, function(metadata.type) {
+                                private[[paste0("i.", metadata.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
+                            })
+                        } else append.attributes.data <- NULL
+                        
+                        pulled.ont.data <- do.pre.aggregation.processing(data.manager=self,
+                                                                         append.attributes,
+                                                                         mapping.to.apply,
+                                                                         strat.dimnames,
+                                                                         dimnames.for.apply,
+                                                                         strat.data,
+                                                                         metric=metric,
+                                                                         outcome=outcome,
+                                                                         source.name=source.name,
+                                                                         keep.dimensions=keep.dimensions,
+                                                                         dv.names=dv.names,
+                                                                         outcome.info=outcome.info,
+                                                                         na.rm=na.rm,
+                                                                         append.attributes.data=append.attributes.data)
                         
                         # Aggregate if needed
                         initial.dimnames = dimnames.for.apply
@@ -2072,8 +1858,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         
                         pulled.ont.data = lapply(data.types, function(data.type) {
                             if (debug) browser()
-                            if (source.lacks.denominator.data.flag) return (NULL)
-                            if (source.lacks.estimate.data.flag) return (NULL)
                             data.by.data.type = pulled.ont.data[[data.type]]
                             pre.agg.dimnames = initial.dimnames
                             if (length(dimensions.to.drop) > 0) {
@@ -2082,171 +1866,37 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                           dim = sapply(pre.agg.dimnames, length),
                                                           dimnames = pre.agg.dimnames)
                             }
+                            
                             if (length(pre.agg.dimnames) > length(keep.dimensions)) {
-                                post.agg.dimnames = pre.agg.dimnames[names(pre.agg.dimnames) %in% keep.dimensions]
-                                if (data.type == 'data') {
-                                    if (metric == 'coefficient.of.variance') {
-                                        # cv = sd / mean, so sd = cv * mean. Need to convert back at the end.
-                                        # This time we have to actually pull since we're in a different ontology by now
-                                        
-                                        # Check if this source has data, otherwise use all available sources and apply mean over result, or give up.
-                                        if (source.name %in% names(private$i.data[[outcome]][['estimate']]))
-                                            estimate.source = source.name
-                                        else if (length(names(private$i.data[[outcome]][['estimate']]))>0)
-                                            estimate.source = names(private$i.data[[outcome]][['estimate']])
-                                        else {
-                                            source.lacks.estimate.data.flag <<- TRUE
-                                            return (NULL)
-                                        }
-                                        
-                                        estimate.data.for.cv = self$pull(outcome = outcome,
-                                                                         metric = 'estimate',
-                                                                         source = estimate.source,
-                                                                         keep.dimensions = names(pre.agg.dimnames),
-                                                                         dimension.values = dimension.values[names(dimension.values) %in% names(pre.agg.dimnames)],
-                                                                         target.ontology = target.ontology,
-                                                                         allow.mapping.from.target.ontology = F)
-                                        # TO DO: THE STUFF RELATING TO WHICH SOURCE WE USE FOR THIS PULL (PICK SAME OR USE ALL, THEN TAKE MEAN AFTERWARDS)
-                                        
-                                        # If the estimate data came from only one source, we can remove the source so that it will match size of data
-                                        non.source.dimensions = names(dim(estimate.data.for.cv))[names(dim(estimate.data.for.cv))!='source']
-                                        if (dim(estimate.data.for.cv)['source'] == 1)
-                                            estimate.data.for.cv = array(estimate.data.for.cv,
-                                                                         dim = dim(estimate.data.for.cv)[non.source.dimensions],
-                                                                         dimnames = dimnames(estimate.data.for.cv)[non.source.dimensions]
-                                            )
-                                        
-                                        # Otherwise, we need to take the mean across source
-                                        else estimate.data.for.cv = apply.robust(estimate.data.for.cv, non.source.dimensions, mean, na.rm=T)
-                                        dimnames.in.common = get.dimension.values.overlap(dimnames(data.by.data.type), dimnames(estimate.data.for.cv))
-                                        estimate.data.for.cv = array.access(estimate.data.for.cv, dimnames.in.common)
-                                        data.by.data.type = array.access(data.by.data.type, dimnames.in.common)
-                                        data.by.data.type = data.by.data.type * estimate.data.for.cv
-                                    }
-                                    if (metric %in% c('standard.deviation', 'coefficient.of.variance')) data.by.data.type = data.by.data.type**2
-                                    scale = outcome.info[['metadata']][['scale']]
-                                    if (scale %in% c('non.negative.number', 'number')) {
-                                        data.by.data.type = apply.robust(data.by.data.type, names(post.agg.dimnames), sum, na.rm=na.rm)
-                                    } else if (scale %in% c('rate', 'time', 'proportion', 'ratio')) {
-                                        denominator.outcome = outcome.info[['denominator.outcome']] ## NOTE: I MUST TELL ZOE TO ADD THIS AFTER I INTRODUCE THE REQUIREMENT TO HAVE IT
-                                        denominator.ontology = target.ontology ## NOTE: DO WE NEED TO HAVE THE UNIVERSAL ALIGN TO THE DENOMINATOR ONTOLOGIES TOO, WHEN WE KNOW WE'LL NEED IT?
-                                        
-                                        # If we have a denominator offset, then the dimension values needs to specify that the years will be
-                                        # whatever they are for the main data, but slid back by <offset>, like 2020 -> 2019.
-                                        denom.dim.vals = pre.agg.dimnames
-                                        if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-                                            denom.dim.vals$year = as.character(as.numeric(denom.dim.vals$year) - outcome.info$denominator.lags.by.one.year)
-                                        }
-                                        
-                                        denominator.sources = names(private$i.data[[denominator.outcome]][['estimate']])
-                                        # put same source on front
-                                        if (source.name %in% denominator.sources) {
-                                            denominator.sources = c(source.name, setdiff(denominator.sources, source.name))
-                                        }
-                                        
-                                        denominator.array = NULL
-                                        for (denominator.source in denominator.sources) {
-                                            denominator.array = self$pull(outcome = denominator.outcome,
-                                                                          metric = 'estimate', # I believe we always want "estimates" for aggregating with denominators
-                                                                          keep.dimensions = names(pre.agg.dimnames),
-                                                                          dimension.values = denom.dim.vals,
-                                                                          sources = denominator.source,
-                                                                          target.ontology = denominator.ontology,
-                                                                          allow.mapping.from.target.ontology = F,
-                                                                          from.ontology.names = NULL,
-                                                                          na.rm = na.rm,
-                                                                          check.arguments = F)
-                                            if (!is.null(denominator.array)) break
-                                        }
-                                        
-                                        
-                                        if (is.null(denominator.array)) {
-                                            source.lacks.denominator.data.flag <<- TRUE
-                                            return (NULL)
-                                        }
-                                        # Since the denominator.array came from only one source, we can remove the source so that it will match size of data
-                                        denominator.array = array(denominator.array,
-                                                                  dim = dim(denominator.array)[names(dim(denominator.array)) != 'source'],
-                                                                  dimnames = dimnames(denominator.array)[names(dimnames(denominator.array)) != 'source']
-                                        )
-                                        
-                                        # If we had an offset, rename the year dimension names to match the main data
-                                        if (!is.null(outcome.info$denominator.lags.by.one.year)) {
-                                            dimnames(denominator.array)$year = as.character(as.numeric(dimnames(denominator.array)$year) + outcome.info$denominator.lags.by.one.year)
-                                        }
-                                        
-                                        # # Catch an otherwise invisible bug if denominator.array somehow doesn't have the same shape/order as the data
-                                        # if (!dim.names.equal(dimnames(denominator.array), dimnames(data.by.data.type)))
-                                        #     stop(paste0(error.prefix, 'bug in aggregation code: denominator array has incorrect dimensions'))
-                                        
-                                        # So apparently it's possible that the ontology we get denominator data from can have the same dimension values but in a different order from those in our main data
-                                        denom.ont = as.ontology(dimnames(denominator.array), incomplete.dimensions = intersect(names(dimnames(denominator.array)), c('year', 'location')))
-                                        data.ont = as.ontology(dimnames(data.by.data.type), incomplete.dimensions = intersect(names(dimnames(data.by.data.type)), c('year', 'location')))
-                                        denom.to.data.mapping = get.ontology.mapping(denom.ont, data.ont)
-                                        
-                                        if (is.null(denom.to.data.mapping))
-                                            # browser()
-                                            stop(paste0(error.prefix, 'bug in aggregation code: denominator array dimensions cannot be mapped to main data dimensions'))
-                                        
-                                        # It's possible that we didn't find as many years or locations in the denominator as we did in the data.by.data.type
-                                        if (!setequal(dimnames(denominator.array)$year, dimnames(data.by.data.type)$year) || !setequal(dimnames(denominator.array)$location, dimnames(data.by.data.type)$location))
-                                            data.by.data.type = array.access(data.by.data.type, year=dimnames(denominator.array)$year, location=dimnames(denominator.array)$location)
-                                        
-                                        denominator.array = denom.to.data.mapping$apply(denominator.array, to.dim.names = dimnames(data.by.data.type)) # need this argument to ensure correct order
-                                        
-                                        if (metric %in% c('variance', 'standard.deviation', 'coefficient.of.variance')) denominator.array = denominator.array**2
-                                        
-                                        # We should find totals by aggregating the denominator.array rather than pulling less stratified data
-                                        # because less stratified data might not equal the sum of the more stratified data in denominator.array
-                                        denominator.totals.array = apply.robust(denominator.array, names(post.agg.dimnames), sum, na.rm=na.rm)
-                                        weighted.value.array = data.by.data.type * denominator.array
-                                        data.by.data.type = apply.robust(weighted.value.array, names(post.agg.dimnames), sum, na.rm=na.rm)
-                                        data.by.data.type = data.by.data.type / denominator.totals.array
-                                    }
-                                    else stop(paste0(error.prefix, 'aggregating ', scale, ' data is not yet implemented'))
-                                    if (metric %in% c('standard.deviation', 'coefficient.of.variance')) {
-                                        data.by.data.type = sqrt(data.by.data.type)
-                                    }
-                                    if (metric == 'coefficient.of.variance') {
-                                        estimate.data.for.cv = self$pull(outcome = outcome,
-                                                                         metric = 'estimate',
-                                                                         source = estimate.source,
-                                                                         keep.dimensions = names(post.agg.dimnames),
-                                                                         dimension.values = dimension.values[names(dimension.values) %in% names(pre.agg.dimnames)],
-                                                                         target.ontology = target.ontology,
-                                                                         allow.mapping.from.target.ontology = F)
-                                        
-                                        # If the estimate data came from only one source, we can remove the source so that it will match size of data
-                                        non.source.dimensions = names(dim(estimate.data.for.cv))[names(dim(estimate.data.for.cv))!='source']
-                                        if (dim(estimate.data.for.cv)['source'] == 1)
-                                            estimate.data.for.cv = array(estimate.data.for.cv,
-                                                                         dim = dim(estimate.data.for.cv)[non.source.dimensions],
-                                                                         dimnames = dimnames(estimate.data.for.cv)[non.source.dimensions]
-                                            )
-                                        
-                                        # Otherwise, we need to take the mean across source
-                                        else estimate.data.for.cv = apply.robust(estimate.data.for.cv, non.source.dimensions, mean, na.rm=T)
-                                        dimnames.in.common = get.dimension.values.overlap(dimnames(data.by.data.type), dimnames(estimate.data.for.cv))
-                                        estimate.data.for.cv = array.access(estimate.data.for.cv, dimnames.in.common)
-                                        data.by.data.type = array.access(data.by.data.type, dimnames.in.common)
-                                        data.by.data.type = data.by.data.type / estimate.data.for.cv
-                                    }
-                                } else {
-                                    data.by.data.type = apply.robust(data.by.data.type, names(post.agg.dimnames), function(x) {list(unique(unlist(x)))})
-                                    # data.by.data.type = lapply(data.by.data.type, function(x) {x[[1]]})
-                                    # dim(data.by.data.type) = sapply(post.agg.dimnames, length)
-                                    # dimnames(data.by.data.type) = post.agg.dimnames
-                                }
+                                if (data.type=="data")
+                                    aggregated.data <- do.aggregation(data.manager=self,
+                                                                      pre.agg.dimnames=pre.agg.dimnames,
+                                                                      data.to.aggregate=data.by.data.type,
+                                                                      keep.dimensions=keep.dimensions,
+                                                                      data.type=data.type,
+                                                                      metric=metric,
+                                                                      scale=scale,
+                                                                      source.name=source.name,
+                                                                      outcome=outcome,
+                                                                      dimension.values=dimension.values,
+                                                                      target.ontology=target.ontology,
+                                                                      outcome.info=outcome.info,
+                                                                      na.rm=na.rm)
+                                else
+                                    aggregated.data = apply.robust(data.to.aggregate, intersect(names(pre.agg.dimnames), keep.dimensions), function(x) {list(unique(unlist(x)))})
                             }
-                            dimnames(data.by.data.type) = as.list(dimnames(data.by.data.type))
+                            else
+                                aggregated.data = data.by.data.type
+
+                            dimnames(aggregated.data) = as.list(dimnames(aggregated.data))
                             
                             # Now is when we unhash the url and details
                             if (data.type == "url")
-                                data.by.data.type = self$unhash.url(data.by.data.type)
+                                aggregated.data = self$unhash.url(aggregated.data)
                             if (data.type == "details")
-                                data.by.data.type = self$unhash.details(data.by.data.type)
+                                aggregated.data = self$unhash.details(aggregated.data)
                             
-                            data.by.data.type
+                            aggregated.data
                         }) # end of lapply for data.types
                         
                         if (all(is.na(pulled.ont.data[[1]]))) {
@@ -2254,9 +1904,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             next
                         }
                         names(pulled.ont.data) = data.types
-                        
-                        # Now is when I'll finally unhash what we have for details and url
-                        
                         
                         # SUCCESS FOR THIS ONTOLOGY - save info if this is the first ontology we've succeeded on for this source
                         if (is.null(pulled.source.data)) {
@@ -2267,7 +1914,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         break
                         
                     } # end of loop for stratification
-                    if (source.lacks.denominator.data.flag) break
+                    # if (source.lacks.denominator.data.flag) break
                     
                     if (all(is.na(pulled.ont.data))) next
                     # Integrate ontology's pulled data into the source's pulled data -- they should all be in the same (universal) ontology and therefore compatible
