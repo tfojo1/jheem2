@@ -1828,24 +1828,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         if (dimension.has.no.intersection) {
                             next
                         }
-                        # Apply mapping
-                        # if (debug) browser()
                         
                         data.types = union('data', append.attributes)
-                        # browser()
-                        # 
-                        # cc <<- list(append.attributes=append.attributes,
-                        #             mapping.to.apply=mapping.to.apply,
-                        #             strat.dimnames=strat.dimnames,
-                        #             dimnames.for.apply=dimnames.for.apply,
-                        #             strat.data=strat.data,
-                        #             metric=metric,
-                        #             outcome=outcome,
-                        #             source.name=source.name,
-                        #             keep.dimensions=keep.dimensions,
-                        #             dv.names=dv.names,
-                        #             outcome.info=outcome.info,
-                        #             na.rm=na.rm)
+                        
+                        if (!is.null(append.attributes)) {
+                            append.attributes.data <- lapply(append.attributes, function(metadata.type) {
+                                private[[paste0("i.", metadata.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
+                            })
+                        } else append.attributes.data <- NULL
                         
                         pulled.ont.data <- do.pre.aggregation.processing(data.manager=self,
                                                                          append.attributes,
@@ -1859,7 +1849,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                                          keep.dimensions=keep.dimensions,
                                                                          dv.names=dv.names,
                                                                          outcome.info=outcome.info,
-                                                                         na.rm=na.rm)
+                                                                         na.rm=na.rm,
+                                                                         append.attributes.data=append.attributes.data)
                         
                         # Aggregate if needed
                         initial.dimnames = dimnames.for.apply
@@ -1867,8 +1858,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                         
                         pulled.ont.data = lapply(data.types, function(data.type) {
                             if (debug) browser()
-                            # if (source.lacks.denominator.data.flag) return (NULL)
-                            # if (source.lacks.estimate.data.flag) return (NULL)
                             data.by.data.type = pulled.ont.data[[data.type]]
                             pre.agg.dimnames = initial.dimnames
                             if (length(dimensions.to.drop) > 0) {
@@ -1915,9 +1904,6 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             next
                         }
                         names(pulled.ont.data) = data.types
-                        
-                        # Now is when I'll finally unhash what we have for details and url
-                        
                         
                         # SUCCESS FOR THIS ONTOLOGY - save info if this is the first ontology we've succeeded on for this source
                         if (is.null(pulled.source.data)) {

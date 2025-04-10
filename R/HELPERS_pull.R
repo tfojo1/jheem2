@@ -1,4 +1,5 @@
 
+#' @export
 do.aggregation <- function(data.manager,
                            pre.agg.dimnames,
                            data.to.aggregate,
@@ -12,6 +13,8 @@ do.aggregation <- function(data.manager,
                            target.ontology,
                            outcome.info,
                            na.rm) {
+    
+    default.failure.return <- NULL
     
     post.agg.dimensions = intersect(names(pre.agg.dimnames), keep.dimensions)
     post.agg.dimnames = pre.agg.dimnames[post.agg.dimensions]
@@ -29,7 +32,7 @@ do.aggregation <- function(data.manager,
                                                                target.ontology=target.ontology) # Difference, here want target but before don't
         # Other difference, use special dimension values and keep dimensions for the recursive pull
         data.to.aggregate <- converted.and.cv.estimate$converted.data
-        if (is.null(data.to.aggregate)) return(default.failure.return) ######### not defined yet
+        if (is.null(data.to.aggregate)) return(default.failure.return)
     }
     if (scale %in% c('non.negative.number', 'number')) {
         aggregated.data = apply.robust(data.to.aggregate, post.agg.dimensions, sum, na.rm=na.rm)
@@ -59,6 +62,7 @@ do.aggregation <- function(data.manager,
     
 }
 
+#' @export
 do.pre.aggregation.processing <- function(data.manager,
                                           append.attributes,
                                           mapping.to.apply,
@@ -71,8 +75,8 @@ do.pre.aggregation.processing <- function(data.manager,
                                           keep.dimensions,
                                           dv.names,
                                           outcome.info,
-                                          na.rm) {
-    # browser()
+                                          na.rm,
+                                          append.attributes.data=NULL) {
     # Return all NULL if failure due to being unable to map or lacking a needed denominator
     default.failure.return <- lapply(c("data", append.attributes), function(data.type) {NULL})
     
@@ -98,7 +102,6 @@ do.pre.aggregation.processing <- function(data.manager,
     
     # Mappings inherently perform sum operations, but that is invalid for these scales. We therefore can only map the counts and then reproduce the rate/time/proportions/ratios afterwards.
     # If we have an identity mapping, then we can skip this
-    # BUT... WE DON'T DO THIS FOR OTHER METRICS, RIGHT?
     if (outcome.info[['metadata']][['scale']] %in% c('rate', 'time', 'proportion', 'ratio') && !mapping.to.apply$is.identity.mapping) {
         mapped.data <- do.mapping.or.aggregation.of.fraction(is.aggregation=F,
                                                              data.manager=data.manager,
@@ -131,10 +134,9 @@ do.pre.aggregation.processing <- function(data.manager,
                                                    dimnames.for.apply,
                                                    na.rm)
     
-    mapped.metadata <- lapply(append.attributes, function(metadata.type) {
-        data.to.process = private[[paste0('i.', data.type)]][[outcome]][[metric]][[source.name]][[ont.name]][[strat]]
+    mapped.metadata <- lapply(append.attributes.data, function(metadata.to.process) {
         function.to.apply = function(x) {list(unique(unlist(x)))}
-        mapped.metadata.this.type <- mapping.to.apply$apply(data.to.process,
+        mapped.metadata.this.type <- mapping.to.apply$apply(metadata.to.process,
                                                             na.rm=na.rm,
                                                             to.dim.names=dimnames.for.apply,
                                                             fun = function.to.apply)
@@ -149,6 +151,7 @@ do.pre.aggregation.processing <- function(data.manager,
     
 }
 
+#' @export
 do.conversion.to.variance <- function(data.manager,
                                       metric,
                                       data.to.process,
@@ -158,7 +161,6 @@ do.conversion.to.variance <- function(data.manager,
                                       dimension.values.for.pull, #strat.dimnames vs. dimension.values[names(dimension.values) %in% names(pre.agg.dimnames)]
                                       strat.dimnames,
                                       target.ontology) {
-    # browser()
     # Convert to standard.deviation
     estimate.data.for.cv = NULL
     if (metric == "coefficient.of.variance") {
@@ -198,6 +200,7 @@ do.conversion.to.variance <- function(data.manager,
     list(converted.data=data.to.process, estimate.data.for.cv=estimate.data.for.cv)
 }
 
+#' @export
 do.conversion.from.variance <- function(metric,
                                         data.to.process,
                                         estimate.data.for.cv,
@@ -233,6 +236,7 @@ do.conversion.from.variance <- function(metric,
 #' @param is.aggregation If F, then is considered a mapping step.
 #' @param denom.dim.vals Used to subset the denominator the same way the proportion is.
 #' @param square.denominator For metrics that have been converted to variance, so that the denominator data is squared during the weighted average.
+#' @export
 do.mapping.or.aggregation.of.fraction <- function(is.aggregation,
                                                   data.manager,
                                                   data.to.process,
@@ -262,10 +266,6 @@ do.mapping.or.aggregation.of.fraction <- function(is.aggregation,
     # The same source might not be the right one if we aggregated locations into another source.
     # We could try each of our sources until we get one, starting with whichever matches, but trying others.
     denominator.sources = names(data.manager$data[[denominator.outcome]][['estimate']]) ############
-    # # Try the matching source first
-    # if (source.name %in% denominator.sources) {
-    #     denominator.sources = c(source.name, setdiff(denominator.sources, source.name))
-    # }
     
     denominator.array = NULL
     
@@ -339,6 +339,7 @@ do.mapping.or.aggregation.of.fraction <- function(is.aggregation,
 #' @param arr An array. If it has no source dimension, this function does nothing.
 #' @param allow.mean.across.multiple.sources Should multiple sources be condensed by taking their mean?
 #' @return The input array but without a source dimension
+#' @export
 do.strip.source.dimension <- function(arr, allow.mean.across.multiple.sources=T) {
     non.source.dimensions = setdiff(names(dim(arr)), "source")
     if (!("source" %in% names(dim(arr))))
