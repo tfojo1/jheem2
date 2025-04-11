@@ -218,11 +218,10 @@ simplot.data.only <- function(outcomes,
 #' @inheritParams simplot
 #' @param simset.list A list of jheem.simulation.set objects
 #' @param plot.which Should simulation data and calibration data be plotted ('sim.and.data'), or only simulation data ('sim.only'), or only calibration data ('data.only')
-#' @value A list with three components:
+#' @value A list with four components:
 #' df.sim, a data frame containing simulation data (may be NULL)
 #' df.truth, a data frame containing calibration data (may be NULL)
-#' details, a list with components "y.label", "plot.title", and "outcome.metadata.list",
-#' 
+#' details, a list with components "y.label", "plot.title" and "outcome.metadata.list"
 #' @export
 prepare.plot <- function(simset.list=NULL,
                          outcomes=NULL,
