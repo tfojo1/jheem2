@@ -833,6 +833,7 @@ prepare.remission.info <- function(settings, quantity.dim.names,
             remission.proportions.dim.names = comp$mechanism.dim.names$remission.proportions
             
             remission.rate.quantity.dim.names = quantity.dim.names[[comp$remission.rate]]
+            remission.proportions.quantity.dim.names = quantity.dim.names[[comp$remission.proportions]]
             
             outcome.names = settings$outcome.names.by.core.component$remission[[i]]
             outcome.trackable.types = sapply(settings$outcomes[outcome.names], function(outcome){outcome$trackable.type})
@@ -874,26 +875,28 @@ prepare.remission.info <- function(settings, quantity.dim.names,
                                          get.array.access.indices,
                                          arr.dim.names = to.ontology)
             
-            unique.to.dimensions = setdiff(names(to.ontology), names(remission.rate.dim.names))
-            base.proportions.dim.names = remission.rate.dim.names
-#            names(base.proportions.dim.names) = paste0(names(base.proportions.dim.names), '.from')
-            unique.to.dim.names = base.to.dim.names[unique.to.dimensions]
-            names(unique.to.dim.names) = paste0(names(unique.to.dim.names), '.to')
-            base.proportions.dim.names = c(base.proportions.dim.names, unique.to.dim.names)
+            # This was an error
+#             unique.to.dimensions = setdiff(names(to.ontology), names(remission.rate.dim.names))
+#             base.proportions.dim.names = remission.rate.dim.names
+# #            names(base.proportions.dim.names) = paste0(names(base.proportions.dim.names), '.from')
+#             unique.to.dim.names = base.to.dim.names[unique.to.dimensions]
+#             names(unique.to.dim.names) = paste0(names(unique.to.dim.names), '.to')
+#             base.proportions.dim.names = c(base.proportions.dim.names, unique.to.dim.names)
+#             
+#             proportions.dim.names.per.from = lapply(from.categories, function(catg){
+#                 
+#                 dim.names = base.proportions.dim.names
+#                 dim.names[shared.to.from.dimensions] = catg[shared.to.from.dimensions]
+#  #               dim.names[paste0(shared.to.from.dimensions, '.from')] = catg[shared.to.from.dimensions]
+#                 
+#                 dim.names
+#             })
             
-            proportions.dim.names.per.from = lapply(from.categories, function(catg){
-                
-                dim.names = base.proportions.dim.names
-                dim.names[shared.to.from.dimensions] = catg[shared.to.from.dimensions]
- #               dim.names[paste0(shared.to.from.dimensions, '.from')] = catg[shared.to.from.dimensions]
-                
-                dim.names
-            })
+            proportions.indices.for.from = lapply(to.dim.names.per.from,
+                       get.expand.array.indices,
+                       to.expand.dim.names = remission.proportions.quantity.dim.names,
+                       index.from = 0)
             
-            proportions.indices.for.from = lapply(proportions.dim.names.per.from,
-                                                  get.expand.array.indices,
-                                                  to.expand.dim.names = remission.proportions.dim.names)
-           
             list(
                 remission_quantity_index = settings$quantity.indices[comp$remission.rate],
                 proportions_quantity_index = settings$quantity.indices[comp$remission.proportions],
