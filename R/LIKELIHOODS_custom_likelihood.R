@@ -116,6 +116,8 @@ JHEEM.CUSTOM.LIKELIHOOD <- R6::R6Class(
             else
                 likelihood = private$i.compute.function(sim=sim, log=log)
             
+            error.prefix = paste0("Error computing custom likelihood '", self$name, "': ")
+            
             if (!is.numeric(likelihood) || length(likelihood)!=1 || is.na(likelihood))
                 stop(paste0(error.prefix, "the likelihood value returned from the 'compute.function' must be a single numeric value"))
             # error check: non-negative unless log

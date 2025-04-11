@@ -442,8 +442,8 @@ get.collapse.array.indices <- function(large.arr.dim.names, small.arr.dim.names)
                                                  target.dim.names = intersected.dim.names),
         large.indices = get.array.access.indices(arr.dim.names = large.arr.dim.names,
                                                  dimension.values = intersected.dim.names),
-        small.n = prod(sapply(small.arr.dim.names, length)),
-        large.n = prod(sapply(large.arr.dim.names, length))
+        small.n = prod(vapply(small.arr.dim.names, length, FUN.VALUE = numeric(1))),
+        large.n = prod(vapply(large.arr.dim.names, length, FUN.VALUE = numeric(1)))
     )
     
     if (length(rv$small.indices) != length(rv$large.indices))
@@ -503,7 +503,7 @@ get.collapse.array.indices.with.intermediate.and.ontology.mapping <- function(la
             rep(i, length(indices.from.mapping[[i]]))
         })),
         large.indices = unlist(indices.from.mapping),
-        small.n = prod(sapply(small.arr.dim.names, length))
+        small.n = prod(vapply(small.arr.dim.names, length, FUN.VALUE = numeric(1)))
     )
     
     names(indices.intermediate.to.small$small.indices) = as.character(indices.intermediate.to.small$large.indices)

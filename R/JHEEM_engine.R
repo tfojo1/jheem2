@@ -735,6 +735,14 @@ SOLVER.METADATA = R6::R6Class(
                                         fixed_strata_info = diffeq.settings$fixed.strata.info,
                                         population_trackers = diffeq.settings$population_trackers)
                     }
+                    # if (any(dx[1:1386]+y[1:1386]<0))
+                    #     browser()
+                    # 
+                    # if (any(y<0))
+                    #     browser()
+                    
+         #           if (abs(sum(dx[1:1386]))>0.00001)
+           #             browser()
                     
                     list(dx)
                 }
@@ -1268,6 +1276,11 @@ JHEEM.ENGINE = R6::R6Class(
         extract.quantity.values = function()
         {
             private$i.jheem$extract.quantity.values()
+        },
+        
+        extract.diffeq.settings = function()
+        {
+            private$i.jheem$extract.diffeq.settings()
         }
     ),
     
@@ -1852,6 +1865,11 @@ JHEEM = R6::R6Class(
         extract.quantity.values = function()
         {
             private$i.quantity.values
+        },
+        
+        extract.diffeq.settings = function()
+        {
+            private$i.diffeq.settings
         },
         
         ##------------------------------##
@@ -3139,6 +3157,7 @@ JHEEM = R6::R6Class(
         
         #-- Dim Names for Outcomes --#
         i.outcome.dim.names.sans.time = NULL,
+        i.sub.version.outcome.dim.names.sans.time = NULL,
         i.outcome.unrenamed.dim.names.sans.time = NULL,
         i.outcome.numerator.dim.names.sans.time = NULL,
         i.outcome.numerator.renamed.dim.names.sans.time = NULL,
@@ -3339,6 +3358,15 @@ JHEEM = R6::R6Class(
             private$i.outcome.dim.names.sans.time = lapply(private$i.kernel$outcome.kernels, function(outcome){
                 outcome$dim.names
             })
+            
+            if (is.null(private$i.sub.version))
+                private$i.sub.version.outcome.dim.names.sans.time = private$i.outcome.dim.names.sans.time
+            else
+            {
+                private$i.sub.version.outcome.dim.names.sans.time = lapply(private$i.kernel$outcome.sub.version.details[[private$i.sub.version]], function(details){
+                    details$dim.names
+                })
+            }
             
             private$i.outcome.unrenamed.dim.names.sans.time = lapply(private$i.kernel$outcome.kernels, function(outcome){
                 outcome$unrenamed.dim.names
@@ -6177,9 +6205,9 @@ JHEEM = R6::R6Class(
                 
                 outcome = private$i.kernel$get.outcome.kernel(outcome.name)
                 outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
-                                      private$i.outcome.dim.names.sans.time[[outcome.name]])
+                                      private$i.sub.version.outcome.dim.names.sans.time[[outcome.name]])
                 
-                outcome.n = prod(vapply(private$i.outcome.dim.names.sans.time[[outcome.name]], length, FUN.VALUE = integer(1)))
+                outcome.n = prod(vapply(private$i.sub.version.outcome.dim.names.sans.time[[outcome.name]], length, FUN.VALUE = integer(1)))
                 char.times = as.character(private$i.outcome.value.times[[outcome.name]])
                 
                 if (is.degenerate)
@@ -6241,19 +6269,15 @@ JHEEM = R6::R6Class(
                 
                 outcome = private$i.kernel$get.outcome.kernel(outcome.name)
                 outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
-                                      private$i.outcome.dim.names.sans.time[[outcome.name]])
+                                      private$i.sub.version.outcome.dim.names.sans.time[[outcome.name]])
                 
-                outcome.n = prod(sapply(private$i.outcome.dim.names.sans.time[[outcome.name]], length))
+                outcome.n = prod(vapply(private$i.sub.version.outcome.dim.names.sans.time[[outcome.name]], length, FUN.VALUE = numeric(1)))
                 char.times = as.character(private$i.outcome.value.times[[outcome.name]])
-                
+               
                 if (is.null(private$i.outcome.denominators[[outcome.name]]))
                     NULL
                 else
                 {
-                    outcome = private$i.kernel$get.outcome.kernel(outcome.name)
-                    outcome.dim.names = c(list(year=private$i.outcome.value.times[[outcome.name]]),
-                                          private$i.outcome.dim.names.sans.time[[outcome.name]])
-                    
                     if (is.degenerate)
                         val = outcome.numerators[[outcome.name]] #use the same NA vector that is in the numerator
                     else
@@ -6988,7 +7012,7 @@ JHEEM = R6::R6Class(
                     collapse.indices = private$i.outcome.collapse.indices.for.sub.version[[outcome.name]]
                     if (is.null(collapse.indices))
                     {
-                        private$calculate.outcome.collapse.indices.for.sub.version(outcome)
+                        private$calculate.outcome.collapse.indices.for.sub.version(outcome, outcome.sub.version.details=outcome.sub.version.details)
                         collapse.indices = private$i.outcome.collapse.indices.for.sub.version[[outcome.name]]
                     }
                     
@@ -6997,7 +7021,6 @@ JHEEM = R6::R6Class(
                     else
                     {
                         lapply(value, function(one.val){
-                            
                             collapse.array.according.to.indices(arr = one.val,
                                                                 small.indices = collapse.indices$small.indices,
                                                                 large.indices = collapse.indices$large.indices,

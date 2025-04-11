@@ -1195,21 +1195,23 @@ NumericVector compute_dx(NumericVector state,
         double value;
         IntegerVector proportion_indices;
         IntegerVector to_indices;
+        int from_state_index;
         for (int from=0; from<n_from; from++)
         {
-            remissions = infected[ from_state_indices[from] ] * remission_rates[ remission_rate_indices[from] ];
-            dx_infected[from] -= remissions;
+            from_state_index = from_state_indices[from];
+            remissions = infected[from_state_index] * remission_rates[ remission_rate_indices[from] ];
+            dx_infected[from_state_index] -= remissions;
             
             proportion_indices = proportions_indices_for_from[from];
             to_indices = to_indices_for_from[from];
+            
+            if (need_to_track_from)
+                scratch1[from_state_index] = remissions;
             
             for (int to=0; to<n_to_per_from; to++)
             {
                 value = remissions * remission_proportions[ proportion_indices[to] ];
                 dx_uninfected[ to_indices[to] ] += value;
-                
-                if (need_to_track_from)
-                    scratch1[ from_state_indices[from] ] = value;
                 
                 if (need_to_track_to)
                     scratch2[ to_indices[to] ] += value;

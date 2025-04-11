@@ -2494,7 +2494,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                     # Validate keep.dimensions / calculate keep.dimensions
                     if (!is.null(info$keep.dimensions))
                     {
-                        invalid.keep.dimensions = setdiff(keep.dimensions, names(sub.version.dim.names))
+                        invalid.keep.dimensions = setdiff(info$keep.dimensions, names(sub.version.dim.names))
                         if (length(invalid.keep.dimensions)>0)
                             stop(paste0(error.prefix,
                                         "'keep.dimensions' includes ",
