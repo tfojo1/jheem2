@@ -735,6 +735,14 @@ SOLVER.METADATA = R6::R6Class(
                                         fixed_strata_info = diffeq.settings$fixed.strata.info,
                                         population_trackers = diffeq.settings$population_trackers)
                     }
+                    # if (any(dx[1:1386]+y[1:1386]<0))
+                    #     browser()
+                    # 
+                    # if (any(y<0))
+                    #     browser()
+                    
+         #           if (abs(sum(dx[1:1386]))>0.00001)
+           #             browser()
                     
                     list(dx)
                 }
@@ -1268,6 +1276,11 @@ JHEEM.ENGINE = R6::R6Class(
         extract.quantity.values = function()
         {
             private$i.jheem$extract.quantity.values()
+        },
+        
+        extract.diffeq.settings = function()
+        {
+            private$i.jheem$extract.diffeq.settings()
         }
     ),
     
@@ -1852,6 +1865,11 @@ JHEEM = R6::R6Class(
         extract.quantity.values = function()
         {
             private$i.quantity.values
+        },
+        
+        extract.diffeq.settings = function()
+        {
+            private$i.diffeq.settings
         },
         
         ##------------------------------##
