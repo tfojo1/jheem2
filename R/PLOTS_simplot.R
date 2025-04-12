@@ -221,8 +221,7 @@ simplot.data.only <- function(outcomes,
 #' @value A list with three components:
 #' df.sim, a data frame containing simulation data (may be NULL)
 #' df.truth, a data frame containing calibration data (may be NULL)
-#' details, a list with components "y.label", "plot.title", and "outcome.metadata.list",
-#' 
+#' details, a list with components "y.label", "plot.title", "outcome.metadata.list", "source.metadata.list", and "sim.labels.list"
 #' @export
 prepare.plot <- function(simset.list=NULL,
                          outcomes=NULL,
