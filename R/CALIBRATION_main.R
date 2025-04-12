@@ -80,6 +80,11 @@ set.up.calibration <- function(version,
             stop(paste0(error.prefix, "We were instructed to draw.from.parent.version in setting up the calibration, but no specification has been registered for the parent version '", spec$parent.version, "'"))   
     }
     
+    if (calibration.info$thin > cache.frequency)
+        print(paste0("WARNING: You have set cache.frequency=", cache.frequency,
+                     ", but the 'thin' for the registered calibration is ", calibration.info$thin,
+                     ". This means you will be saving empty files to the disk (with no simulations in them)"))
+    
     #-------------------------#
     #-- Pull Down the Prior --#
     #-------------------------#
@@ -1096,7 +1101,7 @@ assemble.simulations.from.calibration <- function(version,
                 
                 sub.mcmc = get(load(file.path(chain.dir, paste0("chain", chain, "_chunk", chunk, ".Rdata"))))
                 
-                if (sub.mcmc@n.iter>0)
+                if (sub.mcmc@n.iter>0 && length(sub.mcmc@simulations)>1)
                 {
                     #-- Set up our data structures --#
                     if (is.null(outcome.dimnames))
