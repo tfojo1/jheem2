@@ -7748,9 +7748,6 @@ MODEL.OUTCOME = R6::R6Class(
                                                  already.calculated.dim.names = already.calculated.dim.names,
                                                  error.prefix = error.prefix)
                 
-                if (set && private$i.name=='total.mortality')
-                    browser()
-                
                 if (set && is.null(dim.names) && length(private$i.keep.dimensions)>0)
                 {
                     # Would it be better to do a top-down calculation here?
