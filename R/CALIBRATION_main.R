@@ -1,4 +1,5 @@
 
+#'@param Set Up A Calibration
 #'@param version The version of the model specification (must have been previously registered)
 #'@param location A single character value representing the location for the calibration
 #'@param calibration.code
@@ -693,6 +694,7 @@ parse.calibration.parameter.aliases <- function(calibration.info,
     )
 }
 
+#'@title Run A Calibration
 #'@inheritParams set.up.calibration
 #'@param chains
 #'@param update.frequency
@@ -729,6 +731,7 @@ run.calibration <- function(version,
     rv                          
 }
 
+#' @title Cache A Summary of an MCMC
 #'@export
 cache.mcmc.summary <- function(version,
                                location,
@@ -762,6 +765,7 @@ cache.mcmc.summary <- function(version,
     invisible(mcmc.summary)
 }
 
+#' @title Get Calibration Progress
 #'@export
 get.calibration.progress <- function(version,
                                     locations,
@@ -848,6 +852,7 @@ get.mcmc.summary.modified.time <- function(version, location, calibration.code, 
         NA
 }
 
+#' @title Clear a Calibration Cache
 #'@inheritParams set.up.calibration
 #'@param allow.remove.incomplete
 #'
@@ -871,6 +876,7 @@ clear.calibration.cache <- function(version,
     }
 }
 
+#' @title Assemble an MCMC From a Calibration
 #'@inheritParams set.up.calibration
 #'@param allow.remove.incomplete
 #'@param chains
@@ -893,6 +899,7 @@ assemble.mcmc.from.calibration <- function(version,
     mcmc
 }
 
+#' @title Extract the Last Simulation From A Calibration
 #'@inheritParams assemble.mcmc.from.calibration
 #'@param include.first.sim
 #'
@@ -993,6 +1000,7 @@ extract.last.simulation.from.calibration <- function(version,
     sim
 }
 
+#' @title Assemble Simulations From A Calibration
 #'@inheritParams assemble.mcmc.from.calibration
 #'
 #'@export
@@ -1449,7 +1457,7 @@ OLD.assemble.simulations.from.calibration <- function(version,
 }
 
 
-
+#' @title Register Calibration Info
 #'@param code
 #'@param likelihood.instructions
 #'@param is.preliminary
