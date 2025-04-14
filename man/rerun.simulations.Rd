@@ -16,6 +16,8 @@ rerun.simulations(
 \arguments{
 \item{simset}{The JHEEM simulation set to re-run}
 
+\item{max.run.time.seconds}{The maximum amount of time to run simulations before terminating}
+
 \item{sub.version}{The sub-version to run}
 
 \item{from.year, to.year}{The years to keep in the simulation object}
