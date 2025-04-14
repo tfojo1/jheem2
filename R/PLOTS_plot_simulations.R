@@ -1,7 +1,5 @@
 # We need access to the prepare.plot function from PLOTS_simplot.R
 
-library(plotly)
-
 #source("R/PLOTS_simplot.R")
 
 # Need access to the Data Manager
