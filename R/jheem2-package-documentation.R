@@ -11,4 +11,8 @@
 #' @import Rcpp
 #' @import locations
 #' @import deSolve
+#' @import ggplot2
+#' @import reshape2
+#' @import plotly
+#' @import ggsci
 NULL
