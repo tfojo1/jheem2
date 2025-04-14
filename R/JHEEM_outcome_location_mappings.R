@@ -16,6 +16,7 @@ if (1==2)
                                     'C.12580')
 }
 
+#' @title Create Outcome Location Mapping
 #'@param location.mappings is a named list, where the names correspond to modeled locations, and the elements are vectors of observed locations
 create.outcome.location.mapping <- function(location.mappings,
                                             outcome.name,
@@ -80,6 +81,7 @@ create.default.outcome.location.mapping <- function(version = jheem.kernel$versi
     )
 }
 
+#' @title Join Outcome Location Mappings
 #'@param mappings.to.join A list of outcome.location.mappings objects
 join.outcome.location.mappings <- function(mappings.to.join)
 {

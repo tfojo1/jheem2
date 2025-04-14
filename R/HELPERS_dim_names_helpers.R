@@ -85,6 +85,7 @@ union.dim.names <- function(...)
     union.dimension.values(...)
 }
 
+#' @title Get the union of dimension values sets
 #'@param ... can be either (1) dimension values or (2) lists of dimension values
 union.dimension.values <- function(..., error.prefix='')
 {
