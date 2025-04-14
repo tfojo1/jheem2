@@ -1,3 +1,4 @@
+#' @title Create Bernoulli Likelihood Instructions
 #' @param outcome.for.sim A single character vector specifying the simulation outcome to use.
 #' @param dimensions A character vector of dimensions, excluding year, from which stratifications will be generated.
 #' @param levels.of.stratification A numeric vector specifying how the dimensions should be combined to form strata. '0' indicates totals (not stratified) while '1' indicates strata that are each stratified by one dimension at a time, '2' indicates strat that are each stratified by a combination of two dimensions at a time, etc. May not exceed the number of dimensions. Defaults to NULL, which is equivalent to '0'.

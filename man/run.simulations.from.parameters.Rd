@@ -19,9 +19,17 @@ run.simulations.from.parameters(
 )
 }
 \arguments{
+\item{version, location, sub.version}{The JHEEM version, sub.version, and location for which to run simulations}
+
 \item{parameters}{The parameters to run simulations for. Can be either (a) a matrix with parameters on the rows, and one column for each set of parameters/simulation to run, with named rows or (b) a named numeric vector of parameters for a single simulation}
 
+\item{end.year}{The year to run simulations to}
+
+\item{max.run.time.seconds}{The maximum amount of time to run simulations before terminating}
+
 \item{calibration.code}{If parameters were derived from a previous calibration, the calibration code that should be attached to the resulting simulation set}
+
+\item{solver.metadata}{A solver.metadata object, as created by \code{\link{create.solver.metadata}}, specifying what ODE solver to use in running simulations}
 }
 \description{
 Run a Simulations from a Set of Parameters

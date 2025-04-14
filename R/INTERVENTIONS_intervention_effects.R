@@ -141,6 +141,7 @@ create.intervention.effect <- function(quantity.name,
         rv
 }
 
+#' @title Anchor Intervention Effect's Location and Version
 #' @param intervention.effect A 'jheem.intervention.effect' object that does not have a location or version set
 #' @param location
 #' @param specification.metadata A 'jheem.specification.metadata' object for the desired version. Its location need not match the location given as argument to this function.

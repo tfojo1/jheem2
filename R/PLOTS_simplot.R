@@ -1,4 +1,5 @@
 
+#' @title Plot Simulations And Data
 #'@param ... One or more jheem.simulation.set objects and at most one character vector of outcomes (as an alternative to the 'outcomes' argument)
 #'@param corresponding.data.outcomes Specify directly which data outcomes should be plotted against simulation outcomes. Must be NULL or a character vector with outcomes as names; all of those outcomes must be present in either the 'outcomes' argument or in '...'"
 #'@param outcomes A character vector of which simulation outcomes to plot
@@ -85,6 +86,7 @@ simplot <- function(...,
 #'@param plot.which Checked for proper value, not passed out of the function
 #'@param summary.type Checked for proper value, not passed out of the function
 #'@return A list containing processed $simset.list and $outcomes (a vector)
+#' @export
 plot.data.validation = function(simset.args,
                                 deparsed.substituted.args.simset.args,
                                 outcomes,
@@ -159,7 +161,7 @@ plot.data.validation = function(simset.args,
 }
 
 
-#' Simplot Data Only
+#' @title Simplot Data Only
 #'@inheritParams simplot
 #'@param A character vector of which simulation outcomes to plot. Note: This should be the names of the outcomes in the provided data manager, NOT in the simulations.
 #'@param title NULL or a single, non-NA character value. If "location", the first location provided in "locations" will be used for the title.

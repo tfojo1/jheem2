@@ -105,11 +105,22 @@ get.array.access.indices <- function(arr.dim.names,
                                      dimension.values,
                                      index.from = 1)
 {
-    arr = array(index.from:(prod(sapply(arr.dim.names, length))-1+index.from),
-                dim=sapply(arr.dim.names, length),
-                dimnames=arr.dim.names)
-    
-    as.integer(fast.array.access(arr, dimension.values))
+    if (length(arr.dim.names)==0)
+    {
+        if (length(dimension.values)==0)
+            index.from
+        else
+            stop("Have asked to get.array.access.indices with empty arr.dim.names but non-empty dimension.values")
+            #rep(index.from, prod(sapply(dimension.values, length))) #Is this right? I'm not usre
+    }
+    else
+    {
+        arr = array(index.from:(prod(vapply(arr.dim.names, length, FUN.VALUE = numeric(1)))-1+index.from),
+                    dim=sapply(arr.dim.names, length),
+                    dimnames=arr.dim.names)
+        
+        as.integer(fast.array.access(arr, dimension.values))
+    }
 }
 
 #'@export

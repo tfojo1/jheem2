@@ -2934,7 +2934,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                
             # Validate keep.dimension
             # Validate exclude.dimensions
-            if (length(keep.dimensions)==0)
+            if (is.null(keep.dimensions))#length(keep.dimensions)==0)
             {
                 keep.dimensions = NULL
                 
@@ -7537,9 +7537,9 @@ MODEL.OUTCOME = R6::R6Class(
             
             # Validate keep.dimension
             # Validate exclude.dimensions
-            if (length(keep.dimensions)==0)
+            if (is.null(keep.dimensions)) #length(keep.dimensions)==0)
             {
-                keep.dimensions = NULL
+#                keep.dimensions = NULL
                 
                 if (length(exclude.dimensions)==0)
                     exclude.dimensions = NULL

@@ -1,4 +1,5 @@
 
+#'@param Set Up A Calibration
 #'@param version The version of the model specification (must have been previously registered)
 #'@param location A single character value representing the location for the calibration
 #'@param calibration.code
@@ -79,6 +80,11 @@ set.up.calibration <- function(version,
         if (!is.specification.registered.for.version(spec$parent.version))
             stop(paste0(error.prefix, "We were instructed to draw.from.parent.version in setting up the calibration, but no specification has been registered for the parent version '", spec$parent.version, "'"))   
     }
+    
+    if (calibration.info$thin > cache.frequency)
+        print(paste0("WARNING: You have set cache.frequency=", cache.frequency,
+                     ", but the 'thin' for the registered calibration is ", calibration.info$thin,
+                     ". This means you will be saving empty files to the disk (with no simulations in them)"))
     
     #-------------------------#
     #-- Pull Down the Prior --#
@@ -688,6 +694,7 @@ parse.calibration.parameter.aliases <- function(calibration.info,
     )
 }
 
+#'@title Run A Calibration
 #'@inheritParams set.up.calibration
 #'@param chains
 #'@param update.frequency
@@ -724,6 +731,7 @@ run.calibration <- function(version,
     rv                          
 }
 
+#' @title Cache A Summary of an MCMC
 #'@export
 cache.mcmc.summary <- function(version,
                                location,
@@ -757,6 +765,7 @@ cache.mcmc.summary <- function(version,
     invisible(mcmc.summary)
 }
 
+#' @title Get Calibration Progress
 #'@export
 get.calibration.progress <- function(version,
                                     locations,
@@ -843,6 +852,7 @@ get.mcmc.summary.modified.time <- function(version, location, calibration.code, 
         NA
 }
 
+#' @title Clear a Calibration Cache
 #'@inheritParams set.up.calibration
 #'@param allow.remove.incomplete
 #'
@@ -866,6 +876,7 @@ clear.calibration.cache <- function(version,
     }
 }
 
+#' @title Assemble an MCMC From a Calibration
 #'@inheritParams set.up.calibration
 #'@param allow.remove.incomplete
 #'@param chains
@@ -888,6 +899,7 @@ assemble.mcmc.from.calibration <- function(version,
     mcmc
 }
 
+#' @title Extract the Last Simulation From A Calibration
 #'@inheritParams assemble.mcmc.from.calibration
 #'@param include.first.sim
 #'
@@ -988,6 +1000,7 @@ extract.last.simulation.from.calibration <- function(version,
     sim
 }
 
+#' @title Assemble Simulations From A Calibration
 #'@inheritParams assemble.mcmc.from.calibration
 #'
 #'@export
@@ -1096,7 +1109,7 @@ assemble.simulations.from.calibration <- function(version,
                 
                 sub.mcmc = get(load(file.path(chain.dir, paste0("chain", chain, "_chunk", chunk, ".Rdata"))))
                 
-                if (sub.mcmc@n.iter>0)
+                if (sub.mcmc@n.iter>0 && length(sub.mcmc@simulations)>1)
                 {
                     #-- Set up our data structures --#
                     if (is.null(outcome.dimnames))
@@ -1444,7 +1457,7 @@ OLD.assemble.simulations.from.calibration <- function(version,
 }
 
 
-
+#' @title Register Calibration Info
 #'@param code
 #'@param likelihood.instructions
 #'@param is.preliminary
