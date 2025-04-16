@@ -686,12 +686,14 @@ prepare.infections.info <- function(settings, quantity.dim.names,
         # Set up denominator indices
         
         denominator.infected.indices.for.from.contacts = lapply(from.contact.categories, function(catg){
+            catg[names(comp$from.applies.to)] = comp$from.applies.to
             get.array.access.indices(arr.dim.names = infected.ontology,
                                      dimension.values = catg,
                                      index.from = 0)
         })
         
         denominator.uninfected.indices.for.from.contacts = lapply(from.contact.categories, function(catg){
+            catg[names(comp$from.applies.to)] = comp$from.applies.to
             get.array.access.indices(arr.dim.names = uninfected.ontology,
                                      dimension.values = catg,
                                      index.from = 0)
