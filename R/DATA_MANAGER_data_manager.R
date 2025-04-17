@@ -162,7 +162,7 @@ import.data <- function(to.data.manager = get.default.data.manager(),
 #'@param ontology.name The name of a registered ontology for which data should be subset. If NULL, data from all ontologies will be subset.
 #'
 #'@export
-subset.data <- function(data.manager = get.default.data.manager(),
+subset_data <- function(data.manager = get.default.data.manager(),
                         dimension.values,
                         ontology.name)
 {
