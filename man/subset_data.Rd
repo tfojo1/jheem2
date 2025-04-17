@@ -6,16 +6,21 @@
 \usage{
 subset_data(
   data.manager = get.default.data.manager(),
-  dimension.values,
-  ontology.name
+  outcomes.to.keep = NULL,
+  sources.to.keep = NULL,
+  ontologies.to.keep = NULL,
+  incomplete.dimension.values.to.keep = NULL,
+  retain.registrations = T
 )
 }
 \arguments{
-\item{data.manager}{A jheem.data.manager object}
+\item{outcomes.to.keep, sources.to.keep, ontologies.to.keep}{Character vectors of which outcomes, sources, and/or ontologies to retain data for.}
 
-\item{dimension.values}{A named list that indicates what subset of the data should be kept. The values of dimension.values must be character vectors unless an 'ontology.name' is specified, in which case logical and numeric vectors may also be used.}
+\item{incomplete.dimension.values.to.keep}{A list of which years, locations, etc. to retain data for. Must be character vectors with the dimensions as names.}
 
-\item{ontology.name}{The name of a registered ontology for which data should be subset. If NULL, data from all ontologies will be subset.}
+\item{retain.registrations}{Should registered outcomes (or sources, ontologies, etc.) be un-registered if they aren't being kept?}
+
+\item{A}{jheem.data.manager object}
 }
 \description{
 Subset a JHEEM Data Manager

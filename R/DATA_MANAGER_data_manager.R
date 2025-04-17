@@ -155,22 +155,27 @@ import.data <- function(to.data.manager = get.default.data.manager(),
     to.data.manager$import.data(from.data.manager)
 }
 
-#'@title Subset a JHEEM Data Manager
-#'
-#'@param data.manager A jheem.data.manager object
-#'@param dimension.values A named list that indicates what subset of the data should be kept. The values of dimension.values must be character vectors unless an 'ontology.name' is specified, in which case logical and numeric vectors may also be used.
-#'@param ontology.name The name of a registered ontology for which data should be subset. If NULL, data from all ontologies will be subset.
-#'
-#'@export
+#' @title Subset a JHEEM Data Manager
+#' @param A jheem.data.manager object
+#' @param outcomes.to.keep,sources.to.keep,ontologies.to.keep Character vectors of which outcomes, sources, and/or ontologies to retain data for.
+#' @param incomplete.dimension.values.to.keep A list of which years, locations, etc. to retain data for. Must be character vectors with the dimensions as names.
+#' @param retain.registrations Should registered outcomes (or sources, ontologies, etc.) be un-registered if they aren't being kept?
+#' @export
 subset_data <- function(data.manager = get.default.data.manager(),
-                        dimension.values,
-                        ontology.name)
+                        outcomes.to.keep=NULL,
+                        sources.to.keep=NULL,
+                        ontologies.to.keep=NULL,
+                        incomplete.dimension.values.to.keep=NULL,
+                        retain.registrations=T)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
     
-    data.manager$subset(dimension.values=dimension.values,
-                        ontology=ontology)
+    data.manager$subset.data(outcomes.to.keep=outcomes.to.keep,
+                             sources.to.keep=sources.to.keep,
+                             ontologies.to.keep=ontologies.to.keep,
+                             incomplete.dimension.values.to.keep=incomplete.dimension.values.to.keep,
+                             retain.registrations=retain.registrations)
 }
 
 #'@title Register a new data ontology to a data manager before putting data to it
@@ -748,68 +753,176 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
         },
         
-        subset.data = function(dimension.values,
-                               ontology.name=NULL)
+        subset.data = function(outcomes.to.keep=NULL,
+                               sources.to.keep=NULL,
+                               ontologies.to.keep=NULL,
+                               incomplete.dimension.values.to.keep=NULL,
+                               retain.registrations=T)
         {
-            # --- Validate arguments ---
+            # Validate arguments ----
+            
             error.prefix = paste0("Unable to subset data.manager '", private$i.name, "': ")
-            stop(paste0(error.prefix, "This function is not yet implemented"))
-            # *ontology* is NULL or a single, non-empty, non-NA character value which refers to a registered ontology
-            # *dimension.values* is a named list of character vectors. If an 'ontology.name' is specified, logical and numeric vectors may also be used.
             
-            if (!is.null(ontology.name)) {
-                if (!is.character(ontology.name) || length(ontology.name)!=1 || is.na(ontology.name) || nchar(ontology.name)==0)
-                    stop(paste0, error.prefix, "'ontology.name' must be NULL or a single, non-empty, non-NA character value")
-                ont = private$i.ontologies[[ontology.name]]
-                if (is.null(ont))
-                    stop(paste0(error.prefix, "'", ontology.name, "' is not a registered ontology"))
-                dimension.values = resolve.ontology.dimension.values(ont = ont,
-                                                                     dimension.values = dimension.values,
-                                                                     error.prefix = paste0(error.prefix, "Error resolving 'dimension.values' - "))
+            if (!is.null(outcomes.to.keep)) {
+                if (!is.character(outcomes.to.keep) || length(outcomes.to.keep)==0 || any(is.na(outcomes.to.keep)) || any(duplicated(outcomes.to.keep)))
+                    stop(paste0(error.prefix, "'outcomes.to.keep' must be NULL or a character vector with no NAs or repeats"))
+                if (!all(outcomes.to.keep %in% names(private$i.outcome.info)))
+                    stop(paste0(error.prefix, "all outcomes in 'outcomes.to.keep' must be registered in the data manager"))
             }
-            else {
-                check.dimension.values.valid(dimension.values,
-                                             variable.name.for.error = 'dimension.values')
-                for(d in names(dimension.values)) {
-                    if(!is.character(dimension.values[[d]]))
-                        stop(paste0(error.prefix, "each element of 'dimension.values' must be a character vector if 'ontology.name' is NULL"))
-                }
+            if (!is.null(sources.to.keep)) {
+                if (!is.character(sources.to.keep) || length(sources.to.keep)==0 || any(is.na(sources.to.keep)) || any(duplicated(sources.to.keep)))
+                    stop(paste0(error.prefix, "'sources.to.keep' must be NULL or a character vector with no NAs or repeats"))
+                if (!all(sources.to.keep %in% names(private$i.source.info)))
+                    stop(paste0(error.prefix, "all sources in 'sources.to.keep' must be registered in the data manager"))
+            }
+            if (!is.null(ontologies.to.keep)) {
+                if (!is.character(ontologies.to.keep) || length(ontologies.to.keep)==0 || any(is.na(ontologies.to.keep)) || any(duplicated(ontologies.to.keep)))
+                    stop(paste0(error.prefix, "'ontologies.to.keep' must be NULL or a character vector with no NAs or repeats"))
+                if (!all(ontologies.to.keep %in% names(private$i.ontologies)))
+                    stop(paste0(error.prefix, "all ontologies in 'ontologies.to.keep' must be registered in the data manager"))
             }
             
-            # --- Subset data
+            kept.outcomes = outcomes.to.keep
+            kept.sources = sources.to.keep
+            kept.ontologies = ontologies.to.keep
+            
+            # *incomplete.dimension.values.to.keep* must be NULL or a named list of character vectors
+            if (!is.null(incomplete.dimension.values.to.keep)) {
+                if (!is.list(incomplete.dimension.values.to.keep) || is.null(names(incomplete.dimension.values.to.keep)) || any(is.na(names(incomplete.dimension.values.to.keep))))
+                    stop(paste0(error.prefix, "'incomplete.dimension.values.to.keep' must be NULL or a named list of character vectors"))
+                if (any(sapply(incomplete.dimension.values.to.keep, function(dimension) {
+                    !is.character(dimension) || length(dimension)==0 || any(is.na(dimension) || any(duplicated(dimension)))
+                })))
+                    stop(paste0(error.prefix, "the elements of 'incomplete.dimension.values.to.keep' must be character vectors with no NAs or repeats"))
+                if (!is.character(names(incomplete.dimension.values.to.keep)) || any(is.na(names(incomplete.dimension.values.to.keep))) || any(duplicated(names(incomplete.dimension.values.to.keep))))
+                    stop(paste0(error.prefix, "the names of 'incomplete.dimension.values.to.keep' must be characters and contain no NAs or repeats. These correspond to the names of dimensions."))
+            }
+            
+            if (is.null(outcomes.to.keep) && is.null(sources.to.keep) && is.null(ontologies.to.keep) && is.null(incomplete.dimension.values.to.keep))
+                stop(paste0(error.prefix, "at least one of 'outcomes.to.keep', 'sources.to.keep', 'ontologies.to.keep' or 'incomplete.dimension.values.to.keep' must be used (non-NULL)"))
+            
+            
+            # Subset data, url, details ----
             for (data.type in c('i.data', 'i.url', 'i.details')) {
-                private[[data.type]] = lapply(private[[data.type]], function(outcome) {
-                    lapply(outcome, function(metric) {
-                        lapply(metric, function(source) {
-                            # To make sure we get a named list for the source
-                            ontology.iterator = seq_along(source)
-                            names(ontology.iterator) = names(source)
+                
+                used.outcomes = names(private[[data.type]])
+                if (!is.null(kept.outcomes))
+                    used.outcomes = intersect(kept.outcomes, used.outcomes)
+                
+                private[[data.type]] = lapply(used.outcomes, function(outcome.name) {
+
+                    used.metrics = names(private[[data.type]][[outcome.name]])
+                    
+                    rv.this.outcome = lapply(used.metrics, function(metric.name) {
+                        
+                        used.sources = names(private[[data.type]][[outcome.name]][[metric.name]])
+                        if (!is.null(kept.sources))
+                            used.sources = intersect(kept.sources, used.sources)
+                        
+                        rv.this.metric = lapply(used.sources, function(source.name) {
                             
-                            lapply(ontology.iterator, function(i) {
-                                if (names(source)[[i]] == ontology.name || is.null(ontology.name)) {
-                                    lapply(source[[i]], function(stratification) {
-                                        dimensions.to.subset = dimension.values[names(dimension.values) %in% names(dim(stratification))]
-                                        if (length(dimensions.to.subset) > 0) {
-                                            dimnames.for.subset = dimnames(stratification)
-                                            for (d in names(dimensions.to.subset))
-                                                dimnames.for.subset[[d]] = dimensions.to.subset[[d]][dimensions.to.subset[[d]] %in% dimnames(stratification)[[d]]]
-                                            if (all(sapply(dimnames.for.subset, length) > 0))
-                                                fast.array.access(stratification, dimnames.for.subset)
-                                            else stratification
-                                        }
-                                        else stratification
+                            used.ontologies = names(private[[data.type]][[outcome.name]][[metric.name]][[source.name]])
+                            if (!is.null(kept.ontologies))
+                                used.ontologies = intersect(kept.ontologies, used.ontologies)
+                            
+                            rv.this.source = lapply(used.ontologies, function(ontology.name) {
+                                
+                                used.stratifications = names(private[[data.type]][[outcome.name]][[metric.name]][[source.name]][[ontology.name]])
+                                # browser()
+
+                                # Assume every stratification has all the incomplete dimensions for the ontology
+                                if (!is.null(incomplete.dimension.values.to.keep)) {
+                                    subset.dimension.values = incomplete.dimension.values.to.keep[names(incomplete.dimension.values.to.keep) %in% incomplete.dimensions(private$i.ontologies[[ontology.name]])]
+                                    subset.dimensions = names(subset.dimension.values)
+                                } else
+                                    return(private[[data.type]][[outcome.name]][[metric.name]][[source.name]][[ontology.name]])
+                                
+                                rv.this.ontology = lapply(used.stratifications, function(stratification.name) {
+
+                                    strat.data = private[[data.type]][[outcome.name]][[metric.name]][[source.name]][[ontology.name]][[stratification.name]]
+                                    
+                                    subset.dimension.values.this.strat = lapply(subset.dimensions, function(dimension) {
+                                        
+                                        intersect(dimnames(strat.data)[[dimension]], subset.dimension.values[[dimension]])
+                                        
                                     })
-                                }
-                                else source[[i]]
+                                    names(subset.dimension.values.this.strat) = subset.dimensions
+                                    
+                                    # If we have a dimension where the vals are length zero, it means we should cut out the whole stratfication because it doesn't have our location/year.
+                                    
+                                    if (all(sapply(subset.dimension.values.this.strat, length) > 0))
+                                        fast.array.access(strat.data, subset.dimension.values.this.strat)
+                                    else
+                                        NULL
+                                })
+                                
+                                # Now cut out stratifications that are NULL (didn't have our location/year). This may leave rv as "list()"
+                                names(rv.this.ontology) = used.stratifications
+                                rv.this.ontology = rv.this.ontology[!sapply(rv.this.ontology, is.null)]
+                                
                             })
+                            
+                            # Now cut out ontologies that are empty lists (had no retained stratifications)
+                            names(rv.this.source) = used.ontologies
+                            rv.this.source = rv.this.source[sapply(rv.this.source, length) > 0]
+                            
                         })
+                        
+                        # Now cut out sources that are empty lists (had no retained ontologies)
+                        names(rv.this.metric) = used.sources
+                        rv.this.metric = rv.this.metric[sapply(rv.this.metric, length) > 0]
+                        
                     })
+                    
+                    # Now cut out metrics that are empty lists (had no retained sources)
+                    names(rv.this.outcome) = used.metrics
+                    rv.this.outcome = rv.this.outcome[sapply(rv.this.outcome, length) > 0]
+                    
                 })
+                
+                # Now cut out outcomes that are empty lists (had no retained metrics)
+                names(private[[data.type]]) = used.outcomes
+                private[[data.type]] = private[[data.type]][sapply(private[[data.type]], length) > 0]
+                
             }
             
-            # Modified
-            private$i.last.modified.date = Sys.time()
+            # Update ontologies with union of incomplete dimension values ----
+            ontology.names = names(private$i.ontologies)
+            private$i.ontologies = lapply(names(private$i.ontologies), function(ontology.name) {
+                
+                updated.ontology = private$i.ontologies[[ontology.name]]
+                
+                # Go through each outcome, metric, source, -- this ontology --, and stratification to find values that are present post-subset
+                for (incomplete.dimension in incomplete.dimensions(updated.ontology)) {
+                    
+                    updated.ontology[[incomplete.dimension]] = unique(unlist(lapply(private$i.data, function(outcome.data) {
+                        unique(unlist(lapply(outcome.data, function(metric.data) {
+                            unique(unlist(lapply(metric.data, function(source.data) {
+                                if (ontology.name %in% names(source.data)) {
+                                    unique(unlist(lapply(source.data[[ontology.name]], function(strat.data) {
+                                        dimnames(strat.data)[[incomplete.dimension]]
+                                    })))
+                                }
+                                else
+                                    NULL
+                            })))
+                        })))
+                    })))
+                    
+                }
+                
+                updated.ontology
+                
+            })
+            names(private$i.ontologies) = ontology.names
             
+            # Remove registrations if requested ----
+            if (!retain.registrations)
+                stop(paste0(error.prefix, "setting 'retain.registrations' to FALSE is not yet supported"))
+            
+            # Return ----
+            private$i.last.modified.date = Sys.time()
+            invisible(self)
         },
         
         register.ontology = function(name, ont)
