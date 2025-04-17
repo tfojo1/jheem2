@@ -155,10 +155,12 @@ import.data <- function(to.data.manager = get.default.data.manager(),
     to.data.manager$import.data(from.data.manager)
 }
 
+#' @title Subset a JHEEM Data Manager
 #' @param A jheem.data.manager object
 #' @param outcomes.to.keep,sources.to.keep,ontologies.to.keep Character vectors of which outcomes, sources, and/or ontologies to retain data for.
 #' @param incomplete.dimension.values.to.keep A list of which years, locations, etc. to retain data for. Must be character vectors with the dimensions as names.
 #' @param retain.registrations Should registered outcomes (or sources, ontologies, etc.) be un-registered if they aren't being kept?
+#' @export
 subset_data <- function(data.manager = get.default.data.manager(),
                         outcomes.to.keep=NULL,
                         sources.to.keep=NULL,
