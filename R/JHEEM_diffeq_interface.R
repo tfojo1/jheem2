@@ -686,12 +686,14 @@ prepare.infections.info <- function(settings, quantity.dim.names,
         # Set up denominator indices
         
         denominator.infected.indices.for.from.contacts = lapply(from.contact.categories, function(catg){
+            catg[names(comp$from.applies.to)] = comp$from.applies.to
             get.array.access.indices(arr.dim.names = infected.ontology,
                                      dimension.values = catg,
                                      index.from = 0)
         })
         
         denominator.uninfected.indices.for.from.contacts = lapply(from.contact.categories, function(catg){
+            catg[names(comp$from.applies.to)] = comp$from.applies.to
             get.array.access.indices(arr.dim.names = uninfected.ontology,
                                      dimension.values = catg,
                                      index.from = 0)
@@ -849,9 +851,11 @@ prepare.remission.info <- function(settings, quantity.dim.names,
             
             # Set up the indices for applying remission rates to infected compartments
             remission.rate.indices = get.expand.array.indices(to.expand.dim.names = remission.rate.quantity.dim.names,
-                                                              target.dim.names = remission.rate.dim.names)
+                                                              target.dim.names = remission.rate.dim.names,
+                                                              index.from = 0)
             from.state.indices = get.array.access.indices(arr.dim.names = from.ontology,
-                                                          dimension.values = remission.rate.dim.names)
+                                                          dimension.values = remission.rate.dim.names,
+                                                          index.from = 0)
             
             from.categories = apply(get.every.combination(remission.rate.dim.names), 1, as.list)
             n.from = length(from.categories)
@@ -873,7 +877,8 @@ prepare.remission.info <- function(settings, quantity.dim.names,
             
             to.indices.for.from = lapply(to.dim.names.per.from,
                                          get.array.access.indices,
-                                         arr.dim.names = to.ontology)
+                                         arr.dim.names = to.ontology,
+                                         index.from = 0)
             
             # This was an error
 #             unique.to.dimensions = setdiff(names(to.ontology), names(remission.rate.dim.names))
