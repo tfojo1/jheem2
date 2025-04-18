@@ -31,7 +31,8 @@ create.time.lagged.comparison.likelihood.instructions.with.included.multiplier(
   weights = list(),
   equalize.weight.by.year = T,
   use.lognormal.approximation = T,
-  name = outcome.for.sim
+  name = outcome.for.sim,
+  na.rm = NULL
 )
 }
 \arguments{
@@ -80,6 +81,8 @@ create.time.lagged.comparison.likelihood.instructions.with.included.multiplier(
 \item{equalize.weight.by.year}{A Boolean indicating whether every year should be weighted equally before the weights from 'weights' are applied.}
 
 \item{use.lognormal.approximation}{A single logical value.}
+
+\item{na.rm}{Setting this TRUE will pass 'na.rm=T' along to the pull function. If set to NULL, 'na.rm=T' will be used for outcomes with scale 'proportion', 'rate', or 'ratio'.}
 }
 \description{
 Create JHEEM Basic Likelihood Instructions
