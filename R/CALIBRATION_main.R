@@ -901,14 +901,14 @@ assemble.mcmc.from.calibration <- function(version,
 
 #' @title Extract the Last Simulation From A Calibration
 #'@inheritParams assemble.mcmc.from.calibration
-#'@param include.first.sim
+#'@param include.first.sim Whether to also pull the first simulation from the calibration (will then return a 2-simulation simset)
 #'
 #'@export
 extract.last.simulation.from.calibration <- function(version,
                                                      location,
                                                      calibration.code,
                                                      root.dir = get.jheem.root.directory("Cannot set up calibration: "),
-                                                     allow.incomplete=F,
+                                                     allow.incomplete=T,
                                                      include.first.sim=F,
                                                      chains = NULL)
 {
@@ -920,6 +920,9 @@ extract.last.simulation.from.calibration <- function(version,
     cache.dir = file.path(dir, 'cache')
     chain.dirs = list.dirs(cache.dir, recursive = F, full.names = F)
     n.chains = length(chain.dirs)
+    
+    if (!dir.exists(cache.dir))
+        stop(paste0("Cannot extract.last.simulation.from.calibration() - no MCMC cache has been set up in '", dir, "'"))
     
     if (is.null(chains))
         chains = 1:n.chains
@@ -1237,7 +1240,7 @@ assemble.simulations.from.calibration <- function(version,
             array.access(num, sim=1:sims.done)
         })
         
-        combined.outcome.denominators = lapply(combined.outcome.numerators, function(denom){
+        combined.outcome.denominators = lapply(combined.outcome.denominators, function(denom){
             if (is.null(denom))
                 NULL
             else
@@ -1548,13 +1551,12 @@ register.calibration.info <- function(code,
     if (!is.numeric(n.chains) || length(n.chains)!=1 || is.na(n.chains) || round(n.chains)!=n.chains || n.chains<1)
         stop(paste0(error.prefix, "'n.chains' must be a single, non-NA integer value greater than or equal to 1"))
     
-    # draw.initial.parameter.values.from is a character vector, may be empty
-    # - no NA values
-    # - are all previously registered calibration codes
+    if (!is.numeric(fixed.initial.parameter.values) || any(is.na(fixed.initial.parameter.values)))
+        stop(paste0(error.prefix, "'fixed.initial.parameter.values' must be a numeric vector with no NA values"))
     
-    # fixed.initial.parameter.values is a named numeric vector
-    # - may be empty
-    # - no NA values
+    if (length(fixed.initial.parameter.values) > 0 &&
+        (is.null(names(fixed.initial.parameter.values)) || any(is.na(names(fixed.initial.parameter.values)))))
+        stop(paste0(error.prefix, "'fixed.initial.parameter.values' must be a NAMED numeric vector (with no NA names)"))
     
     # description is a single, non-NA character value
     
@@ -1599,19 +1601,21 @@ register.calibration.info <- function(code,
         description = description
     )
     
-    CALIBRATION.MANAGER$info[[code]] = calibration.info
+    CALIBRATION.MANAGER$run.info[[code]] = calibration.info
     
     invisible(NULL)
 }
 
 CALIBRATION.MANAGER = new.env()
-CALIBRATION.MANAGER$info = list()
+CALIBRATION.MANAGER$run.info = list()
+CALIBRATION.MANAGER$transmute.info = list()
 
 #'@title Clear JHEEM Calibrations
 #'@export
 clear.calibrations <- function()
 {
-    CALIBRATION.MANAGER$info = list()
+     CALIBRATION.MANAGER$run.info = list()
+     CALIBRATION.MANAGER$transmute.info = list()
 }
 
 #'@title Copy Calibration Info to a New Code
@@ -1648,7 +1652,7 @@ copy.calibration.info <- function(from.code,
     if (!is.null(solver.metadata))
         calibration.info$solver.metadata = solver.metadata
         
-    CALIBRATION.MANAGER$info[[to.code]] = calibration.info
+     CALIBRATION.MANAGER$run.info[[to.code]] = calibration.info
     
         
     
@@ -1658,7 +1662,7 @@ copy.calibration.info <- function(from.code,
 
 get.calibration.info <- function(code, throw.error.if.missing=T, error.prefix='')
 {
-    rv = CALIBRATION.MANAGER$info[[code]]
+    rv = CALIBRATION.MANAGER$run.info[[code]]
     if (is.null(rv) && throw.error.if.missing)
         stop(paste0(error.prefix, "No calibration info has been registered under code '", code, "'"))
     
