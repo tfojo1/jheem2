@@ -889,6 +889,6 @@ execute.plotly.plot <- function(prepared.plot.data,
   # browser()
   # print(fig)
   # Return the final plot object
-  return(plotly_build(fig))
+  return(plotly::plotly_build(fig))
   
 }
