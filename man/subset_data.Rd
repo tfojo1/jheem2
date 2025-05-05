@@ -10,7 +10,7 @@ subset_data(
   sources.to.keep = NULL,
   ontologies.to.keep = NULL,
   incomplete.dimension.values.to.keep = NULL,
-  retain.registrations = T
+  retain.ontology.registrations = T
 )
 }
 \arguments{
@@ -18,7 +18,7 @@ subset_data(
 
 \item{incomplete.dimension.values.to.keep}{A list of which years, locations, etc. to retain data for. Must be character vectors with the dimensions as names.}
 
-\item{retain.registrations}{Should registered outcomes (or sources, ontologies, etc.) be un-registered if they aren't being kept?}
+\item{retain.ontology.registrations}{Should registered ontologies be un-registered if no data remains that uses them?}
 
 \item{A}{jheem.data.manager object}
 }

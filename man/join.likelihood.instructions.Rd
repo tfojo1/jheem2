@@ -4,10 +4,12 @@
 \alias{join.likelihood.instructions}
 \title{Make a single (joint) set of likelihood instructions out of two or more likelihood instructions objects}
 \usage{
-join.likelihood.instructions(..., additional.weights = list())
+join.likelihood.instructions(..., additional.weights = NULL)
 }
 \arguments{
 \item{...}{One or more jheem.likelihood.instructions objects or lists which contain only jheem.likelihood.instructions objects #OR it could just be codes}
+
+\item{additional.weights}{A single numeric value that applies weight to all instructions.}
 }
 \description{
 Make a single (joint) set of likelihood instructions out of two or more likelihood instructions objects
