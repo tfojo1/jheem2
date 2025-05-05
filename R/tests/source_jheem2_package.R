@@ -79,6 +79,7 @@ Rcpp::sourceCpp('../jheem2/src/likelihood_helpers.cpp')
 Rcpp::sourceCpp('../jheem2/src/nested_proportion_likelihood.cpp')
 
 source("../jheem2/R/CALIBRATION_main.R")
+source("../jheem2/R/CALIBRATION_transmute_calibration.R")
 
 
 Rcpp::sourceCpp('../jheem2/src/misc_helpers.cpp')

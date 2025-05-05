@@ -20,9 +20,13 @@ create.linear.spline.functional.form(
   after.time = NULL,
   after.modifier = NULL,
   modifiers.apply.to.change = T,
-  modifier.link = c("identity", "log", "logit")[1],
-  modifier.min = NA,
-  modifier.max = NA,
+  modifier.link = link,
+  after.modifier.increasing.change.link = modifier.link,
+  after.modifier.decreasing.change.link = modifier.link,
+  before.modifier.increasing.change.link = modifier.link,
+  before.modifier.decreasing.change.link = modifier.link,
+  modifier.min = min,
+  modifier.max = max,
   overwrite.modifiers.with.alphas = F,
   error.prefix = "Cannot create linear spline functional.form: "
 )

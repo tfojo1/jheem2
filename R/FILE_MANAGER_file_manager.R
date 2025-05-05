@@ -409,6 +409,81 @@ get.mcmc.summary.file <- function(version,
               filename)
 }
 
+get.transmute.calibration.dir <- function(to.version,
+                                          location,
+                                          transmute.code,
+                                          n.sim,
+                                          to.sub.version = NULL,
+                                          root.dir = get.jheem.root.directory())
+{
+    if (is.null(to.sub.version))
+        version.path = to.version
+    else
+        version.path = paste0(to.version, "-", to.sub.version)
+    
+    file.path(root.dir, 
+              MCMC.SUB.DIRECTORY, 
+              version.path,
+              location, 
+              paste0(transmute.code, '-', n.sim))
+}
+
+get.transmute.calibration.control.file <- function(to.version,
+                                                   location,
+                                                   transmute.code,
+                                                   n.sim,
+                                                   to.sub.version = NULL,
+                                                   root.dir = get.jheem.root.directory())
+{
+    file.path(
+        get.transmute.calibration.dir(to.version = to.version,
+                                      location = location,
+                                      transmute.code = transmute.code,
+                                      n.sim = n.sim,
+                                      to.sub.version = to.sub.version,
+                                      root.dir = root.dir),
+        'control.Rdata'
+    )
+}
+
+get.transmute.calibration.chunk.files <- function(to.version,
+                                                  location,
+                                                  transmute.code,
+                                                  n.sim = n.sim,
+                                                  chunks,
+                                                  to.sub.version = NULL,
+                                                  root.dir = get.jheem.root.directory())
+{
+    file.path(
+        get.transmute.calibration.dir(to.version = to.version,
+                                      location = location,
+                                      transmute.code = transmute.code,
+                                      n.sim = n.sim,
+                                      to.sub.version = to.sub.version,
+                                      root.dir = root.dir),
+        paste0("chunk_", chunks, "_data.Rdata")
+    )
+}
+
+get.transmute.calibration.chunk.mcmc.settings.files <- function(to.version,
+                                                                location,
+                                                                transmute.code,
+                                                                n.sim = n.sim,
+                                                                chunks,
+                                                                to.sub.version = NULL,
+                                                                root.dir = get.jheem.root.directory())
+{
+    file.path(
+        get.transmute.calibration.dir(to.version = to.version,
+                                      location = location,
+                                      transmute.code = transmute.code,
+                                      n.sim = n.sim,
+                                      to.sub.version = to.sub.version,
+                                      root.dir = root.dir),
+        paste0("chunk_", chunks, "_mcmc.settings.Rdata")
+    )
+}
+
 ##------------------------------------##
 ##-- VALIDATE ELEMENTS OF FILE PATH --##
 ##------------------------------------##

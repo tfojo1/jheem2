@@ -217,18 +217,25 @@ get.outcome.and.quantity.names.for.transmuting <- function(from.kernel.or.specif
     rv
 }
 
-
+#'@name Create a Transmuter
+#'@details A jheem.transmuter can convert simulations from one version/specification to another using its transmute() method
+#'
+#'@param simulation.set The simulation.set to transmute
+#'@param to.version,to.sub.version The version and sub.version to transmute to
+#'@from.year,to.year The from and to years to keep in the transmuted simulations
+#'
+#'@export
 create.jheem.transmuter <- function(simulation.set,
                                     to.version,
                                     from.year = simulation.set$from.year,
                                     to.year = simulation.set$to.year,
-                                    sub.version = NULL)
+                                    to.sub.version = NULL)
 {
     JHEEM.TRANSMUTER$new(simulation.set = simulation.set,
                          to.version = to.version,
                          keep.from.year = from.year,
                          keep.to.year = to.year,
-                         sub.version = sub.version)
+                         to.sub.version = to.sub.version)
 }
 
 
@@ -243,13 +250,13 @@ JHEEM.TRANSMUTER = R6::R6Class(
                               to.version,
                               keep.from.year,
                               keep.to.year,
-                              sub.version)
+                              to.sub.version)
         {
             #-- Check Arguments --#
             
             # Check Simulation Set
             
-            # Check to.version and sub.version
+            # Check to.version and to.sub.version
             
             # Check Keep Years
             
@@ -257,21 +264,21 @@ JHEEM.TRANSMUTER = R6::R6Class(
             result = do.evaluate.can.transmute(from.kernel.or.specification = simulation.set$jheem.kernel, 
                                                from.sub.version = simulation.set$sub.version,
                                                to.version = to.version,
-                                               to.sub.version = sub.version)
+                                               to.sub.version = to.sub.version)
             if (!is.null(result))
                 stop(paste0("We cannot transmute simulations from '", simulation.set$version, "' simulation.set to '",
                             to.version, "' version:\n",
                             result))
 
             super$initialize(version = to.version,
-                             sub.version = sub.version,
+                             to.sub.version = to.sub.version,
                              location = simulation.set$location,
                              type = 'transmuter')
             
             #-- Make the JHEEM Engine --#
             kernel = create.jheem.kernel(to.version, simulation.set$location)
             private$i.jheem = JHEEM$new(jheem.kernel = kernel,
-                                        sub.version = sub.version,
+                                        to.sub.version = to.sub.version,
                                         transmute.from.kernel = simulation.set$jheem.kernel,
                                         transmute.from.sub.version = simulation.set$sub.version,
                                         error.prefix = error.prefix)
