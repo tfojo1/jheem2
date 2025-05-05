@@ -159,14 +159,14 @@ import.data <- function(to.data.manager = get.default.data.manager(),
 #' @param A jheem.data.manager object
 #' @param outcomes.to.keep,sources.to.keep,ontologies.to.keep Character vectors of which outcomes, sources, and/or ontologies to retain data for.
 #' @param incomplete.dimension.values.to.keep A list of which years, locations, etc. to retain data for. Must be character vectors with the dimensions as names.
-#' @param retain.registrations Should registered outcomes (or sources, ontologies, etc.) be un-registered if they aren't being kept?
+#' @param retain.ontology.registrations Should registered ontologies be un-registered if no data remains that uses them?
 #' @export
 subset_data <- function(data.manager = get.default.data.manager(),
                         outcomes.to.keep=NULL,
                         sources.to.keep=NULL,
                         ontologies.to.keep=NULL,
                         incomplete.dimension.values.to.keep=NULL,
-                        retain.registrations=T)
+                        retain.ontology.registrations=T)
 {
     if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
         stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
@@ -175,7 +175,7 @@ subset_data <- function(data.manager = get.default.data.manager(),
                              sources.to.keep=sources.to.keep,
                              ontologies.to.keep=ontologies.to.keep,
                              incomplete.dimension.values.to.keep=incomplete.dimension.values.to.keep,
-                             retain.registrations=retain.registrations)
+                             retain.ontology.registrations=retain.ontology.registrations)
 }
 
 #'@title Register a new data ontology to a data manager before putting data to it
@@ -757,7 +757,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                sources.to.keep=NULL,
                                ontologies.to.keep=NULL,
                                incomplete.dimension.values.to.keep=NULL,
-                               retain.registrations=T)
+                               retain.ontology.registrations=T)
         {
             # Validate arguments ----
             
@@ -800,6 +800,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             if (is.null(outcomes.to.keep) && is.null(sources.to.keep) && is.null(ontologies.to.keep) && is.null(incomplete.dimension.values.to.keep))
                 stop(paste0(error.prefix, "at least one of 'outcomes.to.keep', 'sources.to.keep', 'ontologies.to.keep' or 'incomplete.dimension.values.to.keep' must be used (non-NULL)"))
+            
+            if (!identical(retain.ontology.registrations, T) && !identical(retain.ontology.registrations, F))
+                stop(paste0(error.prefix, "'retain.ontology.registrations' must be TRUE or FALSE"))
             
             
             # Subset data, url, details ----
@@ -917,8 +920,16 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             names(private$i.ontologies) = ontology.names
             
             # Remove registrations if requested ----
-            if (!retain.registrations)
-                stop(paste0(error.prefix, "setting 'retain.registrations' to FALSE is not yet supported"))
+            if (!retain.ontology.registrations) {
+                used.ontology.names <- sort(unique(unlist(lapply(private$i.data, function(outcome) {
+                    unique(unlist(lapply(outcome, function(metric) {
+                        unique(unlist(lapply(metric, function(source) {
+                            names(source)
+                        })))
+                    })))
+                }))))
+                private$i.ontologies <- private$i.ontologies[names(private$i.ontologies) %in% used.ontology.names]
+            }
             
             # Return ----
             private$i.last.modified.date = Sys.time()
