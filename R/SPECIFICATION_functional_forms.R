@@ -268,9 +268,13 @@ create.linear.spline.functional.form <- function(knot.times,
                                                  after.modifier=NULL,
                                                  
                                                  modifiers.apply.to.change=T,
-                                                 modifier.link=c('identity','log','logit')[1],
-                                                 modifier.min = NA,
-                                                 modifier.max = NA,
+                                                 modifier.link = link,
+                                                 after.modifier.increasing.change.link = modifier.link,
+                                                 after.modifier.decreasing.change.link = modifier.link,
+                                                 before.modifier.increasing.change.link = modifier.link,
+                                                 before.modifier.decreasing.change.link = modifier.link,
+                                                 modifier.min = min,
+                                                 modifier.max = max,
                                                  overwrite.modifiers.with.alphas = F,
                                                  
                                                  error.prefix = 'Cannot create linear spline functional.form: ')
@@ -296,6 +300,10 @@ create.linear.spline.functional.form <- function(knot.times,
                                       
                                       modifiers.apply.to.change = modifiers.apply.to.change,
                                       modifier.link = modifier.link,
+                                      after.modifier.increasing.change.link = after.modifier.increasing.change.link,
+                                      after.modifier.decreasing.change.link = after.modifier.decreasing.change.link,
+                                      before.modifier.increasing.change.link = before.modifier.increasing.change.link,
+                                      before.modifier.decreasing.change.link = before.modifier.decreasing.change.link,
                                       modifier.min = modifier.min,
                                       modifier.max = modifier.max,
                                       overwrite.modifiers.with.alphas = overwrite.modifiers.with.alphas,
@@ -329,9 +337,13 @@ create.natural.spline.functional.form <- function(knot.times,
                                                   after.modifier=NULL,
                                                   
                                                   modifiers.apply.to.change=T,
-                                                  modifier.link=c('identity','log','logit')[1],
-                                                  modifier.min = NA,
-                                                  modifier.max = NA,
+                                                  modifier.link = link,
+                                                  after.modifier.increasing.change.link = modifier.link,
+                                                  after.modifier.decreasing.change.link = modifier.link,
+                                                  before.modifier.increasing.change.link = modifier.link,
+                                                  before.modifier.decreasing.change.link = modifier.link,
+                                                  modifier.min = min,
+                                                  modifier.max = max,
                                                   overwrite.modifiers.with.alphas = F,
                                                   
                                                   error.prefix = 'Cannot create natural spline functional.form: ')
@@ -357,6 +369,10 @@ create.natural.spline.functional.form <- function(knot.times,
                                        
                                        modifiers.apply.to.change = modifiers.apply.to.change,
                                        modifier.link = modifier.link,
+                                       after.modifier.increasing.change.link = after.modifier.increasing.change.link,
+                                       after.modifier.decreasing.change.link = after.modifier.decreasing.change.link,
+                                       before.modifier.increasing.change.link = before.modifier.increasing.change.link,
+                                       before.modifier.decreasing.change.link = before.modifier.decreasing.change.link,
                                        modifier.min = modifier.min,
                                        modifier.max = modifier.max,
                                        overwrite.modifiers.with.alphas = overwrite.modifiers.with.alphas,
@@ -1480,6 +1496,11 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                               
                               modifiers.apply.to.change,
                               modifier.link,
+                              after.modifier.increasing.change.link,
+                              after.modifier.decreasing.change.link,
+                              before.modifier.increasing.change.link,
+                              before.modifier.decreasing.change.link,
+                              
                               modifier.min,
                               modifier.max,
                               overwrite.modifiers.with.alphas,
@@ -1615,6 +1636,18 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                 if (!is.logical(overwrite.modifiers.with.alphas) || length(overwrite.modifiers.with.alphas)!=1 || 
                     is.na(overwrite.modifiers.with.alphas))
                     stop("'overwrite.modifiers.with.alphas' must be a single, non-NA logical value")
+                
+                if (!is.null(before.modifier))
+                {
+                    before.modifier.increasing.change.link = get.link(before.modifier.increasing.change.link, min=modifier.min, max=modifier.max)
+                    before.modifier.decreasing.change.link = get.link(before.modifier.decreasing.change.link, min=modifier.min, max=modifier.max)
+                }
+                
+                if (!is.null(after.modifier))
+                {
+                    after.modifier.increasing.change.link = get.link(after.modifier.increasing.change.link, min=modifier.min, max=modifier.max)
+                    after.modifier.decreasing.change.link = get.link(after.modifier.decreasing.change.link, min=modifier.min, max=modifier.max)
+                }
             }
             
             #-- Check Before Modifier/Application/Time --#
@@ -1779,7 +1812,14 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             private$i.before.time = before.time
             private$i.after.time = after.time
             private$i.modifier.link = modifier.link
+            
             private$i.modifiers.apply.to.change = modifiers.apply.to.change
+            
+            private$i.after.modifier.increasing.change.link = after.modifier.increasing.change.link
+            private$i.after.modifier.decreasing.change.link = after.modifier.decreasing.change.link
+            
+            private$i.before.modifier.increasing.change.link = before.modifier.increasing.change.link
+            private$i.before.modifier.decreasing.change.link = before.modifier.decreasing.change.link
             
             private$i.apply.spline.to.list = apply.spline.to.list
         }
@@ -1817,6 +1857,13 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
         i.before.time = NULL,
         i.after.time = NULL,
         i.modifier.link = NULL,
+        
+        i.after.modifier.increasing.change.link = NULL,
+        i.after.modifier.decreasing.change.link = NULL,
+        
+        i.before.modifier.increasing.change.link = NULL,
+        i.before.modifier.decreasing.change.link = NULL,
+        
         i.modifiers.apply.to.change = NULL,
         
         i.apply.spline.to.list = NULL,
@@ -1854,6 +1901,24 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                     before.knot.value = private$i.link$reverse.apply(
                         transformed.knot1 - terms$before.modifier * (private$i.link$apply(knot.values[[2]]) - transformed.knot1)
                     )
+                    
+                    first.knot = knot.values[[1]]
+                    second.knot = knot.values[[2]]
+                    
+                    transformed.first.knot = private$i.before.modifier.increasing.change.link$apply(first.knot)
+                    delta = private$i.before.modifier.increasing.change.link$apply(second.knot) - transformed.first.knot
+                    transformed.before.knot.value = transformed.first.knot - terms$before.modifier * delta
+                    before.knot.value = private$i.before.modifier.increasing.change.link$reverse.apply(transformed.before.knot.value)
+                    
+                    if (!private$i.before.modifier.increasing.change.link$equals(private$i.before.modifier.decreasing.change.link))
+                    {
+                        decreasing.mask = first.knot < second.knot
+                        
+                        transformed.first.knot.decreasing = private$i.before.modifier.decreasing.change.link$apply(first.knot[decreasing])
+                        delta = private$i.before.modifier.decreasing.change.link$apply(second.knot[decreasing.mask]) - transformed.first.knot[decreasing.mask]
+                        transformed.before.knot.value.decreasing = transformed.first.knot.decreasing - terms$before.modifier[decreasing.mask] * delta
+                        before.knot.value[decreasing.mask] = private$i.before.modifier.decreasing.change.link$reverse.apply(transformed.before.knot.value.decreasing)
+                    }
                 }
                 else
                 {
@@ -1873,11 +1938,24 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                 {
                    # after.knot.value = knot.values[[length(knot.values)]] + 
                    #     terms$after.modifier * (knot.values[[length(knot.values)]] - knot.values[[length(knot.values)-1]])     
-                   transformed.knot.n = private$i.link$apply(knot.values[[length(knot.values)]])               
-                   after.knot.value = private$i.link$reverse.apply(
-                       transformed.knot.n + 
-                           terms$after.modifier * (transformed.knot.n - private$i.link$apply(knot.values[[length(knot.values)-1]]))
-                   )
+                    
+                    last.knot = knot.values[[length(knot.values)]]
+                    penultimate.knot = knot.values[[length(knot.values)-1]]
+
+                    transformed.last.knot = private$i.after.modifier.increasing.change.link$apply(last.knot)
+                    delta = transformed.last.knot - private$i.after.modifier.increasing.change.link$apply(penultimate.knot)
+                    transformed.after.knot.value = transformed.last.knot + terms$after.modifier * delta
+                    after.knot.value = private$i.after.modifier.increasing.change.link$reverse.apply(transformed.after.knot.value)
+
+                    if (!private$i.after.modifier.increasing.change.link$equals(private$i.after.modifier.decreasing.change.link))
+                    {
+                        decreasing.mask = last.knot < penultimate.knot
+                        
+                        transformed.last.knot.decreasing = private$i.after.modifier.increasing.change.link$apply(last.knot[decreasing.mask])
+                        delta = transformed.last.knot.decreasing - private$i.after.modifier.decreasing.change.link$apply(penultimate.knot[decreasing.mask])
+                        transformed.after.knot.value.decreasing = transformed.last.knot.decreasing + terms$after.modifier[decreasing.mask] * delta
+                        after.knot.value[decreasing.mask] = private$i.after.modifier.decreasing.change.link$reverse.apply(transformed.after.knot.value.decreasing)
+                    }
                 }
                 else
                 {
@@ -1964,9 +2042,13 @@ LINEAR.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                               after.modifier=NULL,
                               
                               modifiers.apply.to.change=T,
-                              modifier.link=c('identity','log','logit')[1],
-                              modifier.min = NA,
-                              modifier.max = NA,
+                              modifier.link = link,
+                              after.modifier.increasing.change.link = link,
+                              after.modifier.decreasing.change.link = link,
+                              before.modifier.increasing.change.link = link,
+                              before.modifier.decreasing.change.link = link,
+                              modifier.min = min,
+                              modifier.max = min,
                               overwrite.modifiers.with.alphas = F,
                               
                               error.prefix = 'Cannot create linear spline functional.form: ')
@@ -1996,6 +2078,10 @@ LINEAR.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                              
                              modifiers.apply.to.change = modifiers.apply.to.change,
                              modifier.link = modifier.link,
+                             after.modifier.increasing.change.link = after.modifier.increasing.change.link,
+                             after.modifier.decreasing.change.link = after.modifier.decreasing.change.link,
+                             before.modifier.increasing.change.link = before.modifier.increasing.change.link,
+                             before.modifier.decreasing.change.link = before.modifier.decreasing.change.link,
                              modifier.min = modifier.min,
                              modifier.max = modifier.max,
                              overwrite.modifiers.with.alphas = overwrite.modifiers.with.alphas,
@@ -2044,9 +2130,13 @@ NATURAL.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                               after.modifier=NULL,
                               
                               modifiers.apply.to.change=T,
-                              modifier.link=c('identity','log','logit')[1],
-                              modifier.min = NA,
-                              modifier.max = NA,
+                              modifier.link = link,
+                              after.modifier.increasing.change.link = link,
+                              after.modifier.decreasing.change.link = link,
+                              before.modifier.increasing.change.link = link,
+                              before.modifier.decreasing.change.link = link,
+                              modifier.min = min,
+                              modifier.max = min,
                               overwrite.modifiers.with.alphas = F,
                               
                               error.prefix = 'Cannot create natural spline functional.form: ')
@@ -2076,6 +2166,10 @@ NATURAL.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                              
                              modifiers.apply.to.change = modifiers.apply.to.change,
                              modifier.link = modifier.link,
+                             after.modifier.increasing.change.link = after.modifier.increasing.change.link,
+                             after.modifier.decreasing.change.link = after.modifier.decreasing.change.link,
+                             before.modifier.increasing.change.link = before.modifier.increasing.change.link,
+                             before.modifier.decreasing.change.link = before.modifier.decreasing.change.link,
                              modifier.min = modifier.min,
                              modifier.max = modifier.max,
                              overwrite.modifiers.with.alphas = overwrite.modifiers.with.alphas,
@@ -2200,6 +2294,10 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                              # This next set of values is ignored, since there are no before/after modifiers
                              modifiers.apply.to.change = F,
                              modifier.link = 'identity',
+                             after.modifier.increasing.change.link = 'identity',
+                             after.modifier.decreasing.change.link = 'identity',
+                             before.modifier.increasing.change.link = 'identity',
+                             before.modifier.decreasing.change.link = 'identity',
                              modifier.min = NA,
                              modifier.max = NA,
                              

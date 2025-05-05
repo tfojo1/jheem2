@@ -1112,7 +1112,7 @@ assemble.simulations.from.calibration <- function(version,
                 
                 sub.mcmc = get(load(file.path(chain.dir, paste0("chain", chain, "_chunk", chunk, ".Rdata"))))
                 
-                if (sub.mcmc@n.iter>0 && length(sub.mcmc@simulations)>1)
+                if (sub.mcmc@n.iter>0 && length(sub.mcmc@simulations)>0)
                 {
                     #-- Set up our data structures --#
                     if (is.null(outcome.dimnames))

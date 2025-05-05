@@ -119,7 +119,12 @@ JHEEM.CUSTOM.LIKELIHOOD <- R6::R6Class(
             error.prefix = paste0("Error computing custom likelihood '", self$name, "': ")
             
             if (!is.numeric(likelihood) || length(likelihood)!=1 || is.na(likelihood))
-                stop(paste0(error.prefix, "the likelihood value returned from the 'compute.function' must be a single numeric value"))
+            {
+                .GlobalEnv$errored.likelihood = self
+                .GlobalEnv$errored.sim = self
+                stop(paste0(error.prefix, "the likelihood value returned from the 'compute.function' for '", self$name,
+                            "' must be a single numeric value. The simulation and likelihood which produced this error have been stored in the global environment as 'errored.sim' and 'errored.likelihood'"))
+            }
             # error check: non-negative unless log
             if (!log && likelihood<0)
                 stop(paste0(error.prefix, "the likelihood value returned from the 'compute.function' must be non-negative if 'log' is FALSE"))
