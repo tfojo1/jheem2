@@ -9,7 +9,7 @@ extract.last.simulation.from.calibration(
   location,
   calibration.code,
   root.dir = get.jheem.root.directory("Cannot set up calibration: "),
-  allow.incomplete = F,
+  allow.incomplete = T,
   include.first.sim = F,
   chains = NULL
 )
@@ -19,7 +19,7 @@ extract.last.simulation.from.calibration(
 
 \item{location}{A single character value representing the location for the calibration}
 
-\item{include.first.sim}{}
+\item{include.first.sim}{Whether to also pull the first simulation from the calibration (will then return a 2-simulation simset)}
 
 \item{chains}{}
 }
