@@ -1,9 +1,9 @@
 #' @title Make a single (joint) set of likelihood instructions out of two or more likelihood instructions objects
 #'
 #' @param ... One or more jheem.likelihood.instructions objects or lists which contain only jheem.likelihood.instructions objects #OR it could just be codes
-#' @param additional.weights
+#' @param additional.weights A single numeric value that applies weight to all instructions.
 #' @export
-join.likelihood.instructions <- function(..., additional.weights=list()) {
+join.likelihood.instructions <- function(..., additional.weights=NULL) {
     # Each argument is either an instructions object or a code.
     sub.instructions <- lapply(list(...), function(x) {
         if (is(x, "jheem.likelihood.instructions")) {
@@ -23,23 +23,40 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
     inherit = JHEEM.LIKELIHOOD.INSTRUCTIONS,
     public = list(
         initialize = function(sub.instructions,
-                              additional.weights=list()) {
+                              additional.weights=NULL) {
             # Validate sub-instructions
             # Make sure to flatten out list of sub-instructions
             
+            error.prefix <- "Error joining likelihood instructions: "
+            
             LIKELIHOOD.CLASS.GENERATORS[[class(self)[1]]] = JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS
+            
+            # *additional.weights* is NULL or a single numeric value
+            if (!is.null(additional.weights) && (!is.numeric(additional.weights) || length(additional.weights) != 1 || is.na(additional.weights))) {
+                stop(paste0(error.prefix, "'additional.weights' must be NULL or a single numeric value"))
+            }
+            
+            # We'll extend this list so that it has one weights object (or number "1") per sub instruction, flattened if joint.
+            # Then, we'll generate a proper weight combining the "additional.weights" passed in so that it applies recursively when joints are nested.
+            private$i.additional.weights <- list()
 
             for (sub.instr in sub.instructions) {
                 private$i.name <- paste0(private$i.name, sub.instr$name, sep = "__")
                 if (is(sub.instr, "jheem.joint.likelihood.instructions")) {
                     private$i.sub.instructions <- c(private$i.sub.instructions, sub.instr$sub.instructions)
+                    private$i.additional.weights <- c(private$i.additional.weights, unlist(sub.instr$additional.weights, recursive = F))
                 } else {
                     private$i.sub.instructions <- c(private$i.sub.instructions, sub.instr)
+                    private$i.additional.weights <- c(private$i.additional.weights, create.likelihood.weights(1))
                 }
             }
             private$i.name <- trimws(private$i.name, "both", "[__]")
             names(private$i.sub.instructions) <- strsplit(private$i.name, "__")[[1]]
-            private$i.additional.weights <- private$generate.weights.from.weights.list(additional.weights)
+            # browser()
+            private$i.additional.weights <- lapply(private$i.additional.weights, function(w) {
+                private$generate.weights.from.weights.list(list(additional.weights, w))
+            })
+            names(private$i.additional.weights) <- names(private$i.sub.instructions)
         },
         equals = function(other) {
             if (!is.null(self$code) && !is.null(other$code)) {
@@ -71,7 +88,6 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                                        sub.version=sub.version,
                                        location=location,
                                        data.manager=data.manager,
-                                       additional.weights=list(),
                                        throw.error.if.no.data = throw.error.if.no.data,
                                        verbose = verbose,
                                        error.prefix=error.prefix)
@@ -109,19 +125,11 @@ JHEEM.JOINT.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
                 stop("Cannot modify a jheem.joint.likelihood.instruction's 'additional.weights' - they are read-only")
             }
         }
-        # outcomes = function(value) {
-        #     if (missing(value)) {
-        #         private$i.outcomes
-        #     } else {
-        #         stop("Cannot modify a jheem.joint.likelihood.instruction's 'outcomes' - they are read-only")
-        #     }
-        # }
     ),
     private = list(
         i.sub.instructions = NULL,
         i.name = NULL,
         i.additional.weights = NULL
-        # i.outcomes = NULL
     )
 )
 
@@ -136,7 +144,6 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                               sub.version,
                               location,
                               data.manager,
-                              additional.weights,
                               throw.error.if.no.data,
                               verbose,
                               error.prefix) {
@@ -147,7 +154,10 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                              verbose = verbose,
                              error.prefix = error.prefix)
 
-            private$i.sub.likelihoods <- lapply(instructions$sub.instructions, function(instr) {
+            private$i.sub.likelihoods <- lapply(seq_along(instructions$sub.instructions), function(i) {
+                
+                instr <- instructions$sub.instructions[[i]]
+                additional.weights <- instructions$additional.weights[[i]]
                 
                 if (verbose)
                     print(paste0("Instantiating sub '",
@@ -162,7 +172,7 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                                                      sub.version = sub.version,
                                                      location = location,
                                                      data.manager=data.manager,
-                                                     additional.weights = instructions$additional.weights,
+                                                     additional.weights = additional.weights,
                                                      throw.error.if.no.data=throw.error.if.no.data,
                                                      verbose = verbose,
                                                      error.prefix=error.prefix)
@@ -172,7 +182,7 @@ JHEEM.JOINT.LIKELIHOOD <- R6::R6Class(
                                               sub.version = sub.version,
                                               location = location,
                                               data.manager=data.manager,
-                                              additional.weights = instructions$additional.weights,
+                                              additional.weights = additional.weights,
                                               throw.error.if.no.data=throw.error.if.no.data,
                                               verbose = verbose,
                                               error.prefix=error.prefix)
