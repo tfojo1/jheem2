@@ -4,7 +4,7 @@ print("ENGINE TEST: Creating Specification")
 source('../jheem_analyses/applications/EHE/ehe_specification.R')
 
 params = suppressWarnings(get.medians(EHE.PARAMETERS.PRIOR))
-params['global.trate'] = 0.13
+params['global.trate'] = 0.09
 
 print("ENGINE TEST: Setting up Engine")
 engine = create.jheem.engine('ehe', 'C.12580', end.year=2035, max.run.time.seconds = 10)

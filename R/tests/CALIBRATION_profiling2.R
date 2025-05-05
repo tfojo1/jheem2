@@ -1,15 +1,15 @@
-N.SIM = 2000
+N.SIM = 200
 RUN.RPROF = T
 
 source('../jheem_analyses/applications/EHE/calibration_runs/ehe_register_calibrations.R')
 
 print("STARTING PROFILING")
 
-LOCATION = 'C.12580'
+LOCATION = 'NY'
 CALIBRATION.CODE.TO.RUN = 'fullprof'
 
 
-copy.calibration.info(from.code = 'full.with.covid2',
+copy.calibration.info(from.code = 'final.ehe.state',
                       to.code = CALIBRATION.CODE.TO.RUN,
                       n.iter = N.SIM,
                       thin = 5)
