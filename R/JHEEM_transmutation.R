@@ -130,10 +130,10 @@ do.evaluate.can.transmute <- function(from.kernel.or.specification,
             depends.on.outcomes = union(to.outcome$depends.on.outcomes,
                                         intersect(to.outcome$depends.on.quantities.or.outcomes, to.specification$outcome.names))
             
-            missing.outcomes = setdiff(depends.on.outcomes, to.outcome.names)
+            missing.outcomes = setdiff(depends.on.outcomes, to.specification$outcome.names)
             if (length(missing.outcomes)>0)
             {
-                return(paste0("Calculating the outcome '", outcome$name, "' in the '",
+                return(paste0("Calculating the outcome '", to.outcome$name, "' in the '",
                               to.version, "' (to) specification depends on ",
                               length(missing.outcomes),
                               ifelse(length(missing.outcomes)==1, " outcome ", " outcomes "),
@@ -271,14 +271,14 @@ JHEEM.TRANSMUTER = R6::R6Class(
                             result))
 
             super$initialize(version = to.version,
-                             to.sub.version = to.sub.version,
+                             sub.version = to.sub.version,
                              location = simulation.set$location,
                              type = 'transmuter')
             
             #-- Make the JHEEM Engine --#
             kernel = create.jheem.kernel(to.version, simulation.set$location)
             private$i.jheem = JHEEM$new(jheem.kernel = kernel,
-                                        to.sub.version = to.sub.version,
+                                        sub.version = to.sub.version,
                                         transmute.from.kernel = simulation.set$jheem.kernel,
                                         transmute.from.sub.version = simulation.set$sub.version,
                                         error.prefix = error.prefix)
