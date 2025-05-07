@@ -1263,7 +1263,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                 #     drop.single.sim.dimension = T
                 # )
                 
-                private$i.optimized.get.instructions[["sim.num.instr"]] <- sim.metadata$prepare.optimized.get.instructions(
+                private$i.optimized.get.instructions[["sim.denom.instr"]] <- sim.metadata$prepare.optimized.get.instructions(
                     outcomes = private$i.outcome.for.sim,
                     keep.dimensions = names(private$i.sim.required.dimnames),
                     dimension.values = private$i.sim.dimension.values,
