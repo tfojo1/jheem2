@@ -1234,6 +1234,11 @@ JHEEM.ENGINE = R6::R6Class(
                                              prior.sim.index = prior.sim.index,
                                              error.prefix = 'Cannot run JHEEM Engine: ')
             
+            if (is.null(private$i.prior.simulation.set))
+                simulation.chain = NULL
+            else
+                simulation.chain = private$i.prior.simulation.set$simulation.chain[prior.sim.index]
+            
             rv = private$i.jheem$run(start.year = private$i.start.year,
                                      end.year = private$i.end.year,
                                      check.consistency = private$i.check.consistency,
@@ -1242,6 +1247,7 @@ JHEEM.ENGINE = R6::R6Class(
                                      prior.sim.index = prior.sim.index,
                                      keep.from.year = private$i.keep.from.year,
                                      keep.to.year = private$i.keep.to.year,
+                                     simulation.chain = simulation.chain,
                                      solver.metadata = private$i.solver.metadata,
                                      finalize = private$i.finalize)
             
@@ -1667,6 +1673,7 @@ JHEEM = R6::R6Class(
                        prior.sim.index,
                        keep.from.year,
                        keep.to.year,
+                       simulation.chain,
                        solver.metadata,
                        finalize)
         {
@@ -1748,6 +1755,7 @@ JHEEM = R6::R6Class(
                                                              outcome.denominators = outcome.numerators.and.denominators$denominators,
                                                              parameters = private$i.parameters,
                                                              run.metadata = run.metadata,
+                                                             simulation.chain = simulation.chain,
                                                              finalize = finalize,
                                                              is.degenerate = ode.results$terminated.for.time,
                                                              error.prefix = "Error making sim from engine")
@@ -1802,6 +1810,7 @@ JHEEM = R6::R6Class(
                              prior.sim.index,
                              keep.from.year,
                              keep.to.year,
+                             simulation.chain,
                              finalize,
                              check.consistency)
         {
@@ -1850,6 +1859,7 @@ JHEEM = R6::R6Class(
                                                              parameters = private$i.parameters,
                                                              run.metadata = private$i.transmuted.run.metadata,
                                                              finalize = finalize,
+                                                             simulation.chain = prior.simulation.set$simulation.chain[prior.sim.index],
                                                              is.degenerate = prior.simulation.set$is.degenerate[prior.sim.index],
                                                              error.prefix = "Error transmuting sim from engine")
             
@@ -6134,9 +6144,10 @@ JHEEM = R6::R6Class(
                 
                 n.year = length(outcome.years)
                 n.non.year = length(numerator.array)/n.year
+
                 non.year.dim.names = dimnames(numerator.array)[-1]
                 non.year.dim = vapply(non.year.dim.names, length, FUN.VALUE = integer(1))
-
+                
                 base.non.year.indices = (0:(n.non.year-1)) * n.year
                 
                 private$i.outcome.numerators[[outcome.name]] = lapply(1:length(outcome.years), function(year.index){
