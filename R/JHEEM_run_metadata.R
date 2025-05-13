@@ -51,11 +51,17 @@ copy.run.metadata <- function(metadata.to.copy,
     if (is.null(dim.names))
         stop("Cannot copy.run.metadata() - the dimnames for at least one of run.time, preprocessing.time, diffeq.time, postprocessing.time, n.trials, or n.diffeq.evaluations must be set")
     
+    if (is.null(n.diffeq.evaluations)) # for backward compatibility with sims that did not track this
+        n.diffeq.evaluations = -1
+    
     dim(run.time) = dim(preprocessing.time) = dim(diffeq.time) =
-        dim(postprocessing.time) = dim(n.trials) = sapply(dim.names, length)
+        dim(postprocessing.time) = dim(n.trials) = dim(n.diffeq.evaluations) = 
+        sapply(dim.names, length)
     
     dimnames(run.time) = dimnames(preprocessing.time) = dimnames(diffeq.time) =
-        dimnames(postprocessing.time) = dimnames(n.trials) = dim.names
+        dimnames(postprocessing.time) = dimnames(n.trials) = dimnames(n.diffeq.evaluations) =
+        dim.names
+
     
     JHEEM.RUN.METADATA$new(run.time = run.time,
                            preprocessing.time = preprocessing.time,
@@ -134,7 +140,7 @@ JHEEM.RUN.METADATA = R6::R6Class(
                               diffeq.time,
                               postprocessing.time,
                               n.trials,
-                              n.diffeq.evaluations)
+                              n.diffeq.evaluations = NULL)
         {
             if (!is.numeric(run.time) || any(is.na(run.time)))
                 stop("Cannot create run metadata: 'run.time' must be a numeric array with no NA values")
@@ -161,10 +167,19 @@ JHEEM.RUN.METADATA = R6::R6Class(
             if (!length(dim(n.trials)==2))
                 stop("Cannot create run metadata: 'n.trials' must be a numeric array with no NA values")
             
-            if (!is.numeric(n.diffeq.evaluations) || any(is.na(n.diffeq.evaluations)))
-                stop("Cannot create run metadata: 'n.diffeq.evaluations' must be a numeric array with no NA values")
-            if (!length(dim(n.diffeq.evaluations)==2))
-                stop("Cannot create run metadata: 'n.diffeq.evaluations' must be a numeric array with no NA values")
+            # for backward compatibility with sims that did not track this
+            if (is.null(n.diffeq.evaluations))
+            {
+                n.diffeq.evaluations = n.trials
+                n.diffeq.evaluations[] = -1
+            }
+            else
+            {
+                if (!is.numeric(n.diffeq.evaluations) || any(is.na(n.diffeq.evaluations)))
+                    stop("Cannot create run metadata: 'n.diffeq.evaluations' must be a numeric array with no NA values")
+                if (!length(dim(n.diffeq.evaluations)==2))
+                    stop("Cannot create run metadata: 'n.diffeq.evaluations' must be a numeric array with no NA values")
+            }
             
             private$i.run.time = run.time
             private$i.preprocessing.time = preprocessing.time
