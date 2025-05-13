@@ -707,6 +707,7 @@ SOLVER.METADATA = R6::R6Class(
         {
             start.time = as.numeric(Sys.time())
             terminated.for.time = F
+            private$i.n.diffeq.evaluations = 0
             if (private$i.package=='deSolve')
             {
                 func = function(t, y, parms, ...)
@@ -734,6 +735,8 @@ SOLVER.METADATA = R6::R6Class(
                                         remission_info = diffeq.settings$remission.info,
                                         fixed_strata_info = diffeq.settings$fixed.strata.info,
                                         population_trackers = diffeq.settings$population_trackers)
+                        
+                        private$i.n.diffeq.evaluations = private$i.n.diffeq.evaluations + 1
                     }
                     # if (any(dx[1:1386]+y[1:1386]<0))
                     #     browser()
@@ -763,7 +766,8 @@ SOLVER.METADATA = R6::R6Class(
                 
                 list(times = ode.results[,1],
                      values = t(as.matrix(ode.results[,-1])),
-                     terminated.for.time = terminated.for.time)           
+                     terminated.for.time = terminated.for.time,
+                     n.diffeq.evaluations = private$i.n.diffeq.evaluations)      
             }
             # else if (private$i.package=='r2sundials')
             # {
@@ -863,6 +867,8 @@ SOLVER.METADATA = R6::R6Class(
                                    remission_info = diffeq.settings$remission.info,
                                    fixed_strata_info = diffeq.settings$fixed.strata.info,
                                    population_trackers = diffeq.settings$population_trackers)
+                        
+                        private$i.n.diffeq.evaluations = private$i.n.diffeq.evaluations + 1
                     }
                 }
                 
@@ -875,7 +881,8 @@ SOLVER.METADATA = R6::R6Class(
                 
                 list(times = ode.results[,1],
                      values = t(as.matrix(ode.results[,-1])),
-                     terminated.for.time = terminated.for.time)
+                     terminated.for.time = terminated.for.time,
+                     n.diffeq.evaluations = private$i.n.diffeq.evaluations )
             }
             # else if (private$i.package=='diffeqr')
             # {
@@ -971,7 +978,8 @@ SOLVER.METADATA = R6::R6Class(
         i.package = NULL,
         i.method = NULL,
         i.atol = NULL,
-        i.rtol = NULL
+        i.rtol = NULL,
+        i.n.diffeq.evaluations = NULL
     )
 )
 
@@ -1745,6 +1753,7 @@ JHEEM = R6::R6Class(
                                                       diffeq.time = end.diffeq.time - end.preprocessing.time,
                                                       postprocessing.time = run.end.time - end.diffeq.time,
                                                       n.trials = 1,
+                                                      n.diffeq.evaluations = ode.results$n.diffeq.evaluations,
                                                       labels = run.label)
             
             if (!is.null(prior.simulation.set))

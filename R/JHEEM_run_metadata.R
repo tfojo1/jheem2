@@ -5,21 +5,23 @@ create.single.run.metadata <- function(run.time,
                                        diffeq.time,
                                        postprocessing.time,
                                        n.trials,
+                                       n.diffeq.evaluations,
                                        labels = NULL)
 {
     if (!is.null(labels))
     {
         dim.names = list(run=labels, sim=1:(length(run.time)/length(labels)))
         
-        dim(run.time) = dim(preprocessing.time) = dim(diffeq.time) = dim(postprocessing.time) = dim(n.trials) = sapply(dim.names, length)
-        dimnames(run.time) = dimnames(preprocessing.time) = dimnames(diffeq.time) = dimnames(postprocessing.time) = dimnames(n.trials) = dim.names
+        dim(run.time) = dim(preprocessing.time) = dim(diffeq.time) = dim(postprocessing.time) = dim(n.trials) = dim(n.diffeq.evaluations) = sapply(dim.names, length)
+        dimnames(run.time) = dimnames(preprocessing.time) = dimnames(diffeq.time) = dimnames(postprocessing.time) = dimnames(n.trials) = dimnames(n.diffeq.evaluations) = dim.names
     }
     
     JHEEM.RUN.METADATA$new(run.time = run.time,
                            preprocessing.time = preprocessing.time,
                            diffeq.time = diffeq.time,
                            postprocessing.time = postprocessing.time,
-                           n.trials = n.trials)
+                           n.trials = n.trials,
+                           n.diffeq.evaluations = n.diffeq.evaluations)
 }
 
 copy.run.metadata <- function(metadata.to.copy,
@@ -27,7 +29,8 @@ copy.run.metadata <- function(metadata.to.copy,
                               preprocessing.time = metadata.to.copy$preprocessing.time,
                               diffeq.time = metadata.to.copy$diffeq.time,
                               postprocessing.time = metadata.to.copy$postprocessing.time,
-                              n.trials = metadata.to.copy$n.trials)
+                              n.trials = metadata.to.copy$n.trials,
+                              n.diffeq.evaluations = metadata.to.copy$n.diffeq.evaluations)
 {
     if (!is(metadata.to.copy, 'jheem.run.metadata'))
         stop("Cannot copy run metadata: 'metadata.to.copy' must be a 'jheem.run.metadata' object")
@@ -44,7 +47,9 @@ copy.run.metadata <- function(metadata.to.copy,
     if (is.null(dim.names))
         dim.names = dimnames(n.trials)
     if (is.null(dim.names))
-        stop("Cannot copy.run.metadata() - the dimnames for at least one of run.time, preprocessing.time, diffeq.time, postprocessing.time, or n.trials must be set")
+        dim.names = dimnames(n.diffeq.evaluations)
+    if (is.null(dim.names))
+        stop("Cannot copy.run.metadata() - the dimnames for at least one of run.time, preprocessing.time, diffeq.time, postprocessing.time, n.trials, or n.diffeq.evaluations must be set")
     
     dim(run.time) = dim(preprocessing.time) = dim(diffeq.time) =
         dim(postprocessing.time) = dim(n.trials) = sapply(dim.names, length)
@@ -56,7 +61,8 @@ copy.run.metadata <- function(metadata.to.copy,
                            preprocessing.time = preprocessing.time,
                            diffeq.time = diffeq.time,
                            postprocessing.time = postprocessing.time,
-                           n.trials = n.trials)
+                           n.trials = n.trials,
+                           n.diffeq.evaluations = n.diffeq.evaluations)
 }
 
 join.run.metadata <- function(metadata.to.join)
@@ -85,17 +91,22 @@ join.run.metadata <- function(metadata.to.join)
         run.metadata$n.trials
     }))
     
+    n.diffeq.evaluations = unlist(lapply(metadata.to.join, function(run.metadata){
+        run.metadata$n.diffeq.evaluations
+    }))
+    
     dim.names = list(run = metadata.to.join[[1]]$run.labels,
                      sim = 1:n.sim)
     
-    dim(run.time) = dim(preprocessing.time) = dim(diffeq.time) = dim(postprocessing.time) = dim(n.trials) = sapply(dim.names, length)
-    dimnames(run.time) = dimnames(preprocessing.time) = dimnames(diffeq.time) = dimnames(postprocessing.time) = dimnames(n.trials) = dim.names
+    dim(run.time) = dim(preprocessing.time) = dim(diffeq.time) = dim(postprocessing.time) = dim(n.trials) = dim(n.diffeq.evaluations) = sapply(dim.names, length)
+    dimnames(run.time) = dimnames(preprocessing.time) = dimnames(diffeq.time) = dimnames(postprocessing.time) = dimnames(n.trials) = dimnames(n.diffeq.evaluations) = dim.names
     
     JHEEM.RUN.METADATA$new(run.time = run.time,
                            preprocessing.time = preprocessing.time,
                            diffeq.time = diffeq.time,
                            postprocessing.time = postprocessing.time,
-                           n.trials = n.trials)
+                           n.trials = n.trials,
+                           n.diffeq.evaluations = n.diffeq.evaluations)
 }
 
 append.run.metadata <- function(metadata1, metadata2)
@@ -109,7 +120,8 @@ append.run.metadata <- function(metadata1, metadata2)
                                preprocessing.time = rbind(metadata1$preprocessing.time, metadata2$preprocessing.time),
                                diffeq.time = rbind(metadata1$diffeq.time, metadata2$diffeq.time),
                                postprocessing.time = rbind(metadata1$postprocessing.time, metadata2$postprocessing.time),
-                               n.trials = rbind(metadata1$n.trials, metadata2$n.trials))
+                               n.trials = rbind(metadata1$n.trials, metadata2$n.trials),
+                               n.diffeq.evaluations = rbind(metadata1$n.diffeq.evaluations, metadata2$n.diffeq.evaluations))
 }
 
 JHEEM.RUN.METADATA = R6::R6Class(
@@ -121,7 +133,8 @@ JHEEM.RUN.METADATA = R6::R6Class(
                               preprocessing.time,
                               diffeq.time,
                               postprocessing.time,
-                              n.trials)
+                              n.trials,
+                              n.diffeq.evaluations)
         {
             if (!is.numeric(run.time) || any(is.na(run.time)))
                 stop("Cannot create run metadata: 'run.time' must be a numeric array with no NA values")
@@ -148,11 +161,17 @@ JHEEM.RUN.METADATA = R6::R6Class(
             if (!length(dim(n.trials)==2))
                 stop("Cannot create run metadata: 'n.trials' must be a numeric array with no NA values")
             
+            if (!is.numeric(n.diffeq.evaluations) || any(is.na(n.diffeq.evaluations)))
+                stop("Cannot create run metadata: 'n.diffeq.evaluations' must be a numeric array with no NA values")
+            if (!length(dim(n.diffeq.evaluations)==2))
+                stop("Cannot create run metadata: 'n.diffeq.evaluations' must be a numeric array with no NA values")
+            
             private$i.run.time = run.time
             private$i.preprocessing.time = preprocessing.time
             private$i.diffeq.time = diffeq.time
             private$i.postprocessing.time = postprocessing.time
             private$i.n.trials = n.trials
+            private$i.n.diffeq.evaluations = n.diffeq.evaluations
         },
         
         subset = function(x)
@@ -161,7 +180,8 @@ JHEEM.RUN.METADATA = R6::R6Class(
                                    preprocessing.time = private$i.preprocessing.time[,x, drop=F],
                                    diffeq.time = private$i.diffeq.time[,x, drop=F],
                                    postprocessing.time = private$i.postprocessing.time[,x, drop=F],
-                                   n.trials = private$i.n.trials[,x, drop=F])
+                                   n.trials = private$i.n.trials[,x, drop=F],
+                                   n.diffeq.evaluations = private$i.n.diffeq.evaluations[,x, drop=F])
         }
         
     ),
@@ -216,6 +236,14 @@ JHEEM.RUN.METADATA = R6::R6Class(
                 stop("Cannot modify a run.metadata's 'n.trials' - it is read-only")
         },
         
+        n.diffeq.evaluations = function(value)
+        {
+            if (missing(value))
+                private$i.n.diffeq.evaluations
+            else
+                stop("Cannot modify a run.metadata's 'n.diffeq.evaluations' - it is read-only")
+        },
+        
         n.sim = function(value)
         {
             if (missing(value))
@@ -240,7 +268,7 @@ JHEEM.RUN.METADATA = R6::R6Class(
         i.diffeq.time = NULL,
         i.postprocessing.time = NULL,
         
-        i.n.trials = NULL
-        
+        i.n.trials = NULL,
+        i.n.diffeq.evaluations = NULL
     )
 )
