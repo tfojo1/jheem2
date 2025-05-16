@@ -385,12 +385,9 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
                               intervention.code,
                               calibration.code,
                               outcome.location.mapping,
-                              error.prefix,
-                              simulation.chain = NA)
+                              error.prefix)
         {
             private$i.jheem.kernel = jheem.kernel
-            
-            private$i.simulation.chain = simulation.chain
             
             private$i.metadata = make.simulation.metadata.field(jheem.kernel.or.specification = jheem.kernel,
                                                                 specification.metadata = jheem.kernel$specification.metadata,
@@ -410,6 +407,7 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
                                    parameters,
                                    run.metadata,
                                    is.degenerate,
+                                   simulation.chain,
                                    finalize,
                                    error.prefix)
         {
@@ -437,7 +435,7 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
                                                    outcome.numerators = outcome.numerators.with.sim.dimension,
                                                    outcome.denominators = outcome.denominators.with.sim.dimension,
                                                    parameters = parameters,
-                                                   simulation.chain = private$i.simulation.chain,
+                                                   simulation.chain = simulation.chain,
                                                    run.metadata = run.metadata,
                                                    is.degenerate = is.degenerate,
                                                    finalize = finalize,
@@ -458,8 +456,7 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
     
     private = list(
         i.jheem.kernel = NULL,
-        i.metadata = NULL,
-        i.simulation.chain = NULL
+        i.metadata = NULL
     )
 )
 
@@ -2062,7 +2059,8 @@ fix.chains = function()
         
         get.mcmc.mixing.statistic = function(match.names=NULL,
                                              chains = self$unique.chains, # which chains to use
-                                             sort = T)
+                                             sort = T,
+                                             as.matrix = T)
         {
             error.prefix="Cannot get.mcmc.mixing.statistic: "
             param.names = private$match.parameter.names(match.names)
@@ -2076,11 +2074,50 @@ fix.chains = function()
             }
             else if (self$n.chains > 1)
             {
-                stop(paste0(error.prefix, "We need to implement calculating Rhats"))
+                n = self$n.sim
+                m = self$n.chains
+                
+                #-- Calculate within-chain variance --#
+                within.chain.variance.per.chain = sapply(self$unique.chains, function(chain){
+                    chain.mask = self$simulation.chain == chain
+                    parameter.values = self$parameters[param.names,chain.mask,drop=F]
+                    
+                    param.means = rowMeans(parameter.values)
+                    1/(n-1) * rowSums( (parameter.values-param.means)^2 )
+                })
+                W = within.chain.variance = rowMeans(within.chain.variance.per.chain)
+                
+                #-- Calculate between-chain variance --#
+                
+                chain.means = sapply(self$unique.chains, function(chain){
+                    chain.mask = self$simulation.chain == chain
+                    parameter.values = self$parameters[param.names,chain.mask,drop=F]
+                    
+                    rowMeans(parameter.values)
+                })
+                overall.means = rowMeans(chain.means)
+                
+                B = n / (m-1) * sum( (chain.means - overall.means)^2 )
+                
+                #-- Put it together --#
+                
+                var.hat = (n-1)/n * W + 1/n * B
+                rhat = sqrt(var.hat / W)
+                
+                mixing.statistic = rhat
             }
             else
                 stop(paste0(error.prefix, "We cannot calculate MCMC statistics for a simulation set that was not generated from an MCMC process"))
-            if (sort) sort(mixing.statistic, decreasing=T) else mixing.statistic
+            
+            if (sort)
+                rv = sort(mixing.statistic, decreasing=T)
+            else
+                rv = mixing.statistic
+            
+            if (as.matrix)
+                cbind(rv)
+            else
+                rv
         },
         
         traceplot = function(match.names,

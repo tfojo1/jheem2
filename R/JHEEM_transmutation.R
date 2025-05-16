@@ -102,8 +102,13 @@ do.evaluate.can.transmute <- function(from.kernel.or.specification,
         specification.metadata = get.specification.metadata(from.kernel.or.specification$version,
                                                             location = from.kernel.or.specification$location)
     
-    to.outcome.names = to.specification$get.outcome.names.for.sub.version(to.sub.version)
     from.outcome.names = from.kernel.or.specification$get.outcome.names.for.sub.version(from.sub.version)
+    to.outcome.names = to.specification$get.outcome.names.for.sub.version(to.sub.version)
+    to.outcome.names = union(to.outcome.names,
+                             get.unsaved.to.outcome.names.to.calculate(to.specification = to.specification, 
+                                                                       to.outcome.names = to.outcome.names, 
+                                                                       from.outcome.names = from.outcome.names))
+    
     
     for (outcome.name in to.specification$get.outcome.names.for.sub.version(to.sub.version))
     {
@@ -128,12 +133,12 @@ do.evaluate.can.transmute <- function(from.kernel.or.specification,
             }
 
             depends.on.outcomes = union(to.outcome$depends.on.outcomes,
-                                        intersect(to.outcome$depends.on.quantities.or.outcomes, to.specification$outcome.names))
+                                        intersect(to.outcome$depends.on.quantities.or.outcomes, to.outcome.names))
             
-            missing.outcomes = setdiff(depends.on.outcomes, to.outcome.names)
+            missing.outcomes = setdiff(depends.on.outcomes, to.specification$outcome.names)
             if (length(missing.outcomes)>0)
             {
-                return(paste0("Calculating the outcome '", outcome$name, "' in the '",
+                return(paste0("Calculating the outcome '", to.outcome$name, "' in the '",
                               to.version, "' (to) specification depends on ",
                               length(missing.outcomes),
                               ifelse(length(missing.outcomes)==1, " outcome ", " outcomes "),
@@ -172,6 +177,30 @@ do.evaluate.can.transmute <- function(from.kernel.or.specification,
     return (NULL)
 }
 
+get.unsaved.to.outcome.names.to.calculate <- function(to.specification,
+                                                      to.outcome.names,
+                                                      from.outcome.names)
+{
+    rv = character()
+    to.add = to.specification$get.outcome.direct.dependee.outcome.names(setdiff(to.outcome.names, from.outcome.names))
+    to.add = to.add[sapply(to.add, length)>0]
+    
+    while (length(to.add)>0)
+    {
+        to.add = as.character(unlist(to.add))
+        to.add = setdiff(to.add, rv)
+        to.add = setdiff(to.add, from.outcome.names)
+        to.add = setdiff(to.add, to.outcome.names)
+        
+        rv = c(rv, to.add)
+        
+        to.add = to.specification$get.outcome.direct.dependee.outcome.names(to.add)
+        to.add = to.add[sapply(to.add, length)>0]
+    }
+    
+    rv
+}
+
 get.outcome.and.quantity.names.for.transmuting <- function(from.kernel.or.specification,
                                                            from.sub.version,
                                                            to.version,
@@ -181,10 +210,16 @@ get.outcome.and.quantity.names.for.transmuting <- function(from.kernel.or.specif
     rv = list()
     
     to.outcome.names = to.specification$get.outcome.names.for.sub.version(to.sub.version)
+
     from.outcome.names = from.kernel.or.specification$get.outcome.names.for.sub.version(from.sub.version)
     
-    rv$outcome.names.to.calculate = setdiff(to.outcome.names,
-                                            from.outcome.names)
+    to.unsaved.outcome.names = get.unsaved.to.outcome.names.to.calculate(to.specification = to.specification, 
+                                                                         to.outcome.names = to.outcome.names, 
+                                                                         from.outcome.names = from.outcome.names)
+
+    rv$outcome.names.to.calculate = c(setdiff(to.outcome.names,
+                                              from.outcome.names),
+                                      to.unsaved.outcome.names)
     
     rv$outcome.names.to.transmute = intersect(to.outcome.names,
                                               from.outcome.names)
@@ -271,14 +306,14 @@ JHEEM.TRANSMUTER = R6::R6Class(
                             result))
 
             super$initialize(version = to.version,
-                             to.sub.version = to.sub.version,
+                             sub.version = to.sub.version,
                              location = simulation.set$location,
                              type = 'transmuter')
             
             #-- Make the JHEEM Engine --#
             kernel = create.jheem.kernel(to.version, simulation.set$location)
             private$i.jheem = JHEEM$new(jheem.kernel = kernel,
-                                        to.sub.version = to.sub.version,
+                                        sub.version = to.sub.version,
                                         transmute.from.kernel = simulation.set$jheem.kernel,
                                         transmute.from.sub.version = simulation.set$sub.version,
                                         error.prefix = error.prefix)

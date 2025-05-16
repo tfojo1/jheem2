@@ -115,6 +115,7 @@ create.diffeq.settings <- function(jheem,
     
     for (core.name in names(settings$core.components))
         settings[[paste0(core.name, '.info')]] = list()
+    names(settings)[names(settings)=='transition.info'] = 'transitions.info'
     
     settings$core.component.dependencies = lapply(settings$core.components, function(core.comp){
         lapply(core.comp, function(comp){

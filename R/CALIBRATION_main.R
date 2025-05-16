@@ -949,11 +949,14 @@ extract.last.simulation.from.calibration <- function(version,
         chunk.files = list.files(chain.dir)
         chunk = as.numeric(substr(chunk.files, start=nchar(paste0("chain", chain, "_chunk"))+1, nchar(chunk.files)-6))
         
-        max.chunk.for.chain = max(chunk)
-        if (max.chunk.for.chain > max.chunk)
+        if (length(chunk)>0)
         {
-            max.chunk = max.chunk.for.chain
-            chain.with.max.chunk = chain
+            max.chunk.for.chain = max(chunk)
+            if (max.chunk.for.chain > max.chunk)
+            {
+                max.chunk = max.chunk.for.chain
+                chain.with.max.chunk = chain
+            }
         }
     }
     
@@ -990,10 +993,19 @@ extract.last.simulation.from.calibration <- function(version,
     
     if (include.first.sim)
     {
-        mcmc.first = mcmc.last = get(load(file.path(cache.dir, 
-                                                    paste0('chain_', chain.with.max.chunk), 
-                                                    paste0('chain', chain.with.max.chunk, "_chunk1.Rdata"))))
-        sim.first = mcmc.first@simulations[[1]]
+        sim.first = NULL
+        chunk.index = 1
+        while (is.null(sim.first))
+        {
+            mcmc.first = get(load(file.path(cache.dir, 
+                                            paste0('chain_', chain.with.max.chunk), 
+                                            paste0('chain', chain.with.max.chunk, "_chunk", chunk.index, ".Rdata"))))
+            
+            if (length(mcmc.first@simulations)>0)
+                sim.first = mcmc.first@simulations[[1]]
+            
+            chunk.index = chunk.index + 1
+        }
         
         sim = do.join.simulation.sets(sim.first, sim.last)
     }
@@ -1493,7 +1505,7 @@ register.calibration.info <- function(code,
                                       description,
                                       special.case.likelihood.instructions = list(),
                                       fixed.initial.parameter.values = numeric(),
-                                      max.run.time.seconds = 10,
+                                      max.run.time.seconds = Inf,
                                       solver.metadata = create.solver.metadata(),
                                       n.chains = if (is.preliminary) 1 else 4,
                                       n.burn = if (is.preliminary) 0 else floor(n.iter / 2),

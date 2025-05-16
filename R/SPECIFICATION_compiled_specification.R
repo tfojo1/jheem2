@@ -263,6 +263,11 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             unlist(private$i.outcome.direct.dependee.outcome.names[outcome.names])
         },
         
+        get.outcome.dependee.outcome.names = function(outcome.names)
+        {
+            unlist(private$i.outcome.dependee.outcome.names[outcome.names])
+        },
+        
         get.outcome.numerator.direct.dependee.outcome.names = function(outcome.names)
         {
             unlist(private$i.outcome.numerator.direct.dependee.outcome.names[outcome.names])
@@ -641,6 +646,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
         i.outcome.non.cumulative.dependendee.outcome.names = NULL,
         i.outcome.non.cumulative.dependent.outcome.names = NULL,
         i.outcome.direct.dependee.outcome.names = NULL,
+        i.outcome.dependee.outcome.names = NULL,
         i.outcome.numerator.direct.dependee.outcome.names = NULL,
         i.direct.dependent.outcome.numerator.names = NULL,
         i.outcome.direct.dependee.quantity.names = NULL,
@@ -2207,6 +2213,26 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             private$i.outcome.direct.dependee.outcome.names = lapply(private$i.outcomes, function(outcome){
                 setdiff(outcome$depends.on, outcome.depends.on.quantities[[outcome$name]])
+            })
+            
+            private$i.outcome.dependee.outcome.names = lapply(private$i.outcomes, function(outcome){
+                outcome.name = outcome$name
+                rv = character()
+                to.add = private$i.outcome.direct.dependee.outcome.names[outcome.name]
+                to.add = to.add[sapply(to.add, length)>0]
+                
+                while (length(to.add)>0)
+                {
+                    to.add = as.character(unlist(to.add))
+                    to.add = setdiff(to.add, rv)
+                    
+                    rv = c(rv, to.add)
+                    
+                    to.add = private$i.outcome.direct.dependee.quantity.names[to.add]
+                    to.add = to.add[sapply(to.add, length)>0]
+                }
+                
+                as.character(rv)
             })
             
             private$i.outcome.numerator.direct.dependee.outcome.names = lapply(private$i.outcomes, function(outcome){

@@ -1255,10 +1255,18 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                 drop.single.sim.dimension = T
             )
             if (private$i.outcome.is.proportion || private$i.outcome.is.rate) {
+                # private$i.optimized.get.instructions[["sim.denom.instr"]] <- sim.metadata$prepare.optimized.get.instructions(
+                #     outcome = private$i.outcome.for.sim,
+                #     keep.dimensions = names(private$i.denominator.required.dimnames),
+                #     dimension.values = private$i.denominator.dimension.values,
+                #     output = "denominator",
+                #     drop.single.sim.dimension = T
+                # )
+                
                 private$i.optimized.get.instructions[["sim.denom.instr"]] <- sim.metadata$prepare.optimized.get.instructions(
-                    outcome = private$i.outcome.for.sim,
-                    keep.dimensions = names(private$i.denominator.required.dimnames),
-                    dimension.values = private$i.denominator.dimension.values,
+                    outcomes = private$i.outcome.for.sim,
+                    keep.dimensions = names(private$i.sim.required.dimnames),
+                    dimension.values = private$i.sim.dimension.values,
                     output = "denominator",
                     drop.single.sim.dimension = T
                 )
@@ -1370,27 +1378,35 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
             use.poisson <- private$i.outcome.is.rate || private$i.outcome.is.count
             if (private$i.outcome.is.count) {
                 sim.denominator.data <- numeric(0)
-                expanded.sim.denominator.data <- numeric(0) # so as not to throw errors in cpp sigma
+             #   expanded.sim.denominator.data <- numeric(0) # so as not to throw errors in cpp sigma
             } else {
                 if (use.optimized.get) {
                     sim.denominator.data <- sim$optimized.get(private$i.optimized.get.instructions[["sim.denom.instr"]])
                 } else {
+                    # sim.denominator.data <- sim$get(
+                    #     outcome = private$i.outcome.for.sim,
+                    #     keep.dimensions = names(private$i.denominator.required.dimnames),
+                    #     dimension.values = private$i.denominator.dimension.values,
+                    #     output = "denominator",
+                    #     drop.single.sim.dimension = T
+                    # )
+                    
                     sim.denominator.data <- sim$get(
-                        outcome = private$i.outcome.for.sim,
-                        keep.dimensions = names(private$i.denominator.required.dimnames),
-                        dimension.values = private$i.denominator.dimension.values,
+                        outcomes = private$i.outcome.for.sim,
+                        keep.dimensions = names(private$i.sim.required.dimnames),
+                        dimension.values = private$i.sim.dimension.values,
                         output = "denominator",
                         drop.single.sim.dimension = T
                     )
                 }
-                expanded.sim.denominator.data <- expand.array(sim.denominator.data, dimnames(sim.numerator.data))
+              #  expanded.sim.denominator.data <- expand.array(sim.denominator.data, dimnames(sim.numerator.data))
             }
             
             # Re-purpose likelihood mean code to find aggregated N matrix (diagonal, so treated as vector)
             n.vector <- NULL
             if (private$i.outcome.is.proportion || private$i.outcome.is.rate) {
                 n.vector <- get_basic_likelihood_mean(
-                    expanded.sim.denominator.data,
+                    sim.denominator.data,
                     private$i.transformation.matrix.row.oriented.indices,
                     private$i.n.obs,
                     numeric(private$i.n.obs)
@@ -1415,7 +1431,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
             }
             
             sigma <- get_basic_likelihood_sigma(sim.numerator.data,
-                                                expanded.sim.denominator.data,
+                                                sim.denominator.data,
                                                 private$i.transformation.matrix.indices,
                                                 measurement.error.cov.mat,
                                                 private$i.n.obs,
