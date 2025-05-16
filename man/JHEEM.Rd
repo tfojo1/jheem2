@@ -105,6 +105,7 @@ Still need to flesh out this interface
   prior.sim.index,
   keep.from.year,
   keep.to.year,
+  simulation.chain,
   solver.metadata,
   finalize
 )}\if{html}{\out{</div>}}
@@ -136,6 +137,7 @@ Still need to flesh out this interface
   prior.sim.index,
   keep.from.year,
   keep.to.year,
+  simulation.chain,
   finalize,
   check.consistency
 )}\if{html}{\out{</div>}}
