@@ -905,14 +905,21 @@ execute.simplot <- function(prepared.plot.data,
         
         # PLOT
         if (!is.null(split.by)) {
-            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value,
+            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year,
+                                                                      y=value,
+                                                                      size="size",
                                                                       fill=color.and.shade.data.by, # fill
                                                                       shape=shape.data.by))
         } else {
             # Why is this plotting all black fill, even though we remade the fill scale?? (in Melissa's outcome="new" simplot call)
-            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year, y=value, size='size', fill=color.and.shade.data.by, shape = shape.data.by), show.legend = F) +
-                ggplot2::scale_size_manual(values=c(size=2))
+            rv = rv + ggplot2::geom_point(data=df.truth, ggplot2::aes(x=year,
+                                                                      y=value,
+                                                                      size="size",
+                                                                      fill=color.and.shade.data.by,
+                                                                      shape = shape.data.by))
         }
+        
+        rv = rv + ggplot2::scale_size_manual(values=c(size=2)) + ggplot2::guides(size="none")
         
         # Now create the shape scale, either for the first time or the second time
         if (!is.null(df.sim.groupids.one.member) && nrow(df.sim.groupids.one.member)>0)
