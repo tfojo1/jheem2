@@ -640,6 +640,28 @@ copy.solver.metadata = function(to.copy)
                         rtol = to.copy$rtol)
 }
 
+JHEEM.SOLVER.TRACKING = new.env()
+JHEEM.SOLVER.TRACKING$tracked.info = NULL
+JHEEM.SOLVER.TRACKING$do.tracking = F
+
+#'@export
+enable.jheem.solver.tracking <- function()
+{
+    JHEEM.SOLVER.TRACKING$do.tracking = T
+}
+
+#'@export
+disable.jheem.solver.tracking <- function()
+{
+    JHEEM.SOLVER.TRACKING$do.tracking = F
+}
+
+#'@export
+get.jheem.solver.tracked.info <- function()
+{
+    JHEEM.SOLVER.TRACKING$tracked.info
+}
+
 SOLVER.METADATA = R6::R6Class(
     'solver.metadata',
     
@@ -708,6 +730,10 @@ SOLVER.METADATA = R6::R6Class(
             start.time = as.numeric(Sys.time())
             terminated.for.time = F
             private$i.n.diffeq.evaluations = 0
+            
+            if (JHEEM.SOLVER.TRACKING$do.tracking)
+                JHEEM.SOLVER.TRACKING$tracked.info$diffeq.computed.times = numeric()
+            
             if (private$i.package=='deSolve')
             {
                 func = function(t, y, parms, ...)
@@ -738,15 +764,10 @@ SOLVER.METADATA = R6::R6Class(
                         
                         private$i.n.diffeq.evaluations = private$i.n.diffeq.evaluations + 1
                     }
-                    # if (any(dx[1:1386]+y[1:1386]<0))
-                    #     browser()
-                    # 
-                    # if (any(y<0))
-                    #     browser()
                     
-         #           if (abs(sum(dx[1:1386]))>0.00001)
-           #             browser()
-                    
+                    if (JHEEM.SOLVER.TRACKING$do.tracking)
+                        JHEEM.SOLVER.TRACKING$tracked.info$diffeq.computed.times = c(JHEEM.SOLVER.TRACKING$tracked.info$diffeq.computed.times, t)
+
                     list(dx)
                 }
                 
@@ -830,31 +851,11 @@ SOLVER.METADATA = R6::R6Class(
                     
                     if (terminated.for.time)
                     {
-                        rep(0, length(x))
+                        dx = rep(0, length(x))
                     }
                     else
                     {
-                        # if ( t >1980)
-                        # {
-                        #     args = list(state = x,
-                        #                 time = t,
-                        #                 settings = diffeq.settings,
-                        #                 quantities_info = diffeq.settings$quantities.info,
-                        #                 quantity_scratch_vector = diffeq.settings$quantity_scratch_vector,
-                        #                 scratch_vector = diffeq.settings$scratch.vector,
-                        #                 natality_info = diffeq.settings$natality.info,
-                        #                 mortality_info = diffeq.settings$mortality.info,
-                        #                 transitions_info = diffeq.settings$transitions.info,
-                        #                 infections_info = diffeq.settings$infections.info,
-                        #                 remission_info = diffeq.settings$remission.info,
-                        #                 fixed_strata_info = diffeq.settings$fixed.strata.info,
-                        #                 population_trackers = diffeq.settings$population_trackers)
-                        #     save(args,
-                        #          file = 'R/local_testing/diffeq_test_args.Rdata'
-                        #          )
-                        #     stop("Ending here for now")
-                        # }
-                        compute_dx(state = x,
+                        dx = compute_dx(state = x,
                                    time = t,
                                    settings = diffeq.settings,
                                    quantities_info = diffeq.settings$quantities.info,
@@ -870,6 +871,11 @@ SOLVER.METADATA = R6::R6Class(
                         
                         private$i.n.diffeq.evaluations = private$i.n.diffeq.evaluations + 1
                     }
+                    
+                    if (JHEEM.SOLVER.TRACKING$do.tracking)
+                        JHEEM.SOLVER.TRACKING$tracked.info$diffeq.computed.times = c(JHEEM.SOLVER.TRACKING$tracked.info$diffeq.computed.times, t)
+                    
+                    dx
                 }
                 
                 ode.results = odeintr::integrate_sys(sys = compute.fn,
@@ -1714,6 +1720,7 @@ JHEEM = R6::R6Class(
                                                    max.run.time.seconds = max.run.time.seconds,
                                                    run.from.time = private$i.run.from.time,
                                                    run.to.time = private$i.run.to.time)
+            
             
             end.diffeq.time = as.numeric(Sys.time())
             

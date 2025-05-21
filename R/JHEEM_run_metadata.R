@@ -5,9 +5,16 @@ create.single.run.metadata <- function(run.time,
                                        diffeq.time,
                                        postprocessing.time,
                                        n.trials,
-                                       n.diffeq.evaluations,
+                                       n.diffeq.evaluations = NULL,
                                        labels = NULL)
 {
+    if (is.null(n.diffeq.evaluations))
+    {
+        n.diffeq.evaluations = n.trials
+        n.diffeq.evaluations[] = -1
+    }
+    
+    
     if (!is.null(labels))
     {
         dim.names = list(run=labels, sim=1:(length(run.time)/length(labels)))
@@ -52,7 +59,7 @@ copy.run.metadata <- function(metadata.to.copy,
         stop("Cannot copy.run.metadata() - the dimnames for at least one of run.time, preprocessing.time, diffeq.time, postprocessing.time, n.trials, or n.diffeq.evaluations must be set")
     
     if (is.null(n.diffeq.evaluations)) # for backward compatibility with sims that did not track this
-        n.diffeq.evaluations = -1
+        n.diffeq.evaluations = -1 + 0*n.trials
     
     dim(run.time) = dim(preprocessing.time) = dim(diffeq.time) =
         dim(postprocessing.time) = dim(n.trials) = dim(n.diffeq.evaluations) = 
@@ -98,7 +105,10 @@ join.run.metadata <- function(metadata.to.join)
     }))
     
     n.diffeq.evaluations = unlist(lapply(metadata.to.join, function(run.metadata){
-        run.metadata$n.diffeq.evaluations
+        if (is.null(run.metadata$n.diffeq.evaluations))
+            -1
+        else
+            run.metadata$n.diffeq.evaluations
     }))
     
     dim.names = list(run = metadata.to.join[[1]]$run.labels,
