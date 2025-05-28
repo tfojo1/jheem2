@@ -765,13 +765,21 @@ cache.mcmc.summary <- function(version,
     invisible(mcmc.summary)
 }
 
-#' @title Get Calibration Progress
+#'@title Get Calibration Progress
+#'
+#'@description Summarize the progress of a calibration task
+#'
+#'@param version,calibration.code,locations The version, locations, and calibration code for which to gauge progress
+#'@param as.pct Whether the progress should be shown as a percentage instead of a fraction
+#'@param round.to.digits How many digits to round progress to
+#'@param root.dir The root directory from which to search for calibrations
+#' 
 #'@export
 get.calibration.progress <- function(version,
                                     locations,
                                     calibration.code,
                                     root.dir = get.jheem.root.directory(),
-                                    round.to.digits = 0,
+                                    round.to.digits = ifelse(as.pct, 0, 2),
                                     as.pct = T)
 {
     max.chains = 1
@@ -821,6 +829,40 @@ get.calibration.progress <- function(version,
     
     rv
     
+}
+#'@title Check if Simulations Have Been Saved
+#'
+#'@description Summarize the progress of a calibration task
+#'
+#'@param version,calibration.code,locations The version, locations, and calibration code for which to gauge progress
+#'@param as.pct Whether the progress should be shown as a percentage instead of a fraction
+#'@param round.to.digits How many digits to round progress to
+#'@param root.dir The root directory from which to search for calibrations
+#' 
+#'@export
+are.simulations.present <- function(version,
+                                    locations,
+                                    calibration.code,
+                                    interventions,
+                                    n.sim,
+                                    sub.version = NULL,
+                                    root.dir = get.jheem.root.directory())
+{
+    sapply(interventions, function(int.code){
+        sapply(locations, function(loc){
+            
+            file = get.simset.filename(version = version,
+                                       location = loc,
+                                       calibration.code = calibration.code,
+                                       intervention.code = int.code, 
+                                       n.sim = n.sim, 
+                                       root.dir = root.dir, 
+                                       sub.version = sub.version)
+            
+            file.exists(file)
+            
+        })
+    })
 }
 
 get.calibration.cache.modified.time <- function(version, location, calibration.code, root.dir = get.jheem.root.directory())
@@ -1028,6 +1070,7 @@ assemble.simulations.from.calibration <- function(version,
                                                   root.dir = get.jheem.root.directory("Cannot set up calibration: "),
                                                   allow.incomplete=F,
                                                   chains = NULL,
+                                              #    burn = 0,
                                                   verbose = T)
 {
     #-- Initial Set-Up (pull control files, check arguments) --#
@@ -1039,6 +1082,12 @@ assemble.simulations.from.calibration <- function(version,
                                           root.dir = root.dir)
     
     global.control = get(load(file.path(calibration.dir, 'cache', 'global_control.Rdata')))
+    
+    # if (!is.numeric(burn) || length(burn)!=1 || is.na(burn) || burn<0)
+    #     stop(paste0(error.prefix, "'burn' must be either a fraction between 0 and 1, or a positive integer"))
+    # if (burn > 1 && round(burn)!=burn)
+    #     stop(paste0(error.prefix, "'burn' must be either a fraction between 0 and 1, or a positive integer"))
+        
     
     if (is.null(chains))
         chains = 1:global.control@n.chains
