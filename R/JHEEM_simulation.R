@@ -467,6 +467,7 @@ derive.degenerate.simulation <- function(sim,
                                          intervention.code = sim$intervention.code,
                                          parameters = sim$parameters,
                                          run.metadata = sim$run.metadata,
+                                         simulation.chain = sim$simulation.chain[1],
                                          error.prefix = 'Error deriving degenerate simulation')
 {
     maker = SINGLE.SIMULATION.MAKER$new(jheem.kernel = sim$jheem.kernel,
@@ -494,6 +495,7 @@ derive.degenerate.simulation <- function(sim,
                           parameters = parameters,
                           run.metadata,
                           is.degenerate = T,
+                          simulation.chain = simulation.chain,
                           finalize = T,
                           error.prefix = error.prefix)
 }
