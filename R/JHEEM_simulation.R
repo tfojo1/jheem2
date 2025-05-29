@@ -1714,7 +1714,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             # 
             # if (!drop.single.sim.dimension || self$n.sim > 1)
             #     keep.dimensions = union(keep.dimensions, 'sim')
-
+            
             rv = lapply(outcomes, function(outcome){
                 scale = self$outcome.metadata[[outcome]]$scale
                 numerator.needed = output %in% c('value', 'numerator')
@@ -1830,7 +1830,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                     new.dim.names = c(list(metric = c('mean', 'lower', 'upper')), dimnames(rv)[-1])
                     dimnames(rv) = new.dim.names
                 }
-                    
+                
                 else {
                     new.dim.names = c(list(metric = c('mean', 'lower', 'upper')))
                     rv = array(c(mean(rv, na.rm=T), quantile(rv, probs=c(alpha, 1-alpha), na.rm=T)),
@@ -1845,12 +1845,12 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                     rv = apply(rv, setdiff(names(dim(rv)), 'sim'), function(x) {
                         c(median(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T))
                     })
-                    new.dim.names = c(list(metric = c('mean', 'lower', 'upper')), dimnames(rv)[-1])
+                    new.dim.names = c(list(metric = c('median', 'lower', 'upper')), dimnames(rv)[-1])
                     dimnames(rv) = new.dim.names
                 }
                 
                 else {
-                    new.dim.names = c(list(metric = c('mean', 'lower', 'upper')))
+                    new.dim.names = c(list(metric = c('median', 'lower', 'upper')))
                     rv = array(c(median(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T)),
                                sapply(new.dim.names, length), new.dim.names)
                 }
@@ -1858,22 +1858,22 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             rv
         },
         
-fix.chains = function()
-{
-    calibrated.param.names = get.parameter.names.for.version(self$version, type = 'calibrated')
-    
-    eq.prior = c(0, apply(self$parameters[calibrated.param.names,-1,drop=F] == self$parameters[calibrated.param.names,-self$n.sim,drop=F], 2, mean))
-    
-    chain.counter = 0
-    private$i.data$simulation.chain = sapply(eq.prior, function(val){
-        if (val==0)
-            chain.counter <<- chain.counter + 1
-        
-        chain.counter
-    })
-    
-    private$i.data$unique.chains = 1:chain.counter
-},
+        fix.chains = function()
+        {
+            calibrated.param.names = get.parameter.names.for.version(self$version, type = 'calibrated')
+            
+            eq.prior = c(0, apply(self$parameters[calibrated.param.names,-1,drop=F] == self$parameters[calibrated.param.names,-self$n.sim,drop=F], 2, mean))
+            
+            chain.counter = 0
+            private$i.data$simulation.chain = sapply(eq.prior, function(val){
+                if (val==0)
+                    chain.counter <<- chain.counter + 1
+                
+                chain.counter
+            })
+            
+            private$i.data$unique.chains = 1:chain.counter
+        },
         
         subset = function(simulation.indices)
         {
