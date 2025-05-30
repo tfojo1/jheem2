@@ -1218,6 +1218,7 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
                               drop.single.outcome.dimension = T,
                               drop.single.sim.dimension = F,
                               replace.inf.values.with.zero = T,
+                              na.rm = T,
                               error.prefix = "Error preparing optimized get info: ")
         {
             # Set up the value dim.names
@@ -1263,6 +1264,10 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
             if (!is.logical(replace.inf.values.with.zero) || length(replace.inf.values.with.zero)!=1 || is.na(replace.inf.values.with.zero))
                 stop(paste0(error.prefix, "'replace.inf.values.with.zero', must be a single, non-NA, logical value"))
             private$i.replace.inf.values.with.zero = replace.inf.values.with.zero
+            
+            if (!is.logical(na.rm) || length(na.rm)!=1 || is.na(na.rm))
+                stop(paste0(error.prefix, "'na.rm', must be a single, non-NA, logical value"))
+            private$i.na.rm = na.rm
             
             private$i.info.by.outcome = lapply(private$i.outcomes, function(outcome){
                 
@@ -1370,7 +1375,8 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
                                   denominators = outcome.denominators[private$i.outcomes],
                                   info_by_outcome = private$i.info.by.outcome,
                                   n_to_per_outcome = private$i.n.per.outcome,
-                                  avoid_infinite = private$i.replace.inf.values.with.zero)
+                                  avoid_infinite = private$i.replace.inf.values.with.zero,
+                                  na_rm = private$i.na.rm)
             
             # Set dimnames and return
             dim(rv) = sapply(private$i.value.dim.names, length)
@@ -1388,6 +1394,7 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
         i.outcomes = NULL,
         i.output = NULL,
         i.replace.inf.values.with.zero = NULL,
+        i.na.rm = NULL,
         
         i.value.dim.names = NULL,
         i.target.years = NULL,
@@ -1684,6 +1691,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                        summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                        interval.coverage = 0.95,
                        mapping = NULL, # to do: put in the other get() method mentioned above (simset collection)
+                       na.rm = F,
                        error.prefix = "Error getting simulation results: ",
                        debug=F)
         {
@@ -1752,8 +1760,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 
                 if (!(numerator.needed && !(length(numerator.data)>0)) && !(denominator.needed && !(length(denominator.data)>0))) {
                     # Apply mapping
-                    if (numerator.needed && !is.null(mapping)) numerator.data = mapping$apply(numerator.data)
-                    if (denominator.needed && !is.null(mapping)) denominator.data = mapping$apply(denominator.data)
+                    if (numerator.needed && !is.null(mapping)) numerator.data = mapping$apply(numerator.data, na.rm=na.rm)
+                    if (denominator.needed && !is.null(mapping)) denominator.data = mapping$apply(denominator.data, na.rm=na.rm)
                     
                     # Aggregation
                     if (numerator.needed) pre.agg.dimnames = dimnames(numerator.data)
@@ -1768,8 +1776,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                     }
                     
                     if (length(pre.agg.dimnames) > length(keep.dimensions)) {
-                        if (numerator.needed) numerator.data = apply.robust(numerator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
-                        if (denominator.needed) denominator.data = apply.robust(denominator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
+                        if (numerator.needed) numerator.data = apply.robust(numerator.data, c(keep.dimensions, 'sim'), sum, na.rm=na.rm)
+                        if (denominator.needed) denominator.data = apply.robust(denominator.data, c(keep.dimensions, 'sim'), sum, na.rm=na.rm)
                     }
                     
                     if (output == 'numerator' || output == 'value' && !denominator.needed) output.array = numerator.data
