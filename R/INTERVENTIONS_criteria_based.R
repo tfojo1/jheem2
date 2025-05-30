@@ -554,12 +554,14 @@ MONOTONIC.CRITERIA.BASED.INTERVENTION = R6::R6Class(
                 
                 if (length(unsatisfied.criteria) > 0) {
                     private$i.n.failures = private$i.n.failures + 1
-                    if (verbose) print(paste0("Failure on sim.index ", sim.index))
+                    if (verbose)
+                        print(paste0("Failure on sim.index ", sim.index))
+                    
                     return(derive.degenerate.simulation(prev.sim,
                                                         from.year = private$i.keep.from.year,
                                                         to.year = private$i.keep.to.year,
                                                         intervention.code = private$i.code,
-                                                        parameters = c(untsfx.parameters.to.optimize, parameters))) # check with Todd
+                                                        parameters = prev.sim$parameters)) # check with Todd
                 }
             }
             #-- Step 3: Try to get closer to the target --#
