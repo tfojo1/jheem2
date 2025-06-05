@@ -108,14 +108,14 @@ set.up.transmute.calibration <- function(transmute.code,
         # return(
         #     transmuter$transmute(sim.index = mcmc.settings$sim.index,
         #                          parameters = parameters))
-        tryCatch({
+    #    tryCatch({
             transmuter$transmute(sim.index = mcmc.settings$sim.index,
                                  parameters = parameters)
-        },
-        error = function(e){
-            browser()
-            NULL
-        })
+        # },
+        # error = function(e){
+        #     browser()
+        #     NULL
+        # })
     }
     
     trans.env = new.env(parent = baseenv())
@@ -259,7 +259,7 @@ set.up.transmute.calibration <- function(transmute.code,
                                           update.detail = 'none',
                                           update.frequency = NA)
     
-    update.transmute.mcmc.settings(mcmc = mcmc,
+    trans.env$mcmc.settings = update.transmute.mcmc.settings(mcmc = mcmc,
                                    mcmc.settings = trans.env$mcmc.settings,
                                    n.iter = calibration.info$n.iter.subsequent.sims)
     
@@ -274,7 +274,7 @@ set.up.transmute.calibration <- function(transmute.code,
                                                 n.sim = n.sim,
                                                 n.chunks = n.chunks,
                                                 likelihood = likelihood,
-                                                default.mcmc.settings = trans.env$mcmc.setting)
+                                                default.mcmc.settings = trans.env$mcmc.settings)
     
     dir = get.transmute.calibration.dir(to.version = calibration.info$to.version,
                                         location = location,
@@ -397,6 +397,7 @@ run.transmute.calibration <- function(transmute.code,
     #-- LOAD THE BASE SIMSET --#
     
     pre.simset = retrieve.simulation.set(version = calibration.info$from.version,
+                                         n.sim = n.sim,
                                          location = location,
                                          calibration.code = ctrl$from.calibration.code)
     
@@ -410,7 +411,7 @@ run.transmute.calibration <- function(transmute.code,
     {
         sim.indices = ctrl$sim.indices.for.chunk[[chunk]]
         
-        tryCatch({
+       # tryCatch({
             
             # Actually Run It
             chunk.sims = list()
@@ -419,24 +420,29 @@ run.transmute.calibration <- function(transmute.code,
                 i = sim.indices[i.index]
                 
                 mcmc.settings$sim.index = i
-                n.iter.for.i = rw.control$n.iter.subsequent.sims
+                n.iter.for.i = ctrl$n.iter.subsequent.sims
                 
                 if (verbose)
-                    print(paste0("STARTING MCMC FOR SIM ", i, " of ", simset$n.sim))
+                    print(paste0("STARTING MCMC FOR SIM ", i, " of ", pre.simset$n.sim))
                 
                 look.back.i.sims.for.parameters = 0
                 successful.first.sim = F
+                sim = NULL
                 while (!successful.first.sim && look.back.i.sims.for.parameters<calibration.info$max.lookback.attempts)
                 {
                     look.back.i.sims.for.parameters = look.back.i.sims.for.parameters + 1
                     look.back.to.sim.i = i - look.back.i.sims.for.parameters
-                    if (look.back.i.sims.for.parameters >= sim.indices[1])
+                   
+                    if (look.back.to.sim.i==0)
+                    {}
+                    else if (look.back.to.sim.i >= sim.indices[1])
                         mcmc.settings$start.values = chunk.sims[[look.back.to.sim.i]]$params[names(mcmc.settings$start.values)]
                     else
                         break
                     
                     # Run the first sim and make sure the likelihood evaluates
-                    sim = ctrl$transmute.simulation(mcmc.settings$start.values)
+                    sim = mcmc.settings$ctrl@simulation.function(mcmc.settings$start.values)
+                    
                     if (!is.null(sim))
                     {
                         successful.first.sim = ctrl$likelihood$compute(sim, use.optimized.get=T)!=-Inf
@@ -450,7 +456,9 @@ run.transmute.calibration <- function(transmute.code,
                         errored.params <<- mcmc.settings$start.values
                         
                         stop(paste0("The ", 
-                                    get.ordinal(i), " simulation is NULL after 20 attempts. The parameters have been saved in the global environment as 'errored.params'"))
+                                    get.ordinal(i), " simulation is NULL after ",
+                                    look.back.i.sims.for.parameters,
+                                    " attempt(s). The parameters have been saved in the global environment as 'errored.params'"))
                     }
                     else
                     {
@@ -460,7 +468,9 @@ run.transmute.calibration <- function(transmute.code,
                         .GlobalEnv$errored.params <- mcmc.settings$start.values
                         
                         stop(paste0("The likelihood evaluates to -Inf on the initial parameter values for the ", 
-                                    get.ordinal(i), " simulation after 20 attempts. The likelihood components are:\n",
+                                    get.ordinal(i), " simulation after ",
+                                    look.back.i.sims.for.parameters,
+                                    " attempt(s). The likelihood components are:\n",
                                     paste0(paste0(" - ", names(lik.pieces), " = ", lik.pieces), collapse='\n'),
                                     "\nThe parameters, simulation, and likelihood have been saved in the global environment as 'errored.params', 'errored.sim', and 'errored.likelihood'"))
                     }
@@ -532,7 +542,7 @@ run.transmute.calibration <- function(transmute.code,
                     
                 }
                 
-                update.transmute.mcmc.settings(mcmc = mcmc,
+                mcmc.settings = update.transmute.mcmc.settings(mcmc = mcmc,
                                                mcmc.settings = mcmc.settings,
                                                n.iter = ctrl$n.iter.subsequent.sims)
                 
@@ -565,19 +575,19 @@ run.transmute.calibration <- function(transmute.code,
                 root.dir = root.dir)
             
             save(mcmc.settings, file = chunk.file)
-            
-        },
-        error = function(e){
-            
-            if (ignore.errors)
-            {
-                print(paste0("There was an error fitting a transmuted chunk ", chunk, " for ", location, ":"))
-                print(e$message)
-                print(paste0("Skipping chunk ", chunk, " and moving on to the next one"))
-            }
-            else
-                stop(e)
-        })
+        #     
+        # },
+        # error = function(e){
+        #     
+        #     if (ignore.errors)
+        #     {
+        #         print(paste0("There was an error fitting a transmuted chunk ", chunk, " for ", location, ":"))
+        #         print(e$message)
+        #         print(paste0("Skipping chunk ", chunk, " and moving on to the next one"))
+        #     }
+        #     else
+        #         stop(e)
+        # })
     }
     
     invisible(mcmc)

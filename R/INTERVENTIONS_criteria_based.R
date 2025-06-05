@@ -860,7 +860,7 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             # Being at the bounds of the parameter now also counts as being satisfied
             
             # sim.value = private$optimized.get.sim.value(sim)
-            sim.value = private$get.sim.value(sim)
+            sim.value = private$optimized.get.sim.value(sim)
             
             threshold.mask = c(iteration < private$i.subsequent.thresholds.apply.after.iteration, T)
             min.acceptable = private$i.min.acceptable.value[threshold.mask][1]
@@ -868,7 +868,10 @@ MONOTONIC.OUTCOME.INTERVENTION.CRITERION = R6::R6Class(
             outcome.satisfaction = sim.value >= min.acceptable & sim.value <= max.acceptable
             parameter.satisfaction = transform.to.unbounded.scale(sim$params[private$i.parameter.name], private$i.parameter.scale) %in%
                 c(private$i.tsfx.min.acceptable.parameter.value, private$i.tsfx.max.acceptable.parameter.value)
-            return(outcome.satisfaction || parameter.satisfaction)
+            
+            rv = outcome.satisfaction || parameter.satisfaction
+            
+            return(rv)
         },
         
         check.has.changed = function(next.sim, prev.sim) {

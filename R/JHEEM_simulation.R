@@ -1691,7 +1691,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                        summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                        interval.coverage = 0.95,
                        mapping = NULL, # to do: put in the other get() method mentioned above (simset collection)
-                       na.rm = F,
+                       na.rm = T,
                        error.prefix = "Error getting simulation results: ",
                        debug=F)
         {
