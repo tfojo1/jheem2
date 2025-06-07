@@ -293,7 +293,12 @@ get.ordinal <- function(nums)
                          'th') #9
     
     last.digits = nums - (10 * floor(nums/10)) + 1
-    paste0(nums, ORDINAL.SUFFIXES[last.digits])
+    rv = paste0(nums, ORDINAL.SUFFIXES[last.digits])
+    
+    last.two.digits = nums - (100 * floor(nums/100))
+    rv[last.two.digits==11] = paste0(nums[last.two.digits==11], 'th')
+    
+    rv
 }
 
 

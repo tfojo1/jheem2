@@ -355,6 +355,7 @@ run.transmute.calibration <- function(transmute.code,
                                       update.frequency = 500,
                                       update.detail = 'low',
                                       ignore.errors = T,
+                                      rerun = T,
                                       root.dir = get.jheem.root.directory())
 {
     #-- VALIDATE ARGUMENTS --#
@@ -412,7 +413,7 @@ run.transmute.calibration <- function(transmute.code,
         sim.indices = ctrl$sim.indices.for.chunk[[chunk]]
         
        # tryCatch({
-            
+        
             # Actually Run It
             chunk.sims = list()
             for (i.index in 1:length(sim.indices))
@@ -428,15 +429,16 @@ run.transmute.calibration <- function(transmute.code,
                 look.back.i.sims.for.parameters = 0
                 successful.first.sim = F
                 sim = NULL
+                
                 while (!successful.first.sim && look.back.i.sims.for.parameters<calibration.info$max.lookback.attempts)
                 {
                     look.back.i.sims.for.parameters = look.back.i.sims.for.parameters + 1
                     look.back.to.sim.i = i - look.back.i.sims.for.parameters
-                   
-                    if (look.back.to.sim.i==0)
+                    
+                    if (i.index==1)
                     {}
                     else if (look.back.to.sim.i >= sim.indices[1])
-                        mcmc.settings$start.values = chunk.sims[[look.back.to.sim.i]]$params[names(mcmc.settings$start.values)]
+                        mcmc.settings$start.values = chunk.sims[[ look.back.to.sim.i - sim.indices[1] + 1 ]]$params[names(mcmc.settings$start.values)]
                     else
                         break
                     
@@ -551,6 +553,11 @@ run.transmute.calibration <- function(transmute.code,
             
             chunk.simset = join.simulation.sets(chunk.sims)
             
+            if (rerun)
+            {
+                chunk.simset = rerun.simulations(chunk.simset, verbose=verbose)
+            }
+            
             # Save the results
             
             chunk.file = get.transmute.calibration.chunk.files(
@@ -574,7 +581,7 @@ run.transmute.calibration <- function(transmute.code,
                 to.sub.version = ctrl$to.sub.version,
                 root.dir = root.dir)
             
-            save(mcmc.settings, file = chunk.file)
+            save(mcmc.settings, file = mcmc.settings.file)
         #     
         # },
         # error = function(e){
@@ -671,13 +678,81 @@ get.most.advanced.transmute.chunk.mcmc.settings <- function(ctrl,
 #'@export
 assemble.transmuted.simulations <- function(transmute.code,
                                             location,
-                                            chunks = NULL)
+                                            n.sim,
+                                            chunks = NULL,
+                                            allow.incomplete = F,
+                                            root.dir = get.jheem.root.directory())
 {
+    calibration.info = get.transmute.calibration.info(code = transmute.code,
+                                                      throw.error.if.missing = T,
+                                                      error.prefix = error.prefix)
+    
+    if (!is.numeric(n.sim) && length(n.sim)!=1 || is.na(n.sim) || round(n.sim)!=n.sim)
+        stop(paste0(error.prefix, "'n.sim' must be a single, non-NA, integer value"))
+    
+    if (!is.null(chunks))
+    {
+        if (!is.numeric(chunks) && length(chunks)==0 || any(is.na(chunks)) || any(round(chunks)!=chunks))
+            stop(paste0(error.prefix, "'chunks' must be a non-empty, non-NA, integer vector"))
+    }
+    
     #-- LOAD UP EACH CHUNK --#
+    if (is.null(chunks))
+    {
+        ctrl.file = get.transmute.calibration.control.file(
+            to.version = calibration.info$to.version,
+            location = location,
+            transmute.code = transmute.code,
+            n.sim = n.sim,
+            to.sub.version = calibration.info$to.sub.version,
+            root.dir = root.dir)
+        
+        ctrl = get(load(ctrl.file)[1])
+        
+        chunks = 1:ctrl$n.chunks
+    }
+    
+    chunk.files = get.transmute.calibration.chunk.files(
+        to.version = calibration.info$to.version,
+        location = location,
+        transmute.code = transmute.code,
+        n.sim = n.sim,
+        chunks = chunks,
+        to.sub.version = calibration.info$to.sub.version,
+        root.dir = root.dir)
+    
+    simset.list = list()
+    for (chunk.index in 1:length(chunks))
+    {
+        chunk = chunks[chunk.index]
+        chunk.file = chunk.files[chunk.index]
+        
+        if (file.exists(chunk.file))
+        {
+            chunk.simset = get(load(chunk.file)[1])
+            simset.list = c(simset.list, list(chunk.simset))
+        }
+        else if (!allow.incomplete)
+        {
+            stop(paste0("No simulations have been completed for the ",
+                        get.ordinal(chunk), " chunk (no file saved to '",
+                        chunk.file, "') - use allow.incomplete=T to assemble anyway"))
+        }
+    }
     
     #-- JOIN THE SIMULATIONS --#
-    
-    #-- RERUN THE SIMULATIONS --#
+    if (length(simset.list)==0)
+    {
+        stop(paste0("No simulations have been completed fro the transmute.calibration"))
+    }
+    else if (length(simset.list)==1)
+    {
+        simset.list[[1]]
+    }
+    else
+    {
+        join.simulation.sets(simset.list)
+    }
 }
 
 #'@export
