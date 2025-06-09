@@ -207,7 +207,7 @@ set.up.transmute.calibration <- function(transmute.code,
     
     trans.env$mcmc.settings$sim.index = 1
     trans.env$mcmc.settings$start.values = default.start.values
-    trans.env$mcmc.setting$n.iter = 0
+    trans.env$mcmc.settings$n.iter = 0
     trans.env$mcmc.settings$ctrl = bayesian.simulations::create.adaptive.blockwise.metropolis.control(
         var.names = prior.env$prior@var.names,
         simulation.function = transmute.simulation,
@@ -635,7 +635,7 @@ update.transmute.mcmc.settings <- function(mcmc,
     mcmc.settings$ctrl = new.ctrl
     mcmc.settings$start.values = mcmc@chain.states[[1]]@current.parameters
     mcmc.settings$n.iter = mcmc.settings$n.iter + mcmc@n.iter
-    
+
     mcmc.settings
 }
 
@@ -664,7 +664,7 @@ get.most.advanced.transmute.chunk.mcmc.settings <- function(ctrl,
         for (file in mcmc.settings.files)
         {
             load(file)
-            if (mcmc.settings$n.iter > .most.advanced.n.iter)
+            if (mcmc.settings$n.iter > most.advanced.n.iter)
             {
                 most.advanced.settings = mcmc.settings
                 most.advanced.n.iter = mcmc.settings$n.iter
@@ -675,17 +675,54 @@ get.most.advanced.transmute.chunk.mcmc.settings <- function(ctrl,
     }
 }
 
+#' @title Clear a Calibration Cache
+#'@inheritParams set.up.calibration
+#'@param allow.remove.incomplete
+#'
+#'@export
+clear.transmute.calibration.cache <- function(transmute.code,
+                                              location,
+                                              n.sim,
+                                              to.version = NULL,
+                                              to.sub.version = NULL,
+                                              allow.remove.incomplete = F)
+{
+    
+}
+
+
+transmute.calibration.cache.exists <- function(transmute.code,
+                                               location,
+                                               n.sim,
+                                               to.version = NULL,
+                                               to.sub.version = NULL,
+                                               allow.remove.incomplete = F)
+{
+    
+}
+
+
 #'@export
 assemble.transmuted.simulations <- function(transmute.code,
                                             location,
                                             n.sim,
+                                            to.version = NULL,
+                                            to.sub.version = NULL,
                                             chunks = NULL,
                                             allow.incomplete = F,
                                             root.dir = get.jheem.root.directory())
 {
-    calibration.info = get.transmute.calibration.info(code = transmute.code,
-                                                      throw.error.if.missing = T,
-                                                      error.prefix = error.prefix)
+    error.prefix = paste0("Cannot assemble.transmute.simulations for '", location, "': ")
+    
+    if (is.null(to.version))
+    {
+        calibration.info = get.transmute.calibration.info(code = transmute.code,
+                                                          throw.error.if.missing = T,
+                                                          error.prefix = error.prefix)
+        
+        to.version = calibration.info$to.version
+        to.sub.version = calibration.info$to.sub.version
+    }
     
     if (!is.numeric(n.sim) && length(n.sim)!=1 || is.na(n.sim) || round(n.sim)!=n.sim)
         stop(paste0(error.prefix, "'n.sim' must be a single, non-NA, integer value"))
@@ -700,11 +737,11 @@ assemble.transmuted.simulations <- function(transmute.code,
     if (is.null(chunks))
     {
         ctrl.file = get.transmute.calibration.control.file(
-            to.version = calibration.info$to.version,
+            to.version = to.version,
             location = location,
             transmute.code = transmute.code,
             n.sim = n.sim,
-            to.sub.version = calibration.info$to.sub.version,
+            to.sub.version = to.sub.version,
             root.dir = root.dir)
         
         ctrl = get(load(ctrl.file)[1])
@@ -713,12 +750,12 @@ assemble.transmuted.simulations <- function(transmute.code,
     }
     
     chunk.files = get.transmute.calibration.chunk.files(
-        to.version = calibration.info$to.version,
+        to.version = to.version,
         location = location,
         transmute.code = transmute.code,
         n.sim = n.sim,
         chunks = chunks,
-        to.sub.version = calibration.info$to.sub.version,
+        to.sub.version = to.sub.version,
         root.dir = root.dir)
     
     simset.list = list()
