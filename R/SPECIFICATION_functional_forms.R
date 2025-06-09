@@ -436,6 +436,25 @@ create.logistic.spline.functional.form <- function(knot.times,
                                         error.prefix = error.prefix)
 }
 
+create.logistic.taper.functional.form <- function(base.functional.form,
+                                                  taper.start.year,
+                                                  p.at.taper.start,
+                                                  taper.year.2,
+                                                  p.at.year.2,
+                                                  ps.are.dynamic = F,
+                                                  link = 'identity',
+                                                  error.prefix = 'Cannot create logistic taper functional.form: ')
+{
+    LOGISTIC.TAPER.FUNCTIONAL.FORM$new(base.functional.form = base.functional.form,
+                                       taper.start.year = taper.start.year,
+                                       p.at.taper.start = p.at.taper.start,
+                                       taper.year.2 = taper.year.2,
+                                       p.at.year.2 = p.at.year.2,
+                                       ps.are.dynamic = ps.are.dynamic,
+                                       link = link,
+                                       error.prefix = error.prefix)
+}
+
 ##---------------------------------------##
 ##---------------------------------------##
 ##-- FUNCTIONAL FORM CLASS DEFINITIONS --##
@@ -484,7 +503,7 @@ FUNCTIONAL.FORM = R6::R6Class(
                 stop(paste0(error.prefix, "A functional.form's 'future.slope.link' must be either NULL or a an object of class 'link' (obtained by calling 'get.link')"))
 
             #-- Check Betas --#
-            if (!is.list(betas) || length(betas)==0 || is.null(names(betas)) || any(names(betas)==''))
+            if (!is.list(betas) || (length(betas)>0 && (is.null(names(betas)) || any(names(betas)==''))))
                 stop("'betas' must be a named list")
             sapply(names(betas), function(beta.name){
                 beta = betas[[beta.name]]
@@ -494,12 +513,12 @@ FUNCTIONAL.FORM = R6::R6Class(
             })
             
             alpha.names = names(betas)
-            if (max(table(alpha.names)>1))
+            if (length(alpha.names)>0 && max(table(alpha.names)>1))
                 stop(paste0(error.prefix, "Functional.form 'betas' cannot have repeated names"))
             
             #-- Make the dim.names --#
             dim.names = NULL
-            for (i in 1:length(betas))
+            for (i in seq_along(betas))
             {
                 beta.name = names(betas)[i]
                 beta = betas[[i]]
@@ -556,7 +575,7 @@ FUNCTIONAL.FORM = R6::R6Class(
             if (is(beta.links, 'link'))
                 beta.links = list(beta.links)
             
-            if (!is.list(beta.links) || length(beta.links)==0)
+            if (!is.list(beta.links) || (length(beta.links)==0 && length(betas)>0))
                 stop(paste0(error.prefix, "'beta.links' for a functional.form ('",
                             type, "') must be either a single link object, or a list containing only link objects"))
             
@@ -625,7 +644,7 @@ FUNCTIONAL.FORM = R6::R6Class(
             if (is(alpha.links, 'link'))
                 alpha.links = list(alpha.links)
             
-            if (!is.list(alpha.links) || length(alpha.links)==0)
+            if (!is.list(alpha.links) || (length(alpha.links)==0 && length(betas)>0))
                 stop(paste0(error.prefix, "'alpha.links' for a functional.form ('",
                             type, "') must be either a single link object, or a list containing only link objects"))
             
@@ -752,7 +771,7 @@ FUNCTIONAL.FORM = R6::R6Class(
             }
             
             #-- Incorporate Alphas --#
-            terms = lapply(self$alpha.names, function(name){
+            terms = lapply(names(private$i.betas), function(name){
                 rv = private$i.beta.links[[name]]$reverse.apply(
                     incorporate.alphas(betas=private$i.betas[[name]],
                                        alphas=alphas[[name]],
@@ -767,7 +786,7 @@ FUNCTIONAL.FORM = R6::R6Class(
                 
                 rv
             })
-            names(terms) = self$alpha.names
+            names(terms) = names(private$i.betas)
             
             if (check.consistency)
             {
@@ -785,13 +804,16 @@ FUNCTIONAL.FORM = R6::R6Class(
             
             #-- Call the sub-function --#
 
-            private$do.project(terms = terms,
-                               years = years,
-                               future.slope = future.slope,
-                               future.slope.after.year = future.slope.after.year,
-                               dim.names = dim.names,
-                               check.consistency = check.consistency,
-                               error.prefix = error.prefix)
+            rv = private$do.project(terms = terms,
+                                    years = years,
+                                    future.slope = future.slope,
+                                    future.slope.after.year = future.slope.after.year,
+                                    dim.names = dim.names,
+                                    check.consistency = check.consistency,
+                                    error.prefix = error.prefix)
+            
+            names(rv) = as.character(years)
+            rv
         },
         
         project.static = function(alphas,
@@ -802,13 +824,16 @@ FUNCTIONAL.FORM = R6::R6Class(
             if (!private$i.is.static)
                 stop(paste0(error.prefix, "Cannot project.static from a dynamic functional.form ('", private$i.type, "')"))
             
-            self$project(years = 0,
-                         alphas = alphas,
-                         future.slope = 0,
-                         future.slope.after.year = 0,
-                         dim.names = dim.names,
-                         check.consistency = check.consistency,
-                         error.prefix = error.prefix)[[1]]
+            rv = self$project(years = 0,
+                              alphas = alphas,
+                              future.slope = 0,
+                              future.slope.after.year = 0,
+                              dim.names = dim.names,
+                              check.consistency = check.consistency,
+                              error.prefix = error.prefix)[[1]]
+            
+            names(rv) = NULL
+            rv
         },
         
         apply.ontology.mapping = function(mapping, 
@@ -2480,6 +2505,278 @@ LOGISTIC.SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                 
                 private$i.link$reverse.apply(sub.rv)
             })
+        }
+    )
+)
+
+
+
+LOGISTIC.TAPER.FUNCTIONAL.FORM = R6::R6Class(
+    'logistic.taper.functional.form',
+    inherit = FUNCTIONAL.FORM,
+    
+    public = list(
+        
+        initialize = function(base.functional.form,
+                              taper.start.year,
+                              p.at.taper.start,
+                              taper.year.2,
+                              p.at.year.2,
+                              ps.are.dynamic = F,
+                              link = 'identity',
+                              error.prefix = 'Cannot create logistic taper functional.form: ')
+        {
+            #-- ps.are.dynamic --#
+            if (!is.logical(ps.are.dynamic) || length(ps.are.dynamic)!=1 || is.na(ps.are.dynamic))
+                stop(paste0(error.prefix, "'ps.are.dynamic' must be either TRUE or FALSE"))
+            
+            #-- base.functional.form --#
+            if (!is(base.functional.form, 'functional.form'))
+                stop(paste0(error.prefix, "'base.functional.form' must be an object of class 'functional.form'"))
+            
+            #-- Years --#
+            if (!is.numeric(taper.start.year) || length(taper.start.year)!=1 || is.na(taper.start.year))
+                stop(paste0(error.prefix, "'taper.start.year' must be a single, non-NA numeric value"))
+            if (!is.numeric(taper.year.2) || length(taper.year.2)!=1 || is.na(taper.year.2))
+                stop(paste0(error.prefix, "'taper.year.2' must be a single, non-NA numeric value"))
+            if (taper.year.2 <= taper.start.year)
+                stop(paste0(error.prefix, "'taper.year.2' (", taper.year.2, ") must be AFTER 'taper.start.year' (", taper.start.year, ")"))
+            
+            #-- ps --#
+            if (ps.are.dynamic)
+            {
+                stop(paste0(error.prefix, "We have not yet implemented dynamic ps"))
+            }
+            else
+            {
+                if (!is.numeric(p.at.taper.start) || length(p.at.taper.start)!=1 || is.na(p.at.taper.start) || 
+                    p.at.taper.start <= 0 || p.at.taper.start >=1)
+                    stop(paste0(error.prefix, "If ps are NOT dynamic, 'p.at.taper.start' must be a single, non-NA numeric value between 0 and 1 (exclusive)"))
+                
+                if (!is.numeric(p.at.year.2) || length(p.at.year.2)!=1 || is.na(p.at.year.2) || 
+                    p.at.year.2 <= p.at.taper.start || p.at.year.2 >=1)
+                    stop(paste0(error.prefix, "If ps are NOT dynamic, 'p.at.year.2' must be a single, non-NA numeric value between 'p.at.taper.start' (", p.at.taper.start, ") and 1 (exclusive)"))
+                
+                betas = list()
+                beta.links = list()
+                alpha.links = list()
+                overwrite.ps.with.alphas = F
+            }
+            
+            #-- link --#
+            link = get.link(link)
+            
+            
+            #-- Call the superclass constructor --#
+            super$initialize(type = "logistic-taper",
+                             betas = betas,
+                             link = link,
+                             future.slope.link = link$get.coefficient.link(),
+                             alphas.are.additive = !overwrite.ps.with.alphas,
+                             beta.links = beta.links,
+                             alpha.links = alpha.links, 
+                             is.static = F,
+                             error.prefix = error.prefix)
+            
+            private$i.base.functional.form = base.functional.form
+            private$i.ps.are.dynamic = ps.are.dynamic
+            private$i.taper.start.year = taper.start.year
+            private$i.taper.year.2 = taper.year.2
+            private$i.taper.start.delta.year = taper.start.year + 1/52
+            
+            if (!ps.are.dynamic)
+            {
+                p1 = p.at.taper.start
+                p2 = p.at.year.2
+                t1 = taper.start.year
+                t2 = taper.year.2
+
+                private$i.precalculated.m = m = log((1/p1 - 1) /(1/p2 - 1)) / (t2 - t1)
+                private$i.precalculated.b = -log(1/p1 - 1) - m*t1
+            }
+        },
+        
+        project = function(years,
+                           alphas = NULL,
+                           dim.names = self$minimum.dim.names,
+                           future.slope = NULL,
+                           future.slope.after.year = NULL,
+                           future.slope.is.on.transformed.scale=F,
+                           check.consistency=T,
+                           error.prefix='')
+        {
+            years.before.taper.mask = years <= private$i.taper.start.year
+            no.need.to.taper = all(years.before.taper.mask)
+            if (no.need.to.taper)
+            {
+                years.to.project.base = years[years.before.taper.mask]
+            }
+            else
+            {
+                years.to.project.base = union(years[years.before.taper.mask],
+                                              c(private$i.taper.start.year,
+                                                private$i.taper.start.delta.year))
+            }
+            
+            private$i.base.projected.values = private$i.base.functional.form$project(years = years.to.project.base,
+                                                                                     alphas = alphas,
+                                                                                     dim.names = dim.names,
+                                                                                     future.slope = future.slope,
+                                                                                     future.slope.after.year = future.slope.after.year,
+                                                                                     future.slope.is.on.transformed.scale = future.slope.is.on.transformed.scale,
+                                                                                     check.consistency = check.consistency,
+                                                                                     error.prefix = error.prefix)
+            
+            if (no.need.to.taper)
+            {
+                private$i.base.projected.values
+            }
+            else
+            {
+                super$project(years = years,
+                              alphas = alphas,
+                              dim.names = dim.names,
+                              future.slope = future.slope,
+                              future.slope.after.year = future.slope.after.year,
+                              future.slope.is.on.transformed.scale = future.slope.is.on.transformed.scale,
+                              check.consistency = check.consistency,
+                              error.prefix = error.prefix)
+            }
+        },
+        
+        apply.ontology.mapping = function(mapping, 
+                                          modify.in.place = F,
+                                          error.prefix = error.prefix)
+        {
+            super$apply.ontology.mapping(mapping = mapping,
+                                         modify.in.place = modify.in.place,
+                                         error.prefix = error.prefix)
+            private$i.base.functional.form$apply.ontology.mapping(mapping = mapping,
+                                                                  modify.in.place = modify.in.place,
+                                                                  error.prefix = error.prefix)
+        }
+    ),
+    
+    active = list(
+        
+        minimum.dim.names = function(value)
+        {
+            if (missing(value))
+                private$i.minimum.dim.names
+            else
+                stop("Cannot modify 'minimum.dim.names' for a functional.form object - they are read-only")
+        },
+        
+        betas = function(value)
+        {
+            if (missing(value))
+                c(private$i.betas, private$i.base.functional.form$betas)
+            else
+                stop("Cannot modify 'betas' for a functional.form object - they are read-only")
+        },
+        
+        link = function(value)
+        {
+            if (missing(value))
+                private$i.link
+            else
+                stop("Cannot modify 'link' for a functional.form object - it is read-only")
+        },
+        
+        alpha.names = function(value)
+        {
+            if (missing(value))
+                names(self$betas)
+            else
+                stop("Cannot modify 'alpha.names' for a functional.form object - they are read-only")
+        },
+        
+        alpha.links = function(value)
+        {
+            if (missing(value))
+                c(private$i.alpha.links, private$i.base.functional.form$alpha.links)
+            else
+                stop("Cannot modify 'alpha.links' for a functional.form object - they are read-only")
+        },
+        
+        alphas.are.additive = function(value)
+        {
+            if (missing(value))
+                c(private$i.alphas.are.additive, private$i.base.functional.form$alphas.are.additive)
+            else
+                stop("Cannot modify 'alphas.are.additive' for a functional.form object - they are read-only")
+        }  
+    ),
+    
+    private = list(
+        
+        i.taper.start.year = NULL,
+        i.taper.year.2 = NULL,
+        i.base.functional.form = NULL,
+        
+        i.ps.are.dynamic = NULL,
+        i.precalculated.m = NULL,
+        i.precalculated.b = NULL,
+        
+        i.taper.start.delta.year = NULL,
+        i.base.projected.values = NULL,
+        
+        do.project = function(terms,
+                              years,
+                              future.slope,
+                              future.slope.after.year,
+                              dim.names,
+                              check.consistency,
+                              error.prefix)
+        {
+            years.before.taper = years[years <= private$i.taper.start.year]
+            years.after.taper = years[years > private$i.taper.start.year]
+            
+            v1 = private$i.link$apply(private$i.base.projected.values[[as.character(private$i.taper.start.year)]])
+            delta = (private$i.link$apply(private$i.base.projected.values[[as.character(private$i.taper.start.delta.year)]]) - v1) / 
+                (private$i.taper.start.delta.year - private$i.taper.start.year)
+            
+            delta.zero = delta == 0
+            
+            t1 = private$i.taper.start.year
+            t2 = private$i.taper.year.2
+            
+            if (private$i.ps.are.dynamic)
+            {
+                p1 = terms$p.at.taper.start
+                p2 = terms$p.at.year.2
+                
+                if (any(p1 <= 0) || any(p1 >= 0))
+                    stop(paste0(error.prefix, "The terms for 'p.at.taper.start' must all be between 0 and 1 (exclusive)"))
+                if (any(p2 <= p1) || any(p2 >= 0))
+                    stop(paste0(error.prefix, "The terms for 'p.at.year.2' must all be between the terms for 'p.at.taper.start' and 1 (exclusive)"))
+                    
+                m = log((1/p1 - 1) /(1/p2 - 1)) / (t2 - t1)
+                b = -log(1/p1 - 1) - m*t1
+            }
+            else
+            {
+                m = private$i.precalculated.m
+                b = private$i.precalculated.b
+            }
+            
+            K = delta * (1 + exp(-m*t1-b))^2 / (m * exp(-m*t1-b))
+            
+            A = v1 - K / (1 + exp(-m*t1-b))
+            
+            values.before.taper = private$i.base.projected.values[as.character(years.before.taper)]
+            
+            values.after.taper = lapply(years.after.taper, function(year){
+                
+                val = A + K / (1 + exp(-m*year-b))
+            #    val[delta.zero] = v1[delta.zero]
+                
+                private$i.link$reverse.apply(val)
+            })
+            names(values.after.taper) = as.character(years.after.taper)
+            
+            values = c(values.before.taper, values.after.taper)
+            values[as.character(years)]
         }
     )
 )
