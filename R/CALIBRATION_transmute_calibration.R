@@ -51,6 +51,14 @@ set.up.transmute.calibration <- function(transmute.code,
     if (!is.logical(verbose) || length(verbose)!=1 || is.na(verbose))
         stop(paste0(error.prefix, "'verbose must be a single, non-NA logical value (either TRUE or FALSE)"))
     
+    #-- Make sure a cache is not already there --#
+    if (transmute.calibration.cache.exists(transmute.code = transmute.code,
+                                          location = location,
+                                          n.sim = n.sim,
+                                          root.dir = root.dir))
+    {
+        stop(paste0(error.prefix, "A cache has already been created. Use clear.transmute.calibration.cache() to remove it"))
+    }
     
     #--------------------------------------#
     #-- Pull the calibration info object --#
@@ -406,7 +414,9 @@ run.transmute.calibration <- function(transmute.code,
     #-- RUN THE CHUNKS --#
     
     mcmc = NULL
-    mcmc.settings = get.most.advanced.transmute.chunk.mcmc.settings(ctrl = ctrl, root.dir = root.dir)
+    mcmc.settings = as.environment(get.most.advanced.transmute.chunk.mcmc.settings(ctrl = ctrl, root.dir = root.dir))
+    environment(mcmc.settings$ctrl@simulation.function)$mcmc.settings = mcmc.settings
+
     start.time = Sys.time()
     for (chunk in chunks)
     {
@@ -663,6 +673,7 @@ get.most.advanced.transmute.chunk.mcmc.settings <- function(ctrl,
         
         for (file in mcmc.settings.files)
         {
+            print(file)
             load(file)
             if (mcmc.settings$n.iter > most.advanced.n.iter)
             {
@@ -685,9 +696,60 @@ clear.transmute.calibration.cache <- function(transmute.code,
                                               n.sim,
                                               to.version = NULL,
                                               to.sub.version = NULL,
-                                              allow.remove.incomplete = F)
+                                              allow.remove.incomplete = F,
+                                              root.dir = get.jheem.root.directory())
 {
+    if (is.null(to.version))
+    {
+        calibration.info = get.transmute.calibration.info(code = transmute.code,
+                                                          throw.error.if.missing = T,
+                                                          error.prefix = error.prefix)
+        
+        to.version = calibration.info$to.version
+        to.sub.version = calibration.info$to.sub.version
+    }
     
+    dir = get.transmute.calibration.dir(to.version = to.version,
+                                                       location = location,
+                                                       transmute.code = transmute.code,
+                                                       n.sim = n.sim,
+                                                       to.sub.version = to.sub.version,
+                                                       root.dir = root.dir)
+    
+    if (dir.exists(dir))
+    {
+        if (!allow.remove.incomplete)
+        {
+            ctrl.file = get.transmute.calibration.control.file(to.version = to.version,
+                                                               location = location,
+                                                               transmute.code = transmute.code,
+                                                               n.sim = n.sim,
+                                                               to.sub.version = to.sub.version,
+                                                               root.dir = root.dir)
+            
+            ctrl = get(load(ctrl.file)[1])
+            
+            last.chunk.file = get.transmute.calibration.chunk.files(to.version = to.version,
+                                                                    location = location,
+                                                                    transmute.code = transmute.code,
+                                                                    n.sim = n.sim,
+                                                                    chunks = ctrl$n.chunks,
+                                                                    to.sub.version = to.sub.version,
+                                                                    root.dir = root.dir)
+            
+            is.complete = file.exists(last.chunk.file)
+            
+            if (!is.complete)
+                stop(paste0("Cannot clear.transmute.calibration.cache for ",
+                            transmute.code, " at location '", location, 
+                            "' - the prior calibration has not finished running. Use allow.remove.incomplete=T to clear anyway"))
+        }
+        
+        if (!allow.remove.incomplete)
+            stop(paste0("Cannot clear.transmute.calibration.cache - to clear a cache that exists, set allow.remove.incomplete = T"))
+        
+        unlink(dir, recursive = T)
+    }
 }
 
 
@@ -696,9 +758,38 @@ transmute.calibration.cache.exists <- function(transmute.code,
                                                n.sim,
                                                to.version = NULL,
                                                to.sub.version = NULL,
-                                               allow.remove.incomplete = F)
+                                               root.dir = get.jheem.root.directory())
 {
+    if (is.null(to.version))
+    {
+        calibration.info = get.transmute.calibration.info(code = transmute.code,
+                                                          throw.error.if.missing = T,
+                                                          error.prefix = error.prefix)
+        
+        to.version = calibration.info$to.version
+        to.sub.version = calibration.info$to.sub.version
+    }
     
+    dir = get.transmute.calibration.dir(to.version = to.version,
+                                        location = location,
+                                        transmute.code = transmute.code,
+                                        n.sim = n.sim,
+                                        to.sub.version = to.sub.version,
+                                        root.dir = root.dir)
+    
+    if (dir.exists(dir))
+    {
+        ctrl.file = get.transmute.calibration.control.file(to.version = to.version,
+                                                           location = location,
+                                                           transmute.code = transmute.code,
+                                                           n.sim = n.sim,
+                                                           to.sub.version = to.sub.version,
+                                                           root.dir = root.dir)
+        
+        file.exists(ctrl.file)
+    }
+    else
+        F
 }
 
 
