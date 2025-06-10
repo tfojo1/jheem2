@@ -1286,7 +1286,7 @@ assemble.simulations.from.calibration <- function(version,
                     gc()
                 }
                 
-                if (verbose && chunk%%100==0)
+                if (verbose && (chunk%%100==0 || chunk==max.done.chunk.per.chain[chain.index]))
                 {
                     cat("Done\n")
                 }
