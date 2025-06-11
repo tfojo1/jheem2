@@ -665,12 +665,12 @@ JHEEM.FILE.BASED.SIMSET.COLLECTION = R6::R6Class(
                         tail(strsplit(file, "/")[[1]],1),
                         '...', sep='')
                 
-                x = load(file)
+                simset = load.simulation.set(file)
                 
                 if (verbose)
                     cat("Done\n")
                 
-                get(x)
+                simset
             }
         },
         
