@@ -473,6 +473,7 @@ prepare.plot <- function(simset.list=NULL,
             }
         # if (!is.null(facet.by)) names(df.truth)[names(df.truth)==facet.by] = "facet.by" ##########################
         
+        df.truth$outcome.display.name <- factor(df.truth$outcome.display.name, levels = sapply(outcome.metadata.list, function(outcome) {outcome$display.name}))
         # if there is no 'stratum' because no split, then we should fill it with ""
         if (!('stratum' %in% names(df.truth))) df.truth['stratum'] = rep('', nrow(df.truth))
         
@@ -543,6 +544,8 @@ prepare.plot <- function(simset.list=NULL,
                 df.sim[paste0("facet.by", i)] = df.sim[facet.by[i]]
             }
         # df.sim["facet.by"] = df.sim[facet.by]
+        
+        df.sim$outcome.display.name <- factor(df.sim$outcome.display.name, levels = sapply(outcome.metadata.list, function(outcome) {outcome$display.name}))
         
         # if we don't have a 'stratum' col because no split, make an empty one
         if (!('stratum' %in% names(df.sim))) df.sim['stratum'] = rep('', nrow(df.sim))
