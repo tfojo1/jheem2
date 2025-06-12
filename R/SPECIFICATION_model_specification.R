@@ -54,7 +54,8 @@ create.jheem.specification <- function(version,
                                        
                                        compartment.value.aliases = list(),
                                        
-                                       labels = NULL)
+                                       labels = NULL,
+                                       default.solver.metadata = NULL)
 {
     error.prefix = "Cannot create jheem.specification: "
     
@@ -89,6 +90,9 @@ create.jheem.specification <- function(version,
     
     if (missing(age.endpoints))
         age.endpoints = NULL
+    
+    if (missing(default.solver.metadata))
+        default.solver.metadata = NULL
     
     
     ##-- CHECK ARGUMENTS --##
@@ -609,7 +613,13 @@ create.jheem.specification <- function(version,
                           error.prefix = error.prefix,
                           allow.empty = T, allow.duplicate.values.across.dimensions = F)
 
-
+    #-- Default solver.metadata --#
+    
+    if (!is.null(default.solver.metadata))
+    {
+        if (!is(default.solver.metadata, "solver.metadata"))
+            stop(paste0(error.prefix, "'default.solver.metadata' must be an object of class 'solver.metadata' created by create.solver.metadata()"))
+    }
     
     #-- Call the constructor --#
     JHEEM.SPECIFICATION$new(
@@ -629,6 +639,8 @@ create.jheem.specification <- function(version,
         compartments.for.infected.and.uninfected = compartments.for.infected.and.uninfected,
         age.info = age.info,
         start.year = start.year,
+        
+        default.solver.metadata = default.solver.metadata,
         
         compartment.value.character.aliases = compartment.value.character.aliases,
         compartment.value.function.aliases = compartment.value.function.aliases,
@@ -1900,6 +1912,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                               age.info,
                               start.year,
                               
+                              default.solver.metadata,
+                              
                               compartment.value.character.aliases,
                               compartment.value.function.aliases,
                               labels)
@@ -2036,6 +2050,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
             
             # Some default settings
             private$i.locked = F
+            private$i.default.solver.metadata = default.solver.metadata
             
             # Add the default tracked outcomes
             private$do.store.outcome(INTRINSIC.MODEL.OUTCOME$new('infected', version=self$version),
@@ -3203,6 +3218,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                   
                                                   foregrounds = private$i.foregrounds,
                                                   default.parameter.values = private$i.default.parameter.values,
+                                                  default.solver.metadata = private$i.default.solver.metadata,
                                                   
                                                   age.info = private$i.age.info,
                                                   start.year = private$i.start.year,
@@ -3408,6 +3424,14 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 private$i.default.parameter.values
             else
                 stop("Cannot modify a specification's 'default.parameter.values' - they are read-only")
+        },
+        
+        default.solver.metadata = function(value)
+        {
+            if (missing(value))
+                private$i.default.solver.metadata
+            else
+                stop("Cannot modify a specification's 'default.parameter.values' - they are read-only")
         }
     ),
 
@@ -3435,6 +3459,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         
         i.foregrounds = NULL,
         i.default.parameter.values = NULL,
+        i.default.solver.metadata = NULL,
         
         i.fixed.strata.info = NULL,
         i.quantities = NULL,

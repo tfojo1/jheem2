@@ -1002,7 +1002,7 @@ create.jheem.engine <- function(version,
                                 end.year,
                                 sub.version = NULL,
                                 max.run.time.seconds = Inf,
-                                solver.metadata = create.solver.metadata())
+                                solver.metadata = NULL)
 {
     jheem.kernel = create.jheem.kernel(version = version,
                                        location = location)
@@ -1193,8 +1193,18 @@ JHEEM.ENGINE = R6::R6Class(
             else if (!is.numeric(max.run.time.seconds) || length(max.run.time.seconds)!=1 || is.na(max.run.time.seconds) || max.run.time.seconds<=0)
                 stop(paste0(error.prefix, "'max.run.time.seconds' must be a single, non-NA, positive numeric value"))
             
-            if (!is(solver.metadata, "solver.metadata"))
-                stop(paste0(error.prefix, "'solver.metadata' must be an object of class 'solver.metadata' created by create.solver.metadata()"))
+            if (is.null(solver.metadata))
+            {
+                solver.metadata = specification$default.solver.metadata
+                
+                if (is.null(solver.metadata))
+                    solver.metadata = create.solver.metadata()    
+            }
+            else
+            {
+                if (!is(solver.metadata, "solver.metadata"))
+                    stop(paste0(error.prefix, "'solver.metadata' must be an object of class 'solver.metadata' created by create.solver.metadata()"))
+            }
             
             # intervention.code
             if (!is.null(intervention.code))

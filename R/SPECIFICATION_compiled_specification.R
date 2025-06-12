@@ -33,6 +33,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
                               
                               foregrounds,
                               default.parameter.values,
+                              default.solver.metadata,
                               
                               age.info,
                               start.year,
@@ -69,6 +70,7 @@ JHEEM.COMPILED.SPECIFICATION = R6::R6Class(
             
             private$i.foregrounds = foregrounds
             private$i.default.parameter.values = default.parameter.values
+            private$i.default.solver.metadata = default.solver.metadata
             
             private$i.sub.version.info = sub.version.info
             private$i.outcome.info.for.sub.version = outcome.info.for.sub.version
