@@ -8,4 +8,5 @@ jheem2.Rproj
 *.Rproj
 
 debug/
-debug_sim/src/*.dll
+debug_sim/
+src/*.dll
