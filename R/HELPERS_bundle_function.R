@@ -157,7 +157,7 @@ get.depends.on.global.variables <- function(fn,
 bundle.function.and.dependees <- function(fn,
                                           parent.environment,
                                           fn.name.for.error = NULL,
-                                          error.prefix = paste0("Error bundling the function", ifelse(is.null(fn.name.for.error), '', paste0(" '", fn.name.for.error, "'"))))
+                                          error.prefix = ifelse(is.null(fn.name.for.error), "The function to bundle", fn.name.for.error))
 {
     if (is.null(fn.name.for.error))
         fn.name.for.error = deparse(substitute(fn))
