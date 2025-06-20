@@ -303,6 +303,8 @@ JHEEM.KERNEL = R6::R6Class(
             
             #-- Misc --#
             private$i.default.parameter.values = specification$default.parameter.values
+            private$i.start.year = specification$start.year
+            private$i.default.solver.metadata = specification$default.solver.metadata
             
             # for (elem.name in names(private))
             # {
@@ -708,7 +710,7 @@ JHEEM.KERNEL = R6::R6Class(
                 private$i.age.endpoints
             else
                 stop("Cannot modify a specification kernel's age.endpoints - they are read-only")
-        } ,
+        },
         
         labels = function(value)
         {
@@ -716,6 +718,22 @@ JHEEM.KERNEL = R6::R6Class(
                 private$i.labels
             else
                 stop("Cannot modify a specification kernel's labels - they are read-only")
+        },
+        
+        start.year = function(value)
+        {
+            if (missing(value))
+                private$i.start.year
+            else
+                stop("Cannot modify a specification kernel's start.year - it is read-only")
+        },
+        
+        default.solver.metadata = function(value)
+        {
+            if (missing(value))
+                private$i.default.solver.metadata
+            else
+                stop("Cannot modify a specification kernel's default.solver.metadata - it is read-only")
         }
     ),
     
@@ -784,6 +802,8 @@ JHEEM.KERNEL = R6::R6Class(
         
         #-- Misc --#
         i.default.parameter.values = NULL,
+        i.start.year = NULL,
+        i.default.solver.metadata = NULL,
         
         #-- Dependency data structures --#
         i.dependent.quantity.names = NULL,

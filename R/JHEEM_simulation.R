@@ -2231,12 +2231,17 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 }
             }
             
+            if (is.null(intervention.code))
+                prior.simulation.set = NULL
+            else
+                prior.simulation.set = self
+            
             engine = do.create.jheem.engine(jheem.kernel = private$i.jheem.kernel,
                                             sub.version = private$i.sub.version,
                                             start.year = start.year,
                                             end.year = end.year,
                                             max.run.time.seconds = max.run.time.seconds,
-                                            prior.simulation.set = self,
+                                            prior.simulation.set = prior.simulation.set,
                                             keep.from.year = keep.from.year,
                                             keep.to.year = keep.to.year,
                                             intervention.code = intervention.code,

@@ -46,6 +46,8 @@ get.depends.on.functions <- function(fn,
     #-- Re-parse the text and extract function names --#
     reparsed = parse(text = deparsed)
     
+
+    
     fn.names = setdiff(all.vars(reparsed, functions=T),
                        all.vars(reparsed, functions = F))
     fn.names = setdiff(fn.names, HOLDER)
@@ -110,6 +112,32 @@ get.depends.on.functions <- function(fn,
     fns
 }
 
+get.depends.on.global.variables <- function(fn,
+                                            exclude.names = character())
+{
+    deparsed = deparse(fn)
+    reparsed = parse(text = deparsed)
+    
+    globals = setdiff(codetools::findGlobals(fn), exclude.names)
+    
+    fn.names = setdiff(all.vars(reparsed, functions=T),
+                       all.vars(reparsed, functions = F))
+    
+    non.fn.globals = setdiff(globals, fn.names)
+    non.fn.globals = setdiff(non.fn.globals, c('T','F'))
+    
+    is.fn = sapply(non.fn.globals, function(v){
+        is.function(get(v, envir = environment(fn)))
+    })
+    
+    non.fn.globals = non.fn.globals[!is.fn]
+    
+    variables = lapply(non.fn.globals, get, pos=environment(fn))
+    names(variables) = non.fn.globals
+    
+    variables
+}
+
 bundle.function.and.dependees <- function(fn,
                                           parent.environment,
                                           fn.name.for.error = NULL,
@@ -125,15 +153,24 @@ bundle.function.and.dependees <- function(fn,
     
     env = new.env(parent = parent.environment)
     
+    dependee.globals = get.depends.on.global.variables(fn)
+    
+    
     environment(new.fn) = env
     for (i in seq_along(dependee.fns))
     {
         one.dependee = dependee.fns[[i]]
         dependee.name = names(dependee.fns)[i]
         
+        dependee.globals = c(dependee.globals,
+                             get.depends.on.global.variables(fn, exclude.names=names(dependee.globals)))
+        
         environment(one.dependee) = env
         env[[dependee.name]] = one.dependee
     }
+    
+    for (dependee.global.name in names(dependee.globals))
+        env[[dependee.global.name]] = dependee.globals[[dependee.global.name]]
     
     new.fn
 }

@@ -1105,12 +1105,19 @@ JHEEM.ENGINE = R6::R6Class(
             jheem$set.calibration.code(calibration.code, 
                                        outcome.location.mapping = outcome.location.mapping)
             
-            specification = get.compiled.specification.for.version(version)
+            specification = NULL
             
             # Start and end years
+            default.start.year = jheem$kernel$start.year
+            if (is.null(default.start.year)) #for backward compatibility
+            {
+               specification = get.compiled.specification.for.version(version)
+               default.start.year = specification$start.year
+            }
+            
             if (is.null(start.year))
             {
-                start.year = specification$start.year
+                start.year = default.start.year
             }
             else
             {
@@ -1128,10 +1135,10 @@ JHEEM.ENGINE = R6::R6Class(
             # Prior simulation set
             if (is.null(prior.simulation.set))
             {
-                if (start.year != specification$start.year)
+                if (start.year != default.start.year)
                     stop(paste0(error.prefix, "If not 'prior.simulation.is.specified' then 'start.year' (given ", start.year, 
                                 ") MUST be equal to the start.year for the '", version, "' specification (",
-                                specification$start.year, ")"))
+                                default.start.year, ")"))
             }
             else
             {
@@ -1195,7 +1202,7 @@ JHEEM.ENGINE = R6::R6Class(
             
             if (is.null(solver.metadata))
             {
-                solver.metadata = specification$default.solver.metadata
+                solver.metadata = jheem$kernel$default.solver.metadata
                 
                 if (is.null(solver.metadata))
                     solver.metadata = create.solver.metadata()    
@@ -3106,6 +3113,14 @@ JHEEM = R6::R6Class(
                 private$i.parameters
             else
                 stop("Cannot modify a jheem's parameters - they are read-only")
+        },
+        
+        kernel = function(value)
+        {
+            if (missing(value))
+                private$i.kernel
+            else
+                stop("Cannot modify a jheem's kernel - it is read-only")
         }
         
     ),
