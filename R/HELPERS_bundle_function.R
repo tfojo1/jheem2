@@ -113,7 +113,9 @@ get.depends.on.functions <- function(fn,
 }
 
 get.depends.on.global.variables <- function(fn,
-                                            exclude.names = character())
+                                            fn.name.for.error,
+                                            exclude.names = character(),
+                                            error.prefix)
 {
     deparsed = deparse(fn)
     reparsed = parse(text = deparsed)
@@ -125,6 +127,20 @@ get.depends.on.global.variables <- function(fn,
     
     non.fn.globals = setdiff(globals, fn.names)
     non.fn.globals = setdiff(non.fn.globals, c('T','F'))
+    
+    var.exists = sapply(non.fn.globals, exists, envir=environment(fn))
+    
+    if (any(!var.exists))
+    {
+        not.exists.vars = non.fn.globals[!var.exists]
+        stop(paste0(error.prefix,
+                    "The function '",
+                    fn.name.for.error, "' references global variable",
+                    ifelse(length(not.exists.vars)==1, ' ', "s "),
+                    collapse.with.and("'", not.exists.vars, "'"),
+                    ifelse(length(not.exists.vars)==1, ', but it is', ", but they are"),
+                    " not defined in the function's enclosing enviroment at this time"))
+    }
     
     is.fn = sapply(non.fn.globals, function(v){
         is.function(get(v, envir = environment(fn)))
@@ -141,7 +157,7 @@ get.depends.on.global.variables <- function(fn,
 bundle.function.and.dependees <- function(fn,
                                           parent.environment,
                                           fn.name.for.error = NULL,
-                                          error.prefix = '')
+                                          error.prefix = paste0("Error bundling the function", ifelse(is.null(fn.name.for.error), '', paste0(" '", fn.name.for.error, "'"))))
 {
     if (is.null(fn.name.for.error))
         fn.name.for.error = deparse(substitute(fn))
@@ -153,7 +169,9 @@ bundle.function.and.dependees <- function(fn,
     
     env = new.env(parent = parent.environment)
     
-    dependee.globals = get.depends.on.global.variables(fn)
+    dependee.globals = get.depends.on.global.variables(fn, 
+                                                       fn.name.for.error = fn.name.for.error,
+                                                       error.prefix = error.prefix)
     
     
     environment(new.fn) = env
