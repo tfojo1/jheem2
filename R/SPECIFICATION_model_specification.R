@@ -9890,7 +9890,6 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                                                         error.prefix = error.prefix)
                 
                 n.binding.times = length(binding.times)
-                
                 if (n.binding.times==1)
                 {
                     r = rates[[1]]
@@ -9928,7 +9927,7 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                     }))
                     dim(b.all) = c(n.intervals, length(b.all)/n.intervals)
                     
-                    rv = lapply(desired.times, function(time){
+                    rv.after.binding = lapply(desired.times[ desired.times>=binding.times[1] ], function(time){
                         
                         last.integrate.to.time = time + 1
                         first.integrate.from.time = last.integrate.to.time - cumulative.interval
@@ -9959,6 +9958,12 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                         else
                             p.remaining
                     })
+                    
+                    rv.before.binding = lapply(desired.times[ desired.times<binding.times[1] ], function(time){
+                        rv.after.binding[[1]]
+                    })
+                    
+                    rv = c(rv.before.binding, rv.after.binding)
                 }
                 
                 names(rv) = as.character(desired.times)
