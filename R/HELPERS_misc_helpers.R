@@ -211,7 +211,7 @@ check.for.invalid.characters <- function(str,
         invalid.characters = setdiff(strsplit(str, split='')[[1]],
                                      strsplit(valid.characters, split='')[[1]])
         
-        if (is.single.value)
+        # Always throw the error when invalid characters are found
             stop(paste0(error.prefix,
                         str.name,
                         " ('", str, "') cannot contain ", 
