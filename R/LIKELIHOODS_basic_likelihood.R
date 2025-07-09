@@ -1483,12 +1483,23 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
             if (!is.null(private$i.log.ratio.uncertainty.matrix))
                 sigma = sigma + private$i.log.ratio.uncertainty.matrix
             
-            likelihood <- mvtnorm::dmvnorm(obs,
-                                           mean = mean,
-                                           sigma = sigma,
-                                           log = T,
-                                           checkSymmetry = F
-            )
+            if (all(sim.numerator.data==0) && all(sim.denominator.data==0))
+                likelihood = -Inf
+            else if (any(is.na(mean)) || any(is.na(sigma)))
+            {
+                print(paste0("WARNING: The basic likelihood for ", self$name, ", generated NAs in it's mean and/or sigma. Returning a -Inf likelihood to be able to continue"))
+                likelihood = -Inf
+            }
+            else
+            {
+                likelihood <- mvtnorm::dmvnorm(obs,
+                                               mean = mean,
+                                               sigma = sigma,
+                                               log = T,
+                                               checkSymmetry = F
+                )
+            }
+            
             if (private$i.use.lognormal.approximation)
             {
                 lognormal.dx.term = -sum(obs)
@@ -1497,6 +1508,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                 else
                     likelihood = likelihood * lognormal.dx.term
             }
+            
             
             if (debug) {
                 if (private$i.calculate.lagged.difference) {
@@ -1511,6 +1523,8 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                 rownames(lik.summary) <- 1:nrow(lik.summary)
                 browser()
             }
+            
+            
             return(likelihood)
             
             # verify.matrix.operation.correctness(sim.denominator.data,

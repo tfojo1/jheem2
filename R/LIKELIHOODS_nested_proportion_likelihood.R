@@ -1918,12 +1918,20 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
             if (!is.null(private$i.log.ratio.uncertainty.matrix))
                 sigma = sigma + private$i.log.ratio.uncertainty.matrix
 
-            likelihood <- mvtnorm::dmvnorm(obs.vector,
-                mean = mean,
-                sigma = sigma,
-                log = T,
-                checkSymmetry = F
-            )
+            if (any(is.na(mean)) || any(is.na(sigma)))
+            {
+                print(paste0("WARNING: The nested proportion likelihood for ", self$name, ", generated NAs in it's mean and/or sigma. Returning a -Inf likelihood to be able to continue"))
+                likelihood = -Inf
+            }
+            else
+            {
+                likelihood <- mvtnorm::dmvnorm(obs.vector,
+                    mean = mean,
+                    sigma = sigma,
+                    log = T,
+                    checkSymmetry = F
+                )
+            }
             
             if (private$i.use.lognormal.approximation)
             {
