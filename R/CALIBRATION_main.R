@@ -1091,7 +1091,7 @@ assemble.simulations.from.calibration <- function(version,
     
     if (is.null(chains))
         chains = 1:global.control@n.chains
-    else if (!is.numeric(chains) || length(chains)==0 || any(is.na(chains) || any(chains<=0)))
+    else if (!is.numeric(chains) || length(chains)==0 || any(is.na(chains)) || any(chains<=0))
         stop(paste0(error.prefix, "'chains' must be a numeric vector with only positive values and no NA values"))
     else
     {
@@ -1115,7 +1115,7 @@ assemble.simulations.from.calibration <- function(version,
     
     first.chunk.to.save = (1:length(global.control@save.chunk))[global.control@save.chunk][1]
     
-    if (any(max.done.chunk.per.chain==first.chunk.to.save))
+    if (all(max.done.chunk.per.chain<first.chunk.to.save))
     {
         stop(paste0(error.prefix,
                     ifelse(sum(max.done.chunk.per.chain<first.chunk.to.save)==1, "Chain ", "Chains "),
@@ -1142,6 +1142,9 @@ assemble.simulations.from.calibration <- function(version,
     n.sim.per.chain = sapply(chain.controls, function(ctrl){
         floor(ctrl@chain.state@n.unthinned.after.burn / global.control@control@thin)
     })
+    
+    if (any(n.sim.per.chain==0))
+        stop(paste0(error.prefix, "There is an internal error, likely reflecting inconsistencies in multiple merged runs of the MCMC - one calculation thinks there are simulations run, but another thinks no simulations were run"))
     
     n.sim = sum(n.sim.per.chain)
     
