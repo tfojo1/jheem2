@@ -433,9 +433,9 @@ pull.data <- function(data.manager = get.default.data.manager(),
 #' @export
 remove.data = function(data.manager,
                        outcome,
-                       dimension.values,
                        source,
                        ontology.name,
+                       dimension.values,
                        metric = 'estimate',
                        details.for.removal='removed',
                        url.for.removal='url') {
@@ -2235,6 +2235,26 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 rv = restratified.data
             }
             rv
+        },
+        
+        remove_data = function(outcome,
+                               source,
+                               ontology.name,
+                               dimension.values,
+                               metric = 'estimate',
+                               details.for.removal='removed',
+                               url.for.removal='url') {
+            # Put NAs with overwrite=T
+            self$put(as.numeric(NA),
+                     outcome=outcome,
+                     metric=metric,
+                     source=source,
+                     ontology.name=ontology.name,
+                     dimension.values=dimension.values,
+                     details=details.for.removal,
+                     url=url.for.removal,
+                     allow.na.to.overwrite = T,
+                     is.removal = T)
         },
         
         get.outcome.pretty.names = function(outcomes)
