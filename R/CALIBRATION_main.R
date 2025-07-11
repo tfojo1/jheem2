@@ -1143,7 +1143,7 @@ assemble.simulations.from.calibration <- function(version,
         floor(ctrl@chain.state@n.unthinned.after.burn / global.control@control@thin)
     })
     
-    if (any(n.sim.per.chain==0))
+    if (all(n.sim.per.chain==0))
         stop(paste0(error.prefix, "There is an internal error, likely reflecting inconsistencies in multiple merged runs of the MCMC - one calculation thinks there are simulations run, but another thinks no simulations were run"))
     
     n.sim = sum(n.sim.per.chain)
@@ -1158,7 +1158,7 @@ assemble.simulations.from.calibration <- function(version,
     simulation.chain = rep(as.numeric(NA), n.sim)
     sims.done = 0
     
-    for (chain.index in 1:length(chains))
+    for (chain.index in (1:length(chains))[n.sim.per.chain>0] )
     {
         chain = chains[chain.index]
         chain.dir = file.path(calibration.dir, 'cache', paste0('chain_', chain))
