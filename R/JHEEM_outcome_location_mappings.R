@@ -138,12 +138,13 @@ OUTCOME.LOCATION.MAPPING = R6::R6Class(
             private$i.jheem.kernel = jheem.kernel
         },
         
+        # WARNING: HAS ISSUES (AZ 7/24/2025)
         get.observed.locations = function(outcome.name,
                                           modeled.location,
                                           data.manager = get.default.data.manager())
         {
             error.prefix = "Cannot get observed locations: "
-            
+
             if (!is.character(outcome.name) || length(outcome.name)!=1 || is.na(outcome.name))
                 stop(paste0(error.prefix, "'outcome.name' must be a single, non-NA character value"))
             
@@ -169,9 +170,17 @@ OUTCOME.LOCATION.MAPPING = R6::R6Class(
                     if (is.null(outcome))
                         stop(paste0(error.prefix, "'", outcome.name, "' is not a valid outcome in the '", private$i.version, "' model specification"))
                     
-                    weighting.outcome = 'diagnosed.prevalence'
-                    if (outcome$scale!='proportion' || 
-                        !any(data.manager$outcomes==weighting.outcome))
+                    # THIS SECTION IS DANGEROUSLY HARDCODED AND NEEDS TO BE ADDRESSED
+                    # I'm currently adding a patch to make it work for the syphilis data manager
+                    possible.weighting.outcomes <- c("diagnosed.prevalence", "ps.syphilis.diagnoses")
+                    weighting.outcomes.present <- which(possible.weighting.outcomes %in% data.manager$outcomes)
+                    if (length(weighting.outcomes.present) > 0)
+                        weighting.outcome <- possible.weighting.outcomes[weighting.outcomes.present[[1]]]
+                    else
+                        weighting.outcome <- NULL
+                    
+                    # weighting.outcome = 'diagnosed.prevalence'
+                    if (outcome$scale!='proportion' || is.null(weighting.outcome))
                     {
                         modeled.location
                     }
