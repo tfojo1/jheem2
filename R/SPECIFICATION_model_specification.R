@@ -35,6 +35,8 @@
 #'
 #'@param labels A named character vector, representing how compartments should be labeled when making figures/charts, etc. Eg c(msm="MSM", idu="PWID")
 #'
+#'@param order.locations.by.outcomes A character vector of outcome names from a data manager to be referenced in deciding which locations to show if there is a need to prioritize in making plots
+#'
 #'@export
 create.jheem.specification <- function(version,
                                        iteration,
@@ -53,6 +55,8 @@ create.jheem.specification <- function(version,
                                        age.endpoints = NULL,
                                        
                                        compartment.value.aliases = list(),
+                                       
+                                       order.locations.by.outcomes = NULL,
                                        
                                        labels = NULL,
                                        default.solver.metadata = NULL)
@@ -369,6 +373,23 @@ create.jheem.specification <- function(version,
             stop(paste0(error.prefix, "If supplied, 'labels' must be a NAMED character vector"))
     }
     
+    #-- Template data outcomes --#
+    
+    if (!is.null(order.locations.by.outcomes))
+    {
+        if (!is.character(order.locations.by.outcomes))
+            stop(paste0(error.prefix, "If supplied, 'order.locations.by.outcomes' must be a character vector"))
+        
+        if (any(is.na(order.locations.by.outcomes)))
+            stop(paste0(error.prefix, "If supplied, 'order.locations.by.outcomes' cannot contain NA values"))
+        
+        if (any(nchar(order.locations.by.outcomes)==0))
+            stop(paste0(error.prefix, "If supplied, 'order.locations.by.outcomes' cannot contain empty values ('')"))
+    }
+    
+    
+    #-- Parent --#
+    
     if (!is.null(parent.specification))
     {
         new.labels = labels
@@ -644,6 +665,7 @@ create.jheem.specification <- function(version,
         
         compartment.value.character.aliases = compartment.value.character.aliases,
         compartment.value.function.aliases = compartment.value.function.aliases,
+        order.locations.by.outcomes = order.locations.by.outcomes,
         labels = labels
     )
 }
@@ -1916,6 +1938,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                               
                               compartment.value.character.aliases,
                               compartment.value.function.aliases,
+                              order.locations.by.outcomes,
                               labels)
         {
             # As of now, I am assuming these have already been error-checked
@@ -1939,6 +1962,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
             
             private$i.compartment.value.character.aliases = compartment.value.character.aliases
             private$i.compartment.value.function.aliases = compartment.value.function.aliases
+            private$i.order.locations.by.outcomes = order.locations.by.outcomes
             private$i.labels = labels
 
             private$i.sub.version.info = list()
@@ -3204,6 +3228,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                   
                                                   compartment.value.character.aliases = private$i.compartment.value.character.aliases,
                                                   compartment.value.function.aliases = private$i.compartment.value.function.aliases,
+                                                  order.locations.by.outcomes = private$i.order.locations.by.outcomes,
                                                   labels = private$i.labels,
                                                   ontologies = private$i.ontologies,
 
@@ -3432,6 +3457,14 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 private$i.default.solver.metadata
             else
                 stop("Cannot modify a specification's 'default.parameter.values' - they are read-only")
+        },
+        
+        order.locations.by.outcomes = function(value)
+        {
+            if (missing(value))
+                private$i.order.locations.by.outcomes
+            else
+                stop("Cannot modify a specification's 'order.locations.by.outcomes' - they are read-only")
         }
     ),
 
@@ -3452,6 +3485,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
 
         i.compartment.value.character.aliases = NULL,
         i.compartment.value.function.aliases = NULL,
+        i.order.locations.by.outcomes = NULL,
         i.labels = NULL,
         
         i.ontologies = NULL,

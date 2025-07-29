@@ -47,6 +47,7 @@ JHEEM.KERNEL = R6::R6Class(
             #-- Some simple pulls from the specification --#
             private$i.sub.versions = specification$sub.versions
             private$i.labels = specification$labels
+            private$i.order.locations.by.outcomes = specification$order.locations.by.outcomes
             
             #-- Get the specification metadata --#
             private$i.specification.metadata = do.get.specification.metadata(specification=specification,
@@ -734,6 +735,14 @@ JHEEM.KERNEL = R6::R6Class(
                 private$i.default.solver.metadata
             else
                 stop("Cannot modify a specification kernel's default.solver.metadata - it is read-only")
+        },
+        
+        order.locations.by.outcomes = function(value)
+        {
+            if (missing(value))
+                private$i.order.locations.by.outcomes
+            else
+                stop("Cannot modify a specification kernel's order.locations.by.outcomes - it is read-only")
         }
     ),
     
@@ -804,6 +813,7 @@ JHEEM.KERNEL = R6::R6Class(
         i.default.parameter.values = NULL,
         i.start.year = NULL,
         i.default.solver.metadata = NULL,
+        i.order.locations.by.outcomes = NULL,
         
         #-- Dependency data structures --#
         i.dependent.quantity.names = NULL,

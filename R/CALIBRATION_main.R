@@ -792,7 +792,7 @@ get.calibration.progress <- function(version,
                               'cache')
         
         files = list.files(cache.dir)
-        files = file.path(cache.dir, files[grepl('^chain[0-9]', files)])
+        files = file.path(cache.dir, files[grepl('^chain[0-9]+_control.Rdata$', files)])
         
         if (length(files)>max.chains)
             max.chains <<- length(files)
@@ -1158,7 +1158,7 @@ assemble.simulations.from.calibration <- function(version,
     simulation.chain = rep(as.numeric(NA), n.sim)
     sims.done = 0
     
-    for (chain.index in (1:length(chains))[n.sim.per.chain>0] )
+    for ( chain.index in (1:length(chains))[n.sim.per.chain>0] )
     {
         chain = chains[chain.index]
         chain.dir = file.path(calibration.dir, 'cache', paste0('chain_', chain))

@@ -154,6 +154,7 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
                        mapping = NULL,
                        error.prefix = "Error getting simulation results: ",
                        verbose = F,
+                       aggregate.total = F,
                        stop.for.errors = F)
         {
             if (!is.character(error.prefix) || length(error.prefix)!=1 || is.na(error.prefix))
@@ -161,7 +162,7 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
             
             inner.dim.names = NULL
             list.rv = lapply(private$i.intervention.codes, function(int.code){
-                lapply(private$i.locations, function(loc){
+                sub.rv.by.location = lapply(private$i.locations, function(loc){
                     
                     simset = private$do.get.simset(location = loc,
                                                    intervention.code = int.code,
@@ -239,6 +240,20 @@ JHEEM.SIMSET.COLLECTION = R6::R6Class(
 
             dim(rv) = sapply(dim.names, length)
             dimnames(rv) = dim.names
+            
+            if (aggregate.total)
+            {
+                target.dim.names = dim.names
+                target.dim.names$location = c(target.dim.names$location, 'Total')
+                
+                new.rv = array(0, dim=sapply(target.dim.names, length), dimnames = target.dim.names)
+                
+                array.access(new.rv, dim.names) = rv
+                array.access(new.rv, location='Total') = apply(rv, setdiff(names(target.dim.names), 'location'), sum)
+                
+                rv = new.rv
+            }
+            
             rv
         },
 
