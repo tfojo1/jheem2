@@ -1205,16 +1205,23 @@ LINEAR.FUNCTIONAL.FORM = R6::R6Class(
             intercept = terms$intercept
             slope = terms$slope
             
-            lapply(years, function(year){
+            rv = lapply(years, function(year){
                 
-                x = intercept + 
-                    slope * (year - private$i.anchor.year)
+                if (year==private$i.anchor.year)
+                    x = intercept
+                else
+                {
+                    x = intercept + 
+                        slope * (year - private$i.anchor.year)
+                }
                 
                 if (!is.null(future.slope) && year > future.slope.after.year)
                     x = x + future.slope * (year - future.slope.after.year)
                 
                 private$i.link$reverse.apply(x)
             })  
+            
+            rv
         }
     )
 )
