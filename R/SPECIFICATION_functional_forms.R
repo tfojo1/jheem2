@@ -1922,7 +1922,6 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
             knot.times = self$knot.times
             n.knots = length(knot.times)
             
-            
             #-- Set up before multiplier (if present) --#
             if (!is.null(private$i.before.time))
             {
@@ -1979,11 +1978,12 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                     transformed.after.knot.value = transformed.last.knot + terms$after.modifier * delta
                     after.knot.value = private$i.after.modifier.increasing.change.link$reverse.apply(transformed.after.knot.value)
 
+
                     if (!private$i.after.modifier.increasing.change.link$equals(private$i.after.modifier.decreasing.change.link))
                     {
                         decreasing.mask = last.knot < penultimate.knot
                         
-                        transformed.last.knot.decreasing = private$i.after.modifier.increasing.change.link$apply(last.knot[decreasing.mask])
+                        transformed.last.knot.decreasing = private$i.after.modifier.decreasing.change.link$apply(last.knot[decreasing.mask])
                         delta = transformed.last.knot.decreasing - private$i.after.modifier.decreasing.change.link$apply(penultimate.knot[decreasing.mask])
                         transformed.after.knot.value.decreasing = transformed.last.knot.decreasing + terms$after.modifier[decreasing.mask] * delta
                         after.knot.value[decreasing.mask] = private$i.after.modifier.decreasing.change.link$reverse.apply(transformed.after.knot.value.decreasing)
