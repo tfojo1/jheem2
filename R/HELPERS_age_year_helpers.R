@@ -290,7 +290,7 @@ standardize.age.strata.names <- function(strata.names)
 #'@param smooth.infinite.age.to In building a spline over counts, what value should an infinite bound in an age range be replaced with
 #'@param allow.extrapolation A logical value indicating whether extrapolation should be allowed in restratifying. Extrapolating is required when one of the desired age brackets includes ages not present in any of the given age brackets
 #'@param na.rm Whether NAs should be ignored in counts
-#'@param method The method to be passed to \code{\link{splinefun}}. Must be a method that can produce a monotone spline (ie, either 'monoH.FC' or 'hyman')
+#'@param method The method to be passed to the smoother. Options are 'pclm' (default, uses Penalized Composite Link Model), 'monoH.FC' (Fritsch-Carlson monotonic splines), or 'hyman' (Hyman's monotonic splines)
 #'@param error.prefix A character value to be prepended to any error messages
 #'
 #'@export
@@ -300,7 +300,7 @@ restratify.age.counts <- function(counts,
                                   smooth.infinite.age.to = Inf,
                                   allow.extrapolation = F,
                                   na.rm = F,
-                                  method=c('monoH.FC','hyman')[1],
+                                  method=c('pclm','monoH.FC','hyman')[1],
                                   error.prefix = '')
 {
     #-- Validate error.prefix --#
@@ -385,6 +385,69 @@ restratify.age.counts <- function(counts,
                                                  required.length.name.for.error = NA,
                                                  age.brackets.name.for.error = 'desired.age.brackets',
                                                  allow.partial.parsing = F)
+    
+    #-- PCLM Implementation --#
+    if (method == "pclm") {
+        # Extract counts from input
+        if (is.array(counts)) {
+            input_counts <- as.numeric(counts)
+        } else {
+            input_counts <- as.numeric(counts)
+        }
+        
+        # Remove zero padding - PCLM doesn't like zeros
+        non_zero_idx <- which(input_counts > 0)
+        actual_counts <- input_counts[non_zero_idx]
+        
+        # Get the bracket bounds for non-zero data
+        x_vals <- parsed.given.brackets$lower[non_zero_idx]
+        
+        # Calculate nlast - the width of the last bracket
+        last_idx <- non_zero_idx[length(non_zero_idx)]
+        nlast <- parsed.given.brackets$upper[last_idx] - parsed.given.brackets$lower[last_idx]
+        
+        # Fit PCLM model - just like in pclm_method_comparison.R
+        pclm_model <- ungroup::pclm(x = x_vals, y = actual_counts, 
+                                   nlast = nlast, out.step = 1, verbose = FALSE)
+        pclm_fitted <- fitted(pclm_model)
+        
+        # PCLM returns values for each single year
+        # Extract the starting age from the first interval name "[13,14)"
+        first_interval <- names(pclm_fitted)[1]
+        first_age <- as.numeric(gsub("\\[([0-9]+),.*", "\\1", first_interval))
+        
+        # Create age-to-value mapping
+        pclm_values <- as.numeric(pclm_fitted)
+        pclm_ages <- first_age:(first_age + length(pclm_values) - 1)
+        
+        # Map to desired output brackets
+        result <- numeric(length(parsed.desired.brackets$names))
+        names(result) <- parsed.desired.brackets$names
+        
+        for (i in seq_along(result)) {
+            lower <- parsed.desired.brackets$lower[i]
+            upper <- parsed.desired.brackets$upper[i]
+            
+            # Sum PCLM values for ages in [lower, upper)
+            # For single-year brackets like "80 years": lower=80, upper=81
+            age_indices <- which(pclm_ages >= lower & pclm_ages < upper)
+            if (length(age_indices) > 0) {
+                result[i] <- sum(pclm_values[age_indices])
+            }
+        }
+        
+        # Return in same format as input
+        if (is.array(counts)) {
+            result_dim <- dim(counts)
+            result_dim[names(result_dim) == "age"] <- length(result)
+            result_dimnames <- dimnames(counts)
+            result_dimnames$age <- names(result)
+            
+            return(array(result, dim = result_dim, dimnames = result_dimnames))
+        } else {
+            return(result)
+        }
+    }
     
     if (!allow.extrapolation && 
         (any(parsed.desired.brackets$lower < parsed.given.brackets$lower[1]) ||
