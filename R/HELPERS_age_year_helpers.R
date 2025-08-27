@@ -300,7 +300,7 @@ restratify.age.counts <- function(counts,
                                   smooth.infinite.age.to = Inf,
                                   allow.extrapolation = F,
                                   na.rm = F,
-                                  method=c('pclm','monoH.FC','hyman')[1],
+                                  method=c('pclm','monoH.FC','hyman')[2],
                                   error.prefix = '')
 {
     #-- Validate error.prefix --#
