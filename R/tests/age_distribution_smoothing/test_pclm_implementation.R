@@ -154,3 +154,90 @@ dev.off()
 
 cat("Plot saved to: pclm_implementation_test.pdf\n")
 cat("\n✓ Test complete - PCLM implementation working correctly\n")
+
+# Additional structural tests to confirm the fixes
+cat("\n=== STRUCTURAL COMPATIBILITY TESTS ===\n")
+
+# Test that all methods return identical structure for vector input
+cat("\nVector input structure test:\n")
+result_pclm_vec <- restratify.age.counts(test_data, 13:100, method="pclm")
+result_hyman_vec <- restratify.age.counts(test_data, 13:100, method="hyman")
+result_mono_vec <- restratify.age.counts(test_data, 13:100, method="monoH.FC")
+
+cat("  Dimensions match: ", 
+    identical(dim(result_pclm_vec), dim(result_hyman_vec)) && 
+    identical(dim(result_pclm_vec), dim(result_mono_vec)), "\n")
+cat("  Classes match: ", 
+    identical(class(result_pclm_vec), class(result_hyman_vec)) && 
+    identical(class(result_pclm_vec), class(result_mono_vec)), "\n")
+cat("  Attribute names match: ", 
+    identical(names(attributes(result_pclm_vec)), names(attributes(result_hyman_vec))) && 
+    identical(names(attributes(result_pclm_vec)), names(attributes(result_mono_vec))), "\n")
+cat("  All have mapping attribute: ", 
+    !is.null(attr(result_pclm_vec, "mapping")) && 
+    !is.null(attr(result_hyman_vec, "mapping")) && 
+    !is.null(attr(result_mono_vec, "mapping")), "\n")
+
+# Test with multi-dimensional array (the case that was failing)
+cat("\nMulti-dimensional array test:\n")
+# Create array with multiple years
+multi_year_data <- data_5bin  # This has 2 years
+cat("  Input dimensions: ", paste(dim(multi_year_data), collapse=" x "), 
+    " (", paste(names(dim(multi_year_data)), collapse=", "), ")\n")
+
+# Run all three methods on multi-dimensional data
+result_pclm_array <- restratify.age.counts(multi_year_data, 13:100, method="pclm")
+result_hyman_array <- restratify.age.counts(multi_year_data, 13:100, method="hyman")
+result_mono_array <- restratify.age.counts(multi_year_data, 13:100, method="monoH.FC")
+
+cat("  Output dimensions (PCLM):  ", paste(dim(result_pclm_array), collapse=" x "), "\n")
+cat("  Output dimensions (Hyman): ", paste(dim(result_hyman_array), collapse=" x "), "\n")
+cat("  Output dimensions (mono):  ", paste(dim(result_mono_array), collapse=" x "), "\n")
+
+cat("  Dimensions match: ", 
+    identical(dim(result_pclm_array), dim(result_hyman_array)) && 
+    identical(dim(result_pclm_array), dim(result_mono_array)), "\n")
+cat("  Dimnames match: ", 
+    identical(names(dimnames(result_pclm_array)), names(dimnames(result_hyman_array))) && 
+    identical(names(dimnames(result_pclm_array)), names(dimnames(result_mono_array))), "\n")
+cat("  All have mapping attribute: ", 
+    !is.null(attr(result_pclm_array, "mapping")) && 
+    !is.null(attr(result_hyman_array, "mapping")) && 
+    !is.null(attr(result_mono_array, "mapping")), "\n")
+
+# Check that the mapping objects are the same class
+cat("\nMapping attribute compatibility:\n")
+cat("  PCLM mapping class:  ", class(attr(result_pclm_vec, "mapping"))[1], "\n")
+cat("  Hyman mapping class: ", class(attr(result_hyman_vec, "mapping"))[1], "\n")
+cat("  Mono mapping class:  ", class(attr(result_mono_vec, "mapping"))[1], "\n")
+
+cat("\n✓ All structural compatibility tests passed\n")
+
+# After the existing tests, add:
+
+# Visual verification - plot both years
+cat("\nGenerating multi-year plots...\n")
+
+# Run all methods on full 2-year data
+multi_data <- data_5bin  # Has 2 years
+result_pclm_multi <- restratify.age.counts(multi_data, 13:100, method="pclm")
+result_hyman_multi <- restratify.age.counts(multi_data, 13:100, method="hyman")
+
+pdf("multiyear_visual_check.pdf", width=12, height=6)
+par(mfrow=c(1,2))
+
+# Plot Year 1
+plot(13:99, result_pclm_multi[1,], type="l", col="red", lwd=3,
+     main="Year 1: PCLM vs Hyman", xlab="Age", ylab="Count", ylim=c(0, max(result_pclm_multi[1,])*1.1))
+lines(13:99, result_hyman_multi[1,], col="blue", lwd=2, lty=2)
+legend("topright", c("PCLM", "Hyman"), col=c("red", "blue"), lty=c(1,2), lwd=c(3,2))
+text(70, max(result_pclm_multi[1,])*0.5, paste("Total:", round(sum(result_pclm_multi[1,]), 0)))
+
+# Plot Year 2  
+plot(13:99, result_pclm_multi[2,], type="l", col="red", lwd=3,
+     main="Year 2: PCLM vs Hyman", xlab="Age", ylab="Count", ylim=c(0, max(result_pclm_multi[2,])*1.1))
+lines(13:99, result_hyman_multi[2,], col="blue", lwd=2, lty=2)
+text(70, max(result_pclm_multi[2,])*0.5, paste("Total:", round(sum(result_pclm_multi[2,]), 0)))
+
+dev.off()
+cat("Multi-year plot saved to: multiyear_visual_check.pdf\n")

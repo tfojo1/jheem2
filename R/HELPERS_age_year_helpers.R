@@ -387,67 +387,6 @@ restratify.age.counts <- function(counts,
                                                  allow.partial.parsing = F)
     
     #-- PCLM Implementation --#
-    if (method == "pclm") {
-        # Extract counts from input
-        if (is.array(counts)) {
-            input_counts <- as.numeric(counts)
-        } else {
-            input_counts <- as.numeric(counts)
-        }
-        
-        # Remove zero padding - PCLM doesn't like zeros
-        non_zero_idx <- which(input_counts > 0)
-        actual_counts <- input_counts[non_zero_idx]
-        
-        # Get the bracket bounds for non-zero data
-        x_vals <- parsed.given.brackets$lower[non_zero_idx]
-        
-        # Calculate nlast - the width of the last bracket
-        last_idx <- non_zero_idx[length(non_zero_idx)]
-        nlast <- parsed.given.brackets$upper[last_idx] - parsed.given.brackets$lower[last_idx]
-        
-        # Fit PCLM model - just like in pclm_method_comparison.R
-        pclm_model <- ungroup::pclm(x = x_vals, y = actual_counts, 
-                                   nlast = nlast, out.step = 1, verbose = FALSE)
-        pclm_fitted <- fitted(pclm_model)
-        
-        # PCLM returns values for each single year
-        # Extract the starting age from the first interval name "[13,14)"
-        first_interval <- names(pclm_fitted)[1]
-        first_age <- as.numeric(gsub("\\[([0-9]+),.*", "\\1", first_interval))
-        
-        # Create age-to-value mapping
-        pclm_values <- as.numeric(pclm_fitted)
-        pclm_ages <- first_age:(first_age + length(pclm_values) - 1)
-        
-        # Map to desired output brackets
-        result <- numeric(length(parsed.desired.brackets$names))
-        names(result) <- parsed.desired.brackets$names
-        
-        for (i in seq_along(result)) {
-            lower <- parsed.desired.brackets$lower[i]
-            upper <- parsed.desired.brackets$upper[i]
-            
-            # Sum PCLM values for ages in [lower, upper)
-            # For single-year brackets like "80 years": lower=80, upper=81
-            age_indices <- which(pclm_ages >= lower & pclm_ages < upper)
-            if (length(age_indices) > 0) {
-                result[i] <- sum(pclm_values[age_indices])
-            }
-        }
-        
-        # Return in same format as input
-        if (is.array(counts)) {
-            result_dim <- dim(counts)
-            result_dim[names(result_dim) == "age"] <- length(result)
-            result_dimnames <- dimnames(counts)
-            result_dimnames$age <- names(result)
-            
-            return(array(result, dim = result_dim, dimnames = result_dimnames))
-        } else {
-            return(result)
-        }
-    }
     
     if (!allow.extrapolation && 
         (any(parsed.desired.brackets$lower < parsed.given.brackets$lower[1]) ||
@@ -467,22 +406,64 @@ restratify.age.counts <- function(counts,
         non.age.dimensions = setdiff(names(orig.dim), 'age')
         
         raw = apply(counts, non.age.dimensions, function(val){
-
-
-            # smoother = do.get.cumulative.age.counts.smoother(counts = sub.val,
-            #                                                  endpoints = parsed.given.brackets$endpoints,
-            #                                                  na.rm = na.rm,
-            #                                                  method = method)
-            #
-            # smoother(parsed.desired.brackets$upper) - smoother(parsed.desired.brackets$lower)
             
-            smoother = do.get.age.counts.smoother(counts = val[parsed.given.brackets$mapped.mask][parsed.given.brackets$order],
-                                                  endpoints = parsed.given.brackets$endpoints,
-                                                  na.rm = na.rm,
-                                                  method = method,
-                                                  check.consistency=F)
-            
-            smoother(lower = parsed.desired.brackets$lower, upper = parsed.desired.brackets$upper)
+            if (method == "pclm") {
+                # PCLM implementation for this slice of data
+                input_counts <- val[parsed.given.brackets$mapped.mask][parsed.given.brackets$order]
+                
+                # Remove zero padding - PCLM doesn't like zeros
+                non_zero_idx <- which(input_counts > 0)
+                if (length(non_zero_idx) == 0) {
+                    # If all zeros, return zeros
+                    return(rep(0, length(parsed.desired.brackets$names)))
+                }
+                
+                actual_counts <- input_counts[non_zero_idx]
+                x_vals <- parsed.given.brackets$lower[non_zero_idx]
+                
+                # Calculate nlast - the width of the last bracket
+                last_idx <- non_zero_idx[length(non_zero_idx)]
+                nlast <- parsed.given.brackets$upper[last_idx] - parsed.given.brackets$lower[last_idx]
+                
+                # Fit PCLM model
+                pclm_model <- ungroup::pclm(x = x_vals, y = actual_counts, 
+                                           nlast = nlast, out.step = 1, verbose = FALSE)
+                pclm_fitted <- fitted(pclm_model)
+                
+                # Extract the starting age from the first interval name "[13,14)"
+                first_interval <- names(pclm_fitted)[1]
+                first_age <- as.numeric(gsub("\\[([0-9]+),.*", "\\1", first_interval))
+                
+                # Create age-to-value mapping
+                pclm_values <- as.numeric(pclm_fitted)
+                pclm_ages <- first_age:(first_age + length(pclm_values) - 1)
+                
+                # Map to desired output brackets
+                result <- numeric(length(parsed.desired.brackets$names))
+                
+                for (i in seq_along(result)) {
+                    lower <- parsed.desired.brackets$lower[i]
+                    upper <- parsed.desired.brackets$upper[i]
+                    
+                    # Sum PCLM values for ages in [lower, upper)
+                    age_indices <- which(pclm_ages >= lower & pclm_ages < upper)
+                    if (length(age_indices) > 0) {
+                        result[i] <- sum(pclm_values[age_indices])
+                    }
+                }
+                
+                return(result)
+                
+            } else {
+                # Original spline smoother logic
+                smoother = do.get.age.counts.smoother(counts = val[parsed.given.brackets$mapped.mask][parsed.given.brackets$order],
+                                                      endpoints = parsed.given.brackets$endpoints,
+                                                      na.rm = na.rm,
+                                                      method = method,
+                                                      check.consistency=F)
+                
+                smoother(lower = parsed.desired.brackets$lower, upper = parsed.desired.brackets$upper)
+            }
         })
         
         raw.dim = c(age = length(parsed.desired.brackets$names),
@@ -507,20 +488,60 @@ restratify.age.counts <- function(counts,
     }
     else
     {
-        # smoother = do.get.cumulative.age.counts.smoother(counts = counts[parsed.given.brackets$mapped.mask][parsed.given.brackets$order],
-        #                                                  endpoints = parsed.given.brackets$endpoints,
-        #                                                  na.rm = na.rm,
-        #                                                  method = method)
-        # 
-        # rv = smoother(parsed.desired.brackets$upper) - smoother(parsed.desired.brackets$lower)
-        
-        smoother = do.get.age.counts.smoother(counts = counts[parsed.given.brackets$mapped.mask][parsed.given.brackets$order],
-                                              endpoints = parsed.given.brackets$endpoints,
-                                              na.rm = na.rm,
-                                              method = method,
-                                              check.consistency=F)
-        
-        rv = smoother(lower = parsed.desired.brackets$lower, upper = parsed.desired.brackets$upper)
+        if (method == "pclm") {
+            # PCLM implementation for vector input
+            input_counts <- counts[parsed.given.brackets$mapped.mask][parsed.given.brackets$order]
+            
+            # Remove zero padding - PCLM doesn't like zeros
+            non_zero_idx <- which(input_counts > 0)
+            if (length(non_zero_idx) == 0) {
+                # If all zeros, return zeros
+                rv <- rep(0, length(parsed.desired.brackets$names))
+            } else {
+                actual_counts <- input_counts[non_zero_idx]
+                x_vals <- parsed.given.brackets$lower[non_zero_idx]
+                
+                # Calculate nlast - the width of the last bracket
+                last_idx <- non_zero_idx[length(non_zero_idx)]
+                nlast <- parsed.given.brackets$upper[last_idx] - parsed.given.brackets$lower[last_idx]
+                
+                # Fit PCLM model
+                pclm_model <- ungroup::pclm(x = x_vals, y = actual_counts, 
+                                           nlast = nlast, out.step = 1, verbose = FALSE)
+                pclm_fitted <- fitted(pclm_model)
+                
+                # Extract the starting age from the first interval name "[13,14)"
+                first_interval <- names(pclm_fitted)[1]
+                first_age <- as.numeric(gsub("\\[([0-9]+),.*", "\\1", first_interval))
+                
+                # Create age-to-value mapping
+                pclm_values <- as.numeric(pclm_fitted)
+                pclm_ages <- first_age:(first_age + length(pclm_values) - 1)
+                
+                # Map to desired output brackets
+                rv <- numeric(length(parsed.desired.brackets$names))
+                
+                for (i in seq_along(rv)) {
+                    lower <- parsed.desired.brackets$lower[i]
+                    upper <- parsed.desired.brackets$upper[i]
+                    
+                    # Sum PCLM values for ages in [lower, upper)
+                    age_indices <- which(pclm_ages >= lower & pclm_ages < upper)
+                    if (length(age_indices) > 0) {
+                        rv[i] <- sum(pclm_values[age_indices])
+                    }
+                }
+            }
+        } else {
+            # Original spline smoother logic
+            smoother = do.get.age.counts.smoother(counts = counts[parsed.given.brackets$mapped.mask][parsed.given.brackets$order],
+                                                  endpoints = parsed.given.brackets$endpoints,
+                                                  na.rm = na.rm,
+                                                  method = method,
+                                                  check.consistency=F)
+            
+            rv = smoother(lower = parsed.desired.brackets$lower, upper = parsed.desired.brackets$upper)
+        }
         names(rv) = parsed.desired.brackets$names
     }
     
