@@ -2571,7 +2571,9 @@ LOGISTIC.TAPER.FUNCTIONAL.FORM = R6::R6Class(
             }
             
             #-- link --#
-            link = get.link(link)
+            link = get.link(link,
+                            min = base.functional.form$link$min,
+                            max = base.functional.form$link$max)
             
             
             #-- Call the superclass constructor --#
@@ -2590,6 +2592,7 @@ LOGISTIC.TAPER.FUNCTIONAL.FORM = R6::R6Class(
             private$i.taper.start.year = taper.start.year
             private$i.taper.year.2 = taper.year.2
             private$i.taper.start.delta.year = taper.start.year + 1/52
+            private$i.p.at.taper.start = p.at.taper.start
             
             if (!ps.are.dynamic)
             {
@@ -2598,7 +2601,7 @@ LOGISTIC.TAPER.FUNCTIONAL.FORM = R6::R6Class(
                 t1 = taper.start.year
                 t2 = taper.year.2
 
-                private$i.precalculated.m = m = log((1/p1 - 1) /(1/p2 - 1)) / (t2 - t1)
+                private$i.precalculated.m = m = log((1/p1 - 1) / (1/p2 - 1)) / (t2 - t1)
                 private$i.precalculated.b = -log(1/p1 - 1) - m*t1
             }
         },
@@ -2721,6 +2724,8 @@ LOGISTIC.TAPER.FUNCTIONAL.FORM = R6::R6Class(
         i.taper.year.2 = NULL,
         i.base.functional.form = NULL,
         
+        i.p.at.taper.start = NULL,
+        
         i.ps.are.dynamic = NULL,
         i.precalculated.m = NULL,
         i.precalculated.b = NULL,
@@ -2771,6 +2776,65 @@ LOGISTIC.TAPER.FUNCTIONAL.FORM = R6::R6Class(
             
             A = v1 - K / (1 + exp(-m*t1-b))
             
+            if (private$i.link$min > -Inf)
+            {
+                beneath.min.mask = (delta < 0) & ( (A+K) < private$i.link$min)
+                n.beneath.min = sum(beneath.min.mask)
+                if (n.beneath.min > 0)
+                {
+                    if (private$i.ps.are.dynamic)
+                        p1 = terms$p.at.taper.start[beneath.min.mask]
+                    else
+                        p1 = rep(private$i.p.at.taper.start, n.beneath.min)
+                    
+                    l = private$i.link$min
+                    A.new = (v1[beneath.min.mask] - l * p1) / (1 - p1)
+                    K.new = l - A.new
+                    m.new = delta[beneath.min.mask] / K.new / p1^2 / (1/p1 - 1)
+                    b.new = -log(1/p1 - 1) - m.new * t1
+                    
+                    A[beneath.min.mask] = A.new
+                    K[beneath.min.mask] = K.new
+                    
+                    if (length(m)==1)
+                        m = rep(m, length(A))
+                    m[beneath.min.mask] = m.new
+                    
+                    if (length(b)==1)
+                        b = rep(b, length(A))
+                    b[beneath.min.mask] = b.new
+                }
+            }
+            
+            if (private$i.link$max < Inf)
+            {
+                above.max.mask = (delta < 0) & ( (A+K) > private$i.link$max)
+                n.above.max = sum(above.max.mask)
+                if (n.above.max > 0)
+                {
+                    if (private$i.ps.are.dynamic)
+                        p1 = terms$p.at.taper.start[above.max.mask]
+                    else
+                        p1 = rep(private$i.p.at.taper.start, n.above.max)
+                    
+                    u = private$i.link$max
+                    A.new = (v1[above.max.mask] - u * p1) / (1 - p1)
+                    K.new = u - A.new
+                    m.new = delta[above.max.mask] / K.new / p1^2 / (1/p1 - 1)
+                    b.new = -log(1/p1 - 1) - m.new * t1
+                    
+                    A[above.max.mask] = A.new
+                    K[above.max.mask] = K.new
+                    
+                    if (length(m)==1)
+                        m = rep(m, length(v1))
+                    m[above.max.mask] = m.new
+                    
+                    if (length(b)==1)
+                        b = rep(b, length(v1))
+                    b[above.max.mask] = b.new
+                }
+            }
             values.before.taper = private$i.base.projected.values[as.character(years.before.taper)]
             
             values.after.taper = lapply(years.after.taper, function(year){
