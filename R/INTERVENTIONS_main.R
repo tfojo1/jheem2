@@ -572,8 +572,7 @@ JHEEM.INTERVENTION = R6::R6Class(
                 else
                     stop("need a smarter error message here")
                 
-                
-                new.parameters = rbind(new.parameters, t(add.to.new.parameters))
+                new.parameters = rbind(new.parameters, add.to.new.parameters)
                 new.param.names = c(new.param.names, dimnames(add.to.new.parameters)[[1]])
                 
                 set.seed(reset.seed) # this keeps our code from always setting to the same seed
