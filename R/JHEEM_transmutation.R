@@ -268,8 +268,8 @@ create.jheem.transmuter <- function(simulation.set,
 {
     JHEEM.TRANSMUTER$new(simulation.set = simulation.set,
                          to.version = to.version,
-                         keep.from.year = from.year,
-                         keep.to.year = to.year,
+                         from.year = from.year,
+                         to.year = to.year,
                          to.sub.version = to.sub.version)
 }
 
@@ -283,8 +283,8 @@ JHEEM.TRANSMUTER = R6::R6Class(
         
         initialize = function(simulation.set,
                               to.version,
-                              keep.from.year,
-                              keep.to.year,
+                              from.year,
+                              to.year,
                               to.sub.version)
         {
             #-- Check Arguments --#
@@ -294,6 +294,18 @@ JHEEM.TRANSMUTER = R6::R6Class(
             # Check to.version and to.sub.version
             
             # Check Keep Years
+            
+            # Check years
+            
+            if (from.year < simulation.set$from.year)
+                stop(paste0("Cannot transmute simulation.set: its 'from.year' is ",
+                            simulation.set$from.year, " but you have requested to transmute from.year ",
+                            from.year))
+            
+            if (to.year > simulation.set$to.year)
+                stop(paste0("Cannot transmute simulation.set: its 'to.year' is ",
+                            simulation.set$to.year, " but you have requested to transmute to.year ",
+                            to.year))
             
             # Make sure we can transmute
             result = do.evaluate.can.transmute(from.kernel.or.specification = simulation.set$jheem.kernel, 
@@ -321,8 +333,8 @@ JHEEM.TRANSMUTER = R6::R6Class(
             #-- Store stuff --#
             private$i.simulation.set = simulation.set
             
-            private$i.keep.from.year = keep.from.year
-            private$i.keep.to.year = keep.to.year
+            private$i.keep.from.year = from.year
+            private$i.keep.to.year = to.year
             
             private$i.check.consistency = T
             
