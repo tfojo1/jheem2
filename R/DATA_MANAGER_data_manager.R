@@ -2455,14 +2455,14 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         
         # Status: right now, this is finding a lot of percent diff of -1 due to the sub strat marginals being 0. How to handle?
         # tabulate by source and outcome
-        inspect_marginals = function(threshold.percent = 0.1,
-                                     threshold.magnitude = 50,
-                                     check.up.to.n.way.stratified = 2,
-                                     outcome=NULL,
+        inspect_marginals = function(outcome=NULL,
                                      source=NULL,
                                      ontology=NULL,
                                      sub.stratification=NULL,
-                                     super.stratification=NULL) {
+                                     super.stratification=NULL,
+                                     threshold.percent = 0.1,
+                                     threshold.magnitude = 50,
+                                     check.up.to.n.way.stratified = 2) {
             
             # For each outcome/metric/source/ontology, check each stratification against the others for correct marginals
             # Only for strats that are subsidiary to others, though (like "age" vs. "age__sex")
