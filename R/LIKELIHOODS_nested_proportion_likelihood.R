@@ -2318,7 +2318,6 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 # model.mask.arr = array(obs.n.mask.array.aligned[model.arr.indices], sapply(model.arr.dimnames, length), model.arr.dimnames)
                 model.arr <- aligning.mappings[[2]]$reverse.apply(obs.n.array.aligned)
                 model.mask.arr <- aligning.mappings[[2]]$reverse.apply(obs.n.mask.array.aligned) # @AZ does this work??? verify with a test b/c is logical, not integer
-                # browser() ## ADDED FOR TODD
 
                 if (any(is.na(model.arr))) {
                     ERROR.MANAGER$code <- "NPL2"
@@ -2343,7 +2342,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                     )
                     stop(paste0(error.prefix, "'", outcome.for.n, "' data could not be found for all needed locations/years/dimensions."))
                 }
-
+                # when apply mappings, tell it to use the right ones (that the two mapped onts have in common)
 
                 # use the partitioning function - VALIDATE THAT YOU GET AN ARRAY BACK WITH SAME DIMNAMES
                 partitioned.model.arr <- partitioning.function(model.arr, version = version, location = location)
@@ -2351,7 +2350,9 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 partitioned.model.mask.arr <- partitioning.function(model.mask.arr, version = version, location = location)
 
                 # check sum against the sum of the values in the aligned obs array that are actually mapped
+                # tryCatch({obs.n.arr.indices <- aligning.mappings[[2]]$get.mapping.indices(model.arr.dimnames, dimnames(obs.n.array.aligned))}, error=function(e) browser())
                 obs.n.arr.indices <- aligning.mappings[[2]]$get.mapping.indices(model.arr.dimnames, dimnames(obs.n.array.aligned))
+                
                 values.that.map <- sapply(obs.n.arr.indices, function(x) {
                     length(x) > 0
                 })
