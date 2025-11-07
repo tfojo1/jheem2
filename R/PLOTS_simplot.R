@@ -520,8 +520,12 @@ prepare.plot <- function(simset.list=NULL,
                 
                 one.df.sim.this.outcome['simset'] = names(simset.list)[[i]]
                 one.df.sim.this.outcome['outcome'] = outcome
-                one.df.sim.this.outcome['linewidth'] = 1/(style.manager$linewidth.slope * log10(simset$n.sim) + 1) # # used to be 1/sqrt() have style manager create this later?
-                one.df.sim.this.outcome['alpha'] = one.df.sim.this.outcome['linewidth'] # same comment as above; USED to be 20 * this
+                one.df.sim.this.outcome['linewidth'] = style.manager$linewidth.baseline/(style.manager$linewidth.slope * log10(simset$n.sim) + 1)
+                if (!is.null(style.manager$alpha.line)) {
+                    one.df.sim.this.outcome['alpha'] = style.manager$alpha.line
+                } else {
+                    one.df.sim.this.outcome['alpha'] = one.df.sim.this.outcome['linewidth']
+                }
                 
                 # Make a "outcome.long.name" column so that the facet.by can present it instead of the short name
                 one.df.sim.this.outcome['outcome.display.name'] = outcome.metadata.list[[outcome]]$display.name
@@ -805,7 +809,7 @@ execute.simplot <- function(prepared.plot.data,
     rv = rv +
         ggplot2::labs(y=y.label) +
         ggplot2::ggtitle(plot.title) +
-        ggplot2::scale_alpha(guide='none')
+        ggplot2::scale_alpha_identity(guide='none')
     
     
     if (!plot.year.lag.ratio)
@@ -813,7 +817,6 @@ execute.simplot <- function(prepared.plot.data,
     else
         rv = rv + ggplot2::scale_y_continuous(labels = scales::comma)
     # browser()
-    
     # SIM ELEMENTS
     if (!is.null(df.sim)) {
         # Note: the key to avoiding warning messages about scale is to only add a scale if it is used by the data frames that are actually plotted.
