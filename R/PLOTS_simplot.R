@@ -711,10 +711,16 @@ execute.simplot <- function(prepared.plot.data,
         df.truth['location.type'] = locations::get.location.type(df.truth$location)
         df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
         df.truth['color.data.by'] = df.truth[style.manager$color.data.by]
-        df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
-        if (style.manager$color.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum==""))
+        if (!is.null(style.manager$shade.data.by))
+            df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
+        
+        # If either stratifying and use either color or shade for "stratum", use the other one
+        # unless possibly we're skipping shading.
+        if (!is.null(style.manager$shade.data.by) &&
+            style.manager$color.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum==""))
             df.truth['color.and.shade.data.by'] = df.truth['shade.data.by']
-        else if (style.manager$shade.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum==""))
+        else if (is.null(style.manager$shade.data.by) ||
+                 style.manager$shade.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum==""))
             df.truth['color.and.shade.data.by'] = df.truth['color.data.by']
         else
             df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
@@ -764,12 +770,17 @@ execute.simplot <- function(prepared.plot.data,
     ## SHADES FOR DATA
     color.data.shaded.colors = NULL
     if (!is.null(df.truth)) {
-        color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
-        # This can lead to problems if we have either of these being "" because then we'll get an underscore that won't match the actual column values in the data frame
-        if (identical(unique(df.truth$color.data.by), ""))
-            names(color.data.shaded.colors) = unique(df.truth$shade.data.by)
-        else
-            names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
+        if (is.null(style.manager$shade.data.by))
+            color.data.shaded.colors <- color.data.primary.colors
+        else {
+            color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
+            # This can lead to problems if we have either of these being "" because then we'll get an underscore that won't match the actual column values in the data frame
+            if (identical(unique(df.truth$color.data.by), ""))
+                names(color.data.shaded.colors) = unique(df.truth$shade.data.by)
+            else
+                names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
+            
+        }
     }
     
     ## SHAPES

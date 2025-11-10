@@ -26,7 +26,7 @@ create.style.manager = function(color.sim.by = 'stratum',
                                 linewidth.baseline = 1,
                                 linewidth.slope = 3)
 {
-    JHEEM.STYLE.MANAGER$new(color.sim.by = color.sim.by,
+    JHEEM.STYLE.MANAGER$new(color.sim.by = color.sim.by, 
                             color.data.by = color.data.by,
                             shade.data.by = shade.data.by,
                             linetype.sim.by = linetype.sim.by,
@@ -110,9 +110,9 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
             if (!(is.character(color.data.by) && length(color.data.by)==1 && !is.na(color.data.by) &&
                   color.data.by %in% c("source", "stratum", "location.type", "location")))
                 stop(paste0(error.prefix, "'color.data.by' must be one of 'source', 'stratum', 'location', or 'location.type'"))
-            if (!(is.character(shade.data.by) && length(shade.data.by)==1 && !is.na(shade.data.by) &&
+            if (!(is.null(shade.data.by) || (is.character(shade.data.by) && length(shade.data.by)==1 && !is.na(shade.data.by)) &&
                   shade.data.by %in% c("source", "stratum", "location.type", "location")))
-                stop(paste0(error.prefix, "'shade.data.by' must be one of 'source', 'stratum', 'location', or 'location.type'"))
+                stop(paste0(error.prefix, "'shade.data.by' must be either NULL or one of 'source', 'stratum', 'location', or 'location.type'"))
             if (!(is.character(shape.data.by) && length(shape.data.by)==1 && !is.na(shape.data.by) &&
                   shape.data.by %in% c("source", "stratum", "location.type", "location")))
                 stop(paste0(error.prefix, "'shape.data.by' must be one of 'source', 'stratum', 'location', or 'location.type'"))
