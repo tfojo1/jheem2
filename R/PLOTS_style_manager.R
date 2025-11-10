@@ -1,4 +1,5 @@
 #' @title Create A Style Manager
+#' @param sim.palette,data.palette Must be either a character vector of colors to choose from or a function that takes a number of colors needed and returns a character vector of colors.
 #' @param shapes A numeric vector indicating which of the 25 ggplot shapes to select from. Each value must be an integer between 1 and 25.
 #' @param shade.increment A single numeric value less than 0 indicating the extent of shading to apply (to alternate values of the 'shade.data.by'/'shade.sim.by' variables)
 #' @param alpha.line A single numeric value which determines the transparency of the simulation lines. If NULL, the width of the lines is used (see "linewidth.slope" argument for details).
@@ -116,10 +117,12 @@ JHEEM.STYLE.MANAGER = R6::R6Class(
                   shape.data.by %in% c("source", "stratum", "location.type", "location")))
                 stop(paste0(error.prefix, "'shape.data.by' must be one of 'source', 'stratum', 'location', or 'location.type'"))
             
-            if (!is.function(sim.palette))
-                stop(paste0(error.prefix, "'sim.palette' must be a function"))
-            if (!is.function(data.palette))
-                stop(paste0(error.prefix, "'data.palette' must be a function"))
+            if (!is.function(sim.palette) && !(is.character(sim.palette) && length(sim.palette)>0 && !any(is.na(sim.palette))))
+                stop(paste0(error.prefix, "'sim.palette' must be either a function or a character vector with no missing elements"))
+            if (!is.function(data.palette) && !(is.character(data.palette) && length(data.palette)>0 && !any(is.na(data.palette))))
+                stop(paste0(error.prefix, "'data.palette' must be either a function or a character vector with no missing elements"))
+            
+            
             
             if (!(is.character(linetypes) && length(linetypes)>0 && !any(is.na(linetypes))))
                 stop(paste0(error.prefix, "'linetypes' must be a character vector with no missing values"))
