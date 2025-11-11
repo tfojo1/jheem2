@@ -1016,8 +1016,14 @@ SIMULATION.METADATA = R6::R6Class(
         {
             if (!is.character(to.label) || any(is.na(to.label)))
                 stop("Cannot get.labels() - 'to.label' must be a character vector with no NA values")
-            
+
             labels = private$i.metadata$labels[to.label]
+            
+            if (is.null(labels))
+            {
+                labels = rep(NA, length(to.label))
+                names(labels) = to.label
+            }
             
             unlabeled.mask = is.na(labels)
             
