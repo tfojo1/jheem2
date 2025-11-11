@@ -48,6 +48,7 @@ get.simset.data <- function(simset,
 #'@param error.prefix A string to prepend to any errors generated in getting the metadata object
 #'@param from.year,to.year The years which a corresponding simulation will have data for
 #'@param jheem.kernel Optional: the jheem.kernel on which to base the simulation metadata
+#'@param update.labels If jheem.kernel is not NULL, whether to get updated labels from the latest specification (vs the specification as it was when the kernel was created)
 #'
 #'@details A simulation.metadata object contains metadata, such as the dim.names to which its contents will conform
 #'
@@ -59,6 +60,7 @@ get.simulation.metadata <- function(version,
                                     n.sim = 1,
                                     sub.version = NULL,
                                     jheem.kernel = NULL,
+                                    update.labels = T,
                                     error.prefix = paste0("Error deriving the simulation-metadata for '", version, "' and location '", location, "': "))
 {
     if (is.null(jheem.kernel))
@@ -82,6 +84,7 @@ get.simulation.metadata <- function(version,
                                                                        from.year = from.year,
                                                                        to.year = to.year,
                                                                        n.sim = n.sim,
+                                                                       update.labels = update.labels,
                                                                        error.prefix = error.prefix),
                             type = "Simulation Metadata",
                             error.prefix = error.prefix)
@@ -399,6 +402,7 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
                                                                 solver.metadata = solver.metadata,
                                                                 intervention.code = intervention.code,
                                                                 calibration.code = calibration.code,
+                                                                update.labels = false,
                                                                 error.prefix = error.prefix)
         },
         
@@ -647,6 +651,7 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
                                            calibration.code = NULL,
                                            type = "Simulation Metadata",
                                            years.can.be.missing = T,
+                                           update.labels = T,
                                            error.prefix)
 {
     # Validate from.year, to.year
@@ -800,7 +805,17 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
     metadata$intervention.code = intervention.code
     metadata$calibration.code = calibration.code
     metadata$sub.version = sub.version
-    metadata$labels = jheem.kernel.or.specification$labels
+    
+    if (update.labels && 
+        is(jheem.kernel.or.specification, 'jheem.kernel') && 
+        is.specification.registered.for.version(jheem.kernel.or.specification$version))
+    {
+        spec = get.compiled.specification.for.version(jheem.kernel.or.specification$version)    
+        metadata$labels = spec$labels    
+    }
+    else
+        metadata$labels = jheem.kernel.or.specification$labels
+        
     
     metadata
 }
@@ -1026,10 +1041,20 @@ SIMULATION.METADATA = R6::R6Class(
             }
             
             unlabeled.mask = is.na(labels)
-            
+
             if (any(unlabeled.mask))
             {
-                labels[unlabeled.mask] = private$str.to.title(to.label[unlabeled.mask])
+                # Hard code for msm_idu or msm-idu
+                # newly.labeled = to.label[unlabeled.mask]
+                # newly.labeled = gsub('msm[_-]idu', 'MSM/PWID', newly.labeled, ignore.case = T)
+                
+                newly.labeled = private$str.to.title(newly.labeled)
+                
+                # Hard code for msm and idu
+                # newly.labeled = gsub('msm', 'MSM', newly.labeled, ignore.case = T)
+                # newly.labeled = gsub('idu', 'PWID', newly.labeled, ignore.case = T)
+                
+                labels[unlabeled.mask] = newly.labeled
             }        
             
             names(labels) = to.label
@@ -1194,7 +1219,7 @@ SIMULATION.METADATA = R6::R6Class(
         
         str.to.title = function(str)
         {
-            split.str = base::strsplit(str, "[^a-zA-Z0-9\\-]", fixed=F)
+            split.str = base::strsplit(str, "[^-a-zA-Z0-9\\/]", fixed=F)
             str = sapply(split.str, function(one.split){
                 paste0(toupper.first(one.split), collapse=' ')
             })
@@ -1442,9 +1467,10 @@ load.simulation.set <- function(file)
 #'@title Make a copy of a Simulation Set
 #'
 #'@param simset The simulation.set object to copy
+#'@param update.labels Whether to get updated labels from the latest specification (vs the specification as it was when the simulations were created)
 #'
 #'@export
-copy.simulation.set <- function(simset)
+copy.simulation.set <- function(simset, update.labels=T)
 {
     if (!is(simset, 'jheem.simulation.set'))
         stop("Error copying simset: 'simset' must be a jheem.simulation.set object")
@@ -1482,7 +1508,8 @@ copy.simulation.set <- function(simset)
                              run.metadata = copy.run.metadata(simset$run.metadata),
                              solver.metadata = copy.solver.metadata(simset$solver.metadata),
                              is.degenerate = simset$is.degenerate,
-                             finalize = simset$is.finalized)
+                             finalize = simset$is.finalized,
+                             update.labels = update.labels)
 }
 
 do.create.simulation.set <- function(jheem.kernel,
@@ -1501,6 +1528,7 @@ do.create.simulation.set <- function(jheem.kernel,
                                      outcome.location.mapping,
                                      is.degenerate = NULL,
                                      finalize, #a logical - should we add sampled parameters?
+                                     update.labels = T,
                                      error.prefix = "Error constructing simulation")
 {
     metadata = make.simulation.metadata.field(jheem.kernel.or.specification = jheem.kernel,
@@ -1513,6 +1541,7 @@ do.create.simulation.set <- function(jheem.kernel,
                                               solver.metadata = solver.metadata,
                                               intervention.code = intervention.code,
                                               calibration.code = calibration.code,
+                                              update.labels = update.labels,
                                               error.prefix = error.prefix)
     
     do.create.simulation.set.from.metadata(metadata = metadata,
