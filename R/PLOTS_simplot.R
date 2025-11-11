@@ -5,7 +5,7 @@
 #'@param outcomes A character vector of which simulation outcomes to plot
 #'@param split.by At most one dimension
 #'@param facet.by Any number of dimensions but cannot include the split.by dimension
-#'@param dimension.values
+#'@param dimension.values.post.mapping How to subset data in the form it will take after mappings have been applied to align sim and data ontologies. A list.
 #'@param plot.which Should simulation data and calibration data be plotted ('sim.and.data'), or only simulation data ('sim.only')
 #'@param label.function A function to reformat labels. If NULL, will use the first provided simset's "get.labels" property, or will do no transformation if plotting data only.
 #'@param title NULL or a single, non-NA character value. If "location", the location of the first provided simset (if any) will be used for the title.
@@ -25,6 +25,7 @@ simplot <- function(...,
                     split.by = NULL,
                     facet.by = NULL,
                     dimension.values = list(),
+                    dimension.values.post.mapping = list(),
                     target.ontology = NULL,
                     plot.which = c('sim.and.data', 'sim.only')[1],
                     summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
@@ -57,6 +58,7 @@ simplot <- function(...,
                                       split.by=split.by,
                                       facet.by=facet.by,
                                       dimension.values=dimension.values,
+                                      dimension.values.post.mapping=dimension.values.post.mapping,
                                       target.ontology=target.ontology,
                                       plot.which=plot.which,
                                       summary.type=summary.type,
@@ -174,6 +176,7 @@ simplot.data.only <- function(outcomes,
                               split.by=NULL,
                               facet.by = NULL,
                               dimension.values = list(),
+                              dimension.values.post.mapping = list(),
                               target.ontology = NULL,
                               label.function = NULL,
                               plot.year.lag.ratio = F,
@@ -196,6 +199,7 @@ simplot.data.only <- function(outcomes,
                                       split.by=split.by,
                                       facet.by=facet.by,
                                       dimension.values=dimension.values,
+                                      dimension.values.post.mapping=dimension.values.post.mapping,
                                       target.ontology=target.ontology,
                                       plot.which='data.only',
                                       summary.type=summary.type,
@@ -237,6 +241,7 @@ prepare.plot <- function(simset.list=NULL,
                          split.by = NULL,
                          facet.by = NULL,
                          dimension.values = list(),
+                         dimension.values.post.mapping = list(),
                          target.ontology = NULL,
                          plot.which = c('sim.and.data', 'sim.only', 'data.only')[1],
                          summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
@@ -395,7 +400,7 @@ prepare.plot <- function(simset.list=NULL,
                     # browser()
                     if (!is.null(target.ontology) && !is.list(target.ontology))
                         result = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                                   dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                                   dimension.values = c(dimension.values, dimension.values.post.mapping, list(location = outcome.locations[[i]])),
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = target.ontology,
                                                    allow.mapping.from.target.ontology = F,
@@ -404,7 +409,7 @@ prepare.plot <- function(simset.list=NULL,
                                                    debug=F)
                     else if (is.list(target.ontology) && outcomes.for.data[[i]] %in% names(target.ontology))
                         result = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                                   dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                                   dimension.values = c(dimension.values, dimension.values.post.mapping, list(location = outcome.locations[[i]])),
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = target.ontology[[outcomes.for.data[[i]]]],
                                                    allow.mapping.from.target.ontology = F,
@@ -413,7 +418,7 @@ prepare.plot <- function(simset.list=NULL,
                                                    debug=F)
                     else if (plot.which=='sim.and.data')
                         result = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                                   dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                                   dimension.values = c(dimension.values, dimension.values.post.mapping, list(location = outcome.locations[[i]])),
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = outcome.ontologies[[i]],
                                                    allow.mapping.from.target.ontology = T,
@@ -422,7 +427,7 @@ prepare.plot <- function(simset.list=NULL,
                                                    debug=F)
                     else # See if we really want this or not
                         result = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                                   dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                                   dimension.values = c(dimension.values, dimension.values.post.mapping, list(location = outcome.locations[[i]])),
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = NULL,
                                                    append.attributes=append.attributes,
@@ -488,7 +493,6 @@ prepare.plot <- function(simset.list=NULL,
             for (i in seq_along(facet.by)) {
                 names(df.truth)[names(df.truth)==facet.by[i]] = paste0("facet.by", i)
             }
-        # if (!is.null(facet.by)) names(df.truth)[names(df.truth)==facet.by] = "facet.by" ##########################
         
         df.truth$outcome.display.name <- factor(df.truth$outcome.display.name, levels = sapply(outcome.metadata.list, function(outcome) {outcome$display.name}))
         # if there is no 'stratum' because no split, then we should fill it with ""
@@ -523,6 +527,9 @@ prepare.plot <- function(simset.list=NULL,
                                                       summary.type = summary.type)
                 
                 if (is.null(simset.data.this.outcome)) next
+                
+                # Subset post mapping
+                simset.data.this.outcome <- array.access(simset.data.this.outcome, dimension.values.post.mapping)
                 
                 # If the scale is proportion, multiply data by 100 to match the "%" symbol the label will have
                 if (simset.list[[i]][['outcome.metadata']][[outcome]]$display.as.percent)
