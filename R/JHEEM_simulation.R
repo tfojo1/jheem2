@@ -402,7 +402,7 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
                                                                 solver.metadata = solver.metadata,
                                                                 intervention.code = intervention.code,
                                                                 calibration.code = calibration.code,
-                                                                update.labels = false,
+                                                                update.labels = FALSE,
                                                                 error.prefix = error.prefix)
         },
         
