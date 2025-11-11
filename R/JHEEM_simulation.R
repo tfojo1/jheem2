@@ -1045,14 +1045,14 @@ SIMULATION.METADATA = R6::R6Class(
             if (any(unlabeled.mask))
             {
                 # Hard code for msm_idu or msm-idu
-                # newly.labeled = to.label[unlabeled.mask]
-                # newly.labeled = gsub('msm[_-]idu', 'MSM/PWID', newly.labeled, ignore.case = T)
+                newly.labeled = to.label[unlabeled.mask]
+                newly.labeled = gsub('msm[_-]idu', 'MSM/PWID', newly.labeled, ignore.case = T)
                 
                 newly.labeled = private$str.to.title(newly.labeled)
                 
                 # Hard code for msm and idu
-                # newly.labeled = gsub('msm', 'MSM', newly.labeled, ignore.case = T)
-                # newly.labeled = gsub('idu', 'PWID', newly.labeled, ignore.case = T)
+                newly.labeled = gsub('msm', 'MSM', newly.labeled, ignore.case = T)
+                newly.labeled = gsub('idu', 'PWID', newly.labeled, ignore.case = T)
                 
                 labels[unlabeled.mask] = newly.labeled
             }        
