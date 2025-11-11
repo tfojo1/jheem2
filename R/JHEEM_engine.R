@@ -6123,7 +6123,12 @@ JHEEM = R6::R6Class(
                 if (is.null(from.outcome.ontology))
                     stop(paste0(error.prefix, "Cannot transmute outcome '", outcome.name, "' - it is not in the given simulation.set"))
                 
-                outcome.years = from.outcome.ontology$year[from.outcome.ontology$year >= private$i.keep.from.time & from.outcome.ontology$year <= private$i.keep.to.time]
+                if (simulation.set$outcome.metadata[[outcome.name]]$is.cumulative)
+                    outcome.keep.to.time = private$i.keep.to.time
+                else
+                    outcome.keep.to.time = private$i.keep.to.time + 1
+                
+                outcome.years = from.outcome.ontology$year[from.outcome.ontology$year >= private$i.keep.from.time & from.outcome.ontology$year <= outcome.keep.to.time]
                 
                 to.outcome = private$i.kernel$get.outcome.kernel(outcome.name)
                 to.outcome.dim.names = c(list(year=outcome.years), to.outcome$dim.names)
@@ -6734,6 +6739,7 @@ JHEEM = R6::R6Class(
                         raw.value = lapply(1:length(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(i){
                             
                             time = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]][i])
+
                             collapsed.denominator = collapse.array.according.to.indices(arr = denominator[[time]],
                                                                                         small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.indices,
                                                                                         large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$large.indices,
