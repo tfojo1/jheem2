@@ -7,6 +7,7 @@
 #'@param facet.by Any number of dimensions but cannot include the split.by dimension
 #'@param dimension.values
 #'@param plot.which Should simulation data and calibration data be plotted ('sim.and.data'), or only simulation data ('sim.only')
+#'@param label.function A function to reformat labels. If NULL, will use the first provided simset's "get.labels" property, or will do no transformation if plotting data only.
 #'@param title NULL or a single, non-NA character value. If "location", the location of the first provided simset (if any) will be used for the title.
 #'@param data.manager The data.manager from which to draw real-world data for the plots
 #'@param style.manager We are going to have to define this down the road. It's going to govern how we do lines and sizes and colors. For now, just hard code those in, and we'll circle back to it
@@ -27,6 +28,7 @@ simplot <- function(...,
                     target.ontology = NULL,
                     plot.which = c('sim.and.data', 'sim.only')[1],
                     summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
+                    label.function = NULL,
                     plot.year.lag.ratio = F,
                     title = "location",
                     n.facet.rows = NULL,
@@ -58,6 +60,7 @@ simplot <- function(...,
                                       target.ontology=target.ontology,
                                       plot.which=plot.which,
                                       summary.type=summary.type,
+                                      label.function=label.function,
                                       plot.year.lag.ratio=plot.year.lag.ratio,
                                       title=title,
                                       append.url=append.url,
@@ -172,6 +175,7 @@ simplot.data.only <- function(outcomes,
                               facet.by = NULL,
                               dimension.values = list(),
                               target.ontology = NULL,
+                              label.function = NULL,
                               plot.year.lag.ratio = F,
                               title = "location",
                               n.facet.rows = NULL,
@@ -195,6 +199,7 @@ simplot.data.only <- function(outcomes,
                                       target.ontology=target.ontology,
                                       plot.which='data.only',
                                       summary.type=summary.type,
+                                      label.function=label.function,
                                       plot.year.lag.ratio=plot.year.lag.ratio,
                                       title=title,
                                       append.url=append.url,
@@ -236,6 +241,7 @@ prepare.plot <- function(simset.list=NULL,
                          plot.which = c('sim.and.data', 'sim.only', 'data.only')[1],
                          summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                          plot.year.lag.ratio = F,
+                         label.function = NULL,
                          title="location",
                          append.url=F,
                          data.manager = get.default.data.manager(),
@@ -273,6 +279,11 @@ prepare.plot <- function(simset.list=NULL,
         stop(paste0(error.prefix, "'target.ontology' must be NULL, an ontology, or a list of ontologies with outcomes as names"))
     
     # Must supply a target ontology if using simplot.data.only, because otherwise multiple outcomes won't be alignable...?
+    
+    # label.function must be NULL or a function that takes one argument.
+    if (!is.null(label.function) &&(!is.function(label.function) || length(formals(label.function)) != 1)) {
+        stop(paste0(error.prefix, "'label.function' must be NULL or a function that takes one argument"))
+    }
     
     if (!identical(plot.year.lag.ratio, T) && !identical(plot.year.lag.ratio, F))
         stop(paste0(error.prefix, "'plot.year.lag.ratio' must be either T or F"))
@@ -359,14 +370,14 @@ prepare.plot <- function(simset.list=NULL,
         names(outcome.locations) = outcomes.for.data
     }
     
-    # Get sim labels (like "MSM/PWID" instead of "msm_idu")
-    if (plot.which!="data.only") {
-        sim.labels.list = lapply(simset.list, function(simset) {
-            simset$metadata$labels
-        })
-    } else 
-        sim.labels.list = NULL
-    
+    # Get labels (like "MSM/PWID" instead of "msm_idu")
+    if (!is.null(label.function)) {
+        label_function <- label.function
+    } else if (plot.which!="data.only") {
+        label_function <- simset.list[[1]]$get.labels
+    } else {
+        label_function <- function(x) {x}
+    }
     
     #-- MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA ----
     
@@ -436,6 +447,12 @@ prepare.plot <- function(simset.list=NULL,
                 
                 # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
                 one.df.outcome = reshape2::melt(outcome.data, na.rm = T, as.is=T)
+                
+                # Convert labels
+                columns_to_labelize <- setdiff(colnames(one.df.outcome), c("year", "location", "source", "value"))
+                one.df.outcome[columns_to_labelize] <- lapply(one.df.outcome[columns_to_labelize], function(col) {
+                    label_function(col)
+                })
                 
                 if (append.url) {
                     one.df.outcome = cbind(one.df.outcome, reshape2::melt(attr(outcome.data, 'url'), na.rm=T, as.is=T))
@@ -517,6 +534,12 @@ prepare.plot <- function(simset.list=NULL,
                     if (is.factor(col)) as.character(col)
                     else col
                 }))
+                
+                # Convert columns not "year", "sim", or "value" into proper labels
+                columns_to_labelize <- setdiff(colnames(one.df.sim.this.outcome), c("year", "sim", "value"))
+                one.df.sim.this.outcome[columns_to_labelize] <- lapply(one.df.sim.this.outcome[columns_to_labelize], function(col) {
+                    label_function(col)
+                })
                 
                 one.df.sim.this.outcome['simset'] = names(simset.list)[[i]]
                 one.df.sim.this.outcome['outcome'] = outcome
@@ -667,8 +690,7 @@ prepare.plot <- function(simset.list=NULL,
                 details=list(y.label=y.label,
                              plot.title=plot.title,
                              outcome.metadata.list = outcome.metadata.list,
-                             source.metadata.list = source.metadata.list,
-                             sim.labels.list = sim.labels.list)))
+                             source.metadata.list = source.metadata.list)))
 }
 
 #' Execute Simplot
