@@ -542,8 +542,8 @@ prepare.plot <- function(simset.list=NULL,
                     else col
                 }))
                 
-                # Convert columns not "year", "sim", or "value" into proper labels
-                columns_to_labelize <- setdiff(colnames(one.df.sim.this.outcome), c("year", "sim", "value"))
+                # Convert columns not "year", "sim", "metric" or "value" into proper labels
+                columns_to_labelize <- setdiff(colnames(one.df.sim.this.outcome), c("year", "sim", "value", "metric"))
                 one.df.sim.this.outcome[columns_to_labelize] <- lapply(one.df.sim.this.outcome[columns_to_labelize], function(col) {
                     label_function(col)
                 })
