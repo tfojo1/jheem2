@@ -1743,6 +1743,16 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (!(identical(summary.type, 'individual.simulation') || identical(summary.type, 'mean.and.interval') || identical(summary.type, 'median.and.interval')))
                 stop(paste0(error.prefix, "'summary.type' must be one of 'individual.simulation', 'mean.and.interval', or 'median.and.interval'"))
             
+            # Outcomes must have all keep.dimensions requested
+            invalid_keep_dimensions <- keep.dimensions[!sapply(keep.dimensions, function(d) {
+                any(sapply(outcomes, function(outcome) {
+                    d %in% names(self$outcome.ontologies[[outcome]])}
+                    ))}
+                )]
+            
+            if (length(invalid_keep_dimensions) > 0)
+                stop(paste0(error.prefix, "the following 'keep.dimensions' are not valid for one or more outcomes: ", paste(invalid_keep_dimensions, collapse=", ")))
+            
             # keep.dimensions will be the union of the incomplete dimensions in the outcome ontology and any dimension value dimensions
             if (is.null(keep.dimensions)) {
                 incomplete.dimensions = unique(unlist(lapply(outcomes, function(outcome) {incomplete.dimensions(self$outcome.ontologies[[outcome]])}))) # unshared incompletes will catch error below
