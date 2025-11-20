@@ -9,4 +9,15 @@ jheem2.Rproj
 
 debug/
 debug_sim/
+
+# Build artifacts
 src/*.dll
+src/*.o
+src/*.so
+*.o
+*.so
+
+# Backup files from refactoring
+.refactoring/backup/
+
+*.DS_store*

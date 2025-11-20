@@ -100,7 +100,7 @@ recommended.
 Other Basic Likelihoods: 
 \code{\link{create.basic.likelihood.instructions.with.included.multiplier}()},
 \code{\link{create.basic.likelihood.instructions.with.specified.outcome}()},
-\code{\link{create.time.lagged.comparison.likelihood.instructions.with.included.multiplier}()},
-\code{\link{create.time.lagged.comparison.likelihood.instructions}()}
+\code{\link{create.time.lagged.comparison.likelihood.instructions}()},
+\code{\link{create.time.lagged.comparison.likelihood.instructions.with.included.multiplier}()}
 }
 \concept{Basic Likelihoods}

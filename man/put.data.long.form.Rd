@@ -43,10 +43,6 @@ put.data.long.form(
 \item{details}{A character vector with at least one element giving one or more URLs giving data collection details. In general, data collected and tabulated using the same approach should have the same details, whereas data with different methods/tabulation should have different details}
 
 \item{allow.na.to.overwrite}{A logical indicator for whether NA values in data should be allowed to overwrite previous values put to the data manager (if data have been put previously)}
-
-\item{dimension.values.to.distribute}{A named list of the dimensions and their values which should be redistributed}
-
-\item{round.distributed.dimension.values}{Should distributed quantities be rounded?}
 }
 \description{
 Put long-form data into a data manager

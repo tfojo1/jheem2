@@ -861,10 +861,15 @@ NULL.INTERVENTION = R6::R6Class(
 )
 
 # Make the NULL intervention
-NULL.INTERVENTION$new()
+# Moved to .onLoad to ensure jheem.core is loaded first
+# NULL.INTERVENTION$new()
 
 get.null.intervention <- function()
 {
+    # Create if it doesn't exist
+    if (is.null(INTERVENTION.MANAGER$interventions$noint)) {
+        NULL.INTERVENTION$new()
+    }
     INTERVENTION.MANAGER$interventions$noint
 }
 
