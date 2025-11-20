@@ -6,9 +6,17 @@
 local_testing
 jheem2.Rproj
 *.Rproj
+.env
+
+docs/
 
 debug/
 debug_sim/
+debug_*.R
+confirm_*.R
+test_location_mapping.R
+test_simplot_*.R
+simple_data_test.R
 
 # Build artifacts
 src/*.dll
@@ -19,5 +27,13 @@ src/*.so
 
 # Backup files from refactoring
 .refactoring/backup/
+
+# Completed investigation artifacts
+R/tests/age_distribution_smoothing/
+*.png
+*.pdf
+
+CLAUDE.MD
+GEMINI.MD
 
 *.DS_store*
