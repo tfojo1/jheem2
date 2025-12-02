@@ -1144,7 +1144,8 @@ assemble.simulations.from.calibration <- function(version,
     })
     
     if (all(n.sim.per.chain==0))
-        stop(paste0(error.prefix, "There is an internal error, likely reflecting inconsistencies in multiple merged runs of the MCMC - one calculation thinks there are simulations run, but another thinks no simulations were run"))
+        stop(paste0(error.prefix, "No simulations were saved after the burn-in period for this calibration - there are no simulations to assemble"))
+        #stop(paste0(error.prefix, "There is an internal error, likely reflecting inconsistencies in multiple merged runs of the MCMC - one calculation thinks there are simulations run, but another thinks no simulations were run"))
     
     n.sim = sum(n.sim.per.chain)
     
@@ -1578,6 +1579,32 @@ register.calibration.info <- function(code,
                               error.prefix = error.prefix,
                               code.name.for.error = 'code')
     # - We should not let calibration code overlap with any intervention codes?
+    
+    if (!is.numeric(n.iter) || length(n.iter)!=1 || is.na(n.iter) || n.iter<=0 || round(n.iter)!=n.iter)
+        stop(paste0(error.prefix, "n.iter must be a single, non-NA, positive integer"))
+    
+    if (!is.numeric(n.burn) || length(n.burn)!=1 || is.na(n.burn) || n.burn<0 || round(n.burn)!=n.burn)
+        stop(paste0(error.prefix, "n.burn must be a single, non-NA, non-negative integer"))
+    
+    if (!is.numeric(thin) || length(thin)!=1 || is.na(thin) || thin<=0 || round(thin)!=thin)
+        stop(paste0(error.prefix, "thin must be a single, non-NA, positive integer"))
+    
+    if (n.burn >= n.iter)
+        stop(paste0(error.prefix, "n.burn (", n.burn, ") must be less than n.iter (", n.iter, ") - otherwise you won't save any simulations"))
+    
+    # Make sure this is going to save at least one simulation after burn
+    if ((n.iter - n.burn) < thin)
+    {
+        stop(paste0(paste0(error.prefix, "With only ", n.iter-n.burn,
+                           ifelse((n.iter-n.burn)==1, " iteration", " iterations"),
+                           ifelse(n.burn==0, '',
+                                  paste0(" after burning the first ", n.burn, ","))
+                           " and a thin of ", thin,
+                           ", no simulations will be saved. Either increase n.iter",
+                           ifelse(n.burn==0, '',
+                                  ", decrease n.burn,"),
+                           " or decrease thin.")))
+    }
     
     # likelihood.instructions
     if (!is(likelihood.instructions, 'jheem.likelihood.instructions'))

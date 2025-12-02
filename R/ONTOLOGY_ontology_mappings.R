@@ -1275,7 +1275,7 @@ find.ontology.mapping <- function(from.ontology,
                                  ifelse(length(to.dimensions.in.dset)==1, "dimension ", "dimensions "),
                                  collapse.with.and("'", to.dimensions.in.dset, "'"),
                                  ifelse(length(to.dimensions.in.dset)==1, " which is", " which are"),
-                                 " present in ", to.ontology.name, " but not ", to.ontology.name,
+                                 " present in ", to.ontology.name, " but not ", from.ontology.name,
                                  ". (",
                                  collapse.with.and("'", incomplete.to.dimensions.in.dset, "'"),
                                  ifelse(length(incomplete.to.dimensions.in.dset)==1, " is an incomplete dimension)", " are incomplete dimensions)"))
