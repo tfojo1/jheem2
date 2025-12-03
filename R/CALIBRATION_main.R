@@ -1598,7 +1598,7 @@ register.calibration.info <- function(code,
         stop(paste0(paste0(error.prefix, "With only ", n.iter-n.burn,
                            ifelse((n.iter-n.burn)==1, " iteration", " iterations"),
                            ifelse(n.burn==0, '',
-                                  paste0(" after burning the first ", n.burn, ","))
+                                  paste0(" after burning the first ", n.burn, ",")),
                            " and a thin of ", thin,
                            ", no simulations will be saved. Either increase n.iter",
                            ifelse(n.burn==0, '',
