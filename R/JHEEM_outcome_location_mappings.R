@@ -169,48 +169,73 @@ OUTCOME.LOCATION.MAPPING = R6::R6Class(
                     if (is.null(outcome))
                         stop(paste0(error.prefix, "'", outcome.name, "' is not a valid outcome in the '", private$i.version, "' model specification"))
                     
-                    weighting.outcome = 'diagnosed.prevalence'
-                    if (outcome$scale!='proportion' || 
-                        !any(data.manager$outcomes==weighting.outcome))
-                    {
+                    if (outcome$scale!='proportion')
                         modeled.location
-                    }
                     else
                     {
-                        max.n.states = 3
-                        max.n.counties = 3
-                        
-                        states = locations::get.overlapping.locations(modeled.location, "STATE")
-                        counties = locations::get.contained.locations(modeled.location, "COUNTY")
-                        
-                        if (length(states)>max.n.states || length(counties)>max.n.counties)
+                        if (is.null(private$i.jheem.kernel) || is.null(private$i.jheem.kernel$order.locations.by.outcomes))
                         {
-                            weight.by.county = data.manager$pull(outcome = weighting.outcome,
-                                                                 dimension.values = list(location=counties),
-                                                                 keep.dimensions = c('year', 'location'))
+                            spec = get.compiled.specification.for.version(private$i.version)
+                            data.outcomes.in.specification = unlist(sapply(spec$outcome.names, function(outcome.name){
+                                spec$get.outcome(outcome.name)$corresponding.data.outcome
+                            }))
                             
-                            if (!is.null(weight.by.county))
+                            possible.weighting.outcomes = union(intersect(c('diagnosed.prevalence','population','ps.syphilis.diagnoses','adult.population'),
+                                                                    data.outcomes.in.specification),
+                                                            data.outcomes.in.specification)
+                        }
+                        else
+                        {
+                            possible.weighting.outcomes = private$i.jheem.kernel$order.locations.by.outcomes
+                        }
+                        
+                        rv.location = NULL
+                        for (weighting.outcome in possible.weighting.outcomes)
+                        {
+                            if (any(data.manager$outcomes==weighting.outcome))
                             {
-                                weight.by.county = apply(weight.by.county, 'location', mean, na.rm=T)[counties]
+                                max.n.states = 3
+                                max.n.counties = 3
                                 
-                                if (length(states)>max.n.states)
+                                states = locations::get.overlapping.locations(modeled.location, "STATE")
+                                counties = locations::get.contained.locations(modeled.location, "COUNTY")
+                                
+                                if (length(states)>max.n.states || length(counties)>max.n.counties)
                                 {
-                                    weight.by.state = sapply(states, function(state){
-                                        counties.in.state = intersect(counties, locations::get.contained.locations(state, 'county'))
-                                        sum(weight.by.county[counties.in.state])
-                                    })
+                                    weight.by.county = data.manager$pull(outcome = weighting.outcome,
+                                                                         dimension.values = list(location=counties),
+                                                                         keep.dimensions = c('year', 'location'))
                                     
-                                    states = states[ order(weight.by.state, decreasing = T)[1:max.n.states] ]
+                                    if (!is.null(weight.by.county))
+                                    {
+                                        weight.by.county = apply(weight.by.county, 'location', mean, na.rm=T)[counties]
+                                        
+                                        if (length(states)>max.n.states)
+                                        {
+                                            weight.by.state = sapply(states, function(state){
+                                                counties.in.state = intersect(counties, locations::get.contained.locations(state, 'county'))
+                                                sum(weight.by.county[counties.in.state])
+                                            })
+                                            
+                                            states = states[ order(weight.by.state, decreasing = T)[1:max.n.states] ]
+                                        }
+                                        
+                                        if (length(counties)>max.n.counties)
+                                        {
+                                            counties = counties[ order(weight.by.county, decreasing = T)[1:max.n.counties] ]
+                                        }
+                                    }
                                 }
                                 
-                                if (length(counties)>max.n.counties)
-                                {
-                                    counties = counties[ order(weight.by.county, decreasing = T)[1:max.n.counties] ]
-                                }
+                                rv.location = c(modeled.location, states, counties)
+                                break
                             }
                         }
                         
-                        c(modeled.location, states, counties)
+                        if (is.null(rv.location))
+                            modeled.location
+                        else
+                            rv.location
                     }
                 }
                 else

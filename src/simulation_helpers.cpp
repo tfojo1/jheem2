@@ -8,7 +8,8 @@ NumericVector do_optimized_get(List numerators,
                                List denominators,
                                List info_by_outcome,
                                int n_to_per_outcome,
-                               bool avoid_infinite)
+                               bool avoid_infinite,
+                               bool na_rm)
 {
     int n_outcomes = info_by_outcome.length();
     
@@ -48,8 +49,20 @@ NumericVector do_optimized_get(List numerators,
                 numerator_array[ result_indices[j] ] = 0;
         }
         
-        for (int i=0; i<n_from; i++)
-            write_into[ to_indices[i] ] += pull_from[ from_indices[i] ];
+        if (na_rm)
+        {
+            LogicalVector from_is_na = is_na(pull_from);
+            for (int i=0; i<n_from; i++)
+            {
+                if (!from_is_na[ from_indices[i] ])
+                    write_into[ to_indices[i] ] += pull_from[ from_indices[i] ];
+            }
+        }
+        else
+        {
+            for (int i=0; i<n_from; i++)
+                write_into[ to_indices[i] ] += pull_from[ from_indices[i] ];
+        }
         
         if (pull_numerator_denominator_ratio)
         {
@@ -57,8 +70,20 @@ NumericVector do_optimized_get(List numerators,
                 denominator_array[ result_indices[j] ] = 0;
             
             NumericVector from_denominator = denominators[out];
-            for (int i=0; i<n_from; i++)
-                denominator_array[ to_indices[i] ] += from_denominator[ from_indices[i] ];
+            if (na_rm)
+            {
+                LogicalVector from_is_na = is_na(from_denominator);
+                for (int i=0; i<n_from; i++)
+                {
+                    if (!from_is_na[ from_indices[i] ])
+                        denominator_array[ to_indices[i] ] += from_denominator[ from_indices[i] ];
+                }
+            }
+            else
+            {
+                for (int i=0; i<n_from; i++)
+                    denominator_array[ to_indices[i] ] += from_denominator[ from_indices[i] ];
+            }
             
             if (avoid_infinite)
             {

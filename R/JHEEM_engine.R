@@ -640,6 +640,28 @@ copy.solver.metadata = function(to.copy)
                         rtol = to.copy$rtol)
 }
 
+JHEEM.SOLVER.TRACKING = new.env()
+JHEEM.SOLVER.TRACKING$tracked.info = NULL
+JHEEM.SOLVER.TRACKING$do.tracking = F
+
+#'@export
+enable.jheem.solver.tracking <- function()
+{
+    JHEEM.SOLVER.TRACKING$do.tracking = T
+}
+
+#'@export
+disable.jheem.solver.tracking <- function()
+{
+    JHEEM.SOLVER.TRACKING$do.tracking = F
+}
+
+#'@export
+get.jheem.solver.tracked.info <- function()
+{
+    JHEEM.SOLVER.TRACKING$tracked.info
+}
+
 SOLVER.METADATA = R6::R6Class(
     'solver.metadata',
     
@@ -708,6 +730,10 @@ SOLVER.METADATA = R6::R6Class(
             start.time = as.numeric(Sys.time())
             terminated.for.time = F
             private$i.n.diffeq.evaluations = 0
+            
+            if (JHEEM.SOLVER.TRACKING$do.tracking)
+                JHEEM.SOLVER.TRACKING$tracked.info$diffeq.computed.times = numeric()
+            
             if (private$i.package=='deSolve')
             {
                 func = function(t, y, parms, ...)
@@ -738,15 +764,10 @@ SOLVER.METADATA = R6::R6Class(
                         
                         private$i.n.diffeq.evaluations = private$i.n.diffeq.evaluations + 1
                     }
-                    # if (any(dx[1:1386]+y[1:1386]<0))
-                    #     browser()
-                    # 
-                    # if (any(y<0))
-                    #     browser()
                     
-         #           if (abs(sum(dx[1:1386]))>0.00001)
-           #             browser()
-                    
+                    if (JHEEM.SOLVER.TRACKING$do.tracking)
+                        JHEEM.SOLVER.TRACKING$tracked.info$diffeq.computed.times = c(JHEEM.SOLVER.TRACKING$tracked.info$diffeq.computed.times, t)
+
                     list(dx)
                 }
                 
@@ -830,31 +851,11 @@ SOLVER.METADATA = R6::R6Class(
                     
                     if (terminated.for.time)
                     {
-                        rep(0, length(x))
+                        dx = rep(0, length(x))
                     }
                     else
                     {
-                        # if ( t >1980)
-                        # {
-                        #     args = list(state = x,
-                        #                 time = t,
-                        #                 settings = diffeq.settings,
-                        #                 quantities_info = diffeq.settings$quantities.info,
-                        #                 quantity_scratch_vector = diffeq.settings$quantity_scratch_vector,
-                        #                 scratch_vector = diffeq.settings$scratch.vector,
-                        #                 natality_info = diffeq.settings$natality.info,
-                        #                 mortality_info = diffeq.settings$mortality.info,
-                        #                 transitions_info = diffeq.settings$transitions.info,
-                        #                 infections_info = diffeq.settings$infections.info,
-                        #                 remission_info = diffeq.settings$remission.info,
-                        #                 fixed_strata_info = diffeq.settings$fixed.strata.info,
-                        #                 population_trackers = diffeq.settings$population_trackers)
-                        #     save(args,
-                        #          file = 'R/local_testing/diffeq_test_args.Rdata'
-                        #          )
-                        #     stop("Ending here for now")
-                        # }
-                        compute_dx(state = x,
+                        dx = compute_dx(state = x,
                                    time = t,
                                    settings = diffeq.settings,
                                    quantities_info = diffeq.settings$quantities.info,
@@ -870,6 +871,11 @@ SOLVER.METADATA = R6::R6Class(
                         
                         private$i.n.diffeq.evaluations = private$i.n.diffeq.evaluations + 1
                     }
+                    
+                    if (JHEEM.SOLVER.TRACKING$do.tracking)
+                        JHEEM.SOLVER.TRACKING$tracked.info$diffeq.computed.times = c(JHEEM.SOLVER.TRACKING$tracked.info$diffeq.computed.times, t)
+                    
+                    dx
                 }
                 
                 ode.results = odeintr::integrate_sys(sys = compute.fn,
@@ -996,7 +1002,7 @@ create.jheem.engine <- function(version,
                                 end.year,
                                 sub.version = NULL,
                                 max.run.time.seconds = Inf,
-                                solver.metadata = create.solver.metadata())
+                                solver.metadata = NULL)
 {
     jheem.kernel = create.jheem.kernel(version = version,
                                        location = location)
@@ -1099,12 +1105,19 @@ JHEEM.ENGINE = R6::R6Class(
             jheem$set.calibration.code(calibration.code, 
                                        outcome.location.mapping = outcome.location.mapping)
             
-            specification = get.compiled.specification.for.version(version)
+            specification = NULL
             
             # Start and end years
+            default.start.year = jheem$kernel$start.year
+            if (is.null(default.start.year)) #for backward compatibility
+            {
+               specification = get.compiled.specification.for.version(version)
+               default.start.year = specification$start.year
+            }
+            
             if (is.null(start.year))
             {
-                start.year = specification$start.year
+                start.year = default.start.year
             }
             else
             {
@@ -1122,10 +1135,10 @@ JHEEM.ENGINE = R6::R6Class(
             # Prior simulation set
             if (is.null(prior.simulation.set))
             {
-                if (start.year != specification$start.year)
+                if (start.year != default.start.year)
                     stop(paste0(error.prefix, "If not 'prior.simulation.is.specified' then 'start.year' (given ", start.year, 
                                 ") MUST be equal to the start.year for the '", version, "' specification (",
-                                specification$start.year, ")"))
+                                default.start.year, ")"))
             }
             else
             {
@@ -1187,8 +1200,18 @@ JHEEM.ENGINE = R6::R6Class(
             else if (!is.numeric(max.run.time.seconds) || length(max.run.time.seconds)!=1 || is.na(max.run.time.seconds) || max.run.time.seconds<=0)
                 stop(paste0(error.prefix, "'max.run.time.seconds' must be a single, non-NA, positive numeric value"))
             
-            if (!is(solver.metadata, "solver.metadata"))
-                stop(paste0(error.prefix, "'solver.metadata' must be an object of class 'solver.metadata' created by create.solver.metadata()"))
+            if (is.null(solver.metadata))
+            {
+                solver.metadata = jheem$kernel$default.solver.metadata
+                
+                if (is.null(solver.metadata))
+                    solver.metadata = create.solver.metadata()    
+            }
+            else
+            {
+                if (!is(solver.metadata, "solver.metadata"))
+                    stop(paste0(error.prefix, "'solver.metadata' must be an object of class 'solver.metadata' created by create.solver.metadata()"))
+            }
             
             # intervention.code
             if (!is.null(intervention.code))
@@ -1714,6 +1737,7 @@ JHEEM = R6::R6Class(
                                                    max.run.time.seconds = max.run.time.seconds,
                                                    run.from.time = private$i.run.from.time,
                                                    run.to.time = private$i.run.to.time)
+            
             
             end.diffeq.time = as.numeric(Sys.time())
             
@@ -3089,6 +3113,14 @@ JHEEM = R6::R6Class(
                 private$i.parameters
             else
                 stop("Cannot modify a jheem's parameters - they are read-only")
+        },
+        
+        kernel = function(value)
+        {
+            if (missing(value))
+                private$i.kernel
+            else
+                stop("Cannot modify a jheem's kernel - it is read-only")
         }
         
     ),
@@ -6091,7 +6123,12 @@ JHEEM = R6::R6Class(
                 if (is.null(from.outcome.ontology))
                     stop(paste0(error.prefix, "Cannot transmute outcome '", outcome.name, "' - it is not in the given simulation.set"))
                 
-                outcome.years = from.outcome.ontology$year[from.outcome.ontology$year >= private$i.keep.from.time & from.outcome.ontology$year <= private$i.keep.to.time]
+                if (simulation.set$outcome.metadata[[outcome.name]]$is.cumulative)
+                    outcome.keep.to.time = private$i.keep.to.time
+                else
+                    outcome.keep.to.time = private$i.keep.to.time + 1
+                
+                outcome.years = from.outcome.ontology$year[from.outcome.ontology$year >= private$i.keep.from.time & from.outcome.ontology$year <= outcome.keep.to.time]
                 
                 to.outcome = private$i.kernel$get.outcome.kernel(outcome.name)
                 to.outcome.dim.names = c(list(year=outcome.years), to.outcome$dim.names)
@@ -6702,6 +6739,7 @@ JHEEM = R6::R6Class(
                         raw.value = lapply(1:length(private$i.outcome.value.times.to.calculate[[outcome.name]]), function(i){
                             
                             time = as.character(private$i.outcome.value.times.to.calculate[[outcome.name]][i])
+
                             collapsed.denominator = collapse.array.according.to.indices(arr = denominator[[time]],
                                                                                         small.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$small.indices,
                                                                                         large.indices = private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator$large.indices,

@@ -121,7 +121,7 @@ JHEEM.CUSTOM.LIKELIHOOD <- R6::R6Class(
             if (!is.numeric(likelihood) || length(likelihood)!=1 || is.na(likelihood))
             {
                 .GlobalEnv$errored.likelihood = self
-                .GlobalEnv$errored.sim = self
+                .GlobalEnv$errored.sim = sim
                 stop(paste0(error.prefix, "the likelihood value returned from the 'compute.function' for '", self$name,
                             "' must be a single numeric value. The simulation and likelihood which produced this error have been stored in the global environment as 'errored.sim' and 'errored.likelihood'"))
             }

@@ -5,8 +5,9 @@
 #'@param outcomes A character vector of which simulation outcomes to plot
 #'@param split.by At most one dimension
 #'@param facet.by Any number of dimensions but cannot include the split.by dimension
-#'@param dimension.values
+#'@param dimension.values.post.mapping How to subset data in the form it will take after mappings have been applied to align sim and data ontologies. A list.
 #'@param plot.which Should simulation data and calibration data be plotted ('sim.and.data'), or only simulation data ('sim.only')
+#'@param label.function A function to reformat labels. If NULL, will use the first provided simset's "get.labels" property, or will do no transformation if plotting data only.
 #'@param title NULL or a single, non-NA character value. If "location", the location of the first provided simset (if any) will be used for the title.
 #'@param data.manager The data.manager from which to draw real-world data for the plots
 #'@param style.manager We are going to have to define this down the road. It's going to govern how we do lines and sizes and colors. For now, just hard code those in, and we'll circle back to it
@@ -24,9 +25,11 @@ simplot <- function(...,
                     split.by = NULL,
                     facet.by = NULL,
                     dimension.values = list(),
+                    dimension.values.post.mapping = list(),
                     target.ontology = NULL,
                     plot.which = c('sim.and.data', 'sim.only')[1],
                     summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
+                    label.function = NULL,
                     plot.year.lag.ratio = F,
                     title = "location",
                     n.facet.rows = NULL,
@@ -55,9 +58,11 @@ simplot <- function(...,
                                       split.by=split.by,
                                       facet.by=facet.by,
                                       dimension.values=dimension.values,
+                                      dimension.values.post.mapping=dimension.values.post.mapping,
                                       target.ontology=target.ontology,
                                       plot.which=plot.which,
                                       summary.type=summary.type,
+                                      label.function=label.function,
                                       plot.year.lag.ratio=plot.year.lag.ratio,
                                       title=title,
                                       append.url=append.url,
@@ -171,7 +176,9 @@ simplot.data.only <- function(outcomes,
                               split.by=NULL,
                               facet.by = NULL,
                               dimension.values = list(),
+                              dimension.values.post.mapping = list(),
                               target.ontology = NULL,
+                              label.function = NULL,
                               plot.year.lag.ratio = F,
                               title = "location",
                               n.facet.rows = NULL,
@@ -192,9 +199,11 @@ simplot.data.only <- function(outcomes,
                                       split.by=split.by,
                                       facet.by=facet.by,
                                       dimension.values=dimension.values,
+                                      dimension.values.post.mapping=dimension.values.post.mapping,
                                       target.ontology=target.ontology,
                                       plot.which='data.only',
                                       summary.type=summary.type,
+                                      label.function=label.function,
                                       plot.year.lag.ratio=plot.year.lag.ratio,
                                       title=title,
                                       append.url=append.url,
@@ -232,10 +241,12 @@ prepare.plot <- function(simset.list=NULL,
                          split.by = NULL,
                          facet.by = NULL,
                          dimension.values = list(),
+                         dimension.values.post.mapping = list(),
                          target.ontology = NULL,
                          plot.which = c('sim.and.data', 'sim.only', 'data.only')[1],
                          summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                          plot.year.lag.ratio = F,
+                         label.function = NULL,
                          title="location",
                          append.url=F,
                          data.manager = get.default.data.manager(),
@@ -273,6 +284,11 @@ prepare.plot <- function(simset.list=NULL,
         stop(paste0(error.prefix, "'target.ontology' must be NULL, an ontology, or a list of ontologies with outcomes as names"))
     
     # Must supply a target ontology if using simplot.data.only, because otherwise multiple outcomes won't be alignable...?
+    
+    # label.function must be NULL or a function that takes one argument.
+    if (!is.null(label.function) &&(!is.function(label.function) || length(formals(label.function)) != 1)) {
+        stop(paste0(error.prefix, "'label.function' must be NULL or a function that takes one argument"))
+    }
     
     if (!identical(plot.year.lag.ratio, T) && !identical(plot.year.lag.ratio, F))
         stop(paste0(error.prefix, "'plot.year.lag.ratio' must be either T or F"))
@@ -359,14 +375,14 @@ prepare.plot <- function(simset.list=NULL,
         names(outcome.locations) = outcomes.for.data
     }
     
-    # Get sim labels (like "MSM/PWID" instead of "msm_idu")
-    if (plot.which!="data.only") {
-        sim.labels.list = lapply(simset.list, function(simset) {
-            simset$metadata$labels
-        })
-    } else 
-        sim.labels.list = NULL
-    
+    # Get labels (like "MSM/PWID" instead of "msm_idu")
+    if (!is.null(label.function)) {
+        label_function <- label.function
+    } else if (plot.which!="data.only") {
+        label_function <- simset.list[[1]]$get.labels
+    } else {
+        label_function <- function(x) {x}
+    }
     
     #-- MAKE A DATA FRAME WITH ALL THE REAL-WORLD DATA ----
     
@@ -384,7 +400,7 @@ prepare.plot <- function(simset.list=NULL,
                     # browser()
                     if (!is.null(target.ontology) && !is.list(target.ontology))
                         result = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                                   dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                                   dimension.values = c(dimension.values, dimension.values.post.mapping, list(location = outcome.locations[[i]])),
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = target.ontology,
                                                    allow.mapping.from.target.ontology = F,
@@ -393,7 +409,7 @@ prepare.plot <- function(simset.list=NULL,
                                                    debug=F)
                     else if (is.list(target.ontology) && outcomes.for.data[[i]] %in% names(target.ontology))
                         result = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                                   dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                                   dimension.values = c(dimension.values, dimension.values.post.mapping, list(location = outcome.locations[[i]])),
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = target.ontology[[outcomes.for.data[[i]]]],
                                                    allow.mapping.from.target.ontology = F,
@@ -402,7 +418,7 @@ prepare.plot <- function(simset.list=NULL,
                                                    debug=F)
                     else if (plot.which=='sim.and.data')
                         result = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                                   dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                                   dimension.values = c(dimension.values, dimension.values.post.mapping, list(location = outcome.locations[[i]])),
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = outcome.ontologies[[i]],
                                                    allow.mapping.from.target.ontology = T,
@@ -411,7 +427,7 @@ prepare.plot <- function(simset.list=NULL,
                                                    debug=F)
                     else # See if we really want this or not
                         result = data.manager$pull(outcome = outcomes.for.data[[i]],
-                                                   dimension.values = c(dimension.values, list(location = outcome.locations[[i]])),
+                                                   dimension.values = c(dimension.values, dimension.values.post.mapping, list(location = outcome.locations[[i]])),
                                                    keep.dimensions = c('year', 'location', facet.by, split.by), #'year' can never be in facet.by
                                                    target.ontology = NULL,
                                                    append.attributes=append.attributes,
@@ -436,6 +452,12 @@ prepare.plot <- function(simset.list=NULL,
                 
                 # If we have multiple outcomes that may map differently (for example, with years), the factor levels unavoidably determined by the first outcome for reshape2::melt may not be valid for subsequent outcomes
                 one.df.outcome = reshape2::melt(outcome.data, na.rm = T, as.is=T)
+                
+                # Convert labels
+                columns_to_labelize <- setdiff(colnames(one.df.outcome), c("year", "location", "source", "value"))
+                one.df.outcome[columns_to_labelize] <- lapply(one.df.outcome[columns_to_labelize], function(col) {
+                    label_function(col)
+                })
                 
                 if (append.url) {
                     one.df.outcome = cbind(one.df.outcome, reshape2::melt(attr(outcome.data, 'url'), na.rm=T, as.is=T))
@@ -471,8 +493,8 @@ prepare.plot <- function(simset.list=NULL,
             for (i in seq_along(facet.by)) {
                 names(df.truth)[names(df.truth)==facet.by[i]] = paste0("facet.by", i)
             }
-        # if (!is.null(facet.by)) names(df.truth)[names(df.truth)==facet.by] = "facet.by" ##########################
         
+        df.truth$outcome.display.name <- factor(df.truth$outcome.display.name, levels = sapply(outcome.metadata.list, function(outcome) {outcome$display.name}))
         # if there is no 'stratum' because no split, then we should fill it with ""
         if (!('stratum' %in% names(df.truth))) df.truth['stratum'] = rep('', nrow(df.truth))
         
@@ -506,6 +528,9 @@ prepare.plot <- function(simset.list=NULL,
                 
                 if (is.null(simset.data.this.outcome)) next
                 
+                # Subset post mapping
+                simset.data.this.outcome <- array.access(simset.data.this.outcome, dimension.values.post.mapping)
+                
                 # If the scale is proportion, multiply data by 100 to match the "%" symbol the label will have
                 if (simset.list[[i]][['outcome.metadata']][[outcome]]$display.as.percent)
                     simset.data.this.outcome = simset.data.this.outcome * 100
@@ -517,10 +542,20 @@ prepare.plot <- function(simset.list=NULL,
                     else col
                 }))
                 
+                # Convert columns not "year", "sim", "metric" or "value" into proper labels
+                columns_to_labelize <- setdiff(colnames(one.df.sim.this.outcome), c("year", "sim", "value", "metric"))
+                one.df.sim.this.outcome[columns_to_labelize] <- lapply(one.df.sim.this.outcome[columns_to_labelize], function(col) {
+                    label_function(col)
+                })
+                
                 one.df.sim.this.outcome['simset'] = names(simset.list)[[i]]
                 one.df.sim.this.outcome['outcome'] = outcome
-                one.df.sim.this.outcome['linewidth'] = 1/(style.manager$linewidth.slope * log10(simset$n.sim) + 1) # # used to be 1/sqrt() have style manager create this later?
-                one.df.sim.this.outcome['alpha'] = one.df.sim.this.outcome['linewidth'] # same comment as above; USED to be 20 * this
+                one.df.sim.this.outcome['linewidth'] = style.manager$linewidth.baseline/(style.manager$linewidth.slope * log10(simset$n.sim) + 1)
+                if (!is.null(style.manager$alpha.line)) {
+                    one.df.sim.this.outcome['alpha'] = style.manager$alpha.line
+                } else {
+                    one.df.sim.this.outcome['alpha'] = one.df.sim.this.outcome['linewidth']
+                }
                 
                 # Make a "outcome.long.name" column so that the facet.by can present it instead of the short name
                 one.df.sim.this.outcome['outcome.display.name'] = outcome.metadata.list[[outcome]]$display.name
@@ -543,6 +578,8 @@ prepare.plot <- function(simset.list=NULL,
                 df.sim[paste0("facet.by", i)] = df.sim[facet.by[i]]
             }
         # df.sim["facet.by"] = df.sim[facet.by]
+        
+        df.sim$outcome.display.name <- factor(df.sim$outcome.display.name, levels = sapply(outcome.metadata.list, function(outcome) {outcome$display.name}))
         
         # if we don't have a 'stratum' col because no split, make an empty one
         if (!('stratum' %in% names(df.sim))) df.sim['stratum'] = rep('', nrow(df.sim))
@@ -660,8 +697,7 @@ prepare.plot <- function(simset.list=NULL,
                 details=list(y.label=y.label,
                              plot.title=plot.title,
                              outcome.metadata.list = outcome.metadata.list,
-                             source.metadata.list = source.metadata.list,
-                             sim.labels.list = sim.labels.list)))
+                             source.metadata.list = source.metadata.list)))
 }
 
 #' Execute Simplot
@@ -704,10 +740,16 @@ execute.simplot <- function(prepared.plot.data,
         df.truth['location.type'] = locations::get.location.type(df.truth$location)
         df.truth['shape.data.by'] = df.truth[style.manager$shape.data.by]
         df.truth['color.data.by'] = df.truth[style.manager$color.data.by]
-        df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
-        if (style.manager$color.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum==""))
+        if (!is.null(style.manager$shade.data.by))
+            df.truth['shade.data.by'] = df.truth[style.manager$shade.data.by]
+        
+        # If either stratifying and use either color or shade for "stratum", use the other one
+        # unless possibly we're skipping shading.
+        if (!is.null(style.manager$shade.data.by) &&
+            style.manager$color.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum==""))
             df.truth['color.and.shade.data.by'] = df.truth['shade.data.by']
-        else if (style.manager$shade.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum==""))
+        else if (is.null(style.manager$shade.data.by) ||
+                 style.manager$shade.data.by == 'stratum' && !is.null(df.truth$stratum) && all(df.truth$stratum==""))
             df.truth['color.and.shade.data.by'] = df.truth['color.data.by']
         else
             df.truth['color.and.shade.data.by'] = do.call(paste, c(df.truth['shade.data.by'], df.truth['color.data.by'], list(sep="__")))
@@ -757,12 +799,17 @@ execute.simplot <- function(prepared.plot.data,
     ## SHADES FOR DATA
     color.data.shaded.colors = NULL
     if (!is.null(df.truth)) {
-        color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
-        # This can lead to problems if we have either of these being "" because then we'll get an underscore that won't match the actual column values in the data frame
-        if (identical(unique(df.truth$color.data.by), ""))
-            names(color.data.shaded.colors) = unique(df.truth$shade.data.by)
-        else
-            names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
+        if (is.null(style.manager$shade.data.by))
+            color.data.shaded.colors <- color.data.primary.colors
+        else {
+            color.data.shaded.colors = unlist(lapply(color.data.primary.colors, function(prim.color) {style.manager$get.shades(base.color=prim.color, length(unique(df.truth$shade.data.by)))}))
+            # This can lead to problems if we have either of these being "" because then we'll get an underscore that won't match the actual column values in the data frame
+            if (identical(unique(df.truth$color.data.by), ""))
+                names(color.data.shaded.colors) = unique(df.truth$shade.data.by)
+            else
+                names(color.data.shaded.colors) = do.call(paste, c(expand.grid(unique(df.truth$shade.data.by), unique(df.truth$color.data.by)), list(sep="__")))
+            
+        }
     }
     
     ## SHAPES
@@ -802,7 +849,7 @@ execute.simplot <- function(prepared.plot.data,
     rv = rv +
         ggplot2::labs(y=y.label) +
         ggplot2::ggtitle(plot.title) +
-        ggplot2::scale_alpha(guide='none')
+        ggplot2::scale_alpha_identity(guide='none')
     
     
     if (!plot.year.lag.ratio)
@@ -810,7 +857,6 @@ execute.simplot <- function(prepared.plot.data,
     else
         rv = rv + ggplot2::scale_y_continuous(labels = scales::comma)
     # browser()
-    
     # SIM ELEMENTS
     if (!is.null(df.sim)) {
         # Note: the key to avoiding warning messages about scale is to only add a scale if it is used by the data frames that are actually plotted.

@@ -46,6 +46,8 @@ get.depends.on.functions <- function(fn,
     #-- Re-parse the text and extract function names --#
     reparsed = parse(text = deparsed)
     
+
+    
     fn.names = setdiff(all.vars(reparsed, functions=T),
                        all.vars(reparsed, functions = F))
     fn.names = setdiff(fn.names, HOLDER)
@@ -110,10 +112,52 @@ get.depends.on.functions <- function(fn,
     fns
 }
 
+get.depends.on.global.variables <- function(fn,
+                                            fn.name.for.error,
+                                            exclude.names = character(),
+                                            error.prefix)
+{
+    deparsed = deparse(fn)
+    reparsed = parse(text = deparsed)
+    
+    globals = setdiff(codetools::findGlobals(fn), exclude.names)
+    
+    fn.names = setdiff(all.vars(reparsed, functions=T),
+                       all.vars(reparsed, functions = F))
+    
+    non.fn.globals = setdiff(globals, fn.names)
+    non.fn.globals = setdiff(non.fn.globals, c('T','F'))
+    
+    var.exists = sapply(non.fn.globals, exists, envir=environment(fn))
+    
+    if (any(!var.exists))
+    {
+        not.exists.vars = non.fn.globals[!var.exists]
+        stop(paste0(error.prefix,
+                    "The function '",
+                    fn.name.for.error, "' references global variable",
+                    ifelse(length(not.exists.vars)==1, ' ', "s "),
+                    collapse.with.and("'", not.exists.vars, "'"),
+                    ifelse(length(not.exists.vars)==1, ', but it is', ", but they are"),
+                    " not defined in the function's enclosing enviroment at this time"))
+    }
+    
+    is.fn = sapply(non.fn.globals, function(v){
+        is.function(get(v, envir = environment(fn)))
+    })
+    
+    non.fn.globals = non.fn.globals[!is.fn]
+    
+    variables = lapply(non.fn.globals, get, pos=environment(fn))
+    names(variables) = non.fn.globals
+    
+    variables
+}
+
 bundle.function.and.dependees <- function(fn,
                                           parent.environment,
                                           fn.name.for.error = NULL,
-                                          error.prefix = '')
+                                          error.prefix = ifelse(is.null(fn.name.for.error), "The function to bundle", fn.name.for.error))
 {
     if (is.null(fn.name.for.error))
         fn.name.for.error = deparse(substitute(fn))
@@ -125,15 +169,26 @@ bundle.function.and.dependees <- function(fn,
     
     env = new.env(parent = parent.environment)
     
+    dependee.globals = get.depends.on.global.variables(fn, 
+                                                       fn.name.for.error = fn.name.for.error,
+                                                       error.prefix = error.prefix)
+    
+    
     environment(new.fn) = env
     for (i in seq_along(dependee.fns))
     {
         one.dependee = dependee.fns[[i]]
         dependee.name = names(dependee.fns)[i]
         
+        dependee.globals = c(dependee.globals,
+                             get.depends.on.global.variables(fn, exclude.names=names(dependee.globals)))
+        
         environment(one.dependee) = env
         env[[dependee.name]] = one.dependee
     }
+    
+    for (dependee.global.name in names(dependee.globals))
+        env[[dependee.global.name]] = dependee.globals[[dependee.global.name]]
     
     new.fn
 }

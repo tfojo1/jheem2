@@ -3,7 +3,7 @@
 #'@param calibration.code
 #'@param root.dir
 #'@param sub.version
-#'@param cache.frequency
+#' @param cache.frequency
 #'@param allow.overwrite.cache
 #'@param verbose
 #'
@@ -11,9 +11,13 @@
 run.new.algorithm <- function(version,
                               location,
                               calibration.code,
+                              k,
+                              ptk,
+                              thin,
+                              cache.every,
                               root.dir = get.jheem.root.directory("Cannot set up calibration: "),
                               sub.version = NULL,
-                              cache.frequency = 500,
+                              # cache.frequency = 500,
                               allow.overwrite.cache = F,
                               verbose = T)
 {
@@ -49,11 +53,11 @@ run.new.algorithm <- function(version,
         (!is.character(sub.version) || length(sub.version)!=1 || is.na(sub.version)))
         stop(paste0(error.prefix, "'sub.version' must be either NULL or a single, non-NA character value"))
     
-    # cache frequency
-    if (!is.numeric(cache.frequency) || length(cache.frequency)!=1 || is.na(cache.frequency) || round(cache.frequency)!=cache.frequency)
-        stop(paste0(error.prefix, "'cache.frequency' must be a single, non-NA integer value"))
-    if (cache.frequency <= 0)
-        stop(paste0(error.prefix, "'cache.frequency' must be >= 1"))
+    # # cache frequency
+    # if (!is.numeric(cache.frequency) || length(cache.frequency)!=1 || is.na(cache.frequency) || round(cache.frequency)!=cache.frequency)
+    #     stop(paste0(error.prefix, "'cache.frequency' must be a single, non-NA integer value"))
+    # if (cache.frequency <= 0)
+    #     stop(paste0(error.prefix, "'cache.frequency' must be >= 1"))
     
     # allow.overwrite.cache
     if (!is.logical(allow.overwrite.cache) || length(allow.overwrite.cache)!=1 || is.na(allow.overwrite.cache))
@@ -504,14 +508,19 @@ run.new.algorithm <- function(version,
     run.mcmc <- function(start.params,
                          n.iterations) {
         modified.ctrl = 
-        bayesian.simulations::run.mcmc.with.cache(ctrl, n.iterations, starting.values = matrix(start.params, nrow=1), update.frequency = 1, cache.frequency = 500, cache.dir = tempdir())
+        # bayesian.simulations::run.mcmc.with.cache(ctrl, n.iterations, starting.values = matrix(start.params, nrow=1), update.frequency = 1, cache.frequency = 500, cache.dir = tempdir())
+            bayesian.simulations::run.mcmc(ctrl,
+                                                      n.iterations,
+                                                      starting.values = matrix(start.params, nrow=1),
+                                                      update.frequency = 1,
+                                                      cache.frequency = NA)
     }
     # browser()
     # Plop in my whole algorithm here, which uses the run.mcmc above
     
-    K=6
-    ptK=2
-    thin.by=2
+    K=k
+    ptK=ptk
+    thin.by=thin
     
     ctrl = bayesian.simulations::create.adaptive.blockwise.metropolis.control(
         var.names = mcmc.parameter.names,
@@ -523,12 +532,12 @@ run.new.algorithm <- function(version,
         var.blocks = sampling.blocks,
         reset.adaptive.scaling.update.after = 0,
         transformations = mcmc.parameter.scales,
-        
+
         initial.covariance.mat = initial.cov.mat,
         initial.scaling.parameters = initial.scaling.parameters,
-        
+
         target.acceptance.probability = target.acceptance.rate,
-        
+
         n.iter.before.use.adaptive.covariance = n.iter.before.cov,
         adaptive.covariance.base.update = cov.base.update,
         adaptive.covariance.update.prior.iter = cov.update.prior,
@@ -539,52 +548,98 @@ run.new.algorithm <- function(version,
         adaptive.scaling.update.decay = scaling.update.decay
     )
     
+    # Save the simulations
+    full.simulation.list = list()
+    
     start.params = starting.mcmc.parameter.values # 10 by 80
     
-    current.sample = lapply(1:K, function(k) {run.simulation(params = starting.mcmc.parameter.values[k,])})
+    total.time = Sys.time()
     
+    starting.sample.simulations = previous.simulation.list = lapply(1:K, function(k) {run.simulation(params = start.params[k,])})
+
     i = 1
     h = Inf
     pi.value = sapply(1:K, function(k) {runif(1)})
-    sample.likelihoods = sapply(current.sample, function(s) {likelihood$compute(s, log=T)})
+    sample.likelihoods = sapply(starting.sample.simulations, function(s) {likelihood$compute(s, log=T)})
     l = max(sample.likelihoods)
-    
-    while (h > 0 && i < 3) {
+    cache.index = 1
+    # go for running 10000 iterations
+    while (h > 0 && i < 10) {
+        # Rprof()
         i = i + 1
+        tt = Sys.time()
         
         # select threshold level h
-        g.values = sapply(1:K, function(k) {
-            log(pi.value[k]) + l - sample.likelihoods[k]
-        })
-        names(g.values) = 1:K
+        tryCatch({g.values = log(pi.value) + l - sample.likelihoods}, warning=function(w) {browser()})
+        
+        names(g.values) = 1:length(g.values)
         g.values = sort(g.values)
-        h = 0.5 * (g.values[ptK] + g.values[ptK + 1]) # pt-percentile of ordered set
-        n = sum(g.values <= max(h, 0))
+        
+        # pt-percentile of ordered set
+        h = 0.5 * (g.values[ptK] + g.values[ptK + 1]) 
+        selection.mask = g.values <= max(h,0)
+        n = sum(selection.mask)
+        # has length n
+        selected.simulations = previous.simulation.list[as.numeric(names(g.values))[selection.mask]]
+
         if (h < 0) h = 0
+        
+        CACHE.EVERY = max(1, cache.every * n / (K * thin.by))
+        # if K=1000 and n=1000 and THIN=2, then we'll make 2000 simulations (~30 minutes)
+        # I'd like to cache every 15 minutes, which is halfway.
+        # I can only do so on a new chain, the number of which is n.
+        # K*THIN/n tells me how many iterations per chain. I want every 1000 simulations.
+        # 1000 sims * n/(K*THIN) tells me number of chains. Which is 1000*1000 / (1000 * 2) = 500
+        # But if n=40, then we have 1000*40/(1000*2) = every 20 chains
 
         # run n Markov chains with K * thin / n iterations each,
         # so that we end up with K samples for the next round
-        new.sample = lapply(as.numeric(names(g.values)), function(k) {
-            tryCatch({run.mcmc(start.params[k,],
-                               n.iterations = K * thin.by/n)}, error=function(e) {browser()})
+        
+        num.caches = ceiling(n/CACHE.EVERY)
+        j = 0
+        simulation.list = list()
+        while (j<num.caches) {
+            rv = lapply(1:CACHE.EVERY + j*CACHE.EVERY, function(ii) {
+                if (ii > n) NULL
+                else run.mcmc(selected.simulations[[ii]]$parameters[mcmc.parameter.names,1],
+                              n.iterations = K*thin.by/n)
+            })
+            rv = rv[!sapply(rv, is.null)]
+            # browser()
+            rv = unlist(lapply(rv, function(x) {
+                # We want the redundant simulations too
+                x@simulations[as.integer(x@simulation.indices)]
+            }))
             
-        })
-        browser()
+            FILE.NAME = file.path("../../files/Andrew_calib_algo_cache", paste0("cache_", cache.index, ".rdata"))
+            save(rv, file = FILE.NAME)
+            cache.index = cache.index + 1
+            print(paste0("saved on iteration ", i, " and j ", j))
+            
+            ## TO DO: convert to @simulations FIRST, because these objects are so large
+            
+            simulation.list = c(simulation.list, rv)
+            j = j + 1
+        }
+        tryCatch({sample.likelihoods = sapply(simulation.list, function(s) {likelihood$compute(s, log=T)})}, error=function(e) {browser()})
         
-        new.sample.simulations = unlist(lapply(new.sample, function(x) {x@simulations}))
-        
-        sample.likelihoods = sapply(new.sample.simulations, function(s) {likelihood$compute(s, log=T)})
-        
+
         # update the value of the scaling constant "l"
         l.new = max(l, sample.likelihoods)
         h = h - l + l.new
         l = l.new
         
         # decrease dependence of the K samples
-        pi.value = sapply(1:K, function(k) {runif(0, min(1, exp(sample.likelihoods) - l + h))})
+        pi.value = runif(length(sample.likelihoods), 0, min(1, exp(sample.likelihoods - l + h)))
         
+        previous.simulation.list = simulation.list
+        
+        print(paste0("Iteration ", i," took ", Sys.time()-tt, " with l = ", l.new))
+        # Rprof(NULL)
+        # browser()
     }
-    
+    total.time = Sys.time() - total.time
     if (verbose)
         print(paste0(verbose.prefix, "All Done!"))
+    browser()
 }

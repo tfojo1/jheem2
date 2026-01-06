@@ -1192,6 +1192,7 @@ find.ontology.mapping <- function(from.ontology,
                 print(paste0("Find mappings for ", paste0(dset, collapse="/")))
             
             required.dimensions.in.dset = intersect(required.dimensions, dset)
+            
             mappings.for.dset = find.ontology.mapping.for.dimensions(from.ontology = from.ontology.for.set,
                                                                      to.ontology = to.ontology.for.set,
                                                                      required.dimensions = required.dimensions.in.dset,
@@ -1205,6 +1206,65 @@ find.ontology.mapping <- function(from.ontology,
                                                                      orig.mappings.to.try = mappings.to.try,
                                                                      search.depth = 0)
             
+            # We are going to prioritize 'simpler' mappings - that just go one way
+            if (get.two.way.alignment && !is.null(mappings.for.dset) &&
+                (!all(sapply(mappings.for.dset[[1]], function(mapping){mapping$is.identity.mapping})) && 
+                 !all(sapply(mappings.for.dset[[2]], function(mapping){mapping$is.identity.mapping}))) )
+            {
+                if (DEBUG.ONTOLOGY.MAPPINGS)
+                    print(paste0("- Found a two-way mapping, going to see if we can find a simpler one-way mapping"))
+            
+                # First, try without two-way
+                simpler.mapping = find.ontology.mapping.for.dimensions(from.ontology = from.ontology.for.set,
+                                                                         to.ontology = to.ontology.for.set,
+                                                                         required.dimensions = required.dimensions.in.dset,
+                                                                         required.dim.names = required.dim.names.for.set,
+                                                                         get.two.way.alignment = F,
+                                                                         allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions,
+                                                                         try.allowing.non.overlapping.incomplete.dimensions = F,
+                                                                         is.for.two.way = F,
+                                                                         used.mappings = list(),
+                                                                         mappings.to.try = mappings.to.try,
+                                                                         orig.mappings.to.try = mappings.to.try,
+                                                                         search.depth = 0)
+                
+                if (is.null(simpler.mapping))
+                {
+                    simpler.mapping = find.ontology.mapping.for.dimensions(from.ontology = to.ontology.for.set,
+                                                                             to.ontology = from.ontology.for.set,
+                                                                             required.dimensions = required.dimensions.in.dset,
+                                                                             required.dim.names = required.dim.names.for.set,
+                                                                             get.two.way.alignment = F,
+                                                                             allow.non.overlapping.incomplete.dimensions = allow.non.overlapping.incomplete.dimensions,
+                                                                             try.allowing.non.overlapping.incomplete.dimensions = F,
+                                                                             is.for.two.way = F,
+                                                                             used.mappings = list(),
+                                                                             mappings.to.try = mappings.to.try,
+                                                                             orig.mappings.to.try = mappings.to.try,
+                                                                             search.depth = 0)
+                    
+                    if (!is.null(simpler.mapping))
+                    {
+                        simpler.mapping$to = simpler.mapping$from
+                        simpler.mapping$from = get.identity.ontology.mapping()
+                    }
+                }
+                else
+                    simpler.mapping$to = get.identity.ontology.mapping()
+                
+                if (!is.null(simpler.mapping))
+                    mappings.for.dset = simpler.mapping
+                
+                if (DEBUG.ONTOLOGY.MAPPINGS)
+                {
+                    if (is.null(simpler.mapping))
+                        print(paste0("- Did NOT find simpler one-way mapping"))
+                    else
+                        print(paste0("- DID find a simpler one-way mapping"))
+                }
+                
+            }
+            
             if (is.null(mappings.for.dset))
             {
                 if (length(intersect(dset, names(from.ontology)))==0)
@@ -1215,7 +1275,7 @@ find.ontology.mapping <- function(from.ontology,
                                  ifelse(length(to.dimensions.in.dset)==1, "dimension ", "dimensions "),
                                  collapse.with.and("'", to.dimensions.in.dset, "'"),
                                  ifelse(length(to.dimensions.in.dset)==1, " which is", " which are"),
-                                 " present in ", to.ontology.name, " but not ", to.ontology.name,
+                                 " present in ", to.ontology.name, " but not ", from.ontology.name,
                                  ". (",
                                  collapse.with.and("'", incomplete.to.dimensions.in.dset, "'"),
                                  ifelse(length(incomplete.to.dimensions.in.dset)==1, " is an incomplete dimension)", " are incomplete dimensions)"))
@@ -3649,7 +3709,7 @@ initial.check.can.apply <- function(mapping,
                                            " not present in the mapping")
                     if (length(missing.values)>0)
                         missing.msg = paste0("is missing ", length(missing.values),
-                                             ifelse(length(missing.values)==1, 'value', 'values'),
+                                             ifelse(length(missing.values)==1, ' value', ' values'),
                                              ": ", collapse.with.and("'", missing.values, "'"))
                     
                     error.prefix = paste0(error.prefix,

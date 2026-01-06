@@ -788,8 +788,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // do_optimized_get
-NumericVector do_optimized_get(List numerators, List denominators, List info_by_outcome, int n_to_per_outcome, bool avoid_infinite);
-RcppExport SEXP _jheem2_do_optimized_get(SEXP numeratorsSEXP, SEXP denominatorsSEXP, SEXP info_by_outcomeSEXP, SEXP n_to_per_outcomeSEXP, SEXP avoid_infiniteSEXP) {
+NumericVector do_optimized_get(List numerators, List denominators, List info_by_outcome, int n_to_per_outcome, bool avoid_infinite, bool na_rm);
+RcppExport SEXP _jheem2_do_optimized_get(SEXP numeratorsSEXP, SEXP denominatorsSEXP, SEXP info_by_outcomeSEXP, SEXP n_to_per_outcomeSEXP, SEXP avoid_infiniteSEXP, SEXP na_rmSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -798,7 +798,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< List >::type info_by_outcome(info_by_outcomeSEXP);
     Rcpp::traits::input_parameter< int >::type n_to_per_outcome(n_to_per_outcomeSEXP);
     Rcpp::traits::input_parameter< bool >::type avoid_infinite(avoid_infiniteSEXP);
-    rcpp_result_gen = Rcpp::wrap(do_optimized_get(numerators, denominators, info_by_outcome, n_to_per_outcome, avoid_infinite));
+    Rcpp::traits::input_parameter< bool >::type na_rm(na_rmSEXP);
+    rcpp_result_gen = Rcpp::wrap(do_optimized_get(numerators, denominators, info_by_outcome, n_to_per_outcome, avoid_infinite, na_rm));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -870,7 +871,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_jheem2_get_ontology_mapping_indices", (DL_FUNC) &_jheem2_get_ontology_mapping_indices, 4},
     {"_jheem2_do_get_reverse_indices_from_forward", (DL_FUNC) &_jheem2_do_get_reverse_indices_from_forward, 2},
     {"_jheem2_populate_outcomes_array", (DL_FUNC) &_jheem2_populate_outcomes_array, 8},
-    {"_jheem2_do_optimized_get", (DL_FUNC) &_jheem2_do_optimized_get, 5},
+    {"_jheem2_do_optimized_get", (DL_FUNC) &_jheem2_do_optimized_get, 6},
     {"_jheem2_get_year_indices_for_optimized_info", (DL_FUNC) &_jheem2_get_year_indices_for_optimized_info, 4},
     {NULL, NULL, 0}
 };

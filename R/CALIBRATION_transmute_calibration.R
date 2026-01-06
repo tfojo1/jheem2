@@ -6,6 +6,8 @@ set.up.transmute.calibration <- function(transmute.code,
                                          n.sim,
                                          n.chunks,
                                          allow.overwrite.cache = F,
+                                         root.dir = get.jheem.root.directory(),
+                                         return.simulations = F,
                                          verbose = T)
 {
     #------------------------#
@@ -49,6 +51,14 @@ set.up.transmute.calibration <- function(transmute.code,
     if (!is.logical(verbose) || length(verbose)!=1 || is.na(verbose))
         stop(paste0(error.prefix, "'verbose must be a single, non-NA logical value (either TRUE or FALSE)"))
     
+    #-- Make sure a cache is not already there --#
+    if (transmute.calibration.cache.exists(transmute.code = transmute.code,
+                                          location = location,
+                                          n.sim = n.sim,
+                                          root.dir = root.dir))
+    {
+        stop(paste0(error.prefix, "A cache has already been created. Use clear.transmute.calibration.cache() to remove it"))
+    }
     
     #--------------------------------------#
     #-- Pull the calibration info object --#
@@ -81,7 +91,7 @@ set.up.transmute.calibration <- function(transmute.code,
     #-- PULL THE PREVIOUS SIMSET --#
     
     if (verbose)
-        print(paste0(verbose.prefix, "Loading '", calibration.info.info$from.version, "' simset to transmute..."))
+        print(paste0(verbose.prefix, "Loading '", calibration.info$from.version, "' simset to transmute..."))
     
     pre.simset = retrieve.simulation.set(version = calibration.info$from.version,
                                          location = location,
@@ -96,7 +106,7 @@ set.up.transmute.calibration <- function(transmute.code,
     
     transmuter = create.jheem.transmuter(pre.simset, 
                                          to.version = calibration.info$to.version,
-                                         sub.version = calibrtion.info$to.sub.version)
+                                         to.sub.version = calibration.info$to.sub.version)
     
     #-- SET UP THE 'RUN' SIMULATION FUNCTION --#
     
@@ -106,19 +116,19 @@ set.up.transmute.calibration <- function(transmute.code,
         # return(
         #     transmuter$transmute(sim.index = mcmc.settings$sim.index,
         #                          parameters = parameters))
-        tryCatch({
+    #    tryCatch({
             transmuter$transmute(sim.index = mcmc.settings$sim.index,
                                  parameters = parameters)
-        },
-        error = function(e){
-            #browser()
-            NULL
-        })
+        # },
+        # error = function(e){
+        #     browser()
+        #     NULL
+        # })
     }
     
     trans.env = new.env(parent = baseenv())
     trans.env$transmuter = transmuter
-    trans.env$mcmc.settings = mcmc.settings
+    trans.env$mcmc.settings = list()
     environment(transmute.simulation) = trans.env
     
     #-- INSTANTIATE THE LIKELIHOOD --#
@@ -203,10 +213,11 @@ set.up.transmute.calibration <- function(transmute.code,
     
     #-- PULL IT TOGETHER in MCMC SETTINGS --#
     
-    mcmc.settings$start.values = default.start.values
-    mcmc.setting$n.iter = 0
-    mcmc.settings$ctrl = bayesian.simulations::create.adaptive.blockwise.metropolis.control(
-        var.names = prior@var.names,
+    trans.env$mcmc.settings$sim.index = 1
+    trans.env$mcmc.settings$start.values = default.start.values
+    trans.env$mcmc.settings$n.iter = 0
+    trans.env$mcmc.settings$ctrl = bayesian.simulations::create.adaptive.blockwise.metropolis.control(
+        var.names = prior.env$prior@var.names,
         simulation.function = transmute.simulation,
         log.prior.distribution = log.prior.fn,
         log.likelihood = compute.likelihood, # saves the data manager in here!
@@ -234,32 +245,87 @@ set.up.transmute.calibration <- function(transmute.code,
     #-- RUN THE FIRST SIMULATION --#
     
     if (verbose)
-        print("Running the first sim")
+        print(paste0(verbose.prefix, "Running the first sim..."))
     
-    mcmc = bayesian.simulations::run.mcmc(control = mcmc.settings$ctrl,
+    first.sim = trans.env$transmuter$transmute(sim.index = 1, parameters=trans.env$mcmc.settings$start.values)
+    lik.value = compute.likelihood(first.sim)
+    
+    if (is.infinite(lik.value))
+    {
+        .GlobalEnv$errored.sim = first.sim
+        .GlobalEnv$errored.likelihood = lik.env$likelihood
+        stop(paste0("The likelihood on the first transmutation of the first sim evaluates to -Inf. The first simulation and likelihood have been saved in the global environment as 'errored.sim' and 'errored.likelihood"))
+    }
+    
+    if (verbose)
+        print(paste0(verbose.prefix, "Running MCMC on the first sim..."))
+    
+    mcmc = bayesian.simulations::run.mcmc(control = trans.env$mcmc.settings$ctrl,
                                           n.iter = calibration.info$n.iter.first.sim,
-                                          starting.values = mcmc.settings$start.values,
+                                          starting.values = trans.env$mcmc.settings$start.values,
                                           cache.frequency = NA,
                                           update.detail = 'none',
                                           update.frequency = NA)
     
-    update.rw.mcmc.settings(mcmc = mcmc,
-                            mcmc.settings = mcmc.settings,
-                            n.iter = calibration.info$n.iter.subsequent.sims)
+    trans.env$mcmc.settings = update.transmute.mcmc.settings(mcmc = mcmc,
+                                   mcmc.settings = trans.env$mcmc.settings,
+                                   n.iter = calibration.info$n.iter.subsequent.sims)
     
     #-- SET UP THE CONTROL and SAVE IT --#
-    create.transmute.calibration.control(transmute.calibration.info = calibration.info,
-                                         from.calibration.code = from.calibration.code,
-                                         location = location,
-                                         n.sim = n.sim,
-                                         n.chunks = n.chunks,
-                                         likelihood = likelihood,
-                                         default.mcmc.settings = mcmc.setting)
+    
+    if (verbose)
+        print(paste0(verbose.prefix, "Saving calibration control..."))
+    
+    ctrl = create.transmute.calibration.control(transmute.calibration.info = calibration.info,
+                                                from.calibration.code = from.calibration.code,
+                                                location = location,
+                                                n.sim = n.sim,
+                                                n.chunks = n.chunks,
+                                                likelihood = likelihood,
+                                                default.mcmc.settings = trans.env$mcmc.settings)
+    
+    dir = get.transmute.calibration.dir(to.version = calibration.info$to.version,
+                                        location = location,
+                                        transmute.code = transmute.code,
+                                        n.sim = n.sim,
+                                        to.sub.version = calibration.info$to.sub.version,
+                                        root.dir = root.dir)
+    
+    if (!dir.exists(dir))
+        dir.create(dir, recursive = T)
+    
+    file = get.transmute.calibration.control.file(to.version = calibration.info$to.version,
+                                                  location = location,
+                                                  transmute.code = transmute.code,
+                                                  n.sim = n.sim,
+                                                  to.sub.version = calibration.info$to.sub.version,
+                                                  root.dir = root.dir)
+    
+    save(ctrl, file=file)
     
     #-- DONE --#
     
+    
     # return the MCMC in case we want to examine it
-    invisible(mcmc)
+    if (return.simulations)
+    {
+        if (verbose)
+            print(paste0(verbose.prefix, "Packaging up simulations from initial MCMC..."))
+        
+        rv = join.simulation.sets(mcmc@simulations[mcmc@simulation.indices])
+        
+        if (verbose)
+            print(paste0(verbose.prefix, "All Done!"))
+        
+        rv
+    }
+    else
+    {
+        if (verbose)
+            print(paste0(verbose.prefix, "All Done!"))
+        
+        invisible(NULL)
+    }
 }
 
 create.transmute.calibration.control <- function(transmute.calibration.info,
@@ -297,6 +363,7 @@ run.transmute.calibration <- function(transmute.code,
                                       update.frequency = 500,
                                       update.detail = 'low',
                                       ignore.errors = T,
+                                      rerun = T,
                                       root.dir = get.jheem.root.directory())
 {
     #-- VALIDATE ARGUMENTS --#
@@ -330,7 +397,7 @@ run.transmute.calibration <- function(transmute.code,
     if (!file.exists(file))
         stop(paste0(error.prefix, "No tranmute control has been set up at '", file, "'"))
     
-    ctrl = load(file)
+    ctrl = get(load(file)[1])
     
     if (any(chunks <= 0) || any(chunks > ctrl$n.chunks))
         stop(paste0(error.prefix, "'chunks' must be between 1 and ", ctrl$n.chunks))
@@ -339,6 +406,7 @@ run.transmute.calibration <- function(transmute.code,
     #-- LOAD THE BASE SIMSET --#
     
     pre.simset = retrieve.simulation.set(version = calibration.info$from.version,
+                                         n.sim = n.sim,
                                          location = location,
                                          calibration.code = ctrl$from.calibration.code)
     
@@ -346,14 +414,16 @@ run.transmute.calibration <- function(transmute.code,
     #-- RUN THE CHUNKS --#
     
     mcmc = NULL
-    mcmc.settings = get.most.advanced.transmute.chunk.mcmc.settings(ctrl = ctrl, root.dir = root.dir)
+    mcmc.settings = as.environment(get.most.advanced.transmute.chunk.mcmc.settings(ctrl = ctrl, root.dir = root.dir))
+    environment(mcmc.settings$ctrl@simulation.function)$mcmc.settings = mcmc.settings
+
     start.time = Sys.time()
     for (chunk in chunks)
     {
         sim.indices = ctrl$sim.indices.for.chunk[[chunk]]
         
-        tryCatch({
-            
+       # tryCatch({
+        
             # Actually Run It
             chunk.sims = list()
             for (i.index in 1:length(sim.indices))
@@ -361,24 +431,30 @@ run.transmute.calibration <- function(transmute.code,
                 i = sim.indices[i.index]
                 
                 mcmc.settings$sim.index = i
-                n.iter.for.i = rw.control$n.iter.subsequent.sims
+                n.iter.for.i = ctrl$n.iter.subsequent.sims
                 
                 if (verbose)
-                    print(paste0("STARTING MCMC FOR SIM ", i, " of ", simset$n.sim))
+                    print(paste0("STARTING MCMC FOR SIM ", i, " of ", pre.simset$n.sim))
                 
                 look.back.i.sims.for.parameters = 0
                 successful.first.sim = F
+                sim = NULL
+                
                 while (!successful.first.sim && look.back.i.sims.for.parameters<calibration.info$max.lookback.attempts)
                 {
                     look.back.i.sims.for.parameters = look.back.i.sims.for.parameters + 1
                     look.back.to.sim.i = i - look.back.i.sims.for.parameters
-                    if (look.back.i.sims.for.parameters >= sim.indices[1])
-                        mcmc.settings$start.values = chunk.sims[[look.back.to.sim.i]]$params[names(mcmc.settings$start.values)]
+                    
+                    if (i.index==1)
+                    {}
+                    else if (look.back.to.sim.i >= sim.indices[1])
+                        mcmc.settings$start.values = chunk.sims[[ look.back.to.sim.i - sim.indices[1] + 1 ]]$params[names(mcmc.settings$start.values)]
                     else
                         break
                     
                     # Run the first sim and make sure the likelihood evaluates
-                    sim = ctrl$transmute.simulation(mcmc.settings$start.values)
+                    sim = mcmc.settings$ctrl@simulation.function(mcmc.settings$start.values)
+                    
                     if (!is.null(sim))
                     {
                         successful.first.sim = ctrl$likelihood$compute(sim, use.optimized.get=T)!=-Inf
@@ -392,7 +468,9 @@ run.transmute.calibration <- function(transmute.code,
                         errored.params <<- mcmc.settings$start.values
                         
                         stop(paste0("The ", 
-                                    get.ordinal(i), " simulation is NULL after 20 attempts. The parameters have been saved in the global environment as 'errored.params'"))
+                                    get.ordinal(i), " simulation is NULL after ",
+                                    look.back.i.sims.for.parameters,
+                                    " attempt(s). The parameters have been saved in the global environment as 'errored.params'"))
                     }
                     else
                     {
@@ -402,7 +480,9 @@ run.transmute.calibration <- function(transmute.code,
                         .GlobalEnv$errored.params <- mcmc.settings$start.values
                         
                         stop(paste0("The likelihood evaluates to -Inf on the initial parameter values for the ", 
-                                    get.ordinal(i), " simulation after 20 attempts. The likelihood components are:\n",
+                                    get.ordinal(i), " simulation after ",
+                                    look.back.i.sims.for.parameters,
+                                    " attempt(s). The likelihood components are:\n",
                                     paste0(paste0(" - ", names(lik.pieces), " = ", lik.pieces), collapse='\n'),
                                     "\nThe parameters, simulation, and likelihood have been saved in the global environment as 'errored.params', 'errored.sim', and 'errored.likelihood'"))
                     }
@@ -474,7 +554,7 @@ run.transmute.calibration <- function(transmute.code,
                     
                 }
                 
-                update.transmute.mcmc.settings(mcmc = mcmc,
+                mcmc.settings = update.transmute.mcmc.settings(mcmc = mcmc,
                                                mcmc.settings = mcmc.settings,
                                                n.iter = ctrl$n.iter.subsequent.sims)
                 
@@ -482,6 +562,11 @@ run.transmute.calibration <- function(transmute.code,
             }
             
             chunk.simset = join.simulation.sets(chunk.sims)
+            
+            if (rerun)
+            {
+                chunk.simset = rerun.simulations(chunk.simset, verbose=verbose)
+            }
             
             # Save the results
             
@@ -506,20 +591,20 @@ run.transmute.calibration <- function(transmute.code,
                 to.sub.version = ctrl$to.sub.version,
                 root.dir = root.dir)
             
-            save(mcmc.settings, file = chunk.file)
-            
-        },
-        error = function(e){
-            
-            if (ignore.errors)
-            {
-                print(paste0("There was an error fitting a transmuted chunk ", chunk, " for ", location, ":"))
-                print(e$message)
-                print(paste0("Skipping chunk ", chunk, " and moving on to the next one"))
-            }
-            else
-                stop(e)
-        })
+            save(mcmc.settings, file = mcmc.settings.file)
+        #     
+        # },
+        # error = function(e){
+        #     
+        #     if (ignore.errors)
+        #     {
+        #         print(paste0("There was an error fitting a transmuted chunk ", chunk, " for ", location, ":"))
+        #         print(e$message)
+        #         print(paste0("Skipping chunk ", chunk, " and moving on to the next one"))
+        #     }
+        #     else
+        #         stop(e)
+        # })
     }
     
     invisible(mcmc)
@@ -560,7 +645,7 @@ update.transmute.mcmc.settings <- function(mcmc,
     mcmc.settings$ctrl = new.ctrl
     mcmc.settings$start.values = mcmc@chain.states[[1]]@current.parameters
     mcmc.settings$n.iter = mcmc.settings$n.iter + mcmc@n.iter
-    
+
     mcmc.settings
 }
 
@@ -588,8 +673,9 @@ get.most.advanced.transmute.chunk.mcmc.settings <- function(ctrl,
         
         for (file in mcmc.settings.files)
         {
+            print(file)
             load(file)
-            if (mcmc.settings$n.iter > .most.advanced.n.iter)
+            if (mcmc.settings$n.iter > most.advanced.n.iter)
             {
                 most.advanced.settings = mcmc.settings
                 most.advanced.n.iter = mcmc.settings$n.iter
@@ -600,16 +686,201 @@ get.most.advanced.transmute.chunk.mcmc.settings <- function(ctrl,
     }
 }
 
+#' @title Clear a Calibration Cache
+#'@inheritParams set.up.calibration
+#'@param allow.remove.incomplete
+#'
+#'@export
+clear.transmute.calibration.cache <- function(transmute.code,
+                                              location,
+                                              n.sim,
+                                              to.version = NULL,
+                                              to.sub.version = NULL,
+                                              allow.remove.incomplete = F,
+                                              root.dir = get.jheem.root.directory())
+{
+    if (is.null(to.version))
+    {
+        calibration.info = get.transmute.calibration.info(code = transmute.code,
+                                                          throw.error.if.missing = T,
+                                                          error.prefix = error.prefix)
+        
+        to.version = calibration.info$to.version
+        to.sub.version = calibration.info$to.sub.version
+    }
+    
+    dir = get.transmute.calibration.dir(to.version = to.version,
+                                                       location = location,
+                                                       transmute.code = transmute.code,
+                                                       n.sim = n.sim,
+                                                       to.sub.version = to.sub.version,
+                                                       root.dir = root.dir)
+    
+    if (dir.exists(dir))
+    {
+        if (!allow.remove.incomplete)
+        {
+            ctrl.file = get.transmute.calibration.control.file(to.version = to.version,
+                                                               location = location,
+                                                               transmute.code = transmute.code,
+                                                               n.sim = n.sim,
+                                                               to.sub.version = to.sub.version,
+                                                               root.dir = root.dir)
+            
+            ctrl = get(load(ctrl.file)[1])
+            
+            last.chunk.file = get.transmute.calibration.chunk.files(to.version = to.version,
+                                                                    location = location,
+                                                                    transmute.code = transmute.code,
+                                                                    n.sim = n.sim,
+                                                                    chunks = ctrl$n.chunks,
+                                                                    to.sub.version = to.sub.version,
+                                                                    root.dir = root.dir)
+            
+            is.complete = file.exists(last.chunk.file)
+            
+            if (!is.complete)
+                stop(paste0("Cannot clear.transmute.calibration.cache for ",
+                            transmute.code, " at location '", location, 
+                            "' - the prior calibration has not finished running. Use allow.remove.incomplete=T to clear anyway"))
+        }
+        
+        if (!allow.remove.incomplete)
+            stop(paste0("Cannot clear.transmute.calibration.cache - to clear a cache that exists, set allow.remove.incomplete = T"))
+        
+        unlink(dir, recursive = T)
+    }
+}
+
+
+transmute.calibration.cache.exists <- function(transmute.code,
+                                               location,
+                                               n.sim,
+                                               to.version = NULL,
+                                               to.sub.version = NULL,
+                                               root.dir = get.jheem.root.directory())
+{
+    if (is.null(to.version))
+    {
+        calibration.info = get.transmute.calibration.info(code = transmute.code,
+                                                          throw.error.if.missing = T,
+                                                          error.prefix = error.prefix)
+        
+        to.version = calibration.info$to.version
+        to.sub.version = calibration.info$to.sub.version
+    }
+    
+    dir = get.transmute.calibration.dir(to.version = to.version,
+                                        location = location,
+                                        transmute.code = transmute.code,
+                                        n.sim = n.sim,
+                                        to.sub.version = to.sub.version,
+                                        root.dir = root.dir)
+    
+    if (dir.exists(dir))
+    {
+        ctrl.file = get.transmute.calibration.control.file(to.version = to.version,
+                                                           location = location,
+                                                           transmute.code = transmute.code,
+                                                           n.sim = n.sim,
+                                                           to.sub.version = to.sub.version,
+                                                           root.dir = root.dir)
+        
+        file.exists(ctrl.file)
+    }
+    else
+        F
+}
+
+
 #'@export
 assemble.transmuted.simulations <- function(transmute.code,
                                             location,
-                                            chunks = NULL)
+                                            n.sim,
+                                            to.version = NULL,
+                                            to.sub.version = NULL,
+                                            chunks = NULL,
+                                            allow.incomplete = F,
+                                            root.dir = get.jheem.root.directory())
 {
+    error.prefix = paste0("Cannot assemble.transmute.simulations for '", location, "': ")
+    
+    if (is.null(to.version))
+    {
+        calibration.info = get.transmute.calibration.info(code = transmute.code,
+                                                          throw.error.if.missing = T,
+                                                          error.prefix = error.prefix)
+        
+        to.version = calibration.info$to.version
+        to.sub.version = calibration.info$to.sub.version
+    }
+    
+    if (!is.numeric(n.sim) && length(n.sim)!=1 || is.na(n.sim) || round(n.sim)!=n.sim)
+        stop(paste0(error.prefix, "'n.sim' must be a single, non-NA, integer value"))
+    
+    if (!is.null(chunks))
+    {
+        if (!is.numeric(chunks) && length(chunks)==0 || any(is.na(chunks)) || any(round(chunks)!=chunks))
+            stop(paste0(error.prefix, "'chunks' must be a non-empty, non-NA, integer vector"))
+    }
+    
     #-- LOAD UP EACH CHUNK --#
+    if (is.null(chunks))
+    {
+        ctrl.file = get.transmute.calibration.control.file(
+            to.version = to.version,
+            location = location,
+            transmute.code = transmute.code,
+            n.sim = n.sim,
+            to.sub.version = to.sub.version,
+            root.dir = root.dir)
+        
+        ctrl = get(load(ctrl.file)[1])
+        
+        chunks = 1:ctrl$n.chunks
+    }
+    
+    chunk.files = get.transmute.calibration.chunk.files(
+        to.version = to.version,
+        location = location,
+        transmute.code = transmute.code,
+        n.sim = n.sim,
+        chunks = chunks,
+        to.sub.version = to.sub.version,
+        root.dir = root.dir)
+    
+    simset.list = list()
+    for (chunk.index in 1:length(chunks))
+    {
+        chunk = chunks[chunk.index]
+        chunk.file = chunk.files[chunk.index]
+        
+        if (file.exists(chunk.file))
+        {
+            chunk.simset = get(load(chunk.file)[1])
+            simset.list = c(simset.list, list(chunk.simset))
+        }
+        else if (!allow.incomplete)
+        {
+            stop(paste0("No simulations have been completed for the ",
+                        get.ordinal(chunk), " chunk (no file saved to '",
+                        chunk.file, "') - use allow.incomplete=T to assemble anyway"))
+        }
+    }
     
     #-- JOIN THE SIMULATIONS --#
-    
-    #-- RERUN THE SIMULATIONS --#
+    if (length(simset.list)==0)
+    {
+        stop(paste0("No simulations have been completed fro the transmute.calibration"))
+    }
+    else if (length(simset.list)==1)
+    {
+        simset.list[[1]]
+    }
+    else
+    {
+        join.simulation.sets(simset.list)
+    }
 }
 
 #'@export
@@ -627,7 +898,7 @@ register.transmute.calibration.info <- function(transmute.code,
                                                 max.lookback.attempts = 20)
 {   
     # code
-    validate.calibration.code(code = code,
+    validate.calibration.code(code = transmute.code,
                               error.prefix = "Cannot register transmute calibration: ",
                               code.name.for.error = 'transmute.code')
     
@@ -656,6 +927,17 @@ register.transmute.calibration.info <- function(transmute.code,
         (is.null(names(fixed.initial.parameter.values)) || any(is.na(names(fixed.initial.parameter.values)))))
         stop(paste0(error.prefix, "'fixed.initial.parameter.values' must be a NAMED numeric vector (with no NA names)"))
     
+    missing.from.sampling.blocks = setdiff(prior.distribution@var.names, unlist(sampling.blocks))
+    if (length(missing.from.sampling.blocks)>0)
+    {
+        stop(paste0("The following variable",
+                    ifelse(length(missing.from.sampling.blocks)==1, ' is', 's are'),
+                    " present in the prior.distribution but ",
+                    ifelse(length(missing.from.sampling.blocks)==1, 'is', 'are'),
+                    " ABSENT from all sampling.blocks: ",
+                    collapse.with.and("'", missing.from.sampling.blocks, "'")))
+    }
+    
     calibration.info = list(
         code = transmute.code,
         from.version = from.version,
@@ -671,7 +953,7 @@ register.transmute.calibration.info <- function(transmute.code,
         fixed.initial.parameter.values = fixed.initial.parameter.values
     )
     
-    CALIBRATION.MANAGER$transmute.info[[code]] = calibration.info
+    CALIBRATION.MANAGER$transmute.info[[transmute.code]] = calibration.info
     
     invisible(NULL)
 }

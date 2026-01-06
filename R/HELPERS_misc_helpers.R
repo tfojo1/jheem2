@@ -211,7 +211,7 @@ check.for.invalid.characters <- function(str,
         invalid.characters = setdiff(strsplit(str, split='')[[1]],
                                      strsplit(valid.characters, split='')[[1]])
         
-        if (is.single.value)
+        # Always throw the error when invalid characters are found
             stop(paste0(error.prefix,
                         str.name,
                         " ('", str, "') cannot contain ", 
@@ -264,9 +264,10 @@ toupper.first <- function(str)
     str
 }
 
+# Simulations use a different version of this
 str.to.title <- function(str)
 {
-    split.str = strsplit(str, "[^a-zA-Z0-9\\-]", fixed=F)
+    split.str = strsplit(str, "[^a-zA-Z0-9\\-\\+]", fixed=F)
     str = sapply(split.str, function(one.split){
         paste0(toupper.first(one.split), collapse=' ')
     })
@@ -293,7 +294,12 @@ get.ordinal <- function(nums)
                          'th') #9
     
     last.digits = nums - (10 * floor(nums/10)) + 1
-    paste0(nums, ORDINAL.SUFFIXES[last.digits])
+    rv = paste0(nums, ORDINAL.SUFFIXES[last.digits])
+    
+    last.two.digits = nums - (100 * floor(nums/100))
+    rv[last.two.digits==11] = paste0(nums[last.two.digits==11], 'th')
+    
+    rv
 }
 
 

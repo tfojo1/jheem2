@@ -543,6 +543,9 @@ collapse.array.according.to.indices <- function(arr,
                                                 small.n,
                                                 check.consistency=T)
 {
+    if (check.consistency && length(arr)==0)
+        stop("Cannot collapse array; arr is empty (length 0 or NULL)")
+    
     if (check.consistency && length(small.indices) != length(large.indices))
         stop("Cannot collapse array; small.indices and large.indices must have the same length")
     

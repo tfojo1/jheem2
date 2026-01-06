@@ -48,6 +48,7 @@ get.simset.data <- function(simset,
 #'@param error.prefix A string to prepend to any errors generated in getting the metadata object
 #'@param from.year,to.year The years which a corresponding simulation will have data for
 #'@param jheem.kernel Optional: the jheem.kernel on which to base the simulation metadata
+#'@param update.labels If jheem.kernel is not NULL, whether to get updated labels from the latest specification (vs the specification as it was when the kernel was created)
 #'
 #'@details A simulation.metadata object contains metadata, such as the dim.names to which its contents will conform
 #'
@@ -59,6 +60,7 @@ get.simulation.metadata <- function(version,
                                     n.sim = 1,
                                     sub.version = NULL,
                                     jheem.kernel = NULL,
+                                    update.labels = T,
                                     error.prefix = paste0("Error deriving the simulation-metadata for '", version, "' and location '", location, "': "))
 {
     if (is.null(jheem.kernel))
@@ -82,6 +84,7 @@ get.simulation.metadata <- function(version,
                                                                        from.year = from.year,
                                                                        to.year = to.year,
                                                                        n.sim = n.sim,
+                                                                       update.labels = update.labels,
                                                                        error.prefix = error.prefix),
                             type = "Simulation Metadata",
                             error.prefix = error.prefix)
@@ -399,6 +402,7 @@ SINGLE.SIMULATION.MAKER = R6::R6Class(
                                                                 solver.metadata = solver.metadata,
                                                                 intervention.code = intervention.code,
                                                                 calibration.code = calibration.code,
+                                                                update.labels = FALSE,
                                                                 error.prefix = error.prefix)
         },
         
@@ -467,6 +471,7 @@ derive.degenerate.simulation <- function(sim,
                                          intervention.code = sim$intervention.code,
                                          parameters = sim$parameters,
                                          run.metadata = sim$run.metadata,
+                                         simulation.chain = sim$simulation.chain[1],
                                          error.prefix = 'Error deriving degenerate simulation')
 {
     maker = SINGLE.SIMULATION.MAKER$new(jheem.kernel = sim$jheem.kernel,
@@ -494,6 +499,7 @@ derive.degenerate.simulation <- function(sim,
                           parameters = parameters,
                           run.metadata,
                           is.degenerate = T,
+                          simulation.chain = simulation.chain,
                           finalize = T,
                           error.prefix = error.prefix)
 }
@@ -645,6 +651,7 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
                                            calibration.code = NULL,
                                            type = "Simulation Metadata",
                                            years.can.be.missing = T,
+                                           update.labels = T,
                                            error.prefix)
 {
     # Validate from.year, to.year
@@ -798,7 +805,17 @@ make.simulation.metadata.field <- function(jheem.kernel.or.specification,
     metadata$intervention.code = intervention.code
     metadata$calibration.code = calibration.code
     metadata$sub.version = sub.version
-    metadata$labels = jheem.kernel.or.specification$labels
+    
+    if (update.labels && 
+        is(jheem.kernel.or.specification, 'jheem.kernel') && 
+        is.specification.registered.for.version(jheem.kernel.or.specification$version))
+    {
+        spec = get.compiled.specification.for.version(jheem.kernel.or.specification$version)    
+        metadata$labels = spec$labels    
+    }
+    else
+        metadata$labels = jheem.kernel.or.specification$labels
+        
     
     metadata
 }
@@ -1014,14 +1031,30 @@ SIMULATION.METADATA = R6::R6Class(
         {
             if (!is.character(to.label) || any(is.na(to.label)))
                 stop("Cannot get.labels() - 'to.label' must be a character vector with no NA values")
-            
+
             labels = private$i.metadata$labels[to.label]
             
-            unlabeled.mask = is.na(labels)
+            if (is.null(labels))
+            {
+                labels = rep(NA, length(to.label))
+                names(labels) = to.label
+            }
             
+            unlabeled.mask = is.na(labels)
+
             if (any(unlabeled.mask))
             {
-                labels[unlabeled.mask] = private$str.to.title(to.label[unlabeled.mask])
+                # Hard code for msm_idu or msm-idu
+                newly.labeled = to.label[unlabeled.mask]
+                newly.labeled = gsub('msm[_-]idu', 'MSM/PWID', newly.labeled, ignore.case = T)
+                
+                newly.labeled = private$str.to.title(newly.labeled)
+                
+                # Hard code for msm and idu
+                newly.labeled = gsub('msm', 'MSM', newly.labeled, ignore.case = T)
+                newly.labeled = gsub('idu', 'PWID', newly.labeled, ignore.case = T)
+                
+                labels[unlabeled.mask] = newly.labeled
             }        
             
             names(labels) = to.label
@@ -1186,7 +1219,7 @@ SIMULATION.METADATA = R6::R6Class(
         
         str.to.title = function(str)
         {
-            split.str = base::strsplit(str, "[^a-zA-Z0-9\\-]", fixed=F)
+            split.str = base::strsplit(str, "[^-a-zA-Z0-9\\/]", fixed=F)
             str = sapply(split.str, function(one.split){
                 paste0(toupper.first(one.split), collapse=' ')
             })
@@ -1216,6 +1249,7 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
                               drop.single.outcome.dimension = T,
                               drop.single.sim.dimension = F,
                               replace.inf.values.with.zero = T,
+                              na.rm = T,
                               error.prefix = "Error preparing optimized get info: ")
         {
             # Set up the value dim.names
@@ -1261,6 +1295,10 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
             if (!is.logical(replace.inf.values.with.zero) || length(replace.inf.values.with.zero)!=1 || is.na(replace.inf.values.with.zero))
                 stop(paste0(error.prefix, "'replace.inf.values.with.zero', must be a single, non-NA, logical value"))
             private$i.replace.inf.values.with.zero = replace.inf.values.with.zero
+            
+            if (!is.logical(na.rm) || length(na.rm)!=1 || is.na(na.rm))
+                stop(paste0(error.prefix, "'na.rm', must be a single, non-NA, logical value"))
+            private$i.na.rm = na.rm
             
             private$i.info.by.outcome = lapply(private$i.outcomes, function(outcome){
                 
@@ -1368,7 +1406,8 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
                                   denominators = outcome.denominators[private$i.outcomes],
                                   info_by_outcome = private$i.info.by.outcome,
                                   n_to_per_outcome = private$i.n.per.outcome,
-                                  avoid_infinite = private$i.replace.inf.values.with.zero)
+                                  avoid_infinite = private$i.replace.inf.values.with.zero,
+                                  na_rm = private$i.na.rm)
             
             # Set dimnames and return
             dim(rv) = sapply(private$i.value.dim.names, length)
@@ -1386,6 +1425,7 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
         i.outcomes = NULL,
         i.output = NULL,
         i.replace.inf.values.with.zero = NULL,
+        i.na.rm = NULL,
         
         i.value.dim.names = NULL,
         i.target.years = NULL,
@@ -1427,9 +1467,10 @@ load.simulation.set <- function(file)
 #'@title Make a copy of a Simulation Set
 #'
 #'@param simset The simulation.set object to copy
+#'@param update.labels Whether to get updated labels from the latest specification (vs the specification as it was when the simulations were created)
 #'
 #'@export
-copy.simulation.set <- function(simset)
+copy.simulation.set <- function(simset, update.labels=T)
 {
     if (!is(simset, 'jheem.simulation.set'))
         stop("Error copying simset: 'simset' must be a jheem.simulation.set object")
@@ -1467,7 +1508,8 @@ copy.simulation.set <- function(simset)
                              run.metadata = copy.run.metadata(simset$run.metadata),
                              solver.metadata = copy.solver.metadata(simset$solver.metadata),
                              is.degenerate = simset$is.degenerate,
-                             finalize = simset$is.finalized)
+                             finalize = simset$is.finalized,
+                             update.labels = update.labels)
 }
 
 do.create.simulation.set <- function(jheem.kernel,
@@ -1486,6 +1528,7 @@ do.create.simulation.set <- function(jheem.kernel,
                                      outcome.location.mapping,
                                      is.degenerate = NULL,
                                      finalize, #a logical - should we add sampled parameters?
+                                     update.labels = T,
                                      error.prefix = "Error constructing simulation")
 {
     metadata = make.simulation.metadata.field(jheem.kernel.or.specification = jheem.kernel,
@@ -1498,6 +1541,7 @@ do.create.simulation.set <- function(jheem.kernel,
                                               solver.metadata = solver.metadata,
                                               intervention.code = intervention.code,
                                               calibration.code = calibration.code,
+                                              update.labels = update.labels,
                                               error.prefix = error.prefix)
     
     do.create.simulation.set.from.metadata(metadata = metadata,
@@ -1682,6 +1726,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                        summary.type = c('individual.simulation', 'mean.and.interval', 'median.and.interval')[1],
                        interval.coverage = 0.95,
                        mapping = NULL, # to do: put in the other get() method mentioned above (simset collection)
+                       na.rm = T,
                        error.prefix = "Error getting simulation results: ",
                        debug=F)
         {
@@ -1698,6 +1743,16 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             if (!(identical(summary.type, 'individual.simulation') || identical(summary.type, 'mean.and.interval') || identical(summary.type, 'median.and.interval')))
                 stop(paste0(error.prefix, "'summary.type' must be one of 'individual.simulation', 'mean.and.interval', or 'median.and.interval'"))
             
+            # Outcomes must have all keep.dimensions requested
+            invalid_keep_dimensions <- keep.dimensions[!sapply(keep.dimensions, function(d) {
+                any(sapply(outcomes, function(outcome) {
+                    d %in% names(self$outcome.ontologies[[outcome]])}
+                    ))}
+                )]
+            
+            if (length(invalid_keep_dimensions) > 0)
+                stop(paste0(error.prefix, "the following 'keep.dimensions' are not valid for one or more outcomes: ", paste(invalid_keep_dimensions, collapse=", ")))
+            
             # keep.dimensions will be the union of the incomplete dimensions in the outcome ontology and any dimension value dimensions
             if (is.null(keep.dimensions)) {
                 incomplete.dimensions = unique(unlist(lapply(outcomes, function(outcome) {incomplete.dimensions(self$outcome.ontologies[[outcome]])}))) # unshared incompletes will catch error below
@@ -1712,7 +1767,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             # 
             # if (!drop.single.sim.dimension || self$n.sim > 1)
             #     keep.dimensions = union(keep.dimensions, 'sim')
-
+            
             rv = lapply(outcomes, function(outcome){
                 scale = self$outcome.metadata[[outcome]]$scale
                 numerator.needed = output %in% c('value', 'numerator')
@@ -1750,8 +1805,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                 
                 if (!(numerator.needed && !(length(numerator.data)>0)) && !(denominator.needed && !(length(denominator.data)>0))) {
                     # Apply mapping
-                    if (numerator.needed && !is.null(mapping)) numerator.data = mapping$apply(numerator.data)
-                    if (denominator.needed && !is.null(mapping)) denominator.data = mapping$apply(denominator.data)
+                    if (numerator.needed && !is.null(mapping)) numerator.data = mapping$apply(numerator.data, na.rm=na.rm)
+                    if (denominator.needed && !is.null(mapping)) denominator.data = mapping$apply(denominator.data, na.rm=na.rm)
                     
                     # Aggregation
                     if (numerator.needed) pre.agg.dimnames = dimnames(numerator.data)
@@ -1766,8 +1821,8 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                     }
                     
                     if (length(pre.agg.dimnames) > length(keep.dimensions)) {
-                        if (numerator.needed) numerator.data = apply.robust(numerator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
-                        if (denominator.needed) denominator.data = apply.robust(denominator.data, c(keep.dimensions, 'sim'), sum, na.rm=T)
+                        if (numerator.needed) numerator.data = apply.robust(numerator.data, c(keep.dimensions, 'sim'), sum, na.rm=na.rm)
+                        if (denominator.needed) denominator.data = apply.robust(denominator.data, c(keep.dimensions, 'sim'), sum, na.rm=na.rm)
                     }
                     
                     if (output == 'numerator' || output == 'value' && !denominator.needed) output.array = numerator.data
@@ -1828,7 +1883,7 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                     new.dim.names = c(list(metric = c('mean', 'lower', 'upper')), dimnames(rv)[-1])
                     dimnames(rv) = new.dim.names
                 }
-                    
+                
                 else {
                     new.dim.names = c(list(metric = c('mean', 'lower', 'upper')))
                     rv = array(c(mean(rv, na.rm=T), quantile(rv, probs=c(alpha, 1-alpha), na.rm=T)),
@@ -1843,12 +1898,12 @@ JHEEM.SIMULATION.SET = R6::R6Class(
                     rv = apply(rv, setdiff(names(dim(rv)), 'sim'), function(x) {
                         c(median(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T))
                     })
-                    new.dim.names = c(list(metric = c('mean', 'lower', 'upper')), dimnames(rv)[-1])
+                    new.dim.names = c(list(metric = c('median', 'lower', 'upper')), dimnames(rv)[-1])
                     dimnames(rv) = new.dim.names
                 }
                 
                 else {
-                    new.dim.names = c(list(metric = c('mean', 'lower', 'upper')))
+                    new.dim.names = c(list(metric = c('median', 'lower', 'upper')))
                     rv = array(c(median(x, na.rm=T), quantile(x, probs=c(alpha, 1-alpha), na.rm=T)),
                                sapply(new.dim.names, length), new.dim.names)
                 }
@@ -1856,22 +1911,22 @@ JHEEM.SIMULATION.SET = R6::R6Class(
             rv
         },
         
-fix.chains = function()
-{
-    calibrated.param.names = get.parameter.names.for.version(self$version, type = 'calibrated')
-    
-    eq.prior = c(0, apply(self$parameters[calibrated.param.names,-1,drop=F] == self$parameters[calibrated.param.names,-self$n.sim,drop=F], 2, mean))
-    
-    chain.counter = 0
-    private$i.data$simulation.chain = sapply(eq.prior, function(val){
-        if (val==0)
-            chain.counter <<- chain.counter + 1
-        
-        chain.counter
-    })
-    
-    private$i.data$unique.chains = 1:chain.counter
-},
+        fix.chains = function()
+        {
+            calibrated.param.names = get.parameter.names.for.version(self$version, type = 'calibrated')
+            
+            eq.prior = c(0, apply(self$parameters[calibrated.param.names,-1,drop=F] == self$parameters[calibrated.param.names,-self$n.sim,drop=F], 2, mean))
+            
+            chain.counter = 0
+            private$i.data$simulation.chain = sapply(eq.prior, function(val){
+                if (val==0)
+                    chain.counter <<- chain.counter + 1
+                
+                chain.counter
+            })
+            
+            private$i.data$unique.chains = 1:chain.counter
+        },
         
         subset = function(simulation.indices)
         {
@@ -2221,12 +2276,17 @@ fix.chains = function()
                 }
             }
             
+            if (is.null(intervention.code))
+                prior.simulation.set = NULL
+            else
+                prior.simulation.set = self
+            
             engine = do.create.jheem.engine(jheem.kernel = private$i.jheem.kernel,
                                             sub.version = private$i.sub.version,
                                             start.year = start.year,
                                             end.year = end.year,
                                             max.run.time.seconds = max.run.time.seconds,
-                                            prior.simulation.set = self,
+                                            prior.simulation.set = prior.simulation.set,
                                             keep.from.year = keep.from.year,
                                             keep.to.year = keep.to.year,
                                             intervention.code = intervention.code,

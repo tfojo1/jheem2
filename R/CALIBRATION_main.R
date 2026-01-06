@@ -765,13 +765,21 @@ cache.mcmc.summary <- function(version,
     invisible(mcmc.summary)
 }
 
-#' @title Get Calibration Progress
+#'@title Get Calibration Progress
+#'
+#'@description Summarize the progress of a calibration task
+#'
+#'@param version,calibration.code,locations The version, locations, and calibration code for which to gauge progress
+#'@param as.pct Whether the progress should be shown as a percentage instead of a fraction
+#'@param round.to.digits How many digits to round progress to
+#'@param root.dir The root directory from which to search for calibrations
+#' 
 #'@export
 get.calibration.progress <- function(version,
                                     locations,
                                     calibration.code,
                                     root.dir = get.jheem.root.directory(),
-                                    round.to.digits = 0,
+                                    round.to.digits = ifelse(as.pct, 0, 2),
                                     as.pct = T)
 {
     max.chains = 1
@@ -784,7 +792,7 @@ get.calibration.progress <- function(version,
                               'cache')
         
         files = list.files(cache.dir)
-        files = file.path(cache.dir, files[grepl('^chain[0-9]', files)])
+        files = file.path(cache.dir, files[grepl('^chain[0-9]+_control.Rdata$', files)])
         
         if (length(files)>max.chains)
             max.chains <<- length(files)
@@ -821,6 +829,40 @@ get.calibration.progress <- function(version,
     
     rv
     
+}
+#'@title Check if Simulations Have Been Saved
+#'
+#'@description Summarize the progress of a calibration task
+#'
+#'@param version,calibration.code,locations The version, locations, and calibration code for which to gauge progress
+#'@param as.pct Whether the progress should be shown as a percentage instead of a fraction
+#'@param round.to.digits How many digits to round progress to
+#'@param root.dir The root directory from which to search for calibrations
+#' 
+#'@export
+are.simulations.present <- function(version,
+                                    locations,
+                                    calibration.code,
+                                    interventions,
+                                    n.sim,
+                                    sub.version = NULL,
+                                    root.dir = get.jheem.root.directory())
+{
+    sapply(interventions, function(int.code){
+        sapply(locations, function(loc){
+            
+            file = get.simset.filename(version = version,
+                                       location = loc,
+                                       calibration.code = calibration.code,
+                                       intervention.code = int.code, 
+                                       n.sim = n.sim, 
+                                       root.dir = root.dir, 
+                                       sub.version = sub.version)
+            
+            file.exists(file)
+            
+        })
+    })
 }
 
 get.calibration.cache.modified.time <- function(version, location, calibration.code, root.dir = get.jheem.root.directory())
@@ -1028,6 +1070,7 @@ assemble.simulations.from.calibration <- function(version,
                                                   root.dir = get.jheem.root.directory("Cannot set up calibration: "),
                                                   allow.incomplete=F,
                                                   chains = NULL,
+                                              #    burn = 0,
                                                   verbose = T)
 {
     #-- Initial Set-Up (pull control files, check arguments) --#
@@ -1040,9 +1083,15 @@ assemble.simulations.from.calibration <- function(version,
     
     global.control = get(load(file.path(calibration.dir, 'cache', 'global_control.Rdata')))
     
+    # if (!is.numeric(burn) || length(burn)!=1 || is.na(burn) || burn<0)
+    #     stop(paste0(error.prefix, "'burn' must be either a fraction between 0 and 1, or a positive integer"))
+    # if (burn > 1 && round(burn)!=burn)
+    #     stop(paste0(error.prefix, "'burn' must be either a fraction between 0 and 1, or a positive integer"))
+        
+    
     if (is.null(chains))
         chains = 1:global.control@n.chains
-    else if (!is.numeric(chains) || length(chains)==0 || any(is.na(chains) || any(chains<=0)))
+    else if (!is.numeric(chains) || length(chains)==0 || any(is.na(chains)) || any(chains<=0))
         stop(paste0(error.prefix, "'chains' must be a numeric vector with only positive values and no NA values"))
     else
     {
@@ -1066,7 +1115,7 @@ assemble.simulations.from.calibration <- function(version,
     
     first.chunk.to.save = (1:length(global.control@save.chunk))[global.control@save.chunk][1]
     
-    if (any(max.done.chunk.per.chain==first.chunk.to.save))
+    if (all(max.done.chunk.per.chain<first.chunk.to.save))
     {
         stop(paste0(error.prefix,
                     ifelse(sum(max.done.chunk.per.chain<first.chunk.to.save)==1, "Chain ", "Chains "),
@@ -1094,6 +1143,10 @@ assemble.simulations.from.calibration <- function(version,
         floor(ctrl@chain.state@n.unthinned.after.burn / global.control@control@thin)
     })
     
+    if (all(n.sim.per.chain==0))
+        stop(paste0(error.prefix, "No simulations were saved after the burn-in period for this calibration - there are no simulations to assemble"))
+        #stop(paste0(error.prefix, "There is an internal error, likely reflecting inconsistencies in multiple merged runs of the MCMC - one calculation thinks there are simulations run, but another thinks no simulations were run"))
+    
     n.sim = sum(n.sim.per.chain)
     
     outcome.dimnames = NULL
@@ -1106,7 +1159,7 @@ assemble.simulations.from.calibration <- function(version,
     simulation.chain = rep(as.numeric(NA), n.sim)
     sims.done = 0
     
-    for (chain.index in 1:length(chains))
+    for ( chain.index in (1:length(chains))[n.sim.per.chain>0] )
     {
         chain = chains[chain.index]
         chain.dir = file.path(calibration.dir, 'cache', paste0('chain_', chain))
@@ -1237,7 +1290,7 @@ assemble.simulations.from.calibration <- function(version,
                     gc()
                 }
                 
-                if (verbose && chunk%%100==0)
+                if (verbose && (chunk%%100==0 || chunk==max.done.chunk.per.chain[chain.index]))
                 {
                     cat("Done\n")
                 }
@@ -1506,7 +1559,7 @@ register.calibration.info <- function(code,
                                       special.case.likelihood.instructions = list(),
                                       fixed.initial.parameter.values = numeric(),
                                       max.run.time.seconds = Inf,
-                                      solver.metadata = create.solver.metadata(),
+                                      solver.metadata = NULL,
                                       n.chains = if (is.preliminary) 1 else 4,
                                       n.burn = if (is.preliminary) 0 else floor(n.iter / 2),
                                       data.manager = get.default.data.manager(),
@@ -1526,6 +1579,32 @@ register.calibration.info <- function(code,
                               error.prefix = error.prefix,
                               code.name.for.error = 'code')
     # - We should not let calibration code overlap with any intervention codes?
+    
+    if (!is.numeric(n.iter) || length(n.iter)!=1 || is.na(n.iter) || n.iter<=0 || round(n.iter)!=n.iter)
+        stop(paste0(error.prefix, "n.iter must be a single, non-NA, positive integer"))
+    
+    if (!is.numeric(n.burn) || length(n.burn)!=1 || is.na(n.burn) || n.burn<0 || round(n.burn)!=n.burn)
+        stop(paste0(error.prefix, "n.burn must be a single, non-NA, non-negative integer"))
+    
+    if (!is.numeric(thin) || length(thin)!=1 || is.na(thin) || thin<=0 || round(thin)!=thin)
+        stop(paste0(error.prefix, "thin must be a single, non-NA, positive integer"))
+    
+    if (n.burn >= n.iter)
+        stop(paste0(error.prefix, "n.burn (", n.burn, ") must be less than n.iter (", n.iter, ") - otherwise you won't save any simulations"))
+    
+    # Make sure this is going to save at least one simulation after burn
+    if ((n.iter - n.burn) < thin)
+    {
+        stop(paste0(paste0(error.prefix, "With only ", n.iter-n.burn,
+                           ifelse((n.iter-n.burn)==1, " iteration", " iterations"),
+                           ifelse(n.burn==0, '',
+                                  paste0(" after burning the first ", n.burn, ",")),
+                           " and a thin of ", thin,
+                           ", no simulations will be saved. Either increase n.iter",
+                           ifelse(n.burn==0, '',
+                                  ", decrease n.burn,"),
+                           " or decrease thin.")))
+    }
     
     # likelihood.instructions
     if (!is(likelihood.instructions, 'jheem.likelihood.instructions'))

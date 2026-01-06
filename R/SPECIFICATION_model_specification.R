@@ -35,6 +35,8 @@
 #'
 #'@param labels A named character vector, representing how compartments should be labeled when making figures/charts, etc. Eg c(msm="MSM", idu="PWID")
 #'
+#'@param order.locations.by.outcomes A character vector of outcome names from a data manager to be referenced in deciding which locations to show if there is a need to prioritize in making plots
+#'
 #'@export
 create.jheem.specification <- function(version,
                                        iteration,
@@ -54,7 +56,10 @@ create.jheem.specification <- function(version,
                                        
                                        compartment.value.aliases = list(),
                                        
-                                       labels = NULL)
+                                       order.locations.by.outcomes = NULL,
+                                       
+                                       labels = NULL,
+                                       default.solver.metadata = NULL)
 {
     error.prefix = "Cannot create jheem.specification: "
     
@@ -89,6 +94,9 @@ create.jheem.specification <- function(version,
     
     if (missing(age.endpoints))
         age.endpoints = NULL
+    
+    if (missing(default.solver.metadata))
+        default.solver.metadata = NULL
     
     
     ##-- CHECK ARGUMENTS --##
@@ -365,6 +373,23 @@ create.jheem.specification <- function(version,
             stop(paste0(error.prefix, "If supplied, 'labels' must be a NAMED character vector"))
     }
     
+    #-- Template data outcomes --#
+    
+    if (!is.null(order.locations.by.outcomes))
+    {
+        if (!is.character(order.locations.by.outcomes))
+            stop(paste0(error.prefix, "If supplied, 'order.locations.by.outcomes' must be a character vector"))
+        
+        if (any(is.na(order.locations.by.outcomes)))
+            stop(paste0(error.prefix, "If supplied, 'order.locations.by.outcomes' cannot contain NA values"))
+        
+        if (any(nchar(order.locations.by.outcomes)==0))
+            stop(paste0(error.prefix, "If supplied, 'order.locations.by.outcomes' cannot contain empty values ('')"))
+    }
+    
+    
+    #-- Parent --#
+    
     if (!is.null(parent.specification))
     {
         new.labels = labels
@@ -609,7 +634,13 @@ create.jheem.specification <- function(version,
                           error.prefix = error.prefix,
                           allow.empty = T, allow.duplicate.values.across.dimensions = F)
 
-
+    #-- Default solver.metadata --#
+    
+    if (!is.null(default.solver.metadata))
+    {
+        if (!is(default.solver.metadata, "solver.metadata"))
+            stop(paste0(error.prefix, "'default.solver.metadata' must be an object of class 'solver.metadata' created by create.solver.metadata()"))
+    }
     
     #-- Call the constructor --#
     JHEEM.SPECIFICATION$new(
@@ -630,8 +661,11 @@ create.jheem.specification <- function(version,
         age.info = age.info,
         start.year = start.year,
         
+        default.solver.metadata = default.solver.metadata,
+        
         compartment.value.character.aliases = compartment.value.character.aliases,
         compartment.value.function.aliases = compartment.value.function.aliases,
+        order.locations.by.outcomes = order.locations.by.outcomes,
         labels = labels
     )
 }
@@ -1900,8 +1934,11 @@ JHEEM.SPECIFICATION = R6::R6Class(
                               age.info,
                               start.year,
                               
+                              default.solver.metadata,
+                              
                               compartment.value.character.aliases,
                               compartment.value.function.aliases,
+                              order.locations.by.outcomes,
                               labels)
         {
             # As of now, I am assuming these have already been error-checked
@@ -1925,6 +1962,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
             
             private$i.compartment.value.character.aliases = compartment.value.character.aliases
             private$i.compartment.value.function.aliases = compartment.value.function.aliases
+            private$i.order.locations.by.outcomes = order.locations.by.outcomes
             private$i.labels = labels
 
             private$i.sub.version.info = list()
@@ -2036,6 +2074,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
             
             # Some default settings
             private$i.locked = F
+            private$i.default.solver.metadata = default.solver.metadata
             
             # Add the default tracked outcomes
             private$do.store.outcome(INTRINSIC.MODEL.OUTCOME$new('infected', version=self$version),
@@ -3189,6 +3228,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                   
                                                   compartment.value.character.aliases = private$i.compartment.value.character.aliases,
                                                   compartment.value.function.aliases = private$i.compartment.value.function.aliases,
+                                                  order.locations.by.outcomes = private$i.order.locations.by.outcomes,
                                                   labels = private$i.labels,
                                                   ontologies = private$i.ontologies,
 
@@ -3203,6 +3243,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                   
                                                   foregrounds = private$i.foregrounds,
                                                   default.parameter.values = private$i.default.parameter.values,
+                                                  default.solver.metadata = private$i.default.solver.metadata,
                                                   
                                                   age.info = private$i.age.info,
                                                   start.year = private$i.start.year,
@@ -3408,6 +3449,22 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 private$i.default.parameter.values
             else
                 stop("Cannot modify a specification's 'default.parameter.values' - they are read-only")
+        },
+        
+        default.solver.metadata = function(value)
+        {
+            if (missing(value))
+                private$i.default.solver.metadata
+            else
+                stop("Cannot modify a specification's 'default.parameter.values' - they are read-only")
+        },
+        
+        order.locations.by.outcomes = function(value)
+        {
+            if (missing(value))
+                private$i.order.locations.by.outcomes
+            else
+                stop("Cannot modify a specification's 'order.locations.by.outcomes' - they are read-only")
         }
     ),
 
@@ -3428,6 +3485,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
 
         i.compartment.value.character.aliases = NULL,
         i.compartment.value.function.aliases = NULL,
+        i.order.locations.by.outcomes = NULL,
         i.labels = NULL,
         
         i.ontologies = NULL,
@@ -3435,6 +3493,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
         
         i.foregrounds = NULL,
         i.default.parameter.values = NULL,
+        i.default.solver.metadata = NULL,
         
         i.fixed.strata.info = NULL,
         i.quantities = NULL,
@@ -9865,7 +9924,6 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                                                         error.prefix = error.prefix)
                 
                 n.binding.times = length(binding.times)
-                
                 if (n.binding.times==1)
                 {
                     r = rates[[1]]
@@ -9903,7 +9961,7 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                     }))
                     dim(b.all) = c(n.intervals, length(b.all)/n.intervals)
                     
-                    rv = lapply(desired.times, function(time){
+                    rv.after.binding = lapply(desired.times[ desired.times>=binding.times[1] ], function(time){
                         
                         last.integrate.to.time = time + 1
                         first.integrate.from.time = last.integrate.to.time - cumulative.interval
@@ -9934,6 +9992,12 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                         else
                             p.remaining
                     })
+                    
+                    rv.before.binding = lapply(desired.times[ desired.times<binding.times[1] ], function(time){
+                        rv.after.binding[[1]]
+                    })
+                    
+                    rv = c(rv.before.binding, rv.after.binding)
                 }
                 
                 names(rv) = as.character(desired.times)

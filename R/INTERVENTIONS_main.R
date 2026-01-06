@@ -16,7 +16,7 @@
 #'@details Creates a 'jheem.intervention' object where all the intervention effects given in ... apply to all the target populations given in ...
 #'
 #'@export
-create.intervention <- function(..., code=NULL, name=NULL, parameters = NULL, parameter.distribution=NULL, overwrite.existing.intervention=F)
+create.intervention <- function(..., code=NULL, name=NULL, parameters = NULL, parameter.distribution=NULL, generate.parameters.function=NULL, overwrite.existing.intervention=F)
 {
     #-- Parse ... for target.populations and intervention.effects --#
     target.populations = list()
@@ -72,6 +72,7 @@ create.intervention <- function(..., code=NULL, name=NULL, parameters = NULL, pa
                                     name = name,
                                     parameters = parameters,
                                     parameter.distribution = parameter.distribution,
+                                    generate.parameters.function = generate.parameters.function,
                                     overwrite.existing.intervention = overwrite.existing.intervention)
 }
 
@@ -377,6 +378,7 @@ JHEEM.INTERVENTION = R6::R6Class(
                               code,
                               parameters,
                               parameter.distribution,
+                              generate.parameters.function,
                               overwrite.existing.intervention = F)
         {
             error.prefix = "Cannot create intervention: "
@@ -440,11 +442,20 @@ JHEEM.INTERVENTION = R6::R6Class(
             if (is.null(overwrite.existing.intervention) || !is.logical(overwrite.existing.intervention) || length(overwrite.existing.intervention)!=1 || is.na(overwrite.existing.intervention))
                 stop(paste0(error.prefix, "'overwrite.existing.intervention' must be TRUE or FALSE"))
             
+            if (!is.null(generate.parameters.function))
+            {
+                if (!is.function(generate.parameters.function))
+                    stop(paste0(error.prefix, "'generate.parameters.function' must be a function"))
+                
+                print("Need to do more error checking on generate.parameters.function in INTERVENTIONS_main.R")
+            }
+            
             # Store the values
             private$i.name = name
             private$i.code = code
             private$i.parameters = parameters
             private$i.parameter.distribution = parameter.distribution
+            private$i.generate.parameters.function = generate.parameters.function
         },
         
         run = function(sim,
@@ -525,13 +536,48 @@ JHEEM.INTERVENTION = R6::R6Class(
                     generate.random.samples(private$i.parameter.distribution, n=1)
                 })
                 dim(add.to.new.parameters) = c(sim$n.sim, private$i.parameter.distribution@n.var)
-                new.parameters = cbind(new.parameters, add.to.new.parameters)
+                new.parameters = rbind(new.parameters, t(add.to.new.parameters))
                 
                 new.param.names = c(new.param.names, private$i.parameter.distribution@var.names)
                 
                 set.seed(reset.seed) # this keeps our code from always setting to the same seed
             }
-
+            
+            if (!is.null(private$i.generate.parameters.function))
+            {
+                reset.seed = runif(1, 0, .Machine$integer.max)
+                
+                add.to.new.parameters = private$i.generate.parameters.function(n = sim$n.sim,
+                                                                               parameters = new.parameters,
+                                                                               sim = sim)
+                
+                # need to error check what comes out here
+                if (is.null(dim(add.to.new.parameters)) || 
+                    length(dim(add.to.new.parameters))==1)
+                {
+                    if (is.null(names(add.to.new.parameters)))
+                        stop(paste0(error.prefix, "If the generate.parameters.function returns a vector (not an array), it must be a NAMED vector with one value for each new parameter (which will be the same for all simulations)"))
+                    
+                    add.to.new.parameters = matrix(rep(add.to.new.parameters, sim$n.sim), ncol = sim$n.sim, dimnames = list(names(add.to.new.parameters), NULL))
+                }
+                else if (length(dim(add.to.new.parameters))==2)
+                {
+                    
+                    if (dim(add.to.new.parameters)[2] != sim$n.sim)
+                        stop(paste0(error.prefix, "If the generate.parameters.function returns a matrix of new parameter values, it must have one column for each of the ", sim$n.sim, " simulation(s) we are running the intervention for"))
+                    
+                    if (is.null(dimnames(add.to.new.parameters)) || is.null(dimnames(add.to.new.parameters)[[1]]))
+                        stop(paste0(error.prefix, "If the generate.parameters.function returns a matrix of new parameter values, it must have dimnames set for the rows - one name each new parameter"))
+                }
+                else
+                    stop("need a smarter error message here")
+                
+                new.parameters = rbind(new.parameters, add.to.new.parameters)
+                new.param.names = c(new.param.names, dimnames(add.to.new.parameters)[[1]])
+                
+                set.seed(reset.seed) # this keeps our code from always setting to the same seed
+            }
+            
             if (is.null(start.year))
             {
                 # Note to self - actually need to bind the new parameters to the simsets existing parameters, and try to resolve that
@@ -732,6 +778,7 @@ JHEEM.INTERVENTION = R6::R6Class(
         i.code = NULL,
         i.parameters = NULL,
         i.parameter.distribution = NULL,
+        i.generate.parameters.function = NULL,
         
         prepare.to.run = function(engine, 
                                   sim,
@@ -776,6 +823,7 @@ NULL.INTERVENTION = R6::R6Class(
                              name = "No Intervention",
                              parameters = NULL,
                              parameter.distribution = NULL,
+                             generate.parameters.function = NULL,
                              overwrite.existing.intervention = F)
             # Register to the intervention manager
             register.intervention(self, overwrite.existing = F)
@@ -826,12 +874,13 @@ SINGLE.ITERATION.INTERVENTION = R6::R6Class(
     
     public = list(
         
-        initialize = function(code, name, parameters, parameter.distribution, overwrite.existing.intervention=F)
+        initialize = function(code, name, parameters, parameter.distribution, generate.parameters.function, overwrite.existing.intervention=F)
         {
             super$initialize(code = code,
                              name = name,
                              parameters = parameters,
                              parameter.distribution = parameter.distribution,
+                             generate.parameters.function = generate.parameters.function,
                              overwrite.existing.intervention = overwrite.existing.intervention)
             # Register to the intervention manager
             if (!is.null(code))
@@ -867,6 +916,7 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
         initialize = function(foregrounds,
                               parameters,
                               parameter.distribution,
+                              generate.parameters.function,
                               code,
                               name,
                               overwrite.existing.intervention=F)
@@ -875,6 +925,7 @@ JHEEM.STANDARD.INTERVENTION = R6::R6Class(
                              name = name,
                              parameters = parameters,
                              parameter.distribution = parameter.distribution,
+                             generate.parameters.function = generate.parameters.function,
                              overwrite.existing.intervention = overwrite.existing.intervention)
             
             private$i.foregrounds = foregrounds

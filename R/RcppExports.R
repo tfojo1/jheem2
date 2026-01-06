@@ -209,8 +209,8 @@ populate_outcomes_array <- function(desired_times, char_desired_times, n_per_tim
     .Call(`_jheem2_populate_outcomes_array`, desired_times, char_desired_times, n_per_time, new_values, new_times, old_values, old_times, prior_sim_index)
 }
 
-do_optimized_get <- function(numerators, denominators, info_by_outcome, n_to_per_outcome, avoid_infinite) {
-    .Call(`_jheem2_do_optimized_get`, numerators, denominators, info_by_outcome, n_to_per_outcome, avoid_infinite)
+do_optimized_get <- function(numerators, denominators, info_by_outcome, n_to_per_outcome, avoid_infinite, na_rm) {
+    .Call(`_jheem2_do_optimized_get`, numerators, denominators, info_by_outcome, n_to_per_outcome, avoid_infinite, na_rm)
 }
 
 get_year_indices_for_optimized_info <- function(outcome_years, target_years, n_before_year_dimension, n_after_year_dimension) {
