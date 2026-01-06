@@ -11,7 +11,7 @@ restratify.age.counts(
   smooth.infinite.age.to = Inf,
   allow.extrapolation = F,
   na.rm = F,
-  method = c("monoH.FC", "hyman")[1],
+  method = c("pclm", "monoH.FC", "hyman")[2],
   error.prefix = ""
 )
 }
@@ -26,7 +26,7 @@ restratify.age.counts(
 
 \item{na.rm}{Whether NAs should be ignored in counts}
 
-\item{method}{The method to be passed to \code{\link{splinefun}}. Must be a method that can produce a monotone spline (ie, either 'monoH.FC' or 'hyman')}
+\item{method}{The method to be passed to the smoother. Options are 'pclm' (default, uses Penalized Composite Link Model), 'monoH.FC' (Fritsch-Carlson monotonic splines), or 'hyman' (Hyman's monotonic splines)}
 
 \item{error.prefix}{A character value to be prepended to any error messages}
 }

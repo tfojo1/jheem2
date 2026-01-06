@@ -10,7 +10,9 @@ simplot.data.only(
   split.by = NULL,
   facet.by = NULL,
   dimension.values = list(),
+  dimension.values.post.mapping = list(),
   target.ontology = NULL,
+  label.function = NULL,
   plot.year.lag.ratio = F,
   title = "location",
   n.facet.rows = NULL,
@@ -27,6 +29,10 @@ simplot.data.only(
 \item{split.by}{At most one dimension}
 
 \item{facet.by}{Any number of dimensions but cannot include the split.by dimension}
+
+\item{dimension.values.post.mapping}{How to subset data in the form it will take after mappings have been applied to align sim and data ontologies. A list.}
+
+\item{label.function}{A function to reformat labels. If NULL, will use the first provided simset's "get.labels" property, or will do no transformation if plotting data only.}
 
 \item{title}{NULL or a single, non-NA character value. If "location", the first location provided in "locations" will be used for the title.}
 

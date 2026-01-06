@@ -10,6 +10,7 @@ create.intervention(
   name = NULL,
   parameters = NULL,
   parameter.distribution = NULL,
+  generate.parameters.function = NULL,
   overwrite.existing.intervention = F
 )
 }

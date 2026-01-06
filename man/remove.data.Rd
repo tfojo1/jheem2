@@ -7,9 +7,9 @@
 remove.data(
   data.manager,
   outcome,
-  dimension.values,
   source,
   ontology.name,
+  dimension.values,
   metric = "estimate",
   details.for.removal = "removed",
   url.for.removal = "url"
@@ -20,11 +20,11 @@ remove.data(
 
 \item{outcome}{The outcome type for the data. Must be an outcome previously registered with \code{\link{register.data.outcome}}}
 
-\item{dimension.values}{A named list that indicates what subset of a bigger data element these particular data should be stored into. Each element must be a named character, numeric, or logical vector.}
-
 \item{source}{The (single) character name of the source from which these data derive. Must be a source previously registered with \code{\link{register.data.source}} Note: a source is conceived such that one source cannot contain two sets of data for the same set of dimension values}
 
 \item{ontology.name}{The name of the ontology which the data follow. Must be an ontology previously registered with \code{\link{register.data.ontology}}}
+
+\item{dimension.values}{A named list that indicates what subset of a bigger data element these particular data should be stored into. Each element must be a named character, numeric, or logical vector.}
 
 \item{metric}{The type of measurement. The default value is "estimate", but other options include "cv", "variance", and "sd".}
 

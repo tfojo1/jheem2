@@ -12,6 +12,7 @@ get.simulation.metadata(
   n.sim = 1,
   sub.version = NULL,
   jheem.kernel = NULL,
+  update.labels = T,
   error.prefix = paste0("Error deriving the simulation-metadata for '", version,
     "' and location '", location, "': ")
 )
@@ -24,6 +25,8 @@ get.simulation.metadata(
 \item{from.year, to.year}{The years which a corresponding simulation will have data for}
 
 \item{jheem.kernel}{Optional: the jheem.kernel on which to base the simulation metadata}
+
+\item{update.labels}{If jheem.kernel is not NULL, whether to get updated labels from the latest specification (vs the specification as it was when the kernel was created)}
 
 \item{error.prefix}{A string to prepend to any errors generated in getting the metadata object}
 }

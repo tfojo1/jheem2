@@ -139,8 +139,8 @@ N error variance works the same way but only one type is currently supported:
 }
 \seealso{
 Other Nested Proportion Likelihoods: 
-\code{\link{create.nested.proportion.likelihood.instructions.with.included.multiplier}()},
 \code{\link{create.nested.proportion.likelihood.instructions}()},
+\code{\link{create.nested.proportion.likelihood.instructions.with.included.multiplier}()},
 \code{\link{get.p.bias.estimates}()}
 }
 \concept{Nested Proportion Likelihoods}
