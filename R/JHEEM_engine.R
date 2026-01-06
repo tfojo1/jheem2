@@ -620,6 +620,8 @@ SUPPORTED.SOLVER.METHODS = list(
 #}
 #DIFFEQR.ENGINE = NULL
 
+# Note: AZ exported this since it is used directly by user in SHIELD specification
+#'@export
 create.solver.metadata = function(method = 'ode45',
                                   package = NULL,
                                   atol = 1e-02,
