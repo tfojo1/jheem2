@@ -86,6 +86,7 @@ compute.likelihood.piecewise <- function(likelihood,
 #' @inheritParams jheem2-likelihood-params
 #' @param sim1,sim2 'jheem.simulation.set' objects to compare
 #' @param piecewise Should they be compared on each likelihood individually, if a joint likelihood is supplied?
+#' @export
 compare.sims <- function(likelihood, sim1, sim2, piecewise = T, log = F) {
     error.prefix <- "Error computing likelihood: "
     if (!R6::is.R6(likelihood) || !is(likelihood, "jheem.likelihood")) {

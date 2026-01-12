@@ -2,9 +2,13 @@
 % Please edit documentation in R/jheem2-package-documentation.R
 \docType{package}
 \name{jheem2}
+\alias{jheem2-package}
 \alias{jheem2}
 \title{jheem2: A package for setting up and running simulations using the JHEEM Engine
 #'}
+\description{
+One paragraph description of what the package does as one or more full sentences.
+}
 \section{jheem2 functions}{
 
 The jheem2 functions ...

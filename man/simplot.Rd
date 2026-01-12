@@ -11,10 +11,12 @@ simplot(
   split.by = NULL,
   facet.by = NULL,
   dimension.values = list(),
+  dimension.values.post.mapping = list(),
   target.ontology = NULL,
   plot.which = c("sim.and.data", "sim.only")[1],
   summary.type = c("individual.simulation", "mean.and.interval",
     "median.and.interval")[1],
+  label.function = NULL,
   plot.year.lag.ratio = F,
   title = "location",
   n.facet.rows = NULL,
@@ -36,7 +38,11 @@ simplot(
 
 \item{facet.by}{Any number of dimensions but cannot include the split.by dimension}
 
+\item{dimension.values.post.mapping}{How to subset data in the form it will take after mappings have been applied to align sim and data ontologies. A list.}
+
 \item{plot.which}{Should simulation data and calibration data be plotted ('sim.and.data'), or only simulation data ('sim.only')}
+
+\item{label.function}{A function to reformat labels. If NULL, will use the first provided simset's "get.labels" property, or will do no transformation if plotting data only.}
 
 \item{title}{NULL or a single, non-NA character value. If "location", the location of the first provided simset (if any) will be used for the title.}
 

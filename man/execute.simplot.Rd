@@ -4,7 +4,7 @@
 \alias{execute.simplot}
 \title{Execute Simplot
 A utility that performs the plot-rendering half of the simplot operation
-for applicationslike webtools that need the step to be separate.}
+for applications like webtools that need the step to be separate.}
 \usage{
 execute.simplot(
   prepared.plot.data,
@@ -38,5 +38,5 @@ execute.simplot(
 \description{
 Execute Simplot
 A utility that performs the plot-rendering half of the simplot operation
-for applicationslike webtools that need the step to be separate.
+for applications like webtools that need the step to be separate.
 }

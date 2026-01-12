@@ -4,10 +4,12 @@
 \alias{copy.simulation.set}
 \title{Make a copy of a Simulation Set}
 \usage{
-copy.simulation.set(simset)
+copy.simulation.set(simset, update.labels = T)
 }
 \arguments{
 \item{simset}{The simulation.set object to copy}
+
+\item{update.labels}{Whether to get updated labels from the latest specification (vs the specification as it was when the simulations were created)}
 }
 \description{
 Make a copy of a Simulation Set

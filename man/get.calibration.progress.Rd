@@ -9,10 +9,19 @@ get.calibration.progress(
   locations,
   calibration.code,
   root.dir = get.jheem.root.directory(),
-  round.to.digits = 0,
+  round.to.digits = ifelse(as.pct, 0, 2),
   as.pct = T
 )
 }
+\arguments{
+\item{version, calibration.code, locations}{The version, locations, and calibration code for which to gauge progress}
+
+\item{root.dir}{The root directory from which to search for calibrations}
+
+\item{round.to.digits}{How many digits to round progress to}
+
+\item{as.pct}{Whether the progress should be shown as a percentage instead of a fraction}
+}
 \description{
-Get Calibration Progress
+Summarize the progress of a calibration task
 }

@@ -17,12 +17,24 @@ create.style.manager(
   shapes = 21:25,
   shade.increment = -16,
   alpha.ribbon = 0.2,
+  alpha.line = NULL,
+  linewidth.baseline = 1,
   linewidth.slope = 3
 )
 }
 \arguments{
+\item{sim.palette, data.palette}{Must be either a character vector of colors to choose from or a function that takes a number of colors needed and returns a character vector of colors.}
+
+\item{shapes}{A numeric vector indicating which of the 25 ggplot shapes to select from. Each value must be an integer between 1 and 25.}
+
+\item{shade.increment}{A single numeric value less than 0 indicating the extent of shading to apply (to alternate values of the 'shade.data.by'/'shade.sim.by' variables)}
+
+\item{alpha.line}{A single numeric value which determines the transparency of the simulation lines. If NULL, the width of the lines is used (see "linewidth.slope" argument for details).}
+
+\item{linewidth.baseline}{A single numeric value greater than zero which determines the simset linewidth in combination with the "linewidth.slope" argument.}
+
 \item{linewidth.slope}{A single numeric value specifying how simset linewidth will be determined for based on how many simulations it has (its "n.sim").
-The formula used is linewidth = 1/(slope * log10(n.sim) + 1). If this slope is the default of 3, this will result in simsets with 1000 simulations having a linewidth of 0.1
+The formula used is linewidth = baseline/(slope * log10(n.sim) + 1), where "baseline" is the argument "linewidth.baseline". If this slope is the default of 3, and linewidth.baseline is the default of 1, this will result in simsets with 1000 simulations having a linewidth of 0.1
 while simsets with only 1 simulation will have a linewidth of 1. If you would like all simsets to plot with the same thickness, use a slope of 0.}
 }
 \description{

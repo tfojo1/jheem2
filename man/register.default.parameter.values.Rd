@@ -2,10 +2,10 @@
 % Please edit documentation in R/SPECIFICATION_model_specification.R
 \name{register.default.parameter.values}
 \alias{register.default.parameter.values}
-\title{Create}
+\title{Register Default Parameter Values}
 \usage{
 register.default.parameter.values(specification, parameter.values)
 }
 \description{
-Create
+Register Default Parameter Values
 }

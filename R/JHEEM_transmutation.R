@@ -252,7 +252,7 @@ get.outcome.and.quantity.names.for.transmuting <- function(from.kernel.or.specif
     rv
 }
 
-#'@name Create a Transmuter
+#'@title Create a Transmuter
 #'@details A jheem.transmuter can convert simulations from one version/specification to another using its transmute() method
 #'
 #'@param simulation.set The simulation.set to transmute
