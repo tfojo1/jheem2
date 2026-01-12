@@ -702,7 +702,7 @@ prepare.plot <- function(simset.list=NULL,
 
 #' Execute Simplot
 #' A utility that performs the plot-rendering half of the simplot operation
-#' for applicationslike webtools that need the step to be separate.
+#' for applications like webtools that need the step to be separate.
 #' @inheritParams simplot
 #' @param prepared.plot.data The named list output by "prepare.plot"
 #' @param n.facet.rows An optional argument to specify how many rows the figure should facet plots into

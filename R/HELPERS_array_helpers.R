@@ -396,6 +396,7 @@ expand.array <- function(to.expand, target.dim.names)
     }
 }
 
+#' @title Get the Array Indices Under Expanded Dim-names
 #'@export
 get.expand.array.indices <- function(to.expand.dim.names, 
                                      target.dim.names,
@@ -535,7 +536,7 @@ get.collapse.array.indices.with.intermediate.and.ontology.mapping <- function(la
     rv
 }
 
-
+#' @title Collapse an Array According to Indices
 #'@export
 collapse.array.according.to.indices <- function(arr,
                                                 small.indices,

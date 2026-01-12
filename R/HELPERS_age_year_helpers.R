@@ -65,9 +65,7 @@ get.range.robust.year.intersect <- function(x, y)
 }
 
 
-#'@title Parse
-#'
-#'@param
+#'@title Parse Year Names
 #'
 #'@export
 parse.year.names <- function(years, allow.partial.parsing=F)

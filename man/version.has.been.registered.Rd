@@ -17,6 +17,7 @@ Check Whether a JHEEM Model Specification has been Registered for a Version
 }
 \seealso{
 Other JHEEM Version Management Functions: 
+\code{\link{get.prior.versions}()},
 \code{\link{get.specification.for.version}()},
 \code{\link{register.model.specification}()}
 }
