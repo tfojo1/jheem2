@@ -52,8 +52,8 @@ Get P Bias Estimates
 }
 \seealso{
 Other Nested Proportion Likelihoods: 
-\code{\link{create.nested.proportion.likelihood.instructions.with.included.multiplier}()},
 \code{\link{create.nested.proportion.likelihood.instructions}()},
+\code{\link{create.nested.proportion.likelihood.instructions.with.included.multiplier}()},
 \code{\link{create.time.lagged.comparison.nested.proportion.likelihood.instructions}()}
 }
 \concept{Nested Proportion Likelihoods}

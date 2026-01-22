@@ -2,10 +2,10 @@
 % Please edit documentation in R/HELPERS_age_year_helpers.R
 \name{parse.year.names}
 \alias{parse.year.names}
-\title{Parse}
+\title{Parse Year Names}
 \usage{
 parse.year.names(years, allow.partial.parsing = F)
 }
 \description{
-Parse
+Parse Year Names
 }

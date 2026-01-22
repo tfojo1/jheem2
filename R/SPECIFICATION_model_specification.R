@@ -971,7 +971,8 @@ register.model.foreground <- function(specification,
 }
 
 
-#'@title Create
+#'@title Register Default Parameter Values
+#' @export
 register.default.parameter.values <- function(specification,
                                         parameter.values)
 {
@@ -1580,6 +1581,7 @@ update.outcome.keep.dimensions <- function(specification,
                                                  exclude.dimensions = exclude.dimensions)
 }
 
+#' @title Add Sub Version to Specification
 #'@export
 add.sub.version <- function(specification,
                             sub.version,
@@ -1596,6 +1598,7 @@ add.sub.version <- function(specification,
                                   can.seed.new.engine = can.seed.new.engine)
 }
 
+#' @title Track Sub Version Outcomes for a Specification
 #'@export
 track.sub.version.outcomes <- function(specification,
                                        sub.versions,

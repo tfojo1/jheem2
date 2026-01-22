@@ -10,7 +10,7 @@ create.jheem.engine(
   end.year,
   sub.version = NULL,
   max.run.time.seconds = Inf,
-  solver.metadata = create.solver.metadata()
+  solver.metadata = NULL
 )
 }
 \arguments{

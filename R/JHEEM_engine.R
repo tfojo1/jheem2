@@ -620,6 +620,9 @@ SUPPORTED.SOLVER.METHODS = list(
 #}
 #DIFFEQR.ENGINE = NULL
 
+# Note: AZ exported this since it is used directly by user in SHIELD specification
+#' @title Create Solver Metadata
+#'@export
 create.solver.metadata = function(method = 'ode45',
                                   package = NULL,
                                   atol = 1e-02,
@@ -644,18 +647,21 @@ JHEEM.SOLVER.TRACKING = new.env()
 JHEEM.SOLVER.TRACKING$tracked.info = NULL
 JHEEM.SOLVER.TRACKING$do.tracking = F
 
+#' @title Enable JHEEM Solver Tracking
 #'@export
 enable.jheem.solver.tracking <- function()
 {
     JHEEM.SOLVER.TRACKING$do.tracking = T
 }
 
+#' @title Disable JHEEM Solver Tracking
 #'@export
 disable.jheem.solver.tracking <- function()
 {
     JHEEM.SOLVER.TRACKING$do.tracking = F
 }
 
+#' @title Get JHEEM Solver Tracked Info
 #'@export
 get.jheem.solver.tracked.info <- function()
 {

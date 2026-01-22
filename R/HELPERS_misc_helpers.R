@@ -50,6 +50,7 @@ OLD.interpolate <- function(values,
     })
 }
 
+#' @title Interpolate Values
 #'@export
 interpolate <- function(values,
                         value.times,
@@ -264,9 +265,10 @@ toupper.first <- function(str)
     str
 }
 
+# Simulations use a different version of this
 str.to.title <- function(str)
 {
-    split.str = strsplit(str, "[^a-zA-Z0-9\\-]", fixed=F)
+    split.str = strsplit(str, "[^a-zA-Z0-9\\-\\+]", fixed=F)
     str = sapply(split.str, function(one.split){
         paste0(toupper.first(one.split), collapse=' ')
     })

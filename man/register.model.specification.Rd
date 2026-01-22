@@ -17,6 +17,7 @@ Once a specification object is registered, it can no longer be modified
 }
 \seealso{
 Other JHEEM Version Management Functions: 
+\code{\link{get.prior.versions}()},
 \code{\link{get.specification.for.version}()},
 \code{\link{version.has.been.registered}()}
 }

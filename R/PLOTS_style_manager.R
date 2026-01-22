@@ -43,6 +43,7 @@ create.style.manager = function(color.sim.by = 'stratum',
                             linewidth.slope = linewidth.slope)
 }
 
+#' @title Get the Default Style Manager
 #'@export
 get.default.style.manager = function(type=c('ggplot','plotly')[1])
 {
@@ -54,6 +55,7 @@ get.default.style.manager = function(type=c('ggplot','plotly')[1])
     DEFAULT.STYLE.MANAGERS[[type]]
 }
 
+#' @title Set the Default Style Manager
 #'@export
 set.default.style.manager = function(style.manager,
                                      type=c('ggplot','plotly')[1])

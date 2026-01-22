@@ -155,7 +155,7 @@ register.model.specification <- function(specification)
     invisible(NULL)
 }
 
-
+#' @title Get Prior JHEEM Model Versions
 #'@family JHEEM Version Management Functions
 #'
 #'@export

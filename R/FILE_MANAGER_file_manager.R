@@ -26,6 +26,10 @@ MAXIMUM.CALIBRATION.CODE.NCHAR = 25
 JHEEM.ROOT.DIR.STORAGE = new.env()
 JHEEM.ROOT.DIR.STORAGE$dir = NULL
 
+#' @title Set JHEEM Root Directory
+#' @description
+#' Set the directory that calibration directories and files will be written into.
+#' 
 #'@export
 set.jheem.root.directory <- function(dir)
 {
@@ -35,6 +39,10 @@ set.jheem.root.directory <- function(dir)
     JHEEM.ROOT.DIR.STORAGE$dir = dir
 }
 
+#' @title Get JHEEM Root Directory
+#' #' @description
+#' Gets the directory that calibration directories and files will be written into,
+#' if it has been set with "set.jheem.root.directory"
 #'@export
 get.jheem.root.directory <- function(error.prefix='')
 {
@@ -51,6 +59,7 @@ get.jheem.root.directory <- function(error.prefix='')
 ##-- SIMSET FILENAME / PATH --##
 ##----------------------------##
 
+#' @title Get Simset Filename and Directory
 #'@export
 get.simset.filename.and.dir <- function(version,
                                         location,
@@ -147,6 +156,7 @@ get.simset.filename.and.dir <- function(version,
     )
 }
 
+#' @title Get Simset Filename
 #'@export
 get.simset.filename <- function(version,
                                 location,
@@ -173,29 +183,11 @@ get.simset.filename <- function(version,
         filename.and.dir$filename
 }
 
-# #'@export
-retrieve.simulation.set <- function(version,
-                                    location,
-                                    calibration.code,
-                                    n.sim,
-                                    intervention.code = NULL,
-                                    sub.version = NULL,
-                                    root.dir = get.jheem.root.directory("Cannot get.simset.filename(): "),
-                                    error.prefix = '')
-{
-    filename = get.simset.filename(version = version,
-                                   sub.version = sub.version,
-                                   calibration.code = calibration.code,
-                                   n.sim = n.sim,
-                                   location = location,
-                                   intervention.code = intervention.code,
-                                   include.path = T,
-                                   root.dir = root.dir,
-                                   error.prefix = error.prefix)
-    
-    load.simulation.set(filename)
-}
-
+#' @title Retrieve a Saved Simulation Set
+#' @description
+#' Loads a simulation set that has been properly saved in JHEEM's calibration
+#' file structure.
+#' 
 #'@export
 retrieve.simulation.set <- function(version,
                                     location,
@@ -225,6 +217,12 @@ retrieve.simulation.set <- function(version,
         NULL
 }
 
+#' @title Parse Simset Filename
+#' @description
+#' Parses the calibration information that was compressed into the filename of a
+#' properly saved calibration simset.
+#' @value List with version, sub.version, calibration code
+#' 
 #'@export
 parse.simset.filename <- function(filename, throw.error.if.malformed=T)
 {

@@ -71,7 +71,9 @@
 #                     style.manager = get.default.style.manager(),
 #                     debug = F)
 
-
+#' @title Plot Simulations With Plotly
+#' @details See "Simplot" for ggplot2-based plotting.
+#' @export
 plot.simulations <- function(...,
                             outcomes,
                             corresponding.data.outcomes = NULL,
@@ -133,6 +135,11 @@ plot.simulations <- function(...,
                         debug=debug,
                         hide.legend = hide.legend)
 }
+
+#' Execute Plotly Plot
+#' A utility that performs the plot-rendering half of the plot simulations in plotly operation
+#' for applications like webtools that need the step to be separate.
+#' @export
 execute.plotly.plot <- function(prepared.plot.data,
                             outcomes=NULL,
                             split.by=NULL,

@@ -1,4 +1,5 @@
 
+#' @title Set Up Transmute Calibration
 #'@export
 set.up.transmute.calibration <- function(transmute.code,
                                          from.calibration.code,
@@ -354,6 +355,7 @@ create.transmute.calibration.control <- function(transmute.calibration.info,
     rv
 }
 
+#' @title Run Transmute Calibration
 #'@export
 run.transmute.calibration <- function(transmute.code,
                                       location,
@@ -792,7 +794,7 @@ transmute.calibration.cache.exists <- function(transmute.code,
         F
 }
 
-
+#' @title Assemble Transmuted Simulations
 #'@export
 assemble.transmuted.simulations <- function(transmute.code,
                                             location,
@@ -883,6 +885,7 @@ assemble.transmuted.simulations <- function(transmute.code,
     }
 }
 
+#' @title Register Transmute Calibration Info
 #'@export
 register.transmute.calibration.info <- function(transmute.code,
                                                 from.version,

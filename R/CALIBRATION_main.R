@@ -1,5 +1,5 @@
 
-#'@param Set Up A Calibration
+#' @title Set Up Calibration
 #'@param version The version of the model specification (must have been previously registered)
 #'@param location A single character value representing the location for the calibration
 #'@param calibration.code
