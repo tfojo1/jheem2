@@ -7803,12 +7803,13 @@ MODEL.OUTCOME = R6::R6Class(
                 already.calculated.dim.names[[private$i.name]]
             else
             {
-                dim.names = max.dim.names = 
+                dim.names = max.dim.names = derived.max.dim.names = 
                     private$derive.max.dim.names(specification = specification, 
                                                  all.outcomes = all.outcomes,
                                                  include.denominator.outcome = F,
                                                  throw.dim.names.errors = set,
                                                  already.calculated.dim.names = already.calculated.dim.names,
+                                                 limit.dimensions.by.quantity.dimensions = T,
                                                  error.prefix = error.prefix)
                 
                 if (set && is.null(dim.names) && length(private$i.keep.dimensions)>0)
@@ -7836,18 +7837,30 @@ MODEL.OUTCOME = R6::R6Class(
                         missing.dimensions = setdiff(private$i.keep.dimensions, names(dim.names))
                         if (length(missing.dimensions)>0)
                         {
-                            stop(paste0(error.prefix,
-                                        "Outcome ", self$get.original.name(wrt.version=specification$version),
-                                        " has ",
-                                        ifelse(length(missing.dimensions)==1, "keep.dimension ", "keep.dimensions "),
-                                        collapse.with.and("'", missing.dimensions, "'"),
-                                        " but ",
-                                        ifelse(length(dim.names)==0,
-                                               "the derived dimensions for the outcome indicate it must be dimensionless",
-                                               paste0(ifelse(length(missing.dimensions)==1, " it is ", " they are "),
-                                                      "not present in the derived set of possible for the dimensions for the outcome (",
-                                                      collapse.with.and("'", names(dim.names), "'"), ")"))
-                                        ))
+                            
+                            dep.on.outcomes = private$get.all.depends.on.outcomes(all.outcomes = all.outcomes,
+                                                                                  include.denominator.outcome = F,
+                                                                                  error.prefix = error.prefix)
+                            
+                            if (length(dep.on.outcomes)==0)
+                            {
+                                dim.names[missing.dimensions] = specification$ontologies$all[missing.dimensions]
+                            }
+                            else
+                            {
+                                stop(paste0(error.prefix,
+                                            "Outcome ", self$get.original.name(wrt.version=specification$version),
+                                            " has ",
+                                            ifelse(length(missing.dimensions)==1, "keep.dimension ", "keep.dimensions "),
+                                            collapse.with.and("'", missing.dimensions, "'"),
+                                            " but ",
+                                            ifelse(length(dim.names)==0,
+                                                   "the derived dimensions for the outcome indicate it must be dimensionless",
+                                                   paste0(ifelse(length(missing.dimensions)==1, " it is ", " they are "),
+                                                          "not present in the derived set of possible for the dimensions for the outcome (",
+                                                          collapse.with.and("'", names(dim.names), "'"), ")"))
+                                            ))
+                            }
                         }
                         
                         dim.names = dim.names[private$i.keep.dimensions]
@@ -7858,7 +7871,6 @@ MODEL.OUTCOME = R6::R6Class(
                         dim.names = dim.names[setdiff(names(dim.names), private$i.exclude.dimensions)]
                     }
                 }
-                
                 
                 # Generate the renamed ontology
                 missing.rename.dimensions = setdiff(names(private$i.rename.dimension.values), names(dim.names))
@@ -7879,7 +7891,6 @@ MODEL.OUTCOME = R6::R6Class(
                                                         dim.names,
                                                         rename.dimension.values = private$i.rename.dimension.values,
                                                         error.prefix = paste0(error.prefix, "Error renaming outcome's dimnames - "))
-                
                 
                 if (set)
                 {
@@ -7979,17 +7990,21 @@ MODEL.OUTCOME = R6::R6Class(
                         
                         quant.max.dim.names = apply.outcome.dimension.aliases.to.dim.names(self,
                                                                                            quant$max.dim.names)
-                        extra.dimensions.in.quantity = setdiff(names(quant.max.dim.names), names(max.dim.names))
-                        if (length(extra.dimensions.in.quantity)>0)
-                            stop(paste0(error.prefix,
-                                        "The calculated possible dimensions which quantity ", quant$get.original.name(specification$version),
-                                        ", on which the outcome depends, can have, are broader than the inferred dimensions for the outcome. ",
-                                        ifelse(length(extra.dimensions.in.quantity)==1, "Dimension ", "Dimensions "),
-                                        collapse.with.and("'", extra.dimensions.in.quantity, "'"),
-                                        " present in the quantity ('", quant$get.original.name(specification$version),
-                                        "') but not in the outcome ('",
-                                        self$get.original.name(specification$version),"')"))
-                        
+                        if (!is.null(derived.max.dim.names))
+                        {
+                            extra.dimensions.in.quantity = setdiff(names(quant.max.dim.names), names(derived.max.dim.names))
+                            if (length(extra.dimensions.in.quantity)>0)
+                            {
+                                stop(paste0(error.prefix,
+                                            "The calculated possible dimensions which quantity ", quant$get.original.name(specification$version),
+                                            ", on which the outcome depends, can have, are broader than the inferred dimensions used to compute the outcome. ",
+                                            ifelse(length(extra.dimensions.in.quantity)==1, "Dimension ", "Dimensions "),
+                                            collapse.with.and("'", extra.dimensions.in.quantity, "'"),
+                                            " present in the quantity ('", quant$get.original.name(specification$version),
+                                            "') but not in the dimensions used to compute the outcome ('",
+                                            self$get.original.name(specification$version),"')"))
+                            }
+                        }
                         
                         missing.values.per.dimension = sapply(names(quant.max.dim.names), function(d){
                             setdiff(max.dim.names[[d]], quant.max.dim.names[[d]])
@@ -7998,7 +8013,7 @@ MODEL.OUTCOME = R6::R6Class(
                         
                         if (any(dimensions.with.missing.mask))
                         {
-                            dimensions.with.missing = dimensions[dimensions.with.missing.mask]
+                            dimensions.with.missing = names(quant.max.dim.names)[dimensions.with.missing.mask]
                             missing.values.text = sapply(missing.values.per.dimension[dimensions.with.missing.mask], function(val){
                                 if (length(val)==1)
                                     paste0("value '", val, "'")
@@ -8011,6 +8026,8 @@ MODEL.OUTCOME = R6::R6Class(
                                                    paste0("Dimension '", dimensions.with.missing, "' is missing ", missing.values.text,
                                                           collapse='. '),
                                                    ".")
+                            
+                            stop(paste0(error.prefix, error.details))
                         }
                     }
                 
@@ -8020,6 +8037,8 @@ MODEL.OUTCOME = R6::R6Class(
                     private$i.ontology = as.ontology(renamed.dim.names, incomplete.dimensions = to.be.incomplete)
                 }
                 
+                
+                already.calculated.dim.names[[private$i.name]] = renamed.dim.names
                 renamed.dim.names
             }
         },
@@ -8038,7 +8057,9 @@ MODEL.OUTCOME = R6::R6Class(
                                                      include.denominator.outcome = F,
                                                      throw.dim.names.errors = F,
                                                      already.calculated.dim.names = already.calculated.dim.names,
+                                                     limit.dimensions.by.quantity.dimensions = F,
                                                      error.prefix = error.prefix)
+            
             # 
             # if (is.null(dim.names))
             #     dim.names = specification$ontologies$all[private$i.keep.dimensions]
@@ -8435,53 +8456,56 @@ MODEL.OUTCOME = R6::R6Class(
                                         include.denominator.outcome,
                                         throw.dim.names.errors,
                                         already.calculated.dim.names,
+                                        limit.dimensions.by.quantity.dimensions,
                                         error.prefix)
         {
             dim.names = private$derive.max.possible.dim.names(specification = specification,
                                                               include.denominator.outcome = include.denominator.outcome,
                                                               all.outcomes = all.outcomes,
                                                               already.calculated.dim.names = already.calculated.dim.names,
+                                                              limit.dimensions.by.quantity.dimensions = limit.dimensions.by.quantity.dimensions,
                                                               error.prefix = error.prefix)
             
-            if (!is.null(private$i.subset.dimension.values) && throw.dim.names.errors)
+            if (!is.null(dim.names))
             {
-                missing.dimensions = setdiff(names(private$i.subset.dimension.values), names(dim.names))
-                if (length(missing.dimensions)>0)
+                if (!is.null(private$i.subset.dimension.values) && throw.dim.names.errors)
                 {
-                    stop(paste0(error.prefix,
-                                "Outcome ", self$get.original.name(wrt.version=specification$version),
-                                " has subset.dimension.values that include ",
-                                ifelse(length(missing.dimensions)==1, "dimension ", "dimensions "),
-                                collapse.with.and("'", missing.dimensions, "'"),
-                                " but ",
-                                ifelse(length(dim.names)==0,
-                                       "the outcome must be dimensionless",
-                                       paste0(ifelse(length(missing.dimensions)==1, " it is ", " they are "),
-                                              "not present in the derived set of possible for the dimensions for the outcome (",
-                                              collapse.with.and("'", names(dim.names), "'"), ")"))
-                    ))
-                }
-                
-                for (d in names(private$i.subset.dimension.values))
-                {
-                    missing.values = setdiff(private$i.subset.dimension.values[[d]], dim.names[[d]])
-                    if (length(missing.values)>0)
+                    missing.dimensions = setdiff(names(private$i.subset.dimension.values), names(dim.names))
+                    if (length(missing.dimensions)>0)
+                    {
                         stop(paste0(error.prefix,
                                     "Outcome ", self$get.original.name(wrt.version=specification$version),
                                     " has subset.dimension.values that include ",
-                                    ifelse(length(missing.values)==1, "value ", "values "),
-                                    collapse.with.and("'", missing.values, "'"),
-                                    " for dimension '", d, "', but ",
-                                    paste0(ifelse(length(missing.values)==1, " it is ", " they are "),
-                                           "not present in the derived set of values for dimension '", d, "' (",
-                                           collapse.with.and("'", dim.names[[d]], "'"), ")")))
+                                    ifelse(length(missing.dimensions)==1, "dimension ", "dimensions "),
+                                    collapse.with.and("'", missing.dimensions, "'"),
+                                    " but ",
+                                    ifelse(length(dim.names)==0,
+                                           "the outcome must be dimensionless",
+                                           paste0(ifelse(length(missing.dimensions)==1, " it is ", " they are "),
+                                                  "not present in the derived set of possible for the dimensions for the outcome (",
+                                                  collapse.with.and("'", names(dim.names), "'"), ")"))
+                        ))
+                    }
+                    
+                    for (d in names(private$i.subset.dimension.values))
+                    {
+                        missing.values = setdiff(private$i.subset.dimension.values[[d]], dim.names[[d]])
+                        if (length(missing.values)>0)
+                            stop(paste0(error.prefix,
+                                        "Outcome ", self$get.original.name(wrt.version=specification$version),
+                                        " has subset.dimension.values that include ",
+                                        ifelse(length(missing.values)==1, "value ", "values "),
+                                        collapse.with.and("'", missing.values, "'"),
+                                        " for dimension '", d, "', but ",
+                                        paste0(ifelse(length(missing.values)==1, " it is ", " they are "),
+                                               "not present in the derived set of values for dimension '", d, "' (",
+                                               collapse.with.and("'", dim.names[[d]], "'"), ")")))
+                    }
                 }
-                
+            
                 dim.names[names(private$i.subset.dimension.values)] = private$i.subset.dimension.values
             }
             
-            already.calculated.dim.names[[private$i.name]] = dim.names
-        
             dim.names
         },
         
@@ -8489,6 +8513,7 @@ MODEL.OUTCOME = R6::R6Class(
         derive.max.possible.dim.names = function(specification, all.outcomes, 
                                                  include.denominator.outcome,
                                                  already.calculated.dim.names,
+                                                 limit.dimensions.by.quantity.dimensions,
                                                  error.prefix)
         {
             if (private$i.force.dim.names.to.keep.dimensions && !is.null(private$i.keep.dimensions))
@@ -8517,7 +8542,7 @@ MODEL.OUTCOME = R6::R6Class(
             dep.on.outcomes = private$get.all.depends.on.outcomes(all.outcomes = all.outcomes,
                                                                   include.denominator.outcome = include.denominator.outcome,
                                                                   error.prefix = error.prefix)
-
+     
             for (dep.on in dep.on.outcomes)
             {
                 dep.on.dim.names = dep.on$derive.dim.names(specification = specification,
@@ -8546,6 +8571,11 @@ MODEL.OUTCOME = R6::R6Class(
                 rv = intersect.shared.dim.names(rv, dep.on.dim.names)
             }
             
+#             if (length(dep.on.outcomes)==0 && length(private$i.keep.dimensions>0))
+#             {
+# #                rv = as.list(specification$ontologies$all[private$i.keep.dimensions])
+#             }
+            
             dep.on.quantities = get.all.depends.on.quantities(specification = specification,
                                                               all.outcomes = all.outcomes,
                                                               error.prefix = error.prefix)
@@ -8573,13 +8603,14 @@ MODEL.OUTCOME = R6::R6Class(
                 if (!is.null(dim.names.from.outcomes))
                 {
                     excess.dimensions = setdiff(names(quant.max.dim.names), names(dim.names.from.outcomes))
-                    if (length(excess.dimensions)>0)
+                    excess.dimensions.greater.than.length.one = excess.dimensions[sapply(quant.max.dim.names[excess.dimensions], length) > 1]
+                    if (length(excess.dimensions.greater.than.length.one)>0)
                     {
                         stop(paste0(error.prefix,
                                     "The dimensions for quantity '", quant$name, "' include ",
-                                    collapse.with.and("'", excess.dimensions, "'"),
+                                    collapse.with.and("'", excess.dimensions.greater.than.length.one, "'"),
                                     ". However ",
-                                    ifelse(length(excess.dimensions)==1, "this dimension is", "these dimensions are"),
+                                    ifelse(length(excess.dimensions.greater.than.length.one)==1, "this dimension is", "these dimensions are"),
                                     " not present in the outcome dim.names inferred from the other outcomes '",
                                     private$i.name, "' depend on (",
                                     collapse.with.and("'", sapply(dep.on.outcomes, function(dep){dep$get.original.name(private$i.version)}), "'"),
@@ -8588,9 +8619,20 @@ MODEL.OUTCOME = R6::R6Class(
                 }
                 
                 if (!is.null(quant$max.dim.names))
-                    rv = intersect.joined.dim.names(rv, quant.max.dim.names)
+                {
+                    if (limit.dimensions.by.quantity.dimensions)
+                    {
+                        rv = intersect.joined.dim.names(rv, quant.max.dim.names)
+                    }
+                    else
+                    {
+                        shared.dimensions.rv.and.quant = intersect(names(rv), names(quant.max.dim.names))
+                        if (length(shared.dimensions.rv.and.quant)>0)
+                            rv = intersect.joined.dim.names(rv, quant.max.dim.names[shared.dimensions.rv.and.quant])
+                    }
+                }
             }
-
+            
             rv
         },
         
@@ -8830,6 +8872,7 @@ INTRINSIC.MODEL.OUTCOME = R6::R6Class(
         derive.max.possible.dim.names = function(specification, all.outcomes,  
                                                  include.denominator.outcome,
                                                  already.calculated.dim.names,
+                                                 limit.dimensions.by.quantity.dimensions,
                                                  error.prefix)
         {
             specification$ontologies[[private$i.ontology.name]]
@@ -9113,6 +9156,7 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
         derive.max.possible.dim.names = function(specification, all.outcomes,  
                                                  include.denominator.outcome,
                                                  already.calculated.dim.names,
+                                                 limit.dimensions.by.quantity.dimensions,
                                                  error.prefix)
         {
             # identify the relevant core components
