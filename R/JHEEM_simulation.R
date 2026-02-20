@@ -1270,8 +1270,13 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
                 private$i.value.dim.names = private$i.value.dim.names[setdiff(names(private$i.value.dim.names), 'sim')]
             
             # Set up the years
+
+            # Convert year dimension values to character because later we do intersect and want predictable output even when base R can't decide
+            # if intersect(numeric, character) is numeric (like in 2022) or character(like in 2024+)
+            dimension.values$year <- as.character(dimension.values$year)
+            
             raw.years = dimension.values$year
-            if (is.null(raw.years))
+            if (is.null(raw.years) || length(raw.years)==0)
                 stop(paste0(error.prefix, "'dimension.values' MUST contain values for 'year'"))
             private$i.target.years = as.numeric(raw.years)
             if (any(is.na(private$i.target.years)))
@@ -1326,6 +1331,7 @@ OPTIMIZED.GET.INSTRUCTIONS = R6::R6Class(
                 draw.from.dim.names = intersect.joined.dim.names(outcome.ontology, dimension.values)
                 
                 # Get indices from the ontology to the draw-from subset
+                
                 outcome.to.draw.from.indices = get.array.access.indices(arr.dim.names = outcome.ontology,
                                                                         dimension.values = draw.from.dim.names,
                                                                         index.from = 1)

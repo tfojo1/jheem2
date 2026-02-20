@@ -567,7 +567,43 @@ get.locations.with.data <- function(data.manager = get.default.data.manager(), o
     data.manager$get.locations.with.data(outcome, metric=metric, years=years)
 }
 
-
+#' @title Inspect marginal sums between stratifications
+#' @description Compares the percentage difference between the marginal sums of 
+#' more stratified data and the data it corresponds to in more aggregated 
+#' stratifications of the same source and ontology.
+#'  
+#' @inheritParams put.data
+#' @param ontology The name of a registered ontology
+#' @param sub.stratification The name of a less-aggregated stratification
+#' @param super.stratification The name of a more-aggregated stratification
+#' @param years,locations Show results for certain years (numeric, non-NA vector) or locations (character, non-NA vector)
+#' @param threshold.percent A percentage below which discrepancies will not be reported (default 10).
+#' @param threshold.magnitude A magnitude of difference between marginal sums and more-aggregated data below which discrepancies will not be reported (default 50).
+#' @param check.up.to.n.way.stratified An integer greater than 0 indicating the highest level of stratification to report marginal sum discrepancies for (default 1).
+inspect.marginals <- function(data.manager = get.default.data.manager,
+                              outcome=NULL,
+                              source=NULL,
+                              ontology=NULL,
+                              sub.stratification=NULL,
+                              super.stratification=NULL,
+                              years=NULL,
+                              locations=NULL,
+                              threshold.percent = 10,
+                              threshold.magnitude = 50,
+                              check.up.to.n.way.stratified = 1) {
+    if (!R6::is.R6(data.manager) || !is(data.manager, 'jheem.data.manager'))
+        stop("'data.manager' must be an R6 object with class 'jheem.data.manager'")
+    data.manager$inspect_marginals(outcome=outcome,
+                                   source=source,
+                                   ontology=ontology,
+                                   sub.stratification=sub.stratification,
+                                   super.stratification=super.stratification,
+                                   years=years,
+                                   locations=locations,
+                                   threshold.percent = threshold.percent,
+                                   threshold.magnitude = threshold.magnitude,
+                                   check.up.to.n.way.stratified = check.up.to.n.way.stratified)
+}
 
 ##----------------------##
 ##-- CLASS DEFINITION --##
@@ -813,7 +849,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                     used.outcomes = intersect(kept.outcomes, used.outcomes)
                 
                 private[[data.type]] = lapply(used.outcomes, function(outcome.name) {
-
+                    
                     used.metrics = names(private[[data.type]][[outcome.name]])
                     
                     rv.this.outcome = lapply(used.metrics, function(metric.name) {
@@ -832,7 +868,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                 
                                 used.stratifications = names(private[[data.type]][[outcome.name]][[metric.name]][[source.name]][[ontology.name]])
                                 # browser()
-
+                                
                                 # Assume every stratification has all the incomplete dimensions for the ontology
                                 if (!is.null(incomplete.dimension.values.to.keep)) {
                                     subset.dimension.values = incomplete.dimension.values.to.keep[names(incomplete.dimension.values.to.keep) %in% incomplete.dimensions(private$i.ontologies[[ontology.name]])]
@@ -841,7 +877,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                     return(private[[data.type]][[outcome.name]][[metric.name]][[source.name]][[ontology.name]])
                                 
                                 rv.this.ontology = lapply(used.stratifications, function(stratification.name) {
-
+                                    
                                     strat.data = private[[data.type]][[outcome.name]][[metric.name]][[source.name]][[ontology.name]][[stratification.name]]
                                     
                                     subset.dimension.values.this.strat = lapply(subset.dimensions, function(dimension) {
@@ -2009,7 +2045,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                             }
                             else
                                 aggregated.data = data.by.data.type
-
+                            
                             dimnames(aggregated.data) = as.list(dimnames(aggregated.data))
                             
                             # Now is when we unhash the url and details
@@ -2453,68 +2489,62 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             private$do.unhash(arr, private$i.details.list)
         },
         
-        # Status: right now, this is finding a lot of percent diff of -1 due to the sub strat marginals being 0. How to handle?
-        # tabulate by source and outcome
         inspect_marginals = function(outcome=NULL,
                                      source=NULL,
                                      ontology=NULL,
                                      sub.stratification=NULL,
                                      super.stratification=NULL,
-                                     threshold.percent = 0.1,
+                                     years=NULL,
+                                     locations=NULL,
+                                     threshold.percent = 10,
                                      threshold.magnitude = 50,
-                                     check.up.to.n.way.stratified = 2) {
+                                     check.up.to.n.way.stratified = 1,
+                                     debug=F) {
             
             # For each outcome/metric/source/ontology, check each stratification against the others for correct marginals
             # Only for strats that are subsidiary to others, though (like "age" vs. "age__sex")
             # I call the more stratified strat the "sub" and the aggregate the "super" in a given pair
             error.prefix = "Error inspecting marginals: "
-            if (!is.numeric(threshold.percent) || length(threshold.percent)!=1 || is.na(threshold.percent) || threshold.percent<0 || threshold.percent>1)
-                stop(paste0(error.prefix, "'threshold.percent' must be a single, non-NA numeric value"))
+            if (!is.numeric(threshold.percent) || length(threshold.percent)!=1 || is.na(threshold.percent) || threshold.percent<=0)
+                stop(paste0(error.prefix, "'threshold.percent' must be a single, non-NA numeric value greater than zero"))
             
-            usable_outcomes <- names(private$i.outcome.info)[sapply(private$i.outcome.info, function(outcome) {outcome$metadata$scale == "non.negative.number"})]
-            usable_outcomes <- intersect(names(private$i.data), usable_outcomes)
-            # usable_outcomes = "prenanatal.screening.denominator"
+            if (!is.numeric(threshold.magnitude) || length(threshold.magnitude)!=1 || is.na(threshold.magnitude) || threshold.magnitude<0)
+                stop(paste0(error.prefix, "'threshold.magnitude' must be a single, non-NA numeric value greater than or equal to zero"))
             
-            ## CASE 1: Inspect marginals for all outcomes
-            if (is.null(outcome) && is.null(source) && is.null(ontology) && is.null(sub.stratification) && is.null(super.stratification)) {
-                rv <- private$do_inspect_all_marginals(threshold.percent=threshold.percent,
-                                                      threshold.magnitude=threshold.magnitude,
-                                                      check.up.to.n.way.stratified=check.up.to.n.way.stratified,
-                                                      usable.outcomes = usable_outcomes,
-                                                      error.prefix=error.prefix)
-            }
-            ## CASE 2: Inspect marginals between two specified arrays
-            else {
-                if (!is.character(outcome) || length(outcome) > 1 || is.na(outcome))
-                    stop(paste0(error.prefix, "'outcome' must be a single, non-NA character value"))
-                if (!(outcome %in% names(private$i.outcome.info)))
-                    stop(paste0(error.prefix, "'", outcome, "' is not a registered outcome."))
-                if (!(outcome %in% usable_outcomes))
-                    stop(paste0(error.prefix, "'outcome' must have scale 'non.negative.number'"))
-                if (is.null(private$i.data[[outcome]][['estimate']][[source]][[ontology]][[sub.stratification]]))
-                    stop(paste0(error.prefix, "data must exist in the data manager for this 'outcome', 'source', 'ontology' and 'sub.stratification'"))
-                if (is.null(private$i.data[[outcome]][['estimate']][[source]][[ontology]][[super.stratification]]))
-                    stop(paste0(error.prefix, "data must exist in the data manager for this 'outcome', 'source', 'ontology' and 'super.stratification'"))
-                discrepancies <- private$do_inspect_particular_marginals(outcome=outcome,
-                                                             source=source,
-                                                             ontology=ontology,
-                                                             sub.stratification=sub.stratification,
-                                                             super.stratification = super.stratification,
-                                                             check.up.to.n.way.stratified=check.up.to.n.way.stratified,
-                                                             error.prefix=error.prefix)
-                sub_marginals <- discrepancies$sub_marginals
-                super_data <- discrepancies$super_data
-                difference <- sub_marginals - super_data
-                percent_discrepancies <- difference / super_data
-                # Remove any where the difference is too small to matter
-                percent_discrepancies[abs(difference) < threshold.magnitude] <- NA
-                # Mask instances where the sub_marginals are actually NA (we used sum with na.rm=T, so we wouldn't know from the result)
-                percent_discrepancies[discrepancies$sub_all_NA] <- NA
-                
-                rv <- percent_discrepancies
-            }
+            if (!is.numeric(check.up.to.n.way.stratified) || length(check.up.to.n.way.stratified)!=1 || is.na(check.up.to.n.way.stratified) || check.up.to.n.way.stratified < 1)
+                stop(paste0(error.prefix, "'check.up.to.n.way.stratified' must be a single, non-NA integer value greater than or equal to one"))
+            
+            if (!is.null(outcome) && (!is.character(outcome) || length(outcome) > 1 || is.na(outcome)))
+                stop(paste0(error.prefix, "'outcome' must be NULL or a single, non-NA character value"))
+            if (!is.null(outcome) && !(outcome %in% names(private$i.outcome.info)))
+                stop(paste0(error.prefix, "'", outcome, "' is not a registered outcome."))
+            if (!is.null(source) && (!is.character(source) || length(source) > 1 || is.na(source)))
+                stop(paste0(error.prefix, "'source' must be NULL or a single, non-NA character value"))
+            if (!is.null(source) && !(source %in% names(private$i.source.info)))
+                stop(paste0(error.prefix, "'", source, "' is not a registered source"))
+            if (!is.null(ontology) && (!is.character(ontology) || length(ontology) > 1 || is.na(ontology)))
+                stop(paste0(error.prefix, "'ontology' must be NULL or a single, non-NA character value"))
+            if (!is.null(ontology) && !(ontology %in% names(private$i.ontologies)))
+                stop(paste0(error.prefix, "'", ontology, "' is not a registered ontology"))
+            
+            if (!is.null(years) && (!is.numeric(years) || any(is.na(years))))
+                stop(paste0(error.prefix, "'years' must be NULL or a numeric vector with no NAs"))
+            if (!is.null(locations) && (!is.character(locations) || any(is.na(locations))))
+                stop(paste0(error.prefix, "'locations' must be NULL or a character vector with no NAs"))
+            
+            rv <- private$do_inspect_marginals(outcome=outcome,
+                                               source=source,
+                                               ontology=ontology,
+                                               sub.stratification=sub.stratification,
+                                               super.stratification = super.stratification,
+                                               years = years,
+                                               locations = locations,
+                                               threshold.percent=threshold.percent,
+                                               threshold.magnitude=threshold.magnitude,
+                                               check.up.to.n.way.stratified=check.up.to.n.way.stratified,
+                                               error.prefix=error.prefix,
+                                               debug=debug)
             rv
-            
         }
     ),
     
@@ -3121,85 +3151,83 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop("Cannot strip source dimension since there are multiple sources yet 'allow.mean.across.multiple.sources' is FALSE")
         },
         
-        do_inspect_all_marginals = function(threshold.percent,
-                                            threshold.magnitude,
-                                            check.up.to.n.way.stratified,
-                                            usable.outcomes,
-                                            error.prefix) {
-            return_all_outcomes <- lapply(usable.outcomes, function(outcome) {
-                return_this_outcome <- lapply(names(private$i.data[[outcome]][["estimate"]]), function(source) {
-                    return_this_source <- lapply(names(private$i.data[[outcome]][["estimate"]][[source]]), function(ontology) {
-                        # browser()
-                        strat_names <- names(private$i.data[[outcome]][["estimate"]][[source]][[ontology]])
-                        return_this_ontology <- sapply(strat_names, function(super_strat) {
-                            sapply(strat_names, function(sub_strat) {
-                                discrepancies <- private$do_inspect_particular_marginals(outcome=outcome,
-                                                                                         source=source,
-                                                                                         ontology=ontology,
-                                                                                         sub.stratification = sub_strat,
-                                                                                         super.stratification = super_strat,
-                                                                                         check.up.to.n.way.stratified = check.up.to.n.way.stratified,
-                                                                                         error.prefix=error.prefix)
-                                if (is.null(discrepancies))
-                                    return(NA)
-                                
-                                sub_marginals <- discrepancies$sub_marginals
-                                super_data <- discrepancies$super_data
-                                difference <- sub_marginals - super_data
-
-                                percent_discrepancies <- difference / super_data   
-                                
-                                # Remove values where the difference is too small to matter
-                                percent_discrepancies[abs(difference) < threshold.magnitude] <- NA
-                                
-                                # Mask instances where the sub_marginals are actually NA (we used sum with na.rm=T, so we wouldn't know from the result)
-                                percent_discrepancies[discrepancies$sub_all_NA] <- NA
-                                
-                                if (all(is.na(percent_discrepancies)))
-                                    return(NA)
-                                
-                                if (max(percent_discrepancies, na.rm=T) <= threshold.percent && abs(min(percent_discrepancies, na.rm=T)) <= threshold.percent)
-                                    return(NA)
-                                
-                                if (max(percent_discrepancies, na.rm=T) > abs(min(percent_discrepancies, na.rm=T)))
-                                    max(percent_discrepancies, na.rm=T)
-                                else
-                                    min(percent_discrepancies, na.rm=T)
-                            })
-                        })
-                        return_this_ontology <- as.matrix(return_this_ontology)
-                        dimnames(return_this_ontology) <- list(sub_strat=strat_names, super_strat=strat_names)
-                        
-                        # Remove rows and columns that are all NA
-                        keep_rows <- apply(return_this_ontology, 1, function(row) {!all(is.na(row))})
-                        keep_cols <- apply(return_this_ontology, 2, function(col) {!all(is.na(col))})
-                        return_this_ontology <- return_this_ontology[keep_rows, keep_cols, drop=F]
-                        if (length(return_this_ontology)==0)
-                            return_this_ontology <- NA
-                        
-                        return_this_ontology
-                        
-                    })
-                    names(return_this_source) <- names(private$i.data[[outcome]][["estimate"]][[source]])
-                    return_this_source <- return_this_source[!is.na(return_this_source)]
-                    if (length(return_this_source)==0)
-                        return_this_source <- NA
-                    
-                    return_this_source
-                    
-                })
-                names(return_this_outcome) <- names(private$i.data[[outcome]][["estimate"]])
-                return_this_outcome <- return_this_outcome[!is.na(return_this_outcome)]
-                if (length(return_this_outcome)==0)
-                    return_this_outcome <- NA
+        do_inspect_marginals = function(outcome,
+                                        source,
+                                        ontology,
+                                        sub.stratification,
+                                        super.stratification,
+                                        years,
+                                        locations,
+                                        threshold.magnitude,
+                                        threshold.percent,
+                                        check.up.to.n.way.stratified,
+                                        error.prefix,
+                                        debug=F) {
+            if (debug) browser()
+            
+            # Find usable outcomes
+            usable_outcomes <- names(private$i.outcome.info)[sapply(private$i.outcome.info, function(outcome) {outcome$metadata$scale == "non.negative.number"})]
+            usable_outcomes <- intersect(names(private$i.data), usable_outcomes)
+            if (!is.null(outcome) && !(outcome %in% usable_outcomes))
+                stop(paste0(error.prefix, "'outcome', if specified, must be have scale 'non.negative.number'"))
+            if (!is.null(outcome)) usable_outcomes <- intersect(outcome, usable_outcomes)
+            
+            # Return a nested list of data frames, like our old method
+            return_all_outcomes <- lapply(usable_outcomes, function(outcome) {
                 
+                sources_this_outcome <- names(private$i.data[[outcome]][["estimate"]])
+                if (!is.null(source)) sources_this_outcome <- intersect(source, sources_this_outcome)
+                
+                return_this_outcome <- lapply(sources_this_outcome, function(source) {
+                    
+                    ontologies_this_source <- names(private$i.data[[outcome]][["estimate"]][[source]])
+                    if (!is.null(ontology)) ontologies_this_source <- intersect(ontology, ontologies_this_source)
+                    
+                    return_this_source <- lapply(ontologies_this_source, function(ontology) {
+                        
+                        super_strats_this_ont <- sub_strats_this_ont <- names(private$i.data[[outcome]][["estimate"]][[source]][[ontology]])
+                        if (!is.null(super.stratification)) super_strats_this_ont <- intersect(super.stratification, super_strats_this_ont)
+                        if (!is.null(sub.stratification)) sub_strats_this_ont <- intersect(sub.stratification, sub_strats_this_ont)
+                        
+                        return_this_ont <- lapply(super_strats_this_ont, function(super_strat) {
+                            return_this_super_strat <- lapply(sub_strats_this_ont, function(sub_strat) {
+                                # Return a data frame for each. It may have no rows.
+                                df <- private$do_inspect_particular_marginals(outcome = outcome,
+                                                                              source = source,
+                                                                              ontology = ontology,
+                                                                              sub.stratification = sub_strat,
+                                                                              super.stratification = super_strat,
+                                                                              years = years,
+                                                                              locations = locations,
+                                                                              threshold.magnitude = threshold.magnitude,
+                                                                              threshold.percent = threshold.percent,
+                                                                              check.up.to.n.way.stratified = check.up.to.n.way.stratified,
+                                                                              error.prefix=error.prefix,
+                                                                              debug=debug)
+                            })
+                            names(return_this_super_strat) <- sub_strats_this_ont
+                            return_this_super_strat <- return_this_super_strat[!sapply(return_this_super_strat, is.null)]
+                            if (length(return_this_super_strat)==0) return(NULL)
+                            return_this_super_strat
+                        })
+                        names(return_this_ont) <- super_strats_this_ont
+                        return_this_ont <- return_this_ont[!sapply(return_this_ont, is.null)]
+                        if (length(return_this_ont)==0) return(NULL)
+                        return_this_ont
+                    })
+                    names(return_this_source) <- ontologies_this_source
+                    return_this_source <- return_this_source[!sapply(return_this_source, is.null)]
+                    if (length(return_this_source)==0) return(NULL)
+                    return_this_source
+                })
+                names(return_this_outcome) <- sources_this_outcome
+                return_this_outcome <- return_this_outcome[!sapply(return_this_outcome, is.null)]
+                if (length(return_this_outcome)==0) return(NULL)
                 return_this_outcome
             })
-            names(return_all_outcomes) <- usable.outcomes
-            return_all_outcomes <- return_all_outcomes[!is.na(return_all_outcomes)]
-            if (length(return_all_outcomes)==0)
-                return_all_outcomes <- NA
-            
+            names(return_all_outcomes) <- usable_outcomes
+            return_all_outcomes <- return_all_outcomes[!sapply(return_all_outcomes, is.null)]
+            if (length(return_all_outcomes)==0) return(NULL)
             return_all_outcomes
         },
         
@@ -3208,9 +3236,17 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                                                    ontology,
                                                    sub.stratification,
                                                    super.stratification,
+                                                   years,
+                                                   locations,
+                                                   threshold.magnitude,
+                                                   threshold.percent,
                                                    check.up.to.n.way.stratified,
-                                                   error.prefix) {
-            # If the same, return NA
+                                                   error.prefix,
+                                                   debug=F) {
+            # TO ADD: year and location subsetting.
+            if (debug) browser()
+            
+            # If the same, return NULL
             if (super.stratification == sub.stratification)
                 return(NULL)
             
@@ -3222,31 +3258,59 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 length(sub_dimensions) > 2 + check.up.to.n.way.stratified)
                 return(NULL)
             
-            # If the super is not actually super to the sub, return NA
+            # If the super is not actually super to the sub, return NULL
             if (length(setdiff(sub_dimensions, super_dimensions))==0 || length(setdiff(super_dimensions, sub_dimensions)!=0))
                 return(NULL)
             
-            # If there are not any values to compare, return NA
+            # If there are not any values to compare, return NULL
             shared_dimnames <- intersect.shared.dim.names(dimnames(private$i.data[[outcome]][["estimate"]][[source]][[ontology]][[sub.stratification]]),
                                                           dimnames(private$i.data[[outcome]][["estimate"]][[source]][[ontology]][[super.stratification]]))
             if (any(sapply(shared_dimnames, length)==0))
                 return(NULL)
             
-            # Else, find marginals of sub and compare to super
+            # Else, find marginals of sub and compare to super. We use na.rm=FALSE because there's no use finding a sum of only a portion of the stratum.
             sub_data <- array.access(private$i.data[[outcome]][["estimate"]][[source]][[ontology]][[sub.stratification]], shared_dimnames)
             super_data <- array.access(private$i.data[[outcome]][["estimate"]][[source]][[ontology]][[super.stratification]], shared_dimnames)
-            sub_marginals <- apply(sub_data, MARGIN=names(dim(super_data)), FUN=sum, na.rm=T)
+            sub_marginals <- apply(sub_data, MARGIN=names(dim(super_data)), FUN=sum, na.rm=F)
             
-            # Check for sub_marginals where they really are just NA
-            sub_all_NA <- apply(is.na(sub_data), MARGIN=names(dim(super_data)), FUN=all)
+            # # Check for sub_marginals where they really are just NA
+            # sub_all_NA <- apply(is.na(sub_data), MARGIN=names(dim(super_data)), FUN=all)
             
             # Verify that the dimnames are the same now (values should be ordered within a dimension, but you never know...)
             if (!identical(dimnames(super_data), dimnames(sub_marginals)))
                 stop(paste0("Error inspecting totals: dimension value order assumption broken! Contact Andrew"))
+
+            # Now make a data frame with columns for each dimension as well as
+            # columns for the marginal sum, super value, diff, and % diff
             
-            # Return the difference and denominator to later calculate percentage discrepancy
-            list(sub_marginals=sub_marginals, super_data = super_data, sub_all_NA = sub_all_NA)
+            # We checked that they have exactly the same dimnames, so we can cbind them.
+            super_df <- reshape2::melt(super_data, value.name = "super_value")
+            marginals_df <- reshape2::melt(sub_marginals, value.name = "marginal_sum")
+            df <- cbind(super_df, marginal_sum = marginals_df$marginal_sum)
+            df["magnitude_diff"] <- df$super_value - df$marginal_sum
+            df["percent_diff"] <- round(100 * df$magnitude_diff / df$super_value, 1)
+            
+            # Now cut out NA rows and those below thresholds
+            df <- df[!is.na(df$percent_diff),]
+            df <- df[abs(df$magnitude_diff) >= threshold.magnitude,]
+            df <- df[abs(df$percent_diff) >= threshold.percent,]
+            
+            # Now cut down to the years and locations requested
+            if (!is.null(years)) {
+                if (!("year" %in% colnames(df)))
+                    stop(paste0(error.prefix, "Unusual situation encountered: 'year' is not a dimension in the data!"))
+                df <- df[df$year %in% years,]
+            }
+            if (!is.null(locations)) {
+                if (!("location" %in% colnames(df)))
+                    stop(paste0(error.prefix, "Unusual situation encountered: 'location' is not a dimension in the data!"))
+                df <- df[df$location %in% locations,]
+            }
+            
+            if (nrow(df) == 0)
+                return(NULL)
+            
+            df
         }
-        
     )
 )
