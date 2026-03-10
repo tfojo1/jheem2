@@ -2,7 +2,7 @@
 #' @description
 #' Create instructions for a likelihood that computes using a custom function.
 #' @inheritParams create.basic.likelihood.instructions
-#' @param compute.function A function that takes only two arguments: 'sim', 'data', and 'log'.
+#' @param compute.function A function that takes only arguments "sim" and "log", with optional "data" and "debug" arguments.
 #' @export
 create.custom.likelihood.instructions <- function(name,
                                                   compute.function,
@@ -31,8 +31,10 @@ JHEEM.CUSTOM.LIKELIHOOD.INSTRUCTIONS <- R6::R6Class(
             if (!is.function(compute.function))
                 stop(paste0(error.prefix, "'compute.function' must be a function"))
             if (!setequal(names(formals(compute.function)), c("sim", "log")) &&
-                !setequal(names(formals(compute.function)), c("sim", "data", "log")))
-                stop(paste0(error.prefix, "'compute.function' must be a function taking only arguments ('sim', 'data' and 'log') or only ('sim' and 'log')"))
+                !setequal(names(formals(compute.function)), c("sim", "data", "log")) &&
+                !setequal(names(formals(compute.function)), c("sim", "log", "debug")) &&
+                !setequal(names(formals(compute.function)), c("sim", "data", "log", "debug")))
+                stop(paste0(error.prefix, "'compute.function' must be a function taking only arguments ('sim', 'data' and 'log') or only ('sim' and 'log'), along with an optional 'debug' argument"))
             
             # *get.data.function* is a function taking only args "version" and "location"
             if (is.null(get.data.function))
