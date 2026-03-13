@@ -299,6 +299,7 @@ put.data <- function(data.manager = get.default.data.manager(),
                      details,
                      allow.na.to.overwrite=F,
                      dimension.values.to.distribute=list(),
+                     allow.distributing.on.proportion.scale=F,
                      round.distributed.dimension.values=T,
                      debug=F,
                      printouts=F)
@@ -316,6 +317,7 @@ put.data <- function(data.manager = get.default.data.manager(),
                      details=details,
                      allow.na.to.overwrite=allow.na.to.overwrite,
                      dimension.values.to.distribute = dimension.values.to.distribute,
+                     allow.distributing.on.proportion.scale = allow.distributing.on.proportion.scale,
                      round.distributed.dimension.values = round.distributed.dimension.values,
                      debug=F,
                      printouts=printouts)
@@ -339,6 +341,7 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                details,
                                allow.na.to.overwrite=F,
                                dimension.values.to.distribute=list(),
+                               allow.distributing.on.proportion.scale=F,
                                round.distributed.dimension.values=T,
                                debug=F,
                                printouts=F)
@@ -356,6 +359,7 @@ put.data.long.form <- function(data.manager = get.default.data.manager(),
                                details=details,
                                allow.na.to.overwrite=allow.na.to.overwrite,
                                dimension.values.to.distribute = dimension.values.to.distribute,
+                               allow.distributing.on.proportion.scale = allow.distributing.on.proportion.scale,
                                round.distributed.dimension.values=round.distributed.dimension.values,
                                debug=F,
                                printouts=printouts)
@@ -1211,6 +1215,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                        details,
                        allow.na.to.overwrite=F,
                        dimension.values.to.distribute=list(),
+                       allow.distributing.on.proportion.scale=F,
                        round.distributed.dimension.values=T,
                        is.removal=F,
                        debug=F,
@@ -1294,7 +1299,8 @@ JHEEM.DATA.MANAGER = R6::R6Class(
                 stop(paste0(error.prefix, "'dimension.values.to.distribute' must be a named list; defaults to list()"))
             if (length(dimension.values.to.distribute) > 0 && !is.array(data))
                 stop(paste0(error.prefix, "'dimension.values.to.distribute' can only be used when the data is an array; should be left as the default, list(), otherwise"))
-            if (length(dimension.values.to.distribute) > 0 && outcome.info$metadata$scale != 'non.negative.number')
+            if ((length(dimension.values.to.distribute) > 0 && outcome.info$metadata$scale != 'non.negative.number') &&
+                !allow.distributing.on.proportion.scale)
                 stop(paste0(error.prefix, "'dimension.values.to.distribute' can only be used when the data has scale 'non.negative.number'; should be left as the default, list(), otherwise"))
             # We cannot distribute on incomplete dimensions
             if (any(names(dimension.values.to.distribute) %in% incomplete.dimensions(ont)))
