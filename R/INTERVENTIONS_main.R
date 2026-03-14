@@ -586,7 +586,7 @@ JHEEM.INTERVENTION = R6::R6Class(
                     stop(paste0("Cannot figure out start.year - some intervention effect foregrounds have not been resolved"))
                 
                 if (start.year == -Inf)
-                    start.year = min(end.year-1, simset$to.year)
+                    start.year = min(end.year-1, sim$to.year)
             }
             
             # Get the engine

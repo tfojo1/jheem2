@@ -393,6 +393,9 @@ prepare.plot <- function(simset.list=NULL,
     df.truth = NULL
     for (i in seq_along(outcomes.for.data))
     {
+        if (plot.which == "data.only" && is.null(outcome.metadata.list[[i]])) {
+            stop(paste0(error.prefix, "'", outcomes[i], "' is not a registered outcome in the data manager. Find valid outcomes in the data manager with <data.manager>$outcomes"))
+        }
         if (plot.which != 'sim.only' && !is.null(outcomes.for.data[[i]]))
         {
             outcome.data = tryCatch(
