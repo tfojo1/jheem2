@@ -12,7 +12,7 @@ create.custom.likelihood.instructions(
 )
 }
 \arguments{
-\item{compute.function}{A function that takes only two arguments: 'sim', 'data', and 'log'.}
+\item{compute.function}{A function that takes only arguments "sim" and "log", with optional "data" and "debug" arguments.}
 }
 \description{
 Create instructions for a likelihood that computes using a custom function.
