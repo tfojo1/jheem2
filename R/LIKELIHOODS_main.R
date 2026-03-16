@@ -82,10 +82,12 @@ compute.likelihood.piecewise <- function(likelihood,
 }
 
 #' @title Compare Two Simsets
-#' @description Compare how two simsets score on a likelihood
+#' @description Compare how two simsets score on a likelihood.
 #' @inheritParams jheem2-likelihood-params
 #' @param sim1,sim2 'jheem.simulation.set' objects to compare
 #' @param piecewise Should they be compared on each likelihood individually, if a joint likelihood is supplied?
+#' @value The likelihood of sim2 divided by that of sim1 (if log is FALSE), or the 
+#' log likelihood of sim2 minus that of sim1 (if log is TRUE).
 #' @export
 compare.sims <- function(likelihood, sim1, sim2, piecewise = T, log = F) {
     error.prefix <- "Error computing likelihood: "
@@ -552,9 +554,9 @@ JHEEM.LIKELIHOOD <- R6::R6Class(
             }
 
             if (piecewise) {
-                diff <- self$compute.piecewise(sim2) - self$compute.piecewise(sim1)
+                diff <- self$compute.piecewise(sim2, log=T) - self$compute.piecewise(sim1, log=T)
             } else {
-                diff <- self$compute(sim2) - self$compute(sim1)
+                diff <- self$compute(sim2, log=T) - self$compute(sim1, log=T)
             }
 
             if (log) {
