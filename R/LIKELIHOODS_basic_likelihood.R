@@ -992,6 +992,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                             }
                             
                             else if (type == "function.sd") {
+                                # browser()
                                 function.sd = private$i.parameters$error.variance.term[[i]]
                                 error.data <- tryCatch({function.sd(data, one.details, version, location)},
                                                        error=function(e) {stop(paste0(error.prefix, "there was an error during execution of the user-specified 'error.variance.term' function: ", e))})
@@ -1022,7 +1023,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                     
                     # By this point, "data" may have had multiple entries converted to NA.
                     one.obs.vector <- as.numeric(data)
-                    
+                    # browser()
                     # EXPERIMENTAL
                     one.dimension.values.remove.mask <- rep(T, length(one.obs.vector)) # EXPERIMENTAL
                     one.dimension.values.remove.mask[get.array.access.indices(one.dimnames, dimension.values = private$i.dimension.values)] <- F # EXPERIMENTAL
@@ -1071,7 +1072,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                     remove.mask.list <- c(remove.mask.list, list(one.remove.mask))
                 }
             }
-            
+            # browser()
             private$i.n.obs <- length(private$i.obs.vector)
 
             if (n.stratifications.with.data == 0) {
@@ -1150,7 +1151,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
             }
             
             ## ---- GENERATE MEASUREMENT ERROR COVARIANCE MATRIX ---- ##
-            
+            # browser()
             # call this function with numeric(0) replacing the locations vector and 1 replacing the correlation different locations, used in the nested proportion likelihood.
             measurement.error.correlation.matrix <- get_obs_error_correlation_matrix(
                 rep(1, private$i.n.obs**2),
@@ -1495,7 +1496,7 @@ JHEEM.BASIC.LIKELIHOOD <- R6::R6Class(
                 likelihood <- mvtnorm::dmvnorm(obs,
                                                mean = mean,
                                                sigma = sigma,
-                                               log = T,
+                                               log = log,
                                                checkSymmetry = F
                 )
             }

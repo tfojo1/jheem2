@@ -276,7 +276,7 @@ JHEEM.BASIC.RATIO.LIKELIHOOD <- R6::R6Class(
             likelihood <- mvtnorm::dmvnorm(private$i.lagged.obs,
                                            mean = final.mean,
                                            sigma = final.sigma,
-                                           log = T,
+                                           log = log,
                                            checkSymmetry = F
             ) 
             

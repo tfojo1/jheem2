@@ -1928,7 +1928,7 @@ JHEEM.NESTED.PROPORTION.LIKELIHOOD <- R6::R6Class(
                 likelihood <- mvtnorm::dmvnorm(obs.vector,
                     mean = mean,
                     sigma = sigma,
-                    log = T,
+                    log = log,
                     checkSymmetry = F
                 )
             }
