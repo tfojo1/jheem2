@@ -435,7 +435,46 @@ get.expand.array.indices <- function(to.expand.dim.names,
     }
 }
 
+#'@title Get a Set of Indices to Collapse One Array into Another, expanding the first array if needed to add dimensions
+#'
+#'@param large.arr.dim.names The dimnames of the source array
+#'@param small.arr.dim.names the dimnames of the target array
+#'
+#'@return A list with four elements: $large.indices, $small.indices, $large.n, $small.n
+#'  large.indices and small.indices are integer vectors of equal length, such that the value at large.indices[i] goes into the value at small.indices[i] if collapsing
+#'
+#'@export
+get.expand.then.collapse.array.indices <- function(large.arr.dim.names,
+                                                   small.arr.dim.names)
+{
+    missing.dimensions = setdiff(names(small.arr.dim.names), names(large.arr.dim.names))
+    if (length(missing.dimensions)==0)
+    {
+        get.collapse.array.indices(large.arr.dim.names = large.arr.dim.names,
+                                   small.arr.dim.names = small.arr.dim.names)
+    }
+    else
+    {
+        expanded.dim.names = c(large.arr.dim.names, small.arr.dim.names[missing.dimensions])
+        expand.indices = get.expand.array.indices(to.expand.dim.names = large.arr.dim.names,
+                                                  target.dim.names = expanded.dim.names)
+        
+        collapse.indices = get.collapse.array.indices(large.arr.dim.names = expanded.dim.names,
+                                                      small.arr.dim.names = small.arr.dim.names)
+        
+        list(
+            small.indices = collapse.indices$small.indices,
+            large.indices = expand.indices[collapse.indices$large.indices],
+            small.n = collapse.indices$small.n,
+            large.n = prod(vapply(large.arr.dim.names, length, FUN.VALUE = numeric(1)))
+        )
+    }
+}
+
 #'@title Get a Set of Indices to Collapse One Array into Another
+#'
+#'@param large.arr.dim.names The dimnames of the source array
+#'@param small.arr.dim.names the dimnames of the target array
 #'
 #'@return A list with four elements: $large.indices, $small.indices, $large.n, $small.n
 #'  large.indices and small.indices are integer vectors of equal length, such that the value at large.indices[i] goes into the value at small.indices[i] if collapsing
@@ -478,6 +517,34 @@ get.collapse.array.indices.with.intermediate <- function(large.arr.dim.names,
 {
     indices.large.to.intermediate = get.collapse.array.indices(large.arr.dim.names = large.arr.dim.names,
                                                                small.arr.dim.names = intermediate.arr.dim.names)
+    
+    indices.intermediate.to.small = get.collapse.array.indices(large.arr.dim.names = intermediate.arr.dim.names,
+                                                               small.arr.dim.names = small.arr.dim.names)
+    
+    names(indices.intermediate.to.small$small.indices) = as.character(indices.intermediate.to.small$large.indices)
+    
+    rv = list(
+        small.indices = indices.intermediate.to.small$small.indices[as.character(indices.large.to.intermediate$small.indices)],
+        large.indices = indices.large.to.intermediate$large.indices,
+        small.n = indices.intermediate.to.small$small.n,
+        large.n = indices.large.to.intermediate$large.n
+    )
+    
+    keep.mask = !is.na(rv$small.indices)
+    rv$small.indices = rv$small.indices[keep.mask]
+    rv$large.indices = rv$large.indices[keep.mask]
+    
+    rv$no.need.to.collapse = rv$small.n==rv$large.n && all(rv$small.indices==rv$large.indices)
+    
+    rv
+}
+
+get.expand.then.collapse.array.indices.with.intermediate <- function(large.arr.dim.names,
+                                                                     intermediate.arr.dim.names,
+                                                                     small.arr.dim.names)
+{
+    indices.large.to.intermediate = get.expand.then.collapse.array.indices(large.arr.dim.names = large.arr.dim.names,
+                                                                           small.arr.dim.names = intermediate.arr.dim.names)
     
     indices.intermediate.to.small = get.collapse.array.indices(large.arr.dim.names = intermediate.arr.dim.names,
                                                                small.arr.dim.names = small.arr.dim.names)

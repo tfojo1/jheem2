@@ -701,6 +701,8 @@ clear.transmute.calibration.cache <- function(transmute.code,
                                               allow.remove.incomplete = F,
                                               root.dir = get.jheem.root.directory())
 {
+    error.prefix = 'Cannot clear transmute calibration cache:'
+    
     if (is.null(to.version))
     {
         calibration.info = get.transmute.calibration.info(code = transmute.code,

@@ -1584,7 +1584,7 @@ SPLINE.FUNCTIONAL.FORM = R6::R6Class(
                 stop(paste0(error.prefix, "'knot.times' must have names set"))
             if (any(is.na(knot.names)))
                 stop(paste0(error.prefix, "The names of 'knot.times' cannot be NA"))
-            if (any(nchar(knot.names)==1))
+            if (any(nchar(knot.names)==0))
                 stop(paste0(error.prefix, "The names of 'knot.times' cannot be empty ('')"))
             tabled.knot.names = table(knot.names)
             if (max(tabled.knot.names)>1)

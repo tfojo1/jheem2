@@ -6442,6 +6442,7 @@ JHEEM = R6::R6Class(
                     {
                         excess.dimensions = setdiff(names(quantity.dim.names),
                                                     names(dim.names.from.outcomes))
+                        excess.dimensions = setdiff(excess.dimensions, outcome$allow.expand.dimensions)
                         
                         if (length(excess.dimensions)>0)
                             stop(paste0("Cannot calculate dim.names for the numerator of outcome '",
@@ -6952,7 +6953,7 @@ JHEEM = R6::R6Class(
                                                                             private$i.outcome.dim.names.sans.time[[dep.on.outcome.name]])
             
             private$i.outcome.indices[[outcome.name]]$value.from.outcome[[dep.on.outcome.name]] =
-                get.collapse.array.indices(small.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]],
+                get.expand.then.collapse.array.indices(small.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]],
                                            large.arr.dim.names = dep.on.dim.names)
         },
         
@@ -6972,7 +6973,7 @@ JHEEM = R6::R6Class(
         calculate.outcome.collapse.value.indices = function(outcome.name)
         {
             private$i.outcome.indices[[outcome.name]]$collapse.numerator = 
-                get.collapse.array.indices(small.arr.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]],
+                get.expand.then.collapse.array.indices(small.arr.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]],
                                            large.arr.dim.names = private$i.outcome.numerator.dim.names.sans.time[[outcome.name]])
             
             outcome = private$i.kernel$get.outcome.kernel(outcome.name)
@@ -6998,25 +6999,31 @@ JHEEM = R6::R6Class(
                 unrenamed.outcome.dim.names.plus.subset = as.list(private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]])
                 unrenamed.outcome.dim.names.plus.subset[subset.dimensions.missing.from.dim.names] = outcome$subset.dimension.values[subset.dimensions.missing.from.dim.names]
                 
+                denominator.outcome.dim.names.plus.expanded.dimensions = denominator.outcome.dim.names.plus.unrenamed.expanded.dimensions =
+                    as.list(denominator.outcome.dim.names)
+                expand.denominator.dimensions = intersect(setdiff(outcome$allow.expand.denominator.dimensions, names(denominator.outcome.dim.names)),
+                                                          names(outcome.dim.names.plus.subset))
+                if (length(expand.denominator.dimensions)>0)
+                {   
+                    denominator.outcome.dim.names.plus.expanded.dimensions[expand.denominator.dimensions] = outcome.dim.names.plus.subset[expand.denominator.dimensions]
+                    denominator.outcome.dim.names.plus.unrenamed.expanded.dimensions[expand.denominator.dimensions] = unrenamed.outcome.dim.names.plus.subset[expand.denominator.dimensions]
+                }
+                
                 if (dim.names.are.subset(sub.dim.names = outcome.dim.names.plus.subset,
-                                         super.dim.names = denominator.outcome.dim.names))
+                                         super.dim.names = denominator.outcome.dim.names.plus.expanded.dimensions))
                 {
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator =
-                        get.collapse.array.indices.with.intermediate(large.arr.dim.names = denominator.outcome.dim.names,
-                                                                     intermediate.arr.dim.names = outcome.dim.names.plus.subset,
-                                                                     small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]])
-                    #     get.collapse.array.indices(small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]],
-                    #                                large.arr.dim.names = denominator.outcome.dim.names)
+                        get.expand.then.collapse.array.indices.with.intermediate(large.arr.dim.names = denominator.outcome.dim.names,
+                                                                                 intermediate.arr.dim.names = outcome.dim.names.plus.subset,
+                                                                                 small.arr.dim.names = private$i.outcome.dim.names.sans.time[[outcome.name]])
                 }
                 else if (dim.names.are.subset(sub.dim.names = unrenamed.outcome.dim.names.plus.subset,
-                                              super.dim.names = denominator.outcome.dim.names))
+                                              super.dim.names = denominator.outcome.dim.names.plus.unrenamed.expanded.dimensions))
                 {
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator =
-                        get.collapse.array.indices.with.intermediate(large.arr.dim.names = denominator.outcome.dim.names,
-                                                                     intermediate.arr.dim.names = unrenamed.outcome.dim.names.plus.subset,
-                                                                     small.arr.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]])
-                    #    get.collapse.array.indices(small.arr.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]],
-                    #                            large.arr.dim.names = denominator.outcome.dim.names)
+                        get.expand.then.collapse.array.indices.with.intermediate(large.arr.dim.names = denominator.outcome.dim.names,
+                                                                                 intermediate.arr.dim.names = unrenamed.outcome.dim.names.plus.subset,
+                                                                                 small.arr.dim.names = private$i.outcome.unrenamed.dim.names.sans.time[[outcome.name]])
                 }
                 else
                 {
@@ -7026,8 +7033,8 @@ JHEEM = R6::R6Class(
                          collapse.with.and("'", names(outcome.dim.names.plus.subset), "'"),
                          ") are NOT a subset of the dimnames of the denominator outcome '",
                          outcome$denominator.outcome, "' (with ",
-                         ifelse(length(denominator.outcome.dim.names)==1, "dimension ", "dimensions "),
-                         collapse.with.and("'", names(denominator.outcome.dim.names), "'"),
+                         ifelse(length(denominator.outcome.dim.names.plus.expanded.dimensions)==1, "dimension ", "dimensions "),
+                         collapse.with.and("'", names(denominator.outcome.dim.names.plus.expanded.dimensions), "'"),
                          ")",
                          ifelse(is.null(outcome$rename.dimension.values), "", " - either before or after renaming the outcome's dim.names"))
                 }
@@ -7037,7 +7044,7 @@ JHEEM = R6::R6Class(
                     numerator.dim.names = private$i.outcome.numerator.renamed.dim.names.sans.time[[outcome.name]]
                     
                     if (!dim.names.are.subset(sub.dim.names = numerator.dim.names,
-                                              super.dim.names = denominator.outcome.dim.names))
+                                              super.dim.names = denominator.outcome.dim.names.plus.expanded.dimensions))
                     {
                         stop("Error in dimnames for outcomes: the *numerator* dimnames of outcome '",
                              outcome.name, "' (with ",
@@ -7045,15 +7052,15 @@ JHEEM = R6::R6Class(
                              collapse.with.and("'", names(numerator.dim.names), "'"),
                              ") are NOT a subset of the dimnames of the denominator outcome '",
                              outcome$denominator.outcome, "' (with ",
-                             ifelse(length(denominator.outcome.dim.names)==1, "dimension ", "dimensions "),
-                             collapse.with.and("'", names(denominator.outcome.dim.names), "'"),
+                             ifelse(length(denominator.outcome.dim.names.plus.expanded.dimensions)==1, "dimension ", "dimensions "),
+                             collapse.with.and("'", names(denominator.outcome.dim.names.plus.expanded.dimensions), "'"),
                              ")",
                              ifelse(is.null(outcome$rename.dimension.values), "", ". This probably has to do with the rename.dimension.values argument"))
                     }
                     
                     private$i.outcome.indices[[outcome.name]]$collapse.denominator.for.numerator =
-                        get.collapse.array.indices(small.arr.dim.names = numerator.dim.names,
-                                                   large.arr.dim.names = denominator.outcome.dim.names)
+                        get.expand.then.collapse.array.indices(small.arr.dim.names = numerator.dim.names,
+                                                               large.arr.dim.names = denominator.outcome.dim.names)
                 }
             }
         },

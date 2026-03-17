@@ -25,7 +25,7 @@
 #'@param do.not.inherit.transitions.for.dimension A vector of names of dimensions for which transitions should NOT be inherited from ancestor specifications
 #'@param do.not.inherit.components.with.tags A vector of tags for which core components (transmission, natality, mortality, transitions, aging) should NOT be inherited from ancestor specifications
 #'
-#'@param compartments.for.infected.only,compartments.for.uninfected.only,compartments.for.infected.and.uninfected Named lists of character vectors F@specifying the compartments for uninfected and infected groups, or compartments shared by both. The names of the lists represent dimensions, and the values the compartments for each dimension. Compartments can either be string referencing the compartments themselves, or strings representing aliases passed to compartment.value.aliases
+#'@param compartments.for.infected.only,compartments.for.uninfected.only,compartments.for.infected.and.uninfected,compartments.for.outcomes Named lists of character vectors F@specifying the compartments for uninfected and infected groups, compartments shared by both, or additional compartments that show in the outcomes. The names of the lists represent dimensions, and the values the compartments for each dimension. Compartments can either be string referencing the compartments themselves, or strings representing aliases passed to compartment.value.aliases
 #'
 #'@param age.endpoints Optional. A numeric vector (with at least two elements) giving the endpoints of the age brackets to use for the 'age' dimension. Results in length(age.endpoints)-1 different brackets, where the first bracket spans age.endpoints[1] (inclusive) to age.endpoints[2] (exclusive), the second bracket spans age.endpoints[2] to age.endpoints[3], etc
 #'
@@ -51,6 +51,7 @@ create.jheem.specification <- function(version,
                                        compartments.for.infected.only = list(),
                                        compartments.for.uninfected.only = list(),
                                        compartments.for.infected.and.uninfected = list(),
+                                       compartments.for.outcomes = list(),
                                        
                                        age.endpoints = NULL,
                                        
@@ -91,6 +92,9 @@ create.jheem.specification <- function(version,
     
     if (missing(compartments.for.uninfected.only) || is.null(compartments.for.infected.and.uninfected))
         compartments.for.infected.and.uninfected = list()
+    
+    if (missing(compartments.for.outcomes) || is.null(compartments.for.outcomes))
+        compartments.for.outcomes = list()
     
     if (missing(age.endpoints))
         age.endpoints = NULL
@@ -414,6 +418,9 @@ create.jheem.specification <- function(version,
         if (any(names(compartments.for.uninfected.only)=='age') && 
             length(compartments.for.uninfected.only[['age']])==0)
             compartments.for.uninfected.only[['age']] = 'all.ages'
+        if (any(names(compartments.for.outcomes)=='age') && 
+            length(compartments.for.outcomes[['age']])==0)
+            compartments.for.outcomes[['age']] = 'all.ages'
     }
     
     
@@ -427,6 +434,9 @@ create.jheem.specification <- function(version,
     check.dim.names.valid(compartments.for.infected.and.uninfected, error.prefix = error.prefix,
                           variable.name.for.error = 'compartments.for.infected.and.uninfected',
                           allow.empty = T, allow.duplicate.values.across.dimensions = F)
+    check.dim.names.valid(compartments.for.outcomes, error.prefix = error.prefix,
+                          variable.name.for.error = 'compartments.for.outcomes',
+                          allow.empty = T, allow.duplicate.values.across.dimensions = F)
     
     
     # dim.names - check for use of reserved dimensions
@@ -438,6 +448,9 @@ create.jheem.specification <- function(version,
                         error.prefix = error.prefix)
     validate.dimensions(names(compartments.for.infected.and.uninfected),
                         variable.name.for.error = "'compartments.for.infected.and.uninfected'",
+                        error.prefix = error.prefix)
+    validate.dimensions(names(compartments.for.outcomes),
+                        variable.name.for.error = "'compartments.for.outcomes'",
                         error.prefix = error.prefix)
     
     # dim.names - check for use of reserved categories
@@ -459,8 +472,14 @@ create.jheem.specification <- function(version,
                                     error.prefix = error.prefix)
     })
     
+    sapply(names(compartments.for.outcomes), function(d){
+        validate.compartment.values(values = compartments.for.outcomes[[d]],
+                                    variable.name.for.error = paste0("compartments.for.outcomes[['", d, "']]"),
+                                    error.prefix = error.prefix)
+    })
     
-    # make sure that dimensions are not shared across any of the three of general/infected/uninfected
+    
+    # make sure that dimensions are not shared across any of the four of general/infected/uninfected/outcomes
     shared.dimensions = intersect(names(compartments.for.infected.only), names(compartments.for.uninfected.only))
     if (length(shared.dimensions)>0)
         stop(paste0(error.prefix,
@@ -484,6 +503,33 @@ create.jheem.specification <- function(version,
                     collapse.with.and("'", shared.dimensions, "'"),
                     ifelse(length(shared.dimensions)==1, " is", " are"),
                     " used by both"))
+    
+    shared.dimensions = intersect(names(compartments.for.outcomes), names(compartments.for.infected.only))
+    if (length(shared.dimensions)>0)
+        stop(paste0(error.prefix,
+                    "Dimensions cannot be shared between 'compartments.for.outcomes' and 'compartments.for.infected.only', but ",
+                    collapse.with.and("'", shared.dimensions, "'"),
+                    ifelse(length(shared.dimensions)==1, " is", " are"),
+                    " used by both"))
+    
+        shared.dimensions = intersect(names(compartments.for.outcomes), names(compartments.for.uninfected.only))
+    if (length(shared.dimensions)>0)
+        stop(paste0(error.prefix,
+                    "Dimensions cannot be shared between 'compartments.for.outcomes' and 'compartments.for.uninfected.only', but ",
+                    collapse.with.and("'", shared.dimensions, "'"),
+                    ifelse(length(shared.dimensions)==1, " is", " are"),
+                    " used by both"))
+    
+    shared.dimensions = intersect(names(compartments.for.outcomes), names(compartments.for.infected.and.uninfected))
+    if (length(shared.dimensions)>0)
+        stop(paste0(error.prefix,
+                    "Dimensions cannot be shared between 'compartments.for.outcomes' and 'compartments.for.infected.and.uninfected', but ",
+                    collapse.with.and("'", shared.dimensions, "'"),
+                    ifelse(length(shared.dimensions)==1, " is", " are"),
+                    " used by both"))
+    
+    
+    
     
     
     # make sure that values are not shared across general+infected or general+uninfected
@@ -513,6 +559,10 @@ create.jheem.specification <- function(version,
         compartments.for.infected.and.uninfected = parent.specification$compartments$general
         compartments.for.infected.and.uninfected[names(to.add.compartments.for.infected.and.uninfected)] = to.add.compartments.for.infected.and.uninfected
         
+        to.add.compartments.for.outcomes = compartments.for.outcomes
+        compartments.for.outcomes = parent.specification$compartments$outcomes
+        compartments.for.outcomes[names(to.add.compartments.for.outcomes)] = to.add.compartments.for.outcomes
+        
         # dim.names - basic validity of merged with parent arguments
         check.dim.names.valid(compartments.for.infected.only, error.prefix = error.prefix,
                               variable.name.for.error = 'compartments.for.infected.only (after merging with parent specification)',
@@ -523,12 +573,15 @@ create.jheem.specification <- function(version,
         check.dim.names.valid(compartments.for.infected.and.uninfected, error.prefix = error.prefix,
                               variable.name.for.error = 'compartments.for.infected.and.uninfected (after merging with parent specification)',
                               allow.empty = T, allow.duplicate.values.across.dimensions = F)
+        check.dim.names.valid(to.add.compartments.for.outcomes, error.prefix = error.prefix,
+                              variable.name.for.error = 'to.add.compartments.for.outcomes (after merging with parent specification)',
+                              allow.empty = T, allow.duplicate.values.across.dimensions = F)
         
         # make sure that we have location as a dimension in the general dimnames
         if (all(names(compartments.for.infected.and.uninfected) != 'location'))
             stop(paste0(error.prefix, "'compartments.for.infected.and.uninfected' MUST have a dimension titled 'location'"))
         
-        # make sure that dimensions are not shared across any of the three of general/infected/uninfected
+        # make sure that dimensions are not shared across any of the four of general/infected/uninfected/outcomes
         #  (AFTER pulling from parent)
         shared.dimensions = intersect(names(compartments.for.infected.only), names(compartments.for.uninfected.only))
         if (length(shared.dimensions)>0)
@@ -553,6 +606,32 @@ create.jheem.specification <- function(version,
                         collapse.with.and("'", shared.dimensions, "'"),
                         ifelse(length(shared.dimensions)==1, " is", " are, after mergning with parent specification"),
                         " used by both"))
+        
+        shared.dimensions = intersect(names(compartments.for.outcomes), names(compartments.for.infected.only))
+        if (length(shared.dimensions)>0)
+            stop(paste0(error.prefix,
+                        "Dimensions cannot be shared between 'compartments.for.infected.only' and 'compartments.for.infected.only', but ",
+                        collapse.with.and("'", shared.dimensions, "'"),
+                        ifelse(length(shared.dimensions)==1, " is", " are, after mergning with parent specification"),
+                        " used by both"))
+        
+        shared.dimensions = intersect(names(compartments.for.outcomes), names(compartments.for.uninfected.only))
+        if (length(shared.dimensions)>0)
+            stop(paste0(error.prefix,
+                        "Dimensions cannot be shared between 'compartments.for.infected.only' and 'compartments.for.uninfected.only', but ",
+                        collapse.with.and("'", shared.dimensions, "'"),
+                        ifelse(length(shared.dimensions)==1, " is", " are, after mergning with parent specification"),
+                        " used by both"))
+        
+        shared.dimensions = intersect(names(compartments.for.outcomes), names(compartments.for.infected.and.uninfected))
+        if (length(shared.dimensions)>0)
+            stop(paste0(error.prefix,
+                        "Dimensions cannot be shared between 'compartments.for.infected.only' and 'compartments.for.infected.and.uninfected', but ",
+                        collapse.with.and("'", shared.dimensions, "'"),
+                        ifelse(length(shared.dimensions)==1, " is", " are, after mergning with parent specification"),
+                        " used by both"))
+        
+        
         
         
         # make sure that values are not shared across general+infected or general+uninfected
@@ -612,6 +691,7 @@ create.jheem.specification <- function(version,
     aliased.compartments.for.infected.only = lapply(compartments.for.infected.only, substitute.aliases.into.vector, aliases=compartment.value.aliases)
     aliased.compartments.for.uninfected.only = lapply(compartments.for.uninfected.only, substitute.aliases.into.vector, aliases=compartment.value.aliases)
     aliased.compartments.for.infected.and.uninfected = lapply(compartments.for.infected.and.uninfected, substitute.aliases.into.vector, aliases=compartment.value.aliases)
+    aliased.compartments.for.outcomes = lapply(compartments.for.outcomes, substitute.aliases.into.vector, aliases=compartment.value.aliases)
     
     # dim.names - basic validity of aliased arguments
     check.dim.names.valid(aliased.compartments.for.infected.only, error.prefix = error.prefix,
@@ -622,6 +702,9 @@ create.jheem.specification <- function(version,
                           allow.empty = T, allow.duplicate.values.across.dimensions = F)
     check.dim.names.valid(aliased.compartments.for.infected.and.uninfected, error.prefix = error.prefix,
                           variable.name.for.error = 'compartments.for.infected.and.uninfected (after plugging in compartment.value.aliases)',
+                          allow.empty = T, allow.duplicate.values.across.dimensions = F)
+    check.dim.names.valid(compartments.for.outcomes, error.prefix = error.prefix,
+                          variable.name.for.error = 'compartments.for.outcomes (after plugging in compartment.value.aliases)',
                           allow.empty = T, allow.duplicate.values.across.dimensions = F)
     
     # make sure that values are not shared across general+infected or general+uninfected
@@ -658,6 +741,7 @@ create.jheem.specification <- function(version,
         compartments.for.infected.only = compartments.for.infected.only,
         compartments.for.uninfected.only = compartments.for.uninfected.only,
         compartments.for.infected.and.uninfected = compartments.for.infected.and.uninfected,
+        compartments.for.outcomes = compartments.for.outcomes,
         age.info = age.info,
         start.year = start.year,
         
@@ -1230,7 +1314,8 @@ register.model.mechanism <- function(specification,
 #'@param keep.dimensions The dimensions which to keep in storing outcome values. All other dimensions are marginalized. Either keep.dimensions OR exclude.dimensions but not both can be set; if both are NULL, will keep all possible dimensions for the outcome.
 #'@param exclude.dimensions Dimensions to be marginalized out when storing outcome values. Either keep.dimensions OR exclude.dimensions but not both can be set; if both are NULL, will keep all possible dimensions for the outcome.
 #'@param subset.dimension.values A list of dimension values indicating for which values of which dimensions the outcome should be tracked
-#'@param rename.dimension.values A list of names character vectors indicating which dimension values should be renamed in the 
+#'@param rename.dimension.values A list of names character vectors indicating which dimension values should be renamed in the outcome ontology
+#'@param allow.expand.dimensions,allow.expand.denominator.dimensions A character vector of dimensions which can be added to the outcome (or outcome's denominator) even if not present in its component outcomes or quantities. The outcome will have the same value for all values in that dimension
 #'@param scale The scale of this outcome. Can be NULL when outcome.metadata is not NULL (only required when not saving and not using outcome.metadata)
 #'@param save A logical indicator of whether this outcome should be stored in simulations. If FALSE, the outcome will be available for calculating other outcomes (with \code{\link{track.cumulative.outcome}} or \code{\link{track.point.outcome}}), but will not be retrievable afterwards
 #'@param from.year,to.year The time span during which the outcome should be recorded
@@ -1257,6 +1342,8 @@ track.dynamic.outcome <- function(specification,
                                   exclude.dimensions = NULL,
                                   subset.dimension.values = NULL,
                                   rename.dimension.values = NULL,
+                                  allow.expand.dimensions = NULL,
+                                  allow.expand.denominator.dimensions = NULL,
                                   dimension.aliases = NULL,
                                   dimension.alias.suffix = NULL,
                                   scale = NULL,
@@ -1280,6 +1367,8 @@ track.dynamic.outcome <- function(specification,
                                         exclude.dimensions = exclude.dimensions,
                                         subset.dimension.values = subset.dimension.values,
                                         rename.dimension.values = rename.dimension.values,
+                                        allow.expand.dimensions = allow.expand.dimensions,
+                                        allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                                         dimension.aliases = dimension.aliases,
                                         dimension.alias.suffix = dimension.alias.suffix,
                                         scale = scale,
@@ -1316,6 +1405,8 @@ track.transition <- function(specification,
                              exclude.dimensions = NULL,
                              subset.dimension.values = NULL,
                              rename.dimension.values = NULL,
+                             allow.expand.dimensions = NULL,
+                             allow.expand.denominator.dimensions = NULL,
                              dimension.aliases = NULL,
                              dimension.alias.suffix = NULL,
                              scale = NULL,
@@ -1341,6 +1432,8 @@ track.transition <- function(specification,
                                    exclude.dimensions = exclude.dimensions,
                                    subset.dimension.values = subset.dimension.values,
                                    rename.dimension.values = rename.dimension.values,
+                                   allow.expand.dimensions = allow.expand.dimensions,
+                                   allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                                    dimension.aliases = dimension.aliases,
                                    dimension.alias.suffix = dimension.alias.suffix,
                                    scale = scale,
@@ -1375,6 +1468,8 @@ track.integrated.outcome <- function(specification,
                                      subset.dimension.values = NULL,
                                      rename.dimension.values = NULL,
                                      force.dim.names.to.keep.dimensions = F,
+                                     allow.expand.dimensions = NULL,
+                                     allow.expand.denominator.dimensions = NULL,
                                      dimension.aliases = NULL,
                                      dimension.alias.suffix = NULL,
                                      scale = NULL,
@@ -1397,6 +1492,8 @@ track.integrated.outcome <- function(specification,
                                            subset.dimension.values = subset.dimension.values,
                                            rename.dimension.values = rename.dimension.values,
                                            force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
+                                           allow.expand.dimensions = allow.expand.dimensions,
+                                           allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                                            dimension.aliases = dimension.aliases,
                                            dimension.alias.suffix = dimension.alias.suffix,
                                            from.year = from.year,
@@ -1429,6 +1526,8 @@ track.cumulative.outcome <- function(specification,
                                      subset.dimension.values = NULL,
                                      rename.dimension.values = NULL,
                                      force.dim.names.to.keep.dimensions = F,
+                                     allow.expand.dimensions = NULL,
+                                     allow.expand.denominator.dimensions = NULL,
                                      dimension.aliases = NULL,
                                      dimension.alias.suffix = NULL,
                                      scale = NULL,
@@ -1450,6 +1549,8 @@ track.cumulative.outcome <- function(specification,
                                          subset.dimension.values = subset.dimension.values,
                                          rename.dimension.values = rename.dimension.values,
                                          force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
+                                         allow.expand.dimensions = allow.expand.dimensions,
+                                         allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                                          dimension.aliases = dimension.aliases,
                                          dimension.alias.suffix = dimension.alias.suffix,
                                          scale = scale,
@@ -1481,6 +1582,8 @@ track.point.outcome <- function(specification,
                                 subset.dimension.values = NULL,
                                 rename.dimension.values = NULL,
                                 force.dim.names.to.keep.dimensions = F,
+                                allow.expand.dimensions = NULL,
+                                allow.expand.denominator.dimensions = NULL,
                                 dimension.aliases = NULL,
                                 dimension.alias.suffix = NULL,
                                 scale = NULL,
@@ -1502,6 +1605,8 @@ track.point.outcome <- function(specification,
                                       subset.dimension.values = subset.dimension.values,
                                       rename.dimension.values = rename.dimension.values,
                                       force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
+                                      allow.expand.dimensions = allow.expand.dimensions,
+                                      allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                                       dimension.aliases = dimension.aliases,
                                       dimension.alias.suffix = dimension.alias.suffix,
                                       scale = scale,
@@ -1534,6 +1639,8 @@ track.cumulative.proportion.from.rate <- function(specification,
                                                   subset.dimension.values = NULL,
                                                   rename.dimension.values = NULL,
                                                   force.dim.names.to.keep.dimensions = F,
+                                                  allow.expand.dimensions = NULL,
+                                                  allow.expand.denominator.dimensions = NULL,
                                                   dimension.aliases = NULL,
                                                   dimension.alias.suffix = NULL,
                                                   from.year = -Inf,
@@ -1554,12 +1661,15 @@ track.cumulative.proportion.from.rate <- function(specification,
                                                         subset.dimension.values = subset.dimension.values,
                                                         rename.dimension.values = rename.dimension.values,
                                                         force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
+                                                        allow.expand.dimensions = allow.expand.dimensions,
+                                                        allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                                                         dimension.aliases = dimension.aliases,
                                                         dimension.alias.suffix = dimension.alias.suffix,
                                                         from.year = from.year,
                                                         to.year = to.year,
                                                         save = save)
 }
+
 
 #'@title Change the keep.dimensions of an outcome registered to an ancestor specification
 #'
@@ -1893,8 +2003,10 @@ RAMP.TAPER.APPLICATIONS = c('multiplier','absolute')
 
 QUANTITY.SUBSET.APPLY.FUNCTIONS = c('overwrite','add','subtract','multiply','divide')
 
-ALLOWED.MODEL.QUANTITY.VALUE.EXPRESSION.FUNCTIONS = c("+","-","*","/","(","log","exp","sqrt")
-ALLOWED.MODEL.OUTCOME.VALUE.EXPRESSION.FUNCTIONS = c("+","-","*","/","(","log","exp","sqrt")
+ALLOWED.MODEL.QUANTITY.VALUE.EXPRESSION.FUNCTIONS = c("+","-","*","/","(","log","exp","sqrt",
+                                                      "plnorm")
+ALLOWED.MODEL.OUTCOME.VALUE.EXPRESSION.FUNCTIONS = c("+","-","*","/","(","log","exp","sqrt",
+                                                     "plnorm")
 
 MIN.FUNCTIONAL.FORM.FROM.YEAR = MIN.MODEL.FROM.YEAR
 MAX.FUNCTIONAL.FORM.FROM.YEAR.OFFSET.FROM.CURRENT.YEAR = 50
@@ -1934,6 +2046,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                               compartments.for.infected.only,
                               compartments.for.uninfected.only,
                               compartments.for.infected.and.uninfected,
+                              compartments.for.outcomes,
                               age.info,
                               start.year,
                               
@@ -1989,7 +2102,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
             private$i.compartments = list(
                 infected = compartments.for.infected.only,
                 uninfected = compartments.for.uninfected.only,
-                general = compartments.for.infected.and.uninfected
+                general = compartments.for.infected.and.uninfected,
+                outcomes = compartments.for.outcomes
             )    
             
             # Calculations - temp quantities we will need
@@ -2025,10 +2139,12 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 general = compartments.for.infected.and.uninfected,
                 infected = c(compartments.for.infected.and.uninfected, compartments.for.infected.only),
                 uninfected = c(compartments.for.infected.and.uninfected, compartments.for.uninfected.only),
+                outcomes = compartments.for.outcomes,
                 
                 general.compartments = compartments.for.infected.and.uninfected,
                 infected.compartments = compartments.for.infected.only,
                 uninfected.compartments = compartments.for.uninfected.only,
+                outcome.compartments = compartments.for.outcomes,
                 
                 infected.from = general.infected.from.dim.names,
                 infected.to = general.infected.to.dim.names,
@@ -2037,7 +2153,7 @@ JHEEM.SPECIFICATION = R6::R6Class(
                 
                 infected.plus.uninfected = c(compartments.for.infected.and.uninfected, compartments.for.infected.only, compartments.for.uninfected.only),
                 
-                all = c(alternating.orig.from.dim.names, to.dim.names),
+                all = c(alternating.orig.from.dim.names, to.dim.names, compartments.for.outcomes),
                 
                 contact = c(general.uninfected.to.dim.names, general.infected.from.dim.names),
                 
@@ -2702,6 +2818,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                          exclude.dimensions = NULL,
                                          subset.dimension.values = NULL,
                                          rename.dimension.values = NULL,
+                                         allow.expand.dimensions = NULL,
+                                         allow.expand.denominator.dimensions = NULL,
                                          dimension.aliases = NULL,
                                          dimension.alias.suffix = NULL,
                                          scale = NULL,
@@ -2727,6 +2845,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                 exclude.dimensions = exclude.dimensions,
                                                 subset.dimension.values = subset.dimension.values,
                                                 rename.dimension.values = rename.dimension.values,
+                                                allow.expand.dimensions = allow.expand.dimensions,
+                                                allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                                                 dimension.aliases = dimension.aliases,
                                                 dimension.alias.suffix = dimension.alias.suffix,
                                                 scale = scale,
@@ -2755,6 +2875,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                     exclude.dimensions = NULL,
                                     subset.dimension.values = NULL,
                                     rename.dimension.values = NULL,
+                                    allow.expand.dimensions = NULL,
+                                    allow.expand.denominator.dimensions = NULL,
                                     dimension.aliases = NULL,
                                     dimension.alias.suffix = NULL,
                                     scale = NULL,
@@ -2783,6 +2905,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    exclude.dimensions = exclude.dimensions,
                                                    subset.dimension.values = subset.dimension.values,
                                                    rename.dimension.values = rename.dimension.values,
+                                                   allow.expand.dimensions = allow.expand.dimensions,
+                                                   allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                                                    dimension.aliases = dimension.aliases,
                                                    dimension.alias.suffix = dimension.alias.suffix,
                                                    scale = scale,
@@ -2809,6 +2933,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                             subset.dimension.values = NULL,
                                             rename.dimension.values = NULL,
                                             force.dim.names.to.keep.dimensions = F,
+                                            allow.expand.dimensions = NULL,
+                                            allow.expand.denominator.dimensions = NULL,
                                             dimension.aliases = NULL,
                                             dimension.alias.suffix = NULL,
                                             from.year = -Inf,
@@ -2829,6 +2955,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    subset.dimension.values = subset.dimension.values,
                                                    rename.dimension.values = rename.dimension.values,
                                                    force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
+                                                   allow.expand.dimensions = allow.expand.dimensions,
+                                                   allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                                                    dimension.aliases = dimension.aliases,
                                                    dimension.alias.suffix = dimension.alias.suffix,
                                                    from.year = from.year,
@@ -2852,6 +2980,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                             subset.dimension.values = NULL,
                                             rename.dimension.values = NULL,
                                             force.dim.names.to.keep.dimensions = F,
+                                            allow.expand.dimensions = NULL,
+                                            allow.expand.denominator.dimensions = NULL,
                                             dimension.aliases = NULL,
                                             dimension.alias.suffix = NULL,
                                             scale = NULL,
@@ -2871,6 +3001,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                    subset.dimension.values = subset.dimension.values,
                                                    rename.dimension.values = rename.dimension.values,
                                                    force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
+                                                   allow.expand.dimensions = allow.expand.dimensions,
+                                                   allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                                                    dimension.aliases = dimension.aliases,
                                                    dimension.alias.suffix = dimension.alias.suffix,
                                                    from.year = from.year,
@@ -2894,6 +3026,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                        subset.dimension.values = NULL,
                                        rename.dimension.values = NULL,
                                        force.dim.names.to.keep.dimensions = F,
+                                       allow.expand.dimensions = NULL,
+                                       allow.expand.denominator.dimensions = NULL,
                                        dimension.aliases = NULL,
                                        dimension.alias.suffix = NULL,
                                        scale = NULL,
@@ -2913,6 +3047,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                               subset.dimension.values = subset.dimension.values,
                                               rename.dimension.values = rename.dimension.values,
                                               force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
+                                              allow.expand.dimensions = allow.expand.dimensions,
+                                              allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                                               dimension.aliases = dimension.aliases,
                                               dimension.alias.suffix = dimension.alias.suffix,
                                               scale = scale,
@@ -2936,6 +3072,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                          subset.dimension.values = NULL,
                                                          rename.dimension.values = NULL,
                                                          force.dim.names.to.keep.dimensions = F,
+                                                         allow.expand.dimensions = NULL,
+                                                         allow.expand.denominator.dimensions = NULL,
                                                          dimension.aliases = NULL,
                                                          dimension.alias.suffix = NULL,
                                                          from.year = -Inf,
@@ -2954,6 +3092,8 @@ JHEEM.SPECIFICATION = R6::R6Class(
                                                            subset.dimension.values = subset.dimension.values,
                                                            rename.dimension.values = rename.dimension.values,
                                                            force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
+                                                           allow.expand.dimensions = allow.expand.dimensions,
+                                                           allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                                                            dimension.aliases = dimension.aliases,
                                                            dimension.alias.suffix = dimension.alias.suffix,
                                                            from.year = from.year,
@@ -4503,8 +4643,18 @@ MODEL.ELEMENT = R6::R6Class(
                         stop(paste0(error.prefix, "you cannot specity BOTH a value and get.value.function - one or the other must be NULL"))
                     
                     if (!is.numeric(value) || length(value)==0 || any(is.na(value)))
-                        stop(paste0(error.prefix,
-                                    "'value' must be a non-empty, numeric object with no NA values"))
+                    {
+                        if (is.expression(value))
+                        {
+                            stop(paste0(error.prefix,
+                                        "'value' for a model ELEMENT cannot be an expression. Try creating a model QUANTITY instead"))
+                        }
+                        else
+                        {
+                            stop(paste0(error.prefix,
+                                        "'value' must be a non-empty, numeric object with no NA values"))
+                        }
+                    }
                     
                     if (length(value) != 1 && is.null(dimnames(value)))
                         stop(paste0(error.prefix, "'value' must either be a scalar (single) numeric value OR it must have dimnames set"))
@@ -7502,6 +7652,8 @@ MODEL.OUTCOME = R6::R6Class(
                               from.year,
                               to.year,
                               required.scale = NULL,
+                              allow.expand.dimensions = NULL,
+                              allow.expand.denominator.dimensions = NULL,
                               dimension.aliases = NULL,
                               dimension.alias.suffix = NULL)
         {
@@ -7655,6 +7807,26 @@ MODEL.OUTCOME = R6::R6Class(
             if (from.year > to.year)
                 stop(paste0(error.prefix, "'from.year' (", from.year, ") must be BEFORE 'to.year' (", to.year, ")"))
             
+            # Validate allow.expand.dimensions, allow.expand.denominator.dimensions
+            
+            if (!is.null(allow.expand.dimensions))
+            {
+                if (!is.character(allow.expand.dimensions) || length(allow.expand.dimensions)==0 || any(is.na(allow.expand.dimensions)) || any(nchar(allow.expand.dimensions)==0))
+                    stop(paste0(error.prefix, "'allow.expand.dimensions' must be a non-empty character vector with no NA or length=0 values"))
+                
+                if (any(table(allow.expand.dimensions)>1))
+                    stop(paste0(error.prefix, "'allow.expand.dimensions' cannot contain repeated values"))
+            }
+            
+            if (!is.null(allow.expand.denominator.dimensions))
+            {
+                if (!is.character(allow.expand.denominator.dimensions) || length(allow.expand.denominator.dimensions)==0 || any(is.na(allow.expand.denominator.dimensions)) || any(nchar(allow.expand.denominator.dimensions)==0))
+                    stop(paste0(error.prefix, "'allow.expand.denominator.dimensions' must be a non-empty character vector with no NA or length=0 values"))
+                
+                if (any(table(allow.expand.denominator.dimensions)>1))
+                    stop(paste0(error.prefix, "'allow.expand.denominator.dimensions' cannot contain repeated values"))
+            }
+            
             # Validate aliases
             if (!is.null(dimension.alias.suffix))
             {
@@ -7702,6 +7874,8 @@ MODEL.OUTCOME = R6::R6Class(
             private$i.save = save
             private$i.from.year = from.year
             private$i.to.year = to.year
+            private$i.allow.expand.dimensions = allow.expand.dimensions
+            private$i.allow.expand.denominator.dimensions = allow.expand.denominator.dimensions
             private$i.dimension.alias.suffix = dimension.alias.suffix
             private$i.dimension.aliases = dimension.aliases
             private$i.force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions
@@ -7916,11 +8090,18 @@ MODEL.OUTCOME = R6::R6Class(
                         renamed.dim.names.plus.subset = as.list(renamed.dim.names)
                         renamed.dim.names.plus.subset[subset.dimensions.missing.from.dim.names] = private$i.subset.dimension.values[subset.dimensions.missing.from.dim.names]
           
+                        
+                        denominator.dim.names.plus.expanded = denominator.dim.names
+                        expand.denominator.dimensions = intersect(setdiff(private$i.allow.expand.denominator.dimensions, names(denominator.dim.names)),
+                                                                  names(specification$ontologies$all))
+                        if (length(expand.denominator.dimensions)>0)
+                            denominator.dim.names.plus.expanded[expand.denominator.dimensions] = specification$ontologies$all[expand.denominator.dimensions]
+                        
                         # A lot of work below into printing a useful error message
-                        if (!dim.names.are.subset(sub.dim.names=renamed.dim.names.plus.subset, super.dim.names=denominator.dim.names))
+                        if (!dim.names.are.subset(sub.dim.names=renamed.dim.names.plus.subset, super.dim.names=denominator.dim.names.plus.expanded))
                         {
                             dimensions = names(renamed.dim.names.plus.subset)
-                            denominator.dimensions = names(denominator.dim.names)
+                            denominator.dimensions = names(denominator.dim.names.plus.expanded)
                             
                             missing.dimensions = setdiff(dimensions, denominator.dimensions)
                             if (length(missing.dimensions)>0)
@@ -7937,7 +8118,7 @@ MODEL.OUTCOME = R6::R6Class(
                             else
                             {
                                 missing.values.per.dimension = sapply(dimensions, function(d){
-                                    setdiff(renamed.dim.names.plus.subset[[d]], denominator.dim.names[[d]])
+                                    setdiff(renamed.dim.names.plus.subset[[d]], denominator.dim.names.plus.expanded[[d]])
                                 })
                                 dimensions.with.missing.mask = sapply(missing.values.per.dimension, length)>0
                                 
@@ -8406,6 +8587,22 @@ MODEL.OUTCOME = R6::R6Class(
                 stop(paste0("Cannot modify a model outcome's 'value.is.numerator' - it is read-only"))
         },
         
+        allow.expand.dimensions = function(value)
+        {
+            if (missing(value))
+                private$i.allow.expand.dimensions
+            else
+                stop(paste0("Cannot modify a model outcome's 'allow.expand.dimensions' - it is read-only"))
+        },
+        
+        allow.expand.denominator.dimensions = function(value)
+        {
+            if (missing(value))
+                private$i.allow.expand.denominator.dimensions
+            else
+                stop(paste0("Cannot modify a model outcome's 'allow.expand.denominator.dimensions' - it is read-only"))
+        },
+        
         dimension.alias.suffix = function(value)
         {
             if (missing(value))
@@ -8439,6 +8636,8 @@ MODEL.OUTCOME = R6::R6Class(
         i.exclude.dimensions = NULL,
         i.subset.dimension.values = NULL,
         i.rename.dimension.values = NULL,
+        i.allow.expand.dimensions = NULL,
+        i.allow.expand.denominator.dimensions = NULL,
         i.dimension.alias.suffix = NULL,
         i.dimension.aliases = NULL,
         i.force.dim.names.to.keep.dimensions = NULL,
@@ -8465,6 +8664,16 @@ MODEL.OUTCOME = R6::R6Class(
                                                               already.calculated.dim.names = already.calculated.dim.names,
                                                               limit.dimensions.by.quantity.dimensions = limit.dimensions.by.quantity.dimensions,
                                                               error.prefix = error.prefix)
+            
+            dimensions.to.expand = intersect(setdiff(private$i.allow.expand.dimensions, names(dim.names)),
+                                             names(specification$ontologies$all))
+            if (length(dimensions.to.expand)>0)
+            {
+                if (is.null(dim.names))
+                    dim.names = list()
+                
+                dim.names[dimensions.to.expand] = specification$ontologies$all[dimensions.to.expand]
+            }
             
             if (!is.null(dim.names))
             {
@@ -8526,7 +8735,7 @@ MODEL.OUTCOME = R6::R6Class(
                                 ", but ",
                                 ifelse(length(keep.dimensions.not.in.ontologies)==1, "it is", "they are",
                                        " not present as dimensions in the specification's 'compartments.for.uninfected.only', ",
-                                       "'compartments.for.infected.only', or 'compartments.for.infected.and.uninfected. ",
+                                       "'compartments.for.infected.only', 'compartments.for.infected.and.uninfected', or 'compartments.for.outcomes'. ",
                                        "Unless force.dim.names.to.keep.dimensions=F, keep.dimensions must come from these compartments")))
                 
                 forced.dim.names = as.list(specification$ontologies$all[private$i.keep.dimensions])
@@ -8603,6 +8812,7 @@ MODEL.OUTCOME = R6::R6Class(
                 if (!is.null(dim.names.from.outcomes))
                 {
                     excess.dimensions = setdiff(names(quant.max.dim.names), names(dim.names.from.outcomes))
+                    excess.dimensions = setdiff(excess.dimensions, private$i.allow.expand.dimensions)
                     excess.dimensions.greater.than.length.one = excess.dimensions[sapply(quant.max.dim.names[excess.dimensions], length) > 1]
                     if (length(excess.dimensions.greater.than.length.one)>0)
                     {
@@ -8613,7 +8823,7 @@ MODEL.OUTCOME = R6::R6Class(
                                     ifelse(length(excess.dimensions.greater.than.length.one)==1, "this dimension is", "these dimensions are"),
                                     " not present in the outcome dim.names inferred from the other outcomes '",
                                     private$i.name, "' depend on (",
-                                    collapse.with.and("'", sapply(dep.on.outcomes, function(dep){dep$get.original.name(private$i.version)}), "'"),
+                                    collapse.with.and(sapply(dep.on.outcomes, function(dep){dep$get.original.name(private$i.version)})),
                                     ")"))
                     }
                 }
@@ -8905,6 +9115,8 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
                               exclude.dimensions,
                               subset.dimension.values,
                               rename.dimension.values,
+                              allow.expand.dimensions,
+                              allow.expand.denominator.dimensions,
                               dimension.aliases,
                               dimension.alias.suffix,
                               save,
@@ -8923,6 +9135,8 @@ DYNAMIC.MODEL.OUTCOME = R6::R6Class(
                              exclude.dimensions = exclude.dimensions,
                              subset.dimension.values = subset.dimension.values,
                              rename.dimension.values = rename.dimension.values,
+                             allow.expand.dimensions = allow.expand.dimensions,
+                             allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                              dimension.aliases = dimension.aliases,
                              dimension.alias.suffix = dimension.alias.suffix,
                              force.dim.names.to.keep.dimensions = F,
@@ -9247,6 +9461,8 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
                               exclude.dimensions,
                               subset.dimension.values,
                               rename.dimension.values,
+                              allow.expand.dimensions,
+                              allow.expand.denominator.dimensions,
                               dimension.aliases,
                               dimension.alias.suffix,
                               save,
@@ -9270,6 +9486,8 @@ TRANSITION.MODEL.OUTCOME = R6::R6Class(
                              exclude.dimensions = exclude.dimensions,
                              subset.dimension.values = subset.dimension.values,
                              rename.dimension.values = rename.dimension.values,
+                             allow.expand.dimensions = allow.expand.dimensions,
+                             allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                              dimension.aliases = dimension.aliases,
                              dimension.alias.suffix = dimension.alias.suffix,
                              from.year = from.year,
@@ -9369,6 +9587,8 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                               subset.dimension.values,
                               rename.dimension.values,
                               force.dim.names.to.keep.dimensions,
+                              allow.expand.dimensions,
+                              allow.expand.denominator.dimensions,
                               dimension.aliases,
                               dimension.alias.suffix,
                               scale,
@@ -9389,6 +9609,8 @@ INTEGRATED.MODEL.OUTCOME = R6::R6Class(
                              subset.dimension.values = subset.dimension.values,
                              rename.dimension.values = rename.dimension.values,
                              force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
+                             allow.expand.dimensions = allow.expand.dimensions,
+                             allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                              dimension.aliases = dimension.aliases,
                              dimension.alias.suffix = dimension.alias.suffix,
                              save = save,
@@ -9692,6 +9914,8 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
                               subset.dimension.values,
                               rename.dimension.values,
                               force.dim.names.to.keep.dimensions,
+                              allow.expand.dimensions,
+                              allow.expand.denominator.dimensions,
                               dimension.aliases,
                               dimension.alias.suffix,
                               scale,
@@ -9712,6 +9936,8 @@ COMBINED.MODEL.OUTCOME = R6::R6Class(
                              subset.dimension.values = subset.dimension.values,
                              rename.dimension.values = rename.dimension.values,
                              force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
+                             allow.expand.dimensions = allow.expand.dimensions,
+                             allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                              dimension.aliases = dimension.aliases,
                              dimension.alias.suffix = dimension.alias.suffix,
                              save = save,
@@ -9892,6 +10118,8 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                               subset.dimension.values = NULL,
                               rename.dimension.values = NULL,
                               force.dim.names.to.keep.dimensions,
+                              allow.expand.dimensions = NULL,
+                              allow.expand.denominator.dimensions = NULL,
                               dimension.aliases = NULL,
                               dimension.alias.suffix = NULL,
                               save = T,
@@ -9921,6 +10149,8 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
                              subset.dimension.values = subset.dimension.values,
                              rename.dimension.values = rename.dimension.values,
                              force.dim.names.to.keep.dimensions = force.dim.names.to.keep.dimensions,
+                             allow.expand.dimensions = allow.expand.dimensions,
+                             allow.expand.denominator.dimensions = allow.expand.denominator.dimensions,
                              dimension.aliases = dimension.aliases,
                              dimension.alias.suffix = dimension.alias.suffix,
                              save = save,
@@ -10090,7 +10320,6 @@ RATE.TO.PROPORTION.MODEL.OUTCOME = R6::R6Class(
         i.calculate.proportion.leaving = NULL
     )
 )
-
 
 ##-------------------------------------##
 ##-------------------------------------##
@@ -10316,20 +10545,20 @@ do.validate.names.or.values <- function(values,
         
         #-- Check for invalid characters --#
         contains.invalid.characters.mask = sapply(values, function(val){
-            string.contains.invalid.characters(val, valid.characters = NUMBERS.LETTERS.SPACE.DASH.PERIOD.UNDERSCORE)
+            string.contains.invalid.characters(val, valid.characters = NUMBERS.LETTERS.SPACE.DASH.PERIOD.UNDERSCORE.PLUS.GT)
         })
         if (any(contains.invalid.characters.mask))
         {
             invalid.values = values[contains.invalid.characters.mask]
             invalid.characters = setdiff(unlist(strsplit(values, split='')),
-                                         strsplit(NUMBERS.LETTERS.SPACE.DASH.PERIOD.UNDERSCORE, split='')[[1]])
+                                         strsplit(NUMBERS.LETTERS.SPACE.DASH.PERIOD.UNDERSCORE.PLUS.GT, split='')[[1]])
             
             if (is.single.value)
                 stop(paste0(error.prefix,
                             "The ", variable.name.for.error, " of a ", descriptor,
                             " ('", invalid.values, "') cannot contain ", 
                             collapse.with.or("'", invalid.characters, "'"), 
-                            " - it can only contain numbers, letters, spaces, periods, dashes, and underscores"))
+                            " - it can only contain numbers, letters, spaces, periods, dashes, underscores, +, or >"))
             else
                 stop(paste0(error.prefix,
                             "Cannot use ",

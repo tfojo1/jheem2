@@ -32,6 +32,9 @@ outer.join.dim.names <- function(..., error.prefix='')
     dim.names.list = list()
     for (elem in args)
     {
+        if (is.null(elem))
+            elem = list()
+        
         if (!is.list(elem))
             stop(paste0(error.prefix,
                         "In outer joining dim.names, ... must contain only lists"))
@@ -53,7 +56,7 @@ outer.join.dim.names <- function(..., error.prefix='')
     
     #-- Make sure all dim.names are named lists
     if (any(sapply(dim.names.list, function(dv){
-        is.null(names(dv))
+        length(dv)>0 && is.null(names(dv))
     })))
         stop(paste0(error.prefix,
                     "In outer-joining dim.names, all arguments must be NAMED lists"))
@@ -864,7 +867,7 @@ check.dim.names.valid <- function(dim.names,
     if (missing(variable.name.for.error))
         stop("Must specify 'variable.name.for.error' for check.dim.names.valid() to work")
     
-    if (!is.list(dim.names))
+    if (!is.null(dim.names) && !is.list(dim.names))
         stop(paste0(error.prefix, "'", variable.name.for.error, "' must be a list"))
     
     if (!allow.empty && length(dim.names)==0)
