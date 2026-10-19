@@ -75,12 +75,16 @@ create.data.manager <- function(name,
 #'@param name A name for the local data manager. If NULL, the name of the cached data manager.
 #'@param description A description for the local data manager. If NULL, the description of the cached data manager.
 #'@param set.as.default Should the loaded data manager be set as the default data manager
+#'@param provenance Optional: what the caller knows about the file's release, as a named list
+#' with any of 'sha256', 'release' and 'repository'. Kept with the file's name and MD5 digest;
+#' see \code{\link{get.data.manager.provenance}}
 #'
 #'@export
 load.data.manager <- function(file,
                               name=NULL,
                               description=NULL,
-                              set.as.default=F)
+                              set.as.default=F,
+                              provenance=NULL)
 {
     error.prefix = "Error loading cached data manager: "
     imported.object.names = suppressWarnings(load(file))
@@ -104,6 +108,8 @@ load.data.manager <- function(file,
                                          description=copy.description,
                                          preserve.original.creation.date=T,
                                          preserve.original.last.modified.date=T)
+    set.data.manager.provenance(new.data.manager,
+                                make.data.manager.provenance(file, provenance, error.prefix))
     
     if (set.as.default)
         default.data.manager.holder$default.data.manager = new.data.manager
@@ -687,6 +693,9 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             else
                 private$i.last.modified.date = Sys.time()
             
+            # A copy keeps the identity of the manager it was copied from
+            if (!is.null(copy.from.data.manager))
+                private$i.provenance = get.data.manager.provenance(copy.from.data.manager)
         },
         
         import.data = function(from.data.manager)
@@ -789,6 +798,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Modified
             private$i.last.modified.date = Sys.time()
+            if (!is.null(private$i.provenance)) private$i.provenance$modified = TRUE
             invisible(self)
             
         },
@@ -973,6 +983,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Return ----
             private$i.last.modified.date = Sys.time()
+            if (!is.null(private$i.provenance)) private$i.provenance$modified = TRUE
             invisible(self)
         },
         
@@ -1013,6 +1024,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Modified
             private$i.last.modified.date = Sys.time()
+            if (!is.null(private$i.provenance)) private$i.provenance$modified = TRUE
             
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
@@ -1094,6 +1106,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Modified
             private$i.last.modified.date = Sys.time()
+            if (!is.null(private$i.provenance)) private$i.provenance$modified = TRUE
             
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
@@ -1151,6 +1164,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Modified
             private$i.last.modified.date = Sys.time()
+            if (!is.null(private$i.provenance)) private$i.provenance$modified = TRUE
             
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
@@ -1200,6 +1214,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Modified
             private$i.last.modified.date = Sys.time()
+            if (!is.null(private$i.provenance)) private$i.provenance$modified = TRUE
             
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
@@ -1640,6 +1655,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
             
             # Modified
             private$i.last.modified.date = Sys.time()
+            if (!is.null(private$i.provenance)) private$i.provenance$modified = TRUE
             
             #-- Invisibly return the data manager for convenience --#
             invisible(self)
@@ -2696,6 +2712,7 @@ JHEEM.DATA.MANAGER = R6::R6Class(
         i.code.iteration = NULL,
         i.creation.date = NULL,
         i.last.modified.date = NULL,
+        i.provenance = NULL, # see DATA_MANAGER_provenance.R
         
         #-- Storage structures for data and metadata --#
         # These three are lists of lists of lists of lists, indexed
